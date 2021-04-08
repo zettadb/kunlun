@@ -8,6 +8,10 @@
  * that such resources are freed at the right time.
  * See utils/resowner/README for more info.
  *
+ * Portions Copyright (c) 2019 ZettaDB inc. All rights reserved.
+ *
+ * This source code is licensed under Apache 2.0 License,
+ * combined with Common Clause Condition 1.0, as detailed in the NOTICE file.
  *
  * Portions Copyright (c) 1996-2018, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
@@ -24,11 +28,12 @@
 #include "jit/jit.h"
 #include "storage/predicate.h"
 #include "storage/proc.h"
+#include "utils/algos.h"
+#include "utils/builtins.h"
 #include "utils/memutils.h"
 #include "utils/rel.h"
 #include "utils/resowner_private.h"
 #include "utils/snapmgr.h"
-
 
 /*
  * All resource IDs managed by this code are required to fit into a Datum,
@@ -126,6 +131,27 @@ typedef struct ResourceOwnerData
 	ResourceArray filearr;		/* open temporary files */
 	ResourceArray dsmarr;		/* dynamic shmem segments */
 	ResourceArray jitarr;		/* JIT contexts */
+
+	/*
+	 * dzw:
+	 * IDs of shards that this resowner's transaction wrote to and read-only from.
+	 * Each ID is an Oid integer. These are used to commit/abort a transaction
+	 * and in savepoint comands.
+	 * Each resowner records the shards accessed by SQL stmts executed in its
+	 * level of the subtransaction, so the stack of resowners may record
+	 * overlapping IDs, that's OK, we will combine decendants' WS and RS when
+	 * ResourceOwnerRelease() is called.
+	 * To execute the txn commands we need to make the array of shards that
+	 * were ever written to in the entire txn, denoted as WS, and the array of
+	 * shards that were read only accessed, denoted as RS.
+	 * For savepoint commands and 'rollback' cmd we always need to simply
+	 * transmit the stmt as is to all WS and RS shards.
+	 * For 'commit', we need to do 2PC to WS if there are more than one shards
+	 * in WS, otherwise(only one written shard) simply do 1PC.
+	 * but always simply send 'xa commit one phase' to shards in RS as the 1st phase.
+	 * */
+	ResourceArray written_shards;
+	ResourceArray read_shards;
 
 	/* We can remember up to MAX_RESOWNER_LOCKS references to local locks. */
 	int			nlocks;			/* number of owned locks */
@@ -354,6 +380,143 @@ ResourceArrayRemove(ResourceArray *resarr, Datum value)
 }
 
 /*
+ * Find a resource from ResourceArray
+ *
+ * Returns true if found, false if resource was not found.
+ *
+ * Note: if same resource ID appears more than once, one instance is removed.
+ */
+static bool
+ResourceArrayFind(ResourceArray *resarr, Datum value)
+{
+	uint32		i,
+				idx,
+				lastidx = resarr->lastidx;
+
+	Assert(value != resarr->invalidval);
+
+	/* Search through all items, but try lastidx first. */
+	if (RESARRAY_IS_ARRAY(resarr))
+	{
+		if (lastidx < resarr->nitems &&
+			resarr->itemsarr[lastidx] == value)
+		{
+			return true;
+		}
+		for (i = 0; i < resarr->nitems; i++)
+		{
+			if (resarr->itemsarr[i] == value)
+			{
+				return true;
+			}
+		}
+	}
+	else
+	{
+		uint32		mask = resarr->capacity - 1;
+
+		if (lastidx < resarr->capacity &&
+			resarr->itemsarr[lastidx] == value)
+		{
+			return true;
+		}
+		idx = DatumGetUInt32(hash_any((void *) &value, sizeof(value))) & mask;
+		for (i = 0; i < resarr->capacity; i++)
+		{
+			if (resarr->itemsarr[idx] == value)
+			{
+				return true;
+			}
+			idx = (idx + 1) & mask;
+		}
+	}
+
+	return false;
+}
+
+
+/*
+ * To add a shard id to ro->RS:
+ * Find in ro->WS, if not found, add it to ro->RS.
+ * */
+static void AddShardToReadShards(ResourceOwner ro, Datum shardid)
+{
+	if (!ResourceArrayFind(&ro->written_shards, shardid) &&
+		!ResourceArrayFind(&ro->read_shards, shardid))
+		ResourceArrayAdd(&ro->read_shards, shardid);
+}
+
+
+static void AddShardToWrittenShards(ResourceOwner ro, Datum shardid)
+{
+	if (!ResourceArrayFind(&ro->written_shards, shardid))
+		ResourceArrayAdd(&ro->written_shards, shardid);
+}
+
+static void CombineChildShardsToParent(ResourceOwner child, ResourceOwner parent, bool isCommit)
+{
+	if (!child || !parent || child->parent != parent)
+		return;
+
+	uint32 child_nrs = RESARRAY_IS_ARRAY(&child->read_shards) ? child->read_shards.nitems : child->read_shards.capacity;
+	uint32 child_nws = RESARRAY_IS_ARRAY(&child->written_shards) ? child->written_shards.nitems : child->written_shards.capacity;
+	uint32 parent_nrs = RESARRAY_IS_ARRAY(&parent->read_shards) ? parent->read_shards.nitems : parent->read_shards.capacity;
+
+	/*
+	 * Steps to merge:
+	 * For each parent's read shard y, if y is in child's WS, remove y from parent's RS.
+	 * For each child's read shard x, if x is not in parent's WS, then add it to parent's RS.
+	 * If committing, add every child's written shard to parent's written_shards;
+	 * otherwise(aborting), add every child's written shard to parent's read_shards,
+	 * because although mysql innodb rollbacks the save point, the row locks held by
+	 * the subtrx is still held after 'rollback to' execution, and the txn branch
+	 * is still active even if all writes are rolled back. in all, we need to
+	 * end the transaction branch even if all write stmts in it are rolled back,
+	 * we should never leave the txn branch active after our txn ends.
+	 *
+	 * */
+	Datum *parr = parent->read_shards.itemsarr;
+	Datum invalid_shardid = 0;
+
+	for (uint32 i = 0; isCommit && i < parent_nrs; i++)
+	{
+		if (parr[i] != invalid_shardid &&
+			ResourceArrayFind(&child->written_shards, parr[i]))
+		{
+			ResourceArrayRemove(&parent->read_shards, parr[i]);
+		}
+	}
+
+	Datum *carr = child->read_shards.itemsarr;
+	for (uint32 i = 0; i < child_nrs; i++)
+	{
+		if (carr[i] != invalid_shardid &&
+			!ResourceArrayFind(&parent->written_shards, carr[i]) &&
+			!ResourceArrayFind(&parent->read_shards, carr[i]))
+		{
+			ResourceArrayAdd(&parent->read_shards, carr[i]);
+		}
+	}
+
+	Datum *cwarr = child->written_shards.itemsarr;
+	for (uint32 i = 0; i < child_nws; i++)
+	{
+		if (cwarr[i] != invalid_shardid)
+		{
+			if (isCommit && !ResourceArrayFind(&parent->written_shards, cwarr[i]))
+			{
+				ResourceArrayAdd(&parent->written_shards, cwarr[i]);
+			}
+
+			if (!isCommit && !ResourceArrayFind(&parent->read_shards, cwarr[i]))
+			{
+				ResourceArrayAdd(&parent->read_shards, cwarr[i]);
+			}
+		}
+	}
+}
+
+/*
  * Get any convenient entry in a ResourceArray.
  *
  * "Convenient" is defined as "easy for ResourceArrayRemove to remove";
@@ -480,6 +643,92 @@ ResourceOwnerRelease(ResourceOwner owner,
 	ResourceOwnerReleaseInternal(owner, phase, isCommit, isTopLevel);
 }
 
+typedef struct OidArray
+{
+	Oid *pids; // buffer
+	size_t nslots; // total capacity
+	size_t len; // number of valid elements
+} OidArray;
+
+/*
+ * Recursively add decendants' read/write accessed shard's ID into
+ * array 'arr', and make sure no shard id duplications.
+ * */
+static void GetAllShardsAccessedInternal(OidArray *oidarr, ResourceOwner owner)
+{
+	ResourceOwner child;
+
+	/* Recurse to handle descendants */
+	for (child = owner->firstchild; child != NULL; child = child->nextchild)
+		GetAllShardsAccessedInternal(oidarr, child);
+	if (oidarr->len == oidarr->nslots)
+	{
+		oidarr->nslots *= 2;
+		oidarr->pids = repalloc(oidarr->pids, sizeof(Oid)*oidarr->nslots);
+	}
+
+
+	uint32 owner_nrs = RESARRAY_IS_ARRAY(&owner->read_shards) ? owner->read_shards.nitems : owner->read_shards.capacity;
+	uint32 owner_nws = RESARRAY_IS_ARRAY(&owner->written_shards) ? owner->written_shards.nitems : owner->written_shards.capacity;
+
+	Datum *arr = owner->read_shards.itemsarr;
+	int inspos = 0, ret = 0;
+
+	for (uint32 i = 0; i < owner_nrs; i++)
+	{
+		Oid sid = arr[i];
+		if (sid == 0)
+			continue;
+
+		ret = bin_search(&sid, oidarr->pids, oidarr->len, sizeof(Oid), oid_cmp, &inspos);
+		if (ret == -1)
+		{
+			if (inspos < oidarr->len)
+				memmove(oidarr->pids + inspos + 1, oidarr->pids + inspos, sizeof(Oid) * (oidarr->len - inspos));
+			else
+				Assert(inspos < oidarr->len);
+			oidarr->pids[inspos] = sid;
+			oidarr->len++;
+		}
+	}
+
+	arr = owner->written_shards.itemsarr;
+	for (uint32 i = 0; i < owner_nws; i++)
+	{
+		Oid sid = arr[i];
+		if (sid == 0)
+			continue;
+
+		ret = bin_search(&sid, oidarr->pids, oidarr->len, sizeof(Oid), oid_cmp, &inspos);
+		if (ret == -1)
+		{
+			if (inspos < oidarr->len)
+				memmove(oidarr->pids + inspos + 1, oidarr->pids + inspos, sizeof(Oid) * (oidarr->len - inspos));
+			else
+				Assert(inspos < oidarr->len);
+			oidarr->pids[inspos] = sid;
+			oidarr->len++;
+		}
+	}
+}
+
+/*
+ * Find owner and its decendants' all read/write accessed shards' IDs, put them
+ * into array [*pids, *pids_nslots). return the NO. of elements in *pids. *pids
+ * can be repalloc'ed if space not enough. Every shard id is guaranteed to be
+ * unique in *pids.
+ * */
+size_t GetAllShardsAccessed(Oid **pids, size_t nslots, ResourceOwner owner)
+{
+	Assert(pids && *pids && nslots > 0 && owner);
+
+	OidArray arr = {*pids, nslots, 0};
+	GetAllShardsAccessedInternal(&arr, owner);
+	*pids = arr.pids;
+
+	return arr.len;
+}
+
 static void
 ResourceOwnerReleaseInternal(ResourceOwner owner,
 							 ResourceReleasePhase phase,
@@ -549,6 +798,8 @@ ResourceOwnerReleaseInternal(ResourceOwner owner,
 
 			jit_release_context(context);
 		}
+
+		CombineChildShardsToParent(owner, owner->parent, isCommit);
 	}
 	else if (phase == RESOURCE_RELEASE_LOCKS)
 	{
@@ -1300,4 +1551,76 @@ ResourceOwnerForgetJIT(ResourceOwner owner, Datum handle)
 	if (!ResourceArrayRemove(&(owner->jitarr), handle))
 		elog(ERROR, "JIT context %p is not owned by resource owner %s",
 			 DatumGetPointer(handle), owner->name);
+}
+
+
+/*
+ * Make sure there is room for at least one more entry in a ResourceOwner's
+ * written_shards reference array.
+ *
+ * This is separate from actually inserting an entry because if we run out of
+ * memory, it's critical to do so *before* acquiring the resource.
+ */
+void
+ResourceOwnerEnlargeWrittenShard(ResourceOwner owner)
+{
+	ResourceArrayEnlarge(&(owner->written_shards));
+}
+
+/*
+ * Remember that a written shard is owned by a ResourceOwner
+ *
+ * Caller must have previously done ResourceOwnerEnlargeWrittenShard()
+ */
+void
+ResourceOwnerRememberWrittenShard(ResourceOwner owner, Datum shard_id)
+{
+	AddShardToWrittenShards(owner, shard_id);
+}
+
+/*
+ * Forget that a written shard is owned by a ResourceOwner
+ */
+void
+ResourceOwnerForgetWrittenShard(ResourceOwner owner, Datum shard_id)
+{
+	if (!ResourceArrayRemove(&(owner->written_shards), shard_id))
+		elog(ERROR, "written shards %u is not owned by resource owner %s",
+			 DatumGetObjectId(shard_id), owner->name);
+}
+
+
+/*
+ * Make sure there is room for at least one more entry in a ResourceOwner's
+ * read_shards reference array.
+ *
+ * This is separate from actually inserting an entry because if we run out of
+ * memory, it's critical to do so *before* acquiring the resource.
+ */
+void
+ResourceOwnerEnlargeReadShard(ResourceOwner owner)
+{
+	ResourceArrayEnlarge(&(owner->read_shards));
+}
+
+/*
+ * Remember that a written shard is owned by a ResourceOwner
+ *
+ * Caller must have previously done ResourceOwnerEnlargeReadShard()
+ */
+void
+ResourceOwnerRememberReadShard(ResourceOwner owner, Datum shard_id)
+{
+	AddShardToReadShards(owner, shard_id);
+}
+
+/*
+ * Forget that a written shard is owned by a ResourceOwner
+ */
+void
+ResourceOwnerForgetReadShard(ResourceOwner owner, Datum shard_id)
+{
+	if (!ResourceArrayRemove(&(owner->read_shards), shard_id))
+		elog(ERROR, "written shards %u is not owned by resource owner %s",
+			 DatumGetObjectId(shard_id), owner->name);
 }

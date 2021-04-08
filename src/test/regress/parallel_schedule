@@ -9,11 +9,13 @@
 # we'd prefer not to have checkpoints later in the tests because that
 # interferes with crash-recovery testing.
 test: tablespace
-
+test: remote
+test: remote_dml
 # ----------
 # The first group of parallel tests
 # ----------
-test: boolean char name varchar text int2 int4 int8 oid float4 float8 bit numeric txid uuid enum money rangetypes pg_lsn regproc
+test: boolean char name varchar text int2 int4 int8 oid float4 float8 bit numeric enum enum2 money 
+
 
 # Depends on things setup during char, varchar and text
 test: strings
@@ -23,14 +25,19 @@ test: numerology
 # ----------
 # The second group of parallel tests
 # ----------
-test: point lseg line box path polygon circle date time timetz timestamp timestamptz interval abstime reltime tinterval inet macaddr macaddr8 tstypes
-
+#test: point lseg line box path polygon circle 
+test: date time timetz timestamp timestamptz inet macaddr macaddr8 
+#test: interval abstime reltime tinterval tstypes
+#test: rangetypes pg_lsn regproc uuid txid 
+#
 # ----------
 # Another group of parallel tests
 # geometry depends on point, lseg, box, path, polygon and circle
 # horology depends on interval, timetz, timestamp, timestamptz, reltime and abstime
 # ----------
-test: geometry horology regex oidjoins type_sanity opr_sanity misc_sanity comments expressions
+# test: geometry horology regex oidjoins 
+
+test: type_sanity opr_sanity misc_sanity comments expressions
 
 # ----------
 # These four each depend on the previous one

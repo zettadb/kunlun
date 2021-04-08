@@ -175,6 +175,19 @@ struct PGPROC
 
 	uint32		wait_event_info;	/* proc's wait information */
 
+	/* dzw: whether the commit log append op succeeded. 1: success; 0: failure; -1: timeout */
+	char        commit_log_append_done;
+	/*
+	  dzw:
+	  true if last PGSemaphoreTimedLock() failed to acquire this->sem, and
+	  in this case it's crucial that we call PGSemaphoreReset() before calling
+	  PGSemaphoreTimedLock/PGSemaphoreLock() next time because a
+	  PGSemaphoreUnlock() could have been called already to bump sem's value
+	  to 1, and if we don't reset sem value to 0 first, PGSemaphore[Timed]Lock()
+	  would simply return without the waited condition/event occur, causing
+	  serious synchrnization errors.
+	*/
+	bool		last_sem_wait_timedout;
 	/* Support for group transaction status update. */
 	bool		clogGroupMember;	/* true, if member of clog group */
 	pg_atomic_uint32 clogGroupNext; /* next clog group member */

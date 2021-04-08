@@ -18,6 +18,7 @@
 
 #include "access/htup_details.h"
 #include "access/reloptions.h"
+#include "access/remote_meta.h"
 #include "access/twophase.h"
 #include "access/xact.h"
 #include "access/xlog.h"
@@ -71,6 +72,7 @@
 #include "utils/syscache.h"
 #include "utils/rel.h"
 
+bool skip_top_level_check = false;
 
 /* Hook for plugins to get control in ProcessUtility() */
 ProcessUtility_hook_type ProcessUtility_hook = NULL;
@@ -398,6 +400,11 @@ standard_ProcessUtility(PlannedStmt *pstmt,
 	pstate = make_parsestate(NULL);
 	pstate->p_sourcetext = queryString;
 
+	if (enable_remote_ddl() && is_banned_ddl_stmt(nodeTag(parsetree)))
+		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+ 				errmsg("Statement '%s' is not supported in Kunlun.", CreateCommandTag(parsetree))));
+	RemoteDDLCxtStartStmt(nodeTag(parsetree), queryString);
+
 	switch (nodeTag(parsetree))
 	{
 			/*
@@ -581,7 +588,8 @@ standard_ProcessUtility(PlannedStmt *pstmt,
 
 		case T_CreatedbStmt:
 			/* no event triggers for global objects */
-			PreventInTransactionBlock(isTopLevel, "CREATE DATABASE");
+			if (!skip_top_level_check)
+				PreventInTransactionBlock(isTopLevel, "CREATE DATABASE");
 			createdb(pstate, (CreatedbStmt *) parsetree);
 			break;
 
@@ -600,7 +608,8 @@ standard_ProcessUtility(PlannedStmt *pstmt,
 				DropdbStmt *stmt = (DropdbStmt *) parsetree;
 
 				/* no event triggers for global objects */
-				PreventInTransactionBlock(isTopLevel, "DROP DATABASE");
+				if (!skip_top_level_check)
+					PreventInTransactionBlock(isTopLevel, "DROP DATABASE");
 				dropdb(stmt->dbname, stmt->missing_ok);
 			}
 			break;
@@ -688,8 +697,10 @@ standard_ProcessUtility(PlannedStmt *pstmt,
 		case T_VariableShowStmt:
 			{
 				VariableShowStmt *n = (VariableShowStmt *) parsetree;
-
-				GetPGVariable(n->name, dest);
+				if (n->sv_scope == SVS_INVALID)
+					GetPGVariable(n, dest);
+				else
+					GetVariablesShard(n, dest);
 			}
 			break;
 
@@ -1030,7 +1041,7 @@ ProcessUtilitySlow(ParseState *pstate,
 																"toast",
 																validnsps,
 																true,
-																false);
+																false, NULL);
 							(void) heap_reloptions(RELKIND_TOASTVALUE,
 												   toast_options,
 												   true);
@@ -1482,11 +1493,13 @@ ProcessUtilitySlow(ParseState *pstate,
 				break;
 
 			case T_CreateSeqStmt:
-				address = DefineSequence(pstate, (CreateSeqStmt *) parsetree);
+				address = DefineSequence(pstate, (CreateSeqStmt *) parsetree,
+					context != PROCESS_UTILITY_SUBCOMMAND);
 				break;
 
 			case T_AlterSeqStmt:
-				address = AlterSequence(pstate, (AlterSeqStmt *) parsetree);
+				address = AlterSequence(pstate, (AlterSeqStmt *) parsetree,
+					context != PROCESS_UTILITY_SUBCOMMAND);
 				break;
 
 			case T_CreateTableAsStmt:
@@ -1850,7 +1863,7 @@ UtilityTupleDescriptor(Node *parsetree)
 			{
 				VariableShowStmt *n = (VariableShowStmt *) parsetree;
 
-				return GetPGVariableResultDesc(n->name);
+				return GetPGVariableResultDesc(n);
 			}
 
 		default:

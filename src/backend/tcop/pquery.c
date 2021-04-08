@@ -26,6 +26,8 @@
 #include "tcop/utility.h"
 #include "utils/memutils.h"
 #include "utils/snapmgr.h"
+#include "access/remote_meta.h"
+#include "sharding/sharding_conn.h"
 
 
 /*
@@ -166,7 +168,10 @@ ProcessQuery(PlannedStmt *plan,
 	if (completionTag)
 	{
 		Oid			lastOid;
-
+		/*
+		 * dzw: melt into pg's optimizer&executor framework, set the
+		 * es_processed correctly.
+		 * */
 		switch (queryDesc->operation)
 		{
 			case CMD_SELECT:
@@ -205,6 +210,17 @@ ProcessQuery(PlannedStmt *plan,
 	ExecutorFinish(queryDesc);
 	ExecutorEnd(queryDesc);
 
+	/*
+	 * dzw:
+	 * queryDesc->estate is NULL after ExecutorEnd() call.
+	 * */
+	uint64_t nremote_afrows = GetRemoteAffectedRows();
+	if (completionTag && strcmp("INSERT 0 0", completionTag) == 0 &&
+		nremote_afrows > 0)
+		snprintf(completionTag, COMPLETION_TAG_BUFSIZE,
+				"INSERT %u " UINT64_FORMAT,
+				0, nremote_afrows);
+		
 	FreeQueryDesc(queryDesc);
 }
 
@@ -768,7 +784,8 @@ PortalRun(Portal portal, long count, bool isTopLevel, bool run_once,
 					FillPortalStore(portal, isTopLevel);
 
 				/*
-				 * Now fetch desired portion of results.
+				 * Now fetch desired portion of results. nprocessed is the NO.
+				 * of rows returned.
 				 */
 				nprocessed = PortalRunSelect(portal, true, count, dest);
 
@@ -1194,6 +1211,19 @@ PortalRunUtility(Portal portal, PlannedStmt *pstmt,
 	if (snapshot != NULL && ActiveSnapshotSet() &&
 		snapshot == GetActiveSnapshot())
 		PopActiveSnapshot();
+
+	/*
+	  dzw:
+	  Note down the DDL stmt text if it can be supported by simply replicating
+	  to other computing nodes and involve no storage shard actions.
+	*/
+	if (isTopLevel && enable_remote_ddl() && pstmt &&
+		(is_supported_simple_ddl_stmt(nodeTag(pstmt->utilityStmt)) ||
+		 (nodeTag(pstmt->utilityStmt) == T_DropStmt &&
+		  !is_object_stored_in_shards(((DropStmt*)pstmt->utilityStmt)->removeType)) ||
+		 (nodeTag(pstmt->utilityStmt) == T_CreateTableAsStmt &&
+		  ((CreateTableAsStmt*)pstmt->utilityStmt)->relkind == OBJECT_MATVIEW)))
+		accumulate_simple_ddl_sql(portal->sourceText, pstmt->stmt_location, pstmt->stmt_len);
 }
 
 /*
@@ -1373,9 +1403,9 @@ PortalRunMulti(Portal portal,
 		else if (strcmp(completionTag, "INSERT") == 0)
 			strcpy(completionTag, "INSERT 0 0");
 		else if (strcmp(completionTag, "UPDATE") == 0)
-			strcpy(completionTag, "UPDATE 0");
+			snprintf(completionTag, COMPLETION_TAG_BUFSIZE, "UPDATE %lu", GetRemoteAffectedRows());
 		else if (strcmp(completionTag, "DELETE") == 0)
-			strcpy(completionTag, "DELETE 0");
+			snprintf(completionTag, COMPLETION_TAG_BUFSIZE, "DELETE %lu", GetRemoteAffectedRows());
 	}
 }
 

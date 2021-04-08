@@ -64,7 +64,7 @@
 #include "utils/datetime.h"
 #include "utils/numeric.h"
 #include "utils/xml.h"
-
+#include "access/remote_meta.h" // findSequenceByName
 
 /*
  * Location tracking support --- simpler than bison's default, since we only
@@ -241,6 +241,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 	PartitionSpec		*partspec;
 	PartitionBoundSpec	*partboundspec;
 	RoleSpec			*rolespec;
+	ShardVarScope		svs_scope;
 }
 
 %type <node>	stmt schema_stmt
@@ -315,7 +316,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 %type <list>	OptRoleList AlterOptRoleList
 %type <defelt>	CreateOptRoleElem AlterOptRoleElem
 
-%type <str>		opt_type
+%type <str>		opt_type var_match
 %type <str>		foreign_server_version opt_foreign_server_version
 %type <str>		opt_in_database
 
@@ -427,7 +428,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 %type <node>	for_locking_item
 %type <list>	for_locking_clause opt_for_locking_clause for_locking_items
 %type <list>	locked_rels_list
-%type <boolean>	all_or_distinct
+%type <boolean>	all_or_distinct strict_opt
 
 %type <node>	join_outer join_qual
 %type <jtype>	join_type
@@ -584,6 +585,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 %type <node>		partbound_datum PartitionRangeDatum
 %type <list>		hash_partbound partbound_datum_list range_datum_list
 %type <defelt>		hash_partbound_elem
+%type <svs_scope>   svs_scope
 
 /*
  * Non-keyword token types.  These are hard-wired into the "flex" lexer.
@@ -596,7 +598,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
  */
 %token <str>	IDENT FCONST SCONST BCONST XCONST Op
 %token <ival>	ICONST PARAM
-%token			TYPECAST DOT_DOT COLON_EQUALS EQUALS_GREATER
+%token			AT_AT TYPECAST DOT_DOT COLON_EQUALS EQUALS_GREATER
 %token			LESS_EQUALS GREATER_EQUALS NOT_EQUALS
 
 /*
@@ -609,7 +611,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 /* ordinary key words in alphabetical order */
 %token <keyword> ABORT_P ABSOLUTE_P ACCESS ACTION ADD_P ADMIN AFTER
 	AGGREGATE ALL ALSO ALTER ALWAYS ANALYSE ANALYZE AND ANY ARRAY AS ASC
-	ASSERTION ASSIGNMENT ASYMMETRIC AT ATTACH ATTRIBUTE AUTHORIZATION
+	ASSERTION ASSIGNMENT ASYMMETRIC AT ATTACH ATTRIBUTE AUTHORIZATION AUTO_INCREMENT
 
 	BACKWARD BEFORE BEGIN_P BETWEEN BIGINT BINARY BIT
 	BOOLEAN_P BOTH BY
@@ -619,7 +621,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 	CLUSTER COALESCE COLLATE COLLATION COLUMN COLUMNS COMMENT COMMENTS COMMIT
 	COMMITTED CONCURRENTLY CONFIGURATION CONFLICT CONNECTION CONSTRAINT
 	CONSTRAINTS CONTENT_P CONTINUE_P CONVERSION_P COPY COST CREATE
-	CROSS CSV CUBE CURRENT_P
+	CROSS CSV CUBE CURRENT_P CURRVAL
 	CURRENT_CATALOG CURRENT_DATE CURRENT_ROLE CURRENT_SCHEMA
 	CURRENT_TIME CURRENT_TIMESTAMP CURRENT_USER CURSOR CYCLE
 
@@ -654,7 +656,8 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 
 	MAPPING MATCH MATERIALIZED MAXVALUE METHOD MINUTE_P MINVALUE MODE MONTH_P MOVE
 
-	NAME_P NAMES NATIONAL NATURAL NCHAR NEW NEXT NO NONE
+	NAME_P NAMES NATIONAL NATURAL NCHAR NEW NEXT NEXTVAL NO NONE
+	NOCACHE NOCYCLE NOMAXVALUE NOMINVALUE NOORDER
 	NOT NOTHING NOTIFY NOTNULL NOWAIT NULL_P NULLIF
 	NULLS_P NUMERIC
 
@@ -662,7 +665,8 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 	ORDER ORDINALITY OTHERS OUT_P OUTER_P
 	OVER OVERLAPS OVERLAY OVERRIDING OWNED OWNER
 
-	PARALLEL PARSER PARTIAL PARTITION PASSING PASSWORD PLACING PLANS POLICY
+	PARALLEL PARSER PARTIAL PARTITION PASSING PASSWORD
+	PERSIST PERSIST_ONLY PLACING PLANS POLICY
 	POSITION PRECEDING PRECISION PRESERVE PREPARE PREPARED PRIMARY
 	PRIOR PRIVILEGES PROCEDURAL PROCEDURE PROCEDURES PROGRAM PUBLICATION
 
@@ -674,9 +678,9 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 	ROUTINE ROUTINES ROW ROWS RULE
 
 	SAVEPOINT SCHEMA SCHEMAS SCROLL SEARCH SECOND_P SECURITY SELECT SEQUENCE SEQUENCES
-	SERIALIZABLE SERVER SESSION SESSION_USER SET SETS SETOF SHARE SHOW
+	SERIALIZABLE SERVER SESSION SESSION_USER SET SETS SETOF SHARD SHARE SHOW
 	SIMILAR SIMPLE SKIP SMALLINT SNAPSHOT SOME SQL_P STABLE STANDALONE_P
-	START STATEMENT STATISTICS STDIN STDOUT STORAGE STRICT_P STRIP_P
+	START STARTS STATEMENT STATISTICS STDIN STDOUT STORAGE STRICT_P STRIP_P
 	SUBSCRIPTION SUBSTRING SYMMETRIC SYSID SYSTEM_P
 
 	TABLE TABLES TABLESAMPLE TABLESPACE TEMP TEMPLATE TEMPORARY TEXT_P THEN
@@ -687,8 +691,8 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 	UNBOUNDED UNCOMMITTED UNENCRYPTED UNION UNIQUE UNKNOWN UNLISTEN UNLOGGED
 	UNTIL UPDATE USER USING
 
-	VACUUM VALID VALIDATE VALIDATOR VALUE_P VALUES VARCHAR VARIADIC VARYING
-	VERBOSE VERSION_P VIEW VIEWS VOLATILE
+	VACUUM VALID VALIDATE VALIDATOR VALUE_P VALUES VARCHAR VARIABLES
+	VARIADIC VARYING VERBOSE VERSION_P VIEW VIEWS VOLATILE
 
 	WHEN WHERE WHITESPACE_P WINDOW WITH WITHIN WITHOUT WORK WRAPPER WRITE
 
@@ -1401,20 +1405,160 @@ VariableSetStmt:
 					VariableSetStmt *n = $2;
 					n->is_local = false;
 					$$ = (Node *) n;
+
+					/*
+					  If the var name is actually a mysql var, below settings
+					  will be useful, otherwise it does no harm.
+					*/
+					n->sv_flags |= SVS_CACHED;
+
+					if (n->kind == VAR_SET_DEFAULT)
+						n->sv_flags |= SVS_DEFAULT;
+					else
+						n->sv_flags &= ~SVS_DEFAULT;
+					n->sv_scope = SVS_SESSION;
 				}
 			| SET LOCAL set_rest
 				{
 					VariableSetStmt *n = $3;
 					n->is_local = true;
 					$$ = (Node *) n;
+
+					/*
+					  If the var name is actually a mysql var, below settings
+					  will be useful, otherwise it does no harm.
+					*/
+					n->sv_flags |= SVS_CACHED;
+
+					if (n->kind == VAR_SET_DEFAULT)
+						n->sv_flags |= SVS_DEFAULT;
+					else
+						n->sv_flags &= ~SVS_DEFAULT;
+					n->sv_scope = SVS_SESSION;
 				}
 			| SET SESSION set_rest
 				{
 					VariableSetStmt *n = $3;
 					n->is_local = false;
 					$$ = (Node *) n;
+
+					/*
+					  If the var name is actually a mysql var, below settings
+					  will be useful, otherwise it does no harm.
+					*/
+					n->sv_flags |= SVS_CACHED;
+
+					if (n->kind == VAR_SET_DEFAULT)
+						n->sv_flags |= SVS_DEFAULT;
+					else
+						n->sv_flags &= ~SVS_DEFAULT;
+					n->sv_scope = SVS_SESSION;
+				}
+			| SET GLOBAL generic_set
+				{
+					VariableSetStmt *n = $3;
+					n->is_local = false;
+
+					n->sv_flags |= SVS_CACHED;
+
+					if (n->kind == VAR_SET_DEFAULT)
+						n->sv_flags |= SVS_DEFAULT;
+					else
+						n->sv_flags &= ~SVS_DEFAULT;
+
+					n->sv_scope = SVS_GLOBAL;
+					n->kind = VAR_SET_SHARD;
+					$$ = (Node *)n;
+				}
+			| SET PERSIST generic_set
+				{
+					VariableSetStmt *n = $3;
+					n->is_local = false;
+
+					n->sv_flags |= SVS_CACHED;
+
+					if (n->kind == VAR_SET_DEFAULT)
+						n->sv_flags |= SVS_DEFAULT;
+					else
+						n->sv_flags &= ~SVS_DEFAULT;
+
+					n->sv_scope = SVS_PERSIST;
+					n->kind = VAR_SET_SHARD;
+					$$ = (Node *)n;
+				}
+			| SET PERSIST_ONLY generic_set
+				{
+					VariableSetStmt *n = $3;
+					n->is_local = false;
+
+					n->sv_flags |= SVS_CACHED;
+
+					if (n->kind == VAR_SET_DEFAULT)
+						n->sv_flags |= SVS_DEFAULT;
+					else
+						n->sv_flags &= ~SVS_DEFAULT;
+
+					n->sv_scope = SVS_PERSIST_ONLY;
+					n->kind = VAR_SET_SHARD;
+					$$ = (Node *)n;
+				}
+			| SET SHARD svs_scope generic_set
+				{
+					VariableSetStmt *n = $4;
+					/*
+					  In mysql system vars has no txn/function scope, the
+					  smallest scope is session. we don't support mysql user
+					  vars here, that's not needed.
+					*/
+					n->is_local = false;
+
+					n->sv_flags |= SVS_CACHED;
+
+					if (n->kind == VAR_SET_DEFAULT)
+						n->sv_flags |= SVS_DEFAULT;
+					else
+						n->sv_flags &= ~SVS_DEFAULT;
+
+					n->sv_scope = $3;
+					n->kind = VAR_SET_SHARD;
+					$$ = (Node *)n;
+				}
+			| SET AT_AT svs_scope '.' generic_set
+				{
+					VariableSetStmt *n = $5;
+					/*
+					  In mysql system vars has no txn/function scope, the
+					  smallest scope is session. we don't support mysql user
+					  vars here, that's not needed.
+					*/
+					n->is_local = false;
+
+					n->sv_flags |= SVS_CACHED;
+
+					if (n->kind == VAR_SET_DEFAULT)
+						n->sv_flags |= SVS_DEFAULT;
+					else
+						n->sv_flags &= ~SVS_DEFAULT;
+
+					n->sv_scope = $3;
+					n->kind = VAR_SET_SHARD;
+					$$ = (Node *)n;
 				}
 		;
+
+svs_scope:
+			SESSION { $$ = SVS_SESSION; }
+			| LOCAL { $$ = SVS_SESSION; }
+			| GLOBAL { $$ = SVS_GLOBAL; }
+			| PERSIST { $$ = SVS_PERSIST; }
+			| PERSIST_ONLY { $$ = SVS_PERSIST_ONLY; }
+			/*
+			can't have EMPTY rule here because all above 4 are unreserved
+			keywords so they could be used as a var name, causing shift/reduce
+			conflicts. We have to keep such 4 keywords unreserved because user
+			code may have such var names.
+			*/
+			;
 
 set_rest:
 			TRANSACTION transaction_mode_list
@@ -1736,8 +1880,37 @@ VariableShowStmt:
 					n->name = "all";
 					$$ = (Node *) n;
 				}
+			| SHOW VARIABLES var_match strict_opt
+				{
+					VariableShowStmt *n = makeNode(VariableShowStmt);
+					n->name = $3;
+					n->sv_scope = SVS_SESSION;
+					n->strict = $4;
+					$$ = (Node *) n;
+				}
+			| SHOW svs_scope VARIABLES var_match strict_opt
+				{
+					if ($2 != SVS_SESSION && $2 != SVS_GLOBAL)
+						ereport(ERROR,
+								(errcode(ERRCODE_SYNTAX_ERROR),
+								 errmsg("In 'SHOW scope VARIABLES' stmt, scope can only be SESSION or GLOBAL")));
+					VariableShowStmt *n = makeNode(VariableShowStmt);
+					n->name = $4;
+					n->sv_scope = $2;
+					n->strict = $5;
+					$$ = (Node *) n;
+				}
 		;
 
+strict_opt:
+			/* empty */ { $$ = false; }
+			| STRICT_P	{ $$ = true; }
+			;
+
+var_match:
+			/* empty */ { $$ = NULL; }
+			| LIKE Sconst { $$ = $2; }
+		;
 
 ConstraintsSetStmt:
 			SET CONSTRAINTS constraints_set_list constraints_set_mode
@@ -3552,6 +3725,15 @@ ColConstraintElem:
 					n->location = @1;
 					$$ = (Node *)n;
 				}
+			| AUTO_INCREMENT
+				{
+					Constraint *n = makeNode(Constraint);
+					n->contype = CONSTR_IDENTITY;
+					n->generated_when = ATTRIBUTE_IDENTITY_BY_DEFAULT;
+					n->options = NIL;
+					n->location = @1;
+					$$ = (Node *)n;
+				}
 			| REFERENCES qualified_name opt_column_list key_match key_actions
 				{
 					Constraint *n = makeNode(Constraint);
@@ -4204,7 +4386,13 @@ OptParenthesizedSeqOptList: '(' SeqOptList ')'		{ $$ = $2; }
 		;
 
 SeqOptList: SeqOptElem								{ $$ = list_make1($1); }
-			| SeqOptList SeqOptElem					{ $$ = lappend($1, $2); }
+			| SeqOptList SeqOptElem
+				{
+					if ($2)
+						$$ = lappend($1, $2);
+					else // ORDER/NOORDER is only for oracle compatibility, no extra meaning.
+						$$ = $1;
+				}
 		;
 
 SeqOptElem: AS SimpleTypename
@@ -4215,11 +4403,19 @@ SeqOptElem: AS SimpleTypename
 				{
 					$$ = makeDefElem("cache", (Node *)$2, @1);
 				}
+			| NOCACHE
+				{
+					$$ = makeDefElem("cache", (Node *)makeInteger(1), @1);
+				}
 			| CYCLE
 				{
 					$$ = makeDefElem("cycle", (Node *)makeInteger(true), @1);
 				}
 			| NO CYCLE
+				{
+					$$ = makeDefElem("cycle", (Node *)makeInteger(false), @1);
+				}
+			| NOCYCLE
 				{
 					$$ = makeDefElem("cycle", (Node *)makeInteger(false), @1);
 				}
@@ -4243,6 +4439,14 @@ SeqOptElem: AS SimpleTypename
 				{
 					$$ = makeDefElem("minvalue", NULL, @1);
 				}
+			| NOMAXVALUE
+				{
+					$$ = makeDefElem("maxvalue", NULL, @1);
+				}
+			| NOMINVALUE
+				{
+					$$ = makeDefElem("minvalue", NULL, @1);
+				}
 			| OWNED BY any_name
 				{
 					$$ = makeDefElem("owned_by", (Node *)$3, @1);
@@ -4256,6 +4460,10 @@ SeqOptElem: AS SimpleTypename
 				{
 					$$ = makeDefElem("start", (Node *)$3, @1);
 				}
+			| STARTS opt_with NumericOnly
+				{
+					$$ = makeDefElem("start", (Node *)$3, @1);
+				}
 			| RESTART
 				{
 					$$ = makeDefElem("restart", NULL, @1);
@@ -4264,6 +4472,13 @@ SeqOptElem: AS SimpleTypename
 				{
 					$$ = makeDefElem("restart", (Node *)$3, @1);
 				}
+			| ORDER { $$ = NULL; }
+			| NOORDER { $$ = NULL; }
+			| SHARD Iconst
+				{
+					$$ = makeDefElem("shard", (Node *)makeInteger($2), @1);
+				}
+
 		;
 
 opt_by:		BY				{}
@@ -13592,6 +13807,36 @@ c_expr:		columnref								{ $$ = $1; }
 				  g->location = @1;
 				  $$ = (Node *)g;
 			  }
+			| ColId '.' NEXTVAL
+			  {
+					$$ = (Node *) makeFuncCall(SystemFuncName("nextval"),
+											   list_make1((Node *) makeStringConst($1, @1)), @1);
+			  }
+			| ColId '.' CURRVAL
+			  {
+					$$ = (Node *) makeFuncCall(SystemFuncName("currval"),
+											   list_make1((Node *) makeStringConst($1, @1)), @1);
+	  		  }
+			| ColId indirection '.' NEXTVAL
+			  {
+					$$ = (Node *) makeFuncCall(SystemFuncName("nextval"),
+											   list_make1((Node *) makeStringConst(NameListToString(lcons(makeString($1), $2)), @1)),
+											   @1);
+			  }
+			| ColId indirection '.' CURRVAL
+			  {
+					$$ = (Node *) makeFuncCall(SystemFuncName("currval"),
+											   list_make1((Node *) makeStringConst(NameListToString(lcons(makeString($1), $2)), @1)),
+											   @1);
+	  		  }
+			| NEXTVAL '(' a_expr ')'
+			  {
+					$$ = (Node *) makeFuncCall(SystemFuncName("nextval"), list_make1($3), @1);
+			  }
+			| CURRVAL '(' a_expr ')'
+			  {
+					$$ = (Node *) makeFuncCall(SystemFuncName("currval"), list_make1($3), @1);
+			  }
 		;
 
 func_application: func_name '(' ')'
@@ -14574,8 +14819,17 @@ columnref:	ColId
 				}
 		;
 
+/*
+  dzw:
+  We changed attr_name to NonReservedWord because:
+  db, schema, function, type, trigger, table, column names are all ColId,
+  so there is no sense allowing reserved_keyword to be in indirection_el since
+  there is no chance to really refer to any existing db objects with such names.
+  Eliminating reserved_keyword from below match rule resolves shift/reduce conflicts
+  which would be caused by c_expr's ColId.NEXTVAL/CURRVAL definition.
+*/
 indirection_el:
-			'.' attr_name
+			'.' NonReservedWord
 				{
 					$$ = (Node *) makeString($2);
 				}
@@ -14991,14 +15245,10 @@ NonReservedWord:	IDENT							{ $$ = $1; }
 /* Column label --- allowed labels in "AS" clauses.
  * This presently includes *all* Postgres keywords.
  */
-ColLabel:	IDENT									{ $$ = $1; }
-			| unreserved_keyword					{ $$ = pstrdup($1); }
-			| col_name_keyword						{ $$ = pstrdup($1); }
-			| type_func_name_keyword				{ $$ = pstrdup($1); }
+ColLabel:
+			NonReservedWord							{ $$ = $1; }
 			| reserved_keyword						{ $$ = pstrdup($1); }
 		;
-
-
 /*
  * Keyword category lists.  Generally, every keyword present in
  * the Postgres grammar should appear in exactly one of these lists.
@@ -15165,6 +15415,11 @@ unreserved_keyword:
 			| NEW
 			| NEXT
 			| NO
+			| NOCACHE
+			| NOCYCLE
+			| NOMAXVALUE
+			| NOMINVALUE
+			| NOORDER 
 			| NOTHING
 			| NOTIFY
 			| NOWAIT
@@ -15189,6 +15444,8 @@ unreserved_keyword:
 			| PARTITION
 			| PASSING
 			| PASSWORD
+			| PERSIST
+			| PERSIST_ONLY 
 			| PLANS
 			| POLICY
 			| PRECEDING
@@ -15244,6 +15501,7 @@ unreserved_keyword:
 			| SESSION
 			| SET
 			| SETS
+			| SHARD
 			| SHARE
 			| SHOW
 			| SIMPLE
@@ -15253,6 +15511,7 @@ unreserved_keyword:
 			| STABLE
 			| STANDALONE_P
 			| START
+			| STARTS
 			| STATEMENT
 			| STATISTICS
 			| STDIN
@@ -15403,6 +15662,7 @@ type_func_name_keyword:
 			| RIGHT
 			| SIMILAR
 			| TABLESAMPLE
+			| VARIABLES
 			| VERBOSE
 		;
 
@@ -15422,6 +15682,7 @@ reserved_keyword:
 			| AS
 			| ASC
 			| ASYMMETRIC
+			| AUTO_INCREMENT
 			| BOTH
 			| CASE
 			| CAST
@@ -15436,6 +15697,7 @@ reserved_keyword:
 			| CURRENT_TIME
 			| CURRENT_TIMESTAMP
 			| CURRENT_USER
+			| CURRVAL
 			| DEFAULT
 			| DEFERRABLE
 			| DESC
@@ -15461,6 +15723,7 @@ reserved_keyword:
 			| LIMIT
 			| LOCALTIME
 			| LOCALTIMESTAMP
+			| NEXTVAL
 			| NOT
 			| NULL_P
 			| OFFSET

@@ -68,6 +68,7 @@ typedef enum NodeTag
 	T_WorkTableScan,
 	T_ForeignScan,
 	T_CustomScan,
+	T_RemoteScan,
 	T_Join,
 	T_NestLoop,
 	T_MergeJoin,
@@ -124,6 +125,7 @@ typedef enum NodeTag
 	T_WorkTableScanState,
 	T_ForeignScanState,
 	T_CustomScanState,
+	T_RemoteScanState,
 	T_JoinState,
 	T_NestLoopState,
 	T_MergeJoinState,
@@ -663,6 +665,13 @@ typedef enum CmdType
 	CMD_DELETE,
 	CMD_UTILITY,				/* cmds like create, destroy, copy, vacuum,
 								 * etc. */
+	/* 
+	 * dzw:
+	 * CMD_DDL and CMD_TXN_MGMT are only used by my code, not by official pg.
+	 * The 2 categories of cmds are seen as CMD_UTILITY by pg.
+	 * */
+	CMD_DDL,                    /* create/drop/alter db/table, etc */
+	CMD_TXN_MGMT,               /* dzw: cmds like XA START/END/PREPARE/COMMIT/ROLLBACK, BEGIN, COMMIT, ROLLBACK, RELEASE/ROLLBACK TO SAVEPOINT etc.*/
 	CMD_NOTHING					/* dummy command for instead nothing rules
 								 * with qual */
 } CmdType;

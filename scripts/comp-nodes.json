@@ -1,0 +1,29 @@
+[
+   {
+      "id":1,
+      "name":"comp1",
+      "ip":"127.0.0.1",
+      "port":5401,
+      "user":"abc",
+      "password":"abc",
+      "datadir":"/data/pg_data_dir1"
+   },    
+   {
+      "id":2,
+      "name":"comp2",
+      "ip":"127.0.0.1",
+      "port":5402,
+      "user":"abc",
+      "password":"abc",
+      "datadir":"/data/pg_data_dir2"
+   },
+   {
+      "id":3,
+      "name":"comp3",
+      "ip":"127.0.0.1",
+      "port":5403,
+      "user":"abc",
+      "password":"abc",
+      "datadir":"/data/pg_data_dir3"
+   }
+]

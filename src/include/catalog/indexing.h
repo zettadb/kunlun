@@ -60,6 +60,9 @@ extern void CatalogTupleDelete(Relation heapRel, ItemPointer tid);
  * For each index, we also provide a #define for its OID.  References to
  * the index in the C code should always use these #defines, not the actual
  * index name (much less the numeric OID).
+ *
+ * Relations' OID numbers are simply assigned arbitrarily, the relation id
+ * macro names are also named at will. -- dzw
  */
 
 DECLARE_UNIQUE_INDEX(pg_aggregate_fnoid_index, 2650, on pg_aggregate using btree(aggfnoid oid_ops));
@@ -360,4 +363,22 @@ DECLARE_UNIQUE_INDEX(pg_subscription_subname_index, 6115, on pg_subscription usi
 DECLARE_UNIQUE_INDEX(pg_subscription_rel_srrelid_srsubid_index, 6117, on pg_subscription_rel using btree(srrelid oid_ops, srsubid oid_ops));
 #define SubscriptionRelSrrelidSrsubidIndexId 6117
 
+DECLARE_UNIQUE_INDEX(pg_shard_node_oid_index, 6666, on pg_shard_node using btree(id oid_ops));
+#define ShardNodeOidIndexId 6666
+DECLARE_UNIQUE_INDEX(pg_shard_oid_index, 6667, on pg_shard using btree(id oid_ops));
+#define ShardOidIndexId 6667
+DECLARE_INDEX(pg_shard_node_shardid_index, 6668, on pg_shard_node using btree(shard_id oid_ops));
+#define ShardNodeShardIdIndexId 6668
+DECLARE_UNIQUE_INDEX(pg_shard_node_ip_port_svr_index, 6669, on pg_shard_node using btree(ip name_ops, port int4_ops, svr_node_id oid_ops));
+#define ShardNodeIpPortSrvIndexId 6669
+DECLARE_UNIQUE_INDEX(pg_shard_name_index, 6670, on pg_shard using btree(name name_ops));
+#define ShardNameIndexId 6670
+DECLARE_UNIQUE_INDEX(pg_comp_node_stat_id_tstz_index, 6671, on pg_computing_node_stat using btree(comp_node_id oid_ops, accumulated_since timestamptz_ops));
+#define CompNodeStatIdTstzIndexId 6671
+DECLARE_UNIQUE_INDEX(pg_cluster_meta_nodes_serverid_index, 6672, on pg_cluster_meta_nodes using btree(server_id oid_ops));
+#define ClusterMetaNodesServerIdIndexId 6672
+DECLARE_UNIQUE_INDEX(pg_cluster_meta_id_index, 6673, on pg_cluster_meta using btree(comp_node_id oid_ops));
+#define ClusterMetaIdIndexId 6673
+DECLARE_UNIQUE_INDEX(pg_ddl_log_dbid_index, 6674, on pg_ddl_log_progress using btree(dbid oid_ops));
+#define DDLLogDbidIndexId 6674
 #endif							/* INDEXING_H */

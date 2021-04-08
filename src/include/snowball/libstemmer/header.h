@@ -14,10 +14,10 @@
 
 struct among
 {   int s_size;     /* number of chars in string */
-    const symbol * s;       /* search string */
-    int substring_i;/* index to longest matching substring */
-    int result;     /* result of the lookup */
-    int (* function)(struct SN_env *);
+	const symbol * s;       /* search string */
+	int substring_i;/* index to longest matching substring */
+	int result;     /* result of the lookup */
+	int (* function)(struct SN_env *);
 };
 
 extern symbol * create_s(void);

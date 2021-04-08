@@ -68,7 +68,7 @@
 #include "utils/ruleutils.h"
 #include "utils/snapmgr.h"
 #include "utils/syscache.h"
-
+#include "access/remote_meta.h"
 
 /* result structure for get_rels_with_domain() */
 typedef struct
@@ -1293,6 +1293,9 @@ AlterEnum(AlterEnumStmt *stmt, bool isTopLevel)
 
 	if (stmt->oldVal)
 	{
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("Can't rename enum labels in Kunlun.")));
 		/* Rename an existing label */
 		RenameEnumLabel(enum_type_oid, stmt->oldVal, stmt->newVal);
 	}
@@ -1319,10 +1322,10 @@ AlterEnum(AlterEnumStmt *stmt, bool isTopLevel)
 			 /* safe to do inside transaction block */ ;
 		else
 			PreventInTransactionBlock(isTopLevel, "ALTER TYPE ... ADD");
-
 		AddEnumLabel(enum_type_oid, stmt->newVal,
 					 stmt->newValNeighbor, stmt->newValIsAfter,
 					 stmt->skipIfNewValExists);
+		AlterDependentTables(enum_type_oid);
 	}
 
 	InvokeObjectPostAlterHook(TypeRelationId, enum_type_oid, 0);

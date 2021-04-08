@@ -396,7 +396,8 @@ ExecInitPartitionInfo(ModifyTableState *mtstate,
 					  partrel,
 					  node ? node->nominalRelation : 1,
 					  rootrel,
-					  estate->es_instrument);
+					  estate->es_instrument,
+					  estate);
 
 	/*
 	 * Verify result relation is a valid target for an INSERT.  An UPDATE of a
@@ -1970,6 +1971,37 @@ find_matching_subplans_recurse(PartitionPruningData *prunedata,
 				 * don't have any pruning steps to execute to verify this.
 				 */
 			}
+		}
+	}
+}
+
+
+/*
+  Get the list of IDs of shards in which base relations are  
+*/
+void GetPartitionStorageShards(Relation rel, List **ppshardid_list)
+{
+	PartitionDesc partdesc = RelationGetPartitionDesc(rel);
+	Oid shardid = InvalidOid;
+
+	check_stack_depth();
+
+	for (int i = 0; i < partdesc->nparts; i++)
+	{
+		Oid			partrelid = partdesc->oids[i];
+
+		if (get_rel_relkind_shard(partrelid, &shardid) != RELKIND_PARTITIONED_TABLE)
+		{
+			/*
+			  Ignore local tables.
+			*/
+			if (partrelid != InvalidOid)
+				*ppshardid_list = list_append_unique_oid(*ppshardid_list, shardid);
+		}
+		else
+		{
+			Relation	partrel = heap_open(partrelid, NoLock);
+			GetPartitionStorageShards(partrel, ppshardid_list);
 		}
 	}
 }

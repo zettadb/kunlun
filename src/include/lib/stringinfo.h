@@ -17,6 +17,8 @@
 #ifndef STRINGINFO_H
 #define STRINGINFO_H
 
+#include "utils/palloc.h"
+
 /*-------------------------
  * StringInfoData holds information about an extensible string.
  *		data	is the current buffer for the string (allocated with palloc).
@@ -77,6 +79,9 @@ extern StringInfo makeStringInfo(void);
  * to describe an empty string.
  */
 extern void initStringInfo(StringInfo str);
+extern void initStringInfo2(StringInfo str, size_t initial_size, MemoryContext memcxt);
+void shrinkStringInfo(StringInfo str, int len);
+char *donateStringInfo(StringInfo str);
 
 /*------------------------
  * resetStringInfo
@@ -91,8 +96,10 @@ extern void resetStringInfo(StringInfo str);
  * and append it to whatever is already in str.  More space is allocated
  * to str if necessary.  This is sort of like a combination of sprintf and
  * strcat.
+ *
+ * @retval NO. of bytes appended.
  */
-extern void appendStringInfo(StringInfo str, const char *fmt,...) pg_attribute_printf(2, 3);
+extern int appendStringInfo(StringInfo str, const char *fmt,...) pg_attribute_printf(2, 3);
 
 /*------------------------
  * appendStringInfoVA
@@ -109,13 +116,15 @@ extern int	appendStringInfoVA(StringInfo str, const char *fmt, va_list args) pg_
  * appendStringInfoString
  * Append a null-terminated string to str.
  * Like appendStringInfo(str, "%s", s) but faster.
+ * @retval NO. of bytes appended.
  */
-extern void appendStringInfoString(StringInfo str, const char *s);
+extern int appendStringInfoString(StringInfo str, const char *s);
 
 /*------------------------
  * appendStringInfoChar
  * Append a single byte to str.
  * Like appendStringInfo(str, "%c", ch) but much faster.
+ * @retval NO. of bytes appended.
  */
 extern void appendStringInfoChar(StringInfo str, char ch);
 
@@ -142,6 +151,8 @@ extern void appendStringInfoSpaces(StringInfo str, int count);
  */
 extern void appendBinaryStringInfo(StringInfo str,
 					   const char *data, int datalen);
+extern int appendBinaryStringInfo2(StringInfo str,
+					   const char *data, int datalen);
 
 /*------------------------
  * appendBinaryStringInfoNT
@@ -157,4 +168,6 @@ extern void appendBinaryStringInfoNT(StringInfo str,
  */
 extern void enlargeStringInfo(StringInfo str, int needed);
 
+bool truncateStringInfo(StringInfo str, size_t len);
+size_t lengthStringInfo(StringInfo str);
 #endif							/* STRINGINFO_H */

@@ -25,6 +25,8 @@
 #include "postgres.h"
 
 #include "access/sysattr.h"
+#include "access/remote_dml.h"
+#include "catalog/catalog.h"
 #include "catalog/pg_type.h"
 #include "miscadmin.h"
 #include "nodes/makefuncs.h"
@@ -426,6 +428,25 @@ transformDeleteStmt(ParseState *pstate, DeleteStmt *stmt)
 	nsitem->p_lateral_only = true;
 	nsitem->p_lateral_ok = false;
 
+	if (IsRemoteRelation(pstate->p_target_relation) ||
+		IsRemoteRelationParent(pstate->p_target_relation))
+	{
+		if (stmt->usingClause)
+			ereport(ERROR,
+					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					 errmsg("No other tables than the update target table are allowed when updating a remote relation.")));
+		if (stmt->whereClause && IsA(stmt->whereClause, CurrentOfExpr))
+			ereport(ERROR,
+					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					 errmsg("Cursors are not allowed when updating a remote relation.")));
+
+		if (stmt->withClause)
+			ereport(ERROR,
+					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					 errmsg("With clause not allowed when updating a remote relation.")));
+		//if (stmt->relation) partition leaf tables inherit from root table/inner tables.
+		//    stmt->relation->inh = false; // never update child/inherited tables
+	}
 	/*
 	 * The USING clause is non-standard SQL syntax, and is equivalent in
 	 * functionality to the FROM list that can be specified for UPDATE. The
@@ -2257,6 +2278,26 @@ transformUpdateStmt(ParseState *pstate, UpdateStmt *stmt)
 	/* subqueries in FROM cannot access the result relation */
 	nsitem->p_lateral_only = true;
 	nsitem->p_lateral_ok = false;
+
+	if (IsRemoteRelation(pstate->p_target_relation) ||
+		IsRemoteRelationParent(pstate->p_target_relation))
+	{
+		if (stmt->fromClause)
+			ereport(ERROR,
+					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					 errmsg("No other tables than the update target table are allowed when updating a remote relation.")));
+		if (stmt->whereClause && IsA(stmt->whereClause, CurrentOfExpr))
+			ereport(ERROR,
+					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					 errmsg("Cursors are not allowed when updating a remote relation.")));
+
+		if (stmt->withClause)
+			ereport(ERROR,
+					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					 errmsg("With clause not allowed when updating a remote relation.")));
+		//if (stmt->relation) partition leaf tables inherit from root table/inner tables.
+		//    stmt->relation->inh = false; // never update child/inherited tables
+	}
 
 	/*
 	 * the FROM clause is non-standard SQL syntax. We used to be able to do

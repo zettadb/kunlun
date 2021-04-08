@@ -17,6 +17,7 @@
 #include "access/bufmask.h"
 #include "access/htup_details.h"
 #include "access/multixact.h"
+#include "access/remote_meta.h"
 #include "access/transam.h"
 #include "access/xact.h"
 #include "access/xlog.h"
@@ -28,9 +29,12 @@
 #include "catalog/objectaccess.h"
 #include "catalog/pg_sequence.h"
 #include "catalog/pg_type.h"
+#include "commands/dbcommands.h"
 #include "commands/defrem.h"
+#include "commands/remote_seq.h"
 #include "commands/sequence.h"
 #include "commands/tablecmds.h"
+#include "executor/spi.h"
 #include "funcapi.h"
 #include "miscadmin.h"
 #include "nodes/makefuncs.h"
@@ -40,11 +44,12 @@
 #include "storage/smgr.h"
 #include "utils/acl.h"
 #include "utils/builtins.h"
+#include "utils/fmgroids.h"
 #include "utils/lsyscache.h"
 #include "utils/resowner.h"
 #include "utils/syscache.h"
 #include "utils/varlena.h"
-
+#include <unistd.h>
 
 /*
  * We don't want to log each fetching of a value from a sequence,
@@ -68,6 +73,15 @@ typedef struct sequence_magic
  * session.  This is needed to hold onto nextval/currval state.  (We can't
  * rely on the relcache, since it's only, well, a cache, and may decide to
  * discard entries.)
+
+ * dzw: for regular seqs, we still need the local cache now in order to lock
+ * the sequence in a transaction so that it won't be dropped, and store
+ * 'currval' for each sequence used in a session.
+ * We don't use these fields: filenode, cached, increment. We always fetch
+ * values from seq object stored in
+ * shared hash table so that txns concurrently running in the same computing
+ * node and using the same seq can produce monotically increasing seq values.
+ * for temp seqs, they work exactly like before.
  */
 typedef struct SeqTableData
 {
@@ -103,7 +117,8 @@ static void init_params(ParseState *pstate, List *options, bool for_identity,
 			Form_pg_sequence seqform,
 			Form_pg_sequence_data seqdataform,
 			bool *need_seq_rewrite,
-			List **owned_by);
+			List **owned_by, Oid*pshardid,
+			RemoteAlterSeq*raseq);
 static void do_setval(Oid relid, int64 next, bool iscalled);
 static void process_owned_by(Relation seqrel, List *owned_by, bool for_identity);
 
@@ -111,9 +126,11 @@ static void process_owned_by(Relation seqrel, List *owned_by, bool for_identity)
 /*
  * DefineSequence
  *				Creates a new sequence relation
+ * @param toplevel: true if executing a 'CREATE SEQUENCE' stmt, false if
+ * executing as part of another stmt, often 'CREATE TABLE' stmt.
  */
 ObjectAddress
-DefineSequence(ParseState *pstate, CreateSeqStmt *seq)
+DefineSequence(ParseState *pstate, CreateSeqStmt *seq, bool toplevel)
 {
 	FormData_pg_sequence seqform;
 	FormData_pg_sequence_data seqdataform;
@@ -158,7 +175,7 @@ DefineSequence(ParseState *pstate, CreateSeqStmt *seq)
 	/* Check and set all option values */
 	init_params(pstate, seq->options, seq->for_identity, true,
 				&seqform, &seqdataform,
-				&need_seq_rewrite, &owned_by);
+				&need_seq_rewrite, &owned_by, &seq->shardid, NULL);
 
 	/*
 	 * Create relation (and fill value[] and null[] for the tuple)
@@ -210,24 +227,49 @@ DefineSequence(ParseState *pstate, CreateSeqStmt *seq)
 	stmt->oncommit = ONCOMMIT_NOOP;
 	stmt->tablespacename = NULL;
 	stmt->if_not_exists = seq->if_not_exists;
-
+	if (seq->shardid != 0)
+	{
+		/*
+		dzw: create an 'with (shard=N)' entry and add to the list here to
+		store/associate the sequence to the one in target shard.
+		Each sequence has an entry in pg_class and the 'relshardid' is where
+		the sequence is stored.
+		*/
+		Node*elmt = (Node *)makeDefElem("shard", (Node*)makeInteger(seq->shardid), 0);
+		stmt->options = lappend(stmt->options, elmt);
+	}
 	address = DefineRelation(stmt, RELKIND_SEQUENCE, seq->ownerId, NULL, NULL);
 	seqoid = address.objectId;
 	Assert(seqoid != InvalidOid);
 
 	rel = heap_open(seqoid, AccessExclusiveLock);
-	tupDesc = RelationGetDescr(rel);
 
-	/* now initialize the sequence's data */
-	tuple = heap_form_tuple(tupDesc, value, null);
-	fill_seq_with_data(rel, tuple);
+	if (seq->sequence->relpersistence == RELPERSISTENCE_TEMP)
+	{
+		tupDesc = RelationGetDescr(rel);
 
-	/* process OWNED BY if given */
+		/* now initialize the sequence's data */
+		tuple = heap_form_tuple(tupDesc, value, null);
+		fill_seq_with_data(rel, tuple);
+	}
+
+	/* process OWNED BY if given
+	  Even if toplevel==false, owned_by is still NULL.
+	*/
 	if (owned_by)
 		process_owned_by(rel, owned_by, seq->for_identity);
 
-	heap_close(rel, NoLock);
+	/*
+	  dzw: temp sequences are stored locally in computing nodes and created
+	  like before, normal sequences are stored in storage shards and created
+	  in RemoteCreateSeqStmt().
+	*/
+	if (seq->sequence->relpersistence != RELPERSISTENCE_TEMP)
+	{
+		RemoteCreateSeqStmt(rel, &seqform, seq, owned_by, toplevel);
+	}
 
+	heap_close(rel, NoLock);
 	/* fill in pg_sequence */
 	rel = heap_open(SequenceRelationId, RowExclusiveLock);
 	tupDesc = RelationGetDescr(rel);
@@ -412,7 +454,7 @@ fill_seq_with_data(Relation rel, HeapTuple tuple)
  * Modify the definition of a sequence relation
  */
 ObjectAddress
-AlterSequence(ParseState *pstate, AlterSeqStmt *stmt)
+AlterSequence(ParseState *pstate, AlterSeqStmt *stmt, bool toplevel)
 {
 	Oid			relid;
 	SeqTable	elm;
@@ -420,13 +462,13 @@ AlterSequence(ParseState *pstate, AlterSeqStmt *stmt)
 	Buffer		buf;
 	HeapTupleData datatuple;
 	Form_pg_sequence seqform;
-	Form_pg_sequence_data newdataform;
+	Form_pg_sequence_data newdataform = NULL;
 	bool		need_seq_rewrite;
 	List	   *owned_by;
 	ObjectAddress address;
 	Relation	rel;
 	HeapTuple	seqtuple;
-	HeapTuple	newdatatuple;
+	HeapTuple	newdatatuple = NULL;
 
 	/* Open and lock sequence, and check for ownership along the way. */
 	relid = RangeVarGetRelidExtended(stmt->sequence,
@@ -454,18 +496,38 @@ AlterSequence(ParseState *pstate, AlterSeqStmt *stmt)
 	seqform = (Form_pg_sequence) GETSTRUCT(seqtuple);
 
 	/* lock page's buffer and read tuple into new sequence structure */
-	(void) read_seq_tuple(seqrel, &buf, &datatuple);
+	if (seqrel->rd_rel->relpersistence == RELPERSISTENCE_TEMP)
+	{
+		/*
+		  dzw: Only temp seq has local table and need update.
+		*/
+		(void) read_seq_tuple(seqrel, &buf, &datatuple);
+	
+		/* copy the existing sequence data tuple, so it can be modified locally */
+		newdatatuple = heap_copytuple(&datatuple);
+		newdataform = (Form_pg_sequence_data) GETSTRUCT(newdatatuple);
+	
+		UnlockReleaseBuffer(buf);
+	}
 
-	/* copy the existing sequence data tuple, so it can be modified locally */
-	newdatatuple = heap_copytuple(&datatuple);
-	newdataform = (Form_pg_sequence_data) GETSTRUCT(newdatatuple);
-
-	UnlockReleaseBuffer(buf);
-
+	/*
+	  dzw: track sequence update options.
+	*/
+	RemoteAlterSeq raseq;
+	init_remote_alter_seq(&raseq);
 	/* Check and set new values */
 	init_params(pstate, stmt->options, stmt->for_identity, false,
 				seqform, newdataform,
-				&need_seq_rewrite, &owned_by);
+				&need_seq_rewrite, &owned_by,
+				NULL/*never move to another shard*/, &raseq);
+
+	/*
+	  dzw: normal sequences don't have table file and never need rewrite.
+	*/
+	if (seqrel->rd_rel->relpersistence != RELPERSISTENCE_TEMP)
+	{
+		need_seq_rewrite = false;
+	}
 
 	/* Clear local cache so that we don't think we have cached numbers */
 	/* Note that we do not change the currval() state */
@@ -503,6 +565,11 @@ AlterSequence(ParseState *pstate, AlterSeqStmt *stmt)
 	InvokeObjectPostAlterHook(RelationRelationId, relid, 0);
 
 	ObjectAddressSet(address, RelationRelationId, relid);
+
+	if (seqrel->rd_rel->relpersistence != RELPERSISTENCE_TEMP)
+	{
+		TrackAlterSeq(seqrel, owned_by, &raseq, toplevel, false);
+	}
 
 	heap_close(rel, RowExclusiveLock);
 	relation_close(seqrel, NoLock);
@@ -608,6 +675,19 @@ nextval_internal(Oid relid, bool check_permissions)
 	 * sequence information.  Currently, we don't support that.
 	 */
 	PreventCommandIfParallelMode("nextval()");
+
+	/*
+	  dzw: for regular seqs, we fetch values differently now.
+	*/
+	if (seqrel->rd_rel->relpersistence != RELPERSISTENCE_TEMP)
+	{
+		int64_t seqval = fetch_next_val(seqrel);
+		elm->last = seqval;
+		elm->last_valid = true;
+		last_used_seq = elm;
+		relation_close(seqrel, NoLock);
+		return seqval;
+	}
 
 	if (elm->last != elm->cached)	/* some numbers were cached */
 	{
@@ -934,9 +1014,6 @@ do_setval(Oid relid, int64 next, bool iscalled)
 	 */
 	PreventCommandIfParallelMode("setval()");
 
-	/* lock page' buffer and read tuple */
-	seq = read_seq_tuple(seqrel, &buf, &seqdatatuple);
-
 	if ((next < minv) || (next > maxv))
 	{
 		char		bufv[100],
@@ -952,6 +1029,18 @@ do_setval(Oid relid, int64 next, bool iscalled)
 						bufv, RelationGetRelationName(seqrel),
 						bufm, bufx)));
 	}
+
+	if (seqrel->rd_rel->relpersistence != RELPERSISTENCE_TEMP)
+	{
+		elm->last = next;		/* last returned number */
+		elm->last_valid = true;
+		do_remote_setval(seqrel, next, iscalled);
+		relation_close(seqrel, NoLock);
+		return;
+	}
+
+	/* lock page' buffer and read tuple */
+	seq = read_seq_tuple(seqrel, &buf, &seqdatatuple);
 
 	/* Set the currval() state only if iscalled = true */
 	if (iscalled)
@@ -1032,7 +1121,6 @@ setval3_oid(PG_FUNCTION_ARGS)
 
 	PG_RETURN_INT64(next);
 }
-
 
 /*
  * Open the sequence and acquire lock if needed
@@ -1226,7 +1314,8 @@ init_params(ParseState *pstate, List *options, bool for_identity,
 			Form_pg_sequence seqform,
 			Form_pg_sequence_data seqdataform,
 			bool *need_seq_rewrite,
-			List **owned_by)
+			List **owned_by, Oid *pshardid,
+			RemoteAlterSeq*raseq)
 {
 	DefElem    *as_type = NULL;
 	DefElem    *start_value = NULL;
@@ -1236,6 +1325,7 @@ init_params(ParseState *pstate, List *options, bool for_identity,
 	DefElem    *min_value = NULL;
 	DefElem    *cache_value = NULL;
 	DefElem    *is_cycled = NULL;
+	DefElem    *shard_opt = NULL;
 	ListCell   *option;
 	bool		reset_max_value = false;
 	bool		reset_min_value = false;
@@ -1348,6 +1438,16 @@ init_params(ParseState *pstate, List *options, bool for_identity,
 					 errmsg("invalid sequence option SEQUENCE NAME"),
 					 parser_errposition(pstate, defel->location)));
 		}
+		else if (strcasecmp(defel->defname, "shard") == 0)
+		{
+			if (shard_opt)
+				ereport(ERROR,
+						(errcode(ERRCODE_SYNTAX_ERROR),
+						 errmsg("conflicting or redundant options"),
+						 parser_errposition(pstate, defel->location)));
+			shard_opt = defel;
+			*need_seq_rewrite = true;
+		}
 		else
 			elog(ERROR, "option \"%s\" not recognized",
 				 defel->defname);
@@ -1357,7 +1457,7 @@ init_params(ParseState *pstate, List *options, bool for_identity,
 	 * We must reset log_cnt when isInit or when changing any parameters that
 	 * would affect future nextval allocations.
 	 */
-	if (isInit)
+	if (isInit && seqdataform)
 		seqdataform->log_cnt = 0;
 
 	/* AS type */
@@ -1393,6 +1493,7 @@ init_params(ParseState *pstate, List *options, bool for_identity,
 		}
 
 		seqform->seqtypid = newtypid;
+		if (raseq) raseq->newtypid = newtypid;
 	}
 	else if (isInit)
 	{
@@ -1403,11 +1504,20 @@ init_params(ParseState *pstate, List *options, bool for_identity,
 	if (increment_by != NULL)
 	{
 		seqform->seqincrement = defGetInt64(increment_by);
+
 		if (seqform->seqincrement == 0)
 			ereport(ERROR,
 					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
 					 errmsg("INCREMENT must not be zero")));
-		seqdataform->log_cnt = 0;
+		if (seqdataform) seqdataform->log_cnt = 0;
+
+		if (raseq)
+		{
+			appendStringInfo(&raseq->update_stmt, "%c step = %ld",
+				raseq->update_stmt.len > 0 ? ',':' ', seqform->seqincrement);
+			appendStringInfo(&raseq->update_stmt_peer, " increment %ld",
+				seqform->seqincrement);
+		}
 	}
 	else if (isInit)
 	{
@@ -1419,7 +1529,17 @@ init_params(ParseState *pstate, List *options, bool for_identity,
 	{
 		seqform->seqcycle = intVal(is_cycled->arg);
 		Assert(BoolIsValid(seqform->seqcycle));
-		seqdataform->log_cnt = 0;
+		if (seqdataform) seqdataform->log_cnt = 0;
+
+		if (raseq)
+		{
+			appendStringInfo(&raseq->update_stmt, "%c do_cycle = %s",
+				raseq->update_stmt.len > 0 ? ',':' ',
+				seqform->seqcycle ? "true":"false");
+
+			appendStringInfo(&raseq->update_stmt_peer, " %s cycle ",
+				seqform->seqcycle ? "":"no");
+		}
 	}
 	else if (isInit)
 	{
@@ -1430,7 +1550,7 @@ init_params(ParseState *pstate, List *options, bool for_identity,
 	if (max_value != NULL && max_value->arg)
 	{
 		seqform->seqmax = defGetInt64(max_value);
-		seqdataform->log_cnt = 0;
+		if (seqdataform) seqdataform->log_cnt = 0;
 	}
 	else if (isInit || max_value != NULL || reset_max_value)
 	{
@@ -1446,7 +1566,18 @@ init_params(ParseState *pstate, List *options, bool for_identity,
 		}
 		else
 			seqform->seqmax = -1;	/* descending seq */
-		seqdataform->log_cnt = 0;
+		if (seqdataform) seqdataform->log_cnt = 0;
+	}
+
+	if (!isInit && max_value)
+	{
+		if (raseq)
+		{
+			appendStringInfo(&raseq->update_stmt, "%c max_value = %ld",
+				raseq->update_stmt.len > 0 ? ',':' ', seqform->seqmax);
+			appendStringInfo(&raseq->update_stmt_peer, " maxvalue %ld",
+				seqform->seqmax);
+		}
 	}
 
 	if ((seqform->seqtypid == INT2OID && (seqform->seqmax < PG_INT16_MIN || seqform->seqmax > PG_INT16_MAX))
@@ -1467,7 +1598,7 @@ init_params(ParseState *pstate, List *options, bool for_identity,
 	if (min_value != NULL && min_value->arg)
 	{
 		seqform->seqmin = defGetInt64(min_value);
-		seqdataform->log_cnt = 0;
+		if (seqdataform) seqdataform->log_cnt = 0;
 	}
 	else if (isInit || min_value != NULL || reset_min_value)
 	{
@@ -1483,7 +1614,18 @@ init_params(ParseState *pstate, List *options, bool for_identity,
 		}
 		else
 			seqform->seqmin = 1;	/* ascending seq */
-		seqdataform->log_cnt = 0;
+		if (seqdataform) seqdataform->log_cnt = 0;
+	}
+
+	if (!isInit && min_value)
+	{
+		if (raseq)
+		{
+			appendStringInfo(&raseq->update_stmt, "%c min_value = %ld",
+				raseq->update_stmt.len > 0 ? ',':' ', seqform->seqmin);
+			appendStringInfo(&raseq->update_stmt_peer, " minvalue %ld",
+				seqform->seqmin);
+		}
 	}
 
 	if ((seqform->seqtypid == INT2OID && (seqform->seqmin < PG_INT16_MIN || seqform->seqmin > PG_INT16_MAX))
@@ -1518,6 +1660,13 @@ init_params(ParseState *pstate, List *options, bool for_identity,
 	if (start_value != NULL)
 	{
 		seqform->seqstart = defGetInt64(start_value);
+		if (raseq)
+		{
+			appendStringInfo(&raseq->update_stmt, "%c start = %ld",
+				raseq->update_stmt.len > 0 ? ',':' ', seqform->seqstart);
+			appendStringInfo(&raseq->update_stmt_peer, " start %ld",
+				seqform->seqstart);
+		}
 	}
 	else if (isInit)
 	{
@@ -1554,7 +1703,7 @@ init_params(ParseState *pstate, List *options, bool for_identity,
 	}
 
 	/* RESTART [WITH] */
-	if (restart_value != NULL)
+	if (restart_value != NULL && seqdataform)
 	{
 		if (restart_value->arg != NULL)
 			seqdataform->last_value = defGetInt64(restart_value);
@@ -1563,31 +1712,49 @@ init_params(ParseState *pstate, List *options, bool for_identity,
 		seqdataform->is_called = false;
 		seqdataform->log_cnt = 0;
 	}
-	else if (isInit)
+	else if (isInit && seqdataform)
 	{
 		seqdataform->last_value = seqform->seqstart;
 		seqdataform->is_called = false;
 	}
 
+	int64 newstart = 0;
+	if (restart_value)
+	{
+		if (restart_value->arg != NULL)
+			newstart = defGetInt64(restart_value);
+		else
+			newstart = seqform->seqstart;
+
+		if (raseq)
+		{
+			appendStringInfo(&raseq->update_stmt, "%c curval = %ld",
+				raseq->update_stmt.len > 0 ? ',':' ', newstart);
+			appendStringInfo(&raseq->update_stmt_peer, " restart %ld", newstart);
+			raseq->do_restart = true;
+			raseq->restart_val = newstart;
+		}
+	}
+
 	/* crosscheck RESTART (or current value, if changing MIN/MAX) */
-	if (seqdataform->last_value < seqform->seqmin)
+	if (restart_value && newstart < seqform->seqmin)
 	{
 		char		bufs[100],
 					bufm[100];
 
-		snprintf(bufs, sizeof(bufs), INT64_FORMAT, seqdataform->last_value);
+		snprintf(bufs, sizeof(bufs), INT64_FORMAT, newstart);
 		snprintf(bufm, sizeof(bufm), INT64_FORMAT, seqform->seqmin);
 		ereport(ERROR,
 				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
 				 errmsg("RESTART value (%s) cannot be less than MINVALUE (%s)",
 						bufs, bufm)));
 	}
-	if (seqdataform->last_value > seqform->seqmax)
+	if (restart_value && newstart > seqform->seqmax)
 	{
 		char		bufs[100],
 					bufm[100];
 
-		snprintf(bufs, sizeof(bufs), INT64_FORMAT, seqdataform->last_value);
+		snprintf(bufs, sizeof(bufs), INT64_FORMAT, newstart);
 		snprintf(bufm, sizeof(bufm), INT64_FORMAT, seqform->seqmax);
 		ereport(ERROR,
 				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
@@ -1609,11 +1776,30 @@ init_params(ParseState *pstate, List *options, bool for_identity,
 					 errmsg("CACHE (%s) must be greater than zero",
 							buf)));
 		}
-		seqdataform->log_cnt = 0;
+		if (seqdataform) seqdataform->log_cnt = 0;
+
+		if (raseq)
+		{
+			appendStringInfo(&raseq->update_stmt, "%c n_cache = %ld",
+				raseq->update_stmt.len > 0 ? ',':' ', seqform->seqcache);
+			appendStringInfo(&raseq->update_stmt_peer, " cache %ld",
+				seqform->seqcache);
+		}
+
 	}
 	else if (isInit)
 	{
 		seqform->seqcache = 1;
+	}
+
+	if (shard_opt != NULL && pshardid != NULL)
+	{
+		/*
+		  dzw: we don't care here whether the specified shard exist or not,
+		  that will be checked when accessing the shard. This option is only
+		  supposed to be used by meta-sync, not by end users directly.
+		*/
+		*pshardid = defGetInt32(shard_opt);
 	}
 }
 
@@ -1852,12 +2038,28 @@ pg_sequence_last_value(PG_FUNCTION_ARGS)
 				 errmsg("permission denied for sequence %s",
 						RelationGetRelationName(seqrel))));
 
+	/*
+	  dzw: now we handle regular sequences differently.
+	*/
+	if (seqrel->rd_rel->relpersistence != RELPERSISTENCE_TEMP)
+	{
+		HeapTuple pgstuple = SearchSysCache1(SEQRELID, ObjectIdGetDatum(relid));
+		if (!HeapTupleIsValid(pgstuple))
+			elog(ERROR, "cache lookup failed for sequence %u", relid);
+		Form_pg_sequence pgsform = (Form_pg_sequence) GETSTRUCT(pgstuple);
+		result = pgsform->last_fetched;
+		is_called = true;
+		ReleaseSysCache(pgstuple);
+		goto end;
+	}
+
 	seq = read_seq_tuple(seqrel, &buf, &seqtuple);
 
 	is_called = seq->is_called;
 	result = seq->last_value;
 
 	UnlockReleaseBuffer(buf);
+end:
 	relation_close(seqrel, NoLock);
 
 	if (is_called)
@@ -1942,3 +2144,4 @@ seq_mask(char *page, BlockNumber blkno)
 
 	mask_unused_space(page);
 }
+

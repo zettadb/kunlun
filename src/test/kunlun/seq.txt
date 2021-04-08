@@ -1,0 +1,6 @@
+create/drop seq in multiple dbs/schemas
+0. do below seq generation with both directly a seq, and with implicit seqs created for table columns.
+1. given only 1 computing node(CN), multiple connections running multiple seq (which belong to multiple databases and schemas) generations concurrently can produce monotically increasing seq values for each seq.
+2. given multiple CNs, multiple connections running multiple seq(which belong to multiple databases and schemas) generations concurrently can produce unique seq values for each seq.
+3. crash safety: in above 2 configurations, kill CN or storage shard master randomly repeatedly, above conclusion still true over a long period of time
+4. seqs create/drop stmts can replicate to multiple CNs while computing node crashes and/or metadata shard crashes, and #2 can always be true

@@ -26,7 +26,6 @@
 #include "parser/parsetree.h"
 #include "utils/lsyscache.h"
 
-
 /*
  * print
  *	  print contents of Node to stdout
@@ -500,3 +499,4 @@ print_slot(TupleTableSlot *slot)
 
 	debugtup(slot, NULL);
 }
+

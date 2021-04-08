@@ -1427,3 +1427,51 @@ generate_series_step_int4(PG_FUNCTION_ARGS)
 		/* do when there is no more left */
 		SRF_RETURN_DONE(funcctx);
 }
+
+
+int int4_cmp(const void *i1, const void *i2)
+{
+	int32_t *p1 = (int32_t *)i1;
+	int32_t *p2 = (int32_t *)i2;
+	return *p1 > *p2 ? 1 : ((*p1 < *p2) ? -1 : 0);
+}
+
+
+int int2_cmp(const void *i1, const void *i2)
+{
+	int16_t *p1 = (int16_t *)i1;
+	int16_t *p2 = (int16_t *)i2;
+	return *p1 > *p2 ? 1 : ((*p1 < *p2) ? -1 : 0);
+}
+
+
+int int1_cmp(const void *i1, const void *i2)
+{
+	int8_t *p1 = (int8_t *)i1;
+	int8_t *p2 = (int8_t *)i2;
+	return *p1 > *p2 ? 1 : ((*p1 < *p2) ? -1 : 0);
+}
+
+
+int uint4_cmp(const void *i1, const void *i2)
+{
+	uint32_t *p1 = (uint32_t *)i1;
+	uint32_t *p2 = (uint32_t *)i2;
+	return *p1 > *p2 ? 1 : ((*p1 < *p2) ? -1 : 0);
+}
+
+
+int uint2_cmp(const void *i1, const void *i2)
+{
+	uint16_t *p1 = (uint16_t *)i1;
+	uint16_t *p2 = (uint16_t *)i2;
+	return *p1 > *p2 ? 1 : ((*p1 < *p2) ? -1 : 0);
+}
+
+
+int uint1_cmp(const void *i1, const void *i2)
+{
+	uint8_t *p1 = (uint8_t *)i1;
+	uint8_t *p2 = (uint8_t *)i2;
+	return *p1 > *p2 ? 1 : ((*p1 < *p2) ? -1 : 0);
+}

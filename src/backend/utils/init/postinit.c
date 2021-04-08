@@ -21,6 +21,7 @@
 
 #include "access/heapam.h"
 #include "access/htup_details.h"
+#include "access/remote_xact.h"
 #include "access/session.h"
 #include "access/sysattr.h"
 #include "access/xact.h"
@@ -39,6 +40,7 @@
 #include "pgstat.h"
 #include "postmaster/autovacuum.h"
 #include "postmaster/postmaster.h"
+#include "postmaster/xidsender.h"
 #include "replication/walsender.h"
 #include "storage/bufmgr.h"
 #include "storage/fd.h"
@@ -61,6 +63,8 @@
 #include "utils/syscache.h"
 #include "utils/timeout.h"
 #include "utils/tqual.h"
+#include "tcop/debug_funcs.h"
+#include "tcop/debug_injection.h"
 
 
 static HeapTuple GetDatabaseTuple(const char *dbname);
@@ -75,7 +79,7 @@ static void IdleInTransactionSessionTimeoutHandler(void);
 static bool ThereIsAtLeastOneRole(void);
 static void process_startup_options(Port *port, bool am_superuser);
 static void process_settings(Oid databaseid, Oid roleid);
-
+static void WriteShardResultTimeoutHandler(void);
 
 /*** InitPostgres support ***/
 
@@ -608,6 +612,8 @@ InitPostgres(const char *in_dbname, Oid dboid, const char *username,
 		RegisterTimeout(LOCK_TIMEOUT, LockTimeoutHandler);
 		RegisterTimeout(IDLE_IN_TRANSACTION_SESSION_TIMEOUT,
 						IdleInTransactionSessionTimeoutHandler);
+		RegisterTimeout(WRITE_SHARD_RESULT_TIMEOUT,
+						WriteShardResultTimeoutHandler);
 	}
 
 	/*
@@ -654,7 +660,13 @@ InitPostgres(const char *in_dbname, Oid dboid, const char *username,
 
 	/* Initialize stats collection --- must happen before first xact */
 	if (!bootstrap)
+	{
 		pgstat_initialize();
+		/*
+		 * dzw: xid sender isn't needed in bootstrap mode.
+		 * */
+		xidsender_initialize();
+	}
 
 	/*
 	 * Load relcache entries for the shared system catalogs.  This must create
@@ -1043,6 +1055,13 @@ InitPostgres(const char *in_dbname, Oid dboid, const char *username,
 	if (!bootstrap)
 		pgstat_bestart();
 
+#ifdef ENABLE_DEBUG
+	init_debug_sys();
+#endif
+#ifdef ENABLE_DEBUG_SYNC
+	debug_sync_init();
+#endif
+
 	/* close the transaction we started above */
 	if (!bootstrap)
 		CommitTransactionCommand();
@@ -1207,6 +1226,13 @@ IdleInTransactionSessionTimeoutHandler(void)
 	InterruptPending = true;
 	SetLatch(MyLatch);
 }
+
+static void
+WriteShardResultTimeoutHandler()
+{
+	kick_start_gdd();
+}
+
 
 /*
  * Returns true if at least one role is defined in this database cluster.

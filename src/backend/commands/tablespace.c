@@ -336,7 +336,7 @@ CreateTableSpace(CreateTableSpaceStmt *stmt)
 	/* Generate new proposed spcoptions (text array) */
 	newOptions = transformRelOptions((Datum) 0,
 									 stmt->options,
-									 NULL, NULL, false, false);
+									 NULL, NULL, false, false, NULL);
 	(void) tablespace_reloptions(newOptions, true);
 	if (newOptions != (Datum) 0)
 		values[Anum_pg_tablespace_spcoptions - 1] = newOptions;
@@ -1027,7 +1027,7 @@ AlterTableSpaceOptions(AlterTableSpaceOptionsStmt *stmt)
 						 RelationGetDescr(rel), &isnull);
 	newOptions = transformRelOptions(isnull ? (Datum) 0 : datum,
 									 stmt->options, NULL, NULL, false,
-									 stmt->isReset);
+									 stmt->isReset, NULL);
 	(void) tablespace_reloptions(newOptions, true);
 
 	/* Build new tuple. */

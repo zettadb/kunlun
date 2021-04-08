@@ -3,6 +3,9 @@
  * pg_depend.c
  *	  routines to support manipulation of the pg_depend relation
  *
+ * Portions Copyright (c) 2019 ZettaDB inc. All rights reserved.
+ * This source code is licensed under Apache 2.0 License,
+ * combined with Common Clause Condition 1.0, as detailed in the NOTICE file.
  * Portions Copyright (c) 1996-2018, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
@@ -22,6 +25,7 @@
 #include "catalog/pg_constraint.h"
 #include "catalog/pg_depend.h"
 #include "catalog/pg_extension.h"
+#include "catalog/pg_type.h"
 #include "commands/extension.h"
 #include "miscadmin.h"
 #include "utils/fmgroids.h"
@@ -738,4 +742,61 @@ get_index_constraint(Oid indexId)
 	heap_close(depRel, AccessShareLock);
 
 	return constraintId;
+}
+
+
+/*
+ * Collect a list of table&column pairs expressed as ObjectAddress,
+ * which depend on a type
+ */
+List *
+getTypeTableColumns(Oid typid)
+{
+	List	   *result = NIL;
+	Relation	depRel;
+	ScanKeyData key[2];
+	SysScanDesc scan;
+	HeapTuple	tup;
+
+	depRel = heap_open(DependRelationId, AccessShareLock);
+
+	ScanKeyInit(&key[0],
+				Anum_pg_depend_refclassid,
+				BTEqualStrategyNumber, F_OIDEQ,
+				ObjectIdGetDatum(TypeRelationId));
+	ScanKeyInit(&key[1],
+				Anum_pg_depend_refobjid,
+				BTEqualStrategyNumber, F_OIDEQ,
+				ObjectIdGetDatum(typid));
+
+	scan = systable_beginscan(depRel, DependReferenceIndexId, true,
+							  NULL, 2, key);
+
+	while (HeapTupleIsValid(tup = systable_getnext(scan)))
+	{
+		Form_pg_depend deprec = (Form_pg_depend) GETSTRUCT(tup);
+
+		/*
+		 * We assume any auto or internal dependency of a sequence on a column
+		 * must be what we are looking for.  (We need the relkind test because
+		 * indexes can also have auto dependencies on columns.)
+		 */
+		if (deprec->classid == RelationRelationId &&
+			deprec->objsubid > 0 &&
+			deprec->refobjsubid == 0 &&
+			deprec->deptype == DEPENDENCY_NORMAL)
+		{
+			ObjectAddress *tblcol = (ObjectAddress *)palloc(sizeof(ObjectAddress));
+			tblcol->objectSubId = deprec->objsubid;
+			tblcol->objectId = deprec->objid;
+			tblcol->classId = RelationRelationId;
+			result = lappend(result, tblcol);
+		}
+	}
+
+	systable_endscan(scan);
+
+	heap_close(depRel, AccessShareLock);
+
+	return result;
 }

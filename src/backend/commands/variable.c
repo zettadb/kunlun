@@ -32,6 +32,7 @@
 #include "utils/timestamp.h"
 #include "utils/varlena.h"
 #include "mb/pg_wchar.h"
+#include "sharding/sharding_conn.h"
 
 /*
  * DATESTYLE
@@ -474,7 +475,6 @@ show_log_timezone(void)
  * read-only may be changed to read-write only when in a top-level transaction
  * that has not yet taken an initial snapshot.  Can't do it in a hot standby,
  * either.
- *
  * If we are not in a transaction at all, just allow the change; it means
  * nothing since XactReadOnly will be reset by the next StartTransaction().
  * The IsTransactionState() test protects us against trying to check
@@ -495,7 +495,7 @@ check_transaction_read_only(bool *newval, void **extra, GucSource source)
 			return false;
 		}
 		/* Top level transaction can't change to r/w after first snapshot. */
-		if (FirstSnapshotSet)
+		if (FirstSnapshotSet || MySQLQueryExecuted())
 		{
 			GUC_check_errcode(ERRCODE_ACTIVE_SQL_TRANSACTION);
 			GUC_check_errmsg("transaction read-write mode must be set before any query");
@@ -551,7 +551,7 @@ check_XactIsoLevel(char **newval, void **extra, GucSource source)
 
 	if (newXactIsoLevel != XactIsoLevel && IsTransactionState())
 	{
-		if (FirstSnapshotSet)
+		if (FirstSnapshotSet || MySQLQueryExecuted())
 		{
 			GUC_check_errcode(ERRCODE_ACTIVE_SQL_TRANSACTION);
 			GUC_check_errmsg("SET TRANSACTION ISOLATION LEVEL must be called before any query");

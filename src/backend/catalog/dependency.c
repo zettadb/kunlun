@@ -1443,7 +1443,7 @@ recordDependencyOnSingleRelExpr(const ObjectAddress *depender,
 	rte.rtekind = RTE_RELATION;
 	rte.relid = relId;
 	rte.relkind = RELKIND_RELATION; /* no need for exactness here */
-
+	// TODO: may need to set rte.relshardid in future.
 	context.rtables = list_make1(list_make1(&rte));
 
 	/* Scan the expression tree for referenceable objects */

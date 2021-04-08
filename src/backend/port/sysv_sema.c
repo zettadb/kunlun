@@ -4,6 +4,11 @@
  *	  Implement PGSemaphores using SysV semaphore facilities
  *
  *
+ * Portions Copyright (c) 2019 ZettaDB inc. All rights reserved.
+ *
+ * This source code is licensed under Apache 2.0 License,
+ * combined with Common Clause Condition 1.0, as detailed in the NOTICE file.
+ *
  * Portions Copyright (c) 1996-2018, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
@@ -397,6 +402,49 @@ void
 PGSemaphoreReset(PGSemaphore sema)
 {
 	IpcSemaphoreInitialize(sema->semId, sema->semNum, 0);
+}
+
+/*
+  dzw:
+  Check for interrupts so that statement_timeout can be effective, in some
+  cases we want to avoid potentially permanent waiting.
+  @retval 1 if timed out; 0 if lock acqured; -1 if argument error;
+*/
+int
+PGSemaphoreTimedLock(PGSemaphore sema, int millisecs)
+{
+	int			errStatus;
+	struct sembuf sops;
+
+	if (millisecs < 0)
+		return -1;
+	if (millisecs == 0) millisecs = 3000;
+
+	sops.sem_op = -1;			/* decrement */
+	sops.sem_flg = 0;
+	sops.sem_num = sema->semNum;
+
+	struct timespec ts;
+	ts.tv_sec = millisecs / 1000;
+	ts.tv_nsec = ((millisecs % 1000) * 1000000);
+
+	do
+	{
+		errStatus = semtimedop(sema->semId, &sops, 1, &ts);
+	} while (errStatus < 0 && errno == EINTR);
+
+	if (errStatus < 0 && errno != EAGAIN)
+		elog(FATAL, "semop(id=%d) failed: %m", sema->semId);
+	int ret;
+	if (errStatus == 0)
+		ret = 0;
+	else
+	{
+		Assert(errno == EAGAIN);
+		ret = 1;
+	}
+
+	return ret;
 }
 
 /*

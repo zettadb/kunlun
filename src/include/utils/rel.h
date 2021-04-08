@@ -268,6 +268,7 @@ typedef struct StdRdOptions
 	AutoVacOpts autovacuum;		/* autovacuum-related options */
 	bool		user_catalog_table; /* use as an additional catalog relation */
 	int			parallel_workers;	/* max number of parallel workers */
+	uint32_t    shard;          /* ID of the shard to store the table. */
 } StdRdOptions;
 
 #define HEAP_MIN_FILLFACTOR			10
@@ -604,5 +605,5 @@ extern void RelationIncrementReferenceCount(Relation rel);
 extern void RelationDecrementReferenceCount(Relation rel);
 extern bool RelationHasUnloggedIndex(Relation rel);
 extern List *RelationGetRepsetList(Relation rel);
-
+extern bool column_name_is_dropped(const char *colname);
 #endif							/* REL_H */

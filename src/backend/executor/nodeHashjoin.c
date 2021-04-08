@@ -290,6 +290,12 @@ ExecHashJoinImpl(PlanState *pstate, bool parallel)
 				(void) MultiExecProcNode((PlanState *) hashNode);
 
 				/*
+				  dzw: cleanup inner node's remote connections for later use by
+				  our outer node.
+				*/
+				//planstate_tree_walker((PlanState *) hashNode, RleaseShardConnection);
+
+				/*
 				 * If the inner relation is completely empty, and we're not
 				 * doing a left outer join, we can quit without scanning the
 				 * outer relation.

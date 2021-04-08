@@ -198,7 +198,7 @@ sub ParseHeader
 					else
 					{
 						die
-						  "unknown or misformatted column option $attopt on column $attname";
+						  "unknown or misformatted column option $attopt on column $attname in $input_file";
 					}
 
 					if ($column{forcenull} and $column{forcenotnull})

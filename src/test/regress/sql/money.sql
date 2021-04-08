@@ -4,7 +4,7 @@
 -- Note that we assume lc_monetary has been set to C.
 --
 
-CREATE TABLE money_data (m money);
+CREATE TABLE money_data (m money primary key);
 
 INSERT INTO money_data VALUES ('123');
 SELECT * FROM money_data;

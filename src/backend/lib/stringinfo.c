@@ -6,6 +6,10 @@
  * It can be used to buffer either ordinary C strings (null-terminated text)
  * or arbitrary binary data.  All storage is allocated with palloc().
  *
+ * Portions Copyright (c) 2019 ZettaDB inc. All rights reserved.
+ *
+ * This source code is licensed under Apache 2.0 License,
+ * combined with Common Clause Condition 1.0, as detailed in the NOTICE file.
  * Portions Copyright (c) 1996-2018, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
@@ -43,6 +47,14 @@ makeStringInfo(void)
  * to describe an empty string.
  */
 void
+initStringInfo2(StringInfo str, size_t initial_size, MemoryContext memcxt)
+{
+	str->data = (char *) MemoryContextAlloc(memcxt, initial_size);
+	str->maxlen = initial_size;
+	resetStringInfo(str);
+}
+
+void
 initStringInfo(StringInfo str)
 {
 	int			size = 1024;	/* initial default buffer size */
@@ -61,7 +73,13 @@ initStringInfo(StringInfo str)
 void
 resetStringInfo(StringInfo str)
 {
-	str->data[0] = '\0';
+	if (!str)
+	{
+		return;
+	}
+
+	if (str->data)
+		str->data[0] = '\0';
 	str->len = 0;
 	str->cursor = 0;
 }
@@ -74,9 +92,10 @@ resetStringInfo(StringInfo str)
  * to str if necessary.  This is sort of like a combination of sprintf and
  * strcat.
  */
-void
+int
 appendStringInfo(StringInfo str, const char *fmt,...)
 {
+	int oldlen = str->len;
 	for (;;)
 	{
 		va_list		args;
@@ -93,6 +112,9 @@ appendStringInfo(StringInfo str, const char *fmt,...)
 		/* Increase the buffer size and try again. */
 		enlargeStringInfo(str, needed);
 	}
+
+	Assert(str->len >= oldlen);
+	return str->len - oldlen;
 }
 
 /*
@@ -153,10 +175,12 @@ appendStringInfoVA(StringInfo str, const char *fmt, va_list args)
  * Append a null-terminated string to str.
  * Like appendStringInfo(str, "%s", s) but faster.
  */
-void
+int
 appendStringInfoString(StringInfo str, const char *s)
 {
-	appendBinaryStringInfo(str, s, strlen(s));
+	int ret;
+	appendBinaryStringInfo(str, s, ret = strlen(s));
+	return ret;
 }
 
 /*
@@ -186,6 +210,11 @@ appendStringInfoChar(StringInfo str, char ch)
 void
 appendStringInfoSpaces(StringInfo str, int count)
 {
+	if (!str || str->data == NULL)
+	{
+		return;
+	}
+
 	if (count > 0)
 	{
 		/* Make more room if needed */
@@ -224,6 +253,12 @@ appendBinaryStringInfo(StringInfo str, const char *data, int datalen)
 	str->data[str->len] = '\0';
 }
 
+int appendBinaryStringInfo2(StringInfo str, const char *data, int datalen)
+{
+	appendBinaryStringInfo(str, data, datalen);
+	return datalen;
+}
+
 /*
  * appendBinaryStringInfoNT
  *
@@ -241,6 +276,21 @@ appendBinaryStringInfoNT(StringInfo str, const char *data, int datalen)
 	/* OK, append the data */
 	memcpy(str->data + str->len, data, datalen);
 	str->len += datalen;
+}
+
+
+/*
+ * Remove last 'len' bytes from str's buffer.
+ * */
+void shrinkStringInfo(StringInfo str, int len)
+{
+	if (!str || str->data == NULL || len <= 0)
+		return;
+	if (len > str->len)
+		str->len = 0;
+	else
+		str->len -= len;
+	str->data[str->len] = '\0';
 }
 
 /*
@@ -265,6 +315,11 @@ enlargeStringInfo(StringInfo str, int needed)
 {
 	int			newlen;
 
+	if (!str)
+	{
+		return;
+	}
+
 	/*
 	 * Guard against out-of-range "needed" values.  Without this, we can get
 	 * an overflow or infinite loop in the following.
@@ -284,7 +339,11 @@ enlargeStringInfo(StringInfo str, int needed)
 
 	if (needed <= str->maxlen)
 		return;					/* got enough space already */
-
+	if (str->data == NULL || 0 == str->maxlen)
+		ereport(ERROR,
+				(errcode(ERRCODE_INTERNAL_ERROR),
+				 errmsg("Empty string buffer can't be enlarged.")));
+		
 	/*
 	 * We don't want to allocate just a little more space with each append;
 	 * for efficiency, double the buffer size each time it overflows.
@@ -306,3 +365,40 @@ enlargeStringInfo(StringInfo str, int needed)
 
 	str->maxlen = newlen;
 }
+
+size_t lengthStringInfo(StringInfo str)
+{
+	if (!str)
+		return 0;
+	return str->len;
+}
+
+
+/*
+ * Return and donate the string buffer to caller.
+ * */
+char *donateStringInfo(StringInfo str)
+{
+	if (!str)
+		return NULL;
+	char *s = str->data;
+	str->data = NULL;
+	str->len = 0;
+	str->maxlen = 0;
+
+	return s;
+}
+
+/*
+ * truncate str to 'len' bytes.
+ * @retval true if succeeded, false on failure(invalid arguments) and data is intact.
+ * */
+bool truncateStringInfo(StringInfo str, size_t len)
+{
+	if (!str || !str->data || len < 0 || len >= str->len)
+		return false;
+	str->len = len;
+	str->data[len] = '\0';
+	return true;
+}
+

@@ -177,24 +177,22 @@ struct ParseState
 								 * node's fromlist) */
 	List	   *p_namespace;	/* currently-referenceable RTEs (List of
 								 * ParseNamespaceItem) */
-	bool		p_lateral_active;	/* p_lateral_only items visible? */
 	List	   *p_ctenamespace; /* current namespace for common table exprs */
 	List	   *p_future_ctes;	/* common table exprs not yet in namespace */
 	CommonTableExpr *p_parent_cte;	/* this query's containing CTE */
 	Relation	p_target_relation;	/* INSERT/UPDATE/DELETE target rel */
 	RangeTblEntry *p_target_rangetblentry;	/* target rel's RTE */
-	bool		p_is_insert;	/* process assignment like INSERT not UPDATE */
 	List	   *p_windowdefs;	/* raw representations of window clauses */
-	ParseExprKind p_expr_kind;	/* what kind of expression we're parsing */
-	int			p_next_resno;	/* next targetlist resno to assign */
 	List	   *p_multiassign_exprs;	/* junk tlist entries for multiassign */
 	List	   *p_locking_clause;	/* raw FOR UPDATE/FOR SHARE info */
+	int			p_next_resno;	/* next targetlist resno to assign */
+	bool		p_lateral_active;	/* p_lateral_only items visible? */
+	bool		p_is_insert;	/* process assignment like INSERT not UPDATE */
 	bool		p_locked_from_parent;	/* parent has marked this subquery
 										 * with FOR UPDATE/FOR SHARE */
 	bool		p_resolve_unknowns; /* resolve unknown-type SELECT outputs as
 									 * type text */
-
-	QueryEnvironment *p_queryEnv;	/* curr env, incl refs to enclosing env */
+	ParseExprKind p_expr_kind;	/* what kind of expression we're parsing */
 
 	/* Flags telling about things found in the query: */
 	bool		p_hasAggs;
@@ -204,6 +202,7 @@ struct ParseState
 	bool		p_hasModifyingCTE;
 
 	Node	   *p_last_srf;		/* most recent set-returning func/op found */
+	QueryEnvironment *p_queryEnv;	/* curr env, incl refs to enclosing env */
 
 	/*
 	 * Optional hook functions for parser callbacks.  These are null unless

@@ -5,6 +5,10 @@
  * command, configuration file, and command line options.
  * See src/backend/utils/misc/README for more information.
  *
+ * Portions Copyright (c) 2019 ZettaDB inc. All rights reserved.
+ *
+ * This source code is licensed under Apache 2.0 License,
+ * combined with Common Clause Condition 1.0, as detailed in the NOTICE file.
  *
  * Copyright (c) 2000-2018, PostgreSQL Global Development Group
  * Written by Peter Eisentraut <peter_e@gmx.net>.
@@ -29,12 +33,15 @@
 #include "access/commit_ts.h"
 #include "access/gin.h"
 #include "access/rmgr.h"
+#include "access/remote_meta.h"
+#include "access/remote_xact.h"
 #include "access/transam.h"
 #include "access/twophase.h"
 #include "access/xact.h"
 #include "access/xlog_internal.h"
 #include "catalog/namespace.h"
 #include "catalog/pg_authid.h"
+#include "sharding/cluster_meta.h"
 #include "commands/async.h"
 #include "commands/prepare.h"
 #include "commands/user.h"
@@ -62,11 +69,14 @@
 #include "postmaster/postmaster.h"
 #include "postmaster/syslogger.h"
 #include "postmaster/walwriter.h"
+#include "postmaster/xidsender.h"
 #include "replication/logicallauncher.h"
 #include "replication/slot.h"
 #include "replication/syncrep.h"
 #include "replication/walreceiver.h"
 #include "replication/walsender.h"
+#include "sharding/sharding_conn.h"
+#include "sharding/sharding.h"
 #include "storage/bufmgr.h"
 #include "storage/dsm_impl.h"
 #include "storage/standby.h"
@@ -90,6 +100,10 @@
 #include "utils/tzparser.h"
 #include "utils/varlena.h"
 #include "utils/xml.h"
+#include "tcop/debug_funcs.h"
+#include "tcop/debug_injection.h"
+#include "sharding/mysql_vars.h"
+#include "access/remote_dml.h"
 
 #ifndef PG_KRB_SRVTAB
 #define PG_KRB_SRVTAB ""
@@ -103,6 +117,7 @@
 #define CONFIG_EXEC_PARAMS "global/config_exec_params"
 #define CONFIG_EXEC_PARAMS_NEW "global/config_exec_params.new"
 #endif
+
 
 /*
  * Precision with which REAL type guc values are to be printed for GUC
@@ -118,6 +133,12 @@ extern char *default_tablespace;
 extern char *temp_tablespaces;
 extern bool ignore_checksum_failure;
 extern bool synchronize_seqscans;
+extern int cluster_commitlog_group_size;
+extern int cluster_commitlog_delay_ms;
+extern bool enable_stacktrace;
+extern bool enable_coredump;
+extern int global_txn_commit_log_wait_max_secs;
+extern bool use_mysql_native_seq;
 
 #ifdef TRACE_SYNCSCAN
 extern bool trace_syncscan;
@@ -194,6 +215,10 @@ static bool check_cluster_name(char **newval, void **extra, GucSource source);
 static const char *show_unix_socket_permissions(void);
 static const char *show_log_file_mode(void);
 static const char *show_data_directory_mode(void);
+static void set_var_shard(VariableSetStmt *stmt);
+static void set_config_option2(VariableSetStmt *stmt);
+static AsyncStmtInfo *FindAnyShard(void);
+
 
 /* Private functions in guc-file.l that need to be called from guc.c */
 static ConfigVariable *ProcessConfigFileInternal(GucContext context,
@@ -420,6 +445,18 @@ static const struct config_enum_entry password_encryption_options[] = {
 	{"1", PASSWORD_TYPE_MD5, true},
 	{NULL, 0, false}
 };
+
+static const struct config_enum_entry global_deadlock_detector_victim_policy_options[] = {
+	{"KILL_OLDEST", KILL_OLDEST, false},
+	{"KILL_YOUNGEST", KILL_YOUNGEST, false},
+	{"KILL_MOST_ROWS_CHANGED", KILL_MOST_ROWS_CHANGED, false},
+	{"KILL_LEAST_ROWS_CHANGED", KILL_LEAST_ROWS_CHANGED, false},
+	{"KILL_MOST_ROWS_LOCKED", KILL_MOST_ROWS_LOCKED, false},
+	{"KILL_MOST_WAITING_BRANCHES", KILL_MOST_WAITING_BRANCHES, false},
+	{"KILL_MOST_BLOCKING_BRANCHES", KILL_MOST_BLOCKING_BRANCHES, false},
+	{NULL, 0, false}
+};
+
 
 /*
  * Options for enum values stored in other modules
@@ -1833,12 +1870,93 @@ static struct config_bool ConfigureNamesBool[] =
 		NULL, NULL, NULL
 	},
 
+	{
+		{"enable_remote_relations", PGC_USERSET, DEVELOPER_OPTIONS,
+			gettext_noop("Whether to use remote db instance as table and index storage"),
+		},
+		&enable_remote_relations,
+		true,
+		NULL, NULL, NULL
+	},
+	
+	{
+		{"replaying_ddl_log", PGC_USERSET, DEVELOPER_OPTIONS,
+			gettext_noop("Do not generate or send remote DDL statements, to be enabled when replaying a DDL statement fetched from ddl-log."),
+		},
+		&replaying_ddl_log,
+		false,
+		NULL, NULL, NULL
+	},
+	{
+		{"skip_tidsync", PGC_USERSET, DEVELOPER_OPTIONS,
+			gettext_noop("Skip synchronizing transaction ID. This can only be true during computing node installation phases."),
+		},
+		&skip_tidsync,
+		false,
+		NULL, NULL, NULL
+	},
+
+	{
+		{"mysql_transmit_compress", PGC_USERSET, CLIENT_CONN_OTHER,
+			gettext_noop("Whether to use compress procotol in a mysql connection to a backend storage node."),
+		},
+		&mysql_transmit_compress,
+		false,
+		NULL, NULL, NULL
+	},
+	{
+		{"enable_coredump", PGC_USERSET, CLIENT_CONN_OTHER,
+			gettext_noop("Whether to generate core dump file when any postgres process catches a fatal signal. Coredump files can be very useful for bug diagnosis."),
+		},
+		&enable_coredump,
+		true,
+		NULL, NULL, NULL
+	},
+	{
+		{"enable_stacktrace", PGC_USERSET, CLIENT_CONN_OTHER,
+			gettext_noop("Whether to print stack trace into server log file when any postgres process catches a fatal signal. Stack trace can be useful for bug diagnosis."),
+		},
+		&enable_stacktrace,
+		true,
+		NULL, NULL, NULL
+	},
+#ifdef ENABLE_DEBUG
+	{
+		{"debug_global_deadlock_detection", PGC_SUSET, DEVELOPER_OPTIONS,
+			gettext_noop("Log global dead lock detection and resolution procedures and details."),
+			NULL,
+			GUC_NOT_IN_SAMPLE
+		},
+		&trace_global_deadlock_detection,
+		false,
+		NULL, NULL, NULL
+	},
+#endif
+	{
+		{"enable_global_deadlock_detection", PGC_SUSET, DEVELOPER_OPTIONS,
+			gettext_noop("Enable global dead lock detection and resolution."),
+			NULL,
+			GUC_NOT_IN_SAMPLE
+		},
+		&enable_global_deadlock_detection,
+		true,
+		NULL, NULL, NULL
+	},
+	{
+		{"use_mysql_native_seq", PGC_SUSET, DEVELOPER_OPTIONS,
+			gettext_noop("Use native Kunlun-percona-mysql sequence feature."),
+			NULL,
+			GUC_NOT_IN_SAMPLE
+		},
+		&use_mysql_native_seq,
+		false,
+		NULL, NULL, NULL
+	},
 	/* End-of-list marker */
 	{
 		{NULL, 0, 0, NULL, NULL}, NULL, false, NULL, NULL, NULL
 	}
 };
-
 
 static struct config_int ConfigureNamesInt[] =
 {
@@ -2262,34 +2380,34 @@ static struct config_int ConfigureNamesInt[] =
 
 	{
 		{"statement_timeout", PGC_USERSET, CLIENT_CONN_STATEMENT,
-			gettext_noop("Sets the maximum allowed duration of any statement."),
-			gettext_noop("A value of 0 turns off the timeout."),
+			gettext_noop("Sets the maximum allowed duration(in milliseconds) of any statement."),
+			gettext_noop("Don't turn it off under ordinary workloads."),
 			GUC_UNIT_MS
 		},
 		&StatementTimeout,
-		0, 0, INT_MAX,
+		10000, 0, INT_MAX,
 		NULL, NULL, NULL
 	},
 
 	{
 		{"lock_timeout", PGC_USERSET, CLIENT_CONN_STATEMENT,
 			gettext_noop("Sets the maximum allowed duration of any wait for a lock."),
-			gettext_noop("A value of 0 turns off the timeout."),
+			gettext_noop("Don't turn it off under ordinary workloads."),
 			GUC_UNIT_MS
 		},
 		&LockTimeout,
-		0, 0, INT_MAX,
+		10000, 0, INT_MAX,
 		NULL, NULL, NULL
 	},
 
 	{
 		{"idle_in_transaction_session_timeout", PGC_USERSET, CLIENT_CONN_STATEMENT,
 			gettext_noop("Sets the maximum allowed duration of any idling transaction."),
-			gettext_noop("A value of 0 turns off the timeout."),
+			gettext_noop("Don't turn it off under ordinary workloads."),
 			GUC_UNIT_MS
 		},
 		&IdleInTransactionSessionTimeout,
-		0, 0, INT_MAX,
+		300000, 1, INT_MAX,
 		NULL, NULL, NULL
 	},
 
@@ -2678,7 +2796,7 @@ static struct config_int ConfigureNamesInt[] =
 			NULL,
 		},
 		&max_worker_processes,
-		8, 0, MAX_BACKENDS,
+		MAX_DBS_ALLOWED + 16, MAX_DBS_ALLOWED + 16, MAX_BACKENDS,
 		check_max_worker_processes, NULL, NULL
 	},
 
@@ -3063,6 +3181,121 @@ static struct config_int ConfigureNamesInt[] =
 		},
 		&gin_pending_list_limit,
 		4096, 64, MAX_KILOBYTES,
+		NULL, NULL, NULL
+	},
+
+	{
+		{"mysql_connect_timeout", PGC_USERSET, CLIENT_CONN_OTHER,
+			gettext_noop("timeout in seconds when connecting to a mysql storage node."),
+		},
+		&mysql_connect_timeout,
+		10, 1, 10000,
+		NULL, NULL, NULL
+	},
+
+	{
+		{"mysql_read_timeout", PGC_USERSET, CLIENT_CONN_OTHER,
+			gettext_noop("timeout in seconds when reading from a mysql storage node."),
+		},
+		&mysql_read_timeout,
+		10, 1, 10000,
+		NULL, NULL, NULL
+	},
+
+	{
+		{"mysql_write_timeout", PGC_USERSET, CLIENT_CONN_OTHER,
+			gettext_noop("timeout in seconds when writing to a mysql storage node."),
+		},
+		&mysql_write_timeout,
+		10, 1, 10000,
+		NULL, NULL, NULL
+	},
+
+	{
+		{"mysql_max_packet_size", PGC_USERSET, CLIENT_CONN_OTHER,
+			gettext_noop("Max packet size in bytes in a connection to a mysql storage node."),
+		},
+		&mysql_max_packet_size,
+		65536, 1024, 1073741824,
+		NULL, NULL, NULL
+	},
+	
+	{
+		{"comp_node_id", PGC_USERSET, DEVELOPER_OPTIONS,
+			gettext_noop("ID of the this computing node in cluster."),
+		},
+		(int*)&comp_node_id,
+		0, 0, 2147483647,
+		NULL, NULL, NULL
+	},
+
+	{
+		{"cluster_commitlog_group_size", PGC_USERSET, DEVELOPER_OPTIONS,
+			gettext_noop("Commit log xid write group size."),
+		},
+		&cluster_commitlog_group_size,
+		8, 1, 65536,
+		NULL, NULL, NULL
+	},
+
+	{
+		{"cluster_commitlog_delay_ms", PGC_USERSET, DEVELOPER_OPTIONS,
+			gettext_noop("The max delay time in milliseconds for the GTSS process to send commit log to metadata server."),
+		},
+		&cluster_commitlog_delay_ms,
+		10, 1, 10000,
+		NULL, NULL, NULL
+	},
+#ifdef ENABLE_DEBUG_SYNC
+	{
+		{"debug_sync_timeout", PGC_USERSET, DEVELOPER_OPTIONS,
+			gettext_noop("debug sync timeout in seconds."),
+		},
+		&opt_debug_sync_timeout,
+		0, 0, 2147483647,
+		NULL, NULL, NULL
+	},
+#endif
+
+	{
+		{"start_global_deadlock_detection_wait_timeout", PGC_USERSET, DEVELOPER_OPTIONS,
+			gettext_noop("Start a round of deadlock detection if an insert/delete/update statement sent to storage shards doesn't return after this much milliseconds."),
+		},
+		&start_global_deadlock_detection_wait_timeout,
+		100, 1, 2147483647,
+		NULL, NULL, NULL
+	},
+	
+	{
+		{"global_txn_commit_log_wait_max_secs", PGC_USERSET, DEVELOPER_OPTIONS,
+			gettext_noop("Max wait time in seconds of a commit log request to meta-data shard primary node."),
+		},
+		&global_txn_commit_log_wait_max_secs,
+		10, 1, 10000,
+		NULL, NULL, NULL
+	},
+
+	{
+		{"remote_param_fetch_threshold", PGC_USERSET, DEVELOPER_OPTIONS,
+			gettext_noop("if estimated remote scan size less than this threshold, all possibly qualified rows are fetched at once."),
+		},
+		&remote_param_fetch_threshold,
+		256*1024*1024, 
+#ifdef ENABLE_DEBUG
+		0,
+#else
+		1024*1024, 
+#endif
+		1024*1024*1024,
+		NULL, NULL, NULL
+	},
+
+	{
+		{"storage_ha_mode", PGC_USERSET, DEVELOPER_OPTIONS,
+			gettext_noop("HA mode for storage shards, 0 for all primaries, i.e. don't check for primary nodes; 1 for MGR; 2 for traditional semisync/strong-sync binlog replication(not supported for now)."),
+		},
+		&storage_ha_mode,
+		0, 0, 1,
 		NULL, NULL, NULL
 	},
 
@@ -3892,6 +4125,50 @@ static struct config_string ConfigureNamesString[] =
 		NULL, NULL, NULL
 	},
 
+	{
+		{"last_remote_sql", PGC_INTERNAL, DEVELOPER_OPTIONS,
+			gettext_noop("The last remote sql statement generated for storage nodes."),
+			gettext_noop("It's generated for the last sql statement that could produce a remote sql, not necessarily for the immediate last sql statement."),
+			GUC_NO_RESET_ALL | GUC_NOT_IN_SAMPLE | GUC_DISALLOW_IN_FILE | GUC_DISALLOW_IN_AUTO_FILE
+		},
+		&remote_stmt_ptr,
+		"",
+		NULL, NULL, show_remote_sql
+	},
+#ifdef ENABLE_DEBUG
+	{
+		{"session_debug", PGC_USERSET, DEVELOPER_OPTIONS,
+			gettext_noop("Session debug switches"),
+			gettext_noop("Session debug switches"),
+			GUC_NOT_IN_SAMPLE | GUC_DISALLOW_IN_FILE | GUC_DISALLOW_IN_AUTO_FILE
+		},
+		&session_debug.data,
+		"",
+		NULL, update_session_debug, show_session_debug
+	},
+	{
+		{"global_debug", PGC_USERSET, DEVELOPER_OPTIONS,
+			gettext_noop("Global debug switches"),
+			gettext_noop("Global debug switches"),
+			GUC_NOT_IN_SAMPLE | GUC_DISALLOW_IN_FILE | GUC_DISALLOW_IN_AUTO_FILE
+		},
+		&global_debug.data,
+		"",
+		NULL, update_global_debug, show_global_debug
+	},
+#endif
+#ifdef ENABLE_DEBUG_SYNC
+	{
+		{"debug_sync", PGC_USERSET, DEVELOPER_OPTIONS,
+			gettext_noop("Session debug sync"),
+			gettext_noop("Session debug sync"),
+			GUC_NOT_IN_SAMPLE | GUC_DISALLOW_IN_FILE | GUC_DISALLOW_IN_AUTO_FILE
+		},
+		&debug_sync_cmd,
+		"",
+		NULL, update_debug_sync, show_debug_sync
+	},
+#endif
 	/* End-of-list marker */
 	{
 		{NULL, 0, 0, NULL, NULL}, NULL, NULL, NULL, NULL, NULL
@@ -4160,6 +4437,16 @@ static struct config_enum ConfigureNamesEnum[] =
 		NULL, NULL, NULL
 	},
 
+	{
+		{"global_deadlock_detector_victim_policy", PGC_USERSET, LOCK_MANAGEMENT,
+			gettext_noop("Sets how global deadlock detector selects a victim to terminate to resolve the global deadlock."),
+			NULL
+		},
+		&g_glob_txnmgr_deadlock_detector_victim_policy,
+		KILL_MOST_ROWS_LOCKED, global_deadlock_detector_victim_policy_options,
+		NULL, NULL, NULL
+	},
+
 	/* End-of-list marker */
 	{
 		{NULL, 0, 0, NULL, NULL}, NULL, 0, NULL, NULL, NULL, NULL
@@ -4220,6 +4507,7 @@ static bool validate_option_array_item(const char *name, const char *value,
 static void write_auto_conf_file(int fd, const char *filename, ConfigVariable *head_p);
 static void replace_auto_config_value(ConfigVariable **head_p, ConfigVariable **tail_p,
 						  const char *name, const char *value);
+static TupleDesc GetMysqlVariableResultDesc(void);
 
 
 /*
@@ -7560,14 +7848,66 @@ AlterSystemSetConfigFile(AlterSystemStmt *altersysstmt)
 	LWLockRelease(AutoFileLock);
 }
 
+
+/*
+  This is set to true if client is connecting using mysql client protocol.
+*/
+bool is_mysql_conn = false;
+
+static void set_config_option2(VariableSetStmt *stmt)
+{
+	GucAction	action = stmt->is_local ? GUC_ACTION_LOCAL : GUC_ACTION_SET;
+	if (is_mysql_conn && (stmt->kind == VAR_SET_VALUE || stmt->kind == VAR_SET_DEFAULT))
+	{
+		PG_TRY();
+		set_var_shard(stmt);
+		PG_CATCH();
+		const int toperr = top_errcode();
+
+		if (toperr == ERRCODE_UNDEFINED_OBJECT) {
+			(void) set_config_option(stmt->name,
+									 ExtractSetVariableArgs(stmt),
+									 (superuser() ? PGC_SUSET : PGC_USERSET),
+									 PGC_S_SESSION,
+									 action, true, 0, false);
+		}
+		else
+			PG_RE_THROW();
+		PG_END_TRY();
+	}
+	else
+	{
+		PG_TRY();
+		(void) set_config_option(stmt->name,
+								 ExtractSetVariableArgs(stmt),
+								 (superuser() ? PGC_SUSET : PGC_USERSET),
+								 PGC_S_SESSION,
+								 action, true, 0, false);
+		PG_CATCH();
+		const int toperr = top_errcode();
+		if ((stmt->kind == VAR_SET_VALUE || stmt->kind == VAR_SET_DEFAULT) &&
+			toperr == ERRCODE_UNDEFINED_OBJECT)
+		{
+			/*
+			 If the var isn't recognized in pg, assume it's a mysql var.
+			 If a var name is shared by pg and mysql, must use SET SHARD
+			 stmt instead.
+			*/
+			set_var_shard(stmt);
+		}
+		else
+			PG_RE_THROW();
+		PG_END_TRY();
+	}
+}
+
+
 /*
  * SET command
  */
 void
 ExecSetVariableStmt(VariableSetStmt *stmt, bool isTopLevel)
 {
-	GucAction	action = stmt->is_local ? GUC_ACTION_LOCAL : GUC_ACTION_SET;
-
 	/*
 	 * Workers synchronize these parameters at the start of the parallel
 	 * operation; then, we block SET during the operation.
@@ -7583,11 +7923,7 @@ ExecSetVariableStmt(VariableSetStmt *stmt, bool isTopLevel)
 		case VAR_SET_CURRENT:
 			if (stmt->is_local)
 				WarnNoTransactionBlock(isTopLevel, "SET LOCAL");
-			(void) set_config_option(stmt->name,
-									 ExtractSetVariableArgs(stmt),
-									 (superuser() ? PGC_SUSET : PGC_USERSET),
-									 PGC_S_SESSION,
-									 action, true, 0, false);
+			set_config_option2(stmt);
 			break;
 		case VAR_SET_MULTI:
 
@@ -7668,18 +8004,123 @@ ExecSetVariableStmt(VariableSetStmt *stmt, bool isTopLevel)
 		case VAR_RESET:
 			if (strcmp(stmt->name, "transaction_isolation") == 0)
 				WarnNoTransactionBlock(isTopLevel, "RESET TRANSACTION");
-
-			(void) set_config_option(stmt->name,
-									 NULL,
-									 (superuser() ? PGC_SUSET : PGC_USERSET),
-									 PGC_S_SESSION,
-									 action, true, 0, false);
+			set_config_option2(stmt);
 			break;
 		case VAR_RESET_ALL:
 			ResetAllOptions();
 			break;
+		case VAR_SET_SHARD:
+			set_var_shard(stmt);
+			break;
 	}
 }
+
+inline static const char *varscope_str(ShardVarScope s)
+{
+	/*
+	  Keep this consistent with ShardVarScope.
+	*/
+	static const char *names[] = {
+	"INVALID",
+	"SESSION",
+	"GLOBAL",
+	"PERSIST",
+	"PERSIST_ONLY"
+	};
+
+	return names[s];
+}
+
+static void set_var_shard(VariableSetStmt *stmt)
+{
+	char strval[16], *valstr = NULL;
+	char *valsep = "'";
+	
+	Var_def *vd = find_var_def(stmt->name);
+	if (vd == NULL)
+		ereport(ERROR,
+				(errcode(ERRCODE_UNDEFINED_OBJECT),
+				 errmsg("unrecognized mysql configuration parameter \"%s\"", stmt->name)));
+	
+	A_Const *var_val = (A_Const *)linitial(stmt->args);
+	Assert((var_val && !(stmt->sv_flags & SVS_DEFAULT)) ||
+		   (!var_val && (stmt->sv_flags & SVS_DEFAULT)));
+	if (!var_val)
+	{
+		valsep = "";
+		valstr = "DEFAULT";
+		goto got_val;
+	}
+
+	Value *val = &var_val->val;
+	valstr = val->val.str;
+
+	if (T_Integer == val->type)
+	{
+		int slen = snprintf(strval, sizeof(strval), "%d", intVal(val));
+		Assert(slen < sizeof(strval));
+		valstr = strval;
+	}
+	
+	if (vd->type != STR)
+		valsep="";
+
+	static StringInfoData setvar_stmt;
+	static bool inited = false;
+got_val:	
+	if (!inited)
+	{
+		initStringInfo2(&setvar_stmt, 256, TopMemoryContext);
+		inited = true;
+	} else
+		setvar_stmt.len = 0;
+
+	appendStringInfo(&setvar_stmt, "set %s %s = %s%s%s",
+		varscope_str(stmt->sv_scope), stmt->name, valsep, valstr, valsep);
+
+	send_stmt_to_all_shards(setvar_stmt.data, setvar_stmt.len, CMD_UTILITY, false,
+		SQLCOM_SET_OPTION);
+
+	AsyncStmtInfo *asi = NULL;
+	if ((stmt->sv_flags & SVS_DEFAULT) && stmt->sv_scope == SVS_SESSION)
+	{
+		/*
+		  Fetch the default value from any shard to cache it.
+		*/
+		setvar_stmt.len= 0;
+		appendStringInfo(&setvar_stmt, "select @@SESSION.%s", stmt->name);
+		asi = FindAnyShard();
+		send_remote_stmt(asi, setvar_stmt.data, setvar_stmt.len,
+			CMD_SELECT, false, SQLCOM_SELECT, 0);
+		MYSQL_RES *mres = asi->mysql_res;
+		if (mres == NULL)
+		{
+			free_mysql_result(asi);
+			ereport(ERROR,
+					(errcode(ERRCODE_INTERNAL_ERROR),
+					 errmsg("Can not get value for session variable %s after it's set to DEFAULT: no result.", stmt->name)));
+		}
+
+		MYSQL_ROW row = mysql_fetch_row(mres);
+		if (row == NULL)
+		{
+			check_mysql_fetch_row_status(asi);
+			free_mysql_result(asi);
+			ereport(ERROR,
+					(errcode(ERRCODE_INTERNAL_ERROR),
+					 errmsg("Can not get value for session variable %s after it's set to DEFAULT: no rows returned.", stmt->name)));
+		}
+
+		valstr = row[0];
+	}
+
+	if (stmt->sv_scope == SVS_SESSION && (stmt->sv_flags & SVS_CACHED))
+		cache_var(stmt->name, valstr);
+
+	if (asi)
+		free_mysql_result(asi);
+}
+
 
 /*
  * Get the value to assign for a VariableSetStmt, or NULL if it's RESET.
@@ -8177,23 +8618,136 @@ EmitWarningsOnPlaceholders(const char *className)
 	}
 }
 
+static AsyncStmtInfo *FindAnyShard()
+{
+	HASH_SEQ_STATUS seqstat;
+	size_t nshards = startShardCacheSeq(&seqstat);
+	if (nshards == 0)
+		ereport(ERROR,
+				(errcode(ERRCODE_INTERNAL_ERROR),
+				 errmsg("No storage shard found.")));
+
+	Shard_ref_t *ptr = hash_seq_search(&seqstat);
+	AsyncStmtInfo *asi = GetAsyncStmtInfo(ptr->id);
+	hash_seq_term(&seqstat);
+	return asi;
+}
+
+void GetVariablesShard(VariableShowStmt *n, DestReceiver *dest)
+{
+	Assert(n->sv_scope != SVS_INVALID);
+
+	TupleDesc	tupdesc = GetMysqlVariableResultDesc();
+	TupOutputState *tstate;
+	Datum		values[2];
+	bool		isnull[2] = {false, false};
+	static StringInfoData sqlstmt;
+	static bool inited = false;
+	if (!inited)
+	{
+		inited = true;
+		initStringInfo2(&sqlstmt, 256, TopMemoryContext);
+	}
+	else
+		sqlstmt.len = 0;
+
+	if (n->name)
+		appendStringInfo(&sqlstmt, "show %s variables like '%s'",
+				varscope_str(n->sv_scope), n->name);
+	else
+		appendStringInfo(&sqlstmt, "show %s variables", varscope_str(n->sv_scope));
+	
+	AsyncStmtInfo *asi = FindAnyShard();
+	send_remote_stmt(asi, sqlstmt.data, sqlstmt.len,
+		CMD_SELECT, false, SQLCOM_SELECT, 0);
+	MYSQL_RES *mres = asi->mysql_res;
+	if (mres == NULL)
+	{
+		free_mysql_result(asi);
+		ereport(ERROR,
+				(errcode(ERRCODE_INTERNAL_ERROR),
+				 errmsg("Can not get value for %s variables '%s': no result.",
+				 varscope_str(n->sv_scope), n->name)));
+	}
+	
+
+	tstate = begin_tup_output_tupdesc(dest, tupdesc);
+
+	while (true)
+	{
+		MYSQL_ROW row = mysql_fetch_row(mres);
+		if (row == NULL)
+		{
+			check_mysql_fetch_row_status(asi);
+			free_mysql_result(asi);
+			break;
+		}
+
+		values[0] = PointerGetDatum(cstring_to_text(row[0]));
+		if (n->strict && find_var_def(row[0]) == NULL)
+			continue;
+		if (row[1])
+		{
+			values[1] = PointerGetDatum(cstring_to_text(row[1]));
+			isnull[1] = false;
+		}
+		else
+		{
+			isnull[1] = true;
+			values[1] = PointerGetDatum(NULL);
+		}
+
+		/* Send it */
+		do_tup_output(tstate, values, isnull);
+	}
+	end_tup_output(tstate);
+}
+
+static TupleDesc GetMysqlVariableResultDesc()
+{
+	TupleDesc	tupdesc;
+
+	/* need a tuple descriptor representing three TEXT columns */
+	tupdesc = CreateTemplateTupleDesc(2, false);
+	TupleDescInitEntry(tupdesc, (AttrNumber) 1, "Variable_name",
+					   TEXTOID, -1, 0);
+	TupleDescInitEntry(tupdesc, (AttrNumber) 2, "Value",
+					   TEXTOID, -1, 0);
+	return tupdesc;
+}
+
 
 /*
  * SHOW command
  */
 void
-GetPGVariable(const char *name, DestReceiver *dest)
+GetPGVariable(VariableShowStmt *n, DestReceiver *dest)
 {
-	if (guc_name_compare(name, "all") == 0)
+	if (guc_name_compare(n->name, "all") == 0)
 		ShowAllGUCConfig(dest);
 	else
-		ShowGUCConfigOption(name, dest);
+	{
+		PG_TRY();
+		ShowGUCConfigOption(n->name, dest);
+		PG_CATCH();
+		if (geterrcode() == ERRCODE_UNDEFINED_OBJECT)
+		{
+			n->sv_scope = SVS_SESSION;
+			GetVariablesShard(n, dest);
+		}
+		else
+			PG_RE_THROW();
+		PG_END_TRY();
+	}
 }
 
 TupleDesc
-GetPGVariableResultDesc(const char *name)
+GetPGVariableResultDesc(VariableShowStmt *n)
 {
 	TupleDesc	tupdesc;
+	const char *name = n->name;
+	if (n->sv_scope != SVS_INVALID)
+		return GetMysqlVariableResultDesc();
 
 	if (guc_name_compare(name, "all") == 0)
 	{
@@ -8211,12 +8765,18 @@ GetPGVariableResultDesc(const char *name)
 		const char *varname;
 
 		/* Get the canonical spelling of name */
+		PG_TRY();
 		(void) GetConfigOptionByName(name, &varname, false);
 
 		/* need a tuple descriptor representing a single TEXT column */
 		tupdesc = CreateTemplateTupleDesc(1, false);
 		TupleDescInitEntry(tupdesc, (AttrNumber) 1, varname,
 						   TEXTOID, -1, 0);
+		PG_CATCH();
+		Var_def *vd = find_var_def(name);
+		if (vd) tupdesc = GetMysqlVariableResultDesc();
+		else PG_RE_THROW();
+		PG_END_TRY();
 	}
 	return tupdesc;
 }
@@ -10582,6 +11142,7 @@ show_archive_command(void)
 		return "(disabled)";
 }
 
+
 static void
 assign_tcp_keepalives_idle(int newval, void *extra)
 {
@@ -10818,5 +11379,6 @@ show_data_directory_mode(void)
 	snprintf(buf, sizeof(buf), "%04o", data_directory_mode);
 	return buf;
 }
+
 
 #include "guc-file.c"

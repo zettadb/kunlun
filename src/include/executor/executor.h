@@ -63,6 +63,7 @@
 #define EXEC_FLAG_WITH_OIDS		0x0020	/* force OIDs in returned tuples */
 #define EXEC_FLAG_WITHOUT_OIDS	0x0040	/* force no OIDs in returned tuples */
 #define EXEC_FLAG_WITH_NO_DATA	0x0080	/* rel scannability doesn't matter */
+#define EXEC_FLAG_REMOTE_FETCH_NO_DATA	0x0080	/* do not prepare/try to fetch remote data, only create relevant nodes/objects */
 
 
 /* Hook for plugins to get control in ExecutorStart() */
@@ -185,7 +186,8 @@ extern void InitResultRelInfo(ResultRelInfo *resultRelInfo,
 				  Relation resultRelationDesc,
 				  Index resultRelationIndex,
 				  Relation partition_root,
-				  int instrument_options);
+				  int instrument_options,
+				  EState *estate);
 extern ResultRelInfo *ExecGetTriggerResultRel(EState *estate, Oid relid);
 extern void ExecCleanUpTriggerState(EState *estate);
 extern bool ExecContextForcesOids(PlanState *planstate, bool *hasoids);

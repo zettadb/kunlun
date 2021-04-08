@@ -223,6 +223,8 @@ make_subplan(PlannerInfo *root, Query *orig_subquery,
 	subroot = subquery_planner(root->glob, subquery,
 							   root,
 							   false, tuple_fraction);
+	if (!subroot)
+		return NULL;
 
 	/* Isolate the params needed by this specific subplan */
 	plan_params = root->plan_params;
@@ -270,6 +272,8 @@ make_subplan(PlannerInfo *root, Query *orig_subquery,
 			subroot = subquery_planner(root->glob, subquery,
 									   root,
 									   false, 0.0);
+			if (!subroot)
+				return NULL;
 
 			/* Isolate the params needed by this specific subplan */
 			plan_params = root->plan_params;
@@ -391,6 +395,15 @@ build_subplan(PlannerInfo *root, Plan *plan, PlannerInfo *subroot,
 		prm = generate_new_exec_param(root, BOOLOID, -1, InvalidOid);
 		splan->setParam = list_make1_int(prm->paramid);
 		isInitPlan = true;
+
+		/*
+		  dzw: performance optimization: we don't need all rows but only one.
+		*/
+		if (IsA(plan, RemoteScan))
+		{
+			RemoteScan *rs = (RemoteScan *)plan;
+			rs->check_exists = true;
+		}
 		result = (Node *) prm;
 	}
 	else if (splan->parParam == NIL && subLinkType == EXPR_SUBLINK)
@@ -871,6 +884,9 @@ SS_process_ctes(PlannerInfo *root)
 		subroot = subquery_planner(root->glob, subquery,
 								   root,
 								   cte->cterecursive, 0.0);
+
+		if (!subroot)
+			return;
 
 		/*
 		 * Since the current query level doesn't yet contain any RTEs, it
@@ -2031,6 +2047,18 @@ finalize_plan(PlannerInfo *root, Plan *plan,
 		case T_SampleScan:
 			finalize_primnode((Node *) ((SampleScan *) plan)->tablesample,
 							  &context);
+			context.paramids = bms_add_members(context.paramids, scan_params);
+			break;
+
+		case T_RemoteScan:
+			/*finalize_primnode((Node *) ((RemoteScan *) plan)->indexorderby,
+							  &context);
+			*/
+			/*
+			 * we need not look at indexqualorig, since it will have the same
+			 * param references as indexqual.  Likewise, we can ignore
+			 * indexorderbyorig.
+			 */
 			context.paramids = bms_add_members(context.paramids, scan_params);
 			break;
 

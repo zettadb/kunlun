@@ -21,6 +21,8 @@
 #include "postgres.h"
 
 #include "access/sysattr.h"
+#include "access/remote_dml.h"
+#include "catalog/catalog.h"
 #include "catalog/dependency.h"
 #include "catalog/pg_type.h"
 #include "commands/trigger.h"
@@ -65,7 +67,8 @@ static List *rewriteTargetListIU(List *targetList,
 					CmdType commandType,
 					OverridingKind override,
 					Relation target_relation,
-					int result_rti);
+					int result_rti,
+					Query *q);
 static TargetEntry *process_matched_tle(TargetEntry *src_tle,
 					TargetEntry *prior_tle,
 					const char *attrName);
@@ -712,7 +715,8 @@ rewriteTargetListIU(List *targetList,
 					CmdType commandType,
 					OverridingKind override,
 					Relation target_relation,
-					int result_rti)
+					int result_rti,
+					Query *qry)
 {
 	TargetEntry **new_tles;
 	List	   *new_tlist = NIL;
@@ -864,10 +868,12 @@ rewriteTargetListIU(List *targetList,
 			}
 
 			if (new_expr)
+			{
 				new_tle = makeTargetEntry((Expr *) new_expr,
 										  attrno,
 										  pstrdup(NameStr(att_tup->attname)),
 										  false);
+			}
 		}
 
 		/*
@@ -3522,7 +3528,8 @@ RewriteQuery(Query *parsetree, List *rewrite_events)
 															parsetree->commandType,
 															parsetree->override,
 															rt_entry_relation,
-															parsetree->resultRelation);
+															parsetree->resultRelation,
+															parsetree);
 				/* ... and the VALUES expression lists */
 				if (!rewriteValuesRTE(parsetree, values_rte, values_rte_index,
 									  rt_entry_relation, false))
@@ -3536,7 +3543,8 @@ RewriteQuery(Query *parsetree, List *rewrite_events)
 										parsetree->commandType,
 										parsetree->override,
 										rt_entry_relation,
-										parsetree->resultRelation);
+										parsetree->resultRelation,
+										parsetree);
 			}
 
 			if (parsetree->onConflict &&
@@ -3547,7 +3555,8 @@ RewriteQuery(Query *parsetree, List *rewrite_events)
 										CMD_UPDATE,
 										parsetree->override,
 										rt_entry_relation,
-										parsetree->resultRelation);
+										parsetree->resultRelation,
+										parsetree);
 			}
 		}
 		else if (event == CMD_UPDATE)
@@ -3557,7 +3566,8 @@ RewriteQuery(Query *parsetree, List *rewrite_events)
 									parsetree->commandType,
 									parsetree->override,
 									rt_entry_relation,
-									parsetree->resultRelation);
+									parsetree->resultRelation,
+									parsetree);
 		}
 		else if (event == CMD_DELETE)
 		{

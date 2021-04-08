@@ -95,7 +95,8 @@ extern void InsertPgClassTuple(Relation pg_class_desc,
 				   Relation new_rel_desc,
 				   Oid new_rel_oid,
 				   Datum relacl,
-				   Datum reloptions);
+				   Datum reloptions,
+				   Relation heaprel);
 
 extern List *AddRelationNewConstraints(Relation rel,
 						  List *newColDefaults,

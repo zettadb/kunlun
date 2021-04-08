@@ -39,6 +39,8 @@
 #include "access/parallel.h"
 #include "access/printtup.h"
 #include "access/xact.h"
+#include "access/remote_meta.h"
+#include "catalog/catalog.h"
 #include "catalog/pg_type.h"
 #include "commands/async.h"
 #include "commands/prepare.h"
@@ -69,8 +71,10 @@
 #include "storage/sinval.h"
 #include "tcop/fastpath.h"
 #include "tcop/pquery.h"
+#include "tcop/runtime.h"
 #include "tcop/tcopprot.h"
 #include "tcop/utility.h"
+#include "utils/builtins.h"
 #include "utils/lsyscache.h"
 #include "utils/memutils.h"
 #include "utils/ps_status.h"
@@ -78,6 +82,12 @@
 #include "utils/timeout.h"
 #include "utils/timestamp.h"
 #include "mb/pg_wchar.h"
+#include "sharding/sharding_conn.h"
+#include "sharding/sharding.h"
+#include "access/remote_dml.h"
+#include "tcop/debug_funcs.h"
+#include "tcop/debug_injection.h"
+#include "tcop/runtime.h"
 
 
 /* ----------------
@@ -108,7 +118,7 @@ int			PostAuthDelay = 0;
  */
 
 /* max_stack_depth converted to bytes for speed of checking */
-static long max_stack_depth_bytes = 100 * 1024L;
+long max_stack_depth_bytes = 100 * 1024L;
 
 /*
  * Stack base pointer -- initialized by PostmasterMain and inherited by
@@ -193,8 +203,6 @@ static bool IsTransactionExitStmtList(List *pstmts);
 static bool IsTransactionStmtList(List *pstmts);
 static void drop_unnamed_stmt(void);
 static void log_disconnections(int code, Datum arg);
-static void enable_statement_timeout(void);
-static void disable_statement_timeout(void);
 
 
 /* ----------------------------------------------------------------
@@ -830,6 +838,8 @@ pg_plan_query(Query *querytree, int cursorOptions, ParamListInfo boundParams)
 
 	/* call the optimizer */
 	plan = planner(querytree, cursorOptions, boundParams);
+	if (!plan)
+		return NULL;
 
 	if (log_planner_stats)
 		ShowUsage("PLANNER STATISTICS");
@@ -898,7 +908,8 @@ pg_plan_queries(List *querytrees, int cursorOptions, ParamListInfo boundParams)
 			stmt = pg_plan_query(query, cursorOptions, boundParams);
 		}
 
-		stmt_list = lappend(stmt_list, stmt);
+		if (stmt)
+		    stmt_list = lappend(stmt_list, stmt);
 	}
 
 	return stmt_list;
@@ -921,6 +932,13 @@ exec_simple_query(const char *query_string)
 	bool		was_logged = false;
 	bool		use_implicit_block;
 	char		msec_str[32];
+
+	DEBUG_SYNC("start_of_simple_query");
+
+	/*
+	  dzw: init txn state for every statement as early as possible.
+	*/
+	init_curtxn_started_curcmd();
 
 	/*
 	 * Report query to various monitoring facilities.
@@ -954,6 +972,12 @@ exec_simple_query(const char *query_string)
 	 * unnamed operations.)
 	 */
 	drop_unnamed_stmt();
+
+	/*
+	 * dzw: reset per-statement states.
+	 * */
+	ResetCommunicationHubStmt(true);
+	ResetRemoteDDLStmt();
 
 	/*
 	 * Switch to appropriate context for constructing parsetrees.
@@ -1233,6 +1257,7 @@ exec_simple_query(const char *query_string)
 	TRACE_POSTGRESQL_QUERY_DONE(query_string);
 
 	debug_query_string = NULL;
+	DEBUG_SYNC("end_of_simple_query");
 }
 
 /*
@@ -1273,6 +1298,17 @@ exec_parse_message(const char *query_string,	/* string to execute */
 			(errmsg("parse %s: %s",
 					*stmt_name ? stmt_name : "<unnamed>",
 					query_string)));
+
+	/*
+	  dzw: init txn state for every statement as early as possible and reset
+	  remote ddl context. this can only be done in parse stage of extended
+	  query protocol, because such states are only used by DDLs which can't
+	  do real prepared stmt execution, so the bind&exec stages must be following
+	  with no other stmts in between.
+	  For non DDLs such states don't matter.
+	*/
+	init_curtxn_started_curcmd();
+	ResetRemoteDDLStmt();
 
 	/*
 	 * Start up a transaction command so we can run parse analysis etc. (Note
@@ -1523,6 +1559,12 @@ exec_bind_message(StringInfo input_message)
 	bool		save_log_statement_stats = log_statement_stats;
 	bool		snapshot_set = false;
 	char		msec_str[32];
+
+	/*
+	  dzw: we will use the remote communication channels in bind&execute
+	  stages, so reset here but never in execute stage.
+	*/
+	ResetCommunicationHubStmt(true);
 
 	/* Get the fixed part of the message */
 	portal_name = pq_getmsgstring(input_message);
@@ -2516,12 +2558,13 @@ static void
 finish_xact_command(void)
 {
 	/* cancel active statement timeout after each command */
-	disable_statement_timeout();
+	if (!xact_started) disable_statement_timeout();
 
 	if (xact_started)
 	{
 		CommitTransactionCommand();
-
+		// dzw: txn commit could timeout, so disable timeout after that.
+		disable_statement_timeout();
 #ifdef MEMORY_CONTEXT_CHECKING
 		/* Check all memory contexts that weren't freed during commit */
 		/* (those that were, were checked before being deleted) */
@@ -3035,6 +3078,20 @@ ProcessInterrupts(void)
 		if (stmt_timeout_occurred)
 		{
 			LockErrorCleanup();
+
+			/*
+			  dzw:
+			  We will throw error and abort the current txn, must kill our query
+			  running/blocked in storage shards currently otherwise next query
+			  can't be executed by storage shard nodes.
+			*/
+			ShardConnKillReq *req = makeShardConnKillReq(2/*kill query*/);
+			if (req)
+			{
+				appendShardConnKillReq(req);
+				pfree(req);
+			}
+
 			ereport(ERROR,
 					(errcode(ERRCODE_QUERY_CANCELED),
 					 errmsg("canceling statement due to statement timeout")));
@@ -3757,6 +3814,7 @@ PostgresMain(int argc, char *argv[],
 	}
 
 	PG_SETMASK(&BlockSig);		/* block everything except SIGQUIT */
+	set_fatal_signals_handling();
 
 	if (!IsUnderPostmaster)
 	{
@@ -3893,6 +3951,16 @@ PostgresMain(int argc, char *argv[],
 	 */
 	if (!IsUnderPostmaster)
 		PgStartTime = GetCurrentTimestamp();
+
+	/*
+	 * dzw: Session init for Kunlun specific features.
+	 * */
+	InitRemoteDDLContext();
+	InitRemoteTypeInfo();
+	ShardCacheInit();
+	InitShardingSession();
+	g_runtime_env.username = username;
+	g_runtime_env.dbname = dbname;
 
 	/*
 	 * POSTGRES main processing loop begins here
@@ -4040,6 +4108,8 @@ PostgresMain(int argc, char *argv[],
 		 * errors encountered in "idle" state don't provoke skip.
 		 */
 		doing_extended_query_message = false;
+		g_runtime_env.obj_name = NULL;
+		g_runtime_env.query_string = NULL;
 
 		/*
 		 * Release storage left over from prior query cycle, and create a new
@@ -4172,6 +4242,7 @@ PostgresMain(int argc, char *argv[],
 
 					query_string = pq_getmsgstring(&input_message);
 					pq_getmsgend(&input_message);
+					g_runtime_env.query_string = query_string;
 
 					if (am_walsender)
 					{
@@ -4210,6 +4281,9 @@ PostgresMain(int argc, char *argv[],
 					}
 					pq_getmsgend(&input_message);
 
+					g_runtime_env.query_string = query_string;
+					g_runtime_env.obj_name = stmt_name;
+
 					exec_parse_message(query_string, stmt_name,
 									   paramTypes, numParams);
 				}
@@ -4241,6 +4315,7 @@ PostgresMain(int argc, char *argv[],
 					portal_name = pq_getmsgstring(&input_message);
 					max_rows = pq_getmsgint(&input_message, 4);
 					pq_getmsgend(&input_message);
+					g_runtime_env.obj_name = portal_name;
 
 					exec_execute_message(portal_name, max_rows);
 				}
@@ -4336,6 +4411,7 @@ PostgresMain(int argc, char *argv[],
 					describe_type = pq_getmsgbyte(&input_message);
 					describe_target = pq_getmsgstring(&input_message);
 					pq_getmsgend(&input_message);
+					g_runtime_env.obj_name = describe_target;
 
 					switch (describe_type)
 					{
@@ -4614,6 +4690,17 @@ log_disconnections(int code, Datum arg)
 					port->remote_port[0] ? " port=" : "", port->remote_port)));
 }
 
+void enable_remote_timeout()
+{
+	enable_timeout_after(STATEMENT_TIMEOUT,
+		StatementTimeout > 0 ? StatementTimeout: mysql_read_timeout);
+}
+
+void disable_remote_timeout()
+{
+	disable_timeout(STATEMENT_TIMEOUT, false);
+}
+
 /*
  * Start statement timeout timer, if enabled.
  *
@@ -4621,7 +4708,7 @@ log_disconnections(int code, Datum arg)
  * enables compromises between accuracy of timeouts and cost of starting a
  * timeout.
  */
-static void
+void
 enable_statement_timeout(void)
 {
 	/* must be within an xact */
@@ -4642,7 +4729,7 @@ enable_statement_timeout(void)
 /*
  * Disable statement timeout, if active.
  */
-static void
+void
 disable_statement_timeout(void)
 {
 	if (stmt_timeout_active)

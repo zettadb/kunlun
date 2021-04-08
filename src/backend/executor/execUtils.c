@@ -714,6 +714,8 @@ ExecCloseScanRelation(Relation scanrel)
 /*
  * UpdateChangedParamSet
  *		Add changed parameters to a plan node's chgParam set
+ * find from upper level node's chgParam set the changed params of 'node'
+ * and store it to node->chgParam.
  */
 void
 UpdateChangedParamSet(PlanState *node, Bitmapset *newchg)

@@ -55,8 +55,8 @@ extern int64 nextval_internal(Oid relid, bool check_permissions);
 extern Datum nextval(PG_FUNCTION_ARGS);
 extern List *sequence_options(Oid relid);
 
-extern ObjectAddress DefineSequence(ParseState *pstate, CreateSeqStmt *stmt);
-extern ObjectAddress AlterSequence(ParseState *pstate, AlterSeqStmt *stmt);
+extern ObjectAddress DefineSequence(ParseState *pstate, CreateSeqStmt *stmt, bool toplevel);
+extern ObjectAddress AlterSequence(ParseState *pstate, AlterSeqStmt *stmt, bool toplevel);
 extern void DeleteSequenceTuple(Oid relid);
 extern void ResetSequence(Oid seq_relid);
 extern void ResetSequenceCaches(void);

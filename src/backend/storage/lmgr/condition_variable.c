@@ -122,6 +122,17 @@ ConditionVariablePrepareToSleep(ConditionVariable *cv)
 void
 ConditionVariableSleep(ConditionVariable *cv, uint32 wait_event_info)
 {
+	ConditionVariableTimedSleep(cv, wait_event_info, -1);
+}
+
+
+/*
+ * timeout: -1 if no timeout; > 0: NO. if milli-secs to wait for.
+ * @retval true if timeout occurred; false otherwise.
+ * */
+bool
+ConditionVariableTimedSleep(ConditionVariable *cv, uint32 wait_event_info, int timeout)
+{
 	WaitEvent	event;
 	bool		done = false;
 
@@ -143,18 +154,20 @@ ConditionVariableSleep(ConditionVariable *cv, uint32 wait_event_info)
 	if (cv_sleep_target != cv)
 	{
 		ConditionVariablePrepareToSleep(cv);
-		return;
+		return false;
 	}
 
 	do
 	{
 		CHECK_FOR_INTERRUPTS();
 
+		memset(&event, 0, sizeof(event));
+
 		/*
 		 * Wait for latch to be set.  (If we're awakened for some other
 		 * reason, the code below will cope anyway.)
 		 */
-		WaitEventSetWait(cv_wait_event_set, -1, &event, 1, wait_event_info);
+		int nevts = WaitEventSetWait(cv_wait_event_set, timeout, &event, 1, wait_event_info);
 
 		if (event.events & WL_POSTMASTER_DEATH)
 		{
@@ -190,7 +203,10 @@ ConditionVariableSleep(ConditionVariable *cv, uint32 wait_event_info)
 			proclist_push_tail(&cv->wakeup, MyProc->pgprocno, cvWaitLink);
 		}
 		SpinLockRelease(&cv->mutex);
+		if (nevts == 0 && timeout > 0)
+			return true;
 	} while (!done);
+	return false;
 }
 
 /*

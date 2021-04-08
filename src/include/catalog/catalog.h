@@ -29,6 +29,9 @@ extern bool IsCatalogClass(Oid relid, Form_pg_class reltuple);
 extern bool IsSystemNamespace(Oid namespaceId);
 extern bool IsToastNamespace(Oid namespaceId);
 
+extern bool IsRemoteRelation(Relation rel);
+extern bool IsRemoteRelationParent(Relation rel);
+
 extern bool IsReservedName(const char *name);
 
 extern bool IsSharedRelation(Oid relationId);

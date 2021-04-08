@@ -339,6 +339,8 @@ identifier		{ident_start}{ident_cont}*
 typecast		"::"
 dot_dot			\.\.
 colon_equals	":="
+/* dzw: for mysql style SET stmt. */
+at_at			"@@"
 
 /*
  * These operator-like tokens (unlike the above ones) also match the {operator}
@@ -831,7 +833,10 @@ other			.
 					SET_YYLLOC();
 					return COLON_EQUALS;
 				}
-
+{at_at}			{
+					SET_YYLLOC();
+					return AT_AT;
+				}
 {equals_greater} {
 					SET_YYLLOC();
 					return EQUALS_GREATER;

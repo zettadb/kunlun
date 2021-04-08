@@ -20,6 +20,7 @@
 #include "access/heapam.h"
 #include "access/htup_details.h"
 #include "access/nbtree.h"
+#include "access/remote_dml.h"
 #include "access/tsmapi.h"
 #include "catalog/catalog.h"
 #include "catalog/heap.h"
@@ -203,6 +204,7 @@ setTargetTable(ParseState *pstate, RangeVar *relation,
 	if (pstate->p_target_relation != NULL)
 		heap_close(pstate->p_target_relation, NoLock);
 
+
 	/*
 	 * Open target rel and grab suitable lock (which we will hold till end of
 	 * transaction).
@@ -286,6 +288,24 @@ interpretOidsOption(List *defList, bool allowOids)
 
 	/* OIDS option was not specified, so use default. */
 	return default_with_oids;
+}
+
+Oid interpretShardidOption(List *defList)
+{
+	ListCell   *cell;
+
+	/* Scan list to see if OIDS was included */
+	foreach(cell, defList)
+	{
+		DefElem    *def = (DefElem *) lfirst(cell);
+
+		if (def->defnamespace == NULL &&
+			strcmp(def->defname, "shard") == 0)
+		{
+			return intVal(def->arg);
+		}
+	}
+	return InvalidOid;
 }
 
 /*

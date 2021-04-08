@@ -30,6 +30,12 @@ CATALOG(pg_sequence,2224,SequenceRelationId) BKI_WITHOUT_OIDS
 	int64		seqmin;
 	int64		seqcache;
 	bool		seqcycle;
+	/*
+	  dzw: fetch&store reserved sequence values from storage shard.
+	  Below fields are invalid for temp sequences.
+	  last fetched value from remote storage shard and persisted there.
+	*/
+	int64		last_fetched;
 } FormData_pg_sequence;
 
 /* ----------------

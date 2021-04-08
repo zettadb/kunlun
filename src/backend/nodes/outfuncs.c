@@ -540,6 +540,17 @@ _outScan(StringInfo str, const Scan *node)
 }
 
 static void
+_outRemoteScan(StringInfo str, const RemoteScan *node)
+{
+	WRITE_NODE_TYPE("REMOTESCAN");
+
+	_outPlanInfo(str, (const Plan *) node);
+	WRITE_OID_FIELD(scanrelid);
+	WRITE_BOOL_FIELD(check_exists);
+	WRITE_INT_FIELD(query_level);
+}
+
+static void
 _outSeqScan(StringInfo str, const SeqScan *node)
 {
 	WRITE_NODE_TYPE("SEQSCAN");
@@ -880,6 +891,7 @@ _outMaterial(StringInfo str, const Material *node)
 	WRITE_NODE_TYPE("MATERIAL");
 
 	_outPlanInfo(str, (const Plan *) node);
+	WRITE_BOOL_FIELD(remote_fetch_all);
 }
 
 static void
@@ -3812,6 +3824,9 @@ outNode(StringInfo str, const void *obj)
 				break;
 			case T_CustomScan:
 				_outCustomScan(str, obj);
+				break;
+			case T_RemoteScan:
+				_outRemoteScan(str, obj);
 				break;
 			case T_Join:
 				_outJoin(str, obj);

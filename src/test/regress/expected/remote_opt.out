@@ -1,0 +1,815 @@
+create table t10(a serial primary key, b int, c int not null) partition by hash(a);
+create table t100 partition of t10 for values with (modulus 4, remainder 0); 
+create table t101 partition of t10 for values with (modulus 4, remainder 1); 
+create table t102 partition of t10 for values with (modulus 4, remainder 2); 
+create table t103 partition of t10 for values with (modulus 4, remainder 3); 
+insert into t10(a  , b  , c) values
+(1 , 16 , 0),
+(12 ,  3 , 4),
+(26 , NULL, 1),
+(28 , NULL, 2),
+(30 , NULL, 3),
+(32 , NULL, 1),
+(34 , NULL, 3),
+(44 , NULL, 3),
+(45 , NULL, 3),
+(50 , NULL, 3),
+(3 , 37 , 0),
+(11 ,  1 , 2),
+(21 , NULL, 1),
+(31 , NULL, 1),
+(35 , NULL, 3),
+(41 , NULL, 1),
+(46 , NULL, 1),
+(2 , 27 , 0),
+(13 ,  5 , 6),
+(23 , NULL, 2),
+(25 , NULL, 3),
+(27 , NULL, 1),
+(42 , NULL, 1),
+(43 , NULL, 2),
+(47 , NULL, 1),
+(48 , NULL, 2),
+(49 , NULL, 3),
+(4 , 48 , 4),
+(22 , NULL, 1),
+(24 , NULL, 3),
+(29 , NULL, 3),
+(33 , NULL, 2);
+select*from t10 order by a;
+ a  | b  | c 
+----+----+---
+  1 | 16 | 0
+  2 | 27 | 0
+  3 | 37 | 0
+  4 | 48 | 4
+ 11 |  1 | 2
+ 12 |  3 | 4
+ 13 |  5 | 6
+ 21 |    | 1
+ 22 |    | 1
+ 23 |    | 2
+ 24 |    | 3
+ 25 |    | 3
+ 26 |    | 1
+ 27 |    | 1
+ 28 |    | 2
+ 29 |    | 3
+ 30 |    | 3
+ 31 |    | 1
+ 32 |    | 1
+ 33 |    | 2
+ 34 |    | 3
+ 35 |    | 3
+ 41 |    | 1
+ 42 |    | 1
+ 43 |    | 2
+ 44 |    | 3
+ 45 |    | 3
+ 46 |    | 1
+ 47 |    | 1
+ 48 |    | 2
+ 49 |    | 3
+ 50 |    | 3
+(32 rows)
+
+create table t11 (like t10 INCLUDING ALL);
+insert into t11 select*from t10;
+select*from t11 order by a;
+ a  | b  | c 
+----+----+---
+  1 | 16 | 0
+  2 | 27 | 0
+  3 | 37 | 0
+  4 | 48 | 4
+ 11 |  1 | 2
+ 12 |  3 | 4
+ 13 |  5 | 6
+ 21 |    | 1
+ 22 |    | 1
+ 23 |    | 2
+ 24 |    | 3
+ 25 |    | 3
+ 26 |    | 1
+ 27 |    | 1
+ 28 |    | 2
+ 29 |    | 3
+ 30 |    | 3
+ 31 |    | 1
+ 32 |    | 1
+ 33 |    | 2
+ 34 |    | 3
+ 35 |    | 3
+ 41 |    | 1
+ 42 |    | 1
+ 43 |    | 2
+ 44 |    | 3
+ 45 |    | 3
+ 46 |    | 1
+ 47 |    | 1
+ 48 |    | 2
+ 49 |    | 3
+ 50 |    | 3
+(32 rows)
+
+create table t12 (a int primary key, b int, c int not null) partition by range (a);
+create table t120 partition of t12 for values from (minvalue) to (13);
+create table t121 partition of t12 for values from (13) to (22);
+create table t122 partition of t12 for values from (22) to (44);
+create table t123 partition of t12 for values from (44) to (maxvalue);
+insert into t12 select*from t10;
+-- explain insert into t12 select*from t10;
+select*from t12 order by a;
+ a  | b  | c 
+----+----+---
+  1 | 16 | 0
+  2 | 27 | 0
+  3 | 37 | 0
+  4 | 48 | 4
+ 11 |  1 | 2
+ 12 |  3 | 4
+ 13 |  5 | 6
+ 21 |    | 1
+ 22 |    | 1
+ 23 |    | 2
+ 24 |    | 3
+ 25 |    | 3
+ 26 |    | 1
+ 27 |    | 1
+ 28 |    | 2
+ 29 |    | 3
+ 30 |    | 3
+ 31 |    | 1
+ 32 |    | 1
+ 33 |    | 2
+ 34 |    | 3
+ 35 |    | 3
+ 41 |    | 1
+ 42 |    | 1
+ 43 |    | 2
+ 44 |    | 3
+ 45 |    | 3
+ 46 |    | 1
+ 47 |    | 1
+ 48 |    | 2
+ 49 |    | 3
+ 50 |    | 3
+(32 rows)
+
+delete from t12;
+insert into t12 select*from t11;
+-- explain insert into t12 select*from t11;
+create table t13 (like t11 including all);
+insert into t13 select*from t11;
+-- explain insert into t13 select*from t11;
+select*from t13 order by a;
+ a  | b  | c 
+----+----+---
+  1 | 16 | 0
+  2 | 27 | 0
+  3 | 37 | 0
+  4 | 48 | 4
+ 11 |  1 | 2
+ 12 |  3 | 4
+ 13 |  5 | 6
+ 21 |    | 1
+ 22 |    | 1
+ 23 |    | 2
+ 24 |    | 3
+ 25 |    | 3
+ 26 |    | 1
+ 27 |    | 1
+ 28 |    | 2
+ 29 |    | 3
+ 30 |    | 3
+ 31 |    | 1
+ 32 |    | 1
+ 33 |    | 2
+ 34 |    | 3
+ 35 |    | 3
+ 41 |    | 1
+ 42 |    | 1
+ 43 |    | 2
+ 44 |    | 3
+ 45 |    | 3
+ 46 |    | 1
+ 47 |    | 1
+ 48 |    | 2
+ 49 |    | 3
+ 50 |    | 3
+(32 rows)
+
+select*from t12 where c in (select c from t13 where a > 30) order by t12.a;
+ a  | b | c 
+----+---+---
+ 11 | 1 | 2
+ 21 |   | 1
+ 22 |   | 1
+ 23 |   | 2
+ 24 |   | 3
+ 25 |   | 3
+ 26 |   | 1
+ 27 |   | 1
+ 28 |   | 2
+ 29 |   | 3
+ 30 |   | 3
+ 31 |   | 1
+ 32 |   | 1
+ 33 |   | 2
+ 34 |   | 3
+ 35 |   | 3
+ 41 |   | 1
+ 42 |   | 1
+ 43 |   | 2
+ 44 |   | 3
+ 45 |   | 3
+ 46 |   | 1
+ 47 |   | 1
+ 48 |   | 2
+ 49 |   | 3
+ 50 |   | 3
+(26 rows)
+
+-- explain select*from t12 where c in (select c from t13 where a > 30) order by t12.a;
+select*from t12 where c not in (select c from t13 where a > 30) order by t12.a;
+ a  | b  | c 
+----+----+---
+  1 | 16 | 0
+  2 | 27 | 0
+  3 | 37 | 0
+  4 | 48 | 4
+ 12 |  3 | 4
+ 13 |  5 | 6
+(6 rows)
+
+explain select*from t12 where c not in (select c from t13 where a > 30) order by t12.a;
+                                    QUERY PLAN                                     
+-----------------------------------------------------------------------------------
+ Merge Append  (cost=149.45..545.45 rows=4080 width=12)
+   Sort Key: t120.a
+   ->  Index Scan using t120_pkey on t120  (cost=37.35..121.05 rows=1020 width=12)
+         Filter: (NOT (hashed SubPlan 1))
+         SubPlan 1
+           ->  Seq Scan on t13  (cost=0.00..35.50 rows=680 width=4)
+                 Filter: (a > 30)
+   ->  Index Scan using t121_pkey on t121  (cost=37.35..121.05 rows=1020 width=12)
+         Filter: (NOT (hashed SubPlan 1))
+   ->  Index Scan using t122_pkey on t122  (cost=37.35..121.05 rows=1020 width=12)
+         Filter: (NOT (hashed SubPlan 1))
+   ->  Index Scan using t123_pkey on t123  (cost=37.35..121.05 rows=1020 width=12)
+         Filter: (NOT (hashed SubPlan 1))
+(13 rows)
+
+select*from t12 where c not in (select c from t13 where a < 10) order by t12.a;
+ a  | b | c 
+----+---+---
+ 11 | 1 | 2
+ 13 | 5 | 6
+ 21 |   | 1
+ 22 |   | 1
+ 23 |   | 2
+ 24 |   | 3
+ 25 |   | 3
+ 26 |   | 1
+ 27 |   | 1
+ 28 |   | 2
+ 29 |   | 3
+ 30 |   | 3
+ 31 |   | 1
+ 32 |   | 1
+ 33 |   | 2
+ 34 |   | 3
+ 35 |   | 3
+ 41 |   | 1
+ 42 |   | 1
+ 43 |   | 2
+ 44 |   | 3
+ 45 |   | 3
+ 46 |   | 1
+ 47 |   | 1
+ 48 |   | 2
+ 49 |   | 3
+ 50 |   | 3
+(27 rows)
+
+explain select*from t12 where c not in (select c from t13 where a < 10) order by t12.a;
+                                    QUERY PLAN                                     
+-----------------------------------------------------------------------------------
+ Merge Append  (cost=149.45..545.45 rows=4080 width=12)
+   Sort Key: t120.a
+   ->  Index Scan using t120_pkey on t120  (cost=37.35..121.05 rows=1020 width=12)
+         Filter: (NOT (hashed SubPlan 1))
+         SubPlan 1
+           ->  Seq Scan on t13  (cost=0.00..35.50 rows=680 width=4)
+                 Filter: (a < 10)
+   ->  Index Scan using t121_pkey on t121  (cost=37.35..121.05 rows=1020 width=12)
+         Filter: (NOT (hashed SubPlan 1))
+   ->  Index Scan using t122_pkey on t122  (cost=37.35..121.05 rows=1020 width=12)
+         Filter: (NOT (hashed SubPlan 1))
+   ->  Index Scan using t123_pkey on t123  (cost=37.35..121.05 rows=1020 width=12)
+         Filter: (NOT (hashed SubPlan 1))
+(13 rows)
+
+select*from t12 where exists (select c from t13 where a < 10) order by t13.a;
+ERROR:  missing FROM-clause entry for table "t13"
+LINE 1: ...here exists (select c from t13 where a < 10) order by t13.a;
+                                                                 ^
+-- explain select*from t12 where exists (select c from t13 where a < 10) order by t13.a;
+select*from t12 where exists (select c from t13 where a < t12.b) order by t12.a;
+ a  | b  | c 
+----+----+---
+  1 | 16 | 0
+  2 | 27 | 0
+  3 | 37 | 0
+  4 | 48 | 4
+ 12 |  3 | 4
+ 13 |  5 | 6
+(6 rows)
+
+-- explain select*from t12 where exists (select c from t13 where a < t12.b) order by t12.a;
+select*from t12 where exists (select c from t13 where a < t12.c) order by t12.a;
+ a  | b  | c 
+----+----+---
+  4 | 48 | 4
+ 11 |  1 | 2
+ 12 |  3 | 4
+ 13 |  5 | 6
+ 23 |    | 2
+ 24 |    | 3
+ 25 |    | 3
+ 28 |    | 2
+ 29 |    | 3
+ 30 |    | 3
+ 33 |    | 2
+ 34 |    | 3
+ 35 |    | 3
+ 43 |    | 2
+ 44 |    | 3
+ 45 |    | 3
+ 48 |    | 2
+ 49 |    | 3
+ 50 |    | 3
+(19 rows)
+
+-- explain select*from t12 where exists (select c from t13 where a < t12.c) order by t12.a;
+select*from t12 where exists (select c from t13 where a < t12.a) order by t13.a;
+ERROR:  missing FROM-clause entry for table "t13"
+LINE 1: ...e exists (select c from t13 where a < t12.a) order by t13.a;
+                                                                 ^
+-- explain select*from t12 where exists (select c from t13 where a < t12.a) order by t13.a;
+set enable_hashjoin=false;
+set enable_mergejoin=false;
+select*from t10, t12 where t10.a=t12.a order by t12.a;
+ a  | b  | c | a  | b  | c 
+----+----+---+----+----+---
+  1 | 16 | 0 |  1 | 16 | 0
+  2 | 27 | 0 |  2 | 27 | 0
+  3 | 37 | 0 |  3 | 37 | 0
+  4 | 48 | 4 |  4 | 48 | 4
+ 11 |  1 | 2 | 11 |  1 | 2
+ 12 |  3 | 4 | 12 |  3 | 4
+ 13 |  5 | 6 | 13 |  5 | 6
+ 21 |    | 1 | 21 |    | 1
+ 22 |    | 1 | 22 |    | 1
+ 23 |    | 2 | 23 |    | 2
+ 24 |    | 3 | 24 |    | 3
+ 25 |    | 3 | 25 |    | 3
+ 26 |    | 1 | 26 |    | 1
+ 27 |    | 1 | 27 |    | 1
+ 28 |    | 2 | 28 |    | 2
+ 29 |    | 3 | 29 |    | 3
+ 30 |    | 3 | 30 |    | 3
+ 31 |    | 1 | 31 |    | 1
+ 32 |    | 1 | 32 |    | 1
+ 33 |    | 2 | 33 |    | 2
+ 34 |    | 3 | 34 |    | 3
+ 35 |    | 3 | 35 |    | 3
+ 41 |    | 1 | 41 |    | 1
+ 42 |    | 1 | 42 |    | 1
+ 43 |    | 2 | 43 |    | 2
+ 44 |    | 3 | 44 |    | 3
+ 45 |    | 3 | 45 |    | 3
+ 46 |    | 1 | 46 |    | 1
+ 47 |    | 1 | 47 |    | 1
+ 48 |    | 2 | 48 |    | 2
+ 49 |    | 3 | 49 |    | 3
+ 50 |    | 3 | 50 |    | 3
+(32 rows)
+
+-- explain select*from t10, t12 where t10.a=t12.a order by t12.a;
+select*from t10, t13 where t10.a=t13.a order by t10.a;
+ a  | b  | c | a  | b  | c 
+----+----+---+----+----+---
+  1 | 16 | 0 |  1 | 16 | 0
+  2 | 27 | 0 |  2 | 27 | 0
+  3 | 37 | 0 |  3 | 37 | 0
+  4 | 48 | 4 |  4 | 48 | 4
+ 11 |  1 | 2 | 11 |  1 | 2
+ 12 |  3 | 4 | 12 |  3 | 4
+ 13 |  5 | 6 | 13 |  5 | 6
+ 21 |    | 1 | 21 |    | 1
+ 22 |    | 1 | 22 |    | 1
+ 23 |    | 2 | 23 |    | 2
+ 24 |    | 3 | 24 |    | 3
+ 25 |    | 3 | 25 |    | 3
+ 26 |    | 1 | 26 |    | 1
+ 27 |    | 1 | 27 |    | 1
+ 28 |    | 2 | 28 |    | 2
+ 29 |    | 3 | 29 |    | 3
+ 30 |    | 3 | 30 |    | 3
+ 31 |    | 1 | 31 |    | 1
+ 32 |    | 1 | 32 |    | 1
+ 33 |    | 2 | 33 |    | 2
+ 34 |    | 3 | 34 |    | 3
+ 35 |    | 3 | 35 |    | 3
+ 41 |    | 1 | 41 |    | 1
+ 42 |    | 1 | 42 |    | 1
+ 43 |    | 2 | 43 |    | 2
+ 44 |    | 3 | 44 |    | 3
+ 45 |    | 3 | 45 |    | 3
+ 46 |    | 1 | 46 |    | 1
+ 47 |    | 1 | 47 |    | 1
+ 48 |    | 2 | 48 |    | 2
+ 49 |    | 3 | 49 |    | 3
+ 50 |    | 3 | 50 |    | 3
+(32 rows)
+
+-- explain select*from t10, t13 where t10.a=t13.a order by t10.a;
+select*from t11, t13 where t11.a=t13.a order by t11.a;
+ a  | b  | c | a  | b  | c 
+----+----+---+----+----+---
+  1 | 16 | 0 |  1 | 16 | 0
+  2 | 27 | 0 |  2 | 27 | 0
+  3 | 37 | 0 |  3 | 37 | 0
+  4 | 48 | 4 |  4 | 48 | 4
+ 11 |  1 | 2 | 11 |  1 | 2
+ 12 |  3 | 4 | 12 |  3 | 4
+ 13 |  5 | 6 | 13 |  5 | 6
+ 21 |    | 1 | 21 |    | 1
+ 22 |    | 1 | 22 |    | 1
+ 23 |    | 2 | 23 |    | 2
+ 24 |    | 3 | 24 |    | 3
+ 25 |    | 3 | 25 |    | 3
+ 26 |    | 1 | 26 |    | 1
+ 27 |    | 1 | 27 |    | 1
+ 28 |    | 2 | 28 |    | 2
+ 29 |    | 3 | 29 |    | 3
+ 30 |    | 3 | 30 |    | 3
+ 31 |    | 1 | 31 |    | 1
+ 32 |    | 1 | 32 |    | 1
+ 33 |    | 2 | 33 |    | 2
+ 34 |    | 3 | 34 |    | 3
+ 35 |    | 3 | 35 |    | 3
+ 41 |    | 1 | 41 |    | 1
+ 42 |    | 1 | 42 |    | 1
+ 43 |    | 2 | 43 |    | 2
+ 44 |    | 3 | 44 |    | 3
+ 45 |    | 3 | 45 |    | 3
+ 46 |    | 1 | 46 |    | 1
+ 47 |    | 1 | 47 |    | 1
+ 48 |    | 2 | 48 |    | 2
+ 49 |    | 3 | 49 |    | 3
+ 50 |    | 3 | 50 |    | 3
+(32 rows)
+
+-- explain select*from t11, t13 where t11.a=t13.a order by t11.a;
+set enable_hashjoin=true;
+set enable_nestloop=false;
+set enable_mergejoin=false;
+select*from t10, t12 where t10.a=t12.a order by t10.a;
+ a  | b  | c | a  | b  | c 
+----+----+---+----+----+---
+  1 | 16 | 0 |  1 | 16 | 0
+  2 | 27 | 0 |  2 | 27 | 0
+  3 | 37 | 0 |  3 | 37 | 0
+  4 | 48 | 4 |  4 | 48 | 4
+ 11 |  1 | 2 | 11 |  1 | 2
+ 12 |  3 | 4 | 12 |  3 | 4
+ 13 |  5 | 6 | 13 |  5 | 6
+ 21 |    | 1 | 21 |    | 1
+ 22 |    | 1 | 22 |    | 1
+ 23 |    | 2 | 23 |    | 2
+ 24 |    | 3 | 24 |    | 3
+ 25 |    | 3 | 25 |    | 3
+ 26 |    | 1 | 26 |    | 1
+ 27 |    | 1 | 27 |    | 1
+ 28 |    | 2 | 28 |    | 2
+ 29 |    | 3 | 29 |    | 3
+ 30 |    | 3 | 30 |    | 3
+ 31 |    | 1 | 31 |    | 1
+ 32 |    | 1 | 32 |    | 1
+ 33 |    | 2 | 33 |    | 2
+ 34 |    | 3 | 34 |    | 3
+ 35 |    | 3 | 35 |    | 3
+ 41 |    | 1 | 41 |    | 1
+ 42 |    | 1 | 42 |    | 1
+ 43 |    | 2 | 43 |    | 2
+ 44 |    | 3 | 44 |    | 3
+ 45 |    | 3 | 45 |    | 3
+ 46 |    | 1 | 46 |    | 1
+ 47 |    | 1 | 47 |    | 1
+ 48 |    | 2 | 48 |    | 2
+ 49 |    | 3 | 49 |    | 3
+ 50 |    | 3 | 50 |    | 3
+(32 rows)
+
+-- explain select*from t10, t12 where t10.a=t12.a order by t10.a;
+select*from t10, t13 where t10.a=t13.a order by t10.a;
+ a  | b  | c | a  | b  | c 
+----+----+---+----+----+---
+  1 | 16 | 0 |  1 | 16 | 0
+  2 | 27 | 0 |  2 | 27 | 0
+  3 | 37 | 0 |  3 | 37 | 0
+  4 | 48 | 4 |  4 | 48 | 4
+ 11 |  1 | 2 | 11 |  1 | 2
+ 12 |  3 | 4 | 12 |  3 | 4
+ 13 |  5 | 6 | 13 |  5 | 6
+ 21 |    | 1 | 21 |    | 1
+ 22 |    | 1 | 22 |    | 1
+ 23 |    | 2 | 23 |    | 2
+ 24 |    | 3 | 24 |    | 3
+ 25 |    | 3 | 25 |    | 3
+ 26 |    | 1 | 26 |    | 1
+ 27 |    | 1 | 27 |    | 1
+ 28 |    | 2 | 28 |    | 2
+ 29 |    | 3 | 29 |    | 3
+ 30 |    | 3 | 30 |    | 3
+ 31 |    | 1 | 31 |    | 1
+ 32 |    | 1 | 32 |    | 1
+ 33 |    | 2 | 33 |    | 2
+ 34 |    | 3 | 34 |    | 3
+ 35 |    | 3 | 35 |    | 3
+ 41 |    | 1 | 41 |    | 1
+ 42 |    | 1 | 42 |    | 1
+ 43 |    | 2 | 43 |    | 2
+ 44 |    | 3 | 44 |    | 3
+ 45 |    | 3 | 45 |    | 3
+ 46 |    | 1 | 46 |    | 1
+ 47 |    | 1 | 47 |    | 1
+ 48 |    | 2 | 48 |    | 2
+ 49 |    | 3 | 49 |    | 3
+ 50 |    | 3 | 50 |    | 3
+(32 rows)
+
+-- explain select*from t10, t13 where t10.a=t13.a order by t10.a;
+select*from t11, t13 where t11.a=t13.a order by t13.a;
+ a  | b  | c | a  | b  | c 
+----+----+---+----+----+---
+  1 | 16 | 0 |  1 | 16 | 0
+  2 | 27 | 0 |  2 | 27 | 0
+  3 | 37 | 0 |  3 | 37 | 0
+  4 | 48 | 4 |  4 | 48 | 4
+ 11 |  1 | 2 | 11 |  1 | 2
+ 12 |  3 | 4 | 12 |  3 | 4
+ 13 |  5 | 6 | 13 |  5 | 6
+ 21 |    | 1 | 21 |    | 1
+ 22 |    | 1 | 22 |    | 1
+ 23 |    | 2 | 23 |    | 2
+ 24 |    | 3 | 24 |    | 3
+ 25 |    | 3 | 25 |    | 3
+ 26 |    | 1 | 26 |    | 1
+ 27 |    | 1 | 27 |    | 1
+ 28 |    | 2 | 28 |    | 2
+ 29 |    | 3 | 29 |    | 3
+ 30 |    | 3 | 30 |    | 3
+ 31 |    | 1 | 31 |    | 1
+ 32 |    | 1 | 32 |    | 1
+ 33 |    | 2 | 33 |    | 2
+ 34 |    | 3 | 34 |    | 3
+ 35 |    | 3 | 35 |    | 3
+ 41 |    | 1 | 41 |    | 1
+ 42 |    | 1 | 42 |    | 1
+ 43 |    | 2 | 43 |    | 2
+ 44 |    | 3 | 44 |    | 3
+ 45 |    | 3 | 45 |    | 3
+ 46 |    | 1 | 46 |    | 1
+ 47 |    | 1 | 47 |    | 1
+ 48 |    | 2 | 48 |    | 2
+ 49 |    | 3 | 49 |    | 3
+ 50 |    | 3 | 50 |    | 3
+(32 rows)
+
+-- explain select*from t11, t13 where t11.a=t13.a order by t13.a;
+set enable_hashjoin=false;
+set enable_nestloop=false;
+set enable_mergejoin=true;
+select*from t10, t12 where t10.a=t12.a order by t10.a;
+ a  | b  | c | a  | b  | c 
+----+----+---+----+----+---
+  1 | 16 | 0 |  1 | 16 | 0
+  2 | 27 | 0 |  2 | 27 | 0
+  3 | 37 | 0 |  3 | 37 | 0
+  4 | 48 | 4 |  4 | 48 | 4
+ 11 |  1 | 2 | 11 |  1 | 2
+ 12 |  3 | 4 | 12 |  3 | 4
+ 13 |  5 | 6 | 13 |  5 | 6
+ 21 |    | 1 | 21 |    | 1
+ 22 |    | 1 | 22 |    | 1
+ 23 |    | 2 | 23 |    | 2
+ 24 |    | 3 | 24 |    | 3
+ 25 |    | 3 | 25 |    | 3
+ 26 |    | 1 | 26 |    | 1
+ 27 |    | 1 | 27 |    | 1
+ 28 |    | 2 | 28 |    | 2
+ 29 |    | 3 | 29 |    | 3
+ 30 |    | 3 | 30 |    | 3
+ 31 |    | 1 | 31 |    | 1
+ 32 |    | 1 | 32 |    | 1
+ 33 |    | 2 | 33 |    | 2
+ 34 |    | 3 | 34 |    | 3
+ 35 |    | 3 | 35 |    | 3
+ 41 |    | 1 | 41 |    | 1
+ 42 |    | 1 | 42 |    | 1
+ 43 |    | 2 | 43 |    | 2
+ 44 |    | 3 | 44 |    | 3
+ 45 |    | 3 | 45 |    | 3
+ 46 |    | 1 | 46 |    | 1
+ 47 |    | 1 | 47 |    | 1
+ 48 |    | 2 | 48 |    | 2
+ 49 |    | 3 | 49 |    | 3
+ 50 |    | 3 | 50 |    | 3
+(32 rows)
+
+-- explain select*from t10, t12 where t10.a=t12.a order by t10.a;
+select*from t10, t13 where t10.a=t13.a order by t10.a;
+ a  | b  | c | a  | b  | c 
+----+----+---+----+----+---
+  1 | 16 | 0 |  1 | 16 | 0
+  2 | 27 | 0 |  2 | 27 | 0
+  3 | 37 | 0 |  3 | 37 | 0
+  4 | 48 | 4 |  4 | 48 | 4
+ 11 |  1 | 2 | 11 |  1 | 2
+ 12 |  3 | 4 | 12 |  3 | 4
+ 13 |  5 | 6 | 13 |  5 | 6
+ 21 |    | 1 | 21 |    | 1
+ 22 |    | 1 | 22 |    | 1
+ 23 |    | 2 | 23 |    | 2
+ 24 |    | 3 | 24 |    | 3
+ 25 |    | 3 | 25 |    | 3
+ 26 |    | 1 | 26 |    | 1
+ 27 |    | 1 | 27 |    | 1
+ 28 |    | 2 | 28 |    | 2
+ 29 |    | 3 | 29 |    | 3
+ 30 |    | 3 | 30 |    | 3
+ 31 |    | 1 | 31 |    | 1
+ 32 |    | 1 | 32 |    | 1
+ 33 |    | 2 | 33 |    | 2
+ 34 |    | 3 | 34 |    | 3
+ 35 |    | 3 | 35 |    | 3
+ 41 |    | 1 | 41 |    | 1
+ 42 |    | 1 | 42 |    | 1
+ 43 |    | 2 | 43 |    | 2
+ 44 |    | 3 | 44 |    | 3
+ 45 |    | 3 | 45 |    | 3
+ 46 |    | 1 | 46 |    | 1
+ 47 |    | 1 | 47 |    | 1
+ 48 |    | 2 | 48 |    | 2
+ 49 |    | 3 | 49 |    | 3
+ 50 |    | 3 | 50 |    | 3
+(32 rows)
+
+-- explain select*from t10, t13 where t10.a=t13.a order by t10.a;
+select*from t11, t13 where t11.a=t13.a order by t11.a;
+ a  | b  | c | a  | b  | c 
+----+----+---+----+----+---
+  1 | 16 | 0 |  1 | 16 | 0
+  2 | 27 | 0 |  2 | 27 | 0
+  3 | 37 | 0 |  3 | 37 | 0
+  4 | 48 | 4 |  4 | 48 | 4
+ 11 |  1 | 2 | 11 |  1 | 2
+ 12 |  3 | 4 | 12 |  3 | 4
+ 13 |  5 | 6 | 13 |  5 | 6
+ 21 |    | 1 | 21 |    | 1
+ 22 |    | 1 | 22 |    | 1
+ 23 |    | 2 | 23 |    | 2
+ 24 |    | 3 | 24 |    | 3
+ 25 |    | 3 | 25 |    | 3
+ 26 |    | 1 | 26 |    | 1
+ 27 |    | 1 | 27 |    | 1
+ 28 |    | 2 | 28 |    | 2
+ 29 |    | 3 | 29 |    | 3
+ 30 |    | 3 | 30 |    | 3
+ 31 |    | 1 | 31 |    | 1
+ 32 |    | 1 | 32 |    | 1
+ 33 |    | 2 | 33 |    | 2
+ 34 |    | 3 | 34 |    | 3
+ 35 |    | 3 | 35 |    | 3
+ 41 |    | 1 | 41 |    | 1
+ 42 |    | 1 | 42 |    | 1
+ 43 |    | 2 | 43 |    | 2
+ 44 |    | 3 | 44 |    | 3
+ 45 |    | 3 | 45 |    | 3
+ 46 |    | 1 | 46 |    | 1
+ 47 |    | 1 | 47 |    | 1
+ 48 |    | 2 | 48 |    | 2
+ 49 |    | 3 | 49 |    | 3
+ 50 |    | 3 | 50 |    | 3
+(32 rows)
+
+-- explain select*from t11, t13 where t11.a=t13.a order by t11.a;
+create table t14 (a int primary key, b varchar(32), c char(16));
+insert into t14 values(1, 'abc', 'def'),(2, '',''),(3, '',NULL),(4, NULL,''),(5, '','xyz'),(6,NULL, 'cbn'), (7, 'mit',''),(8, 'yale',NULL);
+select*from t14 order by a;
+ a |  b   |        c         
+---+------+------------------
+ 1 | abc  | def             
+ 2 |      |                 
+ 3 |      | 
+ 4 |      |                 
+ 5 |      | xyz             
+ 6 |      | cbn             
+ 7 | mit  |                 
+ 8 | yale | 
+(8 rows)
+
+select a, (case b when null then 'NULL' else b end) as b from t14 order by a;
+ a |  b   
+---+------
+ 1 | abc
+ 2 | 
+ 3 | 
+ 4 | 
+ 5 | 
+ 6 | 
+ 7 | mit
+ 8 | yale
+(8 rows)
+
+select a, (case b when NULL then 'NULL' else b end) as b, (case c when NULL then 'NULL' else c end) as c from t14 order by a;
+ a |  b   |        c         
+---+------+------------------
+ 1 | abc  | def             
+ 2 |      |                 
+ 3 |      | 
+ 4 |      |                 
+ 5 |      | xyz             
+ 6 |      | cbn             
+ 7 | mit  |                 
+ 8 | yale | 
+(8 rows)
+
+select a, (case b  when '' then 'empty' else b end) as b, c is null from t14 order by a;
+ a |   b   | ?column? 
+---+-------+----------
+ 1 | abc   | f
+ 2 | empty | f
+ 3 | empty | t
+ 4 |       | f
+ 5 | empty | f
+ 6 |       | f
+ 7 | mit   | f
+ 8 | yale  | t
+(8 rows)
+
+select a, (case b  when '' then 'empty' when NULL then 'NULL' else b end) as b, c is null from t14 order by a;
+ a |   b   | ?column? 
+---+-------+----------
+ 1 | abc   | f
+ 2 | empty | f
+ 3 | empty | t
+ 4 |       | f
+ 5 | empty | f
+ 6 |       | f
+ 7 | mit   | f
+ 8 | yale  | t
+(8 rows)
+
+select a, b is null as bisnull, c is null as cisnull from t14 order by a;
+ a | bisnull | cisnull 
+---+---------+---------
+ 1 | f       | f
+ 2 | f       | f
+ 3 | f       | t
+ 4 | t       | f
+ 5 | f       | f
+ 6 | t       | f
+ 7 | f       | f
+ 8 | f       | t
+(8 rows)
+
+select a, (case b  when '' then 'empty' else case b is null when  true then 'NULL' else b end end) as b, c is null from t14 order by a;
+ a |   b   | ?column? 
+---+-------+----------
+ 1 | abc   | f
+ 2 | empty | f
+ 3 | empty | t
+ 4 | NULL  | f
+ 5 | empty | f
+ 6 | NULL  | f
+ 7 | mit   | f
+ 8 | yale  | t
+(8 rows)
+
+select a, (case (b is null)  when true then 'NULL' else case b when '' then 'empty' else b end end) as b, c is null from t14 order by a;
+ a |   b   | ?column? 
+---+-------+----------
+ 1 | abc   | f
+ 2 | empty | f
+ 3 | empty | t
+ 4 | NULL  | f
+ 5 | empty | f
+ 6 | NULL  | f
+ 7 | mit   | f
+ 8 | yale  | t
+(8 rows)
+

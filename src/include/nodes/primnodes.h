@@ -63,14 +63,14 @@ typedef enum OnCommitAction
 typedef struct RangeVar
 {
 	NodeTag		type;
-	char	   *catalogname;	/* the catalog (database) name, or NULL */
-	char	   *schemaname;		/* the schema name, or NULL */
-	char	   *relname;		/* the relation/sequence name */
 	bool		inh;			/* expand rel by inheritance? recursively act
 								 * on children? */
 	char		relpersistence; /* see RELPERSISTENCE_* in pg_class.h */
-	Alias	   *alias;			/* table alias & optional column aliases */
 	int			location;		/* token location, or -1 if unknown */
+	char	   *catalogname;	/* the catalog (database) name, or NULL */
+	char	   *schemaname;		/* the schema name, or NULL */
+	char	   *relname;		/* the relation/sequence name */
+	Alias	   *alias;			/* table alias & optional column aliases */
 } RangeVar;
 
 /*
@@ -166,10 +166,10 @@ typedef struct Expr
 typedef struct Var
 {
 	Expr		xpr;
-	Index		varno;			/* index of this var's relation in the range
-								 * table, or INNER_VAR/OUTER_VAR/INDEX_VAR */
 	AttrNumber	varattno;		/* attribute number of this var, or zero for
 								 * all attrs ("whole-row Var") */
+	Index		varno;			/* index of this var's relation in the range
+								 * table, or INNER_VAR/OUTER_VAR/INDEX_VAR */
 	Oid			vartype;		/* pg_type OID for the type of this var */
 	int32		vartypmod;		/* pg_attribute typmod value */
 	Oid			varcollid;		/* OID of collation, or InvalidOid if none */
@@ -192,17 +192,17 @@ typedef struct Var
 typedef struct Const
 {
 	Expr		xpr;
-	Oid			consttype;		/* pg_type OID of the constant's datatype */
-	int32		consttypmod;	/* typmod value, if any */
-	Oid			constcollid;	/* OID of collation, or InvalidOid if none */
-	int			constlen;		/* typlen of the constant's datatype */
-	Datum		constvalue;		/* the constant's value */
 	bool		constisnull;	/* whether the constant is null (if true,
 								 * constvalue is undefined) */
 	bool		constbyval;		/* whether this datatype is passed by value.
 								 * If true, then all the information is stored
 								 * in the Datum. If false, then the Datum
 								 * contains a pointer to the information. */
+	Oid			consttype;		/* pg_type OID of the constant's datatype */
+	int32		consttypmod;	/* typmod value, if any */
+	Oid			constcollid;	/* OID of collation, or InvalidOid if none */
+	int			constlen;		/* typlen of the constant's datatype */
+	Datum		constvalue;		/* the constant's value */
 	int			location;		/* token location, or -1 if unknown */
 } Const;
 

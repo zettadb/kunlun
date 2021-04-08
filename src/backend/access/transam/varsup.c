@@ -22,17 +22,16 @@
 #include "commands/dbcommands.h"
 #include "miscadmin.h"
 #include "postmaster/autovacuum.h"
+#include "postmaster/xidsender.h"
 #include "storage/pmsignal.h"
 #include "storage/proc.h"
 #include "utils/syscache.h"
-
 
 /* Number of OIDs to prefetch (preallocate) per XLOG write */
 #define VAR_OID_PREFETCH		8192
 
 /* pointer to "variable cache" in shared memory (set up by shmem.c) */
 VariableCache ShmemVariableCache = NULL;
-
 
 /*
  * Allocate the next XID for a new transaction or subtransaction.
@@ -72,6 +71,15 @@ GetNewTransactionId(bool isSubXact)
 		elog(ERROR, "cannot assign TransactionIds during recovery");
 
 	LWLockAcquire(XidGenLock, LW_EXCLUSIVE);
+	if (IsNormalProcessingMode() && IsUnderPostmaster && !skip_tidsync &&
+	   !XidSyncDone())
+	{
+		LWLockRelease(XidGenLock);
+		ereport(ERROR,
+				(errcode(ERRCODE_INTERNAL_ERROR),
+				 errmsg("Transaction ID allocation requires completion of starting ID check for this run."),
+				 errhint("Wait a little while and retry, this error only ever happens at beginning of Postgres startup.")));
+	}
 
 	xid = ShmemVariableCache->nextXid;
 

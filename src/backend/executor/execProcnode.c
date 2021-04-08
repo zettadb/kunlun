@@ -100,6 +100,7 @@
 #include "executor/nodeNestloop.h"
 #include "executor/nodeProjectSet.h"
 #include "executor/nodeRecursiveunion.h"
+#include "executor/nodeRemotescan.h"
 #include "executor/nodeResult.h"
 #include "executor/nodeSamplescan.h"
 #include "executor/nodeSeqscan.h"
@@ -203,6 +204,10 @@ ExecInitNode(Plan *node, EState *estate, int eflags)
 			/*
 			 * scan nodes
 			 */
+		case T_RemoteScan:
+			result = (PlanState *) ExecInitRemoteScan((RemoteScan *) node,
+												   estate, eflags);
+			break;
 		case T_SeqScan:
 			result = (PlanState *) ExecInitSeqScan((SeqScan *) node,
 												   estate, eflags);
@@ -596,6 +601,10 @@ ExecEndNode(PlanState *node)
 			/*
 			 * scan nodes
 			 */
+		case T_RemoteScanState:
+			ExecEndRemoteScan((RemoteScanState *) node);
+			break;
+
 		case T_SeqScanState:
 			ExecEndSeqScan((SeqScanState *) node);
 			break;

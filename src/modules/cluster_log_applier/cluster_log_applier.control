@@ -1,0 +1,5 @@
+# cluster_log_applier extension
+comment = 'Apply cluster DDL logs and status sync logs.'
+default_version = '1.0'
+module_pathname = '$libdir/cluster_log_applier'
+relocatable = true

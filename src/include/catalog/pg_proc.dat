@@ -7787,6 +7787,9 @@
   proname => 'integer_pl_date', prolang => '14', prorettype => 'date',
   proargtypes => 'int4 date', prosrc => 'select $2 + $1' },
 
+{ oid => '6225', descr => 'current value from last used sequence, mysql alias for lastval',
+  proname => 'last_insert_id', provolatile => 'v', proparallel => 'u',
+  prorettype => 'int8', proargtypes => '', prosrc => 'lastval' },
 { oid => '2556', descr => 'get OIDs of databases in a tablespace',
   proname => 'pg_tablespace_databases', prorows => '1000', proretset => 't',
   provolatile => 's', prorettype => 'oid', proargtypes => 'oid',

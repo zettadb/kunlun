@@ -51,7 +51,7 @@ CREATE TABLE tenk1 (
 	stringu1	name,
 	stringu2	name,
 	string4		name
-) WITH OIDS;
+) ;
 
 CREATE TABLE tenk2 (
 	unique1 	int4,
@@ -83,7 +83,7 @@ CREATE TABLE person (
 CREATE TABLE emp (
 	salary 		int4,
 	manager 	name
-) INHERITS (person) WITH OIDS;
+) INHERITS (person) ;
 
 
 CREATE TABLE student (
@@ -271,7 +271,8 @@ CREATE TABLE pg_temp.implicitly_temp (a int primary key);		-- OK
 CREATE TEMP TABLE explicitly_temp (a int primary key);			-- also OK
 CREATE TEMP TABLE pg_temp.doubly_temp (a int primary key);		-- also OK
 CREATE TEMP TABLE public.temp_to_perm (a int primary key);		-- not OK
-DROP TABLE unlogged1, public.unlogged2;
+DROP TABLE unlogged1;
+DROP TABLE public.unlogged2;
 
 CREATE TABLE as_select1 AS SELECT * FROM pg_class WHERE relkind = 'r';
 CREATE TABLE as_select1 AS SELECT * FROM pg_class WHERE relkind = 'r';
@@ -297,7 +298,7 @@ INSERT INTO extra_wide_table(firstc, lastc) VALUES('first col', 'last col');
 SELECT firstc, lastc FROM extra_wide_table;
 
 -- check that the oid column is added before the primary key is checked
-CREATE TABLE oid_pk (f1 INT, PRIMARY KEY(oid)) WITH OIDS;
+CREATE TABLE oid_pk (f1 INT, PRIMARY KEY(oid)) ;
 DROP TABLE oid_pk;
 
 --
@@ -429,7 +430,8 @@ INSERT INTO partitioned2 VALUES (1, 'hello');
 CREATE TABLE part2_1 PARTITION OF partitioned2 FOR VALUES FROM (-1, 'aaaaa') TO (100, 'ccccc');
 \d+ part2_1
 
-DROP TABLE partitioned, partitioned2;
+DROP TABLE partitioned;
+DROP TABLE partitioned2;
 
 -- check that dependencies of partition columns are handled correctly
 create domain intdom1 as int;
@@ -515,7 +517,7 @@ CREATE TABLE bigintp_10 PARTITION OF bigintp FOR VALUES IN (10);
 -- fails due to overlap:
 CREATE TABLE bigintp_10_2 PARTITION OF bigintp FOR VALUES IN ('10');
 DROP TABLE bigintp;
-
+DROP TABLE IF EXISTS range_parted;
 CREATE TABLE range_parted (
 	a date
 ) PARTITION BY RANGE (a);
@@ -575,17 +577,21 @@ DROP TABLE temp_parted;
 CREATE TABLE no_oids_parted (
 	a int
 ) PARTITION BY RANGE (a) WITHOUT OIDS;
-CREATE TABLE fail_part PARTITION OF no_oids_parted FOR VALUES FROM (1) TO (10) WITH OIDS;
+
+-- with oid clause removed above so this stmt succeeds.
+CREATE TABLE fail_part PARTITION OF no_oids_parted FOR VALUES FROM (1) TO (10) ;
+drop table if exists fail_part;
 DROP TABLE no_oids_parted;
 
 -- If the partitioned table has oids, then the partition must have them.
 -- If the WITHOUT OIDS option is specified for partition, it is overridden.
 CREATE TABLE oids_parted (
 	a int
-) PARTITION BY RANGE (a) WITH OIDS;
+) PARTITION BY RANGE (a) ;
 CREATE TABLE part_forced_oids PARTITION OF oids_parted FOR VALUES FROM (1) TO (10) WITHOUT OIDS;
 \d+ part_forced_oids
-DROP TABLE oids_parted, part_forced_oids;
+DROP TABLE oids_parted;
+DROP TABLE part_forced_oids;
 
 -- check for partition bound overlap and other invalid specifications
 
@@ -596,6 +602,7 @@ CREATE TABLE part_null_z PARTITION OF list_parted2 FOR VALUES IN (null, 'z');
 CREATE TABLE part_ab PARTITION OF list_parted2 FOR VALUES IN ('a', 'b');
 CREATE TABLE list_parted2_def PARTITION OF list_parted2 DEFAULT;
 
+drop table if exists fail_part;
 CREATE TABLE fail_part PARTITION OF list_parted2 FOR VALUES IN (null);
 CREATE TABLE fail_part PARTITION OF list_parted2 FOR VALUES IN ('b', 'c');
 -- check default partition overlap
@@ -613,11 +620,16 @@ CREATE TABLE fail_part PARTITION OF range_parted2 FOR VALUES FROM (1) TO (1);
 
 CREATE TABLE part0 PARTITION OF range_parted2 FOR VALUES FROM (minvalue) TO (1);
 CREATE TABLE fail_part PARTITION OF range_parted2 FOR VALUES FROM (minvalue) TO (2);
+drop table if exists part1;
 CREATE TABLE part1 PARTITION OF range_parted2 FOR VALUES FROM (1) TO (10);
 CREATE TABLE fail_part PARTITION OF range_parted2 FOR VALUES FROM (9) TO (maxvalue);
+drop table if exists part2;
 CREATE TABLE part2 PARTITION OF range_parted2 FOR VALUES FROM (20) TO (30);
+drop table if exists part3;
 CREATE TABLE part3 PARTITION OF range_parted2 FOR VALUES FROM (30) TO (40);
+drop table if exists fail_part;
 CREATE TABLE fail_part PARTITION OF range_parted2 FOR VALUES FROM (10) TO (30);
+drop table if exists fail_part;
 CREATE TABLE fail_part PARTITION OF range_parted2 FOR VALUES FROM (10) TO (50);
 
 -- Create a default partition for range partitioned table
@@ -766,8 +778,15 @@ INSERT INTO partkey_t VALUES (100);
 INSERT INTO partkey_t VALUES (200);
 
 -- cleanup
-DROP TABLE parted, list_parted, range_parted, list_parted2, range_parted2, range_parted3;
-DROP TABLE partkey_t, hash_parted, hash_parted2;
+DROP TABLE parted;
+DROP TABLE list_parted;
+DROP TABLE range_parted;
+DROP TABLE list_parted2;
+DROP TABLE range_parted2;
+DROP TABLE range_parted3;
+DROP TABLE partkey_t;
+DROP TABLE hash_parted;
+DROP TABLE hash_parted2;
 DROP OPERATOR CLASS test_int4_ops USING btree;
 DROP FUNCTION my_int4_sort(int4,int4);
 

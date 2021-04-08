@@ -3,6 +3,10 @@
  * nodeModifyTable.c
  *	  routines to handle ModifyTable nodes.
  *
+ * Portions Copyright (c) 2019 ZettaDB inc. All rights reserved.
+ *
+ * This source code is licensed under Apache 2.0 License,
+ * combined with Common Clause Condition 1.0, as detailed in the NOTICE file.
  * Portions Copyright (c) 1996-2018, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
@@ -39,6 +43,7 @@
 
 #include "access/htup_details.h"
 #include "access/xact.h"
+#include "access/remotetup.h"
 #include "commands/trigger.h"
 #include "executor/execPartition.h"
 #include "executor/executor.h"
@@ -52,7 +57,12 @@
 #include "utils/memutils.h"
 #include "utils/rel.h"
 #include "utils/tqual.h"
-
+#include "catalog/catalog.h"
+#include "sharding/sharding_conn.h"
+#include "access/remote_dml.h"
+#include "nodes/makefuncs.h"
+#include "nodes/print.h"
+#include "executor/nodeRemotescan.h"
 
 static bool ExecOnConflictUpdate(ModifyTableState *mtstate,
 					 ResultRelInfo *resultRelInfo,
@@ -72,6 +82,13 @@ static void ExecSetupChildParentMapForTcs(ModifyTableState *mtstate);
 static void ExecSetupChildParentMapForSubplan(ModifyTableState *mtstate);
 static TupleConversionMap *tupconv_map_for_subplan(ModifyTableState *node,
 						int whichplan);
+static TupleDesc
+ExecScanTypeFromTL(EState *estate, ModifyTableState *mts,
+	Relation rel, bool skipjunk);
+static void
+ExecInitRemoteReturningTupleSlotTL(EState *estate, ModifyTableState *mts, TupleDesc tupledesc);
+static TupleTableSlot *
+ReturningNext(ModifyTableState *node, RemoteModifyState*rms);
 
 /*
  * Verify that the tuples to be produced by INSERT or UPDATE match the
@@ -250,6 +267,40 @@ ExecCheckTIDVisible(EState *estate,
 	ReleaseBuffer(buffer);
 }
 
+
+/*
+ * dzw:
+ * In some code paths the slot->attrs array elements don't have valid
+ * attr-name, which is not a problem for original pg but they are
+ * required to build the remote insert stmt. so fill them.
+ * */
+static void fill_tupdesc_attr_info(TupleDesc tupdesc, TupleTableSlot *slot)
+{
+	FormData_pg_attribute *attrs1 = tupdesc->attrs;
+	FormData_pg_attribute *attrs2 = slot->tts_tupleDescriptor->attrs;
+
+	if (slot->tts_tupleDescriptor->natts != tupdesc->natts || !attrs1 || !attrs2)
+	{
+		ereport(ERROR, (errcode(ERRCODE_DATATYPE_MISMATCH),
+				errmsg("Insert statement relation metadata inconsistent.")));
+	}
+
+	for (int i = 0; i < tupdesc->natts; i++)
+	{
+		if (attrs2[i].attname.data[0] != '\0')
+			continue;
+
+		if (attrs1[i].atttypid != attrs2[i].atttypid ||
+			attrs1[i].attnum != attrs2[i].attnum)
+		{
+			ereport(ERROR, (errcode(ERRCODE_DATATYPE_MISMATCH),
+					errmsg("Insert statement relation metadata inconsistent.")));
+		}
+		attrs2[i] = attrs1[i];
+	}
+}
+
+
 /* ----------------------------------------------------------------
  *		ExecInsert
  *
@@ -277,16 +328,30 @@ ExecInsert(ModifyTableState *mtstate,
 	OnConflictAction onconflict = node->onConflictAction;
 
 	/*
-	 * get the heap tuple out of the tuple table slot, making sure we have a
-	 * writable copy
-	 */
-	tuple = ExecMaterializeSlot(slot);
-
-	/*
 	 * get information on the (current) result relation
 	 */
 	resultRelInfo = estate->es_result_relation_info;
 	resultRelationDesc = resultRelInfo->ri_RelationDesc;
+
+	/*
+	 * dzw:
+	 * For remote relations, no triggers or checks can be performed. Storage
+	 * node will maintain indexes by itself, and no OID system column allowed
+	 * for a remote relation. We don't need to make a HeapTuple, simply use the
+	 * slot(i.e. executor's tuple format) is sufficient.
+	 * */
+	if (IsRemoteRelation(resultRelationDesc))
+	{
+		fill_tupdesc_attr_info(resultRelationDesc->rd_att, slot);
+		cache_remotetup(slot, resultRelInfo->ri_RemotetupCache);
+		goto process_returning;
+	}
+
+	/*
+	 * get the heap tuple out of the tuple table slot, making sure we have a
+	 * writable copy
+	 */
+	tuple = ExecMaterializeSlot(slot);
 
 	/*
 	 * If the result relation has OIDs, force the tuple's OID to zero so that
@@ -588,7 +653,7 @@ ExecInsert(ModifyTableState *mtstate,
 	 */
 	if (resultRelInfo->ri_WithCheckOptions != NIL)
 		ExecWithCheckOptions(WCO_VIEW_CHECK, resultRelInfo, slot, estate);
-
+process_returning:
 	/* Process RETURNING if present */
 	if (resultRelInfo->ri_projectReturning)
 		result = ExecProcessReturning(resultRelInfo, slot, planSlot);
@@ -2007,6 +2072,66 @@ ExecModifyTable(PlanState *pstate)
 	saved_resultRelInfo = estate->es_result_relation_info;
 
 	estate->es_result_relation_info = resultRelInfo;
+	
+	/*
+	  dzw:
+	  Handle update/delete stmts, send all enqueued stmts, and then recv all
+	  below if has returning clause.
+	*/
+	if (node->operation != CMD_INSERT &&
+		IsRemoteRelation(resultRelInfo->ri_RelationDesc))
+	{
+		if (!node->remoteReturningTupleSlot)
+			send_multi_stmts_to_multi();
+		else
+		{
+			RemoteModifyState *currms = node->cur_returning_idx >= 0 ?
+				node->mt_remote_states + node->cur_returning_idx : NULL;
+
+			if (currms && (slot = ReturningNext(node, currms)))
+				return slot;
+
+			node->cur_returning_idx = -1;
+			int ndones = 0;
+			/*
+			  find one with data. in every channel there can be multiple stmts
+			  to send and then recv results one after another.
+			  iterate all channels multiple times until all channels have
+			  handled all stmts.
+			*/
+			for (int i = 0; ndones < node->mt_nplans; i = (i+1)%node->mt_nplans)
+			{
+				RemoteModifyState *rms = node->mt_remote_states + i;
+				resultRelInfo = node->resultRelInfo + i;
+				if (!rms->asi)
+				{
+					ndones++;
+					continue;
+				}
+
+				if (rms->asi->result_pending)
+				{
+					// at the end of every pass, block&wait for at least one
+					// channel's result to come.
+					if (i == node->mt_nplans - 1) send_stmt_to_multi_try_wait_all();
+					continue;
+				}
+
+				// got a channel with available data, fetch next row from it to a
+				// tupletableslot and return it. and later keep fetching until
+				// all result rows exhausted.
+				slot = ReturningNext(node, rms);
+				if (slot)
+				{
+					node->cur_returning_idx = i;
+					return slot;
+				}
+			}
+		}
+		node->mt_done = true;
+		estate->es_result_relation_info = saved_resultRelInfo;
+		return NULL;
+	}
 
 	/*
 	 * Fetch rows from subplan(s), and execute the required table modification
@@ -2244,10 +2369,11 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 
 	mtstate->mt_arowmarks = (List **) palloc0(sizeof(List *) * nplans);
 	mtstate->mt_nplans = nplans;
-
+	mtstate->mt_remote_states = palloc0(sizeof(RemoteModifyState) * nplans);
 	/* set up epqstate with dummy subplan data for the moment */
 	EvalPlanQualInit(&mtstate->mt_epqstate, estate, NULL, NIL, node->epqParam);
 	mtstate->fireBSTriggers = true;
+	mtstate->cur_returning_idx = -1;
 
 	/*
 	 * call ExecInitNode on each of the plans to be executed and save the
@@ -2301,7 +2427,25 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 
 		/* Now init the plan for this result rel */
 		estate->es_result_relation_info = resultRelInfo;
-		mtstate->mt_plans[i] = ExecInitNode(subplan, estate, eflags);
+		int extra_eflags = 0;
+
+		/*
+		  dzw: forbid remotescan node to modify its targetlist which is used
+		  in modify node to produce the remote dml stmt, for details see
+		  post_remote_updel_stmt.
+		  In kunlun to execute update stmts, we don't need/want the remotescan
+		  node to pull rows to computing node(while such rows are locked),
+		  we always do one shot one directional updates, for best performance.
+		  Thus remotescan nodes never need to or should do selects in such
+		  contexts.
+		*/
+		if ((operation == CMD_DELETE || operation == CMD_UPDATE) &&
+			IsRemoteRelation(resultRelInfo->ri_RelationDesc))
+		{
+			extra_eflags = EXEC_FLAG_REMOTE_FETCH_NO_DATA;
+		}
+
+		mtstate->mt_plans[i] = ExecInitNode(subplan, estate, eflags | extra_eflags);
 
 		/* Also let FDWs init themselves for foreign-table result rels */
 		if (!resultRelInfo->ri_usesFdwDirectModify &&
@@ -2400,6 +2544,15 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 		 */
 		mtstate->ps.plan->targetlist = (List *) linitial(node->returningLists);
 
+		/*
+		  dzw: Here we assume that all tables in mtstate->resultRelInfo array
+		  are leaf partitions of the same partitioned table, so they share the
+		  same tupledesc and targetlist.
+		*/
+		ExecScanTypeFromTL(estate, mtstate,
+			mtstate->resultRelInfo->ri_RelationDesc, true);
+
+		ExecInitRemoteReturningTupleSlotTL(estate, mtstate, mtstate->ps.scandesc);
 		/* Set up a slot for the output of the RETURNING projection(s) */
 		ExecInitResultTupleSlotTL(estate, &mtstate->ps);
 		slot = mtstate->ps.ps_ResultTupleSlot;
@@ -2668,6 +2821,49 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 		estate->es_auxmodifytables = lcons(mtstate,
 										   estate->es_auxmodifytables);
 
+	/*
+	  dzw: init facility for outputing result rows of 'returning' clause.
+	  If updating/deleting a remote table or remote table partition, we
+	  need to find the remotescan node which may not be immediately a child of
+	  the Modify node, e.g. there could be Material and/or Result nodes.
+	  Although we only need subplan->targetlist & subplan->qual which is the
+	  same for all subplan nodes of this Modify node, we still use each leaf
+	  partition's own RemoteScan node just in case.
+	*/
+	resultRelInfo = mtstate->resultRelInfo;
+
+	RemoteScan **rs_updels = palloc(sizeof(void*) * mtstate->mt_nplans);
+	if ((operation == CMD_DELETE || operation == CMD_UPDATE) &&
+		IsRemoteRelation(resultRelInfo->ri_RelationDesc))
+	{
+		for (int i = 0; i < mtstate->mt_nplans; i++)
+		{
+			subplan = mtstate->mt_plans[i]->plan;
+			while (subplan && nodeTag(subplan) != T_RemoteScan)
+			{
+				subplan = outerPlan(subplan);
+			}
+			if (!subplan || nodeTag(subplan) != T_RemoteScan)
+				ereport(ERROR,
+						(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+						 errmsg("Can not execute the query plan, updating/deleting remote tables require a remote scan under the update/delete node.")));
+			rs_updels[i] = (RemoteScan *)subplan;
+		}
+	}
+
+	for (int i = 0; i < nplans; i++, resultRelInfo++)
+	{
+		if ((operation == CMD_DELETE || operation == CMD_UPDATE) &&
+	    	IsRemoteRelation(resultRelInfo->ri_RelationDesc))
+		{
+			post_remote_updel_stmt(mtstate, rs_updels[i], i);
+		}
+	}
+
+	if (mtstate->remoteReturningTupleSlot)
+		init_type_input_info(&mtstate->typeInputInfo,
+			mtstate->remoteReturningTupleSlot, estate);
+
 	return mtstate;
 }
 
@@ -2696,7 +2892,64 @@ ExecEndModifyTable(ModifyTableState *node)
 			resultRelInfo->ri_FdwRoutine->EndForeignModify != NULL)
 			resultRelInfo->ri_FdwRoutine->EndForeignModify(node->ps.state,
 														   resultRelInfo);
+
+
+		/*
+		 * dzw: end remote tuple caching for each leaf partition of a
+		 * partition table, or the regular table.
+		 */
+		PartitionTupleRouting *proute = node->mt_partition_tuple_routing;
+		if (proute)
+		{
+	        for (int partidx = 0; partidx < proute->num_partitions; partidx++)
+	        {
+	            ResultRelInfo *partrel = proute->partitions[partidx];
+	            if (partrel && partrel->ri_RemotetupCache)
+	                end_remote_insert_stmt(partrel->ri_RemotetupCache, true);
+	        }
+		}
+		else
+		{
+	        if (node->operation == CMD_INSERT && resultRelInfo->ri_RemotetupCache)
+	            end_remote_insert_stmt(resultRelInfo->ri_RemotetupCache, true);
+		}
 	}
+
+	/*
+	 * dzw: send accumulated remote statements to remote storage nodes.
+	 for update&delete, this was already done in ExecModifyTable().
+	 * */
+	if (node->operation == CMD_INSERT) send_multi_stmts_to_multi();
+
+	/*
+	 * Sum-up total NO. of affected rows from mysql connections.
+	 * */
+	size_t total_nrows = 0;
+	for (i = 0; i < node->mt_nplans; i++)
+	{
+		ResultRelInfo *resultRelInfo = node->resultRelInfo + i;
+		/*
+		 * dzw: end remote tuple caching for each leaf partition of a
+		 * partition table, or the regular table.
+		 */
+		PartitionTupleRouting *proute = node->mt_partition_tuple_routing;
+		if (proute)
+		{
+	        for (int partidx = 0; partidx < proute->num_partitions; partidx++)
+	        {
+	            ResultRelInfo *partrel = proute->partitions[partidx];
+	            if (partrel && partrel->ri_RemotetupCache)
+	                total_nrows += GetInsertedNumRows(partrel->ri_RemotetupCache);
+	        }
+		}
+		else
+		{
+	        if (resultRelInfo->ri_RemotetupCache)
+	            total_nrows += GetInsertedNumRows(resultRelInfo->ri_RemotetupCache);
+		}
+	}
+
+	node->ps.state->es_processed = GetRemoteAffectedRows();
 
 	/* Close all the partitioned tables, leaf partitions, and their indices */
 	if (node->mt_partition_tuple_routing)
@@ -2732,4 +2985,232 @@ ExecReScanModifyTable(ModifyTableState *node)
 	 * semantics of that would be a bit debatable anyway.
 	 */
 	elog(ERROR, "ExecReScanModifyTable is not implemented");
+}
+
+
+/*
+ * TargetEntries with expr of T_SQLValueFunction and T_Const can be processed,
+ * they don't need to be sent to remote and they can be evaluated.
+ * */
+static TupleDesc
+ExecScanTypeFromTL(EState *estate, ModifyTableState *mts,
+	Relation rel, bool skipjunk)
+{
+	List *targetList = (List *)linitial(((ModifyTable*)mts->ps.plan)->returningLists);
+	TupleDesc	typeInfo;
+	ListCell   *l;
+	int			len = 0;
+	int			cur_resno = 1;
+	char *colname = NULL;
+	int rti = mts->resultRelInfo->ri_RangeTableIndex;
+
+	if (targetList == NULL) return NULL;
+
+	/*
+	  How many columns are there in the returning clause?
+	*/
+	VarPickerCtx vpc;
+	memset(&vpc, 0, sizeof(vpc));
+	vpc.scanrelid = rti;
+	vpc.mctx = estate->es_query_cxt;
+
+	foreach(l, targetList)
+	{
+		TargetEntry *tle = (TargetEntry *)lfirst(l);
+		expression_tree_walker((Node *)tle->expr, var_picker, &vpc);
+		len += vpc.nvars;
+		reset_var_picker_ctx(&vpc);
+	}
+	if (len == 0)
+	{
+		len = 1; // will append a column at the end of the func.
+	}
+
+	typeInfo = CreateTemplateTupleDesc(len, false /*hasoid*/);
+
+	StringInfoData colexpr_str;
+	RemoteModifyState *rms0 = mts->mt_remote_states;
+
+	foreach(l, targetList)
+	{
+		if (cur_resno > typeInfo->natts)
+			typeInfo = expandTupleDesc2(typeInfo);
+
+		Node *pnode = lfirst(l);
+		Assert(IsA(pnode, TargetEntry));
+		TargetEntry *tle = (TargetEntry *)pnode;
+
+		if ((skipjunk && tle->resjunk) || !tle->expr ||
+			strcmp(tle->resname, "ctid") == 0)
+			continue;
+		/*
+		 * Try to make a column name in order to build the result's tupledesc.
+		 * */
+		if (IsA(tle->expr, Var))
+		{
+			/*
+			 * Fast path for most common case.
+			 * */
+			Var *colvar = (Var*)(tle->expr);
+			colname = rel->rd_att->attrs[colvar->varattno - 1].attname.data;
+			colvar->varattno = cur_resno;
+		}
+		else
+		{
+			reset_var_picker_ctx(&vpc);
+			if (IsA(tle->expr, Const))
+				vpc.local_evaluables++;
+			else
+			{
+				expression_tree_walker((Node *)tle->expr, var_picker, &vpc);
+			}
+
+			if (vpc.has_alien_cols)
+			{
+				ereport(ERROR,
+						(errcode(ERRCODE_INTERNAL_ERROR),
+						 errmsg("Columns of other tables can't be in a returning list.")));
+			}
+
+			if (vpc.nvars == 0)
+			{
+				continue;// no target column to add to the returning clause. but does such a field need a attr slot? I believe so.TODO
+			}
+
+			Assert(vpc.nvars > 0);
+			/* Whether column def added to typeInfo. */
+			bool coladded = false;
+			initStringInfo2(&colexpr_str, 256, estate->es_query_cxt);
+			RemotePrintExprContext rpec;
+			InitRemotePrintExprContext(&rpec, estate->es_plannedstmt->rtable);
+			int seret = snprint_expr(&colexpr_str, tle->expr, &rpec);
+
+			if (seret >= 0)
+			{
+				/*
+				  The expression can be computed by storage shard, so simply
+				  use returned field value, i.e. replace the expr with a Var
+				  to refer to the source column.
+				*/
+				Var *var_expr = makeVar(rti, cur_resno,
+					exprType((Node *)tle->expr), exprTypmod((Node *)tle->expr),
+					exprCollation((Node *)tle->expr), 0);
+				tle->expr = (Expr*)var_expr;
+
+				if (lengthStringInfo(&colexpr_str) >= sizeof(NameData))
+				{
+					rms0->long_exprs_bmp = bms_add_member(rms0->long_exprs_bmp, cur_resno);
+					rms0->long_exprs = lappend(rms0->long_exprs, pstrdup(colexpr_str.data));
+					colexpr_str.data[sizeof(NameData) - 1] = '\0';
+				}
+				colname = donateStringInfo(&colexpr_str);
+			}
+			else
+			{
+				/*
+				  The expr has to be computed in computing node, the columns
+				  involved has already been extracted, request their field
+				  values instead.
+				*/
+				resetStringInfo(&colexpr_str);
+				for (int i = 0; i < vpc.nvars; i++, cur_resno++)
+				{
+					if (cur_resno > typeInfo->natts)
+						typeInfo = expandTupleDesc2(typeInfo);
+					Var *origvar = vpc.target_cols[i];
+					colname = rel->rd_att->attrs[origvar->varattno - 1].attname.data;
+					TupleDescInitEntry(typeInfo,
+									   cur_resno,
+									   colname,
+									   origvar->vartype,
+									   origvar->vartypmod,
+									   0);
+					TupleDescInitEntryCollation(typeInfo,
+												cur_resno,
+												origvar->varcollid);
+					/*
+				  		Establish mapping from the source data columns to the
+						targetlist's columns of this plan node, so that
+						projection can be computed correctly.
+					*/
+					origvar->varattno = cur_resno;
+				}
+				coladded = true;
+			}
+
+			if (coladded)
+				continue;
+		}
+
+		/*
+		 * Hold the target var name or expr string to generate remote sql.
+		 * */
+		if (!tle->resname)
+			tle->resname = colname;
+		TupleDescInitEntry(typeInfo,
+						   cur_resno,
+						   colname,
+						   exprType((Node *) tle->expr),
+						   exprTypmod((Node *) tle->expr),
+						   0);
+		TupleDescInitEntryCollation(typeInfo,
+									cur_resno,
+									exprCollation((Node *) tle->expr));
+		cur_resno++;
+	}
+
+	if (cur_resno > 1) typeInfo->natts = cur_resno - 1;
+
+	mts->ps.scandesc = typeInfo;
+
+	return typeInfo;
+}
+
+static TupleTableSlot *
+ReturningNext(ModifyTableState *node, RemoteModifyState*rms)
+{
+	TupleTableSlot *slot = node->remoteReturningTupleSlot;
+
+	MYSQL_ROW mysql_row = mysql_fetch_row(rms->asi->mysql_res);
+	unsigned long *lengths = ((mysql_row && rms->asi->mysql_res) ?
+		mysql_fetch_lengths(rms->asi->mysql_res) : NULL);
+
+	if (mysql_row)
+		ExecStoreRemoteTuple(node->typeInputInfo, mysql_row,	/* tuple to store */
+					         lengths, slot);	/* slot to store in */
+	else
+	{
+		check_mysql_fetch_row_status(rms->asi);
+		ExecClearTuple(slot);
+
+		/*
+		 * Release mysql result from channel, in order to send next stmt to
+		 * remote storage node.
+		 * */
+		free_mysql_result(rms->asi);
+
+		/*
+		  all result rows consumed, post next stmt without waiting for its
+		  result.
+		*/
+		int wons = work_on_next_stmt(rms->asi);
+		Assert(wons >= 0);
+		if (wons == 1)
+		{
+			send_stmt_to_multi_start(rms->asi, 1);
+		}
+		else
+			rms->asi = NULL;// no more stmts to send, flag the rms done.
+		return NULL;
+	}
+	return slot;
+}
+
+static void
+ExecInitRemoteReturningTupleSlotTL(EState *estate, ModifyTableState *mts,
+	TupleDesc tupledesc)
+{
+	if (!tupledesc) return;
+	mts->remoteReturningTupleSlot = ExecAllocTableSlot(&estate->es_tupleTable,
+													 tupledesc);
 }

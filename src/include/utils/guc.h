@@ -373,8 +373,10 @@ extern void GetConfigOptionByNum(int varnum, const char **values, bool *noshow);
 extern int	GetNumConfigOptions(void);
 
 extern void SetPGVariable(const char *name, List *args, bool is_local);
-extern void GetPGVariable(const char *name, DestReceiver *dest);
-extern TupleDesc GetPGVariableResultDesc(const char *name);
+extern void GetPGVariable(VariableShowStmt *n, DestReceiver *dest);
+extern void GetVariablesShard(VariableShowStmt *n, DestReceiver *dest);
+
+extern TupleDesc GetPGVariableResultDesc(VariableShowStmt *n);
 
 extern void ExecSetVariableStmt(VariableSetStmt *stmt, bool isTopLevel);
 extern char *ExtractSetVariableArgs(VariableSetStmt *stmt);

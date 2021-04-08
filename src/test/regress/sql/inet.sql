@@ -65,8 +65,8 @@ SELECT '' AS ten, set_masklen(inet(text(i)), 24) FROM INET_TBL;
 -- check that btree index works correctly
 CREATE INDEX inet_idx1 ON inet_tbl(i);
 SET enable_seqscan TO off;
-SELECT * FROM inet_tbl WHERE i<<'192.168.1.0/24'::cidr;
-SELECT * FROM inet_tbl WHERE i<<='192.168.1.0/24'::cidr;
+SELECT * FROM inet_tbl WHERE i<<'192.168.1.0/24'::cidr order by c;
+SELECT * FROM inet_tbl WHERE i<<='192.168.1.0/24'::cidr order by c;
 SET enable_seqscan TO on;
 DROP INDEX inet_idx1;
 

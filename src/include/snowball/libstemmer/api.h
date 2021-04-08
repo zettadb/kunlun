@@ -12,11 +12,11 @@ typedef unsigned char symbol;
 */
 
 struct SN_env {
-    symbol * p;
-    int c; int l; int lb; int bra; int ket;
-    symbol * * S;
-    int * I;
-    unsigned char * B;
+	symbol * p;
+	int c; int l; int lb; int bra; int ket;
+	symbol * * S;
+	int * I;
+	unsigned char * B;
 };
 
 extern struct SN_env * SN_create_env(int S_size, int I_size, int B_size);

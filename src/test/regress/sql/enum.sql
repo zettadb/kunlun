@@ -122,10 +122,13 @@ ORDER BY enumsortorder;
 --
 CREATE TABLE enumtest (col rainbow);
 INSERT INTO enumtest values ('red'), ('orange'), ('yellow'), ('green');
-COPY enumtest FROM stdin;
-blue
-purple
-\.
+--
+-- In Kunlun we don't support COPY command for now yet, so use insert stmt to replace it.
+-- COPY enumtest FROM stdin;
+-- blue
+-- purple
+-- \.
+INSERT INTO enumtest values ('blue'), ('purple');
 SELECT * FROM enumtest;
 
 --

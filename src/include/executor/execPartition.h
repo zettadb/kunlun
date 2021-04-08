@@ -37,6 +37,7 @@ typedef struct PartitionDispatchData *PartitionDispatch;
  * partitions					Array of ResultRelInfo* objects with one entry
  *								for every leaf partition in the partition tree,
  *								initialized lazily by ExecInitPartitionInfo.
+ *								Only partitions accessed are initialized.
  * num_partitions				Number of leaf partitions in the partition tree
  *								(= 'partitions_oid'/'partitions' array length)
  * parent_child_tupconv_maps	Array of TupleConversionMap objects with one
@@ -202,5 +203,6 @@ extern void ExecDestroyPartitionPruneState(PartitionPruneState *prunestate);
 extern Bitmapset *ExecFindMatchingSubPlans(PartitionPruneState *prunestate);
 extern Bitmapset *ExecFindInitialMatchingSubPlans(PartitionPruneState *prunestate,
 								int nsubplans);
+extern void GetPartitionStorageShards(Relation rel, List **ppshardid_list);
 
 #endif							/* EXECPARTITION_H */

@@ -1554,7 +1554,7 @@ exec_replication_command(const char *cmd_string)
 
 				/* syscache access needs a transaction environment */
 				StartTransactionCommand();
-				GetPGVariable(n->name, dest);
+				GetPGVariable(n, dest);
 				CommitTransactionCommand();
 			}
 			break;

@@ -2089,9 +2089,11 @@ _readHashJoin(void)
 static Material *
 _readMaterial(void)
 {
-	READ_LOCALS_NO_FIELDS(Material);
+	READ_LOCALS(Material);
 
 	ReadCommonPlan(&local_node->plan);
+
+	READ_BOOL_FIELD(remote_fetch_all);
 
 	READ_DONE();
 }

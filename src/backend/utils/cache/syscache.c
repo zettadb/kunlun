@@ -33,6 +33,8 @@
 #include "catalog/pg_collation.h"
 #include "catalog/pg_constraint.h"
 #include "catalog/pg_conversion.h"
+#include "catalog/pg_cluster_meta.h"
+#include "catalog/pg_cluster_meta_nodes.h"
 #include "catalog/pg_database.h"
 #include "catalog/pg_db_role_setting.h"
 #include "catalog/pg_default_acl.h"
@@ -281,6 +283,28 @@ static const struct cachedesc cacheinfo[] = {
 		1,
 		{
 			ObjectIdAttributeNumber,
+			0,
+			0,
+			0
+		},
+		8
+	},
+	{ClusterMetaRelationId,	/* CLUSTER_META */
+		ClusterMetaIdIndexId,
+		1,
+		{
+			Anum_pg_cluster_meta_comp_node_id,
+			0,
+			0,
+			0
+		},
+		2
+	}, 
+	{ClusterMetaNodesRelationId,	/* CLUSTER_META_NODES */
+		ClusterMetaNodesServerIdIndexId,
+		1,
+		{
+			Anum_pg_cluster_meta_nodes_server_id,
 			0,
 			0,
 			0

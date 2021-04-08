@@ -5,6 +5,11 @@
  *
  * See src/backend/access/transam/README for more information.
  *
+ * Portions Copyright (c) 2019 ZettaDB inc. All rights reserved.
+ *
+ * This source code is licensed under Apache 2.0 License,
+ * combined with Common Clause Condition 1.0, as detailed in the NOTICE file.
+ *
  * Portions Copyright (c) 1996-2018, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
@@ -23,6 +28,8 @@
 #include "access/commit_ts.h"
 #include "access/multixact.h"
 #include "access/parallel.h"
+#include "access/remote_meta.h"
+#include "access/remote_xact.h"
 #include "access/subtrans.h"
 #include "access/transam.h"
 #include "access/twophase.h"
@@ -35,16 +42,20 @@
 #include "commands/async.h"
 #include "commands/tablecmds.h"
 #include "commands/trigger.h"
+#include "commands/variable.h"
 #include "executor/spi.h"
 #include "libpq/be-fsstubs.h"
 #include "libpq/pqsignal.h"
 #include "miscadmin.h"
 #include "pgstat.h"
+#include "postmaster/xidsender.h"
 #include "replication/logical.h"
 #include "replication/logicallauncher.h"
 #include "replication/origin.h"
 #include "replication/syncrep.h"
 #include "replication/walsender.h"
+#include "sharding/cluster_meta.h"
+#include "sharding/sharding_conn.h"
 #include "storage/condition_variable.h"
 #include "storage/fd.h"
 #include "storage/lmgr.h"
@@ -63,8 +74,9 @@
 #include "utils/snapmgr.h"
 #include "utils/timeout.h"
 #include "utils/timestamp.h"
+#include "tcop/debug_funcs.h"
+#include "tcop/debug_injection.h"
 #include "pg_trace.h"
-
 
 /*
  *	User-tweakable parameters
@@ -187,7 +199,14 @@ typedef struct TransactionStateData
 	bool		prevXactReadOnly;	/* entry-time xact r/o state */
 	bool		startedInRecovery;	/* did we start in recovery? */
 	bool		didLogXid;		/* has xid been included in WAL record? */
+	bool        explicitTxn;    /* dzw: Is this txn started by
+	BEGIN/START TRANSACTION or implicitly for an autocommit txn? Only set true
+	for top level explicit txn, since all subtxns are definitely part of an
+	explicit txn. This is NOT true for txns started by stored procedure, which
+	will be considered explicit txn even if the CALL SP is itself an autocommit txn.
+	So in such a txn user can't do DDL, no other issues. */
 	int			parallelModeLevel;	/* Enter/ExitParallelMode counter */
+	time_t      startTime;      /* dzw: used to generate XA txn id. */
 	struct TransactionStateData *parent;	/* back link to parent */
 } TransactionStateData;
 
@@ -218,7 +237,9 @@ static TransactionStateData TopTransactionStateData = {
 	false,						/* entry-time xact r/o state */
 	false,						/* startedInRecovery */
 	false,						/* didLogXid */
+	false,                      /* explicitTxn */
 	0,							/* parallelModeLevel */
+	0,                          /* start time */
 	NULL						/* link to parent state block */
 };
 
@@ -291,7 +312,16 @@ typedef struct SubXactCallbackItem
 } SubXactCallbackItem;
 
 static SubXactCallbackItem *SubXact_callbacks = NULL;
-
+/*
+  Metadata shard master might congest/overwhelmed by intense workloads and
+  unable to insert the commit log quickly. So we make sure if it can't do so
+  within global_txn_commit_log_wait_max_secs seconds, we will abort the
+  transaction rather than wait to commit it, so that:
+  1. prepared txns won't hold txnal locks too long
+  2. user connections may have disconnected/timedout and expect the txn to
+  abort.
+*/
+int global_txn_commit_log_wait_max_secs = 10;
 
 /* local function prototypes */
 static void AssignTransactionId(TransactionState s);
@@ -333,6 +363,7 @@ static void ShowTransactionState(const char *str);
 static void ShowTransactionStateRec(const char *str, TransactionState state);
 static const char *BlockStateAsString(TBlockState blockState);
 static const char *TransStateAsString(TransState state);
+static void ResetTopTxnState(TransactionState s);
 
 
 /* ----------------------------------------------------------------
@@ -1818,12 +1849,19 @@ StartTransaction(void)
 {
 	TransactionState s;
 	VirtualTransactionId vxid;
+	DEBUG_SYNC("StartTransactionHead");
+	/*
+	 * dzw:
+	 * AsyncStmtInfo array need to be reset at start of each txn.
+	 * */
+	ResetCommunicationHub();
 
 	/*
 	 * Let's just make sure the state stack is empty
 	 */
 	s = &TopTransactionStateData;
 	CurrentTransactionState = s;
+	ResetTopTxnState(s);
 
 	Assert(XactTopTransactionId == InvalidTransactionId);
 
@@ -1849,6 +1887,11 @@ StartTransaction(void)
 	s->childXids = NULL;
 	s->nChildXids = 0;
 	s->maxChildXids = 0;
+	/*
+	 * BeginTransactionBlock() will turn it on. This way no need to turn it
+	 * off at end of txn.
+	 * */
+	s->explicitTxn = false;
 
 	/*
 	 * Once the current user ID and the security context flags are fetched,
@@ -2052,6 +2095,123 @@ CommitTransaction(void)
 	 */
 	PreCommit_Notify();
 
+	/*
+	 * dzw: do 2PC here, before releasing locks. this txn can be one of two types:
+	 * 1. it executed DMLs, all txn branches are in storage nodes.
+	 *      we need to do 2PC/1PC among all accessed storage nodes
+	 * 2. it executed DDLs, there are 2 txn branches, one in current computing
+	 * node, the other in metadata cluster's master node.
+	 *      we need to do 2PC to reliably commit the distributed txn.
+	 * */
+	if (s == &TopTransactionStateData)
+	{
+		end_remote_ddl_stmt();
+		end_metadata_txn(true);
+
+		int tc_phase = 1;
+		bool doing_2pc_commit = false;
+
+		PG_TRY();
+		{
+			const bool do_2pc = Send1stPhaseRemote(s->name);
+			if (do_2pc)
+			{
+				uint64_t gtrxid = (s->startTime << 32 | s->transactionId);
+				time_t deadline = global_txn_commit_log_wait_max_secs + time(0);
+
+				tc_phase = 2;
+				int ret = WaitForXidCommitLogWrite(comp_node_id, gtrxid, deadline, true);
+				tc_phase = 3;
+
+				/*
+				  Test 2nd phase timeout handling. Note that to test 1st phase
+				  timeout handling we can simply set shard debug_sync in session.
+				*/
+				 DEBUG_INJECT_IF("test_2nd_phase_timeout", insert_debug_sync(1, 1, 2););
+
+				if (ret == 0)
+					SendRollbackRemote(s->name, false, true/*written only*/);
+				else if (ret == -1)
+				{
+					/*
+					  Disconnect accessed storage shards to release prepared txns so
+					  they can be handled by cluster_mgr.
+					*/
+					disconnect_storage_shards();
+					ereport(WARNING,
+							(errcode(ERRCODE_CONNECTION_EXCEPTION),
+							 errmsg("Kunlun-db: Timed out waiting for commit log write. This transaction (%s) will be committed if the commit-log write succeeded, and it will be aborted if the write failed, both in a few seconds.", s->name),
+							 errhint("Search by transaction id %s in this cluster's commit log in metadata shard to see how the transaction will be ended --- it will be committed if and only if the id is found with COMMIT action.", s->name)));
+				}
+				else
+				{
+					doing_2pc_commit = true;
+					Send2ndPhaseRemote(s->name);
+				}
+			}
+			ResetTopTxnState(s);
+		}
+		PG_CATCH();
+		{
+			int ec = geterrcode();
+			if (doing_2pc_commit)
+			{
+				if (ec == ERRCODE_QUERY_CANCELED)
+				{
+					request_topo_checks_used_shards();
+					/*
+					  2nd phase txn commit times out, break
+					  connections to storage shards for cluster_mgr to handle.
+					*/
+					disconnect_storage_shards();
+					ereport(WARNING,
+							(errcode(ERRCODE_CONNECTION_EXCEPTION),
+							 errmsg("Kunlun-db: Timed out in 2nd phase of global transaction commit. This transaction (%s) will be committed in a few seconds.", s->name)));
+				}
+				else
+				{
+					/*
+					  Should never abort a txn that's committing in 2nd phase.
+					  if error happen out of connection to mysql nodes, they
+					  will be caught here.
+					*/
+					HOLD_INTERRUPTS();
+					downgrade_error();
+					errfinish(0);
+					FlushErrorState();
+					RESUME_INTERRUPTS();
+				}
+				// do not rethrow otherwise the global txn will be aborted.
+			}
+			else if (tc_phase == 1)
+			{
+				SendRollbackRemote(s->name, false, false/*all shards*/);
+				ResetTopTxnState(s);
+				// although we've aborted the global txn, rethrow to cleanup
+				// any intermediate states.
+				PG_RE_THROW();
+			}
+			else
+			{
+				if (tc_phase == 3) request_topo_checks_used_shards();
+
+				// if tc_phase == 2, also request topo check although requested
+				// on timeout, because the exception is not caused by timeout.
+				if (tc_phase == 2)
+					RequestShardingTopoCheck(METADATA_SHARDID);
+				/*
+				  For any other error that occur in phase 2/3, simply break
+				  connections to storage shards for cluster_mgr to handle.
+				*/
+				disconnect_storage_shards();
+				// do not rethrow otherwise the global txn will be aborted.
+			}
+
+		   	ResetTopTxnState(s);
+		}
+		PG_END_TRY();
+	}
+
 	/* Prevent cancel/die interrupt while cleaning up */
 	HOLD_INTERRUPTS();
 
@@ -2098,6 +2258,15 @@ CommitTransaction(void)
 	ProcArrayEndTransaction(MyProc, latestXid);
 
 	/*
+	 * dzw: afer current DDL txn is committed, notify next DDL txn to resume.
+	 * */
+	uint64_t ddl_opid = 0;
+	if (is_metadata_txn(&ddl_opid))
+	{
+		NotifyNextDDLOp(ddl_opid);
+	}
+
+	/*
 	 * This is all post-commit cleanup.  Note that if an error is raised here,
 	 * it's too late to abort the transaction.  This should be just
 	 * noncritical resource releasing.
@@ -2119,7 +2288,6 @@ CommitTransaction(void)
 	ResourceOwnerRelease(TopTransactionResourceOwner,
 						 RESOURCE_RELEASE_BEFORE_LOCKS,
 						 true, true);
-
 	/* Check we've released all buffer pins */
 	AtEOXact_Buffers(true);
 
@@ -2494,6 +2662,7 @@ static void
 AbortTransaction(void)
 {
 	TransactionState s = CurrentTransactionState;
+
 	TransactionId latestXid;
 	bool		is_parallel_worker;
 
@@ -2621,6 +2790,15 @@ AbortTransaction(void)
 	 */
 	ProcArrayEndTransaction(MyProc, latestXid);
 
+	/*   
+	 * dzw: afer current DDL txn is committed, notify next DDL txn to resume.
+	 * */
+	uint64_t ddl_opid = 0; 
+	if (is_metadata_txn(&ddl_opid))
+	{
+		NotifyNextDDLOp(ddl_opid);
+	} 
+
 	/*
 	 * Post-abort cleanup.  See notes in CommitTransaction() concerning
 	 * ordering.  We can skip all of it if the transaction failed before
@@ -2665,6 +2843,23 @@ AbortTransaction(void)
 	 * State remains TRANS_ABORT until CleanupTransaction().
 	 */
 	RESUME_INTERRUPTS();
+
+	/*
+	 * If this is an autocommit txn we need to abort the remote txns here.
+	 * Otherwise explicit 'rollback' stmt will abort the txn and its remote txns.
+	 * */
+	if (s == &TopTransactionStateData && s->blockState == TBLOCK_STARTED)
+	{
+		SendRollbackRemote(s->name, true, false);
+		/*
+		 * This can't be done if aborting an explicit txn otherwise
+		 * SendRemoteRollback() doesn't have valid s->name.
+		 * */
+		ResetTopTxnState(s);
+	}
+
+	end_metadata_txn(false);
+	ResetRemoteDDLStmt();
 }
 
 /*
@@ -2682,6 +2877,7 @@ CleanupTransaction(void)
 		elog(FATAL, "CleanupTransaction: unexpected state %s",
 			 TransStateAsString(s->state));
 
+	ResetRemoteDDLStmt();
 	/*
 	 * do abort cleanup processing
 	 */
@@ -2732,6 +2928,7 @@ StartTransactionCommand(void)
 			 */
 		case TBLOCK_DEFAULT:
 			StartTransaction();
+			set_curtxn_started_curcmd(1);
 			s->blockState = TBLOCK_STARTED;
 			break;
 
@@ -2745,6 +2942,7 @@ StartTransactionCommand(void)
 		case TBLOCK_INPROGRESS:
 		case TBLOCK_IMPLICIT_INPROGRESS:
 		case TBLOCK_SUBINPROGRESS:
+			set_curtxn_started_curcmd(0);
 			break;
 
 			/*
@@ -2757,6 +2955,7 @@ StartTransactionCommand(void)
 			 */
 		case TBLOCK_ABORT:
 		case TBLOCK_SUBABORT:
+			set_curtxn_started_curcmd(0);
 			break;
 
 			/* These cases are invalid. */
@@ -2774,6 +2973,7 @@ StartTransactionCommand(void)
 		case TBLOCK_SUBRESTART:
 		case TBLOCK_SUBABORT_RESTART:
 		case TBLOCK_PREPARE:
+			set_curtxn_started_curcmd(0);
 			elog(ERROR, "StartTransactionCommand: unexpected state %s",
 				 BlockStateAsString(s->blockState));
 			break;
@@ -2794,6 +2994,7 @@ void
 CommitTransactionCommand(void)
 {
 	TransactionState s = CurrentTransactionState;
+	TransactionState target_ts = NULL;
 
 	switch (s->blockState)
 	{
@@ -2861,9 +3062,14 @@ CommitTransactionCommand(void)
 			 * Here we were in an aborted transaction block and we just got
 			 * the ROLLBACK command from the user, so clean up the
 			 * already-aborted transaction and return to the idle state.
+			 * dzw: in kunlun ddc a DDL stmt is always a txn by itself, it's
+			 * never in an explicit txn, so no need to call end_metadata_txn() here.
 			 */
 		case TBLOCK_ABORT_END:
+			Assert(s == &TopTransactionStateData);
+			SendRollbackRemote(TopTransactionStateData.name, true, false);
 			CleanupTransaction();
+			ResetTopTxnState(s);
 			s->blockState = TBLOCK_DEFAULT;
 			break;
 
@@ -2871,10 +3077,15 @@ CommitTransactionCommand(void)
 			 * Here we were in a perfectly good transaction block but the user
 			 * told us to ROLLBACK anyway.  We have to abort the transaction
 			 * and then clean up.
+			 * dzw: in kunlun ddc a DDL stmt is always a txn by itself, it's
+			 * never in an explicit txn, so no need to call end_metadata_txn() here.
 			 */
 		case TBLOCK_ABORT_PENDING:
 			AbortTransaction();
+			Assert(s == &TopTransactionStateData);
+			SendRollbackRemote(TopTransactionStateData.name, true, false);
 			CleanupTransaction();
+			ResetTopTxnState(s);
 			s->blockState = TBLOCK_DEFAULT;
 			break;
 
@@ -2896,6 +3107,7 @@ CommitTransactionCommand(void)
 		case TBLOCK_SUBBEGIN:
 			StartSubTransaction();
 			s->blockState = TBLOCK_SUBINPROGRESS;
+			StartSubTxnRemote(s->name);
 			break;
 
 			/*
@@ -2909,8 +3121,11 @@ CommitTransactionCommand(void)
 			{
 				CommitSubTransaction();
 				s = CurrentTransactionState;	/* changed by pop */
+				if (s->blockState == TBLOCK_SUBRELEASE)
+					target_ts = s;
 			} while (s->blockState == TBLOCK_SUBRELEASE);
 
+			SendReleaseSavepointToRemote(target_ts->name);
 			Assert(s->blockState == TBLOCK_INPROGRESS ||
 				   s->blockState == TBLOCK_SUBINPROGRESS);
 			break;
@@ -2952,6 +3167,11 @@ CommitTransactionCommand(void)
 			 * The current already-failed subtransaction is ending due to a
 			 * ROLLBACK or ROLLBACK TO command, so pop it and recursively
 			 * examine the parent (which could be in any of several states).
+			 * dzw:
+			 * 'RollbackToSavepoint() has set target subtrx->blockState to
+			 * TBLOCK_SUBRESTART or TBLOCK_SUBABORT_RESTART, so the recursive
+			 * CommitTransactionCommand() call will eventually arrive at below
+			 * case branches to send remote 'savepoint xxx' stmts.
 			 */
 		case TBLOCK_SUBABORT_END:
 			CleanupSubTransaction();
@@ -2993,6 +3213,7 @@ CommitTransactionCommand(void)
 				/* This is the same as TBLOCK_SUBBEGIN case */
 				AssertState(s->blockState == TBLOCK_SUBBEGIN);
 				StartSubTransaction();
+				SendRollbackSubToRemote(name);
 				s->blockState = TBLOCK_SUBINPROGRESS;
 			}
 			break;
@@ -3021,6 +3242,7 @@ CommitTransactionCommand(void)
 				/* This is the same as TBLOCK_SUBBEGIN case */
 				AssertState(s->blockState == TBLOCK_SUBBEGIN);
 				StartSubTransaction();
+				SendRollbackSubToRemote(name);
 				s->blockState = TBLOCK_SUBINPROGRESS;
 			}
 			break;
@@ -3065,8 +3287,46 @@ AbortCurrentTransaction(void)
 			 */
 		case TBLOCK_STARTED:
 		case TBLOCK_IMPLICIT_INPROGRESS:
-			AbortTransaction();
-			CleanupTransaction();
+		    /*
+		     * dzw:
+		     * We could reach here multiple times if more than 1 shards return error
+		     * in an autocommit transaction.
+			 * The if condition makes sure AbortTransaction() won't
+			 * be called more than once.
+		     * */
+			if (s->state == TRANS_INPROGRESS)
+			{
+			    AbortTransaction();
+				ResetCommunicationHubStmt(false);
+			}
+
+			/*
+			 * dzw:
+			 * Make sure results from all channels are recvd. Otherwise these
+			 * channels would return errors of previous statements, or in other
+			 * non-sync states. If another error from storage nodes throws
+			 * another exception, control will come to here again because of
+			 * the setjmp() call in PostgresMain().
+			 * */
+			send_multi_stmts_to_multi();
+
+			/*
+			 * dzw:
+			 * Above AbortTransaction() call will append XA ROLLBACK stmts to
+			 * all used shard channels and resume the stmt sending and result
+			 * recving loop, which could throw an exception and control
+			 * won't reach below CleanupTransaction() in the same call of
+			 * AbortCurrentTransaction(). Fortunately every throw of exception
+			 * will cause one call of AbortCurrentTransaction() and we always
+			 * have chance to call CleanupTransaction() below. And the
+			 * CleanupTransaction() won't throw exception caused by shard
+			 * channels. The if condition makes sure CleanupTransaction() won't
+			 * be called more than once.
+			 * */
+			if (s->state != TRANS_DEFAULT)
+			{
+			    CleanupTransaction();
+			}
 			s->blockState = TBLOCK_DEFAULT;
 			break;
 
@@ -3090,7 +3350,20 @@ AbortCurrentTransaction(void)
 			 */
 		case TBLOCK_INPROGRESS:
 		case TBLOCK_PARALLEL_INPROGRESS:
-			AbortTransaction();
+			if (s->state == TRANS_INPROGRESS)
+			{
+			    AbortTransaction();
+			}
+
+			/*
+			 * dzw:
+			 * Make sure results from all channels are recvd. Otherwise these
+			 * channels would return errors of previous statements, or in other
+			 * non-sync states. If another error from storage nodes throws
+			 * another exception, control will come to here again because of
+			 * the setjmp() call in PostgresMain().
+			 * */
+			send_multi_stmts_to_multi();
 			s->blockState = TBLOCK_ABORT;
 			/* CleanupTransaction happens when we exit TBLOCK_ABORT_END */
 			break;
@@ -3101,7 +3374,20 @@ AbortCurrentTransaction(void)
 			 * the transaction).
 			 */
 		case TBLOCK_END:
-			AbortTransaction();
+			if (s->state != TRANS_ABORT)
+			{
+			    AbortTransaction();
+			}
+
+			/*
+			 * dzw:
+			 * Make sure results from all channels are recvd. Otherwise these
+			 * channels would return errors of previous statements, or in other
+			 * non-sync states. If another error from storage nodes throws
+			 * another exception, control will come to here again because of
+			 * the setjmp() call in PostgresMain().
+			 * */
+			send_multi_stmts_to_multi();
 			CleanupTransaction();
 			s->blockState = TBLOCK_DEFAULT;
 			break;
@@ -3337,6 +3623,82 @@ IsInTransactionBlock(bool isTopLevel)
 }
 
 
+static void ResetTopTxnState(TransactionState s)
+{
+	s->name = NULL;
+	s->startTime = 0;
+}
+
+
+/*
+ * To be called when a new shard is accessed for the 1st time in current
+ * transaction. We must always start an XA txn instead of an ordinary txn,
+ * because the latter can be implicitly committed by DDLs and many other
+ * types of stmts in mysql. and also, a 'BEGIN'/'START TRANSACTION' can
+ * implicitly commit normal txns too and can fail when prior active txn is
+ * an XA txn. In all such implicit operations are error-prone.
+ *
+ * Send these stmts to the shard:
+ *
+ * XA START 'xxx';
+ * SAVEPOINT s1;
+ * ...
+ * SAVEPOINT sn;
+ *
+ * */
+void StartTxnRemote(StringInfo cmd)
+{
+	Assert(IsTransactionState());
+	TransactionState s = CurrentTransactionState;
+	size_t nnames= s->nestingLevel + 1, len = 0;
+	MemoryContext old_memcxt = CurrentMemoryContext;
+	CurrentMemoryContext = TopTransactionContext;
+	const char **pnames = palloc(sizeof(char**)*nnames);
+	
+	DEBUG_SYNC("StartTxnRemoteBeginning");
+
+	while (s != NULL)
+	{
+		if (len == nnames)
+		{
+			pnames = repalloc(pnames, sizeof(void*)*nnames*2);
+			memset(pnames + nnames, 0, nnames * sizeof(void*));
+			nnames *= 2;
+		}
+
+		/*
+		 * Each subtxn is formed by a 'SAVEPOINT xxx' stmt so it must have a name already.
+		 * Each top txn must be given a name, which is formed by {computing-node-id, {time(), txnid}}.
+		 * */
+		if (s->parent == NULL && s->name == NULL)
+		{
+			Assert(s->startTime == 0);
+			if (!TransactionIdIsValid(s->transactionId))
+				GetCurrentTransactionId();
+			s->name = MakeTopTxnName(s->transactionId, s->startTime = time(0));
+			// Don't release s->name, it's in toptxn memcxt, it lives with the
+			// current top txn.
+		}
+
+		Assert(s->name != NULL);
+		pnames[len++] = s->name;
+		s = s->parent;
+	}
+
+	for (int i = len - 1; i >= 0; i--)
+	{
+		if (i == len - 1)
+			appendStringInfo(cmd, "SET TRANSACTION ISOLATION LEVEL %s, %s; XA START '%s' ",
+						   show_XactIsoLevel(), XactReadOnly ? "READ ONLY" : "READ WRITE", pnames[i]);
+		else
+			appendStringInfo(cmd, "; SAVEPOINT %s", pnames[i]);
+	}
+
+	pfree(pnames);
+	CurrentMemoryContext = old_memcxt;
+}
+
+
 /*
  * Register or deregister callback functions for start- and end-of-xact
  * operations.
@@ -3470,6 +3832,7 @@ BeginTransactionBlock(void)
 			 */
 		case TBLOCK_STARTED:
 			s->blockState = TBLOCK_BEGIN;
+			s->explicitTxn = true;
 			break;
 
 			/*
@@ -4409,6 +4772,15 @@ AbortOutOfAnyTransaction(void)
 			case TBLOCK_PREPARE:
 				/* In a transaction, so clean up */
 				AbortTransaction();
+				/*
+				 * dzw:
+				 * Make sure results from all channels are recvd. Otherwise these
+				 * channels would return errors of previous statements, or in other
+				 * non-sync states. If another error from storage nodes throws
+				 * another exception, control will come to here again because of
+				 * the setjmp() call in PostgresMain().
+				 * */
+				send_multi_stmts_to_multi();
 				CleanupTransaction();
 				s->blockState = TBLOCK_DEFAULT;
 				break;
@@ -5867,4 +6239,10 @@ xact_redo(XLogReaderState *record)
 	}
 	else
 		elog(PANIC, "xact_redo: unknown op code %u", info);
+}
+
+bool IsExplicitTxn()
+{
+	Assert(IsTransactionState());
+	return TopTransactionStateData.explicitTxn;
 }

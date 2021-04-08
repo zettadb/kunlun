@@ -28,7 +28,7 @@
  */
 CATALOG(pg_class,1259,RelationRelationId) BKI_BOOTSTRAP BKI_ROWTYPE_OID(83,RelationRelation_Rowtype_Id) BKI_SCHEMA_MACRO
 {
-	NameData	relname;		/* class name */
+	NameData	relname;		/* class name. fills 1st cache line fully. */
 	Oid			relnamespace;	/* OID of namespace containing this class */
 	Oid			reltype;		/* OID of entry in pg_type for table's
 								 * implicit row type */
@@ -49,7 +49,9 @@ CATALOG(pg_class,1259,RelationRelationId) BKI_BOOTSTRAP BKI_ROWTYPE_OID(83,Relat
 	bool		relisshared;	/* T if shared across databases */
 	char		relpersistence; /* see RELPERSISTENCE_xxx constants below */
 	char		relkind;		/* see RELKIND_xxx constants below */
-	int16		relnatts;		/* number of user attributes */
+	int16		relnatts;		/* number of user attributes. If you add/remove
+								   fields in this class, you must modify this
+								   field for this table's row in postgres.bki. --- dzw */
 
 	/*
 	 * Class pg_attribute must contain exactly "relnatts" user attributes
@@ -67,6 +69,16 @@ CATALOG(pg_class,1259,RelationRelationId) BKI_BOOTSTRAP BKI_ROWTYPE_OID(83,Relat
 	bool		relispopulated; /* matview currently holds query results */
 	char		relreplident;	/* see REPLICA_IDENTITY_xxx constants  */
 	bool		relispartition; /* is relation a partition? */
+	/* pad so that no field spans 2 cache lines. */
+	char        pad1;
+	int16       pad2;
+	/* Above fields fill the 2nd cache line */
+	/* 
+	 * dzw: which shard is this unpartitioned table or partition leaf table
+	 * is stored. 0 for partition tree's inner-node tables. It references
+	 * the 'pg_shards' system table.
+	 * */
+	Oid         relshardid;
 	Oid			relrewrite;		/* heap for rewrite during DDL, link to
 								 * original rel */
 	TransactionId relfrozenxid; /* all Xids < this are frozen in this rel */

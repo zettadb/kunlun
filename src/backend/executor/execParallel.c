@@ -33,6 +33,7 @@
 #include "executor/nodeHashjoin.h"
 #include "executor/nodeIndexscan.h"
 #include "executor/nodeIndexonlyscan.h"
+#include "executor/nodeRemotescan.h"
 #include "executor/nodeSeqscan.h"
 #include "executor/nodeSort.h"
 #include "executor/nodeSubplan.h"
@@ -235,6 +236,11 @@ ExecParallelEstimate(PlanState *planstate, ExecParallelEstimateContext *e)
 
 	switch (nodeTag(planstate))
 	{
+		case T_RemoteScanState:
+			if (planstate->plan->parallel_aware)
+				ExecRemoteScanEstimate((RemoteScanState *) planstate,
+				   					e->pcxt);
+			break;
 		case T_SeqScanState:
 			if (planstate->plan->parallel_aware)
 				ExecSeqScanEstimate((SeqScanState *) planstate,
@@ -448,6 +454,11 @@ ExecParallelInitializeDSM(PlanState *planstate,
 	 */
 	switch (nodeTag(planstate))
 	{
+		case T_RemoteScanState:
+			if (planstate->plan->parallel_aware)
+				ExecRemoteScanInitializeDSM((RemoteScanState *) planstate,
+										 d->pcxt);
+			break;
 		case T_SeqScanState:
 			if (planstate->plan->parallel_aware)
 				ExecSeqScanInitializeDSM((SeqScanState *) planstate,
@@ -917,6 +928,11 @@ ExecParallelReInitializeDSM(PlanState *planstate,
 	 */
 	switch (nodeTag(planstate))
 	{
+		case T_RemoteScanState:
+			if (planstate->plan->parallel_aware)
+				ExecRemoteScanReInitializeDSM((RemoteScanState *) planstate,
+										   pcxt);
+			break;
 		case T_SeqScanState:
 			if (planstate->plan->parallel_aware)
 				ExecSeqScanReInitializeDSM((SeqScanState *) planstate,
@@ -1258,6 +1274,10 @@ ExecParallelInitializeWorker(PlanState *planstate, ParallelWorkerContext *pwcxt)
 
 	switch (nodeTag(planstate))
 	{
+		case T_RemoteScanState:
+			if (planstate->plan->parallel_aware)
+				ExecRemoteScanInitializeWorker((RemoteScanState *) planstate, pwcxt);
+			break;
 		case T_SeqScanState:
 			if (planstate->plan->parallel_aware)
 				ExecSeqScanInitializeWorker((SeqScanState *) planstate, pwcxt);

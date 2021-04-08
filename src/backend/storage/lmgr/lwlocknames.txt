@@ -50,3 +50,15 @@ OldSnapshotTimeMapLock				42
 BackendRandomLock					43
 LogicalRepWorkerLock				44
 CLogTruncationLock					45
+GlobalXidSenderLock                 46
+MetadataDDLSyncLock                 47
+MetadataLogAppliersLock             48
+DynaShmSpaceAllocLock			49
+DbugDebugLock				50
+DbugGcovLock				51
+DbugInitSettingsLock				52
+DebugSyncGlobalLock			53
+RemoteMetaSyncLock			54
+ShardingTopoCheckLock		55
+KillShardConnReqLock		56
+RemoteSeqFetchLock			57

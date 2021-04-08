@@ -17,6 +17,7 @@
 #include "access/htup_details.h"
 #include "access/heapam.h"
 #include "access/xact.h"
+#include "access/remote_meta.h"
 #include "catalog/catalog.h"
 #include "catalog/dependency.h"
 #include "catalog/indexing.h"
@@ -34,6 +35,7 @@
 #include "utils/builtins.h"
 #include "utils/rel.h"
 #include "utils/syscache.h"
+#include "sharding/sharding_conn.h"
 
 
 static void AlterSchemaOwner_internal(HeapTuple tup, Relation rel, Oid newOwnerId);
@@ -208,6 +210,7 @@ CreateSchemaCommand(CreateSchemaStmt *stmt, const char *queryString,
 	/* Reset current user and security context */
 	SetUserIdAndSecContext(saved_uid, save_sec_context);
 
+	RemoteCreateSchema(schemaName);
 	return namespaceId;
 }
 
@@ -219,6 +222,7 @@ RemoveSchemaById(Oid schemaOid)
 {
 	Relation	relation;
 	HeapTuple	tup;
+	NameData nsname = {'\0'};
 
 	relation = heap_open(NamespaceRelationId, RowExclusiveLock);
 
@@ -226,12 +230,13 @@ RemoveSchemaById(Oid schemaOid)
 						  ObjectIdGetDatum(schemaOid));
 	if (!HeapTupleIsValid(tup)) /* should not happen */
 		elog(ERROR, "cache lookup failed for namespace %u", schemaOid);
-
+	namestrcpy(&nsname, (((Form_pg_namespace) GETSTRUCT(tup))->nspname.data));
 	CatalogTupleDelete(relation, &tup->t_self);
 
 	ReleaseSysCache(tup);
 
 	heap_close(relation, RowExclusiveLock);
+	RemoteDropSchema(nsname.data);
 }
 
 
@@ -246,6 +251,14 @@ RenameSchema(const char *oldname, const char *newname)
 	Relation	rel;
 	AclResult	aclresult;
 	ObjectAddress address;
+
+	/*
+	 * dzw: this can't be supported because the schema name is part of the
+	 * storage shards' db names, and in mysql a db can't be renamed.
+	 * */
+	if (enable_remote_ddl())
+		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+			    errmsg("Schemas can't be renamed because storage shard DBs can't be renamed.")));
 
 	rel = heap_open(NamespaceRelationId, RowExclusiveLock);
 

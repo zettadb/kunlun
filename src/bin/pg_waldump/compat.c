@@ -68,7 +68,7 @@ timestamptz_to_str(TimestampTz dt)
  * Provide a hacked up compat layer for StringInfos so xlog desc functions can
  * be linked/called.
  */
-void
+int
 appendStringInfo(StringInfo str, const char *fmt,...)
 {
 	va_list		args;
@@ -76,12 +76,14 @@ appendStringInfo(StringInfo str, const char *fmt,...)
 	va_start(args, fmt);
 	vprintf(fmt, args);
 	va_end(args);
+
+	return 0;
 }
 
-void
+int
 appendStringInfoString(StringInfo str, const char *string)
 {
-	appendStringInfo(str, "%s", string);
+	return appendStringInfo(str, "%s", string);
 }
 
 void

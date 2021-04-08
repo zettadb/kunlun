@@ -114,6 +114,7 @@
 #include "postmaster/pgarch.h"
 #include "postmaster/postmaster.h"
 #include "postmaster/syslogger.h"
+#include "postmaster/xidsender.h"
 #include "replication/logicallauncher.h"
 #include "replication/walsender.h"
 #include "storage/fd.h"
@@ -254,7 +255,8 @@ static pid_t StartupPID = 0,
 			AutoVacPID = 0,
 			PgArchPID = 0,
 			PgStatPID = 0,
-			SysLoggerPID = 0;
+			SysLoggerPID = 0,
+			XidSenderPID = 0;
 
 /* Startup process's status */
 typedef enum
@@ -1767,6 +1769,9 @@ ServerLoop(void)
 		if (PgArchPID == 0 && PgArchStartupAllowed())
 			PgArchPID = pgarch_start();
 
+		if (XidSenderPID == 0 && pmState == PM_RUN)
+			XidSenderPID = xidsender_start();
+
 		/* If we need to signal the autovacuum launcher, do so now */
 		if (avlauncher_needs_signal)
 		{
@@ -2548,6 +2553,8 @@ SIGHUP_handler(SIGNAL_ARGS)
 			signal_child(SysLoggerPID, SIGHUP);
 		if (PgStatPID != 0)
 			signal_child(PgStatPID, SIGHUP);
+		if (XidSenderPID != 0)
+			signal_child(XidSenderPID, SIGHUP);
 
 		/* Reload authentication config files too */
 		if (!load_hba())
@@ -2638,6 +2645,8 @@ pmdie(SIGNAL_ARGS)
 				/* and the walwriter too */
 				if (WalWriterPID != 0)
 					signal_child(WalWriterPID, SIGTERM);
+				if (XidSenderPID != 0)
+					signal_child(XidSenderPID, SIGTERM);
 
 				/*
 				 * If we're in recovery, we can't kill the startup process
@@ -2686,6 +2695,8 @@ pmdie(SIGNAL_ARGS)
 				signal_child(BgWriterPID, SIGTERM);
 			if (WalReceiverPID != 0)
 				signal_child(WalReceiverPID, SIGTERM);
+			if (XidSenderPID != 0)
+				signal_child(XidSenderPID, SIGTERM);
 			if (pmState == PM_STARTUP || pmState == PM_RECOVERY)
 			{
 				SignalSomeChildren(SIGTERM, BACKEND_TYPE_BGWORKER);
@@ -2880,6 +2891,8 @@ reaper(SIGNAL_ARGS)
 				PgArchPID = pgarch_start();
 			if (PgStatPID == 0)
 				PgStatPID = pgstat_start();
+			if (XidSenderPID == 0)
+				XidSenderPID = xidsender_start();
 
 			/* workers may be scheduled to start now */
 			maybe_start_bgworkers();
@@ -3054,6 +3067,18 @@ reaper(SIGNAL_ARGS)
 			if (!EXIT_STATUS_0(exitstatus))
 				LogChildExit(LOG, _("system logger process"),
 							 pid, exitstatus);
+			continue;
+		}
+
+		/* Was it the xid sender?  If so, try to start a new one */
+		if (pid == XidSenderPID)
+		{
+			XidSenderPID = 0;
+			/* for safety's sake, launch new sender *first* */
+			if (!EXIT_STATUS_0(exitstatus) && !EXIT_STATUS_1(exitstatus))
+			{
+				HandleChildCrash(pid, exitstatus, "XID Sender");
+			}
 			continue;
 		}
 
@@ -3507,6 +3532,16 @@ HandleChildCrash(int pid, int exitstatus, const char *procname)
 		allow_immediate_pgstat_restart();
 	}
 
+	if (pid == XidSenderPID)
+		XidSenderPID = 0;
+	else if (XidSenderPID != 0 && take_action)
+	{
+		ereport(DEBUG2,
+				(errmsg_internal("sending %s to process %d",
+								 (SendStop ? "SIGSTOP" : "SIGQUIT"),
+								 (int) XidSenderPID)));
+		signal_child(XidSenderPID, (SendStop ? SIGSTOP : SIGQUIT));
+	}
 	/* We do NOT restart the syslogger */
 
 	if (Shutdown != ImmediateShutdown)
@@ -3662,7 +3697,8 @@ PostmasterStateMachine(void)
 			(CheckpointerPID == 0 ||
 			 (!FatalError && Shutdown < ImmediateShutdown)) &&
 			WalWriterPID == 0 &&
-			AutoVacPID == 0)
+			AutoVacPID == 0 &&
+			XidSenderPID == 0)
 		{
 			if (Shutdown >= ImmediateShutdown || FatalError)
 			{
@@ -3712,6 +3748,8 @@ PostmasterStateMachine(void)
 						signal_child(PgArchPID, SIGQUIT);
 					if (PgStatPID != 0)
 						signal_child(PgStatPID, SIGQUIT);
+					if (XidSenderPID != 0)
+						signal_child(XidSenderPID, SIGQUIT);
 				}
 			}
 		}
@@ -3756,6 +3794,7 @@ PostmasterStateMachine(void)
 			Assert(CheckpointerPID == 0);
 			Assert(WalWriterPID == 0);
 			Assert(AutoVacPID == 0);
+			Assert(XidSenderPID == 0);
 			/* syslogger is not considered here */
 			pmState = PM_NO_CHILDREN;
 		}
@@ -3949,6 +3988,8 @@ TerminateChildren(int signal)
 		signal_child(PgArchPID, signal);
 	if (PgStatPID != 0)
 		signal_child(PgStatPID, signal);
+	if (XidSenderPID != 0)
+		signal_child(XidSenderPID, signal);
 }
 
 /*
@@ -4958,6 +4999,18 @@ SubPostmasterMain(int argc, char *argv[])
 
 		SysLoggerMain(argc, argv);	/* does not return */
 	}
+	if (strcmp(argv[1], "--fork_xidsender") == 0)
+	{
+		/* Restore basic shared memory pointers */
+		InitShmemAccess(UsedShmemSegAddr);
+
+		/* Need a PGPROC to run CreateSharedMemoryAndSemaphores */
+		InitProcess();
+
+		/* Attach process to shared data structures */
+		CreateSharedMemoryAndSemaphores(0);
+		XidSenderMain(argc, argv);	/* does not return */
+	}
 
 	abort();					/* shouldn't get here */
 }
@@ -5847,6 +5900,7 @@ maybe_start_bgworkers(void)
 	{
 		StartWorkerNeeded = false;
 		HaveCrashedWorker = false;
+		elog(LOG, "Do not call bgworkers during crash recovery.");
 		return;
 	}
 

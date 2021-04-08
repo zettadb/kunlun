@@ -27,6 +27,7 @@ SUBDIRS = \
 	bin \
 	pl \
 	makefiles \
+	modules \
 	test/regress \
 	test/isolation \
 	test/perl

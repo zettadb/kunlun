@@ -620,6 +620,27 @@ set_plan_refs(PlannerInfo *root, Plan *plan, int rtoffset)
 		case T_CustomScan:
 			set_customscan_references(root, (CustomScan *) plan, rtoffset);
 			break;
+		case T_RemoteScan:
+			{
+				RemoteScan  *splan = (RemoteScan *) plan;
+
+				splan->scanrelid += rtoffset;
+				splan->plan.targetlist =
+					fix_scan_list(root, splan->plan.targetlist, rtoffset);
+				splan->plan.qual =
+					fix_scan_list(root, splan->plan.qual, rtoffset);
+
+#if 0
+				remote scan will need an expected order, decided according to
+				the 'ORDER BY' clause or sort-merge join.
+
+				splan->indexorderby =
+					fix_scan_list(root, splan->indexorderby, rtoffset);
+				splan->indexorderbyorig =
+					fix_scan_list(root, splan->indexorderbyorig, rtoffset);
+#endif
+			}
+			break;
 
 		case T_NestLoop:
 		case T_MergeJoin:

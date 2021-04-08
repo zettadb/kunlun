@@ -48,7 +48,8 @@
 #include "utils/rel.h"
 #include "utils/rls.h"
 #include "utils/snapmgr.h"
-
+#include "tcop/utility.h"
+#include "access/remote_meta.h"
 
 typedef struct
 {
@@ -126,7 +127,7 @@ create_ctas_internal(List *attrList, IntoClause *into)
 										create->options,
 										"toast",
 										validnsps,
-										true, false);
+										true, false, NULL);
 
 	(void) heap_reloptions(RELKIND_TOASTVALUE, toast_options, true);
 
@@ -252,6 +253,15 @@ ExecCreateTableAs(CreateTableAsStmt *stmt, const char *queryString,
 			return InvalidObjectAddress;
 		}
 	}
+
+	/*
+	  dzw:
+	  Allow CREATE MATERIALIZED VIEW, but forbid CREATE TABLE AS and
+	  SELECT...INTO stmts.
+	*/
+	if (stmt->relkind != OBJECT_MATVIEW && enable_remote_ddl())
+		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				errmsg("Statement '%s' is not supported in Kunlun.", CreateCommandTag((Node*)stmt))));
 
 	/*
 	 * Create the tuple receiver object and insert info it will need
@@ -529,6 +539,7 @@ intorel_startup(DestReceiver *self, int operation, TupleDesc typeinfo)
 	rte->relid = intoRelationAddr.objectId;
 	rte->relkind = relkind;
 	rte->requiredPerms = ACL_INSERT;
+	rte->relshardid = intoRelationDesc->rd_rel->relshardid;
 
 	for (attnum = 1; attnum <= intoRelationDesc->rd_att->natts; attnum++)
 		rte->insertedCols = bms_add_member(rte->insertedCols,

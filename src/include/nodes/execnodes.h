@@ -28,8 +28,10 @@
 #include "utils/sortsupport.h"
 #include "utils/tuplestore.h"
 #include "utils/tuplesort.h"
+#include "utils/algos.h"
 #include "nodes/tidbitmap.h"
 #include "storage/condition_variable.h"
+#include "sharding/sharding_conn.h"
 
 
 struct PlanState;				/* forward references in this file */
@@ -37,6 +39,18 @@ struct ParallelHashJoinState;
 struct ExprState;
 struct ExprContext;
 struct ExprEvalStep;			/* avoid including execExpr.h everywhere */
+
+
+struct EnumLabelOid;
+typedef struct TypeInputInfo
+{
+	Oid typinput;
+	Oid typioparam;
+	bool typisenum;
+	uint16_t nslots;
+	struct EnumLabelOid*AllEnumLabelOidEntries;
+	MemoryContext mctx;
+} TypeInputInfo;
 
 
 /* ----------------
@@ -149,6 +163,12 @@ typedef struct ExprState
 typedef struct IndexInfo
 {
 	NodeTag		type;
+	bool		ii_Unique;
+	bool		ii_ReadyForInserts;
+	bool		ii_Concurrent;
+	bool		ii_BrokenHotChain;
+	int			ii_ParallelWorkers;
+	Oid			ii_Am;
 	int			ii_NumIndexAttrs;	/* total number of columns in index */
 	int			ii_NumIndexKeyAttrs;	/* number of key columns in index */
 	AttrNumber	ii_IndexAttrNumbers[INDEX_MAX_KEYS];
@@ -162,12 +182,6 @@ typedef struct IndexInfo
 	Oid		   *ii_UniqueOps;	/* array with one entry per column */
 	Oid		   *ii_UniqueProcs; /* array with one entry per column */
 	uint16	   *ii_UniqueStrats;	/* array with one entry per column */
-	bool		ii_Unique;
-	bool		ii_ReadyForInserts;
-	bool		ii_Concurrent;
-	bool		ii_BrokenHotChain;
-	int			ii_ParallelWorkers;
-	Oid			ii_Am;
 	void	   *ii_AmCache;
 	MemoryContext ii_Context;
 } IndexInfo;
@@ -292,13 +306,13 @@ typedef enum
 typedef struct ReturnSetInfo
 {
 	NodeTag		type;
-	/* values set by caller: */
-	ExprContext *econtext;		/* context function is being called in */
-	TupleDesc	expectedDesc;	/* tuple descriptor expected by caller */
-	int			allowedModes;	/* bitmask: return modes caller can handle */
 	/* result status from function (but pre-initialized by caller): */
 	SetFunctionReturnMode returnMode;	/* actual return mode */
 	ExprDoneCond isDone;		/* status for ValuePerCall mode */
+	/* values set by caller: */
+	int			allowedModes;	/* bitmask: return modes caller can handle */
+	ExprContext *econtext;		/* context function is being called in */
+	TupleDesc	expectedDesc;	/* tuple descriptor expected by caller */
 	/* fields filled by function in Materialize return mode: */
 	Tuplestorestate *setResult; /* holds the complete returned tuple set */
 	TupleDesc	setDesc;		/* actual descriptor for returned tuples */
@@ -462,7 +476,17 @@ typedef struct ResultRelInfo
 
 	/* true if ready for tuple routing */
 	bool		ri_PartitionReadyForRouting;
+
+	/* 
+	 * dzw:
+	 * Stmts to be inserted into the physical remote table corresponding to
+	 * this relation, and to be sent to storage node, are cached here.
+	 * When the buffer is full, send the stmts.
+	 * Memory should be alloc'ed from EState::es_query_cxt.
+	 * */
+	StringInfo ri_RemotetupCache;
 } ResultRelInfo;
+
 
 /* ----------------
  *	  EState information
@@ -476,6 +500,8 @@ typedef struct EState
 
 	/* Basic state for all query types: */
 	ScanDirection es_direction; /* current scan direction */
+	/* If query can insert/delete tuples, the command ID to mark them with */
+	CommandId	es_output_cid;
 	Snapshot	es_snapshot;	/* time qual to use */
 	Snapshot	es_crosscheck_snapshot; /* crosscheck time qual for RI */
 	List	   *es_range_table; /* List of RangeTblEntry */
@@ -484,13 +510,10 @@ typedef struct EState
 
 	JunkFilter *es_junkFilter;	/* top-level junk filter, if any */
 
-	/* If query can insert/delete tuples, the command ID to mark them with */
-	CommandId	es_output_cid;
-
 	/* Info about target table(s) for insert/update/delete queries: */
 	ResultRelInfo *es_result_relations; /* array of ResultRelInfos */
-	int			es_num_result_relations;	/* length of array */
 	ResultRelInfo *es_result_relation_info; /* currently active array elt */
+	int			es_num_result_relations;	/* length of array */
 
 	/*
 	 * Info about the target partitioned target table root(s) for
@@ -499,8 +522,8 @@ typedef struct EState
 	 * es_result_relations, because partitioned tables don't appear in the
 	 * plan tree for the update/delete cases.
 	 */
-	ResultRelInfo *es_root_result_relations;	/* array of ResultRelInfos */
 	int			es_num_root_result_relations;	/* length of the array */
+	ResultRelInfo *es_root_result_relations;	/* array of ResultRelInfos */
 
 	/*
 	 * The following list contains ResultRelInfos created by the tuple routing
@@ -560,10 +583,10 @@ typedef struct EState
 	bool	   *es_epqTupleSet; /* true if EPQ tuple is provided */
 	bool	   *es_epqScanDone; /* true if EPQ tuple has been fetched */
 
-	bool		es_use_parallel_mode;	/* can we use parallel workers? */
-
 	/* The per-query shared memory area to use for parallel execution. */
 	struct dsa_area *es_query_dsa;
+
+	bool		es_use_parallel_mode;	/* can we use parallel workers? */
 
 	/*
 	 * JIT information. es_jit_flags indicates whether JIT should be performed
@@ -734,10 +757,10 @@ typedef struct AggrefExprState
 typedef struct WindowFuncExprState
 {
 	NodeTag		type;
+	int			wfuncno;		/* ID number for wfunc within its plan node */
 	WindowFunc *wfunc;			/* expression plan node */
 	List	   *args;			/* ExprStates for argument expressions */
 	ExprState  *aggfilter;		/* FILTER expression */
-	int			wfuncno;		/* ID number for wfunc within its plan node */
 } WindowFuncExprState;
 
 
@@ -823,13 +846,13 @@ typedef struct SetExprState
 typedef struct SubPlanState
 {
 	NodeTag		type;
+	Datum		curArray;		/* most recent array from ARRAY() subplan */
 	SubPlan    *subplan;		/* expression plan node */
 	struct PlanState *planstate;	/* subselect plan's state tree */
 	struct PlanState *parent;	/* parent plan node's state tree */
 	ExprState  *testexpr;		/* state of combining expression */
 	List	   *args;			/* states of argument expression(s) */
 	HeapTuple	curTuple;		/* copy of most recent tuple from subplan */
-	Datum		curArray;		/* most recent array from ARRAY() subplan */
 	/* these are used when hashing the subselect's output: */
 	TupleDesc	descRight;		/* subselect desc after projection */
 	ProjectionInfo *projLeft;	/* for projecting lefthand exprs */
@@ -858,9 +881,9 @@ typedef struct SubPlanState
 typedef struct AlternativeSubPlanState
 {
 	NodeTag		type;
+	int			active;			/* list index of the one we're using */
 	AlternativeSubPlan *subplan;	/* expression plan node */
 	List	   *subplans;		/* SubPlanStates of alternative subplans */
-	int			active;			/* list index of the one we're using */
 } AlternativeSubPlanState;
 
 /*
@@ -1036,6 +1059,20 @@ typedef struct ProjectSetState
 	MemoryContext argcontext;	/* context for SRF arguments */
 } ProjectSetState;
 
+typedef struct RemoteModifyState
+{
+	AsyncStmtInfo *asi;         /* communication channel with storage node. */
+	StringInfoData remote_dml;
+	/*   
+	 * Attr Nums in this set is a 'long expression', i.e. longer than NAMEDATALEN.
+	 * Suppose the i'th 1 bit in long_exprs_bmp denotes number x, then the
+	 * tupdesc->attrs[x].attname doesn't contail complete expr text, need to use
+	 * long_exprs[i] instead.
+	 * */
+	Bitmapset *long_exprs_bmp;
+	List *long_exprs;
+} RemoteModifyState;
+
 /* ----------------
  *	 ModifyTableState information
  * ----------------
@@ -1046,15 +1083,20 @@ typedef struct ModifyTableState
 	CmdType		operation;		/* INSERT, UPDATE, or DELETE */
 	bool		canSetTag;		/* do we set the command tag/es_processed? */
 	bool		mt_done;		/* are we done? */
+	bool		fireBSTriggers; /* do we need to fire stmt triggers? */
 	PlanState **mt_plans;		/* subplans (one per target rel) */
 	int			mt_nplans;		/* number of plans in the array */
 	int			mt_whichplan;	/* which one is being executed (0..n-1) */
+	RemoteModifyState *mt_remote_states; /* per-subplan remote modify state */
 	ResultRelInfo *resultRelInfo;	/* per-subplan target relations */
 	ResultRelInfo *rootResultRelInfo;	/* root target relation (partitioned
 										 * table root) */
+	TupleTableSlot *remoteReturningTupleSlot;
+	TypeInputInfo *typeInputInfo;
+	int cur_returning_idx;
+
 	List	  **mt_arowmarks;	/* per-subplan ExecAuxRowMark lists */
 	EPQState	mt_epqstate;	/* for evaluating EvalPlanQual rechecks */
-	bool		fireBSTriggers; /* do we need to fire stmt triggers? */
 	TupleTableSlot *mt_existing;	/* slot to store existing target tuple in */
 	List	   *mt_excludedtlist;	/* the excluded pseudo relation's tlist  */
 	TupleTableSlot *mt_conflproj;	/* CONFLICT ... SET ... projection target */
@@ -1204,6 +1246,46 @@ typedef struct ScanState
 	TupleTableSlot *ss_ScanTupleSlot;
 } ScanState;
 
+
+typedef struct RemoteScanState
+{
+	ScanState	ss;				/* its first field is NodeTag */
+	StringInfoData remote_sql;
+	AsyncStmtInfo *asi;         /* communication channel with storage node. */
+	TypeInputInfo *typeInputInfo;
+	/*
+	 * Attr Nums in this set is a 'long expression', i.e. longer than NAMEDATALEN.
+	 * Suppose the i'th 1 bit in long_exprs_bmp denotes number x, then the
+	 * tupdesc->attrs[x].attname doesn't contail complete expr text, need to use
+	 * long_exprs[i] instead.
+	 * */
+	Bitmapset *long_exprs_bmp;
+	List *long_exprs;
+
+	/*
+	 * The TupleDesc in ss.ps.scandesc may be allocated with more
+	 * FormData_pg_attribute slots than ss.ps.scandesc->natts, this field
+	 * stores the real capacity of ss.ps.scandesc->attrs array, in order to
+	 * store extra attrs for quals.
+	 * */
+	int scandesc_natts_cap;
+	bool fetches_remote_data;
+
+	/* when this is in a correlated subquery, do we use dependent outer param
+	values to fetch each portion of qualified rows on each rescan, or do we fetch
+	all rows that match quals containing no dependent params all at once.
+	It's generally faster and less costly to do it the 2nd way, unless there
+	are too many qualified rows.
+	*/
+	bool		param_driven;
+
+	/*
+	  results of this remote scan is used for EXISTS() checks thus only 1 row
+	  needs to be returned.
+	*/
+	bool		check_exists;
+} RemoteScanState;
+
 /* ----------------
  *	 SeqScanState information
  * ----------------
@@ -1287,8 +1369,8 @@ typedef struct IndexScanState
 	List	   *indexorderbyorig;
 	ScanKey		iss_ScanKeys;
 	int			iss_NumScanKeys;
-	ScanKey		iss_OrderByKeys;
 	int			iss_NumOrderByKeys;
+	ScanKey		iss_OrderByKeys;
 	IndexRuntimeKeyInfo *iss_RuntimeKeys;
 	int			iss_NumRuntimeKeys;
 	bool		iss_RuntimeKeysReady;
@@ -1331,8 +1413,8 @@ typedef struct IndexOnlyScanState
 	ExprState  *indexqual;
 	ScanKey		ioss_ScanKeys;
 	int			ioss_NumScanKeys;
-	ScanKey		ioss_OrderByKeys;
 	int			ioss_NumOrderByKeys;
+	ScanKey		ioss_OrderByKeys;
 	IndexRuntimeKeyInfo *ioss_RuntimeKeys;
 	int			ioss_NumRuntimeKeys;
 	bool		ioss_RuntimeKeysReady;
@@ -1364,8 +1446,8 @@ typedef struct BitmapIndexScanState
 	ScanState	ss;				/* its first field is NodeTag */
 	TIDBitmap  *biss_result;
 	ScanKey		biss_ScanKeys;
-	int			biss_NumScanKeys;
 	IndexRuntimeKeyInfo *biss_RuntimeKeys;
+	int			biss_NumScanKeys;
 	int			biss_NumRuntimeKeys;
 	IndexArrayKeyInfo *biss_ArrayKeys;
 	int			biss_NumArrayKeys;
@@ -1744,8 +1826,8 @@ typedef struct MergeJoinClauseData *MergeJoinClause;
 typedef struct MergeJoinState
 {
 	JoinState	js;				/* its first field is NodeTag */
-	int			mj_NumClauses;
 	MergeJoinClause mj_Clauses; /* array of length mj_NumClauses */
+	int			mj_NumClauses;
 	int			mj_JoinState;
 	bool		mj_SkipMarkRestore;
 	bool		mj_ExtraMarks;
@@ -1805,13 +1887,13 @@ typedef struct HashJoinState
 	uint32		hj_CurHashValue;
 	int			hj_CurBucketNo;
 	int			hj_CurSkewBucketNo;
+	int			hj_JoinState;
 	HashJoinTuple hj_CurTuple;
 	TupleTableSlot *hj_OuterTupleSlot;
 	TupleTableSlot *hj_HashTupleSlot;
 	TupleTableSlot *hj_NullOuterTupleSlot;
 	TupleTableSlot *hj_NullInnerTupleSlot;
 	TupleTableSlot *hj_FirstOuterTupleSlot;
-	int			hj_JoinState;
 	bool		hj_MatchedOuter;
 	bool		hj_OuterNotEmpty;
 } HashJoinState;
@@ -1858,12 +1940,12 @@ typedef struct SortState
 	ScanState	ss;				/* its first field is NodeTag */
 	bool		randomAccess;	/* need random access to sort output? */
 	bool		bounded;		/* is the result set bounded? */
-	int64		bound;			/* if bounded, how many tuples are needed */
 	bool		sort_Done;		/* sort completed yet? */
 	bool		bounded_Done;	/* value of bounded we did the sort with */
+	bool		am_worker;		/* are we a worker? */
+	int64		bound;			/* if bounded, how many tuples are needed */
 	int64		bound_Done;		/* value of bound we did the sort with */
 	void	   *tuplesortstate; /* private state of tuplesort.c */
-	bool		am_worker;		/* are we a worker? */
 	SharedSortInfo *shared_info;	/* one entry per worker */
 } SortState;
 
@@ -1900,11 +1982,11 @@ typedef struct AggStatePerHashData *AggStatePerHash;
 typedef struct AggState
 {
 	ScanState	ss;				/* its first field is NodeTag */
+	AggStrategy aggstrategy;	/* strategy mode */
+	AggSplit	aggsplit;		/* agg-splitting mode, see nodes.h */
 	List	   *aggs;			/* all Aggref nodes in targetlist & quals */
 	int			numaggs;		/* length of list (could be zero!) */
 	int			numtrans;		/* number of pertrans items */
-	AggStrategy aggstrategy;	/* strategy mode */
-	AggSplit	aggsplit;		/* agg-splitting mode, see nodes.h */
 	AggStatePerPhase phase;		/* pointer to current phase data */
 	int			numphases;		/* number of phases (including phase 0) */
 	int			current_phase;	/* current phase number */
@@ -1921,10 +2003,10 @@ typedef struct AggState
 	bool		input_done;		/* indicates end of input */
 	bool		agg_done;		/* indicates completion of Agg scan */
 	int			projected_set;	/* The last projected grouping set */
-#define FIELDNO_AGGSTATE_CURRENT_SET 20
-	int			current_set;	/* The current grouping set being evaluated */
 	Bitmapset  *grouped_cols;	/* grouped cols in current projection */
 	List	   *all_grouped_cols;	/* list of all grouped cols in DESC order */
+#define FIELDNO_AGGSTATE_CURRENT_SET 22
+	int			current_set;	/* The current grouping set being evaluated */
 	/* These fields are for grouping set phase data */
 	int			maxsets;		/* The max number of sets in any phase */
 	AggStatePerPhase phases;	/* array of all phases */

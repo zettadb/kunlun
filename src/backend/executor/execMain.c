@@ -41,6 +41,7 @@
 #include "access/sysattr.h"
 #include "access/transam.h"
 #include "access/xact.h"
+#include "catalog/catalog.h"
 #include "catalog/namespace.h"
 #include "catalog/pg_publication.h"
 #include "commands/matview.h"
@@ -65,7 +66,8 @@
 #include "utils/ruleutils.h"
 #include "utils/snapmgr.h"
 #include "utils/tqual.h"
-
+#include "access/remote_meta.h"
+#include "access/remotetup.h"
 
 /* Hooks for plugins to get control in ExecutorStart/Run/Finish/End */
 ExecutorStart_hook_type ExecutorStart_hook = NULL;
@@ -855,7 +857,8 @@ InitPlan(QueryDesc *queryDesc, int eflags)
 							  resultRelation,
 							  resultRelationIndex,
 							  NULL,
-							  estate->es_instrument);
+							  estate->es_instrument,
+							  estate);
 			resultRelInfo++;
 		}
 		estate->es_result_relations = resultRelInfos;
@@ -894,7 +897,8 @@ InitPlan(QueryDesc *queryDesc, int eflags)
 								  resultRelDesc,
 								  lfirst_int(l),
 								  NULL,
-								  estate->es_instrument);
+								  estate->es_instrument,
+								  estate);
 				resultRelInfo++;
 			}
 
@@ -1303,7 +1307,8 @@ InitResultRelInfo(ResultRelInfo *resultRelInfo,
 				  Relation resultRelationDesc,
 				  Index resultRelationIndex,
 				  Relation partition_root,
-				  int instrument_options)
+				  int instrument_options,
+				  EState *estate)
 {
 	List	   *partition_check = NIL;
 
@@ -1365,6 +1370,12 @@ InitResultRelInfo(ResultRelInfo *resultRelInfo,
 	resultRelInfo->ri_PartitionCheck = partition_check;
 	resultRelInfo->ri_PartitionRoot = partition_root;
 	resultRelInfo->ri_PartitionReadyForRouting = false;
+	if (IsRemoteRelation(resultRelationDesc) && resultRelationDesc->rd_rel &&
+		resultRelationDesc->rd_rel->relshardid != InvalidOid)
+		resultRelInfo->ri_RemotetupCache =
+			CreateRemotetupCacheState(resultRelationDesc);
+	else
+		resultRelInfo->ri_RemotetupCache = NULL;
 }
 
 /*
@@ -1451,7 +1462,8 @@ ExecGetTriggerResultRel(EState *estate, Oid relid)
 					  rel,
 					  0,		/* dummy rangetable index */
 					  NULL,
-					  estate->es_instrument);
+					  estate->es_instrument,
+					  estate);
 	estate->es_trig_target_relations =
 		lappend(estate->es_trig_target_relations, rInfo);
 	MemoryContextSwitchTo(oldcontext);

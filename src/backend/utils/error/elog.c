@@ -134,8 +134,14 @@ extern char *event_source;
 static void write_eventlog(int level, const char *line, int len);
 #endif
 
-/* We provide a small stack of ErrorData records for re-entrant cases */
-#define ERRORDATA_STACK_SIZE  5
+/* 
+ * We provide a small stack of ErrorData records for re-entrant cases
+ *
+ * dzw: Always define this equal to MAX_SHARDS, because at most MAX_SHARDS
+ * errors can be returned for the same stmt executed if so many are sent to
+ * storage shards.
+ * */
+#define ERRORDATA_STACK_SIZE  256
 
 static ErrorData errordata[ERRORDATA_STACK_SIZE];
 
@@ -561,6 +567,27 @@ errfinish(int dummy,...)
 	 * in a loop that otherwise fails to check for interrupts.
 	 */
 	CHECK_FOR_INTERRUPTS();
+}
+
+int top_errcode()
+{
+	int ec = 0;
+
+	ErrorData  *edata = &errordata[errordata_stack_depth];
+	if (errordata_stack_depth >= 0 &&
+		errordata_stack_depth < ERRORDATA_STACK_SIZE &&
+		edata->elevel == ERROR)
+		ec = edata->sqlerrcode;
+	return ec;
+}
+
+void downgrade_error()
+{
+	ErrorData  *edata = &errordata[errordata_stack_depth];
+	if (errordata_stack_depth >= 0 &&
+		errordata_stack_depth < ERRORDATA_STACK_SIZE &&
+		edata->elevel == ERROR)
+		edata->elevel = WARNING;
 }
 
 

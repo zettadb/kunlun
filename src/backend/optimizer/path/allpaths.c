@@ -20,6 +20,8 @@
 
 #include "access/sysattr.h"
 #include "access/tsmapi.h"
+#include "access/remote_dml.h"
+#include "access/remote_meta.h"
 #include "catalog/pg_class.h"
 #include "catalog/pg_operator.h"
 #include "catalog/pg_proc.h"
@@ -177,6 +179,7 @@ make_one_rel(PlannerInfo *root, List *joinlist)
 	 * then generate access paths.
 	 */
 	set_base_rel_sizes(root);
+
 	set_base_rel_pathlists(root);
 
 	/*
@@ -718,6 +721,22 @@ set_plain_rel_pathlist(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *rte)
 	 * its tlist.
 	 */
 	required_outer = rel->lateral_relids;
+
+	/*
+	 * dzw:
+	 * For a remote relation, we don't care how to access it in computing node,
+	 * that's the job of the mysql storage node. Use dedicated plan
+	 * node(T_Remote_Scan) for better readablility in explain result.
+	 * */
+	if (IS_REMOTE_RTE(rel) || (rel->reloptkind == RELOPT_BASEREL &&
+							   rte->relkind == RELKIND_PARTITIONED_TABLE))
+	{
+		add_path(rel, create_remotescan_path(root, rel, required_outer, 0));
+		/*
+		 * TODO: Add more paths.
+		 * */
+		return;
+	}
 
 	/* Consider sequential scan */
 	add_path(rel, create_seqscan_path(root, rel, required_outer, 0));
@@ -3661,6 +3680,9 @@ print_path(PlannerInfo *root, Path *path, int indent)
 					break;
 				case T_WorkTableScan:
 					ptype = "WorkTableScan";
+					break;
+				case T_RemoteScan:
+					ptype = "RemoteScan";
 					break;
 				default:
 					ptype = "???Path";

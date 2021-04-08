@@ -151,6 +151,17 @@ get_relation_info(PlannerInfo *root, Oid relationObjectId, bool inhparent,
 	/* Retrieve the parallel_workers reloption, or -1 if not set. */
 	rel->rel_parallel_workers = RelationGetParallelWorkers(relation, -1);
 
+	rel->relshardid = relation->rd_rel->relshardid;
+	/*
+	  dzw: we never need to consider alternative AMs for accessing remote
+	  tables, so ignore its indexes.
+	*/
+	if (IsRemoteRelation(relation))
+	{
+		rel->indexlist = NULL;
+		goto next;
+	}
+
 	/*
 	 * Make list of indexes.  Ignore indexes on system catalogs if told to.
 	 * Don't bother with indexes for an inheritance parent, either.
@@ -429,8 +440,8 @@ get_relation_info(PlannerInfo *root, Oid relationObjectId, bool inhparent,
 
 	rel->indexlist = indexinfos;
 
+next:
 	rel->statlist = get_relation_statistics(rel, relation);
-
 	/* Grab foreign-table info using the relcache, while we have it */
 	if (relation->rd_rel->relkind == RELKIND_FOREIGN_TABLE)
 	{
@@ -946,6 +957,15 @@ estimate_rel_size(Relation rel, int32 *attr_widths,
 	double		reltuples;
 	BlockNumber relallvisible;
 	double		density;
+
+	if (IsRemoteRelation(rel))
+	{
+		*pages = rel->rd_rel->relpages;
+		*tuples = rel->rd_rel->reltuples;
+		*allvisfrac = 0;
+		return;
+	}
+
 
 	switch (rel->rd_rel->relkind)
 	{

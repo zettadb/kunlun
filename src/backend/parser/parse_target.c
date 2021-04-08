@@ -14,6 +14,7 @@
  */
 #include "postgres.h"
 
+#include "catalog/catalog.h"
 #include "catalog/pg_type.h"
 #include "commands/dbcommands.h"
 #include "funcapi.h"

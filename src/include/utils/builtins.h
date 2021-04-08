@@ -35,6 +35,14 @@ extern unsigned hex_decode(const char *src, unsigned len, char *dst);
 
 /* int.c */
 extern int2vector *buildint2vector(const int16 *int2s, int n);
+extern int int4_cmp(const void *i1, const void *i2);
+extern int int2_cmp(const void *i1, const void *i2);
+extern int int1_cmp(const void *i1, const void *i2);
+extern int uint4_cmp(const void *i1, const void *i2);
+extern int uint2_cmp(const void *i1, const void *i2);
+extern int uint1_cmp(const void *i1, const void *i2);
+extern int uint8_cmp(const void *i1, const void *i2);
+extern int int8_cmp(const void *i1, const void *i2);
 
 /* name.c */
 extern int	namecpy(Name n1, Name n2);
@@ -126,6 +134,10 @@ extern char *format_type_extended(Oid type_oid, int32 typemod, bits16 flags);
 extern char *format_type_be(Oid type_oid);
 extern char *format_type_be_qualified(Oid type_oid);
 extern char *format_type_with_typemod(Oid type_oid, int32 typemod);
+extern int const_output_needs_quote(Oid type_oid);
+extern void InitRemoteTypeInfo(void);
+extern const char *format_type_remote(Oid type_oid);
+extern bool type_is_enum_lite(Oid typid);
 
 extern int32 type_maximum_size(Oid type_oid, int32 typemod);
 

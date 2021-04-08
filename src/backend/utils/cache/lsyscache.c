@@ -3,6 +3,11 @@
  * lsyscache.c
  *	  Convenience routines for common queries in the system catalog cache.
  *
+ * Portions Copyright (c) 2019 ZettaDB inc. All rights reserved.
+ *
+ * This source code is licensed under Apache 2.0 License,
+ * combined with Common Clause Condition 1.0, as detailed in the NOTICE file.
+ *
  * Portions Copyright (c) 1996-2018, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
@@ -1893,6 +1898,30 @@ get_rel_persistence(Oid relid)
 	return result;
 }
 
+/*
+ * get_rel_relkind_shard
+ *
+ *		Returns the relkind and shardid associated with a given relation.
+ */
+char
+get_rel_relkind_shard(Oid relid, Oid *pshardid)
+{
+	HeapTuple	tp;
+
+	tp = SearchSysCache1(RELOID, ObjectIdGetDatum(relid));
+	if (HeapTupleIsValid(tp))
+	{
+		Form_pg_class reltup = (Form_pg_class) GETSTRUCT(tp);
+		char		result;
+
+		result = reltup->relkind;
+		*pshardid = reltup->relshardid;
+		ReleaseSysCache(tp);
+		return result;
+	}
+	else
+		return '\0';
+}
 
 /*				---------- TRANSFORM CACHE ----------						 */
 
@@ -3090,6 +3119,39 @@ get_namespace_name(Oid nspid)
 		return NULL;
 }
 
+int get_namespace_name2(Oid nspid, StringInfo str)
+{
+	HeapTuple	tp;
+	int ret = -1;
+
+	tp = SearchSysCache1(NAMESPACEOID, ObjectIdGetDatum(nspid));
+	if (HeapTupleIsValid(tp))
+	{
+		Form_pg_namespace nsptup = (Form_pg_namespace) GETSTRUCT(tp);
+		ret = appendStringInfoString(str, NameStr(nsptup->nspname));
+		ReleaseSysCache(tp);
+		return ret;
+	}
+
+	return ret;
+}
+
+int get_namespace_name3(Oid nspid, NameData *nm)
+{
+	HeapTuple	tp;
+	int ret = -1;
+
+	tp = SearchSysCache1(NAMESPACEOID, ObjectIdGetDatum(nspid));
+	if (HeapTupleIsValid(tp))
+	{
+		Form_pg_namespace nsptup = (Form_pg_namespace) GETSTRUCT(tp);
+		strncpy(nm->data, nsptup->nspname.data, sizeof(NameData));
+		ReleaseSysCache(tp);
+		return ret;
+	}
+
+	return ret;
+}
 /*
  * get_namespace_name_or_temp
  *		As above, but if it is this backend's temporary namespace, return
@@ -3130,3 +3192,32 @@ get_range_subtype(Oid rangeOid)
 	else
 		return InvalidOid;
 }
+
+
+/*
+  dzw: check if funcid is type conversion function, like int2(), etc.
+*/
+bool is_type_conversion_func(Oid funcid)
+{
+	HeapTuple	tp;
+	/*
+	  This was hard coded in pg_language.dat, no need for a table search by
+	  name, and the lang name is hard coded anyway.
+	  If the id 12 changes must change update here.
+	*/
+	const Oid internal_langid = 12;
+	bool ret = false;
+
+	tp = SearchSysCache1(PROCOID, ObjectIdGetDatum(funcid));
+	if (HeapTupleIsValid(tp))
+	{
+		Form_pg_proc functup = (Form_pg_proc) GETSTRUCT(tp);
+		if (functup->prolang == internal_langid && functup->pronargs == 1 &&
+			functup->prokind == PROKIND_FUNCTION && functup->proretset == false &&
+			TypenameGetTypid(functup->proname.data) != InvalidOid)
+			ret = true;
+		ReleaseSysCache(tp);
+	}
+	return ret;
+}
+

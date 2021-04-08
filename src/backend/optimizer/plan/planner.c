@@ -22,6 +22,8 @@
 #include "access/parallel.h"
 #include "access/sysattr.h"
 #include "access/xact.h"
+#include "access/remote_dml.h"
+#include "access/remote_meta.h"
 #include "catalog/pg_constraint.h"
 #include "catalog/pg_proc.h"
 #include "catalog/pg_type.h"
@@ -45,6 +47,7 @@
 #include "optimizer/plancat.h"
 #include "optimizer/planmain.h"
 #include "optimizer/planner.h"
+#include "optimizer/planremote.h"
 #include "optimizer/prep.h"
 #include "optimizer/subselect.h"
 #include "optimizer/tlist.h"
@@ -58,7 +61,6 @@
 #include "utils/selfuncs.h"
 #include "utils/lsyscache.h"
 #include "utils/syscache.h"
-
 
 /* GUC parameters */
 double		cursor_tuple_fraction = DEFAULT_CURSOR_TUPLE_FRACTION;
@@ -261,6 +263,11 @@ planner(Query *parse, int cursorOptions, ParamListInfo boundParams)
 		result = (*planner_hook) (parse, cursorOptions, boundParams);
 	else
 		result = standard_planner(parse, cursorOptions, boundParams);
+
+	/*
+	  dzw: 
+	*/
+	materialize_conflicting_remotescans(result);
 	return result;
 }
 
@@ -404,6 +411,8 @@ standard_planner(Query *parse, int cursorOptions, ParamListInfo boundParams)
 	/* primary planning entry point (may recurse for subqueries) */
 	root = subquery_planner(glob, parse, NULL,
 							false, tuple_fraction);
+	if (!root)
+		return NULL;
 
 	/* Select best Path and turn it into a Plan */
 	final_rel = fetch_upper_rel(root, UPPERREL_FINAL, NULL);
@@ -5999,6 +6008,9 @@ plan_cluster_use_sort(Oid tableOid, Oid indexOid)
 	rte->lateral = false;
 	rte->inh = false;
 	rte->inFromCl = true;
+	/* dzw: do not support CLUSTER cmd for remote relations. */
+	rte->relshardid = InvalidOid;
+
 	query->rtable = list_make1(rte);
 
 	/* Set up RTE/RelOptInfo arrays */
@@ -6132,6 +6144,7 @@ plan_create_index_workers(Oid tableOid, Oid indexOid)
 
 	heap = heap_open(tableOid, NoLock);
 	index = index_open(indexOid, NoLock);
+	rte->relshardid = heap->rd_rel->relshardid;
 
 	/*
 	 * Determine if it's safe to proceed.

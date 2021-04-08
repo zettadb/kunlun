@@ -1,0 +1,80 @@
+[
+{
+   "shard_name": "shard1",
+   "shard_nodes":
+   [
+       {
+          "ip": "127.0.0.1",
+          "port": 4101,
+          "user": "pgx",
+          "password":"pgx_pwd"
+       },
+   
+       {
+          "ip": "127.0.0.1",
+          "port": 4102,
+          "user": "pgx",
+          "password":"pgx_pwd"
+       },
+
+       {
+          "ip": "127.0.0.1",
+          "port": 4103,
+          "user": "pgx",
+          "password":"pgx_pwd"
+       }
+   ]
+}
+,
+{
+   "shard_name": "shard2",
+   "shard_nodes":
+   [
+       {
+          "ip": "127.0.0.1",
+          "port": 4201,
+          "user": "pgx",
+          "password":"pgx_pwd"
+       },
+   
+       {
+          "ip": "127.0.0.1",
+          "port": 4202,
+          "user": "pgx",
+          "password":"pgx_pwd"
+       },
+       {
+          "ip": "127.0.0.1",
+          "port": 4203,
+          "user": "pgx",
+          "password":"pgx_pwd"
+       }
+   ]
+}
+,
+{
+   "shard_name": "shard3",
+   "shard_nodes":
+   [
+       {
+          "ip": "127.0.0.1",
+          "port": 4301,
+          "user": "pgx",
+          "password":"pgx_pwd"
+       },
+   
+       {
+          "ip": "127.0.0.1",
+          "port": 4302,
+          "user": "pgx",
+          "password":"pgx_pwd"
+       },
+       {
+          "ip": "127.0.0.1",
+          "port": 4303,
+          "user": "pgx",
+          "password":"pgx_pwd"
+       }
+   ]
+}
+]

@@ -19,6 +19,8 @@
 #include "access/heapam.h"
 #include "access/multixact.h"
 #include "access/nbtree.h"
+#include "access/remote_meta.h"
+#include "access/remote_xact.h"
 #include "access/subtrans.h"
 #include "access/twophase.h"
 #include "commands/async.h"
@@ -28,11 +30,13 @@
 #include "postmaster/bgworker_internals.h"
 #include "postmaster/bgwriter.h"
 #include "postmaster/postmaster.h"
+#include "postmaster/xidsender.h"
 #include "replication/logicallauncher.h"
 #include "replication/slot.h"
 #include "replication/walreceiver.h"
 #include "replication/walsender.h"
 #include "replication/origin.h"
+#include "sharding/cluster_meta.h"
 #include "storage/bufmgr.h"
 #include "storage/dsm.h"
 #include "storage/ipc.h"
@@ -46,7 +50,10 @@
 #include "storage/spin.h"
 #include "utils/backend_random.h"
 #include "utils/snapmgr.h"
-
+#include "storage/shmalloc.h"
+#include "tcop/debug_funcs.h"
+#include "tcop/debug_injection.h"
+#include "sharding/sharding.h"
 
 shmem_startup_hook_type shmem_startup_hook = NULL;
 
@@ -150,7 +157,19 @@ CreateSharedMemoryAndSemaphores(int port)
 #ifdef EXEC_BACKEND
 		size = add_size(size, ShmemBackendArraySize());
 #endif
-
+		size = add_size(size, BackendXidSenderShmemSize());
+		size = add_size(size, ClusterMetaShmemSize());
+#ifdef ENABLE_DEBUG
+		size = add_size(size, DbugShmemSize());
+#endif	
+#ifdef ENABLE_DEBUG_SYNC
+		size = add_size(size, DebugSyncShmemSize());
+#endif	
+		size = add_size(size, MetaSyncShmemSize());
+		size = add_size(size, GDDShmemSize());
+		size = add_size(size, ShardingTopoCheckSize());
+		size = add_size(size, ShardConnKillReqQSize());
+		size = add_size(size, RemoteSeqFetchShmemSize());
 		/* freeze the addin request size and include it */
 		addin_request_allowed = false;
 		size = add_size(size, total_addin_request);
@@ -255,6 +274,19 @@ CreateSharedMemoryAndSemaphores(int port)
 	WalSndShmemInit();
 	WalRcvShmemInit();
 	ApplyLauncherShmemInit();
+	CreateSharedBackendXidSlots();
+	MetadataClusterShmemInit();
+#ifdef ENABLE_DEBUG
+	CreateDbugShmem();
+#endif
+#ifdef ENABLE_DEBUG_SYNC
+	CreateDebugSyncShmem();
+#endif
+	CreateMetaSyncShmem();
+	CreateGDDShmem();
+	ShardingTopoCheckShmemInit();
+	ShardConnKillReqQShmemInit();
+	CreateRemoteSeqFetchShmem();
 
 	/*
 	 * Set up other modules that need some shared memory space

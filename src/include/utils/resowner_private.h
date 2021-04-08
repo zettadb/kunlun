@@ -95,4 +95,13 @@ extern void ResourceOwnerRememberJIT(ResourceOwner owner,
 extern void ResourceOwnerForgetJIT(ResourceOwner owner,
 					   Datum handle);
 
+/* support for written/read shards management */
+extern void ResourceOwnerForgetReadShard(ResourceOwner owner, Datum shard_id);
+extern void ResourceOwnerRememberReadShard(ResourceOwner owner, Datum shard_id);
+extern void ResourceOwnerEnlargeReadShard(ResourceOwner owner);
+extern void ResourceOwnerEnlargeWrittenShard(ResourceOwner owner);
+extern void ResourceOwnerRememberWrittenShard(ResourceOwner owner, Datum shard_id);
+extern void ResourceOwnerForgetWrittenShard(ResourceOwner owner, Datum shard_id);
+extern size_t GetAllShardsAccessed(Oid **pids, size_t nslots, ResourceOwner owner);
+
 #endif							/* RESOWNER_PRIVATE_H */

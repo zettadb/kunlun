@@ -941,6 +941,7 @@ ExplainPreScanNode(PlanState *planstate, Bitmapset **rels_used)
 		case T_CteScan:
 		case T_NamedTuplestoreScan:
 		case T_WorkTableScan:
+		case T_RemoteScan:
 			*rels_used = bms_add_member(*rels_used,
 										((Scan *) plan)->scanrelid);
 			break;
@@ -1219,6 +1220,9 @@ ExplainNode(PlanState *planstate, List *ancestors,
 		case T_Hash:
 			pname = sname = "Hash";
 			break;
+		case T_RemoteScan:
+			pname = sname = "RemoteScan";
+			break;
 		default:
 			pname = sname = "???";
 			break;
@@ -1277,6 +1281,7 @@ ExplainNode(PlanState *planstate, List *ancestors,
 		case T_ValuesScan:
 		case T_CteScan:
 		case T_WorkTableScan:
+		case T_RemoteScan:
 			ExplainScanTarget((Scan *) plan, es);
 			break;
 		case T_ForeignScan:
@@ -1563,6 +1568,7 @@ ExplainNode(PlanState *planstate, List *ancestors,
 		case T_NamedTuplestoreScan:
 		case T_WorkTableScan:
 		case T_SubqueryScan:
+		case T_RemoteScan:
 			show_scan_qual(plan->qual, "Filter", planstate, ancestors, es);
 			if (plan->qual)
 				show_instrumentation_count("Rows Removed by Filter", 1,
@@ -2979,6 +2985,7 @@ ExplainTargetRel(Plan *plan, Index rti, ExplainState *es)
 		case T_TidScan:
 		case T_ForeignScan:
 		case T_CustomScan:
+		case T_RemoteScan:
 		case T_ModifyTable:
 			/* Assert it's on a real relation */
 			Assert(rte->rtekind == RTE_RELATION);

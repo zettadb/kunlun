@@ -33,6 +33,8 @@
 #include "access/heapam.h"
 #include "access/htup_details.h"
 #include "access/sysattr.h"
+#include "access/remote_dml.h"
+#include "catalog/catalog.h"
 #include "catalog/partition.h"
 #include "catalog/pg_inherits.h"
 #include "catalog/pg_type.h"
@@ -276,6 +278,8 @@ recurse_set_operations(Node *setOp, PlannerInfo *root,
 												  root,
 												  false,
 												  root->tuple_fraction);
+		if (!subroot)
+			return NULL;
 
 		/*
 		 * It should not be possible for the primitive query to contain any
@@ -1741,6 +1745,13 @@ expand_partitioned_rtentry(PlannerInfo *root, RangeTblEntry *parentrte,
 			expand_partitioned_rtentry(root, childrte, childRTindex,
 									   childrel, top_parentrc, lockmode,
 									   appinfos);
+		else if (IsRemoteRelation(childrel))
+		{
+		    if (root->partColsUpdated)
+				ereport(ERROR,
+						(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+						 errmsg("Can not update partition key of a remote relation.")));
+		}
 
 		/* Close child relation, but keep locks */
 		heap_close(childrel, NoLock);
@@ -1798,6 +1809,7 @@ expand_single_inheritance_child(PlannerInfo *root, RangeTblEntry *parentrte,
 	*childrte_p = childrte;
 	childrte->relid = childOID;
 	childrte->relkind = childrel->rd_rel->relkind;
+	childrte->relshardid = childrel->rd_rel->relshardid;
 	/* A partitioned child will need to be expanded further. */
 	if (childOID != parentOID &&
 		childrte->relkind == RELKIND_PARTITIONED_TABLE)

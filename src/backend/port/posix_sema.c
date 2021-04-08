@@ -15,6 +15,11 @@
  * forked backends, but they could not be accessed by exec'd backends.
  *
  *
+ * Portions Copyright (c) 2019 ZettaDB inc. All rights reserved.
+ *
+ * This source code is licensed under Apache 2.0 License,
+ * combined with Common Clause Condition 1.0, as detailed in the NOTICE file.
+ *
  * Portions Copyright (c) 1996-2018, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
@@ -34,7 +39,8 @@
 #include "storage/ipc.h"
 #include "storage/pg_sema.h"
 #include "storage/shmem.h"
-
+#include <time.h>
+#include <limits.h>
 
 /* see file header comment */
 #if defined(USE_NAMED_POSIX_SEMAPHORES) && defined(EXEC_BACKEND)
@@ -299,6 +305,68 @@ PGSemaphoreReset(PGSemaphore sema)
 		}
 	}
 }
+
+/*
+  dzw:
+  Check for interrupts so that statement_timeout can be effective, in some
+  cases we want to avoid potentially permanent waiting.
+  @retval 1 if timed out; 0 if lock acqured; -1 if argument error;
+*/
+int
+PGSemaphoreTimedLock(PGSemaphore sema, int millisecs)
+{
+	int			errStatus;
+	if (millisecs < 0)
+		return -1;
+	
+	if (millisecs == 0) millisecs = 3000;
+
+	struct timespec ts;
+	/*
+	  This function could be called very frequently, so we want to use
+	  CLOCK_REALTIME_COARSE instead of CLOCK_REALTIME to avoid too much
+	  performance overhead.
+	*/
+	if (clock_gettime(CLOCK_REALTIME_COARSE, &ts) != 0)
+	{
+		if (errno != EINVAL)
+		{
+			elog(FATAL, "clock_gettime failed: %m");
+		}
+		/*
+		  COARSE not supported, use an even less precise version.
+		*/
+		ts.tv_sec = time(0);
+		ts.tv_nsec = 0;
+	}
+	ts.tv_sec += millisecs/1000;
+	ts.tv_nsec += (millisecs%1000 * 1000000);
+	if (ts.tv_nsec < 0)
+	{
+		// if overflows, wrap around and bump sec.
+		ts.tv_nsec &= LONG_MAX;
+		ts.tv_sec += 1;
+	}
+
+	/* See notes in sysv_sema.c's implementation of PGSemaphoreLock. */
+	do
+	{
+		errStatus = sem_timedwait(PG_SEM_REF(sema), &ts);
+	} while (errStatus < 0 && errno == EINTR);
+
+	if (errStatus < 0 && (errno != EAGAIN && errno != ETIMEDOUT))
+		elog(FATAL, "sem_timedwait failed: %m");
+	int ret;
+	if (errStatus == 0)
+		ret = 0;
+	else if (errno == ETIMEDOUT)
+	{
+		ret = 1;
+	}
+
+	return ret;
+}
+
 
 /*
  * PGSemaphoreLock

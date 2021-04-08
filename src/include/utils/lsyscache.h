@@ -16,6 +16,7 @@
 #include "access/attnum.h"
 #include "access/htup.h"
 #include "nodes/pg_list.h"
+#include "lib/stringinfo.h"
 
 /* Result list element for get_op_btree_interpretation */
 typedef struct OpBtreeInterpretation
@@ -129,6 +130,7 @@ extern char get_rel_relkind(Oid relid);
 extern bool get_rel_relispartition(Oid relid);
 extern Oid	get_rel_tablespace(Oid relid);
 extern char get_rel_persistence(Oid relid);
+extern char get_rel_relkind_shard(Oid relid, Oid *pshardid);
 extern Oid	get_transform_fromsql(Oid typid, Oid langid, List *trftypes);
 extern Oid	get_transform_tosql(Oid typid, Oid langid, List *trftypes);
 extern bool get_typisdefined(Oid typid);
@@ -177,6 +179,9 @@ extern void free_attstatsslot(AttStatsSlot *sslot);
 extern char *get_namespace_name(Oid nspid);
 extern char *get_namespace_name_or_temp(Oid nspid);
 extern Oid	get_range_subtype(Oid rangeOid);
+extern int get_namespace_name2(Oid nspid, StringInfo str);
+extern int get_namespace_name3(Oid nspid, NameData *nm);
+extern bool is_type_conversion_func(Oid funcid);
 
 #define type_is_array(typid)  (get_element_type(typid) != InvalidOid)
 /* type_is_array_domain accepts both plain arrays and domains over arrays */

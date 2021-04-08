@@ -15,10 +15,25 @@
 #define PRINT_H
 
 #include "executor/tuptable.h"
-
+#include "lib/stringinfo.h"
+#include "nodes/params.h"
 
 #define nodeDisplay(x)		pprint(x)
+typedef struct RemotePrintExprContext
+{
+	const List *rtable;
+	/*
+	  All Params' 'paramid' indexes refer to this array.
+	*/
+	ParamExecData *rpec_param_exec_vals;
+	/*
+	  If true, Param node will be treated as unsupported, otherwise
+	  the qual containing the param will be serialized.
+	*/
+	bool ignore_param_quals;
+} RemotePrintExprContext;
 
+extern void InitRemotePrintExprContext(RemotePrintExprContext *rpec, List*rtable);
 extern void print(const void *obj);
 extern void pprint(const void *obj);
 extern void elog_node_display(int lev, const char *title,
@@ -30,5 +45,6 @@ extern void print_expr(const Node *expr, const List *rtable);
 extern void print_pathkeys(const List *pathkeys, const List *rtable);
 extern void print_tl(const List *tlist, const List *rtable);
 extern void print_slot(TupleTableSlot *slot);
-
+extern int snprint_expr(StringInfo buf, const Expr *expr, RemotePrintExprContext *rpec);
+extern const char *get_var_attname(const Var *var, const List *rtable);
 #endif							/* PRINT_H */

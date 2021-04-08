@@ -43,6 +43,7 @@
 #include "executor/nodeNestloop.h"
 #include "executor/nodeProjectSet.h"
 #include "executor/nodeRecursiveunion.h"
+#include "executor/nodeRemotescan.h"
 #include "executor/nodeResult.h"
 #include "executor/nodeSamplescan.h"
 #include "executor/nodeSeqscan.h"
@@ -159,6 +160,10 @@ ExecReScan(PlanState *node)
 
 		case T_BitmapOrState:
 			ExecReScanBitmapOr((BitmapOrState *) node);
+			break;
+
+		case T_RemoteScanState:
+			ExecReScanRemoteScan((RemoteScanState *) node);
 			break;
 
 		case T_SeqScanState:
@@ -446,7 +451,7 @@ ExecSupportsMarkRestore(Path *pathnode)
 		default:
 			break;
 	}
-
+	// dzw: RemoteScan doesn't support Mark&Restore.
 	return false;
 }
 
@@ -498,6 +503,7 @@ ExecSupportsBackwardScan(Plan *node)
 			return false;
 
 		case T_Gather:
+		case T_RemoteScan:
 			return false;
 
 		case T_IndexScan:

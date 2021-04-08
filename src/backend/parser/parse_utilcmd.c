@@ -81,6 +81,8 @@ typedef struct
 	bool		isforeign;		/* true if CREATE/ALTER FOREIGN TABLE */
 	bool		isalter;		/* true if altering existing table */
 	bool		hasoids;		/* does relation have an OID column? */
+	bool		ispartitioned;	/* true if table is partitioned */
+	bool		ofType;			/* true if statement contains OF typename */
 	List	   *columns;		/* ColumnDef items */
 	List	   *ckconstraints;	/* CHECK constraints */
 	List	   *fkconstraints;	/* FOREIGN KEY constraints */
@@ -92,9 +94,8 @@ typedef struct
 	List	   *alist;			/* "after list" of things to do after creating
 								 * the table */
 	IndexStmt  *pkey;			/* PRIMARY KEY index, if any */
-	bool		ispartitioned;	/* true if table is partitioned */
 	PartitionBoundSpec *partbound;	/* transformed FOR VALUES */
-	bool		ofType;			/* true if statement contains OF typename */
+	Oid			shardid;		/* used by CREATE TABLE with sequence cols. */
 } CreateStmtContext;
 
 /* State shared by transformCreateSchemaStmt and its subroutines */
@@ -258,6 +259,7 @@ transformCreateStmt(CreateStmt *stmt, const char *queryString)
 	 * anyway.
 	 */
 	cxt.hasoids = interpretOidsOption(stmt->options, !cxt.isforeign);
+	cxt.shardid = interpretShardidOption(stmt->options);
 
 	Assert(!stmt->ofTypename || !stmt->inhRelations);	/* grammar enforces */
 
@@ -380,7 +382,7 @@ generateSerialExtraStmts(CreateStmtContext *cxt, ColumnDef *column,
 	CreateSeqStmt *seqstmt;
 	AlterSeqStmt *altseqstmt;
 	List	   *attnamelist;
-
+// dzw: this func may need update.
 	/*
 	 * Determine namespace and name to use for the sequence.
 	 *
@@ -457,6 +459,7 @@ generateSerialExtraStmts(CreateStmtContext *cxt, ColumnDef *column,
 	seqstmt->for_identity = for_identity;
 	seqstmt->sequence = makeRangeVar(snamespace, sname, -1);
 	seqstmt->options = seqoptions;
+	seqstmt->shardid = cxt->shardid;
 
 	/*
 	 * If a sequence data type was specified, add it to the options.  Prepend
@@ -714,6 +717,8 @@ transformColumnDefinition(CreateStmtContext *cxt, ColumnDef *column)
 				}
 
 			case CONSTR_CHECK:
+				elog(WARNING, "Column check constraints not supported in Kunlun, it's ignored here.");
+				break;
 				cxt->ckconstraints = lappend(cxt->ckconstraints, constraint);
 				break;
 
@@ -750,6 +755,8 @@ transformColumnDefinition(CreateStmtContext *cxt, ColumnDef *column)
 							 errmsg("foreign key constraints are not supported on foreign tables"),
 							 parser_errposition(cxt->pstate,
 												constraint->location)));
+				elog(WARNING, "Foreign key not supported in Kunlun, it's ignored here.");
+				break;
 
 				/*
 				 * Fill in the current attribute's name and throw it into the
@@ -849,10 +856,14 @@ transformTableConstraint(CreateStmtContext *cxt, Constraint *constraint)
 						 errmsg("exclusion constraints are not supported on partitioned tables"),
 						 parser_errposition(cxt->pstate,
 											constraint->location)));
+			elog(WARNING, "Exclusion constraints not supported in Kunlun, it's ignored here.");
+			break;
 			cxt->ixconstraints = lappend(cxt->ixconstraints, constraint);
 			break;
 
 		case CONSTR_CHECK:
+			elog(WARNING, "Table check constraints not supported in Kunlun, it's ignored here.");
+			break;
 			cxt->ckconstraints = lappend(cxt->ckconstraints, constraint);
 			break;
 
@@ -863,6 +874,7 @@ transformTableConstraint(CreateStmtContext *cxt, Constraint *constraint)
 						 errmsg("foreign key constraints are not supported on foreign tables"),
 						 parser_errposition(cxt->pstate,
 											constraint->location)));
+			elog(WARNING, "Foreign key not supported in Kunlun, it's ignored here.");
 			cxt->fkconstraints = lappend(cxt->fkconstraints, constraint);
 			break;
 
@@ -1804,6 +1816,11 @@ transformIndexConstraints(CreateStmtContext *cxt)
 		Assert(constraint->contype == CONSTR_PRIMARY ||
 			   constraint->contype == CONSTR_UNIQUE ||
 			   constraint->contype == CONSTR_EXCLUSION);
+		if (constraint->contype == CONSTR_EXCLUSION)
+		{
+			elog(WARNING, "Index exclusive constraints not supported in Kunlun, it's ignored here.");
+			continue;
+		}
 
 		index = transformIndexConstraint(constraint, cxt);
 

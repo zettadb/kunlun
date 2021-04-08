@@ -30,6 +30,7 @@
 #include "storage/dsm.h"
 #include "storage/ipc.h"
 #include "tcop/tcopprot.h"
+#include "tcop/debug_injection.h"
 
 
 /*
@@ -165,7 +166,9 @@ proc_exit_prepare(int code)
 	 * NOT send control back to the main loop, but right back here.
 	 */
 	proc_exit_inprogress = true;
-
+#ifdef ENABLE_DEBUG_SYNC
+	debug_sync_end(code, 0);
+#endif
 	/*
 	 * Forget any pending cancel or die requests; we're doing our best to
 	 * close up shop already.  Note that the signal handlers will not set

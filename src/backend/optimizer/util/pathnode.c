@@ -946,6 +946,33 @@ add_partial_path_precheck(RelOptInfo *parent_rel, Cost total_cost,
  *****************************************************************************/
 
 /*
+ * dzw:
+ * create_remotescan_path
+ *	  Creates a path corresponding to a remote scan, returning the
+ *	  pathnode.
+ */
+Path *
+create_remotescan_path(PlannerInfo *root, RelOptInfo *rel,
+				       Relids required_outer, int parallel_workers)
+{
+	Path	   *pathnode = makeNode(Path);
+
+	pathnode->pathtype = T_RemoteScan;
+	pathnode->parent = rel;
+	pathnode->pathtarget = rel->reltarget;
+	pathnode->param_info = get_baserel_parampathinfo(root, rel,
+													 required_outer);
+	pathnode->parallel_aware = false;
+	pathnode->parallel_safe = false;
+	pathnode->parallel_workers = parallel_workers;
+	pathnode->pathkeys = NIL;	/* TODO: need to know the order, i.e. a valid pathkey */
+
+	cost_seqscan(pathnode, root, rel, pathnode->param_info);
+
+	return pathnode;
+}
+
+/*
  * create_seqscan_path
  *	  Creates a path corresponding to a sequential scan, returning the
  *	  pathnode.
@@ -3619,6 +3646,7 @@ reparameterize_path(PlannerInfo *root, Path *path,
 		default:
 			break;
 	}
+	// dzw: remotescan doesn't support this.
 	return NULL;
 }
 

@@ -319,6 +319,7 @@ search_plan_tree(PlanState *node, Oid table_oid,
 			/*
 			 * Relation scan nodes can all be treated alike
 			 */
+		case T_RemoteScanState:
 		case T_SeqScanState:
 		case T_SampleScanState:
 		case T_IndexScanState:

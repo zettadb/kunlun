@@ -88,5 +88,9 @@ extern void set_debug_options(int debug_flag,
 extern bool set_plan_disabling_options(const char *arg,
 						   GucContext context, GucSource source);
 extern const char *get_stats_option_name(const char *arg);
+extern void enable_statement_timeout(void);
+extern void disable_statement_timeout(void);
+extern void disable_remote_timeout(void);
+extern void enable_remote_timeout(void);
 
 #endif							/* TCOPPROT_H */

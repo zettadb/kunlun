@@ -35,6 +35,12 @@ CATALOG(pg_enum,3501,EnumRelationId)
 	NameData	enumlabel;		/* text representation of enum value */
 } FormData_pg_enum;
 
+typedef struct EnumLabelOid
+{
+	const char *label;
+	Oid oid;
+} EnumLabelOid;
+
 /* ----------------
  *		Form_pg_enum corresponds to a pointer to a tuple with
  *		the format of pg_enum relation.
@@ -52,5 +58,7 @@ extern void AddEnumLabel(Oid enumTypeOid, const char *newVal,
 			 bool skipIfExists);
 extern void RenameEnumLabel(Oid enumTypeOid,
 				const char *oldVal, const char *newVal);
-
+extern const char* get_enum_type_mysql(Oid enumtypoid);
+Oid GetEnumLabelOidCached(EnumLabelOid *pelo, int nents, const char *label);
+EnumLabelOid *GetAllEnumValueOidLabelSorted(Oid enumtypid, uint16_t *plen);
 #endif							/* PG_ENUM_H */

@@ -3,6 +3,11 @@
  * pg_enum.c
  *	  routines to support manipulation of the pg_enum relation
  *
+ * Portions Copyright (c) 2019 ZettaDB inc. All rights reserved.
+ *
+ * This source code is licensed under Apache 2.0 License,
+ * combined with Common Clause Condition 1.0, as detailed in the NOTICE file.
+ *
  * Copyright (c) 2006-2018, PostgreSQL Global Development Group
  *
  *
@@ -30,7 +35,7 @@
 #include "utils/fmgroids.h"
 #include "utils/syscache.h"
 #include "utils/tqual.h"
-
+#include "lib/stringinfo.h"
 
 /* Potentially set by pg_upgrade_support functions */
 Oid			binary_upgrade_next_pg_enum_oid = InvalidOid;
@@ -201,7 +206,6 @@ AddEnumLabel(Oid enumTypeOid,
 				 errmsg("invalid enum label \"%s\"", newVal),
 				 errdetail("Labels must be %d characters or less.",
 						   NAMEDATALEN - 1)));
-
 	/*
 	 * Acquire a lock on the enum type, which we won't release until commit.
 	 * This ensures that two backends aren't concurrently modifying the same
@@ -291,6 +295,12 @@ restart:
 					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
 					 errmsg("\"%s\" is not an existing enum label",
 							neighbor)));
+
+		if (nbr_index != nelems - 1 || !newValIsAfter)
+			ereport(ERROR,
+					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					 errmsg("Can not insert new enum labels before existing ones in Kunlun.")));
+
 		nbr_en = (Form_pg_enum) GETSTRUCT(existing[nbr_index]);
 
 		/*
@@ -620,3 +630,120 @@ sort_order_cmp(const void *p1, const void *p2)
 	else
 		return 0;
 }
+
+
+const char*
+get_enum_type_mysql(Oid enumtypoid)
+{
+	Relation	enum_rel;
+	Relation	enum_idx;
+	SysScanDesc enum_scan;
+	HeapTuple	enum_tuple;
+	ScanKeyData skey;
+	int ntups = 0;
+	StringInfoData strsql;
+	Form_pg_enum en;
+
+	/*
+	 * Scan the enum members in order using pg_enum_typid_sortorder_index.
+	 * Note we must not use the syscache.  See comments for RenumberEnumType
+	 * in catalog/pg_enum.c for more info.
+	 */
+	ScanKeyInit(&skey,
+				Anum_pg_enum_enumtypid,
+				BTEqualStrategyNumber, F_OIDEQ,
+				ObjectIdGetDatum(enumtypoid));
+
+	enum_rel = heap_open(EnumRelationId, AccessShareLock);
+	enum_idx = index_open(EnumTypIdSortOrderIndexId, AccessShareLock);
+	enum_scan = systable_beginscan_ordered(enum_rel, enum_idx, NULL, 1, &skey);
+	
+	initStringInfo(&strsql);
+
+	while (HeapTupleIsValid(enum_tuple = systable_getnext_ordered(enum_scan, ForwardScanDirection)))
+	{
+	    en = (Form_pg_enum) GETSTRUCT(enum_tuple);
+		appendStringInfo(&strsql, "%s'%s'", ntups++ == 0 ? "enum(" : ", ", en->enumlabel.data);
+	}
+
+	systable_endscan_ordered(enum_scan);
+	index_close(enum_idx, AccessShareLock);
+	heap_close(enum_rel, AccessShareLock);
+
+	appendStringInfoChar(&strsql, ')');
+	return donateStringInfo(&strsql);
+}
+
+static int EnumLabelOidCmp(const void *v1, const void*v2)
+{
+	const EnumLabelOid *o1 = (EnumLabelOid*)v1;
+	const EnumLabelOid *o2 = (EnumLabelOid*)v2;
+	return strcmp(o1->label, o2->label);
+}
+
+EnumLabelOid *GetAllEnumValueOidLabelSorted(Oid enumtypid, uint16_t *plen)
+{
+	Relation	enum_rel;
+	Relation	enum_idx;
+	SysScanDesc enum_scan;
+	HeapTuple	enum_tuple;
+	ScanKeyData skey;
+	Form_pg_enum en;
+	int len = 8, cnt = 0;
+	
+	if (enumtypid == InvalidOid || plen == NULL)
+		return NULL;
+
+	EnumLabelOid *pelo = palloc(sizeof(EnumLabelOid) * len);
+	/*
+	 * Scan the enum members in order using pg_enum_typid_sortorder_index.
+	 * Note we must not use the syscache.  See comments for RenumberEnumType
+	 * in catalog/pg_enum.c for more info.
+	 */
+	ScanKeyInit(&skey,
+				Anum_pg_enum_enumtypid,
+				BTEqualStrategyNumber, F_OIDEQ,
+				ObjectIdGetDatum(enumtypid));
+
+	enum_rel = heap_open(EnumRelationId, AccessShareLock);
+	enum_idx = index_open(EnumTypIdLabelIndexId, AccessShareLock);
+	enum_scan = systable_beginscan_ordered(enum_rel, enum_idx, NULL, 1, &skey);
+	
+	while (HeapTupleIsValid(enum_tuple = systable_getnext_ordered(enum_scan, ForwardScanDirection)))
+	{
+		if (cnt >= len)
+		{
+			pelo = repalloc(pelo, sizeof(EnumLabelOid) * len * 2);
+			memset(pelo + sizeof(EnumLabelOid) * len, 0, sizeof(EnumLabelOid) * len);
+			len *= 2;
+		}
+
+		en = (Form_pg_enum)GETSTRUCT(enum_tuple);
+		pelo[cnt].label = pstrdup(en->enumlabel.data);
+		pelo[cnt].oid = HeapTupleGetOid(enum_tuple);
+		cnt++;
+	}
+
+	systable_endscan_ordered(enum_scan);
+	index_close(enum_idx, AccessShareLock);
+	heap_close(enum_rel, AccessShareLock);
+
+	if (cnt > 0xffff)
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_TOO_MANY_ROWS),
+				 errmsg("Too many enum labels, %u found.", cnt)));
+	}
+
+	*plen = cnt;
+	qsort(pelo, cnt, sizeof(EnumLabelOid), EnumLabelOidCmp);
+	return pelo;
+}
+
+Oid GetEnumLabelOidCached(EnumLabelOid *pelo, int nents, const char *label)
+{
+	EnumLabelOid target = {label, 0};
+	EnumLabelOid *ent = bsearch(&target, pelo, nents, sizeof(EnumLabelOid), EnumLabelOidCmp);
+	return ent ? ent->oid : InvalidOid;
+}
+

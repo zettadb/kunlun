@@ -20,6 +20,7 @@
 #include "access/multixact.h"
 #include "access/reloptions.h"
 #include "access/relscan.h"
+#include "access/remote_meta.h"
 #include "access/sysattr.h"
 #include "access/tupconvert.h"
 #include "access/xact.h"
@@ -438,7 +439,7 @@ static void ATPostAlterTypeParse(Oid oldId, Oid oldRelId, Oid refRelId,
 static void RebuildConstraintComment(AlteredTableInfo *tab, int pass,
 						 Oid objid, Relation rel, List *domname,
 						 const char *conname);
-static void TryReuseIndex(Oid oldId, IndexStmt *stmt);
+static void TryReuseIndex(Oid oldId, IndexStmt *stmt, bool is_remote_rel);
 static void TryReuseForeignKey(Oid oldId, Constraint *con);
 static void change_owner_fix_column_acls(Oid relationOid,
 							 Oid oldOwnerId, Oid newOwnerId);
@@ -584,6 +585,12 @@ DefineRelation(CreateStmt *stmt, char relkind, Oid ownerId,
 		ereport(ERROR,
 				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 				 errmsg("cannot create temporary table within security-restricted operation")));
+	/*
+	 * dzw
+	 * TODO: Remote tables don't need tablespaces, and they don't have system
+	 * attributes(oid, tableoid, etc).
+	 * So, forbid clauses setting such info.
+	 * */
 
 	/*
 	 * Select tablespace to use.  If not specified, use default tablespace
@@ -621,11 +628,12 @@ DefineRelation(CreateStmt *stmt, char relkind, Oid ownerId,
 	if (!OidIsValid(ownerId))
 		ownerId = GetUserId();
 
+	int hasPgOpts = 0;
 	/*
 	 * Parse and validate reloptions, if any.
 	 */
 	reloptions = transformRelOptions((Datum) 0, stmt->options, NULL, validnsps,
-									 true, false);
+									 true, false, &hasPgOpts);
 
 	if (relkind == RELKIND_VIEW)
 		(void) view_reloptions(reloptions, true);
@@ -787,6 +795,31 @@ DefineRelation(CreateStmt *stmt, char relkind, Oid ownerId,
 	 * complaining about deadlock risks.
 	 */
 	rel = relation_open(relationId, AccessExclusiveLock);
+
+	/*
+	 * dzw: A remote table can't have oid system attribute.
+	 * */
+	if (IsRemoteRelation(rel))
+	{
+		if (descriptor->tdhasoid)
+			ereport(ERROR,
+					(errcode(ERRCODE_INVALID_OBJECT_DEFINITION),
+					 errmsg("Remote tables can't have the OID system attribute.")));
+		if (hasPgOpts)
+			ereport(ERROR,
+					(errcode(ERRCODE_INVALID_OBJECT_DEFINITION),
+					 errmsg("Remote tables can't have storage parameters other than the 'shard' setting.")));
+	}
+
+	if (relkind == RELKIND_PARTITIONED_TABLE)
+	{
+		TrackRemoteCreatePartitionedTable(rel);
+	}
+
+	if (IsRemoteRelation(rel) && relkind != RELKIND_SEQUENCE)
+	{
+		make_remote_create_table_stmt1(rel, descriptor);
+	}
 
 	/* Process and store partition bound, if any. */
 	if (stmt->partbound)
@@ -999,6 +1032,7 @@ DefineRelation(CreateStmt *stmt, char relkind, Oid ownerId,
 	 * apply the parser's transformExpr routine, but transformExpr doesn't
 	 * work unless we have a pre-existing relation. So, the transformation has
 	 * to be postponed to this final step of CREATE TABLE.
+	 * dzw TODO: forbid foreign keys in remote tables.
 	 */
 	if (rawDefaults || stmt->constraints)
 		AddRelationNewConstraints(rel, rawDefaults, stmt->constraints,
@@ -1197,6 +1231,14 @@ RemoveRelations(DropStmt *drop)
 			continue;
 		}
 
+		/*
+		 * dzw: If relOid is a partitioned table, we must record its info
+		 * before actually dropping any leaf partitions.
+		 * */
+		if (relkind == RELKIND_RELATION)
+			TrackRemoteDropTable(relOid, drop->behavior == DROP_CASCADE);
+		else if (relkind == RELKIND_INDEX)
+			TrackRemoteDropIndex(relOid, drop->behavior == DROP_CASCADE);
 		/* OK, we're ready to delete this one */
 		obj.classId = RelationRelationId;
 		obj.objectId = relOid;
@@ -1561,7 +1603,8 @@ ExecuteTruncateGuts(List *explicit_rels, List *relids, List *relids_logged,
 						  rel,
 						  0,	/* dummy rangetable index */
 						  NULL,
-						  0);
+						  0,
+						  estate);
 		resultRelInfo++;
 	}
 	estate->es_result_relations = resultRelInfos;
@@ -2900,8 +2943,17 @@ renameatt_internal(Oid myrelid,
 
 	heap_freetuple(atttup);
 
+	/*
+	  dzw: Update attr names of indexes that reference the target column.
+	  We need the indexed attrs updated in order to generate correct DDL stmt
+	  when the relation is referenced in 'create table (like xxx)'.
+	*/
+	update_colnames_indices(attrelation, targetrelation, attnum,
+		oldattname, newattname);
+
 	heap_close(attrelation, RowExclusiveLock);
 
+	TrackColumnRename(targetrelation, oldattname, newattname);
 	relation_close(targetrelation, NoLock); /* close rel but keep lock */
 
 	return attnum;
@@ -3152,6 +3204,8 @@ RenameRelation(RenameStmt *stmt)
 		return InvalidObjectAddress;
 	}
 
+	TrackRenameGeneral(stmt->renameType);
+
 	/* Do the work */
 	RenameRelationInternal(relid, stmt->newname, false);
 
@@ -3228,6 +3282,11 @@ RenameRelationInternal(Oid myrelid, const char *newrelname, bool is_internal)
 		if (OidIsValid(constraintId))
 			RenameConstraintById(constraintId, newrelname);
 	}
+
+	/*
+	  dzw: track relation rename op.
+	*/
+	TrackRelationRename(targetrelation, newrelname, true);
 
 	/*
 	 * Close rel, but keep exclusive lock!
@@ -3350,6 +3409,12 @@ AlterTable(Oid relid, LOCKMODE lockmode, AlterTableStmt *stmt)
 	CheckTableNotInUse(rel, "ALTER TABLE");
 
 	ATController(stmt, rel, stmt->cmds, stmt->relation->inh, lockmode);
+
+	/*
+	  always use original sql, other computing nodes will abandon unsupported
+	  pieces just like done here.
+	*/
+	TrackAlterTableGeneral(relid);
 }
 
 /*
@@ -3668,7 +3733,14 @@ ATController(AlterTableStmt *parsetree,
 	foreach(lcmd, cmds)
 	{
 		AlterTableCmd *cmd = (AlterTableCmd *) lfirst(lcmd);
-
+		
+		if (!is_supported_alter_table_subcmd(cmd))
+		{
+			ereport(WARNING,
+					(errmsg("Alter Table command %s not supported and skipped.",
+					 atsubcmd(cmd))));
+			continue;
+		}
 		ATPrepCmd(&wqueue, rel, cmd, recurse, false, lockmode);
 	}
 
@@ -3678,8 +3750,11 @@ ATController(AlterTableStmt *parsetree,
 	/* Phase 2: update system catalogs */
 	ATRewriteCatalogs(&wqueue, lockmode);
 
-	/* Phase 3: scan/rewrite tables as needed */
-	ATRewriteTables(parsetree, &wqueue, lockmode);
+	/* Phase 3: scan/rewrite tables as needed
+	  dzw: never rewrite here since there is no table storage on computing nodes
+	*/
+	if (rel->rd_rel->relpersistence == RELPERSISTENCE_TEMP)
+		ATRewriteTables(parsetree, &wqueue, lockmode);
 }
 
 /*
@@ -5466,7 +5541,7 @@ ATExecAddColumn(List **wqueue, AlteredTableInfo *tab, Relation rel,
 		ereport(ERROR,
 				(errcode(ERRCODE_WRONG_OBJECT_TYPE),
 				 errmsg("cannot add column to a partition")));
-
+	Assert(!isOid);// this has been banned.
 	attrdesc = heap_open(AttributeRelationId, RowExclusiveLock);
 
 	/*
@@ -5583,6 +5658,12 @@ ATExecAddColumn(List **wqueue, AlteredTableInfo *tab, Relation rel,
 	CheckAttributeType(colDef->colname, typeOid, collOid,
 					   list_make1_oid(rel->rd_rel->reltype),
 					   false);
+
+	/*
+	  dzw: add new column. colDef's info are raw, we use processed info and
+	  be consistent with the table's pg_attribute entry.
+	*/
+	TrackAddColumn(rel, colDef, tform->typtype, typeOid, typmod, collOid);
 
 	/* construct new attribute's pg_attribute entry */
 	attribute.attrelid = myrelid;
@@ -6087,6 +6168,14 @@ ATExecDropNotNull(Relation rel, const char *colName, LOCKMODE lockmode)
 
 		ObjectAddressSubSet(address, RelationRelationId,
 							RelationGetRelid(rel), attnum);
+
+		Form_pg_attribute attr = (Form_pg_attribute) GETSTRUCT(tuple);
+		/*
+		  dzw: modify column. colDef's info are raw, we use processed info and
+		  be consistent with the table's pg_attribute entry.
+		*/
+		TrackColumnNullability(rel, attr->attname.data, attr->atttypid, true,
+			attr->atttypmod, attr->attcollation);
 	}
 	else
 		address = InvalidObjectAddress;
@@ -6172,6 +6261,13 @@ ATExecSetNotNull(AlteredTableInfo *tab, Relation rel,
 
 		ObjectAddressSubSet(address, RelationRelationId,
 							RelationGetRelid(rel), attnum);
+		Form_pg_attribute attr = (Form_pg_attribute) GETSTRUCT(tuple);
+		/*
+		  dzw: modify column. colDef's info are raw, we use processed info and
+		  be consistent with the table's pg_attribute entry.
+		*/
+		TrackColumnNullability(rel, attr->attname.data, attr->atttypid, false,
+			attr->atttypmod, attr->attcollation);
 	}
 	else
 		address = InvalidObjectAddress;
@@ -6667,7 +6763,7 @@ ATExecSetOptions(Relation rel, const char *colName, Node *options,
 							&isnull);
 	newOptions = transformRelOptions(isnull ? (Datum) 0 : datum,
 									 castNode(List, options), NULL, NULL,
-									 false, isReset);
+									 false, isReset, NULL);
 	/* Validate new options */
 	(void) attribute_reloptions(newOptions, true);
 
@@ -7017,6 +7113,11 @@ ATExecDropColumn(List **wqueue, Relation rel, const char *colName,
 		tab->rewrite |= AT_REWRITE_ALTER_OID;
 	}
 
+	/*
+	  dzw: track the action.
+	*/
+	TrackDropColumn(rel, colName);
+
 	return object;
 }
 
@@ -7050,6 +7151,14 @@ ATExecAddIndex(AlteredTableInfo *tab, Relation rel,
 	skip_build = tab->rewrite > 0 || OidIsValid(stmt->oldNode);
 	/* suppress notices when rebuilding existing index */
 	quiet = is_rebuild;
+
+	/*
+	  dzw: AT_AddIndex is special, it creates an index, which can be either
+	  an independent SQL DDL stmt, and
+	  also part of 'alter table' stmt, it's the only multi purpose substmt of
+	  'alter table' stmt. We must start new stmt internally.
+	*/
+	RemoteDDLCxtStartStmt(T_IndexStmt, NULL);
 
 	address = DefineIndex(RelationGetRelid(rel),
 						  stmt,
@@ -7425,6 +7534,15 @@ ATAddForeignKeyConstraint(List **wqueue, AlteredTableInfo *tab, Relation rel,
 				 errmsg("cannot reference partitioned table \"%s\"",
 						RelationGetRelationName(pkrel))));
 
+	if (IsRemoteRelation(rel))
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("cannot create foreign key for a remote table")));
+	if (IsRemoteRelation(pkrel))
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("cannot reference a remote table")));
+		
 	if (rel->rd_rel->relkind == RELKIND_PARTITIONED_TABLE)
 	{
 		if (!recurse)
@@ -10220,6 +10338,12 @@ ATExecAlterColumnType(AlteredTableInfo *tab, Relation rel,
 
 	CatalogTupleUpdate(attrelation, &heapTup->t_self, heapTup);
 
+	/*
+	  dzw: attTup has accurate values here, but 'def' doesn't.
+	*/
+	TrackAlterColType(rel, attTup->attname.data, attTup->attnotnull,
+		targettype, targettypmod, targetcollid);
+
 	heap_close(attrelation, RowExclusiveLock);
 
 	/* Install dependencies on new datatype and collation */
@@ -10261,7 +10385,6 @@ ATExecAlterColumnType(AlteredTableInfo *tab, Relation rel,
 
 	/* Cleanup */
 	heap_freetuple(heapTup);
-
 	return address;
 }
 
@@ -10596,6 +10719,7 @@ ATPostAlterTypeParse(Oid oldId, Oid oldRelId, Oid refRelId, char *cmd,
 
 	/* Caller should already have acquired whatever lock we need. */
 	rel = relation_open(oldRelId, NoLock);
+	const bool is_remote_rel = IsRemoteRelation(rel);
 
 	/*
 	 * Attach each generated command to the proper place in the work queue.
@@ -10618,7 +10742,7 @@ ATPostAlterTypeParse(Oid oldId, Oid oldRelId, Oid refRelId, char *cmd,
 			AlterTableCmd *newcmd;
 
 			if (!rewrite)
-				TryReuseIndex(oldId, stmt);
+				TryReuseIndex(oldId, stmt, is_remote_rel);
 			/* keep the index's comment */
 			stmt->idxcomment = GetComment(oldId, RelationRelationId, 0);
 
@@ -10646,7 +10770,7 @@ ATPostAlterTypeParse(Oid oldId, Oid oldRelId, Oid refRelId, char *cmd,
 					indoid = get_constraint_index(oldId);
 
 					if (!rewrite)
-						TryReuseIndex(indoid, indstmt);
+						TryReuseIndex(indoid, indstmt, is_remote_rel);
 					/* keep any comment on the index */
 					indstmt->idxcomment = GetComment(indoid,
 													 RelationRelationId, 0);
@@ -10778,12 +10902,12 @@ RebuildConstraintComment(AlteredTableInfo *tab, int pass, Oid objid,
  * for the real analysis, then mutates the IndexStmt based on that verdict.
  */
 static void
-TryReuseIndex(Oid oldId, IndexStmt *stmt)
+TryReuseIndex(Oid oldId, IndexStmt *stmt, bool is_remote_rel)
 {
 	if (CheckIndexCompatible(oldId,
 							 stmt->accessMethod,
 							 stmt->indexParams,
-							 stmt->excludeOpNames))
+							 stmt->excludeOpNames, is_remote_rel))
 	{
 		Relation	irel = index_open(oldId, NoLock);
 
@@ -11338,10 +11462,15 @@ ATExecSetRelOptions(Relation rel, List *defList, AlterTableType operation,
 								&isnull);
 	}
 
+	int hasPgOpts = 0;
 	/* Generate new proposed reloptions (text array) */
 	newOptions = transformRelOptions(isnull ? (Datum) 0 : datum,
 									 defList, NULL, validnsps, false,
-									 operation == AT_ResetRelOptions);
+									 operation == AT_ResetRelOptions, &hasPgOpts);
+	if (hasPgOpts && IsRemoteRelation(rel))
+		ereport(ERROR,
+				(errcode(ERRCODE_INVALID_OBJECT_DEFINITION),
+				 errmsg("Remote tables can't have storage parameters other than the 'shard' setting.")));
 
 	/* Validate */
 	switch (rel->rd_rel->relkind)
@@ -11457,7 +11586,7 @@ ATExecSetRelOptions(Relation rel, List *defList, AlterTableType operation,
 
 		newOptions = transformRelOptions(isnull ? (Datum) 0 : datum,
 										 defList, "toast", validnsps, false,
-										 operation == AT_ResetRelOptions);
+										 operation == AT_ResetRelOptions, NULL);
 
 		(void) heap_reloptions(RELKIND_TOASTVALUE, newOptions, true);
 
@@ -11739,6 +11868,10 @@ AlterTableMoveAll(AlterTableMoveAllStmt *stmt)
 	Oid			new_tablespaceoid;
 	List	   *role_oids = roleSpecsToIds(stmt->roles);
 
+	ereport(ERROR,
+			(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+			 errmsg("Not supported in Kunlun.")));
+	
 	/* Ensure we were not asked to move something we can't */
 	if (stmt->objtype != OBJECT_TABLE && stmt->objtype != OBJECT_INDEX &&
 		stmt->objtype != OBJECT_MATVIEW)
@@ -13514,7 +13647,6 @@ AlterTableNamespace(AlterObjectSchemaStmt *stmt, Oid *oldschema)
 	RangeVar   *newrv;
 	ObjectAddresses *objsMoved;
 	ObjectAddress myself;
-
 	relid = RangeVarGetRelidExtended(stmt->relation, AccessExclusiveLock,
 									 stmt->missing_ok ? RVR_MISSING_OK : 0,
 									 RangeVarCallbackForAlterRelation,
@@ -13563,7 +13695,7 @@ AlterTableNamespace(AlterObjectSchemaStmt *stmt, Oid *oldschema)
 
 	if (oldschema)
 		*oldschema = oldNspOid;
-
+	TrackRelationRename(rel, stmt->newschema, false);
 	/* close rel, but keep lock until commit */
 	relation_close(rel, NoLock);
 
@@ -13737,6 +13869,9 @@ AlterSeqNamespaces(Relation classRel, Relation rel,
 	SysScanDesc scan;
 	ScanKeyData key[2];
 	HeapTuple	tup;
+	NameData schema_name;
+
+	get_namespace_name3(newNspOid, &schema_name);
 
 	/*
 	 * SERIAL sequences are those having an auto dependency on one of the
@@ -13791,6 +13926,8 @@ AlterSeqNamespaces(Relation classRel, Relation rel,
 		 */
 		AlterTypeNamespaceInternal(RelationGetForm(seqRel)->reltype,
 								   newNspOid, false, false, objsMoved);
+
+		TrackRelationRename(seqRel, schema_name.data, false);
 
 		/* Now we can close it.  Keep the lock till end of transaction. */
 		relation_close(seqRel, NoLock);
@@ -14519,7 +14656,7 @@ ComputePartitionAttrs(Relation rel, List *partParams, AttrNumber *partattrs,
 			partopclass[attn] = ResolveOpClass(pelem->opclass,
 											   atttype,
 											   am_oid == HASH_AM_OID ? "hash" : "btree",
-											   am_oid);
+											   am_oid, IsRemoteRelation(rel));
 
 		attn++;
 	}

@@ -1,0 +1,21 @@
+[
+   {
+      "ip": "127.0.0.1",
+      "port": 4001,
+      "user": "pgx",
+      "password":"pgx_pwd"
+   },
+
+   {
+      "ip": "127.0.0.1",
+      "port": 4002,
+      "user": "pgx",
+      "password":"pgx_pwd"
+   },
+   {
+      "ip": "127.0.0.1",
+      "port": 4003,
+      "user": "pgx",
+      "password":"pgx_pwd"
+   }
+]

@@ -412,5 +412,6 @@ extern void set_syslog_parameters(const char *ident, int facility);
  * safely (memory context, GUC load etc)
  */
 extern void write_stderr(const char *fmt,...) pg_attribute_printf(1, 2);
-
+extern void downgrade_error(void);
+extern int top_errcode(void);
 #endif							/* ELOG_H */

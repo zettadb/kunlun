@@ -5,6 +5,10 @@
  *		bits of hard-wired knowledge
  *
  *
+ * Portions Copyright (c) 2019 ZettaDB inc. All rights reserved.
+ *
+ * This source code is licensed under Apache 2.0 License,
+ * combined with Common Clause Condition 1.0, as detailed in the NOTICE file.
  * Portions Copyright (c) 1996-2018, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
@@ -39,6 +43,12 @@
 #include "catalog/pg_subscription.h"
 #include "catalog/pg_tablespace.h"
 #include "catalog/pg_type.h"
+#include "catalog/pg_shard.h"
+#include "catalog/pg_shard_node.h"
+#include "catalog/pg_cluster_meta.h"
+#include "catalog/pg_cluster_meta_nodes.h"
+#include "catalog/pg_computing_node_stat.h"
+#include "catalog/pg_ddl_log_progress.h"
 #include "catalog/toasting.h"
 #include "miscadmin.h"
 #include "storage/fd.h"
@@ -230,6 +240,14 @@ IsSharedRelation(Oid relationId)
 		relationId == TableSpaceRelationId ||
 		relationId == DbRoleSettingRelationId ||
 		relationId == ReplicationOriginRelationId ||
+		relationId == ReplicationOriginRelationId ||
+		relationId == ShardRelationId ||
+		relationId == ShardNodeRelationId ||
+		relationId == ComputingNodeStatRelationId ||
+		relationId == DDLLogProgressRelationId ||
+		relationId == DDLLogDbidIndexId ||
+		relationId == ClusterMetaRelationId ||
+		relationId == ClusterMetaNodesRelationId ||
 		relationId == SubscriptionRelationId)
 		return true;
 	/* These are their indexes (see indexing.h) */
@@ -250,6 +268,14 @@ IsSharedRelation(Oid relationId)
 		relationId == ReplicationOriginIdentIndex ||
 		relationId == ReplicationOriginNameIndex ||
 		relationId == SubscriptionObjectIndexId ||
+		relationId == ShardNodeOidIndexId ||
+		relationId == ShardOidIndexId ||
+		relationId == ShardNodeShardIdIndexId ||
+		relationId == ShardNodeIpPortSrvIndexId ||
+		relationId == ShardNameIndexId ||
+		relationId == CompNodeStatIdTstzIndexId ||
+		relationId == ClusterMetaNodesServerIdIndexId ||
+		relationId == ClusterMetaIdIndexId ||
 		relationId == SubscriptionNameIndexId)
 		return true;
 	/* These are their toast tables and toast indexes (see toasting.h) */
@@ -473,4 +499,45 @@ GetNewRelFileNode(Oid reltablespace, Relation pg_class, char relpersistence)
 	} while (collides);
 
 	return rnode.node.relNode;
+}
+
+
+extern bool enable_remote_relations;
+extern int CurrentCommand(void);
+
+inline bool IsRemoteRelation(Relation rel)
+{
+	const Form_pg_class rdrel = rel->rd_rel;
+	const char relkind = rdrel->relkind;
+	/*
+	  should be an remote relation, or already is a remote relation.
+	  RefreshMatViewStmt execution will create a transient & intermediate
+	  relation (relkind=='r' && relpersistence=='p') on current computing
+	  node to store select query result, and drop it at end of stmt execution,
+	  this relation should never be remote; also, the matview's own relation
+	  should also be stored locally.
+	*/
+	return (enable_remote_relations &&
+			IsNormalProcessingMode() && IsUnderPostmaster &&
+		   !(IsSystemRelation(rel) ||
+			 (rdrel->relpersistence == RELPERSISTENCE_TEMP)) &&
+		   (relkind == RELKIND_RELATION ||
+			relkind == RELKIND_INDEX ||
+			relkind == RELKIND_SEQUENCE) &&
+			CurrentCommand() != T_RefreshMatViewStmt) ||
+		   (rel->rd_rel && rel->rd_rel->relshardid != InvalidOid);
+}
+
+
+
+inline bool IsRemoteRelationParent(Relation rel)
+{
+	const Form_pg_class rdrel = rel->rd_rel;
+	const char relkind = rdrel->relkind;
+
+	return enable_remote_relations &&
+		   !(IsSystemRelation(rel) ||
+			 (rdrel->relpersistence == RELPERSISTENCE_TEMP)) &&
+		   (relkind == RELKIND_PARTITIONED_TABLE ||
+			relkind == RELKIND_PARTITIONED_INDEX);
 }

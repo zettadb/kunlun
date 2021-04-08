@@ -42,6 +42,7 @@
 #include "utils/memutils.h"
 #include "utils/pg_locale.h"
 #include "utils/ps_status.h"
+#include "tcop/runtime.h"
 
 
 const char *progname;
@@ -215,6 +216,10 @@ main(int argc, char *argv[])
 	 */
 	pgwin32_signal_initialize();
 #endif
+
+	memset(&g_runtime_env, 0, sizeof(g_runtime_env));
+	g_runtime_env.argc = argc;
+	g_runtime_env.argv = argv;
 
 	if (argc > 1 && strcmp(argv[1], "--boot") == 0)
 		AuxiliaryProcessMain(argc, argv);	/* does not return */
@@ -421,3 +426,5 @@ check_root(const char *progname)
 	}
 #endif							/* WIN32 */
 }
+
+struct Runtime_env g_runtime_env;

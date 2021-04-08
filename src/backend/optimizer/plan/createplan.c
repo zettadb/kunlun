@@ -5,6 +5,11 @@
  *	  Planning is complete, we just need to convert the selected
  *	  Path into a Plan.
  *
+ * Portions Copyright (c) 2019 ZettaDB inc. All rights reserved.
+ *
+ * This source code is licensed under Apache 2.0 License,
+ * combined with Common Clause Condition 1.0, as detailed in the NOTICE file.
+ *
  * Portions Copyright (c) 1996-2018, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
@@ -161,6 +166,7 @@ static void copy_generic_path_info(Plan *dest, Path *src);
 static void copy_plan_costsize(Plan *dest, Plan *src);
 static void label_sort_with_costsize(PlannerInfo *root, Sort *plan,
 						 double limit_tuples);
+static RemoteScan *make_remotescan(List *qptlist, List *qpqual, Index scanrelid);
 static SeqScan *make_seqscan(List *qptlist, List *qpqual, Index scanrelid);
 static SampleScan *make_samplescan(List *qptlist, List *qpqual, Index scanrelid,
 				TableSampleClause *tsc);
@@ -285,6 +291,9 @@ static ModifyTable *make_modifytable(PlannerInfo *root,
 				 List *rowMarks, OnConflictExpr *onconflict, int epqParam);
 static GatherMerge *create_gather_merge_plan(PlannerInfo *root,
 						 GatherMergePath *best_path);
+static RemoteScan *
+create_remotescan_plan(PlannerInfo *root, Path *best_path,
+					   List *tlist, List *scan_clauses);
 
 
 /*
@@ -378,6 +387,7 @@ create_plan_recurse(PlannerInfo *root, Path *best_path, int flags)
 		case T_NamedTuplestoreScan:
 		case T_ForeignScan:
 		case T_CustomScan:
+		case T_RemoteScan:
 			plan = create_scan_plan(root, best_path, flags);
 			break;
 		case T_HashJoin:
@@ -716,6 +726,12 @@ create_scan_plan(PlannerInfo *root, Path *best_path, int flags)
 												   scan_clauses);
 			break;
 
+		case T_RemoteScan:
+			plan = (Plan *) create_remotescan_plan(root,
+												best_path,
+												tlist,
+												scan_clauses);
+			break;
 		default:
 			elog(ERROR, "unrecognized node type: %d",
 				 (int) best_path->pathtype);
@@ -2473,6 +2489,41 @@ create_limit_plan(PlannerInfo *root, LimitPath *best_path, int flags)
  *
  *****************************************************************************/
 
+/*
+ * create_remotescan_plan
+ *	 Returns a remotescan plan for the base relation scanned by 'best_path'
+ *	 with restriction clauses 'scan_clauses' and targetlist 'tlist'.
+ */
+static RemoteScan *
+create_remotescan_plan(PlannerInfo *root, Path *best_path,
+					   List *tlist, List *scan_clauses)
+{
+	RemoteScan    *scan_plan;
+	Index		scan_relid = best_path->parent->relid;
+
+	/* it should be a base rel... */
+	Assert(scan_relid > 0);
+	Assert(best_path->parent->rtekind == RTE_RELATION);
+
+	/* Sort clauses into best execution order */
+	scan_clauses = order_qual_clauses(root, scan_clauses);
+
+	/* Reduce RestrictInfo list to bare expressions; ignore pseudoconstants */
+	scan_clauses = extract_actual_clauses(scan_clauses, false);
+
+	/* Replace any outer-relation variables with nestloop params */
+	if (best_path->param_info)
+	{
+		scan_clauses = (List *)
+			replace_nestloop_params(root, (Node *) scan_clauses);
+	}
+
+	scan_plan = make_remotescan(tlist, scan_clauses, scan_relid);
+	scan_plan->query_level = root->query_level;
+	copy_generic_path_info(&scan_plan->plan, best_path);
+
+	return scan_plan;
+}
 
 /*
  * create_seqscan_plan
@@ -4895,6 +4946,24 @@ flatten_partitioned_rels(List *partitioned_rels)
  * as that would be redundant with calculations done while building Paths.
  *
  *****************************************************************************/
+
+static RemoteScan *
+make_remotescan(List *qptlist,
+		    	List *qpqual,
+			    Index scanrelid)
+{
+	RemoteScan  *node = makeNode(RemoteScan);
+	Plan	   *plan = &node->plan;
+
+	plan->targetlist = qptlist;
+	plan->qual = qpqual;
+	plan->lefttree = NULL;
+	plan->righttree = NULL;
+	node->scanrelid = scanrelid;
+	node->query_level = 0;
+	node->check_exists = false;
+	return node;
+}
 
 static SeqScan *
 make_seqscan(List *qptlist,

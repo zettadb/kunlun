@@ -432,6 +432,25 @@ _copyScan(const Scan *from)
 }
 
 /*
+ * _copyRemoteScan
+ */
+static RemoteScan *
+_copyRemoteScan(const RemoteScan *from)
+{
+	RemoteScan *newnode = makeNode(RemoteScan);
+
+	/*
+	 * copy node superclass fields
+	 */
+	CopyPlanFields((const Plan *) from, (Plan *) newnode);
+	COPY_SCALAR_FIELD(query_level);
+	COPY_SCALAR_FIELD(scanrelid);
+	COPY_SCALAR_FIELD(check_exists);
+
+	return newnode;
+}
+
+/*
  * _copySeqScan
  */
 static SeqScan *
@@ -917,7 +936,7 @@ _copyMaterial(const Material *from)
 	 * copy node superclass fields
 	 */
 	CopyPlanFields((const Plan *) from, (Plan *) newnode);
-
+	newnode->remote_fetch_all = from->remote_fetch_all;
 	return newnode;
 }
 
@@ -2357,6 +2376,7 @@ _copyRangeTblEntry(const RangeTblEntry *from)
 	COPY_SCALAR_FIELD(rtekind);
 	COPY_SCALAR_FIELD(relid);
 	COPY_SCALAR_FIELD(relkind);
+	COPY_SCALAR_FIELD(relshardid);
 	COPY_NODE_FIELD(tablesample);
 	COPY_NODE_FIELD(subquery);
 	COPY_SCALAR_FIELD(security_barrier);
@@ -4857,6 +4877,9 @@ copyObjectImpl(const void *from)
 			break;
 		case T_CteScan:
 			retval = _copyCteScan(from);
+			break;
+		case T_RemoteScan:
+			retval = _copyRemoteScan(from);
 			break;
 		case T_NamedTuplestoreScan:
 			retval = _copyNamedTuplestoreScan(from);

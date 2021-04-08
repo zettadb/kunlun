@@ -1,0 +1,16 @@
+#----------------------------------------------------------------------
+#
+# pg_ddl_log_progress.dat
+#    Initial contents of the pg_ddl_log_progress system catalog.
+#
+# Copyright (c) Zhao Wei (david.zhao.cn@gmail.com)
+#
+# src/include/catalog/pg_ddl_log_progress.dat
+#
+#----------------------------------------------------------------------
+
+[
+
+{ dbid => '0', ddl_op_id => '0', max_op_id_done_local => '0' },
+
+]

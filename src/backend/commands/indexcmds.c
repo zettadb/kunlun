@@ -20,6 +20,7 @@
 #include "access/reloptions.h"
 #include "access/sysattr.h"
 #include "access/xact.h"
+#include "access/remote_meta.h"
 #include "catalog/catalog.h"
 #include "catalog/index.h"
 #include "catalog/indexing.h"
@@ -76,7 +77,8 @@ static void ComputeIndexAttrs(IndexInfo *indexInfo,
 				  Oid relId,
 				  const char *accessMethodName, Oid accessMethodId,
 				  bool amcanorder,
-				  bool isconstraint);
+				  bool isconstraint,
+				  bool is_remote_rel);
 static char *ChooseIndexName(const char *tabname, Oid namespaceId,
 				List *colnames, List *exclusionOpNames,
 				bool primary, bool isconstraint);
@@ -128,7 +130,7 @@ bool
 CheckIndexCompatible(Oid oldId,
 					 const char *accessMethodName,
 					 List *attributeList,
-					 List *exclusionOpNames)
+					 List *exclusionOpNames, bool is_remote_rel)
 {
 	bool		isconstraint;
 	Oid		   *typeObjectId;
@@ -210,7 +212,7 @@ CheckIndexCompatible(Oid oldId,
 					  coloptions, attributeList,
 					  exclusionOpNames, relationId,
 					  accessMethodName, accessMethodId,
-					  amcanorder, isconstraint);
+					  amcanorder, isconstraint, is_remote_rel);
 
 
 	/* Get the soon-obsolete pg_index tuple. */
@@ -416,6 +418,11 @@ DefineIndex(Oid relationId,
 	lockmode = stmt->concurrent ? ShareUpdateExclusiveLock : ShareLock;
 	rel = heap_open(relationId, lockmode);
 
+	if (numberOfAttributes > numberOfKeyAttributes && IsRemoteRelation(rel))
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("can't specifiy INCLUDE collumns for remote relations")));
+
 	relationId = RelationGetRelid(rel);
 	namespaceId = RelationGetNamespace(rel);
 
@@ -619,13 +626,20 @@ DefineIndex(Oid relationId,
 	 * Validate predicate, if given
 	 */
 	if (stmt->whereClause)
+	{
+		if (IsRemoteRelation(rel))
+			ereport(ERROR,
+					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					 errmsg("partial index isn't supported for remote relations")));
+
 		CheckPredicate((Expr *) stmt->whereClause);
+	}
 
 	/*
 	 * Parse AM-specific options, convert to text array form, validate.
 	 */
 	reloptions = transformRelOptions((Datum) 0, stmt->options,
-									 NULL, NULL, false, false);
+									 NULL, NULL, false, false, NULL);
 
 	(void) index_reloptions(amoptions, reloptions, true);
 
@@ -662,7 +676,7 @@ DefineIndex(Oid relationId,
 					  coloptions, allIndexParams,
 					  stmt->excludeOpNames, relationId,
 					  accessMethodName, accessMethodId,
-					  amcanorder, stmt->isconstraint);
+					  amcanorder, stmt->isconstraint, IsRemoteRelation(rel));
 
 	/*
 	 * Extra checks when creating a PRIMARY KEY index.
@@ -760,6 +774,10 @@ DefineIndex(Oid relationId,
 			ereport(ERROR,
 					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
 					 errmsg("index creation on system columns is not supported")));
+		if (attno == ObjectIdAttributeNumber && IsRemoteRelation(rel))
+			ereport(ERROR,
+					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					 errmsg("index creation on oid system column is not supported for remote tables")));
 	}
 
 	/*
@@ -780,6 +798,10 @@ DefineIndex(Oid relationId,
 				ereport(ERROR,
 						(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
 						 errmsg("index creation on system columns is not supported")));
+			if (i == ObjectIdAttributeNumber && IsRemoteRelation(rel))
+				ereport(ERROR,
+						(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+						 errmsg("index creation on oid system column is not supported for remote tables")));
 		}
 	}
 
@@ -853,6 +875,11 @@ DefineIndex(Oid relationId,
 	if (stmt->initdeferred)
 		constr_flags |= INDEX_CONSTR_CREATE_INIT_DEFERRED;
 
+	/*
+	 * dzw: Track 'create index' info for remote op.
+	 * */
+	TrackRemoteCreateIndex(rel, indexRelationName, accessMethodId,
+			indexInfo->ii_Unique, false);
 	indexRelationId =
 		index_create(rel, indexRelationName, indexRelationId, parentIndexId,
 					 parentConstraintId,
@@ -879,6 +906,12 @@ DefineIndex(Oid relationId,
 
 	if (partitioned)
 	{
+		/*
+		 * dzw: Track 'create index' info for remote op.
+		 * */
+		TrackRemoteCreateIndex(rel, indexRelationName, accessMethodId,
+			indexInfo->ii_Unique, true);
+
 		/*
 		 * Unless caller specified to skip this step (via ONLY), process each
 		 * partition to make sure they all contain a corresponding index.
@@ -1097,6 +1130,10 @@ DefineIndex(Oid relationId,
 				heap_close(pg_index, RowExclusiveLock);
 				heap_freetuple(newtup);
 			}
+		}
+		else
+		{
+			RemoteDDLSetSkipStorageIndexing(true);
 		}
 
 		/*
@@ -1447,7 +1484,8 @@ ComputeIndexAttrs(IndexInfo *indexInfo,
 				  const char *accessMethodName,
 				  Oid accessMethodId,
 				  bool amcanorder,
-				  bool isconstraint)
+				  bool isconstraint,
+				  bool is_remote_rel)
 {
 	ListCell   *nextExclOp;
 	ListCell   *lc;
@@ -1457,6 +1495,11 @@ ComputeIndexAttrs(IndexInfo *indexInfo,
 	/* Allocate space for exclusion operator info, if needed */
 	if (exclusionOpNames)
 	{
+		// remote tables can't have exclude clause.
+		if (is_remote_rel)
+			ereport(ERROR,
+					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					 errmsg("remote relations can't have exclude clause.")));
 		Assert(list_length(exclusionOpNames) == nkeycols);
 		indexInfo->ii_ExclusionOps = (Oid *) palloc(sizeof(Oid) * nkeycols);
 		indexInfo->ii_ExclusionProcs = (Oid *) palloc(sizeof(Oid) * nkeycols);
@@ -1598,6 +1641,7 @@ ComputeIndexAttrs(IndexInfo *indexInfo,
 		/*
 		 * Apply collation override if any
 		 */
+		Oid att_oldcoll = attcollation;
 		if (attribute->collation)
 			attcollation = get_collation_oid(attribute->collation, false);
 
@@ -1614,6 +1658,12 @@ ComputeIndexAttrs(IndexInfo *indexInfo,
 						(errcode(ERRCODE_INDETERMINATE_COLLATION),
 						 errmsg("could not determine which collation to use for index expression"),
 						 errhint("Use the COLLATE clause to set the collation explicitly.")));
+			if (is_remote_rel && att_oldcoll != attcollation)
+			{
+				ereport(ERROR,
+						(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+						 errmsg("can't override default collate for remote relation's index")));
+			}
 		}
 		else
 		{
@@ -1632,7 +1682,7 @@ ComputeIndexAttrs(IndexInfo *indexInfo,
 		classOidP[attn] = ResolveOpClass(attribute->opclass,
 										 atttype,
 										 accessMethodName,
-										 accessMethodId);
+										 accessMethodId, is_remote_rel);
 
 		/*
 		 * Identify the exclusion operator, if any.
@@ -1716,7 +1766,19 @@ ComputeIndexAttrs(IndexInfo *indexInfo,
 					colOptionP[attn] |= INDOPTION_NULLS_FIRST;
 			}
 			else if (attribute->nulls_ordering == SORTBY_NULLS_FIRST)
+			{
 				colOptionP[attn] |= INDOPTION_NULLS_FIRST;
+				/*
+				 * dzw:
+				 * Here we assume that in mysql8.0 this is also true:
+				 * Default null ordering is LAST for ASC, FIRST for DESC. This
+				 * should be and probably is specified in SQL standard.
+				 * */
+			    if (is_remote_rel && attribute->ordering != SORTBY_DESC)
+					ereport(ERROR,
+							(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+							 errmsg("can't specify non default null ordering for a column of a remote relation's index")));
+			}
 		}
 		else
 		{
@@ -1745,7 +1807,7 @@ ComputeIndexAttrs(IndexInfo *indexInfo,
  */
 Oid
 ResolveOpClass(List *opclass, Oid attrType,
-			   const char *accessMethodName, Oid accessMethodId)
+			   const char *accessMethodName, Oid accessMethodId, bool is_remote_rel)
 {
 	char	   *schemaname;
 	char	   *opcname;
@@ -1844,6 +1906,15 @@ ResolveOpClass(List *opclass, Oid attrType,
 						NameListToString(opclass), format_type_be(attrType))));
 
 	ReleaseSysCache(tuple);
+
+	if (opclass != NIL && is_remote_rel)
+	{
+		Oid defopcid = GetDefaultOpClass(attrType, accessMethodId);
+		if (defopcid != opClassId)
+			ereport(ERROR,
+					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					 errmsg("can't specify non-default opclass for remote relation's index")));
+	}
 
 	return opClassId;
 }

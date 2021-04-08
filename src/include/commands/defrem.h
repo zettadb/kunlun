@@ -46,10 +46,10 @@ extern char *ChooseRelationName(const char *name1, const char *name2,
 extern bool CheckIndexCompatible(Oid oldId,
 					 const char *accessMethodName,
 					 List *attributeList,
-					 List *exclusionOpNames);
+					 List *exclusionOpNames, bool is_remote_rel);
 extern Oid	GetDefaultOpClass(Oid type_id, Oid am_id);
 extern Oid ResolveOpClass(List *opclass, Oid attrType,
-			   const char *accessMethodName, Oid accessMethodId);
+			   const char *accessMethodName, Oid accessMethodId, bool isremoterel);
 
 /* commands/functioncmds.c */
 extern ObjectAddress CreateFunction(ParseState *pstate, CreateFunctionStmt *stmt);

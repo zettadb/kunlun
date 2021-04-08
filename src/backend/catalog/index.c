@@ -31,6 +31,7 @@
 #include "access/transam.h"
 #include "access/visibilitymap.h"
 #include "access/xact.h"
+#include "access/remote_meta.h"
 #include "bootstrap/bootstrap.h"
 #include "catalog/binary_upgrade.h"
 #include "catalog/catalog.h"
@@ -744,7 +745,6 @@ UpdateIndexRelation(Oid indexoid,
  * allow_system_table_mods: allow table to be a system catalog
  * is_internal: if true, post creation hook for new index
  * constraintId: if not NULL, receives OID of created constraint
- *
  * Returns the OID of the created index.
  */
 Oid
@@ -970,7 +970,7 @@ index_create(Relation heapRelation,
 	InsertPgClassTuple(pg_class, indexRelation,
 					   RelationGetRelid(indexRelation),
 					   (Datum) 0,
-					   reloptions);
+					   reloptions, heapRelation);
 
 	/* done with pg_class */
 	heap_close(pg_class, RowExclusiveLock);
@@ -1201,7 +1201,8 @@ index_create(Relation heapRelation,
 	{
 		index_register(heapRelationId, indexRelationId, indexInfo);
 	}
-	else if ((flags & INDEX_CREATE_SKIP_BUILD) != 0)
+	else if ((flags & INDEX_CREATE_SKIP_BUILD) != 0 ||
+			 IsRemoteRelation(heapRelation))
 	{
 		/*
 		 * Caller is responsible for filling the index later on.  However,
@@ -1218,6 +1219,17 @@ index_create(Relation heapRelation,
 	{
 		index_build(heapRelation, indexRelation, indexInfo, isprimary, false,
 					true);
+	}
+
+	if (IsRemoteRelation(heapRelation))
+	{
+		/*
+		 * dzw : DefineIndex() could be called by 'create table'
+		 * stmt or 'create index' stmt.
+		 * */
+		make_remote_create_table_stmt2(
+			indexRelation, heapRelation, indexTupDesc, flags & INDEX_CREATE_IS_PRIMARY,
+			indexInfo->ii_Unique, coloptions);
 	}
 
 	/*
@@ -1683,7 +1695,10 @@ index_drop(Oid indexId, bool concurrent)
 	 * Schedule physical removal of the files (if any)
 	 */
 	if (userIndexRelation->rd_rel->relkind != RELKIND_PARTITIONED_INDEX)
+	{
 		RelationDropStorage(userIndexRelation);
+		TrackRemoteDropIndexStorage(userIndexRelation);
+	}
 
 	/*
 	 * Close and flush the index's relcache entry, to ensure relcache doesn't

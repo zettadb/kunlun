@@ -1007,6 +1007,7 @@ pg_get_triggerdef_worker(Oid trigid, bool pretty)
 		oldrte->lateral = false;
 		oldrte->inh = false;
 		oldrte->inFromCl = true;
+		oldrte->relshardid = InvalidOid;
 
 		newrte = makeNode(RangeTblEntry);
 		newrte->rtekind = RTE_RELATION;
@@ -1017,6 +1018,7 @@ pg_get_triggerdef_worker(Oid trigid, bool pretty)
 		newrte->lateral = false;
 		newrte->inh = false;
 		newrte->inFromCl = true;
+		newrte->relshardid = InvalidOid;
 
 		/* Build two-element rtable */
 		memset(&dpns, 0, sizeof(dpns));
@@ -3212,6 +3214,7 @@ deparse_context_for(const char *aliasname, Oid relid)
 	rte->lateral = false;
 	rte->inh = false;
 	rte->inFromCl = true;
+	rte->relshardid = InvalidOid;
 
 	/* Build one-element rtable */
 	dpns->rtable = list_make1(rte);

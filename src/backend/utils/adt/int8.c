@@ -1373,3 +1373,18 @@ generate_series_step_int8(PG_FUNCTION_ARGS)
 		/* do when there is no more left */
 		SRF_RETURN_DONE(funcctx);
 }
+
+int int8_cmp(const void *i1, const void *i2)
+{
+	int64_t *p1 = (int64_t *)i1;
+	int64_t *p2 = (int64_t *)i2;
+	return *p1 > *p2 ? 1 : ((*p1 < *p2) ? -1 : 0);
+}
+
+int uint8_cmp(const void *i1, const void *i2)
+{
+	uint64_t *p1 = (uint64_t *)i1;
+	uint64_t *p2 = (uint64_t *)i2;
+	return *p1 > *p2 ? 1 : ((*p1 < *p2) ? -1 : 0);
+}
+

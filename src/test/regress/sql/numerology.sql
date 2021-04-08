@@ -8,7 +8,6 @@
 -- This fails for Postgres v6.1 (and earlier?)
 --  so let's try explicit conversions for now - tgl 97/05/07
 --
-
 CREATE TABLE TEMP_FLOAT (f1 FLOAT8);
 
 INSERT INTO TEMP_FLOAT (f1)

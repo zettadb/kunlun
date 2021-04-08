@@ -26,6 +26,7 @@
 #include "catalog/pg_opclass.h"
 #include "catalog/pg_type.h"
 #include "catalog/toasting.h"
+#include "catalog/catalog.h"
 #include "miscadmin.h"
 #include "nodes/makefuncs.h"
 #include "storage/lock.h"
@@ -410,6 +411,12 @@ needs_toast_table(Relation rel)
 	int32		tuple_length;
 	int			i;
 
+	/*
+	 * dzw: remote relation takes care of tuple storage by themselves,
+	 * a computing node should simply ignore that.
+	 * */
+	if (IsRemoteRelation(rel))
+		return false;
 	if (rel->rd_rel->relkind == RELKIND_PARTITIONED_TABLE)
 		return false;
 

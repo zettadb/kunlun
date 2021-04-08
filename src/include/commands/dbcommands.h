@@ -28,7 +28,8 @@ extern ObjectAddress AlterDatabaseOwner(const char *dbname, Oid newOwnerId);
 
 extern Oid	get_database_oid(const char *dbname, bool missingok);
 extern char *get_database_name(Oid dbid);
-
+extern int get_database_name2(Oid dbid, StringInfo str);
+extern int get_database_name3(Oid dbid, NameData *nm);
 extern void check_encoding_locale_matches(int encoding, const char *collate, const char *ctype);
 
 #endif							/* DBCOMMANDS_H */

@@ -3,6 +3,10 @@
  * heap.c
  *	  code to create and destroy POSTGRES heap relations
  *
+ * Portions Copyright (c) 2019 ZettaDB inc. All rights reserved.
+ *
+ * This source code is licensed under Apache 2.0 License,
+ * combined with Common Clause Condition 1.0, as detailed in the NOTICE file.
  * Portions Copyright (c) 1996-2018, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
@@ -31,10 +35,13 @@
 
 #include "access/htup_details.h"
 #include "access/multixact.h"
+#include "access/reloptions.h"
 #include "access/sysattr.h"
 #include "access/transam.h"
 #include "access/xact.h"
 #include "access/xlog.h"
+#include "access/remote_meta.h"
+#include "sharding/sharding.h"
 #include "catalog/binary_upgrade.h"
 #include "catalog/catalog.h"
 #include "catalog/dependency.h"
@@ -83,7 +90,6 @@
 #include "utils/snapmgr.h"
 #include "utils/syscache.h"
 #include "utils/tqual.h"
-
 
 /* Potentially set by pg_upgrade_support functions */
 Oid			binary_upgrade_next_heap_pg_class_oid = InvalidOid;
@@ -370,7 +376,7 @@ heap_create(const char *relname,
 	 * We only create the main fork here, other forks will be created on
 	 * demand.
 	 */
-	if (create_storage)
+	if (create_storage && !IsRemoteRelation(rel))
 	{
 		RelationOpenSmgr(rel);
 		RelationCreateStorage(rel->rd_node, relpersistence);
@@ -773,7 +779,8 @@ AddNewAttributeTuples(Oid new_rel_oid,
  * variable-width fields which are not present in a cached reldesc.
  * relacl and reloptions are passed in Datum form (to avoid having
  * to reference the data types in heap.h).  Pass (Datum) 0 to set them
- * to NULL.
+ * to NULL. 'heaprel' is valid if 'new_rel_desc' belongs to an index relation,
+ * otherwise it's NULL.
  * --------------------------------
  */
 void
@@ -781,12 +788,79 @@ InsertPgClassTuple(Relation pg_class_desc,
 				   Relation new_rel_desc,
 				   Oid new_rel_oid,
 				   Datum relacl,
-				   Datum reloptions)
+				   Datum reloptions, Relation heaprel)
 {
 	Form_pg_class rd_rel = new_rel_desc->rd_rel;
 	Datum		values[Natts_pg_class];
 	bool		nulls[Natts_pg_class];
 	HeapTuple	tup;
+
+	if (IsRemoteRelation(new_rel_desc))
+	{
+		if (heaprel == NULL)
+		{
+			/*
+			 * If user specified target shard, use it; otherwise alloc one
+			 * using certain policies.
+			 *
+			 * new_rel_desc is a main relation, not an index.
+			 *
+			 * A 'create table' stmt always creates one main table since
+			 * we don't create remote toast tables, hence the assert.
+			 * A standalone 'create sequence' stmt or one done as part of
+			 * 'create table' stmt will also both arrive here, and the sequences
+			 * are created before table is created. We want to store them in
+			 * the same storage shard so that we simply can use one with shard=N
+			 * to pass the shard info to peer computing nodes.
+			 * */
+			Shard_t *pshard = NULL;
+			Oid relshardid = InvalidOid;
+			bytea *relopts = heap_reloptions(new_rel_desc->rd_rel->relkind, reloptions, false);
+			Oid target_shard_id = GetRemoteContextShardId();
+
+			if (relopts)
+			{
+				relshardid = ((StdRdOptions *) relopts)->shard;
+				pfree(relopts);
+				if (relshardid != InvalidOid)
+				{
+					/*
+					  with (shard=N) specified, this only happens when a
+					  ddl stmt is replicated.
+					*/
+					Assert(target_shard_id == InvalidOid || target_shard_id == relshardid);
+					if (target_shard_id == InvalidOid)
+						target_shard_id = relshardid;
+
+					pshard = FindCachedShard(relshardid);
+					if (!pshard)
+						ereport(ERROR,
+								(errcode(ERRCODE_INTERNAL_ERROR),
+								 errmsg("Specified shard (%u) is not found.", relshardid)));
+				}
+			}
+
+			if (!pshard && target_shard_id == InvalidOid)
+			{
+				Assert(GetRemoteContextShardId() == InvalidOid);
+				pshard = FindBestCachedShard(1/* TODO: make this configurable. */);
+				target_shard_id = pshard->id;
+				if (pshard == NULL)
+					ereport(ERROR,
+							(errcode(ERRCODE_INTERNAL_ERROR),
+							 errmsg("No shard available.")));
+			}
+
+			SetRemoteContextShardId(target_shard_id);
+			rd_rel->relshardid = target_shard_id;
+		}
+		else
+		{
+			// independent 'create index' stmt, or unique index clause of
+			// 'create table' stmt. Put the index where its table is
+			rd_rel->relshardid = heaprel->rd_rel->relshardid;
+		}
+	}
 
 	/* This is a tad tedious, but way cleaner than what we used to do... */
 	memset(values, 0, sizeof(values));
@@ -819,6 +893,7 @@ InsertPgClassTuple(Relation pg_class_desc,
 	values[Anum_pg_class_relispopulated - 1] = BoolGetDatum(rd_rel->relispopulated);
 	values[Anum_pg_class_relreplident - 1] = CharGetDatum(rd_rel->relreplident);
 	values[Anum_pg_class_relispartition - 1] = BoolGetDatum(rd_rel->relispartition);
+	values[Anum_pg_class_relshardid - 1] = ObjectIdGetDatum(rd_rel->relshardid);
 	values[Anum_pg_class_relrewrite - 1] = ObjectIdGetDatum(rd_rel->relrewrite);
 	values[Anum_pg_class_relfrozenxid - 1] = TransactionIdGetDatum(rd_rel->relfrozenxid);
 	values[Anum_pg_class_relminmxid - 1] = MultiXactIdGetDatum(rd_rel->relminmxid);
@@ -944,7 +1019,7 @@ AddNewRelationTuple(Relation pg_class_desc,
 
 	/* Now build and insert the tuple */
 	InsertPgClassTuple(pg_class_desc, new_rel_desc, new_rel_oid,
-					   relacl, reloptions);
+					   relacl, reloptions, NULL);
 }
 
 
@@ -1000,7 +1075,8 @@ AddNewRelationType(const char *typeName,
 /* --------------------------------
  *		heap_create_with_catalog
  *
- *		creates a new cataloged relation.  see comments above.
+ *		creates a new cataloged relation.  see comments above. This function
+ *		creates a main table, or a toast table. It doesn't create an index.
  *
  * Arguments:
  *	relname: name to give to new rel
@@ -1866,7 +1942,16 @@ heap_drop_with_catalog(Oid relid)
 	 * If a partitioned table, delete the pg_partitioned_table tuple.
 	 */
 	if (rel->rd_rel->relkind == RELKIND_PARTITIONED_TABLE)
+	{
+		/*
+		 * we need to record the partitioned table before dropping any leaf
+		 * relation, so it's too late to do this here, so we instead do so in
+		 * PreparePartitionedTableDrop().
+		set_dropping_tree(true);
+		AddToRemoteCreateDropPartitionedTable(rel, true);
+		*/
 		RemovePartitionKeyByRelId(relid);
+	}
 
 	/*
 	 * If the relation being dropped is the default partition itself,
@@ -1884,6 +1969,10 @@ heap_drop_with_catalog(Oid relid)
 		rel->rd_rel->relkind != RELKIND_PARTITIONED_TABLE)
 	{
 		RelationDropStorage(rel);
+		if (IsRemoteRelation(rel))
+		{
+			TrackRemoteDropTableStorage(rel);
+		}
 	}
 
 	/*
@@ -2473,7 +2562,7 @@ AddRelationNewConstraints(Relation rel,
 	ListCell   *cell;
 	Node	   *expr;
 	CookedConstraint *cooked;
-
+// DZW TODO: forbid foreign key here?
 	/*
 	 * Get info about existing constraints.
 	 */
@@ -2549,14 +2638,20 @@ AddRelationNewConstraints(Relation rel,
 	 */
 	numchecks = numoldchecks;
 	checknames = NIL;
+	int num_tblchks = 0;
+
 	foreach(cell, newConstraints)
 	{
 		Constraint *cdef = (Constraint *) lfirst(cell);
 		char	   *ccname;
 		Oid			constrOid;
 
-		if (cdef->contype != CONSTR_CHECK)
-			continue;
+		if (cdef->contype == CONSTR_CHECK && num_tblchks++ == 0)
+		{
+			elog(WARNING, "Table level check constraints are not supported in Kunlun, ignoring all such constraints.");
+			break;
+		}
+		continue;
 
 		if (cdef->raw_expr != NULL)
 		{

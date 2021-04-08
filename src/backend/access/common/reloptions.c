@@ -155,6 +155,21 @@ static relopt_int intRelOpts[] =
 {
 	{
 		{
+			"shard",
+			"ID of target shard to store this table.",
+			/*
+			  dzw: although 'with(shard=N)' isn't needed by a partitioned
+			  table itself, it's needed by the objects associated with it,
+			  such as sequences. Computing node peers need such info to
+			  associate to the sequences in storage nodes.
+			*/
+			RELOPT_KIND_HEAP | RELOPT_KIND_PARTITIONED,
+			AccessExclusiveLock
+		},
+		0, 0, INT_MAX,
+	},
+	{
+		{
 			"fillfactor",
 			"Packs table pages only to this percentage",
 			RELOPT_KIND_HEAP,
@@ -771,7 +786,7 @@ add_string_reloption(bits32 kinds, const char *name, const char *desc, const cha
  */
 Datum
 transformRelOptions(Datum oldOptions, List *defList, const char *namspace,
-					char *validnsps[], bool ignoreOids, bool isReset)
+					char *validnsps[], bool ignoreOids, bool isReset, int *pHasPgOrigOpts)
 {
 	Datum		result;
 	ArrayBuildState *astate;
@@ -910,7 +925,23 @@ transformRelOptions(Datum oldOptions, List *defList, const char *namspace,
 			t = (text *) palloc(len + 1);
 			SET_VARSIZE(t, len);
 			sprintf(VARDATA(t), "%s=%s", def->defname, value);
-
+			/*
+			 * dzw: we have to disable setting relopts other than 'shard' when
+			 * creating/altering heap relations, it's not OK to simply ignore them
+			 * because when generating the SQL str for other computing nodes,
+			 * we simply append a 'with(shard=N)' string, if there were any original
+			 * with() setting, that causes an parse error.
+			 *
+			 * For index/attribute opts, we simply ignore them and it's OK to
+			 * set them but such settings won't have any effect.
+			 * */
+			if (pHasPgOrigOpts)
+			{
+				if (strcmp(def->defname, "shard"))
+					*pHasPgOrigOpts = 1;
+				else
+					*pHasPgOrigOpts = 0;
+			}
 			astate = accumArrayResult(astate, PointerGetDatum(t),
 									  false, TEXTOID,
 									  CurrentMemoryContext);
@@ -1346,6 +1377,7 @@ default_reloptions(Datum reloptions, bool validate, relopt_kind kind)
 	StdRdOptions *rdopts;
 	int			numoptions;
 	static const relopt_parse_elt tab[] = {
+		{"shard", RELOPT_TYPE_INT, offsetof(StdRdOptions, shard)},
 		{"fillfactor", RELOPT_TYPE_INT, offsetof(StdRdOptions, fillfactor)},
 		{"autovacuum_enabled", RELOPT_TYPE_BOOL,
 		offsetof(StdRdOptions, autovacuum) + offsetof(AutoVacOpts, enabled)},

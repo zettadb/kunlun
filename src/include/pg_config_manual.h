@@ -85,6 +85,13 @@
 #define MAXPGPATH		1024
 
 /*
+ dzw:
+ Max NO. of databases allowed to be created. This many applier processes will
+ be started to replay DDL stmts created in each db.
+*/
+#define MAX_DBS_ALLOWED 256
+
+/*
  * PG_SOMAXCONN: maximum accept-queue length limit passed to
  * listen(2).  You'd think we should use SOMAXCONN from
  * <sys/socket.h>, but on many systems that symbol is much smaller

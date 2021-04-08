@@ -3,6 +3,10 @@
  * nodeMaterial.c
  *	  Routines to handle materialization nodes.
  *
+ * Portions Copyright (c) 2019 ZettaDB inc. All rights reserved.
+ *
+ * This source code is licensed under Apache 2.0 License,
+ * combined with Common Clause Condition 1.0, as detailed in the NOTICE file.
  * Portions Copyright (c) 1996-2018, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
@@ -23,7 +27,12 @@
 
 #include "executor/executor.h"
 #include "executor/nodeMaterial.h"
+#include "executor/nodeRemotescan.h"
+#include "optimizer/planremote.h"
+#include "nodes/nodeFuncs.h"
 #include "miscadmin.h"
+
+static void init_fill_all(bool remote_fetch_all, MaterialState *node);
 
 /* ----------------------------------------------------------------
  *		ExecMaterial
@@ -41,10 +50,10 @@ ExecMaterial(PlanState *pstate)
 	MaterialState *node = castNode(MaterialState, pstate);
 	EState	   *estate;
 	ScanDirection dir;
-	bool		forward;
 	Tuplestorestate *tuplestorestate;
 	bool		eof_tuplestore;
 	TupleTableSlot *slot;
+	bool            forward;
 
 	CHECK_FOR_INTERRUPTS();
 
@@ -55,6 +64,17 @@ ExecMaterial(PlanState *pstate)
 	dir = estate->es_direction;
 	forward = ScanDirectionIsForward(dir);
 	tuplestorestate = node->tuplestorestate;
+
+	/*
+	 * initialize tuple type. and then fetch&store rows from remotescan node.
+	 */
+	if (!(node->eflags & (EXEC_FLAG_EXPLAIN_ONLY |
+						  EXEC_FLAG_REMOTE_FETCH_NO_DATA)) &&
+		node->tuplestorestate == NULL)
+	{
+		init_fill_all(((Material*)node->ss.ps.plan)->remote_fetch_all, node);
+		tuplestorestate = node->tuplestorestate;
+	}
 
 	/*
 	 * If first time through, and we need a tuplestore, initialize it.
@@ -183,8 +203,8 @@ ExecInitMaterial(Material *node, EState *estate, int eflags)
 	 * if none of these cases apply, we can skip storing the data.
 	 */
 	matstate->eflags = (eflags & (EXEC_FLAG_REWIND |
-								  EXEC_FLAG_BACKWARD |
-								  EXEC_FLAG_MARK));
+								  EXEC_FLAG_BACKWARD | EXEC_FLAG_EXPLAIN_ONLY |
+								  EXEC_FLAG_MARK | EXEC_FLAG_REMOTE_FETCH_NO_DATA));
 
 	/*
 	 * Tuplestore's interpretation of the flag bits is subtly different from
@@ -227,9 +247,11 @@ ExecInitMaterial(Material *node, EState *estate, int eflags)
 	matstate->ss.ps.ps_ProjInfo = NULL;
 
 	/*
-	 * initialize tuple type.
-	 */
-	ExecCreateScanSlotFromOuterPlan(estate, &matstate->ss);
+	  with EXEC_FLAG_REMOTE_FETCH_NO_DATA set, remotescan node won't create
+	  scan type, so can't do it here either.
+	*/
+	if (!(eflags & EXEC_FLAG_REMOTE_FETCH_NO_DATA))
+		ExecCreateScanSlotFromOuterPlan(estate, &matstate->ss);
 
 	return matstate;
 }
@@ -244,7 +266,8 @@ ExecEndMaterial(MaterialState *node)
 	/*
 	 * clean out the tuple table
 	 */
-	ExecClearTuple(node->ss.ss_ScanTupleSlot);
+	if (!(node->eflags & EXEC_FLAG_REMOTE_FETCH_NO_DATA))
+		ExecClearTuple(node->ss.ss_ScanTupleSlot);
 
 	/*
 	 * Release tuplestore resources
@@ -320,10 +343,12 @@ void
 ExecReScanMaterial(MaterialState *node)
 {
 	PlanState  *outerPlan = outerPlanState(node);
+	const bool remote_fetch_all =
+				((Material*) node->ss.ps.plan)->remote_fetch_all;
 
 	ExecClearTuple(node->ss.ps.ps_ResultTupleSlot);
 
-	if (node->eflags != 0)
+	if (node->eflags != 0 || remote_fetch_all)
 	{
 		/*
 		 * If we haven't materialized yet, just return. If outerplan's
@@ -348,8 +373,12 @@ ExecReScanMaterial(MaterialState *node)
 		{
 			tuplestore_end(node->tuplestorestate);
 			node->tuplestorestate = NULL;
-			if (outerPlan->chgParam == NULL)
+			if (outerPlan->chgParam == NULL || !remote_fetch_all)
 				ExecReScan(outerPlan);
+			else
+			{
+				init_fill_all(remote_fetch_all, node);
+			}
 			node->eof_underlying = false;
 		}
 		else
@@ -368,3 +397,76 @@ ExecReScanMaterial(MaterialState *node)
 		node->eof_underlying = false;
 	}
 }
+
+
+/*
+  dzw: in remote scan if multiple tables need to be read from the same shard,
+  we need to read them all into the MaterializeState node when initializing
+  the Materialize node, otherwise sharding connection still has active result
+  when next query need to be executed, causing errors.
+  When this is called the outer-node(i.e. the remotescan node) has already been
+  inited so we always can fetch rows from it.
+*/
+static void init_fill_all(bool remote_fetch_all, MaterialState *node)
+{
+	Tuplestorestate *tuplestorestate;
+
+	if (!remote_fetch_all) return;
+
+	CHECK_FOR_INTERRUPTS();
+
+	/*
+	 * get state info from node
+	 */
+	tuplestorestate = node->tuplestorestate;
+	Assert(tuplestorestate == NULL);
+
+	// may be a descendant but not a child node
+	//Assert(IsA(outerPlanState(node), RemoteScanState));
+	//RemoteScanState *remote_scan_state = (RemoteScanState *)outerPlanState(node);
+	
+	tuplestorestate = tuplestore_begin_heap(true, false, work_mem);
+	tuplestore_set_eflags(tuplestorestate, node->eflags);
+	if (node->eflags & EXEC_FLAG_MARK)
+	{
+		/*
+		 * Allocate a second read pointer to serve as the mark. We know it
+		 * must have index 1, so needn't store that.
+		 */
+		int			ptrno PG_USED_FOR_ASSERTS_ONLY;
+
+		ptrno = tuplestore_alloc_read_pointer(tuplestorestate,
+											  node->eflags);
+		Assert(ptrno == 1);
+	}
+	node->tuplestorestate = tuplestorestate;
+
+	while (true)
+	{
+		PlanState  *outerNode;
+		TupleTableSlot *outerslot;
+
+		outerNode = outerPlanState(node);
+		outerslot = ExecProcNode(outerNode);
+		if (TupIsNull(outerslot))
+		{
+			node->eof_underlying = true;
+			break;
+		}
+
+		/*
+		 * Append a copy of the returned tuple to tuplestore.  NOTE: because
+		 * the tuplestore is certainly in EOF state, its read position will
+		 * move forward over the added tuple.  This is what we want.
+		 */
+		tuplestore_puttupleslot(tuplestorestate, outerslot);
+	}
+	// TODO: move read cursor to start of tuplestore
+	node->eof_underlying = true;
+
+	// Release all remote connections so that other RemoteScanState nodes can
+	// use them.
+	planstate_tree_walker((PlanState *)node, ReleaseShardConnection, NULL);
+}
+
+

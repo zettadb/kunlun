@@ -435,5 +435,5 @@ extern void ParseAbortRecord(uint8 info, xl_xact_abort *xlrec, xl_xact_parsed_ab
 extern void EnterParallelMode(void);
 extern void ExitParallelMode(void);
 extern bool IsInParallelMode(void);
-
+extern bool IsExplicitTxn(void);
 #endif							/* XACT_H */

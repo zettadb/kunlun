@@ -1,13 +1,14 @@
 For more information about Kunlun distributed RDBMS, visit www.zettadb.com
 
 
-#Release Notes Kunlun version 0.8.0
+#Release Notes Kunlun version 0.8.1
 
 In this release we completed the following features:
 
 1. Sequences
 Made PostgreSQL native sequence feature work with Kunlun architecture. A sequence metadata is stored in storage shard meta tables(mysql.sequences), and no matter it's created in which computing nodes, all computing nodes will have the sequence locally and be able to use it efficiently.
-Also implemented sequence grammar of Oracle and autoincrement grammar of MySQL.
+
+All PostgreSQL sequence features are supported including explicit create and use of sequences as well as implicit measures such as serial type, the 'generated as identity' option in 'create table' statement. Also implemented sequence grammar of Oracle and autoincrement grammar of MySQL.
 
 2. All DDLs
 Now we support all DDLs that we plan to support in Kunlun RDBMS, including "ALTER TABLE/INDEX/SEQUENCE statements", among others. Unsupported grammers will return error gracefully.
@@ -17,12 +18,15 @@ So now DDLs are complete in Kunlun.
 This is crucial for security and query processing performance.
 
 4. Cross shard joins and subqueries
-This is on-going work, so far it needs extra optimization work for premium performance, although the functionality is partly working.
+The functionality is working now, but it needs extra optimization work for premium performance in certain cases, will be done in the 0.8 milestone.
 
 5. Aggregates and OLAP
-This is on-going work, so far it needs extra optimization work for premium performance, although the functionality is partly working.
+The functionality is working now, but it needs extra optimization work for premium performance in certain cases, will be done in the 0.8 milestone.
 
-6. Containerization
+6. insert/update/delete ... returning clause
+This is very important if you need to get all fields of modified rows atomically.
+
+7. Containerization
 All Kunlun modules are released in docker images now and containers will continue to be one form of release for Kunlun in future.
 
 

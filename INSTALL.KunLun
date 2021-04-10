@@ -1,33 +1,42 @@
 #Installation Guides for Kunlun Distributed Database Cluster(DDC)
 
-Unzip the Kunlun-xx.xx.tgz file into a path, which is named Kunlun in this doc, i.e. Kunlun=`pwd`. Then follow the steps below, one after another.
+Build Kunlun DDC modules from source or download them from www.zettadb.com
+
+To build computing node program from source, use build.sh directly or refer to it for instructions.
+To build kunlun-storage from source, see kunlun-storage/INSTALL.Kunlun for instructions.
+To build cluster_mgr from source, see cluster_mgr/README for instructions.
+
+Unzip the downloaded Kunlun-xx.xx.tgz file into a path, which is named Kunlun in this doc, i.e. Kunlun=`pwd`. If the computing node is built from source, the 'Kunlun' path is the installation path. Then follow the steps below, one after another.
 
 ##I. Prerequisites
 
-Install these software first. Below statement supposes this file is in 
+Install these software first. Below statement supposes this file is in $Kunlun. 
    
 0. Linux running on a X86 architecture, and python2.7.
-1. Kunlun-Percona-MySQL-8.0.18-9 which is available in the software package.
+1. Kunlun-Storage and cluster_mgr which are both available in the binary Kunlun software package or can be built from source.
 2. MySQL python connector, provided in $Kunlun/resources/mysql-connector-python-2.1.3.tar.gz
 3. PostgreSQL python connector, provided in $Kunlun/resources/psycopg2-2.8.4.tar.gz
-4. Set PATH to include kunlun-percona-mysql/bin so that the 'mysql' client program can be found by shell and python;
+4. Set PATH to include kunlun-storage/bin so that the 'mysql' client program can be found by shell and python;
    and set LD_LIBRARY_PATH to include $Kunlun/lib: export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$Kunlun/lib
 
 ###Library dependencies
+
+If you are using a kunlun computing node program built from source on the same Linux distribution and version as where it's being used, simply skip this step because there is no dependency issues.
 
 All dynamic shared objects (*.so files) that programs in $Kunlun/bin depend on, are provided in $Kunlun/lib/deps directory. Try startup postgres (e.g. postgres --version) and see if your local Linux distro needs any of the provided *.so files. If so, copy the needed ones into $Kunlun/lib.
 
 
 ##II. Kunlun DDC Installation Procedures
 
+Follow below steps one by one to install a Kunlun distributed DBMS cluster.
 
 ###Installing Meta-data MySQL Cluster
 
-A meta data cluster is a mysql group replication cluster that stores one or more Kunlun DDC's meta data. Users are required to use Kunlun-Percona-MySQL-8.0.18-9 for premium performance and reliability.
+A meta data cluster is a mysql binlog replication cluster that stores one or more Kunlun DDC's meta data. Users are required to use Kunlun-Storage for premium performance and reliability.
 
 This step is only needed if you don't yet have a meta-data cluster to use. Multiple Kunlun DDC can share the same meta data cluster.
 
-Install mysql instances of the meta-data cluster one after another using the install script and config template in Kunlun-Percona-MySQL-8.0.18-9/install. And create a user for other components of the cluster to connect to the metadata cluster. The installation script in Kunlun-Percona-MySQL-8.0.18-9 already creates such a user 'pgx'. 
+Install mysql instances of the meta-data cluster one after another using the install script and config template in Kunlun-Storage/install. And create a user for other components of the cluster to connect to the metadata cluster. The installation script in Kunlun-Storage already creates such a user 'pgx'. 
 
 The meta data cluster must be running during the installation and when any Kunlun DDC is running.
 
@@ -35,7 +44,7 @@ Store the connection info of all mysql instances of the meta data cluster in a c
 
 #### Metadata Cluster Config File Explained
 
-The connection info of the meta data cluster should be stored in a json file of below format. Its format and meaning is explained here. The json file contains an array of one or more config objects, each object contains basic info about a Kunlun-percona-mysql-8.0.18-9 database instance. All these instances form the metadata cluster.
+The connection info of the meta data cluster should be stored in a json file of below format. Its format and meaning is explained here. The json file contains an array of one or more config objects, each object contains basic info about a Kunlun-Storage database instance. All these instances form the metadata cluster.
 
 [
    {
@@ -48,11 +57,11 @@ The connection info of the meta data cluster should be stored in a json file of 
 ]
 
 ###Installing Storage Shards
-Install storage shards of the distributed database cluster, and create a user in each shard for other components of the cluster to connect to each of the shards. The installation script in Kunlun-Percona-MySQL-8.0.18-9 already creates such a user 'pgx'. Store their connection info in a config file of same format as $Kunlun/scripts/shards-config.json. In this file we name such a file 'my-shards.json'.
+Install storage shards of the distributed database cluster, and create a user in each shard for other components of the cluster to connect to each of the shards. The installation script in Kunlun-Storage already creates such a user 'pgx'. Store their connection info in a config file of same format as $Kunlun/scripts/shards-config.json. In this file we name such a file 'my-shards.json'.
 
-A storage shard and a meta-data mysql-cluster consists of one mysql primary node and N mysql replica nodes. Users are required to use Kunlun DDC's dedicated Kunlun-percona-mysql-8.0.18-9, which contains fixes to all known XA bugs. Without such fixes, Kunlun DDC will not be crash safe and may lose committed transactions in the event of various hardware/software/network failures.
+A storage shard and a meta-data mysql binlog replication cluster consists of one mysql primary node and N mysql replica nodes. Users are required to use Kunlun DDC's dedicated Kunlun-Storage component, which contains fixes to all known mysql-8.0 XA bugs. Without such fixes, Kunlun DDC will not be crash safe and may lose committed transactions in the event of various hardware/software/network failures. Also, kunlun-storage contains certain features required by Kunlun DDC computing nodes.
 
-In Kunlun-percona-mysql-8.0.18-9/install, there are scripts and configuration template file with recomended settings for users to install such an instance with premium configurations. Refer to the docs Kunlun-Percona-MySQL-8.0.18-9/INSTALL.Kunlun to install db instances.
+In Kunlun-Storage/install, there are scripts and configuration template file with recomended settings for users to install such an instance with premium configurations. Refer to the docs Kunlun-Storage/INSTALL.Kunlun to install db instances.
 
 All the storage shards listed in the config file must be running during the installation otherwise installation will fail.
 
@@ -130,7 +139,7 @@ Note that the server where you run below script must be appended into the pg_hba
 Simply execute below command to do so.
 `python create_cluster.py --shards_config ./my-shards.json --comps_config ./my-comps.json  --meta_config ./my-meta.json --cluster_name clust1 --cluster_owner abc --cluster_biz test `
 
-Now the cluster is installed properly and ready for use. You can startup the "Kunlun" processes for each computing node, and the mysql processes for each storage shards and meta-data cluster, and connect to one of the computing nodes to interact with the Kunlun distributed database cluster.
+Now the cluster is installed properly and ready for use. You can startup the "Kunlun" processes for each computing node, and the mysqld processes for each storage shards and meta-data cluster, and connect to one of the computing nodes to interact with the Kunlun distributed database cluster.
 
 If some time later you want to add more storage shards or computing nodes to the cluster, do the following:
 

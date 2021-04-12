@@ -4,29 +4,29 @@ For more information about Kunlun distributed RDBMS, visit www.zettadb.com
 #Release Notes Kunlun version 0.8.1
 
 In this release we completed the following features:
-
-1. Sequences
+##kunlun computing node
+###1. Sequences
 Made PostgreSQL native sequence feature work with Kunlun architecture. A sequence metadata is stored in storage shard meta tables(mysql.sequences), and no matter it's created in which computing nodes, all computing nodes will have the sequence locally and be able to use it efficiently.
 
 All PostgreSQL sequence features are supported including explicit create and use of sequences as well as implicit measures such as serial type, the 'generated as identity' option in 'create table' statement. Also implemented sequence grammar of Oracle and autoincrement grammar of MySQL.
 
-2. All DDLs
+###2. All DDLs
 Now we support all DDLs that we plan to support in Kunlun RDBMS, including "ALTER TABLE/INDEX/SEQUENCE statements", among others. Unsupported grammers will return error gracefully.
 So now DDLs are complete in Kunlun.
 
-3. Prepared statement
+###3. Prepared statement
 This is crucial for security and query processing performance.
 
-4. Cross shard joins and subqueries
+###4. Cross shard joins and subqueries
 The functionality is working now, but it needs extra optimization work for premium performance in certain cases, will be done in the 0.8 milestone.
 
-5. Aggregates and OLAP
+###5. Aggregates and OLAP
 The functionality is working now, but it needs extra optimization work for premium performance in certain cases, will be done in the 0.8 milestone.
 
-6. insert/update/delete ... returning clause
+###6. insert/update/delete ... returning clause
 This is very important if you need to get all fields of modified rows atomically.
 
-7. Containerization
+###7. Containerization
 All Kunlun modules are released in docker images now and containers will continue to be one form of release for Kunlun in future.
 
 
@@ -35,8 +35,8 @@ All Kunlun modules are released in docker images now and containers will continu
 
 In this release we completed a group of very important features involving crash safety, auto failover and more.
 
-##Kunlun-percona-mysql
-Kunlun-percona-mysql-8.0.18 development, in which all known XA bugs in official MySQL-8.0 are fixed. And also we enhanced its performance so that in standard sysbench performance tests, QPS improved by at most %50 and latency drops by at most 50%. See [this report](https://zhuanlan.zhihu.com/p/151664455) for details.
+##Kunlun-storage
+Kunlun-storage development, in which all known XA bugs in official MySQL-8.0 are fixed. And also we enhanced its performance so that in standard sysbench performance tests, QPS improved by at most %50 and latency drops by at most 50%. See [this report](https://zhuanlan.zhihu.com/p/151664455) for details.
 
 All other supporting features required for collaboration with computing nodes of a Kunlun DDC.
 

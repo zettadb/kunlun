@@ -3,7 +3,7 @@
 Build Kunlun DDC modules from source or download them from www.zettadb.com
 
 To build computing node program from source, use build.sh directly or refer to it for instructions.
-To build kunlun-storage from source, see kunlun-storage/INSTALL.Kunlun for instructions.
+To build kunlun-storage from source, see kunlun-storage/INSTALL.kunlun.md for instructions.
 To build cluster_mgr from source, see cluster_mgr/README for instructions.
 
 Unzip the downloaded Kunlun-xx.xx.tgz file into a path, which is named Kunlun in this doc, i.e. Kunlun=`pwd`. If the computing node is built from source, the 'Kunlun' path is the installation path. Then follow the steps below, one after another.
@@ -25,6 +25,7 @@ If you are using a kunlun computing node program built from source on the same L
 
 All dynamic shared objects (*.so files) that programs in $Kunlun/bin depend on, are provided in $Kunlun/lib/deps directory. Try startup postgres (e.g. postgres --version) and see if your local Linux distro needs any of the provided *.so files. If so, copy the needed ones into $Kunlun/lib.
 
+DO NOT copy everything in deps into lib at once, otherwise your linux OS or any software may not be able to work because of library version mismatches!
 
 ##II. Kunlun DDC Installation Procedures
 
@@ -36,7 +37,7 @@ A meta data cluster is a mysql binlog replication cluster that stores one or mor
 
 This step is only needed if you don't yet have a meta-data cluster to use. Multiple Kunlun DDC can share the same meta data cluster.
 
-Install mysql instances of the meta-data cluster one after another using the install script and config template in Kunlun-Storage/install. And create a user for other components of the cluster to connect to the metadata cluster. The installation script in Kunlun-Storage already creates such a user 'pgx'. 
+Install mysql instances of the meta-data cluster one after another using the install script and config template in Kunlun-Storage/dba_tools. And create a user for other components of the cluster to connect to the metadata cluster. The installation script in Kunlun-Storage already creates such a user 'pgx'. 
 
 The meta data cluster must be running during the installation and when any Kunlun DDC is running.
 
@@ -61,7 +62,7 @@ Install storage shards of the distributed database cluster, and create a user in
 
 A storage shard and a meta-data mysql binlog replication cluster consists of one mysql primary node and N mysql replica nodes. Users are required to use Kunlun DDC's dedicated Kunlun-Storage component, which contains fixes to all known mysql-8.0 XA bugs. Without such fixes, Kunlun DDC will not be crash safe and may lose committed transactions in the event of various hardware/software/network failures. Also, kunlun-storage contains certain features required by Kunlun DDC computing nodes.
 
-In Kunlun-Storage/install, there are scripts and configuration template file with recomended settings for users to install such an instance with premium configurations. Refer to the docs Kunlun-Storage/INSTALL.Kunlun to install db instances.
+In Kunlun-Storage/dba_tools, there are scripts and configuration template file with recomended settings for users to install such an instance with premium configurations. Refer to the docs Kunlun-Storage/INSTALL.kunlun.md to install db instances.
 
 All the storage shards listed in the config file must be running during the installation otherwise installation will fail.
 

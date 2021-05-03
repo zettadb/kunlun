@@ -43,7 +43,6 @@ lib*.pc
 /Release/
 /tmp_install/
 # Prerequisites
-*.d
 
 # Object files
 *.o

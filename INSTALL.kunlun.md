@@ -1,10 +1,13 @@
 #Installation Guides for Kunlun Distributed Database Cluster(DDC)
 
-Build Kunlun DDC modules from source or download them from www.zettadb.com
+This document helps users to install kunlun distributed DBMS cluster.
+For more information, resources, documentation of Kunlun distributed RDBMS, please visit www.zettadb.com.
+
+One could obtain kunlun DDC software by building Kunlun DDC modules from source or download the binaries or docker images from www.zettadb.com.
 
 To build computing node program from source, use build.sh directly or refer to it for instructions.
 To build kunlun-storage from source, see kunlun-storage/INSTALL.kunlun.md for instructions.
-To build cluster_mgr from source, see cluster_mgr/README for instructions.
+To build cluster_mgr from source, see cluster_mgr/README.md for instructions.
 
 Unzip the downloaded Kunlun-xx.xx.tgz file into a path, which is named Kunlun in this doc, i.e. Kunlun=`pwd`. If the computing node is built from source, the 'Kunlun' path is the installation path. Then follow the steps below, one after another.
 

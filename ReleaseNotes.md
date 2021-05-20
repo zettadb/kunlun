@@ -1,5 +1,5 @@
-For more information about Kunlun distributed RDBMS, visit www.zettadb.com
-
+#Introduction
+For more information, resources, documentation of Kunlun distributed RDBMS, please visit www.zettadb.com
 
 #Release Notes Kunlun version 0.8.1
 

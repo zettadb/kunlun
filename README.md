@@ -1,12 +1,12 @@
-See ReleaseNotes.txt for the list of features released in each version of Kunlun distributed DBMS.
+#Introduction
+For more information, resources, documentation of Kunlun distributed RDBMS, please visit www.zettadb.com
+See ReleaseNotes.md for the list of features released in each version of Kunlun distributed DBMS.
 
 To build computing node program from source, use build.sh directly or refer to it for instructions.
 To build kunlun-storage from source, see kunlun-storage/INSTALL.kunlun.md for instructions.
 To build cluster_mgr from source, see cluster_mgr/README for instructions.
 
 Refer to INSTALL.kunlun.md to install Kunlun distributed DBMS cluster.
-
-=====================================
 
 
 #KunLun Distributed database cluster

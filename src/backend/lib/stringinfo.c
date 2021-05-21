@@ -6,7 +6,7 @@
  * It can be used to buffer either ordinary C strings (null-terminated text)
  * or arbitrary binary data.  All storage is allocated with palloc().
  *
- * Portions Copyright (c) 2019 ZettaDB inc. All rights reserved.
+ * Portions Copyright (c) 2019-2021 ZettaDB inc. All rights reserved.
  *
  * This source code is licensed under Apache 2.0 License,
  * combined with Common Clause Condition 1.0, as detailed in the NOTICE file.

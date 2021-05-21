@@ -61,6 +61,7 @@ The connection info of the meta data cluster should be stored in a json file of 
 ]
 
 ###Installing Storage Shards
+
 Install storage shards of the distributed database cluster, and create a user in each shard for other components of the cluster to connect to each of the shards. The installation script in Kunlun-Storage already creates such a user 'pgx'. Store their connection info in a config file of same format as $Kunlun/scripts/shards-config.json. In this file we name such a file 'my-shards.json'.
 
 A storage shard and a meta-data mysql binlog replication cluster consists of one mysql primary node and N mysql replica nodes. Users are required to use Kunlun DDC's dedicated Kunlun-Storage component, which contains fixes to all known mysql-8.0 XA bugs. Without such fixes, Kunlun DDC will not be crash safe and may lose committed transactions in the event of various hardware/software/network failures. Also, kunlun-storage contains certain features required by Kunlun DDC computing nodes.
@@ -70,6 +71,7 @@ In Kunlun-Storage/dba_tools, there are scripts and configuration template file w
 All the storage shards listed in the config file must be running during the installation otherwise installation will fail.
 
 #### Storage Shard Config File Explained
+
 The connection info of a storage shard should be stored in a json file of below format. Its format and meaning is explained here. The json file contains an array of one or more shard config objects, each object contains one shard's configs. In a shard's config, there are config objects of one or more db instances of the shard. 
 
 [
@@ -112,6 +114,7 @@ To shut it down, do:
 All the computing nodes listed in the config file must be running during the installation otherwise installation will fail.
 
 #### Computing Node Config File Explained
+
 The connection info of computing nodes should be stored in a json file of below format. Its format and meaning is explained here. The json file contains an array of one or more config objects, each object contains basic info about a computing node.
 
 [
@@ -182,6 +185,7 @@ Or you can store new nodes' configs in a new config file and do:
 `python add_comp_nodes.py --config ./my-more-comps.json --meta_config ./my-meta.json --cluster_name clust1 `
 
 ##VII. Connecting to computing  nodes from other servers
+
 According to PostgreSQL, we have to add an entry for every computer server (ip-address, user-name, dbname) combination in order to connect to the PostgreSQL db instance from that server using the specified user name to the target database. After you finish the editing, do below command to make the changes effective.
 
 `pg_ctl reload -D /db/datadir/path` 

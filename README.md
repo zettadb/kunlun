@@ -1,4 +1,5 @@
 #Introduction
+
 For more information, resources, documentation of Kunlun distributed RDBMS, please visit www.zettadb.com
 See ReleaseNotes.md for the list of features released in each version of Kunlun distributed DBMS.
 
@@ -42,14 +43,17 @@ Kunlun is currently developped based on PostgreSQL-11.5. In order to support som
 Kunlun distributed database cluster is built for high scalability, high availability, ACID guarantees of distributed transactions, and full-fledged distributed query processing and elastic horizontal scalability.
 
 ###Highly Scalable
+
 Kunlun DDC is highly scalable. It not only scales up but also scales out: users can add more computing nodes to have more query processing power, every computing node can serve both write and read workloads; And users(DBAs) can add more storage shards for more data storage and transaction processing capability and Kunlun DDC will automatically move parts of data to the new shards to balance workloads.
 
 ###Highly Available(HA)
+
 Kunlun DDC is highly available, partial node failures won't harm the availability of the cluster. For any single storage shard or meta-data cluster of 2*N+1 MySQL nodes, the shard/cluster can resist N simultaneous node failures and remain writable; and it can remain readable as long as one kunlun-storage node is still working;
 
 And for computing nodes, as long as there is one computing node working, a kunlun cluster can keep serving clients. The crash/stall/hang of one computing node doesn't affect any other parts of Kunlun DDC. And a computing node doesn't need replicas for HA because a computing node's entire state can be rebuilt using the metadata cluster. DBAs can add an empty computing node at any time to a Kunlun DDC and the new empty computing node will automatically upgrade itself to latest local state by connecting to metadata cluster and replay the accumulated DDL logs. When executing concurrent DDLs, computing nodes are well coordinated so that every computing node execute exactly the same sequence of DDL operations so that their local states are identical always.
 
 ###Distributed Transaction&Query Processing
+
 Kunlun distributed query processing aims to relieve users from having to write SQL queries according to their data's distribution, i.e. it partitions user data transparently. This is achieved partly via its distributed transaction processing features, and partly via its distributed query processing features. With the help of these features, users can simply write SQL queries as if they were using a traditional standalone PostgreSQL/MySQL database, they don't have to know or consider in which storage shards certain portions of data are stored in order to write a working SQL query and transaction.
 
 Kunlun distributed database cluster automatically does distributed transaction processing using the robust and well validated two phase commit(2PC) protocol, and as long as storage shards is fully "XA resillient", a distributed transaction has ACID guarantees. However currently no official releases of MySQL community server is fully "XA resillient", they all have a list of unsupported XA features. [This doc](https://dev.mysql.com/doc/refman/8.0/en/xa-restrictions.html)  and [this one](https://dev.mysql.com/doc/refman/5.7/en/xa-restrictions.html) has the full list of unsupported features that make official MySQL not XA resillient.
@@ -63,6 +67,7 @@ As of this latest version, Kunlun DDC can handle cross shard table joins and agg
 With transparent SQL compatibility, application developers can utilize standard SQL workflows and tool chains to streamline their workflow for premium efficiency and productivity. For example they can use OR mapping tools like hibernate or MyBatis to avoid writing SQL statements by hand in their application development, which would be impossible if they were using sharding middleware or doing sharding in application code or using some other sharding solution which isn't totally SQL compatible. Our aim is to keep Kunlun as SQL compatible as the PostgreSQL version we base on, except the features that we explicitly reject to support, such as triggers, foreign keys, etc.
 
 #### SQL features NOT supported in Kunlun
+
 create table ... select from
 select into ... from ...
 foreign keys
@@ -124,6 +129,7 @@ For example, suppose we have connection conn1 connected to computing node CN1, a
 We name this feature 'automatic DDL synchronization'. All DDLs that involve storage shards are well supported, including create/drop/alter table/index/partition/sequence/view/materialized view/database/schema statements; And all commonly used DDLs in PostgreSQL are supported by kunlun DDC.
 
 ## Cautions
+
 Although Kunlun DDC is under active development, it's still not suitable for production use, it's ready for POC now. You are encouraged to try it out and report any requirements or issues to us.
 
 Do not modify anything (table, stored procedure, etc) in Kunlun_Metadata_DB database of the meta-data shard manually, otherwise Kunlun DDC may not work correctly and you may lose your data. At the same time, do not manually modify any metadata tables(i.e. whose names start with pg_ ) in computing nodes, such as pg_shard, pg_shard_node, etc, otherwise Kunlun DDC may not work correctly and you may lose your data. You can only modify system metadata using SQL commands and/or scripts provided in Kunlun DDC.

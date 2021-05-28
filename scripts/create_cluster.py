@@ -19,6 +19,7 @@ parser.add_argument('--meta_config', type=str, help="meta-shard config file path
 parser.add_argument('--cluster_name', type=str)
 parser.add_argument('--cluster_owner', type=str); # owner name, e.g. department/group name, or employee name
 parser.add_argument('--cluster_biz', type=str); # used in which business ?
+parser.add_argument('--usemgr', type=bool, default=True); # used for internal testing, --usemgr=True|False
 
 args = parser.parse_args()
 
@@ -61,5 +62,5 @@ add_comp_nodes.add_computing_nodes(mysql_conn_params, args, args.comps_config, i
 
 print "Step 5. Adding storage shards into cluster " + args.cluster_name
 install_names=[''] # add all shards
-add_shards.add_shards_to_cluster(mysql_conn_params, args.cluster_name, args.shards_config, install_names)
+add_shards.add_shards_to_cluster(mysql_conn_params, args.cluster_name, args.shards_config, install_names, args.usemgr)
 print "Installation complete for cluster " + args.cluster_name

@@ -14,6 +14,7 @@ import socket
 import subprocess
 import json
 import shlex
+from distutils.util import strtobool
 
 # This script installs one or more specified computing node instances on current server.
 # the configs of these computing nodes are all stored in the supplied config file.
@@ -24,7 +25,7 @@ def param_replace(string, rep_dict):
     pattern = re.compile("|".join([re.escape(k) for k in rep_dict.keys()]), re.M)
     return pattern.sub(lambda x: rep_dict[x.group(0)], string)
 
-def install_pg(config_template_file, install_path, compcfg):
+def install_pg(config_template_file, install_path, compcfg, usemgr):
     #check install datadir is empty, make it if not exist
     datadir = compcfg['datadir'].strip()
     if datadir[0] != '/':
@@ -55,7 +56,11 @@ def install_pg(config_template_file, install_path, compcfg):
     cnf_file = open(conf_path, 'w')
     cnf_file.write(conf_str)
     cnf_file.close()
-    os.system('echo "host    all             all             ' + compcfg['ip'].strip() + '/32          trust" >> ' + datadir + '/pg_hba.conf')
+    os.system('echo "host all all ' + compcfg['ip'].strip() + '/32 trust" >> ' + datadir + '/pg_hba.conf')
+    os.system('echo "host all all 127.0.0.1/32  trust" >> ' + datadir + '/pg_hba.conf')
+    os.system('echo "host all all 0.0.0.0/0 md5" >> ' + datadir + '/pg_hba.conf')
+    if not usemgr:
+        os.system("sed -i 's/storage_ha_mode.*/storage_ha_mode=0/g' " + conf_path)
 
     # startup postgres, put log file in datadir too
     pg_logfp = datadir + "/logfile-" + str(compcfg['port'])
@@ -98,9 +103,12 @@ if __name__ == "__main__":
         jstr = jsconf.read()
         jscfg = json.loads(jstr)
         idx = 0
+        # undocument option, used for internal testing. usemgr=False
+        usemgr=args.get('usemgr', 'True')
+        usemgr=strtobool(usemgr)
         for compcfg in jscfg:
             if install_ids[0] == -1 or install_ids.count(compcfg['id']) > 0:
-                install_pg(config_template_file, install_path, compcfg)
+                install_pg(config_template_file, install_path, compcfg, usemgr)
                 print "Installation completed for instance in " + compcfg['datadir'].strip()
         print "Installation of computing nodes with ID(s) " + str(install_ids) + " in file " + config_path + " completed."
     except KeyError, e:

@@ -84,6 +84,7 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='test functions in this file')
 	parser.add_argument('config', help="shard config file path")
 	parser.add_argument('meta_config', type=str, help="metadata cluster config file path")
+	parser.add_argument('--usemgr', type=bool, default=True); # used for internal testing, --usemgr=True|False
 
 	args = parser.parse_args()
 	
@@ -98,6 +99,6 @@ if __name__ == '__main__':
 	jscfg = json.loads(jstr)
 
 	for shardcfg in jscfg:
-		mysql_conn_params = mysql_shard_check(shardcfg['shard_nodes'], True)
+		mysql_conn_params = mysql_shard_check(shardcfg['shard_nodes'], args.usemgr)
 		print "Shard {} primary node: {}".format(shardcfg['shard_name'], str(mysql_conn_params))
 

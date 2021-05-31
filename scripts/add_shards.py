@@ -8,7 +8,7 @@ import argparse
 import json
 import time
 import common
-
+from distutils.util import strtobool
 
 # shards config file format:
 #
@@ -155,9 +155,10 @@ if __name__ == '__main__':
     parser.add_argument('--meta_config', type=str, help="metadata cluster config file path")
     parser.add_argument('--cluster_name', type=str)
     parser.add_argument('--targets', type=str, help="target shards to install, specified by shard names. If none, add all shards.")
-    parser.add_argument('--usemgr', type=bool, default=True); # used for internal testing, --usemgr=True|False
+    parser.add_argument('--usemgr', type=str, default='True'); # used for internal testing, --usemgr=True|False
 
     args = parser.parse_args()
+    args.usemgr=strtobool(args.usemgr)
 
     install_names = []
 

@@ -11,6 +11,7 @@ import json
 import add_comp_nodes
 import add_shards
 import common
+from distutils.util import strtobool
 
 parser = argparse.ArgumentParser(description='Create one cluster')
 parser.add_argument('--shards_config', type=str, help="shard config file path")
@@ -19,9 +20,10 @@ parser.add_argument('--meta_config', type=str, help="meta-shard config file path
 parser.add_argument('--cluster_name', type=str)
 parser.add_argument('--cluster_owner', type=str); # owner name, e.g. department/group name, or employee name
 parser.add_argument('--cluster_biz', type=str); # used in which business ?
-parser.add_argument('--usemgr', type=bool, default=True); # used for internal testing, --usemgr=True|False
+parser.add_argument('--usemgr', type=str, default='True'); # used for internal testing, --usemgr=True|False
 
 args = parser.parse_args()
+args.usemgr=strtobool(args.usemgr)
 
 meta_jsconf = open(args.meta_config)
 meta_jstr = meta_jsconf.read()

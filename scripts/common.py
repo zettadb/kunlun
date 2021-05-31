@@ -7,6 +7,7 @@ import argparse
 import json
 import time
 import copy
+from distutils.util import strtobool
 
 def connect_mysql(node):
 	try:
@@ -27,8 +28,8 @@ def mysql_version_check(conn, conn_params):
 	csr = conn.cursor()
 	csr.execute("select version()")
 	row = csr.fetchone()
-	if row == None or row[0].find("kunlun-percona-mysql") < 0:
-		raise Exception("Version mismatch: mysql server {} version is {}, but 8.0.x-kunlun-percona-mysql is required.".format(str(conn_params), row[0]))
+	if row == None or row[0].find("kunlun-storage") < 0:
+		raise Exception("Version mismatch: mysql server {} version is {}, but 8.0.x-kunlun-storage is required.".format(str(conn_params), row[0]))
 	print "Node {} version {} check passes.".format(str(conn_params), row[0])
 	csr.close()
 
@@ -84,9 +85,10 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='test functions in this file')
 	parser.add_argument('config', help="shard config file path")
 	parser.add_argument('meta_config', type=str, help="metadata cluster config file path")
-	parser.add_argument('--usemgr', type=bool, default=True); # used for internal testing, --usemgr=True|False
+	parser.add_argument('--usemgr', type=str, default='True'); # used for internal testing, --usemgr=True|False
 
 	args = parser.parse_args()
+	args.usemgr=strtobool(args.usemgr)
 	
 	meta_jsconf = open(args.meta_config)
 	meta_jstr = meta_jsconf.read()

@@ -35,6 +35,13 @@ def install_pg(config_template_file, install_path, compcfg, usemgr):
     if not os.path.exists(datadir):
         os.makedirs(datadir)
 
+    portstr = str(compcfg['port'])
+    etc_path = install_path + "/etc"
+    conf_list_file = etc_path+"/instances_list.txt"
+    ret = os.system("grep '^" + portstr + "==>' " + conf_list_file + " >/dev/null 2>/dev/null")
+    if ret == 0:
+        raise Exception("Invalid port:" + portstr + ", The port is in use!")
+
     # add lib into LD_LIBRARY_PATH for startup
     os.system("export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:" + install_path + "/lib")
     # do initdb
@@ -49,7 +56,7 @@ def install_pg(config_template_file, install_path, compcfg, usemgr):
     # replace place holder params and then write back to the instance's conf file
     config_template = open(conf_path, 'r').read()
     replace_items = {}
-    replace_items['port_placeholder'] = str(compcfg['port'])
+    replace_items['port_placeholder'] = portstr
     replace_items['comp_node_id_placeholder'] = str(compcfg['id'])
 
     conf_str = param_replace(config_template, replace_items)
@@ -77,10 +84,8 @@ def install_pg(config_template_file, install_path, compcfg, usemgr):
     os.system(psql_cmd)
 
     # append the new instance's port to datadir mapping into instance_list.txt
-    etc_path = install_path + "/etc"
     if not os.path.exists(etc_path):
         os.mkdir(etc_path)
-    conf_list_file = etc_path+"/instances_list.txt"
     os.system("echo \"" + str(compcfg['port']) + "==>" + datadir + "\" >> " + conf_list_file)
 
 # install_pg.py config=/path/of/config/file install_ids=comma-seperated-comp_id-list|all

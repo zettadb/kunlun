@@ -132,6 +132,8 @@ static void ExplainXMLTag(const char *tagname, int flags, ExplainState *es);
 static void ExplainJSONLineEnding(ExplainState *es);
 static void ExplainYAMLLineStarting(ExplainState *es);
 static void escape_yaml(StringInfo buf, const char *str);
+static void
+show_remotescan_details(ExplainState *es, PlanState *ps);
 
 
 
@@ -1574,6 +1576,10 @@ ExplainNode(PlanState *planstate, List *ancestors,
 				show_instrumentation_count("Rows Removed by Filter", 1,
 										   planstate, es);
 			break;
+		case T_Material:// dzw: Material node can have qual now.
+			if (plan->qual)
+				show_upper_qual(plan->qual, "Filter", planstate, ancestors, es);
+			break;
 		case T_Gather:
 			{
 				Gather	   *gather = (Gather *) plan;
@@ -1798,6 +1804,9 @@ ExplainNode(PlanState *planstate, List *ancestors,
 	/* Show buffer usage */
 	if (es->buffers && planstate->instrument)
 		show_buffer_usage(es, &planstate->instrument->bufusage);
+
+	if (IsA(plan, RemoteScan))
+		show_remotescan_details(es, planstate);
 
 	/* Show worker detail */
 	if (es->analyze && es->verbose && planstate->worker_instrument)
@@ -3864,3 +3873,23 @@ escape_yaml(StringInfo buf, const char *str)
 {
 	escape_json(buf, str);
 }
+
+static void
+show_remotescan_details(ExplainState *es, PlanState *ps)
+{
+	Assert(IsA(ps, RemoteScanState));
+	RemoteScanState *rss = (RemoteScanState *)ps;
+
+	if (es->format == EXPLAIN_FORMAT_TEXT)
+	{
+		appendStringInfoSpaces(es->str, es->indent * 2);
+		appendStringInfo(es->str, "Shard: %u\t", rss->ss.ss_currentRelation->rd_rel->relshardid);
+		appendStringInfo(es->str, "Remote SQL: %s\n", rss->remote_sql.data);
+	}
+	else
+	{
+		ExplainPropertyInteger("Shard", NULL, rss->ss.ss_currentRelation->rd_rel->relshardid, es);
+		ExplainPropertyText("Remote SQL", rss->remote_sql.data, es);
+	}
+}
+

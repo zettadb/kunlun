@@ -1332,6 +1332,7 @@ init_params(ParseState *pstate, List *options, bool for_identity,
 
 	*need_seq_rewrite = false;
 	*owned_by = NIL;
+	if (raseq) raseq->for_identity = for_identity;
 
 	foreach(option, options)
 	{

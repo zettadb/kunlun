@@ -170,6 +170,11 @@ typedef struct Plan
 	  this plan node as root.
 	*/
 	struct ShardRemoteScanRef *shard_remotescan_refs;
+	/*
+	  dzw: SubPlan nodes extracted from this->qual and this->targetlist.
+	*/
+	List *qual_subplans;
+	List *tl_subplans;
 } Plan;
 
 /* ----------------

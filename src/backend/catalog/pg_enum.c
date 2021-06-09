@@ -714,7 +714,7 @@ EnumLabelOid *GetAllEnumValueOidLabelSorted(Oid enumtypid, uint16_t *plen)
 		if (cnt >= len)
 		{
 			pelo = repalloc(pelo, sizeof(EnumLabelOid) * len * 2);
-			memset(pelo + sizeof(EnumLabelOid) * len, 0, sizeof(EnumLabelOid) * len);
+			memset(pelo + len, 0, sizeof(EnumLabelOid) * len);
 			len *= 2;
 		}
 

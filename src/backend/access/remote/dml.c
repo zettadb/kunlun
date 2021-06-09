@@ -14,14 +14,8 @@
  *
  *
  * INTERFACE ROUTINES
- *    InitRemoteDMLContext
- *    ClearRemoteDMLContext
- *    set_remote_command
- *    add_remote_target_entry
- *    add_remote_target_table
- *    set_remote_returning_list
- *    set_remote_where_cond
- *    set_remote_target_table
+ *		InitRemotePrintExprContext
+ *		post_remote_updel_stmt
  * NOTES
  *	  This file contains the routines which implement
  *	  the POSTGRES remote access method used for remotely stored POSTGRES
@@ -94,20 +88,35 @@ void post_remote_updel_stmt(ModifyTableState*mtstate, RemoteScan *rs, int i)
 			*/
 			if (strcmp(tle->resname, "ctid") == 0)
 				continue;
+			/*
+			  tle->resname may be an alias name instead of the target relation's
+			  real column name.
+			*/
+			TupleDesc rel_tupdesc = resultRelInfo->ri_RelationDesc->rd_att;
+			Assert(tle->resno > 0 && tle->resno <= rel_tupdesc->natts);
+			Form_pg_attribute tgt_attr = TupleDescAttr(rel_tupdesc, tle->resno - 1);
+
 			if (tle->expr && IsA(tle->expr, Var))
 			{
 				/*
-			  	  this column isn't a updated field, it's used in where/returning
-			  	  clauses.
+				  Avoid set a=a targets. Regular case when there are no
+				  dropped columns in the table.
 				*/
 				if (((Var*)tle->expr)->varno == resultRelInfo->ri_RangeTableIndex &&
 					((Var*)tle->expr)->varattno == tle->resno)
 					continue;
-
+				/*
 				if (tle->resname &&
 					strcmp(tle->resname,
 						   get_var_attname((Var*)tle->expr, rtable)) == 0)
+				{
+					ereport(WARNING,
+							(errcode(ERRCODE_SQL_STATEMENT_NOT_YET_COMPLETE),
+							 errmsg("Kunlun-db: skipping column self assignment: %s.",
+							 		tgt_attr->attname.data)));
 					continue;
+				}
+				*/
 			}
 
 			/*
@@ -117,7 +126,7 @@ void post_remote_updel_stmt(ModifyTableState*mtstate, RemoteScan *rs, int i)
 				continue;
 
 			appendStringInfo(&rms->remote_dml, " %s %s= ",
-				num_tle++ == 0 ? "set":", ", tle->resname);
+				num_tle++ == 0 ? "set":", ", tgt_attr->attname.data);
 
 			int len = snprint_expr(&rms->remote_dml, tle->expr, &rpec);
 			if (len < 0)
@@ -128,12 +137,13 @@ void post_remote_updel_stmt(ModifyTableState*mtstate, RemoteScan *rs, int i)
 		}
 
 		if (num_tle == 0)
-			ereport(ERROR,
+		{
+			ereport(NOTICE,
 					(errcode(ERRCODE_SQL_STATEMENT_NOT_YET_COMPLETE),
-					 errmsg("Kunlun-db: No target columns found in update statement %s.",
+					 errmsg("Kunlun-db: No target columns found in update statement %s, query execution skipped.",
 					 srctxt)));
-
-		//node->ps.ps_ProjInfo
+			return;
+		}
 	}
 
 	/*

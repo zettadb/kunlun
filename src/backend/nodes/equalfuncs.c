@@ -1344,6 +1344,7 @@ _equalIndexStmt(const IndexStmt *a, const IndexStmt *b)
 	COMPARE_SCALAR_FIELD(transformed);
 	COMPARE_SCALAR_FIELD(concurrent);
 	COMPARE_SCALAR_FIELD(if_not_exists);
+	COMPARE_SCALAR_FIELD(skip_remote);
 
 	return true;
 }

@@ -958,11 +958,16 @@ estimate_rel_size(Relation rel, int32 *attr_widths,
 	BlockNumber relallvisible;
 	double		density;
 
+	/*
+	  dzw: cluster_mgr will update each leaf relation's NO. of pages and NO. of
+	  tuples into its pg_class entry.
+	*/
 	if (IsRemoteRelation(rel))
 	{
 		*pages = rel->rd_rel->relpages;
 		*tuples = rel->rd_rel->reltuples;
 		*allvisfrac = 0;
+		//get_rel_data_width(rel, attr_widths);
 		return;
 	}
 

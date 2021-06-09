@@ -163,7 +163,7 @@ static relopt_int intRelOpts[] =
 			  such as sequences. Computing node peers need such info to
 			  associate to the sequences in storage nodes.
 			*/
-			RELOPT_KIND_HEAP | RELOPT_KIND_PARTITIONED,
+			RELOPT_KIND_HEAP | RELOPT_KIND_PARTITIONED | RELOPT_KIND_SEQUENCE,
 			AccessExclusiveLock
 		},
 		0, 0, INT_MAX,
@@ -477,6 +477,8 @@ static bool need_initialization = true;
 static void initialize_reloptions(void);
 static void parse_one_reloption(relopt_value *option, char *text_str,
 					int text_len, bool validate);
+static bytea *
+sequence_reloptions(Datum reloptions, bool validate);
 
 /*
  * initialize_reloptions
@@ -1047,6 +1049,9 @@ extractRelOptions(HeapTuple tuple, TupleDesc tupdesc,
 		case RELKIND_FOREIGN_TABLE:
 			options = NULL;
 			break;
+		case RELKIND_SEQUENCE:
+			options = sequence_reloptions(datum, false);
+			break;
 		default:
 			Assert(false);		/* can't get here */
 			options = NULL;		/* keep compiler quiet */
@@ -1433,6 +1438,36 @@ default_reloptions(Datum reloptions, bool validate, relopt_kind kind)
 	return (bytea *) rdopts;
 }
 
+
+/*
+ * Option parser for views
+ */
+static bytea *
+sequence_reloptions(Datum reloptions, bool validate)
+{
+	relopt_value *options;
+	StdRdOptions *rdopts;
+	int			numoptions;
+	static const relopt_parse_elt tab[] = {
+		{"shard", RELOPT_TYPE_INT, offsetof(StdRdOptions, shard)}
+	};
+
+	options = parseRelOptions(reloptions, validate, RELOPT_KIND_SEQUENCE, &numoptions);
+
+	/* if none set, we're done */
+	if (numoptions == 0)
+		return NULL;
+
+	rdopts = allocateReloptStruct(sizeof(StdRdOptions), options, numoptions);
+
+	fillRelOptions((void *) rdopts, sizeof(StdRdOptions), options, numoptions,
+				   validate, tab, lengthof(tab));
+
+	pfree(options);
+
+	return (bytea *) rdopts;
+}
+
 /*
  * Option parser for views
  */
@@ -1492,6 +1527,8 @@ heap_reloptions(char relkind, Datum reloptions, bool validate)
 		case RELKIND_PARTITIONED_TABLE:
 			return default_reloptions(reloptions, validate,
 									  RELOPT_KIND_PARTITIONED);
+		case RELKIND_SEQUENCE:
+			return sequence_reloptions(reloptions, validate);
 		default:
 			/* other relkinds are not supported */
 			return NULL;

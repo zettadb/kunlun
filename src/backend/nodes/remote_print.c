@@ -20,7 +20,9 @@
 #include "pgtime.h"
 #include "miscadmin.h"
 #include "access/printtup.h"
+#include "catalog/heap.h"
 #include "catalog/pg_type.h"
+#include "executor/spi.h"
 #include "lib/stringinfo.h"
 #include "nodes/print.h"
 #include "nodes/nodeFuncs.h"
@@ -29,10 +31,12 @@
 #include "utils/lsyscache.h"
 #include "utils/builtins.h"
 #include "access/remotetup.h"
+#include "commands/sequence.h"
 
 static bool mysql_has_func(const char *fn);
-static int SQLValueFuncName(SQLValueFunction *svfo, StringInfo str);
+static int SQLValueFuncValue(SQLValueFunction *svfo, StringInfo str);
 static int append_expr_list(StringInfo str, List *l, RemotePrintExprContext *rpec);
+static int eval_nextval_expr(StringInfo str, NextValueExpr *nve);
 
 #undef APPEND_CHAR
 #undef APPEND_EXPR
@@ -400,12 +404,23 @@ static inline bool mysql_has_func(const char *fn)
 	return pos != NULL;
 }
 
+inline static bool type_is_array_category(Oid typid)
+{
+	char typcat;
+	bool preferred;
+	get_type_category_preferred(typid, &typcat, &preferred);
+	return typcat == TYPCATEGORY_ARRAY;
+}
+
 /*
  * See if a type is one of the string types.
  * */
 inline static bool is_str_type(Oid typid)
 {
-	const static Oid strtypids[] = {18, 25, 1002, 1009, 1014, 1015, 1042, 1043, 1263, 2275};
+	const static Oid strtypids[] = //{18, 25, 1002, 1009, 1014, 1015, 1042, 1043, 1263, 2275};
+	{CHAROID, TEXTOID, CHARARRAYOID, NAMEARRAYOID, TEXTARRAYOID, BPCHARARRAYOID,
+	 VARCHARARRAYOID, CSTRINGARRAYOID, BPCHAROID, VARCHAROID, CSTRINGOID};
+	// BPCHAROID, VARCHAROID, CSTRINGOID, CHAROID, TEXTOID
 	for (int i = 0; i < sizeof(strtypids)/sizeof(Oid); i++)
 		if (typid == strtypids[i])
 			return true;
@@ -433,9 +448,6 @@ static int output_const_type_value(StringInfo str, bool isnull, Oid type,
 		return nw1;
 	}
 
-	if (format_type_remote(type) == NULL)
-		return -2;
-
 	Oid			typoutput;
 	bool		typIsVarlena;
 	char	   *outputstr = NULL;
@@ -448,8 +460,8 @@ static int output_const_type_value(StringInfo str, bool isnull, Oid type,
 	 * them after done.
 	 * */
 	pg_tz *gmt_tz = pg_tzset("GMT"), *origtz = NULL;
+
 	int orig_datestyle = -1, orig_dateorder = -1, orig_intvstyle = -1;
-	if (orig_datestyle == -1 && is_date_time_type(type))
 	{
 		orig_datestyle = DateStyle;
 		orig_dateorder = DateOrder;
@@ -463,8 +475,37 @@ static int output_const_type_value(StringInfo str, bool isnull, Oid type,
 	}
 	
 	outputstr = OidOutputFunctionCall(typoutput, value);
-	
-	if (orig_datestyle != -1)
+	if (format_type_remote(type) == NULL)
+	{
+		if (type_is_array_category(type))
+		{
+			/*
+			  pg uses an array to store the const value list used in exprs like IN.
+			  Only allow 1-D array, replace the {} with () because mysql
+			  only accept 1-D () list.
+			  For now such an array constant is always used only for a
+			  'col IN(exprlist)' expression. But in future we may do more, as
+			  detailed in the handler for ScalarArrayOpExpr in snprint_expr.
+			*/
+			char *p = outputstr, *q = NULL;
+			if ((p = strchr(p, '{')))
+			{
+				q = p;
+				if ((p = strchr(p + 1, '{')))
+					ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+							errmsg("Only 1-D array constant is supported in Kunlun-db.")));
+				p = q;
+				if ((p = strchr(p + 1, '}')) == NULL)
+					ereport(ERROR, (errcode(ERRCODE_DATA_EXCEPTION),
+							errmsg("Invalid array constant: %s, unmatchcing brackets.", outputstr)));
+				*p = ')';
+				*q = '(';
+			}
+			else
+				ereport(ERROR, (errcode(ERRCODE_DATA_EXCEPTION),
+						errmsg("Invalid array constant: %s, brackets not found.", outputstr)));
+		}
+	}
 	{
 		DateStyle = orig_datestyle;
 		DateOrder = orig_dateorder;
@@ -472,16 +513,16 @@ static int output_const_type_value(StringInfo str, bool isnull, Oid type,
 		session_timezone = origtz;
 	}
 	outputstr = pg_to_mysql_const(type, outputstr);
-	const bool ics = const_output_needs_quote(type);
+	const int ics = const_output_needs_quote(type);
 	/*
 	 * In pg str const always wrapped in single quotes('), if there were '
 	 * in the string they must have been escaped otherwise lexer already
 	 * errored out.
 	 * */
-	if (ics)
+	if (ics == 1)
 		APPEND_CHAR('\'');
 	APPEND_STR(outputstr);
-	if (ics)
+	if (ics == 1)
 		APPEND_CHAR('\'');
 	pfree(outputstr);
 
@@ -514,6 +555,13 @@ const char *get_var_attname(const Var *var, const List *rtable)
 					   (int) var->varno <= list_length(rtable));
 				rte = rt_fetch(var->varno, rtable);
 				relname = rte->eref->aliasname;
+				if (var->varattno < 0)
+				{
+					Form_pg_attribute sysatt = SystemAttributeDefinition(var->varattno, true);
+					ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+							errmsg("Kunlun-db: Can't access system attribute(%s) from remote tables.",
+								   sysatt ? sysatt->attname.data : "<unknown>")));
+				}
 				attname = get_rte_attribute_name(rte, var->varattno);
 			}
 			break;
@@ -546,6 +594,12 @@ snprint_expr(StringInfo str, const Expr *expr, RemotePrintExprContext *rpec)
 	{
 		return 0;
 	}
+
+	/*
+	  Normally an expr will be serialized into one expr here, except a few
+	  like RowExpr as shown below.
+	*/
+	rpec->num_vals = 1;
 
 	if (IsA(expr, Var))
 	{
@@ -877,7 +931,7 @@ op_expr_done:
 	else if (IsA(expr, SQLValueFunction))
 	{
 		SQLValueFunction *svf  = (SQLValueFunction *)expr;
-		if ((nw1 = SQLValueFuncName(svf, str)) < 0)
+		if ((nw1 = SQLValueFuncValue(svf, str)) < 0)
 			return nw1;
 		nw += nw1;
 	}
@@ -960,15 +1014,59 @@ op_expr_done:
 	{
 		ScalarArrayOpExpr *scoe = (ScalarArrayOpExpr *)expr;
 		const char *opname = get_opname(scoe->opno);
+		APPEND_EXPR(linitial(scoe->args));
+
+		/*
 		APPEND_STR(opname);
 		if (scoe->useOr)
-			APPEND_STR(" ANY(");
+			APPEND_STR(" ANY");
 		else
-			APPEND_STR(" ALL(");
+			APPEND_STR(" ALL");
+		*/
+
+		/*
+		  'col IN (expr1, expr2, ..., exprN)' is valid SQL expr, but
+		  'col comp-opr ANY(expr1, expr2, ..., exprN)'
+		  isn't, for both mysql and pg.
+
+		  For mysql-8.0.19 and newer, we can convert it to 
+		  'col comp-opr ANY(VALUES ROW(expr1), ROW(expr2),..., ROW(exprN))',
+		  especially the 'exprN' here can be a list, such as '1,2,3', to
+		  do a 'row subquery' as in mysql's terms, so we can accept 1-D or 2D
+		  array here when we upgrade to newer mysql.
+		  but for current kunlun-storage(based on mysql-8.0.18), we have to
+		  reject such exprs so we only send 'col IN(expr list)' grammar.
+
+		  pg supports 'col comp-opr ANY(array-constructor)' grammar so
+		  that ' a > ANY(ARRAY[1,2,3])' is valid for pg but this is not
+		  standard SQL and this is how we would recv such an unsupported expr
+		  here because if the subquery is an select, pg will do semijoin.
+		*/
+		if (!(scoe->useOr && strcmp(opname, "=") == 0))
+			return -2;
+
+		APPEND_STR(" IN");
+		rpec->skip_n = 1;
 		if ((nw1 = append_expr_list(str, scoe->args, rpec)) < 0)
+		{
+			rpec->skip_n = 0;
+			return nw1;
+		}
+		rpec->skip_n = 0;
+		nw += nw1;
+	}
+	else if (IsA(expr, NextValueExpr))
+	{
+		NextValueExpr *nve = (NextValueExpr *)expr;
+		nw += eval_nextval_expr(str, nve);
+	}
+	else if (IsA(expr, RowExpr))
+	{
+		RowExpr *rowexpr = (RowExpr *)expr;
+		if ((nw1 = append_expr_list(str, rowexpr->args, rpec)) < 0)
 			return nw1;
 		nw += nw1;
-		APPEND_CHAR(')');
+		rpec->num_vals = list_length(rowexpr->args);
 	}
 	else
 	{
@@ -980,70 +1078,138 @@ end:
 }
 
 #define CONST_STR_LEN(conststr) conststr,(sizeof(conststr)-1)
-static int SQLValueFuncName(SQLValueFunction *svfo, StringInfo str)
+static int SQLValueFuncValue(SQLValueFunction *svfo, StringInfo str_res)
 {
 	int nw = -1;
+	static char sql_func[64];
+	bool is_datetime = false;
 
 	switch (svfo->op)
 	{
 	case SVFOP_CURRENT_DATE:
-		nw = appendBinaryStringInfo2(str, CONST_STR_LEN(" CURRENT_DATE "));
+		nw = snprintf(sql_func, sizeof(sql_func), "SELECT CURRENT_DATE ");
+		is_datetime = true;
 		break;
 	case SVFOP_CURRENT_TIME:
-		nw = appendBinaryStringInfo2(str, CONST_STR_LEN(" CURRENT_TIME "));
+		nw = snprintf(sql_func, sizeof(sql_func), "SELECT CURRENT_TIME ");
+		is_datetime = true;
 		break;
 	case SVFOP_CURRENT_TIME_N:
-		nw = appendStringInfo(str, " CURRENT_TIME(%d) ", svfo->typmod);
+		nw = snprintf(sql_func, sizeof(sql_func), "SELECT CURRENT_TIME(%d) ",
+			svfo->typmod);
+		is_datetime = true;
 		break;
 	case SVFOP_CURRENT_TIMESTAMP:
-		nw = appendBinaryStringInfo2(str, CONST_STR_LEN(" CURRENT_TIMESTAMP "));
+		nw = snprintf(sql_func, sizeof(sql_func), "SELECT CURRENT_TIMESTAMP ");
+		is_datetime = true;
 		break;
 	case SVFOP_CURRENT_TIMESTAMP_N:
-		nw = appendStringInfo(str, " CURRENT_TIMESTAMP(%d) ", svfo->typmod);
+		nw = snprintf(sql_func, sizeof(sql_func), "SELECT CURRENT_TIMESTAMP(%d) ",
+			svfo->typmod);
+		is_datetime = true;
 		break;
 	case SVFOP_LOCALTIME:
-		nw = appendBinaryStringInfo2(str, CONST_STR_LEN(" LOCALTIME "));
+		nw = snprintf(sql_func, sizeof(sql_func), "SELECT LOCALTIME ");
+		is_datetime = true;
 		break;
 	case SVFOP_LOCALTIME_N:
-		nw = appendStringInfo(str, " LOCALTIME(%d) ", svfo->typmod);
+		nw = snprintf(sql_func, sizeof(sql_func), "SELECT LOCALTIME(%d) ",
+			svfo->typmod);
+		is_datetime = true;
 		break;
 	case SVFOP_LOCALTIMESTAMP:
-		nw = appendBinaryStringInfo2(str, CONST_STR_LEN(" LOCALTIMESTAMP "));
+		nw = snprintf(sql_func, sizeof(sql_func), "SELECT LOCALTIMESTAMP ");
+		is_datetime = true;
 		break;
 	case SVFOP_LOCALTIMESTAMP_N:
-		nw = appendStringInfo(str, " LOCALTIMESTAMP(%d) ", svfo->typmod);
+		nw = snprintf(sql_func, sizeof(sql_func), "SELECT LOCALTIMESTAMP(%d) ",
+			svfo->typmod);
+		is_datetime = true;
 		break;
 	case SVFOP_CURRENT_ROLE:
-		nw = appendBinaryStringInfo2(str, CONST_STR_LEN(" CURRENT_ROLE "));
+		nw = snprintf(sql_func, sizeof(sql_func), "SELECT CURRENT_ROLE ");
 		break;
 	case SVFOP_CURRENT_USER:
-		nw = appendBinaryStringInfo2(str, CONST_STR_LEN(" CURRENT_USER "));
+		nw = snprintf(sql_func, sizeof(sql_func), "SELECT CURRENT_USER ");
 		break;
 	case SVFOP_USER:
-		nw = appendBinaryStringInfo2(str, CONST_STR_LEN(" USER "));
+		nw = snprintf(sql_func, sizeof(sql_func), "SELECT USER ");
 		break;
 	case SVFOP_SESSION_USER:
-		nw = appendBinaryStringInfo2(str, CONST_STR_LEN(" SESSION_USER "));
+		nw = snprintf(sql_func, sizeof(sql_func), "SELECT SESSION_USER ");
 		break;
 	case SVFOP_CURRENT_CATALOG:
-		nw = appendBinaryStringInfo2(str, CONST_STR_LEN(" CURRENT_CATALOG "));
+		nw = snprintf(sql_func, sizeof(sql_func), "SELECT CURRENT_CATALOG ");
 		break;
 	case SVFOP_CURRENT_SCHEMA:
-		nw = appendBinaryStringInfo2(str, CONST_STR_LEN(" CURRENT_SCHEMA "));
+		nw = snprintf(sql_func, sizeof(sql_func), "SELECT CURRENT_SCHEMA ");
 		break;
 	default:
 		nw = -2;
 		break;
 	}
+
+	if (nw >= sizeof(sql_func))
+	{
+		nw = -2;
+		goto end;
+	}
+
+	// execute the sql function and return the value.
+	SPI_connect();
+
+	// always use standard date/time/ts values in UTC+0.
+	pg_tz *gmt_tz = pg_tzset("GMT"), *origtz = NULL;
+	int orig_datestyle = -1, orig_dateorder = -1, orig_intvstyle = -1;
+	if (is_datetime)
+	{
+		orig_datestyle = DateStyle;
+		orig_dateorder = DateOrder;
+		origtz = session_timezone;
+		orig_intvstyle = IntervalStyle;
+	
+		DateStyle = USE_ISO_DATES;
+		DateOrder = DATEORDER_YMD;
+		IntervalStyle = INTSTYLE_ISO_8601;
+		session_timezone = gmt_tz;
+	}
+	
+	int ret = SPI_execute(sql_func, true, 0);
+    if (ret != SPI_OK_SELECT)
+	{
+		SPI_finish();
+        elog(ERROR, "SPI_execute failed for function %s: error code %d", sql_func, ret);
+	}
+
+    if (SPI_processed != 1)
+	{
+		SPI_finish();
+        elog(ERROR, "SPI_execute returned %lu rows executing function %s, but 1 row is expected.",
+			 SPI_processed, sql_func);
+	}
+
+	char *val = SPI_getvalue(SPI_tuptable->vals[0], SPI_tuptable->tupdesc, 1);
+	nw = appendStringInfo(str_res, "'%s'", val);
+
+	if (orig_datestyle != -1)
+	{
+		DateStyle = orig_datestyle;
+		DateOrder = orig_dateorder;
+		IntervalStyle = orig_intvstyle;
+		session_timezone = origtz;
+	}
+	SPI_finish();
+end:
 	return nw;
-};
+}
 
 static int append_expr_list(StringInfo str, List *l, RemotePrintExprContext *rpec)
 {
-	int nw = 0, nw1 = 0;
+	int nw = 0, nw1 = 0, cnt = 0;
 	ListCell *lc;
 	foreach(lc, l)
 	{
+		if (cnt++ < rpec->skip_n) continue;
 		APPEND_EXPR(lfirst(lc));
 		if (lnext(lc))
 		{
@@ -1052,3 +1218,27 @@ static int append_expr_list(StringInfo str, List *l, RemotePrintExprContext *rpe
 	}
 	return nw;
 }
+
+static int eval_nextval_expr(StringInfo str, NextValueExpr *nve)
+{
+    int64       newval = nextval_internal(nve->seqid, false);
+	int nw = 0, nw1 = 0;
+
+    switch (nve->typeId)
+    {    
+        case INT2OID:
+            APPEND_STR_FMT("%d", (int16) newval);
+			break;
+        case INT4OID:
+            APPEND_STR_FMT("%d", (int32) newval);
+            break;
+        case INT8OID:
+            APPEND_STR_FMT("%ld", (int64) newval);
+            break;
+        default:
+            elog(ERROR, "unsupported sequence type %u", nve->typeId);
+    }
+
+	return nw;
+}
+

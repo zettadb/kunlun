@@ -1,14 +1,15 @@
 #! /bin/bash
 # configure and build Kunlun computing node program.
 # If you don't need to configure it, simply do make install.
-# usage: build.sh <build-type> <prefix> | install
+# usage: build.sh <build-type> <prefix>  Then build.sh install
 # build-type: Release or Debug
 # e.g. bash build.sh Release /home/dzw/mysql_installs/postgresql-11.5-rel
+# then (probably run as root): bash build.sh install
 export SRCROOT=`pwd`
 action="$1"
 
 usage(){
-	echo "Usage: build.sh <build-type> <prefix> | install"
+	echo "Usage: build.sh <build-type> <prefix> Then build.sh install"
 	echo "	build-type: Debug | Release"
 	exit 1
 }
@@ -45,7 +46,8 @@ build() {
 	else #defensive
 		usage
 	fi
-	make
+	cd $SRCROOT/src && make clean 
+	cd $SRCROOT && make
 }
 
 install() {

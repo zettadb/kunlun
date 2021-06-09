@@ -69,7 +69,7 @@ INSERT INTO serialTest1 VALUES ('foo');
 INSERT INTO serialTest1 VALUES ('bar');
 INSERT INTO serialTest1 VALUES ('force', 100);
 INSERT INTO serialTest1 VALUES ('wrong', NULL);
-ERROR:  MySQL storage node (3, 7) returned error: 1048, Column 'f2' cannot be null.
+ERROR:  Kunlun-db: MySQL storage node (2, 6) returned error: 1048, Column 'f2' cannot be null.
 SELECT * FROM serialTest1;
   f1   | f2  
 -------+-----
@@ -383,9 +383,9 @@ SELECT nextval('sequence_test2');
 (1 row)
 
 SELECT nextval('sequence_test2');
-ERROR:  nextval: consumed all values of sequence "sequence_test2" 
+ERROR:  Kunlun-db: nextval(): consumed all values of sequence "sequence_test2" 
 SELECT nextval('sequence_test2');  -- error
-ERROR:  nextval: consumed all values of sequence "sequence_test2" 
+ERROR:  Kunlun-db: nextval(): consumed all values of sequence "sequence_test2" 
 ALTER SEQUENCE sequence_test2 RESTART WITH -24 START WITH -24
   INCREMENT BY -4 MINVALUE -36 MAXVALUE -5 CYCLE;
 SELECT nextval('sequence_test2');
@@ -439,9 +439,9 @@ SELECT nextval('sequence_test2');
 (1 row)
 
 SELECT nextval('sequence_test2');
-ERROR:  nextval: consumed all values of sequence "sequence_test2" 
+ERROR:  Kunlun-db: nextval(): consumed all values of sequence "sequence_test2" 
 SELECT nextval('sequence_test2');  -- error
-ERROR:  nextval: consumed all values of sequence "sequence_test2" 
+ERROR:  Kunlun-db: nextval(): consumed all values of sequence "sequence_test2" 
 -- reset
 ALTER SEQUENCE IF EXISTS sequence_test2 RESTART WITH 32 START WITH 32
   INCREMENT BY 4 MAXVALUE 36 MINVALUE 5 CYCLE;
@@ -489,19 +489,19 @@ WHERE sequencename ~ ANY(ARRAY['sequence_test', 'serialtest'])
   ORDER BY sequencename ASC;
  schemaname |    sequencename    | start_value |      min_value       |      max_value      | increment_by | cycle | cache_size |   last_value    
 ------------+--------------------+-------------+----------------------+---------------------+--------------+-------+------------+-----------------
- public     | sequence_test10    |           1 |               -20000 |               32767 |            1 | f     |          1 | 140712578777360
- public     | sequence_test11    |           1 |                    1 |          2147483647 |            1 | f     |          1 | 140712578777360
- public     | sequence_test12    |          -1 |          -2147483648 |                  -1 |           -1 | f     |          1 | 140712578777360
- public     | sequence_test13    |      -32768 |          -2147483648 |          2147483647 |            1 | f     |          1 | 140712578777360
- public     | sequence_test14    |       32767 |          -2147483648 |          2147483647 |           -1 | f     |          1 | 140712578777360
+ public     | sequence_test10    |           1 |               -20000 |               32767 |            1 | f     |          1 | 140731013337280
+ public     | sequence_test11    |           1 |                    1 |          2147483647 |            1 | f     |          1 | 140731013337280
+ public     | sequence_test12    |          -1 |          -2147483648 |                  -1 |           -1 | f     |          1 | 140731013337280
+ public     | sequence_test13    |      -32768 |          -2147483648 |          2147483647 |            1 | f     |          1 | 140731013337280
+ public     | sequence_test14    |       32767 |          -2147483648 |          2147483647 |           -1 | f     |          1 | 140731013337280
  public     | sequence_test2     |          32 |                    5 |                  36 |            4 | t     |          1 |              33
- public     | sequence_test3     |           1 |                    1 | 9223372036854775807 |            1 | f     |          1 | 140712578777360
+ public     | sequence_test3     |           1 |                    1 | 9223372036854775807 |            1 | f     |          1 | 140731013337280
  public     | sequence_test4     |          -1 | -9223372036854775808 |                  -1 |           -1 | f     |          1 |             -10
- public     | sequence_test5     |           1 |                    1 |               32767 |            1 | f     |          1 | 140712578777360
- public     | sequence_test6     |           1 |                    1 |               32767 |            1 | f     |          1 | 140712578777360
- public     | sequence_test7     |           1 |                    1 | 9223372036854775807 |            1 | f     |          1 | 140712578777360
- public     | sequence_test8     |           1 |                    1 |               20000 |            1 | f     |          1 | 140712578777360
- public     | sequence_test9     |          -1 |               -32768 |                  -1 |           -1 | f     |          1 | 140712578777360
+ public     | sequence_test5     |           1 |                    1 |               32767 |            1 | f     |          1 | 140731013337280
+ public     | sequence_test6     |           1 |                    1 |               32767 |            1 | f     |          1 | 140731013337280
+ public     | sequence_test7     |           1 |                    1 | 9223372036854775807 |            1 | f     |          1 | 140731013337280
+ public     | sequence_test8     |           1 |                    1 |               20000 |            1 | f     |          1 | 140731013337280
+ public     | sequence_test9     |          -1 |               -32768 |                  -1 |           -1 | f     |          1 | 140731013337280
  public     | serialtest1_f2_foo |           1 |                    1 |          2147483647 |            1 | f     |          1 |              10
  public     | serialtest2_f2_seq |           1 |                    1 |          2147483647 |            1 | f     |          1 |              10
  public     | serialtest2_f3_seq |           1 |                    1 |               32767 |            1 | f     |          1 |              10
@@ -608,7 +608,7 @@ ROLLBACK;
 BEGIN;
 SET LOCAL SESSION AUTHORIZATION regress_seq_user;
 CREATE SEQUENCE seq3;
-ERROR:  Can not execute DDL statements in an explicit transaction in kunlun.
+ERROR:  Can not execute DDL statements in an explicit transaction in kunlun-db.
 REVOKE ALL ON seq3 FROM regress_seq_user;
 ERROR:  current transaction is aborted, commands ignored until end of transaction block
 GRANT SELECT ON seq3 TO regress_seq_user;
@@ -619,7 +619,7 @@ ROLLBACK;
 BEGIN;
 SET LOCAL SESSION AUTHORIZATION regress_seq_user;
 CREATE SEQUENCE seq3;
-ERROR:  Can not execute DDL statements in an explicit transaction in kunlun.
+ERROR:  Can not execute DDL statements in an explicit transaction in kunlun-db.
 REVOKE ALL ON seq3 FROM regress_seq_user;
 ERROR:  current transaction is aborted, commands ignored until end of transaction block
 GRANT UPDATE ON seq3 TO regress_seq_user;
@@ -630,7 +630,7 @@ ROLLBACK;
 BEGIN;
 SET LOCAL SESSION AUTHORIZATION regress_seq_user;
 CREATE SEQUENCE seq3;
-ERROR:  Can not execute DDL statements in an explicit transaction in kunlun.
+ERROR:  Can not execute DDL statements in an explicit transaction in kunlun-db.
 REVOKE ALL ON seq3 FROM regress_seq_user;
 ERROR:  current transaction is aborted, commands ignored until end of transaction block
 GRANT USAGE ON seq3 TO regress_seq_user;
@@ -642,7 +642,7 @@ ROLLBACK;
 BEGIN;
 SET LOCAL SESSION AUTHORIZATION regress_seq_user;
 CREATE SEQUENCE seq3;
-ERROR:  Can not execute DDL statements in an explicit transaction in kunlun.
+ERROR:  Can not execute DDL statements in an explicit transaction in kunlun-db.
 SELECT nextval('seq3');
 ERROR:  current transaction is aborted, commands ignored until end of transaction block
 REVOKE ALL ON seq3 FROM regress_seq_user;
@@ -655,7 +655,7 @@ ROLLBACK;
 BEGIN;
 SET LOCAL SESSION AUTHORIZATION regress_seq_user;
 CREATE SEQUENCE seq3;
-ERROR:  Can not execute DDL statements in an explicit transaction in kunlun.
+ERROR:  Can not execute DDL statements in an explicit transaction in kunlun-db.
 SELECT nextval('seq3');
 ERROR:  current transaction is aborted, commands ignored until end of transaction block
 REVOKE ALL ON seq3 FROM regress_seq_user;
@@ -668,7 +668,7 @@ ROLLBACK;
 BEGIN;
 SET LOCAL SESSION AUTHORIZATION regress_seq_user;
 CREATE SEQUENCE seq3;
-ERROR:  Can not execute DDL statements in an explicit transaction in kunlun.
+ERROR:  Can not execute DDL statements in an explicit transaction in kunlun-db.
 SELECT nextval('seq3');
 ERROR:  current transaction is aborted, commands ignored until end of transaction block
 REVOKE ALL ON seq3 FROM regress_seq_user;
@@ -682,7 +682,7 @@ ROLLBACK;
 BEGIN;
 SET LOCAL SESSION AUTHORIZATION regress_seq_user;
 CREATE SEQUENCE seq3;
-ERROR:  Can not execute DDL statements in an explicit transaction in kunlun.
+ERROR:  Can not execute DDL statements in an explicit transaction in kunlun-db.
 SELECT nextval('seq3');
 ERROR:  current transaction is aborted, commands ignored until end of transaction block
 REVOKE ALL ON seq3 FROM regress_seq_user;
@@ -695,7 +695,7 @@ ROLLBACK;
 BEGIN;
 SET LOCAL SESSION AUTHORIZATION regress_seq_user;
 CREATE SEQUENCE seq3;
-ERROR:  Can not execute DDL statements in an explicit transaction in kunlun.
+ERROR:  Can not execute DDL statements in an explicit transaction in kunlun-db.
 SELECT nextval('seq3');
 ERROR:  current transaction is aborted, commands ignored until end of transaction block
 REVOKE ALL ON seq3 FROM regress_seq_user;
@@ -708,7 +708,7 @@ ROLLBACK;
 BEGIN;
 SET LOCAL SESSION AUTHORIZATION regress_seq_user;
 CREATE SEQUENCE seq3;
-ERROR:  Can not execute DDL statements in an explicit transaction in kunlun.
+ERROR:  Can not execute DDL statements in an explicit transaction in kunlun-db.
 SELECT nextval('seq3');
 ERROR:  current transaction is aborted, commands ignored until end of transaction block
 REVOKE ALL ON seq3 FROM regress_seq_user;
@@ -722,7 +722,7 @@ ROLLBACK;
 BEGIN;
 SET LOCAL SESSION AUTHORIZATION regress_seq_user;
 CREATE SEQUENCE seq3;
-ERROR:  Can not execute DDL statements in an explicit transaction in kunlun.
+ERROR:  Can not execute DDL statements in an explicit transaction in kunlun-db.
 REVOKE ALL ON seq3 FROM regress_seq_user;
 ERROR:  current transaction is aborted, commands ignored until end of transaction block
 SAVEPOINT save;
@@ -746,7 +746,7 @@ ERROR:  must be owner of sequence sequence_test2
 ROLLBACK;
 -- Sequences should get wiped out as well:
 DROP TABLE serialTest1, serialTest2;
-ERROR:  Can not drop more than one table in a statement, drop tables one by one.
+ERROR:  Can not drop more than one table in a statement in kunlun-db, drop tables one by one.
 -- Make sure sequences are gone:
 SELECT * FROM information_schema.sequences WHERE sequence_name IN
   ('sequence_test2', 'serialtest2_f2_seq', 'serialtest2_f3_seq',
@@ -845,6 +845,8 @@ select seq35.currval;
 drop sequence seq35;
 drop sequence seq34;
 -- seq value fetch
+drop table if exists t6 cascade;
+NOTICE:  table "t6" does not exist, skipping
 create table t6(a int auto_increment primary key, b serial, c int generated by default as identity,d int);
 insert into t6(d) values(11),(22),(33);
 insert into t6(d) values(11),(22),(33);
@@ -887,6 +889,8 @@ select currval('t6_c_seq');
 
 create sequence seq7;
 create sequence seq6;
+drop table if exists t55 cascade;
+NOTICE:  table "t55" does not exist, skipping
 create table t55(a serial primary key, b int, c int);
 create sequence seq56 owned by t55.b;
 insert into t55(c) values(1),(2),(3);
@@ -898,6 +902,7 @@ select*from t55;
  3 |   | 3
 (3 rows)
 
+drop table if exists t7 cascade;
 create table t7(a int auto_increment primary key, b serial, c int generated by default as identity,d int default nextval('seq7'), e int);
 insert into t7 (e) values(11),(22),(33) returning *;
  a | b | c | d | e  
@@ -1006,3 +1011,5 @@ drop sequence sequence_test12;
 drop sequence sequence_test13;
 drop sequence sequence_test14;
 drop sequence sequence_test3;
+drop sequence sequence_test4;
+drop sequence sequence_test2;

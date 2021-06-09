@@ -20,9 +20,11 @@
 
 #include "access/heapam.h"
 #include "access/htup_details.h"
+#include "access/remotetup.h"
 #include "access/sysattr.h"
 #include "access/xact.h"
 #include "access/xlog.h"
+#include "catalog/catalog.h"
 #include "catalog/dependency.h"
 #include "catalog/pg_authid.h"
 #include "catalog/pg_type.h"
@@ -51,7 +53,6 @@
 #include "utils/rel.h"
 #include "utils/rls.h"
 #include "utils/snapmgr.h"
-
 
 #define ISOCTAL(c) (((c) >= '0') && ((c) <= '7'))
 #define OCTVALUE(c) ((c) - '0')
@@ -873,7 +874,11 @@ DoCopy(ParseState *pstate, const CopyStmt *stmt,
 		 * If RLS is not enabled for this, then just fall through to the
 		 * normal non-filtering relation handling.
 		 */
-		if (check_enable_rls(rte->relid, InvalidOid, false) == RLS_ENABLED)
+		bool rls_enabled = false;
+
+		if ((!is_from && (IsRemoteRelation(rel) || IsRemoteRelationParent(rel))) ||
+			(rls_enabled = (check_enable_rls(rte->relid, InvalidOid, false) ==
+			RLS_ENABLED)))
 		{
 			SelectStmt *select;
 			ColumnRef  *cr;
@@ -881,7 +886,7 @@ DoCopy(ParseState *pstate, const CopyStmt *stmt,
 			RangeVar   *from;
 			List	   *targetList = NIL;
 
-			if (is_from)
+			if (rls_enabled && is_from)
 				ereport(ERROR,
 						(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
 						 errmsg("COPY FROM not supported with row-level security"),
@@ -2580,7 +2585,8 @@ CopyFrom(CopyState cstate)
 	 * processed and prepared for insertion are not there.  We also can't do
 	 * it if the table is foreign or partitioned.
 	 */
-	if ((resultRelInfo->ri_TrigDesc != NULL &&
+	if (IsRemoteRelation(resultRelInfo->ri_RelationDesc) ||
+		(resultRelInfo->ri_TrigDesc != NULL &&
 		 (resultRelInfo->ri_TrigDesc->trig_insert_before_row ||
 		  resultRelInfo->ri_TrigDesc->trig_insert_instead_row)) ||
 		resultRelInfo->ri_FdwRoutine != NULL ||
@@ -2796,6 +2802,11 @@ CopyFrom(CopyState cstate)
 					  resultRelInfo->ri_TrigDesc->trig_insert_before_row)))
 					ExecPartitionCheck(resultRelInfo, slot, estate, true);
 
+				// dzw: early setting to useHeapMultiInsert isn't effective
+				// for partitioned tables.
+				if (IsRemoteRelation(resultRelInfo->ri_RelationDesc))
+					useHeapMultiInsert = false;
+
 				if (useHeapMultiInsert)
 				{
 					/* Add this tuple to the tuple buffer */
@@ -2846,12 +2857,17 @@ CopyFrom(CopyState cstate)
 						 */
 						tuple->t_tableOid = RelationGetRelid(resultRelInfo->ri_RelationDesc);
 					}
+					else if (IsRemoteRelation(resultRelInfo->ri_RelationDesc))
+					{
+						cache_remotetup(slot, resultRelInfo);
+					}
 					else
 						heap_insert(resultRelInfo->ri_RelationDesc, tuple,
 									mycid, hi_options, bistate);
 
-					/* And create index entries for it */
-					if (resultRelInfo->ri_NumIndices > 0)
+					/* And create index entries for it unless it's remote. */
+					if (resultRelInfo->ri_NumIndices > 0 &&
+						!IsRemoteRelation(resultRelInfo->ri_RelationDesc))
 						recheckIndexes = ExecInsertIndexTuples(slot,
 															   &(tuple->t_self),
 															   estate,
@@ -2890,6 +2906,31 @@ next_tuple:
 							resultRelInfo, myslot, bistate,
 							nBufferedTuples, bufferedTuples,
 							firstBufferedLineNo);
+
+	// dzw: end remote insert
+	bool remote_inserting = false;
+	if (cstate->partition_tuple_routing)
+	{
+		saved_resultRelInfo = resultRelInfo;
+		PartitionTupleRouting *proute = cstate->partition_tuple_routing;
+
+		for (int i = 0; i < proute->num_partitions; i++)
+		{
+			resultRelInfo = proute->partitions[i];
+			if (IsRemoteRelation(resultRelInfo->ri_RelationDesc))
+			{
+				remote_inserting = true;
+				end_remote_insert_stmt(resultRelInfo->ri_RemotetupCache, true);
+			}
+		}
+
+		resultRelInfo = saved_resultRelInfo;
+	}
+	else if (IsRemoteRelation(resultRelInfo->ri_RelationDesc))
+	{
+		remote_inserting = true;
+		end_remote_insert_stmt(resultRelInfo->ri_RemotetupCache, true);
+	}
 
 	/* Done, clean up */
 	error_context_stack = errcallback.previous;
@@ -2931,13 +2972,16 @@ next_tuple:
 	/* Close any trigger target relations */
 	ExecCleanUpTriggerState(estate);
 
+	// dzw: do this last because all above chores take a little while.
+	if (remote_inserting) send_multi_stmts_to_multi();
+
 	FreeExecutorState(estate);
 
 	/*
 	 * If we skipped writing WAL, then we need to sync the heap (but not
 	 * indexes since those use WAL anyway)
 	 */
-	if (hi_options & HEAP_INSERT_SKIP_WAL)
+	if ((hi_options & HEAP_INSERT_SKIP_WAL) && !remote_inserting)
 		heap_sync(cstate->rel);
 
 	return processed;
@@ -3588,7 +3632,6 @@ void
 EndCopyFrom(CopyState cstate)
 {
 	/* No COPY FROM related resources except memory. */
-
 	EndCopy(cstate);
 }
 

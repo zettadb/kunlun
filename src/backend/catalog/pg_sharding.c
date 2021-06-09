@@ -443,7 +443,9 @@ static Shard_t* FindCachedShardInternal(const Oid shardid, bool cache_nodes)
 
 	systable_endscan(scan);
 	heap_close(shardrel, RowExclusiveLock);
-	Assert(nfound == 1 && pshard != NULL);
+	if (!(nfound == 1 && pshard != NULL))
+		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
+				 errmsg("Kunlun-db: Shard (%u) not found.", shardid)));
 	if (pshard->master_node_id == InvalidOid)
 		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
 				 errmsg("Kunlun-db: Shard (%s, %u)'s primary node unknown.",

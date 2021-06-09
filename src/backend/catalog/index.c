@@ -1221,7 +1221,7 @@ index_create(Relation heapRelation,
 					true);
 	}
 
-	if (IsRemoteRelation(heapRelation))
+	if (!(flags & INDEX_CREATE_SKIP_REMOTE) && IsRemoteRelation(heapRelation))
 	{
 		/*
 		 * dzw : DefineIndex() could be called by 'create table'

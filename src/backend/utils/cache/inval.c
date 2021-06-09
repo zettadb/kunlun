@@ -122,7 +122,6 @@
 #include "utils/snapmgr.h"
 #include "utils/syscache.h"
 
-
 /*
  * To minimize palloc traffic, we keep pending requests in successively-
  * larger chunks (a slightly more sophisticated version of an expansible
@@ -474,7 +473,6 @@ AddShardingInvalidationMessage(InvalidationListHeader *hdr,
 
 	AddInvalidationMessage(&hdr->rclist, &msg);
 }
-
 /*
  * Append one list of invalidation messages to another, resetting
  * the source list to empty.
@@ -585,7 +583,7 @@ RegisterSnapshotInvalidation(Oid dbId, Oid relId)
 	AddSnapshotInvalidationMessage(&transInvalInfo->CurrentCmdInvalidMsgs,
 								   dbId, relId);
 }
- 
+
 /*
  * dzw:
  */
@@ -1308,7 +1306,6 @@ CacheInvalidateHeapTuple(Relation relation,
 	}
 	else
 		return;
-
 	/*
 	 * Yes.  We need to register a relcache invalidation event.
 	 */
@@ -1491,7 +1488,6 @@ CacheInvalidateRelmap(Oid databaseId)
 
 	SendSharedInvalidMessages(&msg, 1);
 }
-
 
 /*
  * CacheRegisterSyscacheCallback

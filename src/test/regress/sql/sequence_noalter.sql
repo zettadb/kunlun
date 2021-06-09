@@ -1,7 +1,8 @@
 --
 -- CREATE SEQUENCE
 --
-
+drop table if exists serialTest1 cascade;
+drop table if exists serialTest2 cascade;
 -- various error cases
 CREATE UNLOGGED SEQUENCE sequence_testx;
 CREATE SEQUENCE sequence_testx INCREMENT BY 0;
@@ -147,6 +148,8 @@ DROP SEQUENCE t1_f1_seq;
 DROP SEQUENCE myseq2;
 
 
+CREATE SEQUENCE sequence_test2 START WITH 32;
+CREATE SEQUENCE sequence_test4 INCREMENT BY -1;
 CREATE SEQUENCE sequence_test3;  -- not read from, to test is_called
 
 

@@ -25,6 +25,7 @@
 #include "miscadmin.h"
 #include "nodes/extensible.h"
 #include "nodes/plannodes.h"
+#include "optimizer/planremote.h"
 #include "nodes/relation.h"
 #include "utils/datum.h"
 #include "utils/rel.h"
@@ -129,6 +130,9 @@ CopyPlanFields(const Plan *from, Plan *newnode)
 	COPY_NODE_FIELD(initPlan);
 	COPY_BITMAPSET_FIELD(extParam);
 	COPY_BITMAPSET_FIELD(allParam);
+	newnode->shard_remotescan_refs = dupShardRemoteScanRefs(from->shard_remotescan_refs);
+	COPY_NODE_FIELD(qual_subplans);
+	COPY_NODE_FIELD(tl_subplans);
 }
 
 /*
@@ -3485,6 +3489,7 @@ _copyIndexStmt(const IndexStmt *from)
 	COPY_SCALAR_FIELD(transformed);
 	COPY_SCALAR_FIELD(concurrent);
 	COPY_SCALAR_FIELD(if_not_exists);
+	COPY_SCALAR_FIELD(skip_remote);
 
 	return newnode;
 }

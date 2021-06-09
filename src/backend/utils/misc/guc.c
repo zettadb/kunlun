@@ -139,6 +139,8 @@ extern bool enable_stacktrace;
 extern bool enable_coredump;
 extern int global_txn_commit_log_wait_max_secs;
 extern bool use_mysql_native_seq;
+extern int max_remote_insert_blocks;
+extern int str_key_part_len;
 
 #ifdef TRACE_SYNCSCAN
 extern bool trace_syncscan;
@@ -1871,15 +1873,6 @@ static struct config_bool ConfigureNamesBool[] =
 	},
 
 	{
-		{"enable_remote_relations", PGC_USERSET, DEVELOPER_OPTIONS,
-			gettext_noop("Whether to use remote db instance as table and index storage"),
-		},
-		&enable_remote_relations,
-		true,
-		NULL, NULL, NULL
-	},
-	
-	{
 		{"replaying_ddl_log", PGC_USERSET, DEVELOPER_OPTIONS,
 			gettext_noop("Do not generate or send remote DDL statements, to be enabled when replaying a DDL statement fetched from ddl-log."),
 		},
@@ -2407,7 +2400,7 @@ static struct config_int ConfigureNamesInt[] =
 			GUC_UNIT_MS
 		},
 		&IdleInTransactionSessionTimeout,
-		300000, 1, INT_MAX,
+		300000, 0, INT_MAX,
 		NULL, NULL, NULL
 	},
 
@@ -3299,6 +3292,23 @@ static struct config_int ConfigureNamesInt[] =
 		NULL, NULL, NULL
 	},
 
+	{
+		{"max_remote_insert_blocks", PGC_USERSET, DEVELOPER_OPTIONS,
+			gettext_noop("Max NO. of blocks ever allowed to be allocated to one session to insert rows."),
+		},
+		&max_remote_insert_blocks,
+		1024, 8, 1024*16,
+		NULL, NULL, NULL
+	},
+
+	{
+		{"str_key_part_len", PGC_USERSET, DEVELOPER_OPTIONS,
+			gettext_noop("String key-part length suffix used in DDL statements sent to storage shard."),
+		},
+		&str_key_part_len,
+		64, 1, 1024*32,
+		NULL, NULL, NULL
+	},
 	/* End-of-list marker */
 	{
 		{NULL, 0, 0, NULL, NULL}, NULL, 0, 0, 0, NULL, NULL, NULL

@@ -35,4 +35,8 @@ extern void init_type_input_info(TypeInputInfo **tii, TupleTableSlot *slot,
 	EState *estate);
 extern void release_shard_conn(RemoteScanState *node);
 
+extern void validate_column_reference(Var *colvar, Relation rel);
+extern int append_cols_for_whole_var(Relation rel, TupleDesc *typeInfo, int cur_resno);
+extern int add_unique_col_var(Relation rel, TupleDesc typeInfo, int cur_resno, TargetEntry *tle,
+	Var *colvar, bool set_tle_resname);
 #endif							/* NODEREMOTESCAN_H */

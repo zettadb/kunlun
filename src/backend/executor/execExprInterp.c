@@ -3868,7 +3868,26 @@ ExecEvalWholeRowVar(ExprState *state, ExprEvalStep *op, ExprContext *econtext)
 			for (i = 0; i < var_tupdesc->natts; i++)
 			{
 				Form_pg_attribute vattr = TupleDescAttr(var_tupdesc, i);
-				Form_pg_attribute sattr = TupleDescAttr(slot_tupdesc, i);
+				/*
+				  dzw: source tuples may be of different column order from
+				  source table def as specified by client user, and in
+				  RemoteScan we simply followed this order, so we here must
+				  match column names instead. Here we assume the data source
+				  really was built using the same table's tupledesc as the
+				  whole-row var.
+				*/
+				Form_pg_attribute sattr = NULL;
+				for (int j = 0; j < slot_tupdesc->natts; j++)
+				{
+					if (strcmp(slot_tupdesc->attrs[j].attname.data,
+							   vattr->attname.data) == 0)
+					{
+						sattr = TupleDescAttr(slot_tupdesc, j);
+						break;
+					}
+				}
+				// non-remote tables might not have valid attname set.
+				if (!sattr) sattr = TupleDescAttr(slot_tupdesc, i);
 
 				if (vattr->atttypid == sattr->atttypid)
 					continue;	/* no worries */

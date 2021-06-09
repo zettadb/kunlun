@@ -977,7 +977,6 @@ exec_simple_query(const char *query_string)
 	 * dzw: reset per-statement states.
 	 * */
 	ResetCommunicationHubStmt(true);
-	ResetRemoteDDLStmt();
 
 	/*
 	 * Switch to appropriate context for constructing parsetrees.
@@ -1226,6 +1225,8 @@ exec_simple_query(const char *query_string)
 	 */
 	finish_xact_command();
 
+	ResetRemoteDDLStmt();
+
 	/*
 	 * If there were no parsetrees, return EmptyQueryResponse message.
 	 */
@@ -1308,7 +1309,6 @@ exec_parse_message(const char *query_string,	/* string to execute */
 	  For non DDLs such states don't matter.
 	*/
 	init_curtxn_started_curcmd();
-	ResetRemoteDDLStmt();
 
 	/*
 	 * Start up a transaction command so we can run parse analysis etc. (Note
@@ -1532,6 +1532,8 @@ exec_parse_message(const char *query_string,	/* string to execute */
 		ShowUsage("PARSE MESSAGE STATISTICS");
 
 	debug_query_string = NULL;
+
+	ResetRemoteDDLStmt();
 }
 
 /*

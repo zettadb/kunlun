@@ -42,6 +42,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+extern Oid comp_node_id;
+
 // GUC vars.
 // seconds waiting for connect done.
 int mysql_connect_timeout = 10;
@@ -295,9 +297,13 @@ AsyncStmtInfo *GetAsyncStmtInfoNode(Oid shardid, Oid shardNodeId, bool req_chk_o
 			append_async_stmt(asi, setvar_stmt, setvar_stmtlen, CMD_UTILITY,
 							  true, SQLCOM_SET_OPTION);
 
-#define CONST_STR_LEN(cstr) cstr, (sizeof(cstr) - 1)
-		append_async_stmt(asi, CONST_STR_LEN("SET NAMES 'utf8'; set session autocommit = true"), CMD_UTILITY,
-						  false, SQLCOM_SET_OPTION);
+		char cmdbuf[256];
+		int cmdlen = snprintf(cmdbuf, sizeof(cmdbuf),
+			"SET NAMES 'utf8'; set session autocommit = true; set computing_node_id=%u; set global_conn_id=%u",
+			comp_node_id, getpid());
+		Assert(cmdlen < sizeof(cmdbuf));
+
+		append_async_stmt(asi, cmdbuf, cmdlen, CMD_UTILITY, false, SQLCOM_SET_OPTION);
 
 		// must append this last in one packet of sql stmts.
 		if (want_master) make_check_mysql_node_status_stmt(asi, want_master);
@@ -1065,7 +1071,7 @@ void send_stmt_to_all_inuse(char *stmt, size_t len, CmdType cmdtype, bool owns_i
 	for (size_t i = 0; i < shard_cnt; i++)
 	{
 		if (cmdtype == CMD_TXN_MGMT && sqlcom == SQLCOM_XA_ROLLBACK &&
-			!pasi[i].need_abort)
+			(!pasi[i].need_abort || pasi[i].executed_stmts == 0))
 			continue;
 		if (written_only && !pasi[i].did_write)
 			continue;
@@ -1316,6 +1322,7 @@ void free_mysql_result(AsyncStmtInfo *pasi)
 	if (pasi->mysql_res) mysql_free_result(pasi->mysql_res);
 	pasi->mysql_res = NULL;
 	pasi->cmd = CMD_UNKNOWN;
+	Assert(!pasi->result_pending);
 }
 
 static bool obtain_mysql_result_rows(AsyncStmtInfo *pasi, int*status)
@@ -1410,7 +1417,7 @@ static void handle_mysql_result(AsyncStmtInfo *pasi)
 		uint64_t n = mysql_affected_rows(pasi->conn);
 		if (n == (uint64_t)-1)
 		   handle_mysql_error(-1, pasi);
-		pasi->stmt_nrows = n;
+		pasi->stmt_nrows += n;
 		pasi->txn_wrows += n;
 
 	}
@@ -1600,7 +1607,6 @@ static void ResetASICommon(AsyncStmtInfo *asi)
 		asi->need_abort = false;
 	}
 	asi->result_pending = false;
-	asi->will_rewind = false;
 	asi->ignore_error = 0;
 
 	/*
@@ -1765,7 +1771,7 @@ int work_on_next_stmt(AsyncStmtInfo *asi)
 	 * commands, set var commands, etc, we won't need to send XA START before
 	 * them. It will not be an error to send XA START in such situations though.
 	 * */
-	if (!asi->did_write && !asi->did_read &&
+	if (!asi->did_write && !asi->did_read && !asi->executed_stmts &&
 		IsTransactionState() && !FIRST_CMD_IS_DDL && !FIRST_CMD_IS_ADMIN)
 	{
 		StringInfoData txnstart;
@@ -1787,6 +1793,7 @@ int work_on_next_stmt(AsyncStmtInfo *asi)
 
 	asi->stmt = q->queue[q->head].stmt;
 	asi->stmt_len = q->queue[q->head].stmt_len;
+	Assert(asi->stmt != NULL && asi->stmt_len > 0);
 	asi->owns_stmt_mem = q->queue[q->head].owns_stmt_mem;
 	asi->cmd = q->queue[q->head].cmd;
 	asi->sqlcom = q->queue[q->head].sqlcom;
@@ -1835,7 +1842,7 @@ StmtElem *append_async_stmt(AsyncStmtInfo *asi, char *stmt, size_t stmt_len,
 	if (q->end == q->capacity)
 	{
 		q->queue = repalloc(q->queue, sizeof(StmtElem) * q->capacity * 2);
-		memset(q->queue + q->capacity * sizeof(StmtElem), 0, sizeof(StmtElem)*q->capacity);
+		memset(q->queue + q->capacity, 0, sizeof(StmtElem)*q->capacity);
 		q->capacity *= 2;
 	}
 

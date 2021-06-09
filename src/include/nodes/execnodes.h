@@ -394,6 +394,9 @@ typedef struct OnConflictSetState
 	ExprState  *oc_WhereClause; /* state for the WHERE clause */
 } OnConflictSetState;
 
+
+struct RemotetupCacheState;
+
 /*
  * ResultRelInfo
  *
@@ -484,7 +487,7 @@ typedef struct ResultRelInfo
 	 * When the buffer is full, send the stmts.
 	 * Memory should be alloc'ed from EState::es_query_cxt.
 	 * */
-	StringInfo ri_RemotetupCache;
+	struct RemotetupCacheState *ri_RemotetupCache;
 } ResultRelInfo;
 
 
@@ -1284,6 +1287,13 @@ typedef struct RemoteScanState
 	  needs to be returned.
 	*/
 	bool		check_exists;
+
+	/*
+	  need to rewind, most likely its resultset is used as inner node result
+	  of a join. If so store result rather than use result.
+	*/
+	bool will_rewind;
+
 } RemoteScanState;
 
 /* ----------------

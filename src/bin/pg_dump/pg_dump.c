@@ -16836,7 +16836,7 @@ dumpSequence(Archive *fout, TableInfo *tbinfo)
 						  "SELECT format_type(seqtypid, NULL), "
 						  "seqstart, seqincrement, "
 						  "seqmax, seqmin, "
-						  "seqcache, seqcycle "
+						  "seqcache, seqcycle, last_fetched "
 						  "FROM pg_catalog.pg_sequence "
 						  "WHERE seqrelid = '%u'::oid",
 						  tbinfo->dobj.catId.oid);
@@ -17075,6 +17075,11 @@ dumpSequence(Archive *fout, TableInfo *tbinfo)
 static void
 dumpSequenceData(Archive *fout, TableDataInfo *tdinfo)
 {
+	/*
+	  dzw: kunlun doesn't store data into sequence's own table.
+	*/
+	return;
+
 	TableInfo  *tbinfo = tdinfo->tdtable;
 	PGresult   *res;
 	char	   *last;
@@ -17082,8 +17087,8 @@ dumpSequenceData(Archive *fout, TableDataInfo *tdinfo)
 	PQExpBuffer query = createPQExpBuffer();
 
 	appendPQExpBuffer(query,
-					  "SELECT last_value, is_called FROM %s",
-					  fmtQualifiedDumpable(tbinfo));
+	"select t1.last_fetched as last_value, true as is_called from pg_sequence t1, pg_class t2, pg_namespace t3 where t3.oid=t2.relnamespace and t1.seqrelid=t2.oid and t3.nspname='%s' and t2.relname='%s'",
+					  fmtId(tbinfo->dobj.namespace->dobj.name), fmtId(tbinfo->dobj.name));
 
 	res = ExecuteSqlQuery(fout, query->data, PGRES_TUPLES_OK);
 

@@ -1,6 +1,6 @@
 To build computing node program from source, use build.sh directly or refer to it for instructions.
 To build kunlun-storage from source, see kunlun-storage/INSTALL.kunlun.md for instructions.
-To build cluster_mgr from source, see cluster_mgr/README for instructions.
+To build cluster_mgr from source, see cluster_mgr/README.md for instructions.
 
 To install a Kunlun distributed DBMS cluster, refer to INSTALL.kunlun.md for instructions.
 

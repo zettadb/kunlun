@@ -26,6 +26,7 @@
 #include "postgres.h"
 
 #include "executor/executor.h"
+#include "executor/execRemote.h"
 #include "executor/nodeMaterial.h"
 #include "executor/nodeRemotescan.h"
 #include "optimizer/planremote.h"
@@ -127,8 +128,14 @@ ExecMaterial(PlanState *pstate)
 	slot = node->ss.ps.ps_ResultTupleSlot;
 	if (!eof_tuplestore)
 	{
-		if (tuplestore_gettupleslot(tuplestorestate, forward, false, slot))
-			return slot;
+		bool has_more = false;
+		TupleTableSlot *reslot = NULL;
+
+		while ((has_more = tuplestore_gettupleslot(tuplestorestate, forward, false, slot)) &&
+			(reslot = ExecQualProjection(node, slot)) == NULL)
+			;
+		if (has_more && reslot)
+			return reslot; // reslot is either slot or a slot processed by projection
 		if (forward)
 			eof_tuplestore = true;
 	}
@@ -252,6 +259,30 @@ ExecInitMaterial(Material *node, EState *estate, int eflags)
 	*/
 	if (!(eflags & EXEC_FLAG_REMOTE_FETCH_NO_DATA))
 		ExecCreateScanSlotFromOuterPlan(estate, &matstate->ss);
+
+	if (IsA(outerPlan, RemoteScan))
+	{
+		RemoteScanState *rss = (RemoteScanState *)outerPlanState(matstate);
+		Plan *plan = (Plan*)node;
+		/*
+		  During optimization we tag the 2 fields to request below action.
+		*/
+		bool expr_exec = false;
+		if (plan->qual_subplans)
+		{
+			matstate->ss.ps.qual = rss->ss.ps.qual;
+			rss->ss.ps.qual = NULL;
+			expr_exec = true;
+		}
+		if (plan->tl_subplans)
+		{
+			matstate->ss.ps.ps_ProjInfo = rss->ss.ps.ps_ProjInfo;
+			rss->ss.ps.ps_ProjInfo = NULL;
+			expr_exec = true;
+		}
+
+		if (expr_exec) ExecAssignExprContext(estate, (PlanState *)matstate);
+	}
 
 	return matstate;
 }

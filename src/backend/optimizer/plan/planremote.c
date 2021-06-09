@@ -72,7 +72,6 @@ static bool PlanSubtreeResultPrecached(Plan *plan);
 static bool handle_plan_traverse(PlannedStmt *pstmt, Plan *parent_plan,
 	Plan **pplan, void *ctx);
 static void addRemotescanRefToPlan(Plan *plan, RemoteScanRef *rsr);
-static ShardRemoteScanRef *dupShardRemoteScanRefs(ShardRemoteScanRef *src);
 static ShardRemoteScanRef *copyShardRemoteScanRef(ShardRemoteScanRef *src);
 static void plan_merge_accessed_shards(PlannedStmt *planned_stmt, Plan *plan);
 static RemoteScanRef *
@@ -96,9 +95,10 @@ static void merge_init_plans(PlannedStmt *pstmt, Plan *plan);
 static void merge_plan_list(Plan *plan, List*plans);
 static bool plan_list_traverse(PlannedStmt *pstmt, Plan **plan, List *plans,
 	handle_plan_traverse_t callback,
-	decide_visit_plan_t decide_visit, void *context, bool initPlans);
+	decide_visit_plan_t decide_visit, void *context, bool is_subplan_ref);
+static int materialize_plan(Plan *tgt_plan);
 
-enum PlanBranchType{ NONE, OUTER = 1, INNER };
+enum PlanBranchType{ NONE, OUTER = 1, INNER, OUTER_AND_INNER };
 
 typedef struct Mat_tree_remote_ctx
 {
@@ -119,6 +119,9 @@ typedef struct Mat_tree_remote_ctx
 	*/
 	bool under_material;
 	PlannedStmt *planned_stmt;
+
+	// subplan IDs whose referenced Plan nodes that have been processed.
+	Bitmapset *mat_subplans;
 } Mat_tree_remote_ctx;
 
 static void
@@ -127,8 +130,12 @@ materialize_branch_conflicting_remotescans(PlannedStmt *pstmt, Plan *plan,
 static void
 materialize_children(PlannedStmt *pstmt, Plan *plan, Mat_tree_remote_ctx *ctx);
 static List*
-materialize_init_plans(PlannedStmt *pstmt, Plan *plan, Mat_tree_remote_ctx *ctx);
-static void materialize_plan_lists(List *plans1, List *plans2);
+materialize_subplan_list(PlannedStmt *pstmt, Plan *plan, List *plans,
+	Mat_tree_remote_ctx *ctx);
+static void materialize_plan_lists(List *plans1, List *plans2, enum PlanBranchType bt);
+static List *make_tl_subplan_list(PlannedStmt *pstmt, Plan *plan);
+static List *make_qual_subplan_list(PlannedStmt *pstmt, Plan *plan);
+static List *subplan_list_to_plan_list(PlannedStmt *pstmt, List *subplan_list);
 
 static RemoteScanRef *
 makeRemoteScanRef(PlannedStmt *planned_stmt, Plan **pptr,
@@ -179,7 +186,7 @@ static ShardRemoteScanRef *copyShardRemoteScanRef(ShardRemoteScanRef *src)
 	return srsr;
 }
 
-static ShardRemoteScanRef *dupShardRemoteScanRefs(ShardRemoteScanRef *src)
+ShardRemoteScanRef *dupShardRemoteScanRefs(ShardRemoteScanRef *src)
 {
 	ShardRemoteScanRef *p = src, *head = NULL, *tail = NULL;
 
@@ -204,6 +211,19 @@ static void plan_merge_accessed_shards(PlannedStmt *pstmt, Plan *plan)
 	Plan *outp = outerPlan(plan);
 	Plan *inp = innerPlan(plan);
 	if (plan->initPlan) merge_init_plans(pstmt, plan);
+	List *qual_plans = NULL, *tl_plans = NULL;
+
+	if (plan->qual_subplans)
+	{
+		qual_plans = subplan_list_to_plan_list(pstmt, plan->qual_subplans);
+		merge_plan_list(plan, qual_plans);
+	}
+
+	if (plan->tl_subplans)
+	{
+		tl_plans = subplan_list_to_plan_list(pstmt, plan->tl_subplans);
+		merge_plan_list(plan, tl_plans);
+	}
 
 	if (!outp && !inp)
 	{
@@ -216,7 +236,7 @@ static void plan_merge_accessed_shards(PlannedStmt *pstmt, Plan *plan)
 		}
 		else
 		{
-			plan->shard_remotescan_refs = NULL;
+			if (!IsA(plan, RemoteScan)) plan->shard_remotescan_refs = NULL;
 			return;
 		}
 	}
@@ -249,7 +269,7 @@ static void plan_merge_accessed_shards(PlannedStmt *pstmt, Plan *plan)
 			{
 				if (q->shardid == p->shardid)
 				{
-					list_concat_unique_ptr(p->rsrl, q->rsrl);
+					p->rsrl = list_concat_unique_ptr(p->rsrl, q->rsrl);
 					found = true;
 					break;
 				}
@@ -275,9 +295,12 @@ static void materialize_branch_conflicting_remotescans(PlannedStmt *pstmt,
 	Plan *outp = outerPlan(plan);
 	Plan *inp = innerPlan(plan);
 	List *init_plans = NULL;
+	List *branch_plans = NULL;
 
 	if (plan->initPlan)
-		init_plans = materialize_init_plans(pstmt, plan, ctx);
+		init_plans = materialize_subplan_list(pstmt, plan,
+			make_init_plan_list(pstmt, plan), ctx);
+	
 	if (!outp && !inp)
 	{
 		if (IsA(plan, SubqueryScan))
@@ -288,14 +311,14 @@ static void materialize_branch_conflicting_remotescans(PlannedStmt *pstmt,
 			if (init_plans)
 			{
 				materialize_plan_lists(init_plans,
-					get_children_plan_list(plan));
+					get_children_plan_list(plan), OUTER_AND_INNER);
 			}
-			return;
+			goto qual;
 		}
-		else
+		else if (!IsA(plan, RemoteScan))
 		{
 			plan->shard_remotescan_refs = NULL;
-			return;
+			goto init;
 		}
 	}
 	else
@@ -306,11 +329,9 @@ static void materialize_branch_conflicting_remotescans(PlannedStmt *pstmt,
 	/*
 	  InitPlan finishes execution when outer/inner trees start execution.
 	*/
-	if (((!outp || !outp->shard_remotescan_refs) ||
-		 (!inp || !inp->shard_remotescan_refs)))
-	{
-		return;
-	}
+	if ((!outp || (!outp->shard_remotescan_refs && !IsA(outp, FunctionScan))) ||
+		(!inp || (!inp->shard_remotescan_refs && !IsA(inp, FunctionScan))))
+		goto init;
 
 	/*
 	  hashjoin *almost* always first cache all inner tuples, but there are
@@ -326,6 +347,33 @@ static void materialize_branch_conflicting_remotescans(PlannedStmt *pstmt,
 		mat_1st_only = true;
 	
 	int nmats = 0;
+	/*
+	  A precached node N's descendants won't conflict with any node outside N's tree.
+	*/
+	Plan *tgt_plan = NULL, *other_plan = NULL;
+	if (ctx->mat_target_branch == OUTER)
+	{
+		tgt_plan = outp;
+		other_plan = inp;
+	}
+	else if (ctx->mat_target_branch == INNER)
+	{
+		tgt_plan = inp;
+		other_plan = outp;
+	}
+
+	if (PlanSubtreeResultPrecached(tgt_plan))
+		goto branches_done;
+
+	/*
+	  A function is so far a blackbox, we have to assume it conflicts with
+	  any node.
+	*/
+	if (IsA(other_plan, FunctionScan))
+	{
+		nmats = materialize_plan(tgt_plan);
+		goto branches_done;
+	}
 
 	for (ShardRemoteScanRef *p = outp->shard_remotescan_refs; p; p = p->next)
 	{
@@ -333,14 +381,19 @@ static void materialize_branch_conflicting_remotescans(PlannedStmt *pstmt,
 		{
 			if (q->shardid == p->shardid)
 			{
-				materialize_remotescans(ctx->mat_target_branch == OUTER ? p :
-					(ctx->mat_target_branch == INNER ? q : NULL), mat_1st_only);
+				ShardRemoteScanRef *tgt = NULL;
+				if (ctx->mat_target_branch == OUTER)
+					tgt = p;
+				else if (ctx->mat_target_branch == INNER)
+					tgt = q;
+
+				materialize_remotescans(tgt, mat_1st_only);
 				nmats++;
 				break;
 			}
 		}
 	}
-
+branches_done:
 	/*
 	  If there are conflicting descendants in NestLoop, always materialize
 	  inner node, otherwise the descendants in inner node may cache&rewind,
@@ -348,14 +401,63 @@ static void materialize_branch_conflicting_remotescans(PlannedStmt *pstmt,
 	*/
 	if (nmats > 0 && IsA(plan, NestLoop) && !PlanSubtreeResultPrecached(inp))
 		innerPlan(plan) = materialize_finished_plan(inp);
-
-	if (init_plans)
+init:
+	/*
+	  some code paths above have not handled initPlan yet.
+	*/
+	if (outp && outp->shard_remotescan_refs) branch_plans = lappend(branch_plans, outp);
+	if (inp && inp->shard_remotescan_refs) branch_plans = lappend(branch_plans, inp);
+	if (branch_plans)
 	{
-		List *branch_plans = NULL;
-		if (outp && outp->shard_remotescan_refs) branch_plans = lappend(branch_plans, outp);
-		if (inp && inp->shard_remotescan_refs) branch_plans = lappend(branch_plans, inp);
-		if (branch_plans) materialize_plan_lists(init_plans, branch_plans);
+		if (init_plans)
+			materialize_plan_lists(init_plans, branch_plans, OUTER_AND_INNER);
+		init_plans = list_concat_unique_ptr(init_plans, branch_plans);
 	}
+
+qual:
+	// Handle plans used in qual and projection. Note that projection is
+	// executed after qual.
+	if (plan->qual_subplans)
+	{
+		List *qual_plans = subplan_list_to_plan_list(pstmt, plan->qual_subplans);
+		materialize_subplan_list(pstmt, plan, qual_plans, ctx);
+
+		if (init_plans)
+			materialize_plan_lists(init_plans, qual_plans, OUTER);
+		init_plans = list_concat_unique_ptr(init_plans, qual_plans);
+	}
+
+	if (plan->tl_subplans)
+	{
+		List *tl_plans = subplan_list_to_plan_list(pstmt, plan->tl_subplans);
+		materialize_subplan_list(pstmt, plan, tl_plans, ctx);
+
+		if (init_plans)
+			materialize_plan_lists(init_plans, tl_plans, OUTER);
+		init_plans = list_concat_unique_ptr(init_plans, tl_plans);
+	}
+
+	if (init_plans && IsA(plan, RemoteScan))
+	{
+		List *selflist = lappend(NULL, plan);
+		materialize_plan_lists(init_plans, selflist, OUTER_AND_INNER);
+	}
+}
+
+static List *subplan_list_to_plan_list(PlannedStmt *pstmt, List *subplan_list)
+{
+	List *plan_list = NULL;
+	ListCell *lc = NULL, *lc1 = NULL;
+	Plan *qplan = NULL;
+
+	foreach(lc, subplan_list)
+	{
+		SubPlan *splan = (SubPlan *)lfirst(lc);
+		lc1 = list_nth_cell(pstmt->subplans, splan->plan_id - 1);
+		qplan = (Plan *)lfirst(lc1);
+		plan_list = lappend(plan_list, qplan);
+	}
+	return plan_list;
 }
 
 static void materialize_remotescans(ShardRemoteScanRef *p, bool mat_1st_only)
@@ -372,6 +474,23 @@ static void materialize_remotescans(ShardRemoteScanRef *p, bool mat_1st_only)
 		matnode->plan.shard_remotescan_refs =
 			dupShardRemoteScanRefs(rsr->rs->plan.shard_remotescan_refs);
 		rsr->materialized = true;
+
+		Plan *plan = (Plan *)rsr->rs;
+		Plan *pplan = (Plan *)matnode;
+		Assert(IsA(plan, RemoteScan));
+		if (plan->qual_subplans)
+		{
+			pplan->qual_subplans = plan->qual_subplans;
+		}
+		if (plan->tl_subplans)
+		{
+			/*
+			  Let matnode produce plan->targetlist
+			pplan->targetlist = plan->targetlist; already done in materialize_finished_plan().
+			plan->targetlist = ; get rid of the subplan nodes from tl.
+			*/
+			pplan->tl_subplans = plan->tl_subplans;
+		}
 	}
 }
 
@@ -390,18 +509,22 @@ static bool handle_plan_traverse(PlannedStmt *pstmt, Plan *parent_plan,
 
 	switch(plan->type)
 	{
+	case T_Material:
+		((Material*)plan)->remote_fetch_all = true;
+		matctx->under_material = false;// its descendants have all been visited.
+		plan_merge_accessed_shards(pstmt, plan);
+		break;
 	case T_RemoteScan:
 		if (parent_plan && IsA(parent_plan, Append) &&
 			linitial(((Append*)parent_plan)->appendplans) == plan)
 			append1st = true;
 		rsr = makeRemoteScanRef(pstmt, pplan, (RemoteScan*)plan, append1st);
 		addRemotescanRefToPlan(plan, rsr);
-		break;
-	case T_Material:
-		((Material*)plan)->remote_fetch_all = true;
-		matctx->under_material = false;// its descendants have all been visited.
-		plan_merge_accessed_shards(pstmt, plan);
-		break;
+		/*
+		  FALL-THROUGH
+		  RemoteScan node may have correlated subplans referenced in
+		  qual and/or targetlist, or have initPlans(uncorrelated plans).
+		*/
 	default:
 		if (!matctx->under_material)
 		{
@@ -417,23 +540,21 @@ static bool handle_plan_traverse(PlannedStmt *pstmt, Plan *parent_plan,
 
 static inline bool visit_plan_node(Plan *plan, void *ctx)
 {
-	Mat_tree_remote_ctx *matctx = (Mat_tree_remote_ctx *)ctx;
-	return !(matctx->cur_node_branch == matctx->mat_target_branch &&
-			 PlanSubtreeResultPrecached(plan) && !IsA(plan, Material));
-	// need to handle Material nodes and traverse down, but don't materialze
-	// its decendants.
+	return true;
+	// need to handle Material and precached nodes and traverse down,
+	// but don't materialze its decendants.
 }
 
 static bool plan_list_traverse(PlannedStmt *pstmt, Plan **plan, List *plans,
 	handle_plan_traverse_t callback,
-	decide_visit_plan_t decide_visit, void *context, bool initPlans)
+	decide_visit_plan_t decide_visit, void *context, bool is_subplan_ref)
 {
 	bool stop = false;
 	ListCell *lc = NULL;
 	int nthc = 0;
 	int nplans = list_length(plans);
 	Plan *cplan = NULL;
-	Plan **pouter = &((*plan)->lefttree);
+	Plan **pouter = NULL;
 	Mat_tree_remote_ctx *matctx = (Mat_tree_remote_ctx *)context;
 
 	foreach(lc, plans)
@@ -442,17 +563,27 @@ static bool plan_list_traverse(PlannedStmt *pstmt, Plan **plan, List *plans,
 			matctx->cur_node_branch = OUTER;
 		else
 			matctx->cur_node_branch = INNER;
-		if (initPlans)
+		if (is_subplan_ref)
 		{
 			/*
-			  Every initPlan nodes must be traversed.
+			  Every subplan node in initPlan/qual/tl must be traversed,
+			  once and only once --- they could be referenced multiple times.
 			*/
 			matctx->cur_node_branch = matctx->mat_target_branch;
 			SubPlan    *subplan = (SubPlan *) lfirst(lc);
 			ListCell *lc1;
+
+			if (bms_is_member(subplan->plan_id, matctx->mat_subplans))
+			{
+				continue;
+			}
+
 			lc1 = list_nth_cell(pstmt->subplans, subplan->plan_id - 1);
 			cplan = (Plan *)lfirst(lc1);
+			if (!cplan) continue;
 			pouter = (Plan **)&(lfirst(lc1));
+			matctx->mat_subplans = bms_add_member(matctx->mat_subplans,
+				subplan->plan_id);
 		}
 		else
 		{
@@ -466,7 +597,7 @@ static bool plan_list_traverse(PlannedStmt *pstmt, Plan **plan, List *plans,
 		if (stop) return !stop;
 	}
 
-	return stop;
+	return !stop;
 }
 
 /*
@@ -493,17 +624,12 @@ plan_tree_traverse(PlannedStmt *pstmt, Plan *parent_plan, Plan **plan,
 		  Traverse children plans one by one.
 		*/
 		List *children_plans = get_children_plan_list(*plan);
-		plan_list_traverse(pstmt, plan, children_plans, callback,
+		stop = !plan_list_traverse(pstmt, plan, children_plans, callback,
 			decide_visit, context, false);
-		if ((*plan)->initPlan)
-			plan_list_traverse(pstmt, plan, (*plan)->initPlan, callback,
-				decide_visit, context, true);
+		if (stop) return !stop;
 		goto self;
 	}
 
-	if ((*plan)->initPlan)
-		plan_list_traverse(pstmt, plan, (*plan)->initPlan, callback,
-			decide_visit, context, true);
 
 	if (IsA(*plan, SubqueryScan))
 	{
@@ -533,6 +659,30 @@ plan_tree_traverse(PlannedStmt *pstmt, Plan *parent_plan, Plan **plan,
 
 	if (stop) return !stop;
 self:
+	if ((*plan)->initPlan)
+		stop = !plan_list_traverse(pstmt, plan, (*plan)->initPlan, callback,
+			decide_visit, context, true);
+	if (stop) return !stop;
+
+	List *qual_subplans = make_qual_subplan_list(pstmt, *plan);
+	if (qual_subplans)
+	{
+		(*plan)->qual_subplans = qual_subplans;
+		stop = !plan_list_traverse(pstmt, plan, qual_subplans, callback,
+			decide_visit, context, true);
+	}
+	if (stop) return !stop;
+
+	List *tl_subplans = make_tl_subplan_list(pstmt, *plan);
+	if (tl_subplans)
+	{
+		(*plan)->tl_subplans = tl_subplans;
+		stop = !plan_list_traverse(pstmt, plan, tl_subplans, callback,
+			decide_visit, context, true);
+	}
+	if (stop) return !stop;
+
+	// traverse *plan->qual
 	stop = !callback(pstmt, parent_plan, plan, context);
 	return !stop;
 }
@@ -590,6 +740,7 @@ void materialize_conflicting_remotescans(PlannedStmt *pstmt)
 	ctx.cur_node_branch = NONE;
 	ctx.planned_stmt = pstmt;
 	ctx.under_material = false;
+	ctx.mat_subplans = NULL;
 
 	plan_tree_traverse(pstmt, NULL, &pstmt->planTree, handle_plan_traverse,
 		visit_plan_node, &ctx);
@@ -620,15 +771,19 @@ static bool is_multi_children_plan(Plan *plan)
 	return ret;
 }
 
+/*
+  Materialize conflicting Plan nodes in 'plans', and
+  'plans' comes from SubPlan nodes in plan->initPlan/qual/targetlist.
+*/
 static List*
-materialize_init_plans(PlannedStmt *pstmt, Plan *plan, Mat_tree_remote_ctx *ctx)
+materialize_subplan_list(PlannedStmt *pstmt, Plan *plan, List *plans,
+	Mat_tree_remote_ctx *ctx)
 {
-	Assert(plan->initPlan);
-	List *plans = make_init_plan_list(pstmt, plan);
 	ListCell *lc = NULL;
 	foreach(lc, plans)
 	{
 		Plan *outp = (Plan*)lfirst(lc);
+		if (PlanSubtreeResultPrecached(outp)) continue;
 		for (ShardRemoteScanRef *p = outp->shard_remotescan_refs; p; p = p->next)
 		{
 			ShardRemoteScanRef *q = NULL;
@@ -678,6 +833,7 @@ static void materialize_children(PlannedStmt *pstmt, Plan *plan, Mat_tree_remote
 		foreach(lc, merge_append->mergeplans)
 		{
 			Plan *outp = (Plan*)lfirst(lc);
+			if (PlanSubtreeResultPrecached(outp)) continue;
 			for (ShardRemoteScanRef *p = outp->shard_remotescan_refs; p; p = p->next)
 			{
 				ShardRemoteScanRef *q = NULL;
@@ -736,13 +892,27 @@ static void materialize_children(PlannedStmt *pstmt, Plan *plan, Mat_tree_remote
 	}
 }
 
+static int materialize_plan(Plan *tgt_plan)
+{
+	int nmats = 0;
+	for (ShardRemoteScanRef *p = tgt_plan->shard_remotescan_refs;
+		 p; p = p->next)
+	{
+		materialize_remotescans(p, false);
+		nmats++;
+	}
+	return nmats;
+}
+
 /*
-  If any pair of plans from the two lists conflict, materialize both, because
+  If any pair of plans from the two lists conflict, materialize selected ones
+  as specified by 'bt', if bt is OUTER/INNER/OUTER_AND_INNER, materialize
+  plans1/plans2/plans1&plans2, respectively.
   for the initPlan case there is no fixed order of execution among plan nodes in
   initPlan list and nodes in left/righttree or children list, and executions
   could be interleaved for parameterized situations.
 */
-static void materialize_plan_lists(List *plans1, List *plans2)
+static void materialize_plan_lists(List *plans1, List *plans2, enum PlanBranchType bt)
 {
 	ListCell *lc1 = NULL;
 	ListCell *lc2 = NULL;
@@ -753,6 +923,11 @@ static void materialize_plan_lists(List *plans1, List *plans2)
 		{
 			Plan *plan1 = lfirst(lc1);
 			Plan *plan2 = lfirst(lc2);
+			if (IsA(plan1, FunctionScan))
+				materialize_plan(plan2);
+			else if (IsA(plan2, FunctionScan))
+				materialize_plan(plan1);
+			else
 			for (ShardRemoteScanRef *srsr1 = plan1->shard_remotescan_refs; srsr1;
 				 srsr1 = srsr1->next)
 			{
@@ -761,8 +936,10 @@ static void materialize_plan_lists(List *plans1, List *plans2)
 				{
 					if (srsr1->shardid == srsr2->shardid)
 					{
-						materialize_remotescans(srsr1, false);
-						materialize_remotescans(srsr2, false);
+						if (bt == OUTER || bt == OUTER_AND_INNER)
+							materialize_remotescans(srsr1, false);
+						if (bt == INNER || bt == OUTER_AND_INNER)
+							materialize_remotescans(srsr2, false);
 						break;
 					}
 				}
@@ -779,9 +956,18 @@ static ShardRemoteScanRef *
 shard_used_in_following_sibling_plans(ListCell *lc, Oid shardid)
 {
 	ShardRemoteScanRef *q = NULL;
+	static ShardRemoteScanRef FunctionScanPseudoSRR = {0, NULL, NULL};
+
 	for (ListCell *p = lc; p; p = p->next)
 	{
 		Plan *plan = (Plan*)lfirst(p);
+		/*
+		  A FunctionScan node conflicts with any node but we don't have valid
+		  shard_remotescan_refs for it.
+		*/
+		if (IsA(plan, FunctionScan))
+			return &FunctionScanPseudoSRR;
+		if (PlanSubtreeResultPrecached(plan)) continue;
 		for (ShardRemoteScanRef *srsr = plan->shard_remotescan_refs; srsr;
 			 srsr = srsr->next)
 		{
@@ -864,7 +1050,7 @@ static void merge_plan_list(Plan *plan, List*plans)
 			{
 				if (q->shardid == p->shardid)
 				{
-					list_concat_unique_ptr(p->rsrl, q->rsrl);
+					p->rsrl = list_concat_unique_ptr(p->rsrl, q->rsrl);
 					found = true;
 					break;
 				}
@@ -904,6 +1090,65 @@ static void merge_init_plans(PlannedStmt *pstmt, Plan *plan)
 	plans = make_init_plan_list(pstmt, plan);
 
 	merge_plan_list(plan, plans);
+}
+
+typedef struct SubplanPickerCtx
+{
+	Plan *plan;
+	PlannedStmt *pstmt;
+	List *subplans;
+} SubplanPickerCtx;
+
+static bool subplan_picker(Node *node, SubplanPickerCtx*ctx)
+{
+    if (node == NULL) return false;
+
+	SubPlan *splan = NULL;
+
+	switch (nodeTag(node))
+	{
+	case T_SubPlan:
+		splan = (SubPlan *)node;
+		ctx->subplans = lappend(ctx->subplans, splan);
+		break;
+	default:
+		return expression_tree_walker(node, subplan_picker, ctx);
+		break;
+	}
+	return false;
+}
+
+/*
+  Extract subplan nodes from plan->qual expr tree.
+*/
+static List *make_qual_subplan_list(PlannedStmt *pstmt, Plan *plan)
+{
+	SubplanPickerCtx ctx;
+	ctx.plan = plan;
+	ctx.subplans = NULL;
+	ctx.pstmt = pstmt;
+	expression_tree_walker((Node *)plan->qual, subplan_picker, &ctx);
+	return ctx.subplans;
+}
+
+/*
+  Extract subplan nodes from expr tree of each plan->targetlist node.
+*/
+static List *make_tl_subplan_list(PlannedStmt *pstmt, Plan *plan)
+{
+	ListCell *lc = NULL;
+	if (!plan->targetlist) return NULL;
+
+	SubplanPickerCtx ctx;
+	ctx.plan = plan;
+	ctx.subplans = NULL;
+	ctx.pstmt = pstmt;
+	foreach(lc, plan->targetlist)
+	{
+		TargetEntry *te = (TargetEntry *)lfirst(lc);
+		expression_tree_walker((Node *)te->expr, subplan_picker, &ctx);
+	}
+	return ctx.subplans;
 }
 
 /*-------------------End of materialize remote scan nodes --------------------*/

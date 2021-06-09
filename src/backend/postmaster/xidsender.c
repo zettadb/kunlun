@@ -912,7 +912,7 @@ retry_send:
 		  Let metadata cluster primary node wait for 'resume' signal which
 		  can be signaled later in test scripts.
 		*/
-		 DEBUG_INJECT_IF("test_metadata_svr_commit_log_append_timeout",
+		DEBUG_INJECT_IF("test_metadata_svr_commit_log_append_timeout",
 			appendStringInfo(&stmt, "set session debug_sync='before_execute_sql_command wait_for resume';"););
 
 		appendStringInfo(&stmt, "insert into " KUNLUN_METADATA_DBNAME ".commit_log_%s (comp_node_id, txn_id, next_txn_cmd) values ", GetClusterName2());

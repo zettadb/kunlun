@@ -1,4 +1,3 @@
-set enable_remote_relations=on;
 
 drop table if exists t4;
 drop table if exists t5;

@@ -2002,6 +2002,7 @@ void GetPartitionStorageShards(Relation rel, List **ppshardid_list)
 		{
 			Relation	partrel = heap_open(partrelid, NoLock);
 			GetPartitionStorageShards(partrel, ppshardid_list);
+			heap_close(partrel, NoLock);
 		}
 	}
 }

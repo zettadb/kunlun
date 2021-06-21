@@ -1,0 +1,52 @@
+# Copyright (c) 2019 ZettaDB inc. All rights reserved.
+# This source code is licensed under Apache 2.0 License,
+# combined with Common Clause Condition 1.0, as detailed in the NOTICE file.
+
+# MySQL client connection timeout in seconds
+mysql_connect_timeout = 20
+
+# MySQL client read timeout in seconds
+mysql_read_timeout = 20
+
+# MySQL client write timeout in seconds
+mysql_write_timeout = 20
+
+# MySQL client max packet size in bytes.
+mysql_max_packet_size = 1073741824
+
+# Log verbosity or amount of details, options are(in increasing details):
+# {ERROR, WARNING, INFO, LOG, DEBUG1, DEBUG2, DEBUG3}.
+log_verbosity = INFO
+
+#Number of worker threads to create and maintain.
+num_worker_threads=5
+
+# Interval in seconds a shard's two checks should be apart
+check_shard_interval = 3
+
+# Interval in seconds a thread waits after it finds no work to do.
+thread_work_interval = 2
+
+# 100MB, if log grows larger than this it's rotated
+max_log_file_size = 100
+
+# meta data server listening port 
+meta_port = META_PORT
+
+# meta data server ip address
+meta_host = META_HOST
+
+# meta data server user account
+meta_user = pgx
+
+# meta data server user's password 
+meta_pwd = pgx_pwd
+
+# log file path and name
+log_file = ./cluster_mgr.log
+
+# NO. of times a SQL statement is resent for execution when MySQL connection broken.
+statement_retries = 3
+
+# Interval in milli-seconds a statement is resent for execution when it fails and we believe MySQL node will be ready in a while.
+statement_retry_interval_ms = 1000

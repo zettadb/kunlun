@@ -74,6 +74,7 @@ static void init_txn_cmd()
 
 void StartSubTxnRemote(const char *name)
 {
+	Assert(name);
 	send_txn_cmd(SQLCOM_SAVEPOINT, false, "SAVEPOINT %s", name);
 }
 
@@ -97,16 +98,21 @@ void SendRollbackRemote(const char *txnid, bool xa_end, bool written_only)
 	*/
 	CancelAllRemoteStmtsInQueue(false);
 
+	int ihoc = InterruptHoldoffCount;
 	PG_TRY();
 		if (xa_end)
 			send_txn_cmd(SQLCOM_XA_ROLLBACK, written_only, "XA END '%s';XA ROLLBACK '%s'", txnid, txnid);
 		else
 			send_txn_cmd(SQLCOM_XA_ROLLBACK, written_only, "XA ROLLBACK '%s'", txnid);
 	PG_CATCH();
+		PG_TRY();
 		disconnect_storage_shards();
 		request_topo_checks_used_shards();
-		PG_RE_THROW();
+		PG_CATCH();
+		PG_END_TRY();
 	PG_END_TRY();
+
+	InterruptHoldoffCount = ihoc;
 }
 
 void SendRollbackSubToRemote(const char *name)
@@ -688,18 +694,21 @@ static void UpdateCandidate(GTxnBest *best, TxnBranch *gn)
 			best->max_nrows_locked = gn->owner->nrows_locked;
 			best->max_nrows_locked_gtxn = gn;
 		}
+		break;
 	case KILL_MOST_WAITING_BRANCHES:
 		if (best->max_waiting_branches < gn->owner->nblockers)
 		{
 			best->max_waiting_branches = gn->owner->nblockers;
 			best->most_waiting_branches_gtxn = gn;
 		}
+		break;
 	case KILL_MOST_BLOCKING_BRANCHES:
 		if (best->max_blocking_branches < gn->owner->num_blocked)
 		{
 		    best->max_blocking_branches = gn->owner->num_blocked;
 			best->most_blocking_branches_gtxn = gn;
 		}
+		break;
 	default:
 		// If g_gtxn_dd_victim_policy is modified (by client) while assigning
 		// to 'vp' parameter, control could come here. We simply skip 'gn' for
@@ -974,7 +983,7 @@ add_branch:
 	if (gn->nbranches == gn->nbranch_slots)
 	{
 		gn->branches = repalloc(gn->branches, gn->nbranch_slots * 2 * sizeof(void*));
-		memset(gn->branches + gn->nbranch_slots * sizeof(void*), 0,
+		memset(gn->branches + gn->nbranch_slots, 0,
 			   gn->nbranch_slots * sizeof(void*));
 		gn->nbranch_slots *= 2;
 	}
@@ -991,7 +1000,7 @@ static void MakeWaitFor(GlobalTxn *waiter, TxnBranch *blocker)
 	if (waiter->nblockers == waiter->nblocker_slots)
 	{
 		waiter->blockers = repalloc(waiter->blockers, waiter->nblocker_slots * 2 * sizeof(void*));
-		memset(waiter->blockers + waiter->nblocker_slots * sizeof(void*), 0,
+		memset(waiter->blockers + waiter->nblocker_slots, 0,
 			   waiter->nblocker_slots * sizeof(void*));
 		waiter->nblocker_slots *= 2;
 	}

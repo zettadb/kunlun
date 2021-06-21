@@ -857,6 +857,8 @@ DefineIndex(Oid relationId,
 		flags |= INDEX_CREATE_PARTITIONED;
 	if (stmt->primary)
 		flags |= INDEX_CREATE_IS_PRIMARY;
+	if (stmt->skip_remote)
+		flags |= INDEX_CREATE_SKIP_REMOTE;
 
 	/*
 	 * If the table is partitioned, and recursion was declined but partitions
@@ -1144,7 +1146,10 @@ DefineIndex(Oid relationId,
 		return address;
 	}
 
-	if (!stmt->concurrent)
+	/*
+	  dzw: skip local index building for remote relations.
+	*/
+	if (!stmt->concurrent || IsRemoteRelation(rel))
 	{
 		/* Close the heap and we're done, in the non-concurrent case */
 		heap_close(rel, NoLock);
@@ -1769,15 +1774,7 @@ ComputeIndexAttrs(IndexInfo *indexInfo,
 			{
 				colOptionP[attn] |= INDOPTION_NULLS_FIRST;
 				/*
-				 * dzw:
-				 * Here we assume that in mysql8.0 this is also true:
-				 * Default null ordering is LAST for ASC, FIRST for DESC. This
-				 * should be and probably is specified in SQL standard.
 				 * */
-			    if (is_remote_rel && attribute->ordering != SORTBY_DESC)
-					ereport(ERROR,
-							(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-							 errmsg("can't specify non default null ordering for a column of a remote relation's index")));
 			}
 		}
 		else

@@ -1,4 +1,3 @@
-set enable_remote_relations=on;
 drop table if exists t4;
 NOTICE:  table "t4" does not exist, skipping
 drop table if exists t5;
@@ -110,9 +109,7 @@ ERROR:  index creation on oid system column is not supported for remote tables
 create index t7_a on t7 (a) where a between 100 and 200;
 ERROR:  partial index isn't supported for remote relations
 create index t7_b on t7(b nulls first);
-ERROR:  can't specify non default null ordering for a column of a remote relation's index
 drop index t7_b;
-ERROR:  index "t7_b" does not exist
 create index t7_b on t7(b nulls last);
 show last_remote_sql;
                           last_remote_sql                          
@@ -1273,7 +1270,7 @@ Indexes:
 
 \d+ t202;
 create table t10 (a decimal(66));
-ERROR:  Remote storage node requires NUMERIC precision <= 65
+ERROR:  Kunlun-db: Remote storage node requires NUMERIC precision <= 65
 create table t10 (a decimal(10,31));
 ERROR:  NUMERIC scale 31 must be between 0 and precision 10
 LINE 1: create table t10 (a decimal(10,31));

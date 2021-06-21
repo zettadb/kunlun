@@ -40,7 +40,7 @@
  * we are using for this column.
  * ----------------
  */
-typedef struct
+typedef struct RemotetupAttrInfo
 {								/* Per-attribute information */
 	Oid			typoutput;		/* Oid for the type's text output fn */
 	Oid			typsend;		/* Oid for the type's binary output fn */
@@ -49,7 +49,7 @@ typedef struct
 	FmgrInfo	finfo;			/* Precomputed call info for output fn */
 } RemotetupAttrInfo;
 
-typedef struct
+typedef struct RemotetupCacheState
 {
 	StringInfoData buf;      /* public part, must be 1st field. */
 	TupleDesc	attrinfo;		/* The attr info we are set up for */
@@ -64,9 +64,20 @@ typedef struct
 
 static size_t append_value_str(RemotetupCacheState *s, char *valstr, Oid typid);
 static size_t bracket_tuple(bool start, RemotetupCacheState *s);
+static int remote_insert_blocks = 1;
+int max_remote_insert_blocks = 1024;
+static inline void grow_remote_insert_blocks()
+{
+	remote_insert_blocks *= 2;
+	if (remote_insert_blocks > max_remote_insert_blocks)
+		ereport(ERROR,
+				(errcode(ERRCODE_INTERNAL_ERROR),
+				 errmsg("Kunlun-db COPY FROM: Remote insert buffers(%d) exceeds max limit(%d).",
+				 		remote_insert_blocks, max_remote_insert_blocks),
+				 errhint("Increase max_remote_insert_blocks or shrink tuple to be inserted.")));
+}
 
-
-StringInfo CreateRemotetupCacheState(Relation rel)
+struct RemotetupCacheState *CreateRemotetupCacheState(Relation rel)
 {
 	static size_t PerLeafRelStmtBufSz = 4*1024;
 
@@ -76,7 +87,7 @@ StringInfo CreateRemotetupCacheState(Relation rel)
 	initStringInfo2(&self->buf, PerLeafRelStmtBufSz,CurrentMemoryContext);
 	self->target_rel = rel;
 	self->pasi = GetAsyncStmtInfo(rel->rd_rel->relshardid);
-	return ((StringInfo)self);
+	return self;
 }
 
 #define CONST_STR_LEN(conststr) conststr,(sizeof(conststr)-1)
@@ -138,24 +149,24 @@ bool column_name_is_dropped(const char *colname)
  *		slot: the executor's tuple ready for storage;
  *		self: memory buffer to store the remote tuple data
  * @retval: true if successfully stores 'slot' into self;
- * false if self has no enough memory for 'slot' tuple, and in this case
- * the insert stmt in self's buffer is complete and ready to be sent.
+ * false if insert buffer has no enough memory for 'slot' tuple, and in this case
+ * DBA needs to set a bigger remote insert buffer.
  * ----------------
  */
-bool cache_remotetup(TupleTableSlot *slot, StringInfo self)
+bool cache_remotetup(TupleTableSlot *slot, ResultRelInfo *resultRelInfo)
 {
-	TupleDesc	typeinfo = slot->tts_tupleDescriptor;
-	RemotetupCacheState *myState = (RemotetupCacheState *) self;
+	TupleDesc	typeinfo = resultRelInfo->ri_RelationDesc->rd_att;
+	RemotetupCacheState *myState = resultRelInfo->ri_RemotetupCache;
 	int			natts = typeinfo->natts;
 	int			i;
 	size_t tuplen = 0, attrlen = 0, brlen;
-
-	// there might by half written tuple
+	StringInfo self = &myState->buf;
 
 	/* Set or update my derived attribute info, if needed */
 	if (myState->nattrs != natts || !(myState->attrinfo && typeinfo) ||
 		!equalTupleDescs(myState->attrinfo, typeinfo))
 	{
+retry:
 		// a insert stmt could never have >1 table type.
 		Assert(myState->buf.len == 0);
 		remotetup_prepare_info(myState, typeinfo, natts);
@@ -167,8 +178,9 @@ bool cache_remotetup(TupleTableSlot *slot, StringInfo self)
 	if ((brlen = bracket_tuple(true, myState)) == 0)
 	{
 		truncateStringInfo(self, myState->last_tup_end_offset);
-		end_remote_insert_stmt(self, false);
-		return false;
+		if (!end_remote_insert_stmt(myState, false))
+			grow_remote_insert_blocks(); // tuple too big
+		goto retry;
 	}
 	tuplen += brlen;
 
@@ -194,8 +206,9 @@ bool cache_remotetup(TupleTableSlot *slot, StringInfo self)
 			if (!(attrlen = append_value_str(myState, NULL, 0)))
 			{
 				truncateStringInfo(self, myState->last_tup_end_offset);
-				end_remote_insert_stmt(self, false);
-				return false;
+				if (!end_remote_insert_stmt(myState, false))
+					grow_remote_insert_blocks(); // tuple too big
+				goto retry;
 			}
 			tuplen += attrlen;
 			continue;
@@ -238,8 +251,9 @@ bool cache_remotetup(TupleTableSlot *slot, StringInfo self)
 		if (!(attrlen = append_value_str(myState, outputstr, atttypid)))
 		{
 			truncateStringInfo(self, myState->last_tup_end_offset);
-			end_remote_insert_stmt(self, false);
-			return false;
+			if (!end_remote_insert_stmt(myState, false))
+				grow_remote_insert_blocks(); // tuple too big
+			goto retry;
 		}
 		tuplen += attrlen;
 	}
@@ -256,8 +270,9 @@ bool cache_remotetup(TupleTableSlot *slot, StringInfo self)
 	if (brlen == 0)
 	{
 		truncateStringInfo(self, myState->last_tup_end_offset);
-		end_remote_insert_stmt(self, false);
-		return false;
+		if (!end_remote_insert_stmt(myState, false))
+			grow_remote_insert_blocks(); // tuple too big
+		goto retry;
 	}
 
 	tuplen -= 2; // the last field's trailing ", " is removed.
@@ -285,11 +300,14 @@ static size_t bracket_tuple(bool start, RemotetupCacheState *s)
 	return ret;
 }
 
-void end_remote_insert_stmt(StringInfo self, bool end_of_stmt)
+/*
+  @retval true if at least one tuple is sent to remote; false if no tuple sent.
+*/
+bool end_remote_insert_stmt(struct RemotetupCacheState *s, bool end_of_stmt)
 {
-	RemotetupCacheState *s = (RemotetupCacheState *)self;
+	StringInfo self = &s->buf;
 	if (lengthStringInfo(self) == 0)
-		return;
+		return false;
 
 	// Each tuple ends with 2 chars ',' and ' ', which is not needed for the
 	// last tuple of an insert stmt.
@@ -301,13 +319,13 @@ void end_remote_insert_stmt(StringInfo self, bool end_of_stmt)
 	append_async_stmt(s->pasi, donateStringInfo(self), stmtlen, CMD_INSERT, true, SQLCOM_INSERT);
 	// the buffer is given to async, can't be used anymore in memory buffer.
 	if (!end_of_stmt)
-		initStringInfo2(self, 8192, CurrentMemoryContext);
+		initStringInfo2(self, BLCKSZ*remote_insert_blocks, CurrentMemoryContext);
 
 	/*
 	 * Push the sending work forward. If result pending, try receive it, and
 	 * if no result recvd yet, we can't send next stmt.
 	 * */
-	if (s->pasi->result_pending && send_stmt_to_multi_try_wait(s->pasi, 1) == 0) return;
+	if (s->pasi->result_pending && send_stmt_to_multi_try_wait(s->pasi, 1) == 0) return true;
 
 	int rc = work_on_next_stmt(s->pasi);
 	if (rc == 1)
@@ -316,6 +334,7 @@ void end_remote_insert_stmt(StringInfo self, bool end_of_stmt)
 		ereport(ERROR,
 				(errcode(ERRCODE_INTERNAL_ERROR),
 				 errmsg("Kunlun-db: Internal error: mysql result has not been consumed yet.")));
+	return true;
 }
 
 char *pg_to_mysql_const(Oid typid, char *c)
@@ -404,10 +423,4 @@ static size_t append_value_str(RemotetupCacheState *s, char *valstr, Oid typid)
 				   ((typid == BITOID || typid == VARBITOID) ? "b'" : sep), valstr, sep, ',');
 
 	return ret;
-}
-
-size_t GetInsertedNumRows(StringInfo self)
-{
-	RemotetupCacheState *s = (RemotetupCacheState *)self;
-	return s->pasi->stmt_nrows;
 }

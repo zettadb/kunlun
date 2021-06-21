@@ -7,9 +7,6 @@
  * This source code is licensed under Apache 2.0 License,
  * combined with Common Clause Condition 1.0, as detailed in the NOTICE file.
  *
- * This source code is licensed under Apache 2.0 License,
- * combined with Common Clause Condition 1.0, as detailed in the NOTICE file.
- *
  * IDENTIFICATION
  * 		src/include/optimizer/planremote.h
  *
@@ -21,6 +18,7 @@
 
 #include "postgres.h"
 #include "nodes/plannodes.h"
+
 
 /*
   An edge of *pptr pointing to rs, we may later add a Material node M so that
@@ -51,6 +49,7 @@ typedef struct ShardRemoteScanRef
 	struct ShardRemoteScanRef *next; // for next shard
 } ShardRemoteScanRef;
 
+extern ShardRemoteScanRef *dupShardRemoteScanRefs(ShardRemoteScanRef *src);
 extern void materialize_conflicting_remotescans(PlannedStmt *pstmt);
 extern bool ReleaseShardConnection(PlanState *ps);
 #endif // !PLAN_REMOTE_H

@@ -1531,6 +1531,9 @@ ReadCommonPlan(Plan *local_node)
 	READ_NODE_FIELD(initPlan);
 	READ_BITMAPSET_FIELD(extParam);
 	READ_BITMAPSET_FIELD(allParam);
+	// dzw: we don't output the shard_remotescan_refs field.
+	READ_NODE_FIELD(qual_subplans);
+	READ_NODE_FIELD(tl_subplans);
 }
 
 /*

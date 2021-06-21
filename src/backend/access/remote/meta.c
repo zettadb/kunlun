@@ -84,6 +84,8 @@ update_index_attrname(Relation attrelation, Relation targetrelation,
 	bool check_attname_uniquness);
 static void get_indexed_cols(Oid indexId, Datum **keys, int *nKeys);
 
+extern bool skip_tidsync;
+
 bool use_mysql_native_seq = true;
 typedef struct Object_ref
 {
@@ -112,7 +114,9 @@ typedef struct AlterTableColumnAction {
 	Oid typid;	// the new type id
 	struct AlterTableColumnAction *next;
 
-	// default value str, used by 'add column' subcmd only.
+	// default value str, used by 'add column' subcmd only. have to send this
+	// down to storage shards in order to add default value for the new field
+	// of existing rows.
 	StringInfoData def_valstr;
 	StringInfoData col_dtype;
 
@@ -244,9 +248,9 @@ static StringInfo g_remote_ddl_tail = &g_remote_ddl_ctx.shards.remote_ddl_tail;
 
 
 // GUC variables
-bool enable_remote_relations = true;
 bool replaying_ddl_log = false;
 char *remote_stmt_ptr = NULL;
+int str_key_part_len = 64;
 
 static StringInfoData last_remote_ddl_sql;
 
@@ -265,6 +269,21 @@ inline static void set_op_partitioned(bool b)
 {
 	g_root_stmt->is_partitioned = b;
 }
+
+inline static bool remote_skip_rel(Relation rel)
+{
+	Form_pg_class rd_rel = rel->rd_rel;
+	if ((rd_rel->relshardid == InvalidOid &&
+		 rd_rel->relkind != RELKIND_PARTITIONED_INDEX && 
+		 rd_rel->relkind != RELKIND_PARTITIONED_TABLE) ||
+		rd_rel->relpersistence == RELPERSISTENCE_TEMP)
+		return true;
+	return false;
+}
+
+
+// Not a GUC var anymore, and MUST ALWAYS keep it on.
+bool enable_remote_relations = true;
 
 /*
   whether current txn was started by current command. When executing DDLs we
@@ -401,7 +420,7 @@ static const char *find_create_table_body(const char *sql, bool *is_part_leaf)
  * */
 void make_remote_create_table_stmt1(Relation rel, const TupleDesc tupDesc)
 {
-	if (!enable_remote_ddl()) return;
+	if (!enable_remote_ddl() || remote_skip_rel(rel)) return;
 	check_ddl_txn_status();
 	Assert(g_root_stmt->top_stmt_tag == T_CreateStmt);
 
@@ -482,8 +501,9 @@ void make_remote_create_table_stmt1(Relation rel, const TupleDesc tupDesc)
 
 void SetRemoteContextShardId(Oid shardid)
 {
-	g_remote_ddl_ctx.shards.target_shard_id = shardid;
-	Assert(g_remote_ddl_ctx.shards.target_shard_id != InvalidOid);
+	Oid *poid = &g_remote_ddl_ctx.shards.target_shard_id;
+	Assert((*poid == InvalidOid || *poid == shardid) && shardid != InvalidOid);
+	if (*poid == InvalidOid) *poid = shardid;
 }
 
 Oid GetRemoteContextShardId()
@@ -511,7 +531,7 @@ void make_remote_create_table_stmt2(
 	Relation indexrel, Relation heaprel, const TupleDesc tupDesc, bool is_primary,
 	bool is_unique, int16*coloptions)
 {
-	if (!enable_remote_ddl()) return;
+	if (!enable_remote_ddl() || remote_skip_rel(heaprel)) return;
 	check_ddl_txn_status();
 	/*
 	 * Only produce 'create index' and send to backend storage nodes for
@@ -583,11 +603,24 @@ void make_remote_create_table_stmt2(
 
 	}
 
-	for (int i = 0; i < tupDesc->natts; i++)
+	char keypartlenstr[32] = {'\0'};
+	// the first indnkeyattrs fields are key columns, the rest are included columns.
+	for (int natt = 0; natt < IndexRelationGetNumberOfKeyAttributes(indexrel); natt++)
 	{
-		Form_pg_attribute attrs = tupDesc->attrs + i;
-		ret = appendStringInfo(g_remote_ddl, "%s %s, ", attrs->attname.data,
-			(amid == BTREE_AM_OID) ? ((coloptions[i] & INDOPTION_DESC) ? "DESC" : "ASC") : "");
+		int         attno = indexrel->rd_index->indkey.values[natt];
+		if (attno <= 0)
+			ereport(ERROR, (errcode(ERRCODE_INVALID_TABLE_DEFINITION),
+					errmsg("Can not index system columns.")));
+
+		keypartlenstr[0] = '\0';
+		Form_pg_attribute attrs = heaprel->rd_att->attrs + attno - 1;
+		if (needs_mysql_keypart_len(attrs->atttypid, attrs->atttypmod))
+		{
+			snprintf(keypartlenstr, sizeof(keypartlenstr), "(%d)", str_key_part_len);
+		}
+
+		ret = appendStringInfo(g_remote_ddl, "%s%s %s, ", attrs->attname.data, keypartlenstr,
+			(amid == BTREE_AM_OID) ? ((coloptions[natt] & INDOPTION_DESC) ? "DESC" : "ASC") : "");
 	}
 
 	g_remote_ddl->len -= 2;
@@ -623,9 +656,16 @@ void end_remote_ddl_stmt()
 		AlteredSomeTables())
 		build_change_column_stmt();
 
+	/*
+	  During Kunlun cluster bootstrap, before a computing node is added to a
+	  cluster, it doesn't know the metashard, and can't send DDL logs, just as
+	  it can't do tidsync either. So we use skip_tidsync for this check. And
+	  as such DDL ops are executed for every CN, there is no need for
+	  replicating them either.
+	*/
 	if (g_remote_ddl->len == 0 && 
 		(!is_supported_simple_ddl_stmt(g_root_stmt->top_stmt_tag) ||
-		 g_remote_ddl_ctx.ddl_sql_src.len == 0))
+		 g_remote_ddl_ctx.ddl_sql_src.len == 0 || skip_tidsync))
 		return;
 
 	/*
@@ -828,10 +868,9 @@ void ResetRemoteDDLStmt()
 
 void TrackRemoteDropTableStorage(Relation rel)
 {
-	if (!enable_remote_ddl()) return;
+	if (!enable_remote_ddl() || remote_skip_rel(rel)) return;
 	check_ddl_txn_status();
 	Oid relshardid = rel->rd_rel->relshardid;
-	if (relshardid == InvalidOid) return;
 
 	if (rel->rd_rel->relkind == RELKIND_SEQUENCE)
 	{
@@ -873,7 +912,7 @@ static void SetRemoteDDLInfo(Relation rel, DDL_OP_Types optype, DDL_ObjTypes obj
 
 static void TrackRemoteDropPartitionedTable(Relation rel, bool is_cascade)
 {
-	if (!enable_remote_ddl()) return;
+	if (!enable_remote_ddl() || remote_skip_rel(rel)) return;
 	check_ddl_txn_status();
 	if (g_remote_ddl_ctx.db_name.data[0])
 		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
@@ -889,7 +928,7 @@ static void TrackRemoteDropPartitionedTable(Relation rel, bool is_cascade)
 
 void TrackRemoteCreatePartitionedTable(Relation rel)
 {
-	if (!enable_remote_ddl()) return;
+	if (!enable_remote_ddl() || remote_skip_rel(rel)) return;
 	check_ddl_txn_status();
 	if (g_remote_ddl_ctx.db_name.data[0])
 		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
@@ -956,7 +995,7 @@ void end_metadata_txn(bool commit_it)
 	disconnect_metadata_shard();
 	ereport(WARNING,
 			(errcode(ERRCODE_INTERNAL_ERROR),
-			 errmsg("Kunlun-db: Timed out %s transaction branch '%s' on metadata shard "
+			 errmsg("Kunlun-db: Error %s transaction branch '%s' on metadata shard "
 			 		"when executing DDL statement '%s'",
 			 		commit_it ? "committing" : "aborting",
 					g_remote_ddl_ctx.metadata_xa_txnid,
@@ -976,14 +1015,15 @@ void end_metadata_txn(bool commit_it)
 void TrackRemoteDropTable(Oid relid, bool is_cascade)
 {
 	if (!enable_remote_ddl()) return;
-	check_ddl_txn_status();
 	Relation rel = relation_open(relid, AccessExclusiveLock);
-
+	if (remote_skip_rel(rel)) goto end;
+	check_ddl_txn_status();
 	TrackRemoteDropPartitionedTable(rel, is_cascade);
 	if (rel->rd_rel->relkind != RELKIND_PARTITIONED_TABLE)
 	{
 		set_op_partitioned(false);
 	}
+end:
 	relation_close(rel, NoLock);
 }
 
@@ -991,11 +1031,12 @@ void TrackRemoteDropTable(Oid relid, bool is_cascade)
 void TrackRemoteDropIndex(Oid relid, bool is_cascade)
 {
 	if (!enable_remote_ddl()) return;
+	Relation indexrel = relation_open(relid, AccessExclusiveLock);
+	if (remote_skip_rel(indexrel)) goto end;
 	check_ddl_txn_status();
 	if (g_remote_ddl_ctx.db_name.data[0])
 		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
 				errmsg("Kunlun-db: Can not drop more than one index in a statement, do so one by one.")));
-	Relation indexrel = relation_open(relid, AccessExclusiveLock);
 
 	SetRemoteDDLInfo(indexrel, DDL_OP_Type_drop, DDL_ObjType_index);
 	g_root_stmt->cascade = is_cascade;
@@ -1004,13 +1045,14 @@ void TrackRemoteDropIndex(Oid relid, bool is_cascade)
 		"drop index if exists %s.%s %s",
 		g_root_stmt->schema_name.data, indexrel->rd_rel->relname.data,
 		is_cascade ? "cascade" : "restrict");
+end:
 	relation_close(indexrel, NoLock);
 }
 
 void TrackRemoteCreateIndex(Relation heaprel, const char *idxname, Oid amid,
 	bool is_unique, bool is_partitioned)
 {
-	if (!enable_remote_ddl()) return;
+	if (!enable_remote_ddl() || remote_skip_rel(heaprel)) return;
 	check_ddl_txn_status();
 	if (g_remote_ddl_ctx.curstmt.top_stmt_tag != T_IndexStmt)
 	{
@@ -1034,7 +1076,7 @@ void TrackRemoteCreateIndex(Relation heaprel, const char *idxname, Oid amid,
 
 void TrackRemoteDropIndexStorage(Relation rel)
 {
-	if (!enable_remote_ddl()) return;
+	if (!enable_remote_ddl() || remote_skip_rel(rel)) return;
 	check_ddl_txn_status();
 	const DDL_ObjTypes objtype = g_root_stmt->objtype;
 	/*
@@ -1052,8 +1094,6 @@ void TrackRemoteDropIndexStorage(Relation rel)
 		return;
 
 	Oid relshardid = rel->rd_rel->relshardid;
-	if (relshardid == InvalidOid)
-		return; // nothing to drop in storage node.
 
 	Remote_shard_ddl_context *ddl_cxt = GetShardDDLCtx(relshardid);
 	StringInfo str = &ddl_cxt->remote_ddl;
@@ -1261,6 +1301,12 @@ static void RemoteDatabaseDDL(const char *db, const char *schema, char *cmdbuf,
 		AsyncStmtInfo *asi = GetAsyncStmtInfoByIndex(i);
 		ResetASIInternal(asi);
 	}
+#if 0
+	stmts like drop table can also be tracked into g_remote_ddl_ctx but we
+	can simply ignore them here because mysql always drops a database cascade
+	so all tables in it are dropped.
+	we only need to drop sequence rows of the target schema from
+	mysql.sequences.
 
 	int num_appended = 0;
 	for (Remote_shard_ddl_context *psdc = &g_remote_ddl_ctx.shards; psdc; psdc = psdc->next)
@@ -1282,7 +1328,7 @@ static void RemoteDatabaseDDL(const char *db, const char *schema, char *cmdbuf,
 		Assert(schema && !iscreate);
 		send_multi_stmts_to_multi();
 	}
-
+#endif
 	if (!iscreate)
 	{
 		/*
@@ -1398,7 +1444,7 @@ const static int64_t InvalidSeqVal = -9223372036854775808L;
 void RemoteCreateSeqStmt(Relation rel, Form_pg_sequence seqform,
 		CreateSeqStmt *seq, List*owned_by, bool toplevel)
 {
-	if (!enable_remote_ddl()) return;
+	if (!enable_remote_ddl() || remote_skip_rel(rel)) return;
 
 	check_ddl_txn_status();
 	StringInfoData stmt;
@@ -1570,12 +1616,16 @@ void TrackAlterSeq(Relation rel, List *owned_by, RemoteAlterSeq*raseq, bool topl
 {
 	NameData dbname, schemaName;
 	char astyp[80] = {'\0'};
+	bool changing_identity = false;
+	struct timeval tv;
+	const char *xa_txnid = NULL;
+
 	if (raseq->update_stmt.len == 0 || raseq->update_stmt_peer.len == 0)
 	{
 		Assert(raseq->update_stmt.len == 0 && raseq->update_stmt_peer.len == 0);
 		// owned_by could be modified internally
-		if (raseq->newtypid == InvalidOid && !raseq->do_restart)
-			Assert(owned_by);
+		if (raseq->newtypid == InvalidOid && !raseq->do_restart && !owned_by)
+			changing_identity = true;
 	}
 
 	get_database_name3(MyDatabaseId, &dbname);
@@ -1595,7 +1645,18 @@ void TrackAlterSeq(Relation rel, List *owned_by, RemoteAlterSeq*raseq, bool topl
 	toplevel = (toplevel && g_root_stmt->top_stmt_tag == T_AlterSeqStmt);
 	if (!toplevel)
 	{
-		if (stmt.len == 0) return;
+		if (stmt.len == 0)
+		{
+			if (changing_identity)
+			{
+				appendStringInfo(&stmt1, "alter sequence %s.%s.%s set generated %s",
+					dbname.data, schemaName.data, rel->rd_rel->relname.data,
+					raseq->for_identity ? "always" : "by default");
+				goto start;
+			}
+			else
+				goto end;
+		}
 
 		if (setval)
 		{
@@ -1619,8 +1680,7 @@ void TrackAlterSeq(Relation rel, List *owned_by, RemoteAlterSeq*raseq, bool topl
 	    	StringInfo str = &ddl_cxt->remote_ddl;
 			appendStringInfo(str, "%c %*s", (str->len > 0 ? ';':' '), stmt.len, stmt.data);
 		}
-
-		return;
+		goto end;
 	}
 	Assert(!setval);
 	SetRemoteDDLInfo(rel, DDL_OP_Type_alter, DDL_ObjType_seq);
@@ -1644,6 +1704,7 @@ void TrackAlterSeq(Relation rel, List *owned_by, RemoteAlterSeq*raseq, bool topl
 	  process_owned_by() has already validated the input. OWNED BY clause of
 	  CREATE SEQUENCE stmt specifies the table column to associate to.
 	*/
+	{
 	char owned_by_clause[160] = {'\0'};
 	if (owned_by && linitial(owned_by) && strVal(linitial(owned_by)) &&
 		strcasecmp(strVal(linitial(owned_by)), "none") != 0)
@@ -1657,10 +1718,11 @@ void TrackAlterSeq(Relation rel, List *owned_by, RemoteAlterSeq*raseq, bool topl
 	appendStringInfo(&stmt1, "alter sequence %s.%s.%s %s %s %s",
 		dbname.data, schemaName.data, rel->rd_rel->relname.data, astyp,
 		raseq->update_stmt_peer.data, owned_by_clause);
+	}
 
-	struct timeval tv;
+start:
 	gettimeofday(&tv, NULL);
-	const char *xa_txnid = MakeTopTxnName(tv.tv_usec, tv.tv_sec);
+	xa_txnid = MakeTopTxnName(tv.tv_usec, tv.tv_sec);
 	g_remote_ddl_ctx.metadata_xa_txnid = xa_txnid;
 
 	uint64_t logid = log_ddl_op(get_metadata_cluster_conn(false), xa_txnid,
@@ -1688,6 +1750,7 @@ void TrackAlterSeq(Relation rel, List *owned_by, RemoteAlterSeq*raseq, bool topl
 	/*if (raseq->do_restart)
 		UpdateSeqLastFetched(rel->rd_id, raseq->restart_val);
 	*/
+end:
 	InvalidateCachedSeq(rel->rd_id);
 }
 
@@ -1878,13 +1941,9 @@ int wakeup_remote_meta_sync_waiters(Oid dbid)
   These ddl stmts don't need storage shards actions, simply append them to
   ddl log for other computing nodes to replicate and execute.
 */
-bool is_supported_simple_ddl_stmt(int16_t stmt)
+bool is_supported_simple_ddl_stmt(NodeTag stmt)
 {
-	/*
-	  int16_t is wide enough because NodeTag enums start from 0 and
-	  there are about 500 such entries.
-	*/
-	static int16_t allowed_cmds[] = {
+	static NodeTag allowed_cmds[] = {
 		T_DefineStmt,
 		T_GrantRoleStmt,
 		T_CreateRoleStmt,
@@ -1904,13 +1963,13 @@ bool is_supported_simple_ddl_stmt(int16_t stmt)
 		T_AlterUserMappingStmt,
 		T_DropUserMappingStmt,
 		T_ImportForeignSchemaStmt,
+
 		T_CompositeTypeStmt,
 		T_CreateEnumStmt, /* CREATE TYPE AS ENUM */
 		T_CreateRangeStmt, /* CREATE TYPE AS RANGE */
 		T_ViewStmt,    /* CREATE VIEW */
 		T_CreateFunctionStmt,  /* CREATE FUNCTION */
 		T_AlterFunctionStmt,   /* ALTER FUNCTION */
-		T_RuleStmt,
 		T_RefreshMatViewStmt,
 		T_CreatePLangStmt,
 		T_CreateConversionStmt,
@@ -1929,8 +1988,12 @@ bool is_supported_simple_ddl_stmt(int16_t stmt)
 		T_GrantStmt,
 		T_AlterObjectSchemaStmt,
 		T_AlterDefaultPrivilegesStmt,
-		T_CreatePolicyStmt,
-		T_AlterPolicyStmt,
+		/*
+		  Policies can't be supported for update stmts, alghouth they can be
+		  supported for insert stmts, we have to disable them.
+		*/
+		//T_CreatePolicyStmt,
+		//T_AlterPolicyStmt,
 		T_SecLabelStmt,
 		T_CreateAmStmt,
 		T_AlterCollationStmt,
@@ -1950,7 +2013,7 @@ bool is_supported_simple_ddl_stmt(int16_t stmt)
 	}
 	;
 
-	for (int i = 0; i < sizeof(allowed_cmds)/sizeof(int16_t); i++)
+	for (int i = 0; i < sizeof(allowed_cmds)/sizeof(NodeTag); i++)
 		if (stmt == allowed_cmds[i])
 			return true;
 	return false;
@@ -1960,14 +2023,14 @@ bool is_supported_simple_ddl_stmt(int16_t stmt)
   These DDL stmts are not supported, they should be banned.
   Apart from the banned stmts and the is_simple_supported_ddl_stmt() stmts,
   all other stmts belong to 2 categories:
-  1. support for them are implemented: create/drop table/index/sequence/schema/db
+  1. support for them are implemented: create/drop/alter table/index/sequence/schema/db
   2. they involve a single session and no extra work need to be done for them.
   LISTEN/UNLISTEN/NOTIFY/DO/CALL/FETCH/DECLARE CURSOR/CLOSE/COPY/PREPARE/EXECUTE/DEALLOCATE/
   EXPLAIN/SET/SHOW/LOCK/SET CONSTRAINTS/CHECKPOINT etc
 */
-bool is_banned_ddl_stmt(int16_t stmt)
+bool is_banned_ddl_stmt(NodeTag stmt)
 {
-	static int16_t banned_cmds[] = {
+	static NodeTag banned_cmds[] = {
 		T_CreateTableSpaceStmt,
 		T_DropTableSpaceStmt,
 		T_AlterTableSpaceOptionsStmt,
@@ -1976,6 +2039,7 @@ bool is_banned_ddl_stmt(int16_t stmt)
 		T_AlterTableMoveAllStmt,
 		T_CreatePublicationStmt,
 		T_AlterPublicationStmt,
+		T_CreateSubscriptionStmt,
 		T_AlterSubscriptionStmt,
 		T_DropSubscriptionStmt,
 		T_CreateEventTrigStmt,
@@ -2015,7 +2079,14 @@ bool is_banned_ddl_stmt(int16_t stmt)
 		T_DropOwnedStmt, //DropOwnedObjects
 		// T_CreateTableAsStmt,// also used for matview, which is allowed.
 		// 'create table as' and 'select into' stmts are forbidden.
-		T_CreateStatsStmt
+		T_CreateStatsStmt,
+
+		/*
+		  Policies can't be supported for update stmts, alghouth they can be
+		  supported for insert stmts, we have to disable them.
+		*/
+		T_CreatePolicyStmt,
+		T_AlterPolicyStmt
 	};
 
 	for (int i = 0; i < sizeof(banned_cmds)/sizeof(banned_cmds[0]); i++)
@@ -2051,6 +2122,9 @@ void accumulate_simple_ddl_sql(const char *sql, int start, int len)
 	else
 		appendStringInfo(&g_remote_ddl_ctx.ddl_sql_src, "%c %s", delim,
 			sql + start);
+
+	elog(DEBUG2, "g_remote_ddl_ctx.ddl_sql_src:%s",
+		 g_remote_ddl_ctx.ddl_sql_src.data);
 
 	if (g_remote_ddl_ctx.db_name.data[0] == '\0')
 	{
@@ -2250,6 +2324,9 @@ const char* atsubcmd(AlterTableCmd *subcmd)
 		case AT_GenericOptions:
 			strtype = "SET OPTIONS";
 			break;
+		case AT_AttachPartition:
+			strtype = "ATTACH PARTITION";
+			break;
 		default:
 			strtype = "unrecognized";
 			break;
@@ -2260,6 +2337,8 @@ const char* atsubcmd(AlterTableCmd *subcmd)
 bool is_supported_alter_table_subcmd(AlterTableCmd *subcmd)
 {
 	const static AlterTableType banned_alcmds[] = {
+		AT_AttachPartition,
+
 		AT_SetStatistics,
 		AT_SetStorage,
 
@@ -2327,7 +2406,16 @@ bool is_supported_alter_table_subcmd(AlterTableCmd *subcmd)
 		AT_AddOf,                   /* OF <type_name> */
 		AT_DropOf,                  /* NOT OF */
 		AT_ReplicaIdentity,         /* REPLICA IDENTITY */
-		AT_GenericOptions
+		AT_GenericOptions,
+
+		/*
+		  Need to disable this feature because we don't support policy and we
+		  can't enforce such rules for updates.
+		*/
+		AT_EnableRowSecurity,
+		AT_DisableRowSecurity,
+		AT_ForceRowSecurity,
+		AT_NoForceRowSecurity
 	};
 
 	for (int i = 0; i < sizeof(banned_alcmds)/sizeof(banned_alcmds[0]); i++)
@@ -2640,10 +2728,12 @@ Oid find_root_base_type(Oid typid0)
 /*
   relation rename and schema move is always indepent 'alter table' stmt
 
-ALTER TABLE [ IF EXISTS ] name
+ALTER TABLE/SEQUENCE [ IF EXISTS ] name
 RENAME TO new_name
-ALTER TABLE [ IF EXISTS ] name
+ALTER TABLE/SEQUENCE  [ IF EXISTS ] name
 SET SCHEMA new_schema
+
+ALTER INDEX old_ind RENAME TO new_ind
 
 isrel: true if renaming relation, false if moving to another schema. they both
 		can be handled by rename table stmt in mysql.
@@ -2656,10 +2746,16 @@ void TrackRelationRename(Relation rel, const char*objname, bool isrel)
 	Remote_shard_ddl_context *rsdc = GetShardDDLCtx(rel->rd_rel->relshardid);
 	const char*dbname = g_remote_ddl_ctx.db_name.data;
 	const char*schemaname = g_root_stmt->schema_name.data;
+	const char *my_name = NULL;
+	if (isrel)
+		my_name = rel->rd_rel->relname.data;
+	else
+		my_name = schemaname;
 
 	if (rel->rd_rel->relkind == RELKIND_RELATION)
 	{
 		SetRemoteDDLInfo(rel, DDL_OP_Type_rename, DDL_ObjType_table);
+		if (strncmp(objname, my_name, NAMEDATALEN - 1) == 0) goto skip;
 		if (isrel)
 			appendStringInfo(&rsdc->remote_ddl, "%c alter table %s_$$_%s.%s rename to %s_$$_%s.%s",
 				rsdc->remote_ddl.len > 0 ? ';':' ', dbname, schemaname,
@@ -2675,7 +2771,11 @@ void TrackRelationRename(Relation rel, const char*objname, bool isrel)
 		if (!isrel)
 			ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
 					errmsg("Kunlun-db: Can not move index to another db alone.")));
+		if (!rel->rd_index || rel->rd_index->indisprimary)
+			goto skip; // in mysql, a primary index is always named PRIMARY.
+
 		SetRemoteDDLInfo(rel, DDL_OP_Type_rename, DDL_ObjType_index);
+		if (strncmp(objname, my_name, NAMEDATALEN - 1) == 0) goto skip;
 		/*
 		  The same index in computing nodes and storage shards always share
 		  the same name except PK so we can identify the target index in
@@ -2692,6 +2792,7 @@ void TrackRelationRename(Relation rel, const char*objname, bool isrel)
 	else if (rel->rd_rel->relkind == RELKIND_SEQUENCE)
 	{
 		SetRemoteDDLInfo(rel, DDL_OP_Type_rename, DDL_ObjType_seq);
+		if (strncmp(objname, my_name, NAMEDATALEN - 1) == 0) goto skip;
 		if (isrel)
 			appendStringInfo(&rsdc->remote_ddl, "%c update mysql.sequences set name= '%s' where db='%s_%s_%s' and name='%s'",
 				rsdc->remote_ddl.len > 0 ? ';':' ', objname,dbname,
@@ -2708,6 +2809,9 @@ void TrackRelationRename(Relation rel, const char*objname, bool isrel)
 	{
 		// no need to involve storage shards, nothing to do.
 	}
+	return;
+skip:
+	ResetRemoteDDLStmt();
 }
 
 void TrackColumnRename(Relation rel, const char*oldname, const char*newname)
@@ -2784,7 +2888,7 @@ fetch_column_constraints(ColumnDef *column, AlterTableColumnAction *csd)
 		if (column->cooked_default)
 		{
 			appendStringInfoString(&csd->def_valstr, "default ");
-			int slen = snprint_expr(&csd->def_valstr, (Expr*)column->raw_default, NULL);
+			int slen = snprint_expr(&csd->def_valstr, (Expr*)column->cooked_default, NULL);
 			if (slen <= 0)
 			{
 				pfree(csd->def_valstr.data);
@@ -2872,7 +2976,9 @@ static void print_str_list(StringInfo str, List *ln, char seperator)
 	{
 		if (i++ > 0)
 			appendStringInfoChar(str, seperator);
-		appendStringInfoString(str, (const char *)lfirst(clist));
+		Value *valnode = (Value*)lfirst(clist);
+		Assert(valnode->type == T_String);
+		appendStringInfoString(str, (const char *)valnode->val.str);
 	}
 }
 
@@ -3134,7 +3240,14 @@ static void build_column_data_type(StringInfo str, Oid typid,
 	if (VARCHAROID == typid && typmod == -1)
 		appendStringInfo(str, "%s", format_type_remote(TEXTOID)); // pg extension
 	else
-		appendStringInfo(str, "%s", format_type_remote(typid));
+	{
+		const char *typname = format_type_remote(typid);
+		if (!typname)
+			ereport(ERROR, (errcode(ERRCODE_INVALID_COLUMN_DEFINITION),
+					errmsg("Kunlun-db: Not supported type (%u).", typid)));
+		else
+			appendStringInfo(str, "%s", typname);
+	}
 
 	if (typmod != -1)
 	{

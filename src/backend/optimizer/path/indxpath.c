@@ -1267,7 +1267,7 @@ generate_bitmap_or_paths(PlannerInfo *root, RelOptInfo *rel,
 	List	   *result = NIL;
 	List	   *all_clauses;
 	ListCell   *lc;
-
+	return result;// storage shards don't have TID for a row.
 	/*
 	 * We can use both the current and other clauses as context for
 	 * build_paths_for_OR; no need to remove ORs from the lists.

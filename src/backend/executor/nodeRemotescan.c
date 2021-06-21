@@ -41,6 +41,7 @@
 #include "catalog/pg_enum.h"
 #include "utils/builtins.h"
 #include "catalog/pg_type.h"
+#include "catalog/heap.h"
 
 static TupleTableSlot *RemoteNext(RemoteScanState *node);
 static void generate_remote_sql(RemoteScanState *rss);
@@ -99,7 +100,7 @@ RemoteNext(RemoteScanState *node)
 		 * can't work on next stmt to fetch data from next table of the same
 		 * shard.
 		 * */
-		if (!node->asi->will_rewind)
+		if (!node->will_rewind)
 			free_mysql_result(node->asi);
 	}
 	return slot;
@@ -139,7 +140,7 @@ ExecRemoteScan(PlanState *pstate)
 		  1st row is to be returned from this remote table.
 		*/
 		size_t stmtlen = lengthStringInfo(&node->remote_sql);
-	    append_async_stmt(node->asi, donateStringInfo(&node->remote_sql),
+	    append_async_stmt(node->asi, pstrdup(node->remote_sql.data),
 	        stmtlen, CMD_SELECT, true, SQLCOM_SELECT);
 		int rc = work_on_next_stmt(node->asi);
 	    if (rc == 1)
@@ -256,11 +257,15 @@ bool var_picker(Node *node, VarPickerCtx*ctx)
  * */
 TupleDesc expandTupleDesc2(TupleDesc tpd)
 {
-	TupleDesc td1 = CreateTemplateTupleDesc(tpd->natts * 2, tpd->tdhasoid);
+	int nadd = tpd->natts < 4 ? 4 : tpd->natts;
+
+	TupleDesc td1 = CreateTemplateTupleDesc(tpd->natts + nadd, tpd->tdhasoid);
 	size_t oldlen = offsetof(struct tupleDesc, attrs) + tpd->natts * sizeof(FormData_pg_attribute);
 	memcpy(td1, tpd, oldlen);
-	memset(td1 + oldlen, 0, tpd->natts * sizeof(FormData_pg_attribute));
-	td1->natts = tpd->natts * 2;
+
+	// Note there is a header before the FormData_pg_attribute array.
+	memset(((char*)td1) + oldlen, 0, nadd * sizeof(FormData_pg_attribute));
+	td1->natts = tpd->natts + nadd;
 	pfree(tpd);
 
 	return td1;
@@ -272,6 +277,27 @@ void reset_var_picker_ctx(VarPickerCtx *vpc)
 	vpc->has_alien_cols = false;
 	vpc->local_evaluables = 0;
 	vpc->local_unevaluables = 0;
+}
+
+void validate_column_reference(Var *colvar, Relation rel)
+{
+	if (colvar->varattno < 0)
+	{
+		Form_pg_attribute sysatt = SystemAttributeDefinition(colvar->varattno, true);
+
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("Kunlun-db: Can't access system attribute(%s) from remote relation %s.",
+				 		sysatt ? sysatt->attname.data : "<unknown>",
+						rel->rd_rel->relname.data)));
+	}
+
+	if (colvar->varattno > rel->rd_att->natts)
+		ereport(ERROR,
+				(errcode(ERRCODE_INTERNAL_ERROR),
+				 errmsg("Kunlun-db: Invalid column(%d) referenced for relation %s, exceeds max column number(%d).",
+						colvar->varattno, rel->rd_rel->relname.data,
+						rel->rd_att->natts)));
 }
 
 /*
@@ -295,9 +321,10 @@ ExecScanTypeFromTL(EState *estate, RemoteScanState *rss,
 	   len = ExecCleanTargetListLength(targetList);
 	else
 		len = ExecTargetListLength(targetList);
-	if (len == 0)
+	if (len < 3)
 	{
-		len = 1; // will append a column at the end of the func.
+		// Alloc enough; will append a column at the end of the func.
+		len = 3;
 	}
 
 	typeInfo = CreateTemplateTupleDesc(len, false /*hasoid*/);
@@ -333,8 +360,15 @@ ExecScanTypeFromTL(EState *estate, RemoteScanState *rss,
 			 * Fast path for most common case.
 			 * */
 			Var *colvar = (Var*)(tle->expr);
-			colname = rel->rd_att->attrs[colvar->varattno - 1].attname.data;
-			colvar->varattno = cur_resno;
+			validate_column_reference(colvar, rel);
+
+			if (colvar->varattno == 0)
+			{
+				cur_resno = append_cols_for_whole_var(rel, &typeInfo, cur_resno);
+				continue; // whole-row var processed.
+			}
+
+			cur_resno = add_unique_col_var(rel, typeInfo, cur_resno, tle, colvar, true);
 		}
 		else
 		{
@@ -367,16 +401,17 @@ ExecScanTypeFromTL(EState *estate, RemoteScanState *rss,
 			 * */
 
 			/* Whether column def added to typeInfo. */
-			bool coladded = false;
 			initStringInfo2(&colexpr_str, 256, estate->es_query_cxt);
 			int seret = snprint_expr(&colexpr_str, tle->expr, &rpec);
 
-			if (seret >= 0)
+			if (seret >= 0 && rpec.num_vals == 1)
 			{
 				/*
 				  The expression can be computed by storage shard, so simply
 				  use returned field value, i.e. replace the expr with a Var
 				  to refer to the source column.
+				  The expr can be serialized to one value, and this value has
+				  exact same type as the expr itself. Otherwise we can't do this.
 				*/
 				Var *var_expr = makeVar(rs->scanrelid, cur_resno,
 					exprType((Node *)tle->expr), exprTypmod((Node *)tle->expr),
@@ -390,6 +425,22 @@ ExecScanTypeFromTL(EState *estate, RemoteScanState *rss,
 					colexpr_str.data[sizeof(NameData) - 1] = '\0';
 				}
 				colname = donateStringInfo(&colexpr_str);
+				var_expr->varattno = cur_resno;
+				/*
+				 * Hold the target var name or expr string to generate remote sql.
+				 * */
+				if (!tle->resname)
+					tle->resname = colname;
+				TupleDescInitEntry(typeInfo,
+								   cur_resno,
+								   colname,
+								   exprType((Node *) tle->expr),
+								   exprTypmod((Node *) tle->expr),
+								   0);
+				TupleDescInitEntryCollation(typeInfo,
+											cur_resno,
+											exprCollation((Node *) tle->expr));
+				cur_resno++;
 			}
 			else
 			{
@@ -399,45 +450,25 @@ ExecScanTypeFromTL(EState *estate, RemoteScanState *rss,
 				  values instead.
 				*/
 				resetStringInfo(&colexpr_str);
-				for (int i = 0; i < vpc.nvars; i++, cur_resno++)
+				for (int i = 0; i < vpc.nvars; i++)
 				{
 					if (cur_resno > typeInfo->natts)
 						typeInfo = expandTupleDesc2(typeInfo);
 					Var *origvar = vpc.target_cols[i];
-					colname = rel->rd_att->attrs[origvar->varattno - 1].attname.data;
-					TupleDescInitEntry(typeInfo,
-									   cur_resno,
-									   colname,
-									   origvar->vartype,
-									   origvar->vartypmod,
-									   0);
-					TupleDescInitEntryCollation(typeInfo,
-												cur_resno,
-												origvar->varcollid);
-					origvar->varattno = cur_resno;
-				}
-				coladded = true;
-			}
+					validate_column_reference(origvar, rel);
 
-			if (coladded)
-				continue;
-		}
+					if (unlikely(origvar->varattno == 0))
+					{
+						cur_resno = append_cols_for_whole_var(rel,
+							&typeInfo, cur_resno);
+						continue; // whole-row var processed.
+					}
 
-		/*
-		 * Hold the target var name or expr string to generate remote sql.
-		 * */
-		if (!tle->resname)
-			tle->resname = colname;
-		TupleDescInitEntry(typeInfo,
-						   cur_resno,
-						   colname,
-						   exprType((Node *) tle->expr),
-						   exprTypmod((Node *) tle->expr),
-						   0);
-		TupleDescInitEntryCollation(typeInfo,
-									cur_resno,
-									exprCollation((Node *) tle->expr));
-		cur_resno++;
+					cur_resno = add_unique_col_var(rel, typeInfo, cur_resno, tle,
+						origvar, false);
+				} // FOR vars
+			} // ELSE (expr can not be pushed down)
+		} // ELSE(not a simple var)
 	}
 
 	/*
@@ -463,7 +494,6 @@ ExecScanTypeFromTL(EState *estate, RemoteScanState *rss,
 	 * */
 	if (cur_resno == 1)
 	{
-		Assert(typeInfo->natts == 1);
 		TupleDesc tdrel = rel->rd_att;
 		int target_attidx = -1, target_attw = 0x7fffffff;
 		Form_pg_attribute atts = tdrel->attrs;
@@ -509,6 +539,109 @@ ExecScanTypeFromTL(EState *estate, RemoteScanState *rss,
 	typeInfo = rss->ss.ps.scandesc;
 
 	return typeInfo;
+}
+
+/*
+  Don't fetch the same column twice which may happen simply because it's
+  referenced twice in the sql text.
+*/
+int add_unique_col_var(Relation rel, TupleDesc typeInfo, int cur_resno, TargetEntry *tle,
+	Var *colvar, bool set_tle_resname)
+{
+	char *colname = rel->rd_att->attrs[colvar->varattno - 1].attname.data;
+	// avoid duplicates
+	bool coladded = false;
+	for (int x = 0; x < cur_resno - 1; x++)
+	{
+		if (strcmp(colname, typeInfo->attrs[x].attname.data) == 0)
+		{
+			colvar->varattno = x+1;
+			coladded = true;
+			break;
+		}
+	}
+	if (coladded) return cur_resno;
+
+	/*
+	  Establish mapping from the source data columns to the targetlist's
+	  columns of this plan node, so that projection can be computed correctly.
+	*/
+	colvar->varattno = cur_resno;
+	/*
+	 * Hold the target var name or expr string to generate remote sql.
+	 * */
+	if (!tle->resname && set_tle_resname)
+		tle->resname = colname;
+	TupleDescInitEntry(typeInfo,
+					   cur_resno,
+					   colname,
+					   colvar->vartype,
+					   colvar->vartypmod,
+					   0);
+	TupleDescInitEntryCollation(typeInfo,
+								cur_resno,
+								colvar->varcollid);
+	cur_resno++;
+	return cur_resno;
+}
+
+/*
+  whole-row var, append all columns, but don't add a column twice.
+  the left N (N is rel->rd_att->natts) targets must be exactly rel's columns
+  otherwise record_out() fails to work because it assumes the whole-row type
+  is the source table type.
+  We could rearrange remote data source targets but for now we don't bother to
+  handle such a corner case, the trouble is that we would have to re-wire the
+  mapping between tle->expr(var) to the target column of remote query.
+*/
+int append_cols_for_whole_var(Relation rel, TupleDesc *pp_typeInfo, int cur_resno)
+{
+	char *colname = NULL;
+	int num_vars = cur_resno - 1;
+	TupleDesc typeInfo = *pp_typeInfo;
+	for (int k = 0; k < rel->rd_att->natts; k++)
+	{
+		FormData_pg_attribute *patt = TupleDescAttr(rel->rd_att, k);
+		colname = patt->attname.data;
+
+		// avoid duplication
+		bool var_added = false;
+		for (int x = 0; x < num_vars; x++)
+		{
+			if (strcmp(colname, typeInfo->attrs[x].attname.data) == 0)
+			{
+				if (x == k)
+				{
+					var_added = true;
+					break;
+				}
+				else
+					ereport(ERROR,
+							(errcode(ERRCODE_INTERNAL_ERROR),
+							 errmsg("Kunlun-db: Must specify whole-row target left-most.")));
+			}
+		}
+		if (var_added) continue;
+
+		if (cur_resno > typeInfo->natts)
+		{
+			typeInfo = expandTupleDesc2(typeInfo);
+			*pp_typeInfo = typeInfo;
+		}
+
+		TupleDescInitEntry(typeInfo,
+						   cur_resno,
+						   colname,
+						   patt->atttypid,
+						   patt->atttypmod,
+						   0);
+		TupleDescInitEntryCollation(typeInfo,
+									cur_resno,
+									patt->attcollation);
+		cur_resno++;
+	}
+
+	return cur_resno;
 }
 
 void init_type_input_info(TypeInputInfo **tii, TupleTableSlot *slot,
@@ -662,8 +795,10 @@ ExecInitRemoteScan(RemoteScan *node, EState *estate, int eflags)
 	  don't modify the generic logic there. for remote scans as long as the
 	  node is not top level, assume rewinding possible.
 	*/
-	if ((eflags & EXEC_FLAG_REWIND) || node->query_level > 1)
-		scanstate->asi->will_rewind = true;
+	if (eflags & EXEC_FLAG_REWIND)
+		scanstate->will_rewind = true;
+	else
+		scanstate->will_rewind = false;
 
 end:
 	return scanstate;
@@ -814,7 +949,7 @@ genres:
 
 	generate_remote_sql(node);
 	size_t stmtlen = lengthStringInfo(&node->remote_sql);
-	append_async_stmt(node->asi, donateStringInfo(&node->remote_sql),
+	append_async_stmt(node->asi, pstrdup(node->remote_sql.data),
 					  stmtlen, CMD_SELECT, true, SQLCOM_SELECT);
 
 	int rc = work_on_next_stmt(node->asi);
@@ -915,7 +1050,7 @@ static void generate_remote_sql(RemoteScanState *rss)
 		 * */
 		const char *colname = attr->attname.data;
 
-		if (!colname)
+		if (!colname || !colname[0])
 			ereport(ERROR,
 					(errcode(ERRCODE_INTERNAL_ERROR),
 					 errmsg("Kunlun-db: Invalid target column name(NULL).")));
@@ -1079,6 +1214,7 @@ void ExecStoreRemoteTuple(TypeInputInfo *tii, MYSQL_ROW row,
 			{
 			    slot->tts_values[i] = GetEnumLabelOidCached(
 					ptii->AllEnumLabelOidEntries, ptii->nslots, row[i]);
+				slot->tts_isnull[i] = false;
 			}
 			else
 			{
@@ -1091,12 +1227,23 @@ void ExecStoreRemoteTuple(TypeInputInfo *tii, MYSQL_ROW row,
 				else
 					pfld = row[i];
 
-			    slot->tts_values[i] =
-				    OidInputFunctionCall(typinput, pfld,
-					    				 typioparam, att->atttypmod);
+				/*
+				  if pfld is empty string and field type isn't string,
+				  it means this field is NULL
+				*/
+				if (pfld[0] == '\0' && !is_string_type(att->atttypid))
+				{
+					slot->tts_values[i] = (Datum) 0;
+					slot->tts_isnull[i] = true;
+				}
+				else
+				{
+			    	slot->tts_values[i] =
+				    	OidInputFunctionCall(typinput, pfld,
+					    					 typioparam, att->atttypmod);
+					slot->tts_isnull[i] = false;
+				}
 			}
-
-			slot->tts_isnull[i] = false;
 		}
 		else
 		{
@@ -1149,17 +1296,16 @@ static void add_qual_cols_to_src(RemoteScanState *rss, Relation rel,
 	const char *vcolname = NULL;
 	Form_pg_attribute relattrs = rel->rd_att->attrs;
 
+	// need real capacity for boundary checks
+	tupdesc->natts = rss->scandesc_natts_cap;
+
 	for (int i = 0; i < vpc.nvars; i++)
 	{
 		Var *v = vpc.target_cols[i];
-		if (!(v->varattno > 0 && v->varattno <= rel->rd_att->natts))
-			ereport(ERROR,
-					(errcode(ERRCODE_INTERNAL_ERROR),
-					 errmsg("Kunlun-db: Invalid column referenced by a qual item, varattno: %d, varno: %d.",
-							v->varattno, v->varno)));
+		validate_column_reference(v, rel);
 		vcolname = relattrs[v->varattno - 1].attname.data;
 
-		for (int j = 0; j < tupdesc->natts; j++)
+		for (int j = 0; j < cur_resno-1; j++)
 		{
 			if (bms_is_member(j+1, rss->long_exprs_bmp))
 				continue;
@@ -1180,13 +1326,12 @@ static void add_qual_cols_to_src(RemoteScanState *rss, Relation rel,
 		 * Add column to tupdesc and str, and associate.
 		 * Make sure there is enough slot space for more Attrs first.
 		 */
-		if (tupdesc->natts > rss->scandesc_natts_cap)
+		if (cur_resno > rss->scandesc_natts_cap)
 		{
 			tupdesc = expandTupleDesc2(tupdesc);
 			rss->scandesc_natts_cap = tupdesc->natts;
 		}
 
-		tupdesc->natts++; // Grow first, as required by TupleDescInitEntry.
 		TupleDescInitEntry(tupdesc,
 						   cur_resno,
 						   vcolname,
@@ -1203,6 +1348,7 @@ found:
 		continue;
 	}
 
+	tupdesc->natts = cur_resno - 1;
 	rss->ss.ps.scandesc = tupdesc;
 }
 

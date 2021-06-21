@@ -7,6 +7,7 @@
  *
  * This source code is licensed under Apache 2.0 License,
  * combined with Common Clause Condition 1.0, as detailed in the NOTICE file.
+ *
  * Portions Copyright (c) 1996-2018, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
  *
@@ -63,6 +64,7 @@
 #include "nodes/makefuncs.h"
 #include "nodes/print.h"
 #include "executor/nodeRemotescan.h"
+#include "catalog/heap.h"
 
 static bool ExecOnConflictUpdate(ModifyTableState *mtstate,
 					 ResultRelInfo *resultRelInfo,
@@ -86,9 +88,11 @@ static TupleDesc
 ExecScanTypeFromTL(EState *estate, ModifyTableState *mts,
 	Relation rel, bool skipjunk);
 static void
-ExecInitRemoteReturningTupleSlotTL(EState *estate, ModifyTableState *mts, TupleDesc tupledesc);
+ExecInitRemoteReturningTupleSlotTL(EState *estate, ModifyTableState *mts,
+	TupleDesc tupledesc);
 static TupleTableSlot *
-ReturningNext(ModifyTableState *node, RemoteModifyState*rms);
+ReturningNext(ModifyTableState *node, ResultRelInfo *resultRelInfo,
+	RemoteModifyState*rms);
 
 /*
  * Verify that the tuples to be produced by INSERT or UPDATE match the
@@ -342,8 +346,11 @@ ExecInsert(ModifyTableState *mtstate,
 	 * */
 	if (IsRemoteRelation(resultRelationDesc))
 	{
+		if (resultRelInfo->ri_PartitionCheck &&
+			resultRelInfo->ri_PartitionRoot == NULL)
+			ExecPartitionCheck(resultRelInfo, slot, estate, true);
 		fill_tupdesc_attr_info(resultRelationDesc->rd_att, slot);
-		cache_remotetup(slot, resultRelInfo->ri_RemotetupCache);
+		cache_remotetup(slot, resultRelInfo);
 		goto process_returning;
 	}
 
@@ -2088,7 +2095,7 @@ ExecModifyTable(PlanState *pstate)
 			RemoteModifyState *currms = node->cur_returning_idx >= 0 ?
 				node->mt_remote_states + node->cur_returning_idx : NULL;
 
-			if (currms && (slot = ReturningNext(node, currms)))
+			if (currms && (slot = ReturningNext(node, resultRelInfo, currms)))
 				return slot;
 
 			node->cur_returning_idx = -1;
@@ -2120,7 +2127,7 @@ ExecModifyTable(PlanState *pstate)
 				// got a channel with available data, fetch next row from it to a
 				// tupletableslot and return it. and later keep fetching until
 				// all result rows exhausted.
-				slot = ReturningNext(node, rms);
+				slot = ReturningNext(node, resultRelInfo, rms);
 				if (slot)
 				{
 					node->cur_returning_idx = i;
@@ -2548,11 +2555,22 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 		  dzw: Here we assume that all tables in mtstate->resultRelInfo array
 		  are leaf partitions of the same partitioned table, so they share the
 		  same tupledesc and targetlist.
-		*/
-		ExecScanTypeFromTL(estate, mtstate,
-			mtstate->resultRelInfo->ri_RelationDesc, true);
 
-		ExecInitRemoteReturningTupleSlotTL(estate, mtstate, mtstate->ps.scandesc);
+		  For insert stmt we always assume original tuple format because
+		  insert returning is computed in computing node.
+		*/
+		if (node->operation != CMD_INSERT)
+		{
+			ExecScanTypeFromTL(estate, mtstate,
+				mtstate->resultRelInfo->ri_RelationDesc, true);
+
+			ExecInitRemoteReturningTupleSlotTL(estate, mtstate, mtstate->ps.scandesc);
+		}
+		else
+		{
+			mtstate->ps.scandesc = mtstate->resultRelInfo->ri_RelationDesc->rd_att;
+		}
+
 		/* Set up a slot for the output of the RETURNING projection(s) */
 		ExecInitResultTupleSlotTL(estate, &mtstate->ps);
 		slot = mtstate->ps.ps_ResultTupleSlot;
@@ -2573,7 +2591,7 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 			resultRelInfo->ri_returningList = rlist;
 			resultRelInfo->ri_projectReturning =
 				ExecBuildProjectionInfo(rlist, econtext, slot, &mtstate->ps,
-										resultRelInfo->ri_RelationDesc->rd_att);
+					mtstate->ps.scandesc);
 			resultRelInfo++;
 		}
 	}
@@ -2832,6 +2850,8 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 	*/
 	resultRelInfo = mtstate->resultRelInfo;
 
+	if (eflags & EXEC_FLAG_EXPLAIN_ONLY) goto end;
+
 	RemoteScan **rs_updels = palloc(sizeof(void*) * mtstate->mt_nplans);
 	if ((operation == CMD_DELETE || operation == CMD_UPDATE) &&
 		IsRemoteRelation(resultRelInfo->ri_RelationDesc))
@@ -2863,7 +2883,7 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 	if (mtstate->remoteReturningTupleSlot)
 		init_type_input_info(&mtstate->typeInputInfo,
 			mtstate->remoteReturningTupleSlot, estate);
-
+end:
 	return mtstate;
 }
 
@@ -2920,34 +2940,6 @@ ExecEndModifyTable(ModifyTableState *node)
 	 for update&delete, this was already done in ExecModifyTable().
 	 * */
 	if (node->operation == CMD_INSERT) send_multi_stmts_to_multi();
-
-	/*
-	 * Sum-up total NO. of affected rows from mysql connections.
-	 * */
-	size_t total_nrows = 0;
-	for (i = 0; i < node->mt_nplans; i++)
-	{
-		ResultRelInfo *resultRelInfo = node->resultRelInfo + i;
-		/*
-		 * dzw: end remote tuple caching for each leaf partition of a
-		 * partition table, or the regular table.
-		 */
-		PartitionTupleRouting *proute = node->mt_partition_tuple_routing;
-		if (proute)
-		{
-	        for (int partidx = 0; partidx < proute->num_partitions; partidx++)
-	        {
-	            ResultRelInfo *partrel = proute->partitions[partidx];
-	            if (partrel && partrel->ri_RemotetupCache)
-	                total_nrows += GetInsertedNumRows(partrel->ri_RemotetupCache);
-	        }
-		}
-		else
-		{
-	        if (resultRelInfo->ri_RemotetupCache)
-	            total_nrows += GetInsertedNumRows(resultRelInfo->ri_RemotetupCache);
-		}
-	}
 
 	node->ps.state->es_processed = GetRemoteAffectedRows();
 
@@ -3021,9 +3013,10 @@ ExecScanTypeFromTL(EState *estate, ModifyTableState *mts,
 		len += vpc.nvars;
 		reset_var_picker_ctx(&vpc);
 	}
-	if (len == 0)
+	if (len < 3)
 	{
-		len = 1; // will append a column at the end of the func.
+		// Alloc enough; will append a column at the end of the func.
+		len = 3;
 	}
 
 	typeInfo = CreateTemplateTupleDesc(len, false /*hasoid*/);
@@ -3040,8 +3033,7 @@ ExecScanTypeFromTL(EState *estate, ModifyTableState *mts,
 		Assert(IsA(pnode, TargetEntry));
 		TargetEntry *tle = (TargetEntry *)pnode;
 
-		if ((skipjunk && tle->resjunk) || !tle->expr ||
-			strcmp(tle->resname, "ctid") == 0)
+		if ((skipjunk && tle->resjunk) || !tle->expr)
 			continue;
 		/*
 		 * Try to make a column name in order to build the result's tupledesc.
@@ -3053,7 +3045,16 @@ ExecScanTypeFromTL(EState *estate, ModifyTableState *mts,
 			 * */
 			Var *colvar = (Var*)(tle->expr);
 			colname = rel->rd_att->attrs[colvar->varattno - 1].attname.data;
-			colvar->varattno = cur_resno;
+			validate_column_reference(colvar, rel);
+			if (colvar->varattno == 0)
+			{
+				cur_resno = append_cols_for_whole_var(rel, &typeInfo, cur_resno);
+				continue;
+			}
+
+			cur_resno = add_unique_col_var(rel, typeInfo, cur_resno, tle, colvar, false);
+			continue;
+
 		}
 		else
 		{
@@ -3079,13 +3080,12 @@ ExecScanTypeFromTL(EState *estate, ModifyTableState *mts,
 
 			Assert(vpc.nvars > 0);
 			/* Whether column def added to typeInfo. */
-			bool coladded = false;
 			initStringInfo2(&colexpr_str, 256, estate->es_query_cxt);
 			RemotePrintExprContext rpec;
 			InitRemotePrintExprContext(&rpec, estate->es_plannedstmt->rtable);
 			int seret = snprint_expr(&colexpr_str, tle->expr, &rpec);
 
-			if (seret >= 0)
+			if (seret >= 0 && rpec.num_vals == 1)
 			{
 				/*
 				  The expression can be computed by storage shard, so simply
@@ -3104,6 +3104,21 @@ ExecScanTypeFromTL(EState *estate, ModifyTableState *mts,
 					colexpr_str.data[sizeof(NameData) - 1] = '\0';
 				}
 				colname = donateStringInfo(&colexpr_str);
+				/*
+				 * Hold the target var name or expr string to generate remote sql.
+				 * */
+				if (!tle->resname)
+					tle->resname = colname;
+				TupleDescInitEntry(typeInfo,
+								   cur_resno,
+								   colname,
+								   exprType((Node *) tle->expr),
+								   exprTypmod((Node *) tle->expr),
+								   0);
+				TupleDescInitEntryCollation(typeInfo,
+											cur_resno,
+											exprCollation((Node *) tle->expr));
+				cur_resno++;
 			}
 			else
 			{
@@ -3113,71 +3128,55 @@ ExecScanTypeFromTL(EState *estate, ModifyTableState *mts,
 				  values instead.
 				*/
 				resetStringInfo(&colexpr_str);
-				for (int i = 0; i < vpc.nvars; i++, cur_resno++)
+				for (int i = 0; i < vpc.nvars; i++)
 				{
 					if (cur_resno > typeInfo->natts)
 						typeInfo = expandTupleDesc2(typeInfo);
 					Var *origvar = vpc.target_cols[i];
-					colname = rel->rd_att->attrs[origvar->varattno - 1].attname.data;
-					TupleDescInitEntry(typeInfo,
-									   cur_resno,
-									   colname,
-									   origvar->vartype,
-									   origvar->vartypmod,
-									   0);
-					TupleDescInitEntryCollation(typeInfo,
-												cur_resno,
-												origvar->varcollid);
-					/*
-				  		Establish mapping from the source data columns to the
-						targetlist's columns of this plan node, so that
-						projection can be computed correctly.
-					*/
-					origvar->varattno = cur_resno;
+					validate_column_reference(origvar, rel);
+					if (origvar->varattno == 0)
+					{
+						cur_resno = append_cols_for_whole_var(rel, &typeInfo, cur_resno);
+						continue;
+					}
+					cur_resno = add_unique_col_var(rel, typeInfo, cur_resno, tle, origvar, false);
 				}
-				coladded = true;
-			}
-
-			if (coladded)
 				continue;
+			}
 		}
-
-		/*
-		 * Hold the target var name or expr string to generate remote sql.
-		 * */
-		if (!tle->resname)
-			tle->resname = colname;
-		TupleDescInitEntry(typeInfo,
-						   cur_resno,
-						   colname,
-						   exprType((Node *) tle->expr),
-						   exprTypmod((Node *) tle->expr),
-						   0);
-		TupleDescInitEntryCollation(typeInfo,
-									cur_resno,
-									exprCollation((Node *) tle->expr));
-		cur_resno++;
 	}
 
+	Assert(cur_resno > 1);
 	if (cur_resno > 1) typeInfo->natts = cur_resno - 1;
 
 	mts->ps.scandesc = typeInfo;
-
+	/*
+	  Unlike RemoteScan, we always do one shot(one directional) command
+	  execution to storage shard, we don't filter target rows returned from
+	  storage shards for update/delete.
+	*/
 	return typeInfo;
 }
 
 static TupleTableSlot *
-ReturningNext(ModifyTableState *node, RemoteModifyState*rms)
+ReturningNext(ModifyTableState *node, ResultRelInfo *resultRelInfo,
+	RemoteModifyState*rms)
 {
 	TupleTableSlot *slot = node->remoteReturningTupleSlot;
 
 	MYSQL_ROW mysql_row = mysql_fetch_row(rms->asi->mysql_res);
 	unsigned long *lengths = ((mysql_row && rms->asi->mysql_res) ?
 		mysql_fetch_lengths(rms->asi->mysql_res) : NULL);
-
+	// dzw: TODO: do projection! if some targets have to be computed in
+	// compnode using fields from storage shard, we must do the computation here
 	if (mysql_row)
+	{
 		ExecStoreRemoteTuple(node->typeInputInfo, mysql_row,	/* tuple to store */
 					         lengths, slot);	/* slot to store in */
+
+		if (resultRelInfo->ri_projectReturning)
+			slot = ExecProcessReturning(resultRelInfo, slot, slot);
+	}
 	else
 	{
 		check_mysql_fetch_row_status(rms->asi);

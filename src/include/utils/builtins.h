@@ -138,6 +138,8 @@ extern int const_output_needs_quote(Oid type_oid);
 extern void InitRemoteTypeInfo(void);
 extern const char *format_type_remote(Oid type_oid);
 extern bool type_is_enum_lite(Oid typid);
+extern bool is_string_type(Oid typid);
+extern bool needs_mysql_keypart_len(Oid typid, int typmod);
 
 extern int32 type_maximum_size(Oid type_oid, int32 typemod);
 

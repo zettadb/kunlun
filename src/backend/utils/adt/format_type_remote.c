@@ -46,6 +46,40 @@ static int typeid_name_cmp(const void*t1, const void*t2)
 	return p1->id - p2->id;
 }
 
+/*
+  mysql requires text/blob key fields to have length suffix, and we
+  map several pg types to such mysql types.
+*/
+bool needs_mysql_keypart_len(Oid typid, int typmod)
+{
+	static Oid txt_types [] = {
+		TEXTOID,
+		BYTEAOID,
+		XMLOID
+	};
+
+	bool ret = false;
+	for (int i = 0; i < sizeof(txt_types)/sizeof(Oid); i++)
+		if (typid == txt_types[i] || (VARCHAROID == typid && typmod == -1))
+			return true;
+	/*
+	static bool txt_types_sorted = false;
+	const static size_t num = sizeof(txt_types) / sizeof(Oid);
+	if (!txt_types_sorted)
+	{
+		qsort(txt_types, num, sizeof(Oid), oid_cmp);
+		txt_types_sorted = true;
+	}
+	Oid*res = bsearch(&typid, txt_types, num, sizeof(Oid), oid_cmp);
+	if (res)
+	{
+		int idx = res - txt_types;
+		if (!(idx < 0 || idx >= num))
+			ret = true;
+	}*/
+
+	return ret;
+}
 
 /*
  * All other pg types are not supported for now.
@@ -221,3 +255,13 @@ int const_output_needs_quote(Oid type_oid)
 	}
 	return typid_names[idx].output_const_needs_quote ? 1 : 0;
 }
+
+bool is_string_type(Oid typid)
+{
+	char cat;
+	bool p;
+
+	get_type_category_preferred(typid, &cat, &p);
+	return (cat == TYPCATEGORY_STRING);
+}
+

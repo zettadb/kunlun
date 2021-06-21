@@ -167,6 +167,13 @@ ProcessQuery(PlannedStmt *plan,
 	 */
 	if (completionTag)
 	{
+		/*
+		  dzw: sum up affected rows for DELETE and UPDATE.
+		*/
+		if (CMD_UPDATE == queryDesc->operation ||
+			CMD_DELETE == queryDesc->operation)
+			queryDesc->estate->es_processed = GetRemoteAffectedRows();
+
 		Oid			lastOid;
 		/*
 		 * dzw: melt into pg's optimizer&executor framework, set the
@@ -209,18 +216,18 @@ ProcessQuery(PlannedStmt *plan,
 	 */
 	ExecutorFinish(queryDesc);
 	ExecutorEnd(queryDesc);
-
 	/*
 	 * dzw:
+	 * Remote insert is done lazily at end of executor, so we can only get
+	 * correct 'affected rows' until now.
 	 * queryDesc->estate is NULL after ExecutorEnd() call.
 	 * */
 	uint64_t nremote_afrows = GetRemoteAffectedRows();
 	if (completionTag && strcmp("INSERT 0 0", completionTag) == 0 &&
 		nremote_afrows > 0)
 		snprintf(completionTag, COMPLETION_TAG_BUFSIZE,
-				"INSERT %u " UINT64_FORMAT,
-				0, nremote_afrows);
-		
+				"INSERT %u " UINT64_FORMAT, 0, nremote_afrows);
+
 	FreeQueryDesc(queryDesc);
 }
 
@@ -1217,7 +1224,7 @@ PortalRunUtility(Portal portal, PlannedStmt *pstmt,
 	  Note down the DDL stmt text if it can be supported by simply replicating
 	  to other computing nodes and involve no storage shard actions.
 	*/
-	if (isTopLevel && enable_remote_ddl() && pstmt &&
+	if (isTopLevel && enable_remote_ddl() && pstmt && pstmt->utilityStmt &&
 		(is_supported_simple_ddl_stmt(nodeTag(pstmt->utilityStmt)) ||
 		 (nodeTag(pstmt->utilityStmt) == T_DropStmt &&
 		  !is_object_stored_in_shards(((DropStmt*)pstmt->utilityStmt)->removeType)) ||

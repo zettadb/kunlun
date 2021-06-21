@@ -99,12 +99,6 @@ typedef struct AsyncStmtInfo
 	bool need_abort;
 
 	/*
-	  need to rewind, most likely its resultset is used as inner node result
-	  of a join. If so store result rather than use result.
-	*/
-	bool will_rewind;
-
-	/*
 	 * If MySQL returns this error, ignore it, do not throw, only log a
 	 * warning message. So far we only need to ignore
 	 * one or 0 error for a stmt.

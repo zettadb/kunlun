@@ -585,7 +585,7 @@ cluster_log_applier_main(Datum main_arg)
 	Oid dbid = cluster_log_applier_init();
 	int ndone = 0;
 	bool do_once = true;
-	 DEBUG_INJECT_IF("cluster_log_applier_main_sleep_set_debug", sleep(20););
+	DEBUG_INJECT_IF("cluster_log_applier_main_sleep_set_debug", sleep(20););
 
 	RequestShardingTopoCheck(METADATA_SHARDID);
 	RequestShardingTopoCheckAllStorageShards();

@@ -831,6 +831,11 @@ DefineRelation(CreateStmt *stmt, char relkind, Oid ownerId,
 		Relation	parent,
 					defaultRel = NULL;
 
+		if (stmt->partbound->is_default)
+			ereport(ERROR,
+					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					 errmsg("Kunlun currently doesn't support default partitions.")));
+
 		/* Already have strong enough lock on the parent */
 		parent = heap_open(parentId, NoLock);
 
@@ -10746,6 +10751,12 @@ ATPostAlterTypeParse(Oid oldId, Oid oldRelId, Oid refRelId, char *cmd,
 			/* keep the index's comment */
 			stmt->idxcomment = GetComment(oldId, RelationRelationId, 0);
 
+			/*
+			  dzw: MySQL will update its indexes impacted by this
+			  column type change so we must skip the remote index creation here.
+			*/
+			stmt->skip_remote = true;
+
 			newcmd = makeNode(AlterTableCmd);
 			newcmd->subtype = AT_ReAddIndex;
 			newcmd->def = (Node *) stmt;
@@ -10774,6 +10785,12 @@ ATPostAlterTypeParse(Oid oldId, Oid oldRelId, Oid refRelId, char *cmd,
 					/* keep any comment on the index */
 					indstmt->idxcomment = GetComment(indoid,
 													 RelationRelationId, 0);
+					/*
+					  dzw: MySQL will update its indexes impacted by this
+					  column type change so we must skip the remote index
+					  creation here.
+					*/
+					indstmt->skip_remote = true;
 
 					cmd->subtype = AT_ReAddIndex;
 					tab->subcmds[AT_PASS_OLD_INDEX] =

@@ -105,4 +105,6 @@ show variables;
 show variables strict;
 show global variables;
 show global variables strict;
-drop table tt;
+drop table if exists tt;
+drop table if exists tt;
+drop table if exists tt;

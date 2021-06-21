@@ -467,6 +467,11 @@ GetCurrentTransactionIdIfAny(void)
 	return CurrentTransactionState->transactionId;
 }
 
+const char *GetCurrentTransactionName(void)
+{
+	return CurrentTransactionState->name;
+}
+
 /*
  *	MarkCurrentTransactionIdLoggedIfAny
  *
@@ -2994,7 +2999,6 @@ void
 CommitTransactionCommand(void)
 {
 	TransactionState s = CurrentTransactionState;
-	TransactionState target_ts = NULL;
 
 	switch (s->blockState)
 	{
@@ -3107,6 +3111,13 @@ CommitTransactionCommand(void)
 		case TBLOCK_SUBBEGIN:
 			StartSubTransaction();
 			s->blockState = TBLOCK_SUBINPROGRESS;
+			if (!s->name)
+			{
+				s->name = MemoryContextAlloc(TopTransactionContext, 24);
+				int l = snprintf(s->name, 24, "subtxn_%d",
+								 GetCurrentTransactionNestLevel());
+				Assert(l < 24);
+			}
 			StartSubTxnRemote(s->name);
 			break;
 
@@ -3117,17 +3128,24 @@ CommitTransactionCommand(void)
 			 * transaction or subtransaction.
 			 */
 		case TBLOCK_SUBRELEASE:
+			{
+			char tsname[NAMEDATALEN];
+
 			do
 			{
+				char *pend = stpncpy(tsname, s->name, sizeof(tsname));
+				if (pend - tsname >= NAMEDATALEN)
+					ereport(ERROR,
+							(errcode(ERRCODE_NAME_TOO_LONG),
+							 errmsg("Over long savepoint name %s.", s->name)));
 				CommitSubTransaction();
 				s = CurrentTransactionState;	/* changed by pop */
-				if (s->blockState == TBLOCK_SUBRELEASE)
-					target_ts = s;
 			} while (s->blockState == TBLOCK_SUBRELEASE);
 
-			SendReleaseSavepointToRemote(target_ts->name);
+			SendReleaseSavepointToRemote(tsname);
 			Assert(s->blockState == TBLOCK_INPROGRESS ||
 				   s->blockState == TBLOCK_SUBINPROGRESS);
+			}
 			break;
 
 			/*

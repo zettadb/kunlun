@@ -314,6 +314,9 @@ _outPlanInfo(StringInfo str, const Plan *node)
 	WRITE_NODE_FIELD(initPlan);
 	WRITE_BITMAPSET_FIELD(extParam);
 	WRITE_BITMAPSET_FIELD(allParam);
+	// dzw: we don't need to output the shard_remotescan_refs.
+	WRITE_NODE_FIELD(qual_subplans);
+	WRITE_NODE_FIELD(tl_subplans);
 }
 
 /*
@@ -2752,6 +2755,7 @@ _outIndexStmt(StringInfo str, const IndexStmt *node)
 	WRITE_BOOL_FIELD(transformed);
 	WRITE_BOOL_FIELD(concurrent);
 	WRITE_BOOL_FIELD(if_not_exists);
+	WRITE_BOOL_FIELD(skip_remote);
 }
 
 static void

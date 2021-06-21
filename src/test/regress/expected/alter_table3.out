@@ -1,4 +1,3 @@
---select pg_sleep(15);
 drop table if exists t1;
 NOTICE:  table "t1" does not exist, skipping
 drop table if exists t100;
@@ -12,13 +11,9 @@ NOTICE:  table "t103" does not exist, skipping
 drop table if exists t30;
 NOTICE:  table "t30" does not exist, skipping
 drop table if exists t301;
-NOTICE:  table "t301" does not exist, skipping
 drop table if exists t302;
-NOTICE:  table "t302" does not exist, skipping
 drop table if exists t303;
-NOTICE:  table "t303" does not exist, skipping
 drop table if exists t304;
-NOTICE:  table "t304" does not exist, skipping
 create table t1(a serial primary key, b int) partition by hash(a);
 create table t100 partition of t1 for values with (modulus 4, remainder 0);
 create table t101 partition of t1 for values with (modulus 4, remainder 1);
@@ -220,7 +215,7 @@ ERROR:  syntax error at or near "smallint"
 LINE 1: alter table t1 alter column c smallint not null;
                                       ^
 alter table t1 alter column c type smallint;
-ERROR:  MySQL storage node (2, 4) returned error: 1264, Out of range value for column 'c' at row 1.
+ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1264, Out of range value for column 'c' at row 1.
 \d+ t1;
                                                 Table "public.t1"
  Column |  Type   | Collation | Nullable |             Default             | Storage | Stats target | Description 
@@ -489,7 +484,7 @@ Partitions: t100 FOR VALUES WITH (modulus 4, remainder 0),
             t103 FOR VALUES WITH (modulus 4, remainder 3)
 
 insert into t1(b) values(77);
-ERROR:  MySQL storage node (2, 4) returned error: 1048, Column 'd' cannot be null.
+ERROR:  Kunlun-db: MySQL storage node (2, 6) returned error: 1048, Column 'd' cannot be null.
 select*from t1;
  a  | b  |     c     |  d  
 ----+----+-----------+-----
@@ -535,7 +530,7 @@ Partitions: t100 FOR VALUES WITH (modulus 4, remainder 0),
             t103 FOR VALUES WITH (modulus 4, remainder 3)
 
 insert into t1(b) values(77);
-ERROR:  MySQL storage node (1, 1) returned error: 1048, Column 'd' cannot be null.
+ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1048, Column 'd' cannot be null.
 select*from t1;
  a  | b  |     c     |  d  
 ----+----+-----------+-----
@@ -644,13 +639,13 @@ ERROR:  syntax error at or near "default"
 LINE 1: alter table t1 alter column d type varchar(2) default 'd';
                                                       ^
 alter table t1 alter column d type varchar(2);
-ERROR:  MySQL storage node (2, 4) returned error: 1265, Data truncated for column 'd' at row 1.
+ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1265, Data truncated for column 'd' at row 1.
 alter table t1 alter column d type char(2) default 'd';
 ERROR:  syntax error at or near "default"
 LINE 1: alter table t1 alter column d type char(2) default 'd';
                                                    ^
 alter table t1 alter column d type char(2);
-ERROR:  MySQL storage node (2, 4) returned error: 1406, Data too long for column 'd' at row 1.
+ERROR:  Kunlun-db: MySQL storage node (2, 6) returned error: 1406, Data too long for column 'd' at row 1.
 alter table t1 alter column d type char(32);
 \d+ t1;
                                                     Table "public.t1"

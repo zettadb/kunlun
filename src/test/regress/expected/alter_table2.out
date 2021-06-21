@@ -1,5 +1,4 @@
 drop table if exists t1;
-NOTICE:  table "t1" does not exist, skipping
 create table t1(a serial primary key, b int);
 insert into t1(b) values(11),(22),(33);
 alter table t1 add column c int not null;
@@ -123,7 +122,7 @@ ERROR:  syntax error at or near "smallint"
 LINE 1: alter table t1 alter column c smallint not null;
                                       ^
 alter table t1 alter column c type smallint;
-ERROR:  MySQL storage node (1, 1) returned error: 1264, Out of range value for column 'c' at row 1.
+ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1264, Out of range value for column 'c' at row 1.
 \d+ t1;
                                                 Table "public.t1"
  Column |  Type   | Collation | Nullable |             Default             | Storage | Stats target | Description 
@@ -292,7 +291,7 @@ Indexes:
     "t1_pkey" PRIMARY KEY, btree (a)
 
 insert into t1(b) values(77);
-ERROR:  MySQL storage node (1, 1) returned error: 1048, Column 'd' cannot be null.
+ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1048, Column 'd' cannot be null.
 select*from t1;
  a  | b  |     c     |  d  
 ----+----+-----------+-----
@@ -321,7 +320,7 @@ Indexes:
     "t1_pkey" PRIMARY KEY, btree (a)
 
 insert into t1(b) values(77);
-ERROR:  MySQL storage node (1, 1) returned error: 1048, Column 'd' cannot be null.
+ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1048, Column 'd' cannot be null.
 select*from t1;
  a  | b  |     c     |  d  
 ----+----+-----------+-----
@@ -389,13 +388,13 @@ ERROR:  syntax error at or near "default"
 LINE 1: alter table t1 alter column d type varchar(2) default 'd';
                                                       ^
 alter table t1 alter column d type varchar(2);
-ERROR:  MySQL storage node (1, 1) returned error: 1265, Data truncated for column 'd' at row 1.
+ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1265, Data truncated for column 'd' at row 1.
 alter table t1 alter column d type char(2) default 'd';
 ERROR:  syntax error at or near "default"
 LINE 1: alter table t1 alter column d type char(2) default 'd';
                                                    ^
 alter table t1 alter column d type char(2);
-ERROR:  MySQL storage node (1, 1) returned error: 1406, Data too long for column 'd' at row 1.
+ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1406, Data too long for column 'd' at row 1.
 alter table t1 alter column d type char(32);
 \d+ t1;
                                                     Table "public.t1"

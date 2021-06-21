@@ -23,10 +23,11 @@
 #include "nodes/execnodes.h"
 #include "lib/stringinfo.h"
 
-extern StringInfo CreateRemotetupCacheState(Relation rel);
-extern bool cache_remotetup(TupleTableSlot *slot, StringInfo str);
-extern void end_remote_insert_stmt(StringInfo str, bool eos);
-extern size_t GetInsertedNumRows(StringInfo str);
+struct RemotetupCacheState;
+
+extern struct RemotetupCacheState * CreateRemotetupCacheState(Relation rel);
+extern bool cache_remotetup(TupleTableSlot *slot, ResultRelInfo *rri);
+extern bool end_remote_insert_stmt(struct RemotetupCacheState *s, bool eos);
 extern char *pg_to_mysql_const(Oid typid, char *c);
 
 inline static bool is_date_time_type(Oid typid)

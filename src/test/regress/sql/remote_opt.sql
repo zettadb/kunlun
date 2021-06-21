@@ -1,3 +1,9 @@
+drop table if exists t10 cascade;
+drop table if exists t100 cascade;
+drop table if exists t101 cascade;
+drop table if exists t102 cascade;
+drop table if exists t103 cascade;
+
 create table t10(a serial primary key, b int, c int not null) partition by hash(a);
 create table t100 partition of t10 for values with (modulus 4, remainder 0); 
 create table t101 partition of t10 for values with (modulus 4, remainder 1); 
@@ -43,6 +49,7 @@ create table t11 (like t10 INCLUDING ALL);
 insert into t11 select*from t10;
 select*from t11 order by a;
 
+drop table if exists t12 cascade;
 create table t12 (a int primary key, b int, c int not null) partition by range (a);
 create table t120 partition of t12 for values from (minvalue) to (13);
 create table t121 partition of t12 for values from (13) to (22);
@@ -57,6 +64,7 @@ delete from t12;
 insert into t12 select*from t11;
 -- explain insert into t12 select*from t11;
 
+drop table if exists t13 cascade;
 create table t13 (like t11 including all);
 
 insert into t13 select*from t11;
@@ -112,6 +120,7 @@ select*from t10, t13 where t10.a=t13.a order by t10.a;
 select*from t11, t13 where t11.a=t13.a order by t11.a;
 -- explain select*from t11, t13 where t11.a=t13.a order by t11.a;
 
+drop table if exists t14 cascade;
 create table t14 (a int primary key, b varchar(32), c char(16));
 insert into t14 values(1, 'abc', 'def'),(2, '',''),(3, '',NULL),(4, NULL,''),(5, '','xyz'),(6,NULL, 'cbn'), (7, 'mit',''),(8, 'yale',NULL);
 select*from t14 order by a;
@@ -124,7 +133,7 @@ select a, b is null as bisnull, c is null as cisnull from t14 order by a;
 select a, (case b  when '' then 'empty' else case b is null when  true then 'NULL' else b end end) as b, c is null from t14 order by a;
 select a, (case (b is null)  when true then 'NULL' else case b when '' then 'empty' else b end end) as b, c is null from t14 order by a;
 
-drop table t10;
+drop table t10 cascade;
 drop table t11;
 drop table t12;
 drop table t13;

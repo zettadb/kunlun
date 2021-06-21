@@ -31,6 +31,8 @@ typedef struct RemotePrintExprContext
 	  the qual containing the param will be serialized.
 	*/
 	bool ignore_param_quals;
+	int skip_n; // skip first N elements
+	int num_vals;
 } RemotePrintExprContext;
 
 extern void InitRemotePrintExprContext(RemotePrintExprContext *rpec, List*rtable);

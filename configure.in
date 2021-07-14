@@ -714,7 +714,7 @@ AC_SUBST(enable_thread_safety)
 # ICU
 #
 AC_MSG_CHECKING([whether to build with ICU support])
-PGAC_ARG_BOOL(with, icu, no, [build with ICU support],
+PGAC_ARG_BOOL(with, icu, yes, [build with ICU support],
               [AC_DEFINE([USE_ICU], 1, [Define to build with ICU support. (--with-icu)])])
 AC_MSG_RESULT([$with_icu])
 AC_SUBST(with_icu)
@@ -825,7 +825,7 @@ AC_MSG_RESULT([$with_bonjour])
 # OpenSSL
 #
 AC_MSG_CHECKING([whether to build with OpenSSL support])
-PGAC_ARG_BOOL(with, openssl, no, [build with OpenSSL support],
+PGAC_ARG_BOOL(with, openssl, yes, [build with OpenSSL support],
               [AC_DEFINE([USE_OPENSSL], 1, [Define to build with OpenSSL support. (--with-openssl)])])
 AC_MSG_RESULT([$with_openssl])
 AC_SUBST(with_openssl)
@@ -1009,6 +1009,10 @@ esac
 AC_SUBST(install_bin)
 
 PGAC_PATH_PROGS(TAR, tar)
+if test -z "$TAR"; then
+  AC_MSG_ERROR([tar not found])
+fi
+AC_CHECK_FILE([src/include/sharding/mysql], [], [$TAR -C src/include/sharding -xzf resources/mysql_client.tgz])
 AC_PROG_LN_S
 AC_PROG_MKDIR_P
 # When Autoconf chooses install-sh as mkdir -p program it tries to generate
@@ -1088,6 +1092,7 @@ AX_PTHREAD	# set thread flags
 # enables 5-arg getpwuid_r, among other things.
 PTHREAD_CFLAGS="$PTHREAD_CFLAGS -D_REENTRANT -D_THREAD_SAFE -D_POSIX_PTHREAD_SEMANTICS"
 
+AC_CHECK_FILE([resources/libmariadb.so], [], [$LN_S ./libmariadb.so.3 resources/libmariadb.so])
 # Check for *_r functions
 _CFLAGS="$CFLAGS"
 _LIBS="$LIBS"
@@ -1103,7 +1108,8 @@ AC_CHECK_FUNCS([strerror_r getpwuid_r gethostbyname_r])
 PGAC_FUNC_STRERROR_R_INT
 
 CFLAGS="$_CFLAGS"
-LIBS="$_LIBS"
+LDFLAGS="$LDFLAGS -L$ac_pwd/resources"
+LIBS="$_LIBS -lmariadb"
 
 ], [ # else
 # do not use values from template file

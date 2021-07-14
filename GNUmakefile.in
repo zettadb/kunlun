@@ -27,6 +27,7 @@ html man:
 	$(MAKE) -C doc $@
 
 install:
+	-@$(SHELL) post-install.sh $(prefix)
 	+@echo "PostgreSQL installation complete."
 
 install-docs:

@@ -10555,8 +10555,7 @@ fi
 
 
 CFLAGS="$_CFLAGS"
-LDFLAGS="$LDFLAGS -L$ac_pwd/resources"
-LIBS="$_LIBS -lmariadb"
+LIBS="$_LIBS"
 
 
 else
@@ -18808,6 +18807,9 @@ else
 $as_echo "$as_me: WARNING: *** skipping thread test on Win32" >&2;}
 fi
 fi
+
+LDFLAGS="$LDFLAGS -L$ac_pwd/resources"
+LIBS="$LIBS -lmariadb"
 
 # If compiler will take -Wl,--as-needed (or various platform-specific
 # spellings thereof) then add that to LDFLAGS.  This is much easier than

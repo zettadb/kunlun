@@ -1108,8 +1108,7 @@ AC_CHECK_FUNCS([strerror_r getpwuid_r gethostbyname_r])
 PGAC_FUNC_STRERROR_R_INT
 
 CFLAGS="$_CFLAGS"
-LDFLAGS="$LDFLAGS -L$ac_pwd/resources"
-LIBS="$_LIBS -lmariadb"
+LIBS="$_LIBS"
 
 ], [ # else
 # do not use values from template file
@@ -2352,6 +2351,9 @@ else
 AC_MSG_WARN([*** skipping thread test on Win32])
 fi
 fi
+
+LDFLAGS="$LDFLAGS -L$ac_pwd/resources"
+LIBS="$LIBS -lmariadb"
 
 # If compiler will take -Wl,--as-needed (or various platform-specific
 # spellings thereof) then add that to LDFLAGS.  This is much easier than

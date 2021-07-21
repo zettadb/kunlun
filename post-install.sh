@@ -18,7 +18,7 @@ mkdir -p deps
 
 #copy dependent shared object libs to lib/deps
 cd $1/bin
-ls | grep -v 'prog-deps.txt' | xargs ldd >> ./prog-deps.txt
+ls | grep -v 'prog-deps.txt' | xargs ldd >> ./prog-deps.txt 2>/dev/null
 cat ./prog-deps.txt | sed -n '/^.* => .*$/p' | sed  's/^.* => \(.*\)(.*$/\1/g' | sort | uniq | sed /^.*postgresql-11\.5.*$/d | while read f ; do  cp $f $1/lib/deps ; done
 rm ./prog-deps.txt
 

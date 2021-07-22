@@ -511,10 +511,11 @@ insert into revalidate_bug (c) values (inverse(0));
 select*from revalidate_bug ;
 
 -- bug 61
+drop schema if exists s1 cascade;
 create schema s1;
 create table s1.t1(id int);
 alter table s1.t1 set schema s1;
-
+drop schema if exists s1 cascade;
 
 --bug 80
 drop table if exists SUBSELECT_TBL;
@@ -535,7 +536,7 @@ rollback;
 
 -- bug 13
 SELECT SESSION_USER, CURRENT_USER;
-drop schema if exists testschema;
+drop schema if exists testschema cascade;
 CREATE SCHEMA if not exists testschema;
 SELECT SESSION_USER, CURRENT_USER;
 CREATE TABLE testschema.foo (i serial primary key, j serial);
@@ -646,6 +647,7 @@ TABLE r1;
 INSERT INTO r1 VALUES (1);
 UPDATE r1 SET a = 1;
 DELETE FROM r1;
+SET SESSION AUTHORIZATION dzw;
 
 -- bug 57
 drop table if exists temptest1;
@@ -799,3 +801,98 @@ insert into concur_heap (f1, f2) values(2,3),(3,5),(5,7),(7,11);
 CREATE INDEX CONCURRENTLY concur_index1 ON concur_heap(f2,f1);
 select*from concur_heap;
 
+-- bug 110
+drop table if exists INT8_TBL cascade;
+CREATE TABLE INT8_TBL(q1 int8, q2 int8);
+INSERT INTO INT8_TBL VALUES(' 123 ',' 456');
+INSERT INTO INT8_TBL VALUES('123 ','4567890123456789');
+INSERT INTO INT8_TBL VALUES('4567890123456789','123');
+INSERT INTO INT8_TBL VALUES(+4567890123456789,'4567890123456789');
+INSERT INTO INT8_TBL VALUES('+4567890123456789','-4567890123456789');
+create view tt17v as select * from int8_tbl i where i in (values(i));
+select * from tt17v;
+
+-- bug 111
+drop table if exists persons;
+drop type if exists person_type cascade;
+CREATE TYPE person_type AS (id int, name varchar(50));
+CREATE TABLE persons OF person_type;
+
+-- bug 112
+drop table if exists base_tbl cascade;
+drop view if existrs rw_view1;
+CREATE TABLE base_tbl (a int, b int DEFAULT 10);
+INSERT INTO base_tbl VALUES (1,2), (2,3), (1,-1);
+CREATE VIEW rw_view1 AS SELECT * FROM base_tbl WHERE a < b WITH LOCAL CHECK OPTION;
+INSERT INTO rw_view1 values(3,2),(4,3), (3,4);
+
+-- bug 114
+drop table if exists update_test;
+CREATE TABLE update_test (a INT DEFAULT 10, b INT, c TEXT);
+INSERT INTO update_test VALUES (5, 10, 'foo');
+INSERT INTO update_test(b, a) VALUES (15, 10);
+UPDATE update_test t SET (a, b) = (SELECT b, a FROM update_test s WHERE s.a = t.a) WHERE CURRENT_USER = SESSION_USER;
+
+-- bug 116
+drop table if exists t1;
+create table t1(pk int not null primary key);
+ALTER TABLE t1 ADD COLUMN c_num NUMERIC DEFAULT 1.00000000001;
+insert into t1 values(1),(2),(3),(4),(5);
+select * from t1;
+
+-- bug 126
+drop table if exists t1;
+create table t1(a int);
+insert into t1 values(1),(2),(3);
+update t1 set a=3 returning *;
+delete from t1 returning *;
+
+-- bug 127
+-- TODO: verify the stmt is sent to ddl log after each ddl stmt. so far we don't have such test facility.
+DROP SCHEMA if exists testschema cascade;
+CREATE SCHEMA testschema;
+CREATE TABLE testschema.part0 (a int) PARTITION BY LIST (a);
+drop table testschema.part0;
+CREATE TABLE testschema.part1 (a serial primary key, b int, c varchar(32), unique (b,a)) PARTITION BY LIST (a);
+create index part1_b_c2 on testschema.part1(b,c);
+create table testschema.part1_0 partition of testschema.part1 for values in (1,2,3,4);
+create table testschema.part1_1 partition of testschema.part1 for values in (5,6,7,8);
+insert into testschema.part1 (b,c) values(14, 'def'),(15,'efg'),(16,'fgh');
+select*from testschema.part1 ;
+create index part1_b_c on testschema.part1(b,c);
+insert into testschema.part1 (b,c) values(17, 'ghi'),(18,'hij'),(19,'ijk');
+select*from testschema.part1 ;
+drop index testschema.part1_b_c;
+insert into testschema.part1 (b,c) values(11, 'abc'),(12,'bcd'),(13,'cde');
+select*from testschema.part1 ;
+drop schema testschema cascade;
+
+-- bug 121
+drop table if exists indext1;
+create table indext1(id integer);
+ALTER TABLE indext1 ADD CONSTRAINT oindext1_id_constraint UNIQUE (id);
+ALTER TABLE indext1 DROP CONSTRAINT oindext1_id_constraint;
+
+CREATE TABLE part1 (a serial primary key, b int, c varchar(32), unique (b,a)) PARTITION BY LIST (a);
+create index part1_b_c2 on part1(b,c);
+create table part1_0 partition of part1 for values in (1,2,3,4);
+
+insert into part1 (b,c) values(11, 'abc'),(12,'bcd'),(13,'cde');
+select*from part1;
+ALTER TABLE part1 ADD CONSTRAINT opart1_c_constraint UNIQUE (c,a);
+create table part1_1 partition of part1 for values in (5,6,7,8);
+insert into part1 (b,c) values(14, 'def'),(15,'efg'),(16,'fgh');
+alter table part1 add column d int not null;
+select*from part1;
+create table part1_2 partition of part1 for values in (9,10,11,12);
+insert into part1 (b,c,d) values(17, 'ghi', 21),(18,'hij',22),(19,'ijk',23);
+select*from part1;
+ALTER TABLE part1 ADD CONSTRAINT opart1_b_constraint UNIQUE (b,a);
+create table part1_3 partition of part1 for values in (13,14,15,16);
+insert into part1 (b,c,d) values(20, 'jkl', 24),(21,'klm',25),(22,'lmn',26);
+ALTER TABLE part1 ADD CONSTRAINT opart1_d_constraint UNIQUE (d,a);
+ALTER TABLE part1 DROP CONSTRAINT opart1_c_constraint;
+ALTER TABLE part1 DROP CONSTRAINT opart1_d_constraint;
+ALTER TABLE part1 DROP CONSTRAINT opart1_b_constraint;
+drop index part1_b_c2;
+drop table part1;

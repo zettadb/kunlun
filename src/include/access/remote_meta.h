@@ -71,7 +71,7 @@ extern void TrackRemoteDropTableStorage(Relation rel);
 extern void TrackRemoteCreatePartitionedTable(Relation rel);
 extern void TrackRemoteCreateIndex(Relation heaprel, const char *idxname, Oid amid,
 	bool is_unique, bool is_partitioned);
-extern void TrackRemoteDropIndex(Oid relid, bool is_cascade);
+extern void TrackRemoteDropIndex(Oid relid, bool is_cascade, bool drop_as_constr);
 extern void TrackRemoteDropIndexStorage(Relation rel);
 extern void end_metadata_txn(bool commit_it);
 extern void set_dropping_tree(bool b);

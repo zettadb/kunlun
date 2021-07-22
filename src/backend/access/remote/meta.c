@@ -444,7 +444,7 @@ void make_remote_create_table_stmt1(Relation rel, const TupleDesc tupDesc)
 		  SELECT * INTO TABLE dest_table FROM src_table;
 		*/
 		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-				errmsg("Kunlun-db: Creating tables indirectly via statements like SELECT...INTO not supported yet.")));
+				errmsg("Kunlun-db: The way of creating a table not supported.")));
 	}
 
 	const char *body_end = strrchr(body_start, ')');
@@ -662,10 +662,16 @@ void end_remote_ddl_stmt()
 	  it can't do tidsync either. So we use skip_tidsync for this check. And
 	  as such DDL ops are executed for every CN, there is no need for
 	  replicating them either.
+	  Creating a partitioned table involves no storage shard actions but it's
+	  identified as a non-simple ddl in is_supported_simple_ddl_stmt(),
+	  so we have to exclude this special case.
 	*/
-	if (g_remote_ddl->len == 0 && 
-		(!is_supported_simple_ddl_stmt(g_root_stmt->top_stmt_tag) ||
-		 g_remote_ddl_ctx.ddl_sql_src.len == 0 || skip_tidsync))
+	if (g_remote_ddl->len == 0 &&
+		((!is_supported_simple_ddl_stmt(g_root_stmt->top_stmt_tag) &&
+		  g_root_stmt->objtype == DDL_ObjType_Invalid &&
+		  g_root_stmt->optype == DDL_OP_Type_Invalid &&
+		  !g_root_stmt->is_partitioned) ||
+		  g_remote_ddl_ctx.ddl_sql_src.len == 0 || skip_tidsync))
 		return;
 
 	/*
@@ -1028,7 +1034,7 @@ end:
 }
 
 
-void TrackRemoteDropIndex(Oid relid, bool is_cascade)
+void TrackRemoteDropIndex(Oid relid, bool is_cascade, bool drop_as_constr)
 {
 	if (!enable_remote_ddl()) return;
 	Relation indexrel = relation_open(relid, AccessExclusiveLock);
@@ -1041,7 +1047,10 @@ void TrackRemoteDropIndex(Oid relid, bool is_cascade)
 	SetRemoteDDLInfo(indexrel, DDL_OP_Type_drop, DDL_ObjType_index);
 	g_root_stmt->cascade = is_cascade;
 	set_op_partitioned(indexrel->rd_rel->relkind == RELKIND_PARTITIONED_INDEX);
-	appendStringInfo(&g_remote_ddl_ctx.ddl_sql_src,
+	if (drop_as_constr)
+		appendStringInfoString(&g_remote_ddl_ctx.ddl_sql_src, g_remote_ddl_ctx.orig_sql);
+	else
+		appendStringInfo(&g_remote_ddl_ctx.ddl_sql_src,
 		"drop index if exists %s.%s %s",
 		g_root_stmt->schema_name.data, indexrel->rd_rel->relname.data,
 		is_cascade ? "cascade" : "restrict");
@@ -1652,10 +1661,8 @@ void TrackAlterSeq(Relation rel, List *owned_by, RemoteAlterSeq*raseq, bool topl
 				appendStringInfo(&stmt1, "alter sequence %s.%s.%s set generated %s",
 					dbname.data, schemaName.data, rel->rd_rel->relname.data,
 					raseq->for_identity ? "always" : "by default");
-				goto start;
 			}
-			else
-				goto end;
+			goto end;
 		}
 
 		if (setval)
@@ -1720,7 +1727,6 @@ void TrackAlterSeq(Relation rel, List *owned_by, RemoteAlterSeq*raseq, bool topl
 		raseq->update_stmt_peer.data, owned_by_clause);
 	}
 
-start:
 	gettimeofday(&tv, NULL);
 	xa_txnid = MakeTopTxnName(tv.tv_usec, tv.tv_sec);
 	g_remote_ddl_ctx.metadata_xa_txnid = xa_txnid;
@@ -3275,11 +3281,11 @@ static void build_column_data_type(StringInfo str, Oid typid,
 	}
 	else if (typid == NUMERICOID)
 	{
-		appendStringInfo(str, "(%d)", 10);
+		appendStringInfo(str, "(%d, %d)", 65, 20);
 	}
 	else if  (typid == CASHOID)
 	{
-		appendStringInfo(str, "(%d,%d)", 57, 8); // money is transformed to numeric(57,8).
+		appendStringInfo(str, "(%d,%d)", 65, 8); // money is transformed to numeric(65,8).
 	}
 
 	if (collation != InvalidOid)

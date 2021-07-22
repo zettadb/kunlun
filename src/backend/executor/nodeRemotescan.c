@@ -42,6 +42,7 @@
 #include "utils/builtins.h"
 #include "catalog/pg_type.h"
 #include "catalog/heap.h"
+#include "parser/parsetree.h"
 
 static TupleTableSlot *RemoteNext(RemoteScanState *node);
 static void generate_remote_sql(RemoteScanState *rss);
@@ -1303,8 +1304,24 @@ static void add_qual_cols_to_src(RemoteScanState *rss, Relation rel,
 	{
 		Var *v = vpc.target_cols[i];
 		validate_column_reference(v, rel);
+		/*
+		  check v->varno is rel, otherwise skip it; 
+		  then handle v->varattno == 0 case(whole row col); 
+		  check vcolname valid.
+		*/
+		RangeTblEntry *rte = rt_fetch(v->varno, rss->ss.ps.state->es_plannedstmt->rtable);
+		if (rte->relid != rel->rd_id) continue;
+		if (v->varattno == 0)
+		{
+			cur_resno = append_cols_for_whole_var(rel, &tupdesc, cur_resno);
+			continue; // whole-row var processed.
+		}
 		vcolname = relattrs[v->varattno - 1].attname.data;
-
+		if (vcolname == NULL || strlen(vcolname) == 0)
+			ereport(ERROR,
+					(errcode(ERRCODE_INTERNAL_ERROR),
+					 errmsg("Kunlun-db: Internal error: Invalid column(%d) referenced in relation(%d, %s).",
+					 		v->varattno, rte->relid, rel->rd_rel->relname.data)));
 		for (int j = 0; j < cur_resno-1; j++)
 		{
 			if (bms_is_member(j+1, rss->long_exprs_bmp))

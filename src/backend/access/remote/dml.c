@@ -86,7 +86,7 @@ void post_remote_updel_stmt(ModifyTableState*mtstate, RemoteScan *rs, int i)
 			/*
 			  skip junk fields. for update/delete, only the ctid field is junk.
 			*/
-			if (strcmp(tle->resname, "ctid") == 0)
+			if (tle->resname && strcmp(tle->resname, "ctid") == 0)
 				continue;
 			/*
 			  tle->resname may be an alias name instead of the target relation's
@@ -203,7 +203,7 @@ void post_remote_updel_stmt(ModifyTableState*mtstate, RemoteScan *rs, int i)
 	            colname = lfirst(next_long_expr);
 	        }
 
-			appendStringInfo(&rms->remote_dml, "%s %s", i == 0 ? "returning":",", colname);
+			appendStringInfo(&rms->remote_dml, "%s %s", i == 0 ? " returning":",", colname);
 			nrettgts++;
 	    }
 

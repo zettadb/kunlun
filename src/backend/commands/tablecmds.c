@@ -1243,7 +1243,8 @@ RemoveRelations(DropStmt *drop)
 		if (relkind == RELKIND_RELATION)
 			TrackRemoteDropTable(relOid, drop->behavior == DROP_CASCADE);
 		else if (relkind == RELKIND_INDEX)
-			TrackRemoteDropIndex(relOid, drop->behavior == DROP_CASCADE);
+			TrackRemoteDropIndex(relOid, drop->behavior == DROP_CASCADE,
+				false/*not dropping as a constraint*/);
 		/* OK, we're ready to delete this one */
 		obj.classId = RelationRelationId;
 		obj.objectId = relOid;
@@ -9502,8 +9503,18 @@ ATExecDropConstraint(Relation rel, const char *constrName,
 		conobj.objectId = HeapTupleGetOid(tuple);
 		conobj.objectSubId = 0;
 
-		performDeletion(&conobj, behavior, 0);
+		/*
+		  dzw: track drop unique index. and TrackRemoteDropIndexStorage()
+		  will be called in performDeletion().
+		*/
+		if (contype == CONSTRAINT_UNIQUE)
+		{
+			Oid irelid = get_constraint_index(conobj.objectId);
+			TrackRemoteDropIndex(irelid, behavior == DROP_CASCADE,
+				true/*dropping as a constraint*/);
+		}
 
+		performDeletion(&conobj, behavior, 0);
 		found = true;
 	}
 

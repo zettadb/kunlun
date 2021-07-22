@@ -462,6 +462,17 @@ DefineView(ViewStmt *stmt, const char *queryString,
 				 errmsg("views must not contain data-modifying statements in WITH")));
 
 	/*
+	 * dzw: check options are not supported because we don't pull up rows when
+	 * executing updates, so skip them. Allow stmts with check options for
+	 * compatibility.
+	*/
+	if (stmt->withCheckOption == LOCAL_CHECK_OPTION ||
+		stmt->withCheckOption == CASCADED_CHECK_OPTION)
+		ereport(WARNING,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("views with CHECK options are not supported, the view will be created but the check constraints will be ignored silently.")));
+	goto check_option_done;
+	/*
 	 * If the user specified the WITH CHECK OPTION, add it to the list of
 	 * reloptions.
 	 */
@@ -473,7 +484,6 @@ DefineView(ViewStmt *stmt, const char *queryString,
 		stmt->options = lappend(stmt->options,
 								makeDefElem("check_option",
 											(Node *) makeString("cascaded"), -1));
-
 	/*
 	 * Check that the view is auto-updatable if WITH CHECK OPTION was
 	 * specified.
@@ -503,7 +513,7 @@ DefineView(ViewStmt *stmt, const char *queryString,
 					 errmsg("WITH CHECK OPTION is supported only on automatically updatable views"),
 					 errhint("%s", _(view_updatable_error))));
 	}
-
+check_option_done:
 	/*
 	 * If a list of column names was given, run through and insert these into
 	 * the actual query tree. - thomas 2000-03-08

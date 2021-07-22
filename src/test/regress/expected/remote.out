@@ -128,10 +128,9 @@ btree, for table "public.t7"
 drop table if exists t3;
 create table t3(a int) partition by list(a);
 show last_remote_sql;
-                  last_remote_sql                  
----------------------------------------------------
-   drop table if exists regression_$$_public.t302;+
-   drop table if exists regression_$$_public.t301
+ last_remote_sql 
+-----------------
+ 
 (1 row)
 
 \d+ t3;
@@ -177,10 +176,9 @@ create table t3(a int, b date, c timestamp, d time, e varchar(64), primary key(b
 create unique index on t3(c, b);
 create index on t3(c);
 show last_remote_sql;
-                  last_remote_sql                  
----------------------------------------------------
-   drop table if exists regression_$$_public.t302;+
-   drop table if exists regression_$$_public.t301
+ last_remote_sql 
+-----------------
+ 
 (1 row)
 
 \d+ t3;
@@ -744,10 +742,9 @@ drop table if exists t1;
 NOTICE:  table "t1" does not exist, skipping
 create table t1(a int, b int) partition by hash(a,b);
 show last_remote_sql;
-                                                                    last_remote_sql                                                                    
--------------------------------------------------------------------------------------------------------------------------------------------------------
- create  index t301_e_idx using BTREE on regression_$$_public.t301 (e ASC); create  index t302_e_idx using BTREE on regression_$$_public.t302 (e ASC);+
- create  index t303_e_idx using BTREE on regression_$$_public.t303 (e ASC); create  index t304_e_idx using BTREE on regression_$$_public.t304 (e ASC)
+ last_remote_sql 
+-----------------
+ 
 (1 row)
 
 \d+ t1;
@@ -791,9 +788,9 @@ drop table if exists t2;
 NOTICE:  table "t2" does not exist, skipping
 create table t2(a int, b int, c varchar(32), d char(16), primary key(a,b), unique(b,c)) partition by hash(b);
 show last_remote_sql;
-                           last_remote_sql                            
-----------------------------------------------------------------------
-   create table if not exists regression_$$_public.t103 (a int,b int)
+ last_remote_sql 
+-----------------
+ 
 (1 row)
 
 \d+ t2;
@@ -902,18 +899,16 @@ btree, for table "public.t203"
 drop table if exists t1;
 create table t1(a varchar(30), b int, c date, d time, e timestamp, f char(20), primary key(a,b),unique(e,b)) partition by hash(b);
 show last_remote_sql;
-                               last_remote_sql                                
-------------------------------------------------------------------------------
-   drop table if exists regression_$$_public.t103, regression_$$_public.t101;+
-   drop table if exists regression_$$_public.t102, regression_$$_public.t100
+ last_remote_sql 
+-----------------
+ 
 (1 row)
 
 create index t1_f on t1(f);
 show last_remote_sql;
-                               last_remote_sql                                
-------------------------------------------------------------------------------
-   drop table if exists regression_$$_public.t103, regression_$$_public.t101;+
-   drop table if exists regression_$$_public.t102, regression_$$_public.t100
+ last_remote_sql 
+-----------------
+ 
 (1 row)
 
 \d+ t1;
@@ -994,10 +989,9 @@ show last_remote_sql;
 drop table if exists t2;
 create table t2(a int, b timestamptz, c timestamp, d money, e numeric(7,4), f real, g double precision, primary key(a,b), unique(a,b,c)) partition by list(a);
 show last_remote_sql;
-                               last_remote_sql                                
-------------------------------------------------------------------------------
-   drop table if exists regression_$$_public.t203, regression_$$_public.t201;+
-   drop table if exists regression_$$_public.t202, regression_$$_public.t200
+ last_remote_sql 
+-----------------
+ 
 (1 row)
 
 \d+ t2;
@@ -1021,7 +1015,7 @@ create table t200 partition of t2 for values in (1,2,3,4);
 show last_remote_sql;
                                                                                                                         last_remote_sql                                                                                                                         
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-   create table if not exists regression_$$_public.t200 (a int not null,b datetime not null,c datetime,d numeric(57,8),e numeric(7,4),f float,g double, PRIMARY KEY  using BTREE (a ASC, b ASC), UNIQUE INDEX t200_a_b_c_key using BTREE (a ASC, b ASC, c ASC))
+   create table if not exists regression_$$_public.t200 (a int not null,b datetime not null,c datetime,d numeric(65,8),e numeric(7,4),f float,g double, PRIMARY KEY  using BTREE (a ASC, b ASC), UNIQUE INDEX t200_a_b_c_key using BTREE (a ASC, b ASC, c ASC))
 (1 row)
 
 \d+ t200;
@@ -1088,7 +1082,7 @@ create table t201 partition of t2 for values in (5,6,7);
 show last_remote_sql;
                                                                                                                                                 last_remote_sql                                                                                                                                                 
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-   create table if not exists regression_$$_public.t201 (a int not null,b datetime not null,c datetime,d numeric(57,8),e numeric(7,4),f float,g double, PRIMARY KEY  using BTREE (a ASC, b ASC), UNIQUE INDEX t201_a_b_c_key using BTREE (a ASC, b ASC, c ASC), INDEX t201_d_g_idx using BTREE (d ASC, g DESC))
+   create table if not exists regression_$$_public.t201 (a int not null,b datetime not null,c datetime,d numeric(65,8),e numeric(7,4),f float,g double, PRIMARY KEY  using BTREE (a ASC, b ASC), UNIQUE INDEX t201_a_b_c_key using BTREE (a ASC, b ASC, c ASC), INDEX t201_d_g_idx using BTREE (d ASC, g DESC))
 (1 row)
 
 \d+ t201;

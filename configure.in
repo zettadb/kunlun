@@ -434,6 +434,11 @@ else
   fi
 fi
 
+if test "$enable_debug" = "yes"; then
+	CFLAGS="$CFLAGS -ggdb3"
+	CXXFLAGS="$CXXFLAGS -ggdb3"
+fi
+
 # When generating bitcode (for inlining) we always want to use -O2
 # even when --enable-debug is specified. The bitcode it's not going to
 # be used for line-by-line debugging, and JIT inlining doesn't work

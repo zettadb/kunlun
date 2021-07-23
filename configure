@@ -5070,6 +5070,11 @@ else
   fi
 fi
 
+if test "$enable_debug" = "yes"; then
+	CFLAGS="$CFLAGS -ggdb3"
+	CXXFLAGS="$CXXFLAGS -ggdb3"
+fi
+
 # When generating bitcode (for inlining) we always want to use -O2
 # even when --enable-debug is specified. The bitcode it's not going to
 # be used for line-by-line debugging, and JIT inlining doesn't work
@@ -5120,7 +5125,7 @@ else
   pgac_save_CFLAGS=$CFLAGS
 pgac_save_CC=$CC
 CC=${CC}
-CFLAGS="${CFLAGS} -Wno-declaration-after-statement -Wreturn-type -ggdb3"
+CFLAGS="${CFLAGS} -Wdeclaration-after-statement"
 ac_save_c_werror_flag=$ac_c_werror_flag
 ac_c_werror_flag=yes
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
@@ -5147,7 +5152,7 @@ fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $pgac_cv_prog_CC_cflags__Wdeclaration_after_statement" >&5
 $as_echo "$pgac_cv_prog_CC_cflags__Wdeclaration_after_statement" >&6; }
 if test x"$pgac_cv_prog_CC_cflags__Wdeclaration_after_statement" = x"yes"; then
-  CFLAGS="${CFLAGS} -Wno-declaration-after-statement -Wreturn-type -ggdb3"
+  CFLAGS="${CFLAGS} -Wdeclaration-after-statement"
 fi
 
 

@@ -1,4 +1,4 @@
-#Introduction
+# Introduction
 
 For more information, resources, documentation of Kunlun distributed RDBMS, please visit www.zettadb.com
 See ReleaseNotes.md for the list of features released in each version of Kunlun distributed DBMS.
@@ -10,7 +10,7 @@ To build cluster_mgr from source, see cluster_mgr/README for instructions.
 Refer to INSTALL.kunlun.md to install Kunlun distributed DBMS cluster.
 
 
-#KunLun Distributed database cluster
+# KunLun Distributed database cluster
 
 KunLun distributed database cluster(Kunlun DDC) is a distributed relational database management system developed to manage massive amount (tera-bytes up to peta-bytes) of relational data and serve massive concurrent data read and/or write access workloads with low latency and high throughput. It provides robust transaction ACID guarantees, high scalability, high availability and transparent data partitioning and elastic horizontal scale-out capabilities, and standard SQL query support over distributed or partitioned data. All of these features altogether are known as NewSQL capabilities, i.e. Kunlun DDC is a NewSQL OLTP distributed RDBMS.
 
@@ -21,7 +21,7 @@ By using Kunlun DDC, users can quickly develop robust, highly available and high
 
 See ReleaseNotes.txt for the detailed list of features released in each version.
 
-##Architecture
+## Architecture
 
 A KunLun distributed database cluster consists of two types of components: one or more computing nodes, one or more storage shards. And it also shares with other Kunlun DDCs a cluster_manager program and a meta-data cluster.
 
@@ -36,23 +36,23 @@ User data is stored in one or more storage shards, not in computing nodes. Each 
 A meta-data shard is also a kunlun-storage cluster. It stores the meta-data of a Kunlun cluster. Multiple KunLun DDC clusters can share the same metadata cluster.
 A cluster manager program runs as daemon process to maintain correct running status for one or more Kunlun DDCs, it takes little computing resources during its work.
 
-##Advantages
+## Advantages
 
 Kunlun is currently developped based on PostgreSQL-11.5. In order to support some advanced features such as automatic DDL synchronization, distributed transactions processing, etc, we modified PostgreSQL code extensively rather than simply using its FDW. We modified PostgreSQL in a modular and least intrusive way so that we can easily keep upgrading with official upstream PostgreSQL releases.
 
 Kunlun distributed database cluster is built for high scalability, high availability, ACID guarantees of distributed transactions, and full-fledged distributed query processing and elastic horizontal scalability.
 
-###Highly Scalable
+### Highly Scalable
 
 Kunlun DDC is highly scalable. It not only scales up but also scales out: users can add more computing nodes to have more query processing power, every computing node can serve both write and read workloads; And users(DBAs) can add more storage shards for more data storage and transaction processing capability and Kunlun DDC will automatically move parts of data to the new shards to balance workloads.
 
-###Highly Available(HA)
+### Highly Available(HA)
 
 Kunlun DDC is highly available, partial node failures won't harm the availability of the cluster. For any single storage shard or meta-data cluster of 2*N+1 MySQL nodes, the shard/cluster can resist N simultaneous node failures and remain writable; and it can remain readable as long as one kunlun-storage node is still working;
 
 And for computing nodes, as long as there is one computing node working, a kunlun cluster can keep serving clients. The crash/stall/hang of one computing node doesn't affect any other parts of Kunlun DDC. And a computing node doesn't need replicas for HA because a computing node's entire state can be rebuilt using the metadata cluster. DBAs can add an empty computing node at any time to a Kunlun DDC and the new empty computing node will automatically upgrade itself to latest local state by connecting to metadata cluster and replay the accumulated DDL logs. When executing concurrent DDLs, computing nodes are well coordinated so that every computing node execute exactly the same sequence of DDL operations so that their local states are identical always.
 
-###Distributed Transaction&Query Processing
+### Distributed Transaction&Query Processing
 
 Kunlun distributed query processing aims to relieve users from having to write SQL queries according to their data's distribution, i.e. it partitions user data transparently. This is achieved partly via its distributed transaction processing features, and partly via its distributed query processing features. With the help of these features, users can simply write SQL queries as if they were using a traditional standalone PostgreSQL/MySQL database, they don't have to know or consider in which storage shards certain portions of data are stored in order to write a working SQL query and transaction.
 
@@ -120,7 +120,7 @@ All tablespace settings are ignored.
 
 ##### json and spatial types will be supported in future.
 
-###Automatic DDL synchronization
+### Automatic DDL synchronization
 
 Kunlun DDC supports automatic DDL synchronization, that is, any DDL statement executed in one computing node automatically takes effect on all computing nodes of the same cluster. And also the DDLs required to execute in relevant storage shards are automatically executed as part of the DDL statement execution. And such operations are made crash safe, so that if during the execution of such a DDL any computing node(s) or storage shard node(s) terminates/exits for any reason, the entire system data and metadata is consistent and integral. So this feature can greatly relieve DBA and devops engineers from repetitive and error prone routines and greatly improve their productivity.
 
@@ -134,7 +134,7 @@ Although Kunlun DDC is under active development, it's still not suitable for pro
 
 Do not modify anything (table, stored procedure, etc) in Kunlun_Metadata_DB database of the meta-data shard manually, otherwise Kunlun DDC may not work correctly and you may lose your data. At the same time, do not manually modify any metadata tables(i.e. whose names start with pg_ ) in computing nodes, such as pg_shard, pg_shard_node, etc, otherwise Kunlun DDC may not work correctly and you may lose your data. You can only modify system metadata using SQL commands and/or scripts provided in Kunlun DDC.
 
-##Contact
+## Contact
 
 Although we already have many useful features, some very useful features are still being actively developed, and you are welcome to give us feedbacks, bug reports and feature requests in this github page. Also please visit www.zettadb.com for more information about Kunlun distributed DBMS.
 

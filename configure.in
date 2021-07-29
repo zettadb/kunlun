@@ -411,7 +411,9 @@ elif test "${CFLAGS+set}" = set; then
 elif test "$enable_coverage" = yes; then
   : # no optimization by default
 elif test "$GCC" = yes; then
-  CFLAGS="-O2"
+  if test "$enable_debug" != yes; then
+    CFLAGS="-O2"
+  fi
 else
   # if the user selected debug mode, don't use -O
   if test "$enable_debug" != yes; then
@@ -426,7 +428,9 @@ elif test "${CXXFLAGS+set}" = set; then
 elif test "$enable_coverage" = yes; then
   : # no optimization by default
 elif test "$GCC" = yes; then
-  CXXFLAGS="-O2"
+  if test "$enable_debug" != yes; then
+    CFLAGS="-O2"
+  fi
 else
   # if the user selected debug mode, don't use -O
   if test "$enable_debug" != yes; then
@@ -434,7 +438,7 @@ else
   fi
 fi
 
-if test "$enable_debug" = "yes"; then
+if test "$GCC" = yes; then
 	CFLAGS="$CFLAGS -ggdb3"
 	CXXFLAGS="$CXXFLAGS -ggdb3"
 fi
@@ -481,6 +485,7 @@ if test "$GCC" = yes -a "$ICC" = no; then
   CXXFLAGS="-Wall -Wpointer-arith"
   # These work in some but not all gcc versions
   PGAC_PROG_CC_CFLAGS_OPT([-Wdeclaration-after-statement])
+  PGAC_PROG_CC_CFLAGS_OPT([-Wreturn-type])
   # -Wdeclaration-after-statement isn't applicable for C++
   PGAC_PROG_CC_CFLAGS_OPT([-Wendif-labels])
   PGAC_PROG_CXX_CFLAGS_OPT([-Wendif-labels])

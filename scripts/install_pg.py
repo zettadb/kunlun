@@ -42,10 +42,10 @@ def install_pg(config_template_file, install_path, compcfg, usemgr):
     if ret == 0:
         raise Exception("Invalid port:" + portstr + ", The port is in use!")
 
-    # add lib into LD_LIBRARY_PATH for startup
-    os.system("export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:" + install_path + "/lib")
     # do initdb
-    initcmd = install_path + '/bin/initdb -D ' + datadir
+    cmd0 = "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:" + install_path + "/lib;"
+    cmd1 = 'export LD_PRELOAD="' + install_path + '/resources/libjemalloc.so.3.6.0"; ulimit -c unlimited; '
+    initcmd = cmd0 + install_path + '/bin/initdb -D ' + datadir
     os.system(initcmd)
 
     # copy pg config template to datadir
@@ -71,8 +71,6 @@ def install_pg(config_template_file, install_path, compcfg, usemgr):
 
     # startup postgres, put log file in datadir too
     pg_logfp = datadir + "/logfile-" + str(compcfg['port'])
-    cmd0 = "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:" + install_path + "/lib;"
-    cmd1 = 'export LD_PRELOAD="' + install_path + '/resources/libjemalloc.so.3.6.0"; ulimit -c unlimited; '
     startup_cmd = cmd0 + cmd1 + install_path + '/bin/postgres -D ' + datadir + " > " + pg_logfp + " 2>&1 &"
     os.system(startup_cmd)
     os.system('sleep 5'); # wait for postgres to startup

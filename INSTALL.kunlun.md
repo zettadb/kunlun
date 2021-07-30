@@ -1,4 +1,4 @@
-#Installation Guides for Kunlun Distributed Database Cluster(DDC)
+# Installation Guides for Kunlun Distributed Database Cluster(DDC)
 
 This document helps users to install kunlun distributed DBMS cluster.
 For more information, resources, documentation of Kunlun distributed RDBMS, please visit www.zettadb.com.
@@ -11,7 +11,7 @@ To build cluster_mgr from source, see cluster_mgr/README.md for instructions.
 
 Unzip the downloaded Kunlun-xx.xx.tgz file into a path, which is named Kunlun in this doc, i.e. Kunlun=`pwd`. If the computing node is built from source, the 'Kunlun' path is the installation path. Then follow the steps below, one after another.
 
-##I. Prerequisites
+## I. Prerequisites
 
 Install these software first. Below statement supposes this file is in $Kunlun. 
    
@@ -22,7 +22,7 @@ Install these software first. Below statement supposes this file is in $Kunlun.
 4. Set PATH to include kunlun-storage/bin so that the 'mysql' client program can be found by shell and python;
    and set LD_LIBRARY_PATH to include $Kunlun/lib: export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$Kunlun/lib
 
-###Library dependencies
+### Library dependencies
 
 If you are using a kunlun computing node program built from source on the same Linux distribution and version as where it's being used, simply skip this step because there is no dependency issues.
 
@@ -30,11 +30,11 @@ All dynamic shared objects (*.so files) that programs in $Kunlun/bin depend on, 
 
 DO NOT copy everything in deps into lib at once, otherwise your linux OS or any software may not be able to work because of library version mismatches!
 
-##II. Kunlun DDC Installation Procedures
+## II. Kunlun DDC Installation Procedures
 
 Follow below steps one by one to install a Kunlun distributed DBMS cluster.
 
-###Installing Meta-data MySQL Cluster
+### Installing Meta-data MySQL Cluster
 
 A meta data cluster is a mysql binlog replication cluster that stores one or more Kunlun DDC's meta data. Users are required to use Kunlun-Storage for premium performance and reliability.
 
@@ -60,7 +60,7 @@ The connection info of the meta data cluster should be stored in a json file of 
    more config objects for other db instances of the meta data cluster.
 ]
 
-###Installing Storage Shards
+### Installing Storage Shards
 
 Install storage shards of the distributed database cluster, and create a user in each shard for other components of the cluster to connect to each of the shards. The installation script in Kunlun-Storage already creates such a user 'pgx'. Store their connection info in a config file of same format as $Kunlun/scripts/shards-config.json. In this file we name such a file 'my-shards.json'.
 
@@ -92,7 +92,7 @@ The connection info of a storage shard should be stored in a json file of below 
 ]
 
 
-###Installing Computing Nodes
+### Installing Computing Nodes
 
 Install computing nodes of Kunlun distributed database cluster using "KunLun", i.e. this piece of software, using the script in $Kunlun/scripts/install_pg.py
 One needs to prepare a config file using the template in $Kunlun/scripts/comp-nodes.json. In this file we name it 'my-comps.json', and it will be used in next steps too. When you fill my-comps.json properly, run install_pg.py using the filled config file:
@@ -131,7 +131,7 @@ The connection info of computing nodes should be stored in a json file of below 
 ]
 
  
-##III. Bootstrapping
+## III. Bootstrapping
 
 When meta data cluster, computing nodes and storage shards are all installed, we can bootstrap the meta data cluster, i.e. to create meta data tables and stored procedures in it.
 Note that only bootstrap for a newly installed KunLun database cluster if its meta-data cluster is not initialized yet. The same meta data cluster can be used for multiple Kunlun DDC clusters, and users only need to do this step once for the 1st Kunlun DDC cluster.
@@ -139,7 +139,7 @@ Note that only bootstrap for a newly installed KunLun database cluster if its me
 `python bootstrap.py --config=./my-meta.json --bootstrap_sql=./meta_inuse.sql `
 
 
-##IV. Initialize distrbuted database cluster
+## IV. Initialize distrbuted database cluster
 
 Note that the server where you run below script must be appended into the pg_hba.conf of every computing nodes first. See section VII. to do this.
 
@@ -151,7 +151,7 @@ Now the cluster is installed properly and ready for use. You can startup the "Ku
 If some time later you want to add more storage shards or computing nodes to the cluster, do the following:
 
 
-##V. Add more shards to an existing cluster:
+## V. Add more shards to an existing cluster:
 
 Note that the server where you run below script must be appended into the pg_hba.conf of every computing nodes of current Kunlun DDC first. See section VII. to do this.
 
@@ -169,7 +169,7 @@ Or you can store new shards' configs in a new config file and do:
 
 
 
-##VI. Add more computing nodes to an existing cluster:
+## VI. Add more computing nodes to an existing cluster:
 
 Note that the server where you run below script must be appended into the pg_hba.conf of the computing nodes to add first. See section VII. to do this.
 
@@ -184,7 +184,7 @@ Or you can store new nodes' configs in a new config file and do:
 
 `python add_comp_nodes.py --config ./my-more-comps.json --meta_config ./my-meta.json --cluster_name clust1 `
 
-##VII. Connecting to computing  nodes from other servers
+## VII. Connecting to computing  nodes from other servers
 
 According to PostgreSQL, we have to add an entry for every computer server (ip-address, user-name, dbname) combination in order to connect to the PostgreSQL db instance from that server using the specified user name to the target database. After you finish the editing, do below command to make the changes effective.
 

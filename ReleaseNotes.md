@@ -4,14 +4,14 @@ For more information, resources, documentation of Kunlun distributed RDBMS, plea
 # Release Notes Kunlun version 0.8.3
 
 ## Summary
-Completed adaption and development of essential distrbuted query optimization and execution of advanced SQL features on multiple storage shards, including aggregation, multi-table cross shard join, sub-queries, window functions, stored procedures, etc. Also, fixed over 50 bugs for features such as distributed query processing, sequences, distributed DDL execution&replication, etc.
+Completed adaption and development of essential distrbuted query optimization and execution of advanced SQL features against multiple tables and/or partitions scattered on multiple storage shards, including aggregation, multi-table join, sub-queries, window functions, stored procedures, etc. Also, fixed over 50 bugs for features such as distributed query processing, sequences, distributed DDL execution&replication, etc.
 
-Starting from this version, Kunlun can process all supported SQL queries including all supported DDL and DML, can do distributed transaction processing and distributed query optimization and execution. So it's great time start trying it out and do some POC testing.
+Starting from this version, Kunlun can reliably process all supported SQL queries including all supported DDL and DML, can do distributed transaction processing and distributed query optimization and execution. So it's great time start trying it out and do some POC testing.
 
 ## Kunlun Test Suite(KTS)
-We built our Kunlun Test Suite(KTS) using PostgreSQL's original test suite, removing test cases of features that are not supported in Kunlun, such as foreign keys, triggers, check constraints, object database features(table/type inheritance, creating table from composite types, etc). And we also add many extra SQL tests into KTS to test all features exhaustively.
+We built our Kunlun Test Suite(KTS) using PostgreSQL's original test suite, removing test cases around features that are not supported in Kunlun, such as foreign keys, triggers, check constraints, object database features(table/type inheritance, creating table from composite types, etc). And we also added many extra SQL tests into KTS to test all newly added features exhaustively.
 
-Now Kunlun database has passed most of KTS test cases, there are about 50 bugs that are not fixed yet, which either belong to unimportant features or features scheduled for development in future versions. They will be fixed in the near future. All bug reports can be found in  bugs.zettadb.com
+Now Kunlun database has passed most of KTS test cases. There are about 50 bugs that are not fixed yet, which either belong to trivial/corner features or features scheduled for development in future versions. They will be fixed in the near future. All bug reports can be found in  bugs.zettadb.com
 
 ## Bugs fixed in kunlun 0.8.3
 10    pg_dump: 0 is outside the valid range for parameter

@@ -903,15 +903,15 @@ ALTER TABLE T ADD COLUMN c1 TIMESTAMP DEFAULT now();
 select*from T;
  pk |            c1            
 ----+--------------------------
-  1 | Wed Jul 21 12:11:58 2021
+  1 | Fri Aug 13 15:18:05 2021
 (1 row)
 
 insert into T values(2);
 select*from T;
  pk |            c1            
 ----+--------------------------
-  1 | Wed Jul 21 12:11:58 2021
-  2 | Tue Jul 20 21:11:59 2021
+  1 | Fri Aug 13 15:18:05 2021
+  2 | Fri Aug 13 00:18:05 2021
 (2 rows)
 
  CREATE OR REPLACE FUNCTION foo(a INT) RETURNS TEXT AS $$
@@ -1702,3 +1702,22 @@ ALTER TABLE part1 DROP CONSTRAINT opart1_d_constraint;
 ALTER TABLE part1 DROP CONSTRAINT opart1_b_constraint;
 drop index part1_b_c2;
 drop table part1;
+-- bug 135
+drop table if exists t1 cascade;
+create table t1(v1 decimal(10,2));
+insert into t1 values(1.1), (2.2);
+select*from t1;
+  v1  
+------
+ 1.10
+ 2.20
+(2 rows)
+
+update t1 set v1 = v1 + 1;
+select*from t1;
+  v1  
+------
+ 2.10
+ 3.20
+(2 rows)
+

@@ -37,6 +37,7 @@ static bool mysql_has_func(const char *fn);
 static int SQLValueFuncValue(SQLValueFunction *svfo, StringInfo str);
 static int append_expr_list(StringInfo str, List *l, RemotePrintExprContext *rpec);
 static int eval_nextval_expr(StringInfo str, NextValueExpr *nve);
+static int convert_numeric_func(Oid funcid, List *args, StringInfo str, RemotePrintExprContext *rpec);
 
 #undef APPEND_CHAR
 #undef APPEND_EXPR
@@ -386,6 +387,29 @@ static const char *mysql_funcs[] = {
 	"WEEKOFYEAR",
 	"YEARWEEK"
 };
+
+#define NUMERIC_FUNC_ID_START 1718
+#define NUMERIC_FUNC_ID_MAX 1739
+#define NUMERIC_FUNC_OPER_ID_MAX 1729
+
+static inline bool is_numeric_func(Oid funcid)
+{
+	if (funcid >= NUMERIC_FUNC_ID_START && funcid <= NUMERIC_FUNC_ID_MAX)
+		return true;
+	static Oid numeric_other_funcids[] =
+	{1703, 1704,1705,1706,1707,1711,1712,1764,1766,1767,1771,1915,1973,1980,2167};
+	for (int i = 0; i < sizeof(numeric_other_funcids)/sizeof(Oid); i++)
+		if (numeric_other_funcids[i] == funcid)
+			return true;
+	return false;
+}
+
+static inline int func_id_cmp(const void *v1, const void *v2)
+{
+	Oid o1 = *(Oid*)v1;
+	Oid o2 = *(Oid*)v2;
+	return o1 > o2 ? 1 : (o1 == o2 ? 0 : -1);
+}
 
 
 inline static int func_name_cmp(const void *n1, const void*n2)
@@ -799,6 +823,22 @@ op_expr_done:
 			{
 				APPEND_EXPR(linitial(e->args));
 				goto end;
+			}
+			else if (is_numeric_func(e->funcid))
+			{
+				int cnfret = convert_numeric_func(e->funcid, e->args, str, rpec);
+				if (cnfret > 0)
+				{
+					nw += cnfret;
+					goto end;
+				}
+				else if (cnfret == 0)
+					goto unsupported;
+				else
+				{
+					nw += (-cnfret);
+					funcname = "";// funcname has been printed in convert_numeric_func.
+				}
 			}
 			else
 				goto unsupported;
@@ -1242,3 +1282,151 @@ static int eval_nextval_expr(StringInfo str, NextValueExpr *nve)
 	return nw;
 }
 
+/*
+  Numeric functions, the IDs are manually assigned in
+  include/catalog/pg_proc.dat, and this table is in fmgrtab.c auto-generated
+  by a script. If in future versions the numbering changes we must modify the
+  NUMERIC_FUNC_ID_START and NUMERIC_FUNC_ID_MAX macros.
+
+  { 1718, "numeric_eq", 2, true, false, numeric_eq },
+  { 1719, "numeric_ne", 2, true, false, numeric_ne },
+  { 1720, "numeric_gt", 2, true, false, numeric_gt },
+  { 1721, "numeric_ge", 2, true, false, numeric_ge },
+  { 1722, "numeric_lt", 2, true, false, numeric_lt },
+  { 1723, "numeric_le", 2, true, false, numeric_le },
+  { 1724, "numeric_add", 2, true, false, numeric_add },
+  { 1725, "numeric_sub", 2, true, false, numeric_sub },
+  { 1726, "numeric_mul", 2, true, false, numeric_mul },
+  { 1727, "numeric_div", 2, true, false, numeric_div },
+  { 1728, "numeric_mod", 2, true, false, numeric_mod },
+  { 1729, "numeric_mod", 2, true, false, numeric_mod },
+  { 1730, "numeric_sqrt", 1, true, false, numeric_sqrt },
+  { 1731, "numeric_sqrt", 1, true, false, numeric_sqrt },
+  { 1732, "numeric_exp", 1, true, false, numeric_exp },
+  { 1733, "numeric_exp", 1, true, false, numeric_exp },
+  { 1734, "numeric_ln", 1, true, false, numeric_ln },
+  { 1735, "numeric_ln", 1, true, false, numeric_ln },
+  { 1736, "numeric_log", 2, true, false, numeric_log },
+  { 1737, "numeric_log", 2, true, false, numeric_log },
+  { 1738, "numeric_power", 2, true, false, numeric_power },
+  { 1739, "numeric_power", 2, true, false, numeric_power },
+*/
+
+/*
+  >0 args have been serialized, return NO. of bytes appended to str;
+  < 0 if numeric function name has been printed, caller need to print
+  	arglist, and -retval is NO. of bytes written.
+  == 0 if snprint_expr error.
+*/
+static int convert_numeric_func(Oid funcid, List *args, StringInfo str,
+	RemotePrintExprContext *rpec)
+{
+	typedef struct funcid_name
+	{
+		Oid funcid;
+		const char *funcname;
+	} funcid_name;
+/*
+ { 1703, "numeric", 2, true, false, numeric }, return args[0]
+  { 1704, "numeric_abs", 1, true, false, numeric_abs },
+  { 1705, "numeric_abs", 1, true, false, numeric_abs },
+  { 1706, "numeric_sign", 1, true, false, numeric_sign },
+  { 1707, "numeric_round", 2, true, false, numeric_round },
+  { 1711, "numeric_ceil", 1, true, false, numeric_ceil },
+  { 1712, "numeric_floor", 1, true, false, numeric_floor },
+  { 1915, "numeric_uplus", 1, true, false, numeric_uplus },
+   { 1973, "numeric_div_trunc", 2, true, false, numeric_div_trunc },
+  { 1980, "numeric_div_trunc", 2, true, false, numeric_div_trunc },
+  { 2167, "numeric_ceil", 1, true, false, numeric_ceil },
+  { 2169, "numeric_power", 2, true, false, numeric_power },
+  { 111, "numeric_fac", 1, true, false, numeric_fac }, mysql has no factorial func, not supported
+   { 1376, "numeric_fac", 1, true, false, numeric_fac },
+
+     { 1764, "numeric_inc", 1, true, false, numeric_inc },
+    { 1766, "numeric_smaller", 2, true, false, numeric_smaller },
+  { 1767, "numeric_larger", 2, true, false, numeric_larger },
+  { 1771, "numeric_uminus", 1, true, false, numeric_uminus },
+*/
+	static funcid_name funcmap [] = {
+		{ 1704, "abs"},
+		{ 1705, "abs"},
+		{ 1706, "sign"},
+		{ 1707, "round"},
+		{ 1711, "ceil"},
+		{ 1712, "floor"},
+		{ 1718, " = "},
+		{ 1719, " != "},
+		{ 1720, " > "},
+		{ 1721, " >= "},
+		{ 1722, " < "},
+		{ 1723, " <= "},
+		{ 1724, " + "},
+		{ 1725, " - "},
+		{ 1726, " * "},
+		{ 1727, " / "},
+		{ 1728, " % "},
+		{ 1729, " % "},
+		{ 1730, " sqrt "},
+		{ 1731, " sqrt "},
+		{ 1732, " exp "},
+		{ 1733, " exp "},
+		{ 1734, " ln "},
+		{ 1735, " ln "},
+		{ 1736, " log "},
+		{ 1737, " log "},
+		{ 1738, " power "},
+		{ 1739, " power "},
+		{ 1764, "inc"},
+		{ 1766, " < "},
+		{ 1767, " > "},
+		{ 1771, " -"}, // unary -
+		{ 1915, " "}, // unary +
+		{ 1973, "div"},
+		{ 1980, "div"},
+		{ 2167, "ceil"},
+		{ 2169, "power"}
+
+	};
+
+	funcid_name *pos = bsearch(&funcid, funcmap, sizeof(funcmap)/sizeof(funcid_name),
+		sizeof(funcid_name), func_id_cmp);
+	
+	int nw = 0, nw1 = 0;
+
+	if (funcid == 1771 || funcid == 1915)
+	{
+		Assert(list_length(args) == 1);
+		APPEND_CHAR('(');
+		appendStringInfoChar(str, funcid == 1771 ? '-' : ' ');
+		nw++;
+		APPEND_EXPR(linitial(args));
+		if (nw1 < 0) return 0;
+		APPEND_CHAR(')');
+		return nw;
+	}
+	else if ((funcid >= NUMERIC_FUNC_ID_START && funcid <= NUMERIC_FUNC_OPER_ID_MAX) ||
+		(funcid == 1766 || funcid == 1767))
+	{
+		Assert(list_length(args) == 2);
+		APPEND_CHAR('(');
+		APPEND_EXPR(linitial(args));
+		if (nw1 < 0) return 0;
+		appendStringInfoString(str, pos->funcname);
+		nw += strlen(pos->funcname);
+		APPEND_EXPR(lsecond(args));
+		if (nw1 < 0) return 0;
+		APPEND_CHAR(')');
+		return nw;
+	}
+	else if (funcid == 1703)
+	{
+		APPEND_EXPR(linitial(args));
+		if (nw1 < 0) return 0;
+		return nw;
+	}
+
+	Assert(pos);
+	appendStringInfoString(str, pos->funcname);
+	nw = strlen(pos->funcname);
+	return -nw; // caller need to continue to serialize the args of the function call
+}

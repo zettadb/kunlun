@@ -896,3 +896,12 @@ ALTER TABLE part1 DROP CONSTRAINT opart1_d_constraint;
 ALTER TABLE part1 DROP CONSTRAINT opart1_b_constraint;
 drop index part1_b_c2;
 drop table part1;
+
+-- bug 135
+drop table if exists t1 cascade;
+create table t1(v1 decimal(10,2));
+insert into t1 values(1.1), (2.2);
+select*from t1;
+update t1 set v1 = v1 + 1;
+select*from t1;
+

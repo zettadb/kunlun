@@ -90,7 +90,6 @@ struct RemotetupCacheState *CreateRemotetupCacheState(Relation rel)
 	return self;
 }
 
-#define CONST_STR_LEN(conststr) conststr,(sizeof(conststr)-1)
 /*
  * Get the lookup info that remotetup() needs
  */
@@ -141,7 +140,8 @@ remotetup_prepare_info(RemotetupCacheState*myState,
 
 bool column_name_is_dropped(const char *colname)
 {
-	return (strncmp(colname, CONST_STR_LEN("........pg.dropped.")) == 0);
+#define DROPPED_COLNAME "........pg.dropped."
+	return (strncmp(colname, DROPPED_COLNAME, sizeof(DROPPED_COLNAME) - 1) == 0);
 }
 
 /* ----------------

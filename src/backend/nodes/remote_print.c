@@ -38,6 +38,7 @@ static int SQLValueFuncValue(SQLValueFunction *svfo, StringInfo str);
 static int append_expr_list(StringInfo str, List *l, RemotePrintExprContext *rpec);
 static int eval_nextval_expr(StringInfo str, NextValueExpr *nve);
 static int convert_numeric_func(Oid funcid, List *args, StringInfo str, RemotePrintExprContext *rpec);
+static const char *get_var_attname(const Var *var, const List *rtable);
 
 #undef APPEND_CHAR
 #undef APPEND_EXPR
@@ -554,7 +555,7 @@ static int output_const_type_value(StringInfo str, bool isnull, Oid type,
 }
 
 
-const char *get_var_attname(const Var *var, const List *rtable)
+static const char *get_var_attname(const Var *var, const List *rtable)
 {
 	const char	   *relname, *attname;
 	switch (var->varno)
@@ -586,6 +587,10 @@ const char *get_var_attname(const Var *var, const List *rtable)
 							errmsg("Kunlun-db: Can't access system attribute(%s) from remote tables.",
 								   sysatt ? sysatt->attname.data : "<unknown>")));
 				}
+				// never print whole-var as * because for executor we always
+				// need specific columns and their types.
+				else if (var->varattno == 0)
+					return NULL;
 				attname = get_rte_attribute_name(rte, var->varattno);
 			}
 			break;
@@ -633,7 +638,9 @@ snprint_expr(StringInfo str, const Expr *expr, RemotePrintExprContext *rpec)
 		 * partition table name. We know for sure that the column name is
 		 * qualified and valid in both computing node and storage node.
 		 * */
-		APPEND_STR(get_var_attname(var, rtable));
+		const char *varname = get_var_attname(var, rtable);
+		if (varname) APPEND_STR(varname);
+		else return -2;
 	}
 	else if (IsA(expr, Const))
 	{
@@ -819,7 +826,9 @@ op_expr_done:
 			  no need for such functions, let mysql do local type conversion
 			  if needed.
 			*/
-			if (is_type_conversion_func(e->funcid))
+			if (e->funcformat == COERCE_IMPLICIT_CAST ||
+				e->funcformat == COERCE_EXPLICIT_CAST ||
+				is_type_conversion_func(e->funcid))
 			{
 				APPEND_EXPR(linitial(e->args));
 				goto end;

@@ -905,3 +905,12 @@ select*from t1;
 update t1 set v1 = v1 + 1;
 select*from t1;
 
+PREPARE pq1(int, int) AS SELECT * FROM t1 WHERE v1 between $1 and $2;
+EXECUTE pq1(-4, 4);
+PREPARE pq2(int) AS update t1 set v1=v1+$1;
+EXECUTE pq2(1);
+select*from t1;
+PREPARE pq3(float) AS update t1 set v1=v1+$1;
+EXECUTE pq3(2.0);
+PREPARE pq4(float, float) AS SELECT * FROM t1 WHERE v1 between $1 and $2;
+EXECUTE pq4(-8.0, 8.0);

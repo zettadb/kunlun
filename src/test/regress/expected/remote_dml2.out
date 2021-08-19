@@ -903,15 +903,15 @@ ALTER TABLE T ADD COLUMN c1 TIMESTAMP DEFAULT now();
 select*from T;
  pk |            c1            
 ----+--------------------------
-  1 | Fri Aug 13 15:18:05 2021
+  1 | Thu Aug 19 19:46:10 2021
 (1 row)
 
 insert into T values(2);
 select*from T;
  pk |            c1            
 ----+--------------------------
-  1 | Fri Aug 13 15:18:05 2021
-  2 | Fri Aug 13 00:18:05 2021
+  1 | Thu Aug 19 19:46:10 2021
+  2 | Thu Aug 19 04:46:10 2021
 (2 rows)
 
  CREATE OR REPLACE FUNCTION foo(a INT) RETURNS TEXT AS $$
@@ -1719,5 +1719,32 @@ select*from t1;
 ------
  2.10
  3.20
+(2 rows)
+
+PREPARE pq1(int, int) AS SELECT * FROM t1 WHERE v1 between $1 and $2;
+EXECUTE pq1(-4, 4);
+  v1  
+------
+ 2.10
+ 3.20
+(2 rows)
+
+PREPARE pq2(int) AS update t1 set v1=v1+$1;
+EXECUTE pq2(1);
+select*from t1;
+  v1  
+------
+ 3.10
+ 4.20
+(2 rows)
+
+PREPARE pq3(float) AS update t1 set v1=v1+$1;
+EXECUTE pq3(2.0);
+PREPARE pq4(float, float) AS SELECT * FROM t1 WHERE v1 between $1 and $2;
+EXECUTE pq4(-8.0, 8.0);
+  v1  
+------
+ 5.10
+ 6.20
 (2 rows)
 

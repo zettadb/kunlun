@@ -48,5 +48,4 @@ extern void print_pathkeys(const List *pathkeys, const List *rtable);
 extern void print_tl(const List *tlist, const List *rtable);
 extern void print_slot(TupleTableSlot *slot);
 extern int snprint_expr(StringInfo buf, const Expr *expr, RemotePrintExprContext *rpec);
-extern const char *get_var_attname(const Var *var, const List *rtable);
 #endif							/* PRINT_H */

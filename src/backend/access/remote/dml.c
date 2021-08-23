@@ -76,6 +76,9 @@ void post_remote_updel_stmt(ModifyTableState*mtstate, RemoteScan *rs, int i)
 
 	RemotePrintExprContext rpec;
 	InitRemotePrintExprContext(&rpec, rtable);
+	// For update&delete, always use params if any, we have to precisely
+	// locate the target row.
+	rpec.ignore_param_quals = false;
 
 	if (operation == CMD_UPDATE)
 	{

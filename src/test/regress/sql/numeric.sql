@@ -959,7 +959,7 @@ select * from generate_series(4.0::numeric, -1.5::numeric, -2.2::numeric);
 select * from generate_series(-100::numeric, 100::numeric, 0::numeric);
 select * from generate_series(-100::numeric, 100::numeric, '11111111111111111111111111'::numeric);
 select * from generate_series('11111111111111111111111111'::numeric, 100::numeric, 10::numeric);
-select * from generate_series(0::numeric, '11111111111111111111111111'::numeric, 10::numeric);
+select * from generate_series(0::numeric, '111111111'::numeric, 10::numeric);
 -- Checks maximum, output is truncated
 select (i / (10::numeric ^ 131071))::numeric(1,0)
 	from generate_series(6 * (10::numeric ^ 131071),

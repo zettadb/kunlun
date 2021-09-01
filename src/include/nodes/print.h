@@ -26,6 +26,7 @@ typedef struct RemotePrintExprContext
 	  All Params' 'paramid' indexes refer to this array.
 	*/
 	ParamExecData *rpec_param_exec_vals;
+	ParamListInfo rpec_param_list_info;
 	/*
 	  If true, Param node will be treated as unsupported, otherwise
 	  the qual containing the param will be serialized.

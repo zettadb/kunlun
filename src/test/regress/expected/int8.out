@@ -308,7 +308,7 @@ SELECT '' AS five, q1, q2, q1 - q2 AS minus FROM INT8_TBL;
 (5 rows)
 
 SELECT '' AS three, q1, q2, q1 * q2 AS multiply FROM INT8_TBL;
-ERROR:  MySQL storage node (4, 8) returned error: 1690, BIGINT value is out of range in '(`regression_$$_public`.`int8_tbl`.`q1` * `regression_$$_public`.`int8_tbl`.`q2`)'.
+ERROR:  Kunlun-db: MySQL storage node (4, 8) returned error: 1690, BIGINT value is out of range in '(`regression_$$_public`.`int8_tbl`.`q1` * `regression_$$_public`.`int8_tbl`.`q2`)'.
 SELECT '' AS three, q1, q2, q1 * q2 AS multiply FROM INT8_TBL
  WHERE q1 < 1000 or (q2 > 0 and q2 < 1000);
  three |        q1        |        q2        |      multiply      

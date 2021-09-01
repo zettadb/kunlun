@@ -334,7 +334,9 @@ ExecScanTypeFromTL(EState *estate, RemoteScanState *rss,
 	RemotePrintExprContext rpec;
 	InitRemotePrintExprContext(&rpec, estate->es_plannedstmt->rtable);
 	rpec.ignore_param_quals = !rss->param_driven;
-	rpec.rpec_param_exec_vals = rss->ss.ps.ps_ExprContext->ecxt_param_exec_vals;
+	rpec.rpec_param_exec_vals = (rss->ss.ps.ps_ExprContext ?
+		rss->ss.ps.ps_ExprContext->ecxt_param_exec_vals : NULL);
+	rpec.rpec_param_list_info = estate->es_param_list_info;
 
 	VarPickerCtx vpc;
 	memset(&vpc, 0, sizeof(vpc));

@@ -76,9 +76,9 @@ COMMIT;
 DELETE FROM TIMESTAMPTZ_TBL;
 -- Special values
 INSERT INTO TIMESTAMPTZ_TBL VALUES ('-infinity');
-ERROR:  MySQL storage node (1, 1) returned error: 1292, Incorrect datetime value: '-infinity' for column 'd1' at row 1.
+ERROR:  Kunlun-db: MySQL storage node (4, 8) returned error: 1292, Incorrect datetime value: '-infinity' for column 'd1' at row 1.
 INSERT INTO TIMESTAMPTZ_TBL VALUES ('infinity');
-ERROR:  MySQL storage node (1, 1) returned error: 1292, Incorrect datetime value: 'infinity' for column 'd1' at row 1.
+ERROR:  Kunlun-db: MySQL storage node (4, 8) returned error: 1292, Incorrect datetime value: 'infinity' for column 'd1' at row 1.
 INSERT INTO TIMESTAMPTZ_TBL VALUES ('epoch');
 -- Obsolete special values
 INSERT INTO TIMESTAMPTZ_TBL VALUES ('invalid');
@@ -1740,15 +1740,15 @@ CREATE TABLE TIMESTAMPTZ_TST (a int , b timestamptz);
 -- Test year field value with len > 4
 INSERT INTO TIMESTAMPTZ_TST VALUES(1, 'Sat Mar 12 23:58:48 1000 IST');
 INSERT INTO TIMESTAMPTZ_TST VALUES(2, 'Sat Mar 12 23:58:48 10000 IST');
-ERROR:  MySQL storage node (2, 2) returned error: 1292, Incorrect datetime value: '10000-03-12 21:58:48' for column 'b' at row 1.
+ERROR:  Kunlun-db: MySQL storage node (3, 7) returned error: 1292, Incorrect datetime value: '10000-03-12 21:58:48' for column 'b' at row 1.
 INSERT INTO TIMESTAMPTZ_TST VALUES(3, 'Sat Mar 12 23:58:48 100000 IST');
-ERROR:  MySQL storage node (2, 2) returned error: 1292, Incorrect datetime value: '100000-03-12 21:58:48' for column 'b' at row 1.
+ERROR:  Kunlun-db: MySQL storage node (3, 7) returned error: 1292, Incorrect datetime value: '100000-03-12 21:58:48' for column 'b' at row 1.
 INSERT INTO TIMESTAMPTZ_TST VALUES(3, '10000 Mar 12 23:58:48 IST');
-ERROR:  MySQL storage node (2, 2) returned error: 1292, Incorrect datetime value: '10000-03-12 21:58:48' for column 'b' at row 1.
+ERROR:  Kunlun-db: MySQL storage node (3, 7) returned error: 1292, Incorrect datetime value: '10000-03-12 21:58:48' for column 'b' at row 1.
 INSERT INTO TIMESTAMPTZ_TST VALUES(4, '100000312 23:58:48 IST');
-ERROR:  MySQL storage node (2, 2) returned error: 1292, Incorrect datetime value: '10000-03-12 21:58:48' for column 'b' at row 1.
+ERROR:  Kunlun-db: MySQL storage node (3, 7) returned error: 1292, Incorrect datetime value: '10000-03-12 21:58:48' for column 'b' at row 1.
 INSERT INTO TIMESTAMPTZ_TST VALUES(4, '1000000312 23:58:48 IST');
-ERROR:  MySQL storage node (2, 2) returned error: 1292, Incorrect datetime value: '100000-03-12 21:58:48' for column 'b' at row 1.
+ERROR:  Kunlun-db: MySQL storage node (3, 7) returned error: 1292, Incorrect datetime value: '100000-03-12 21:58:48' for column 'b' at row 1.
 --Verify data
 SELECT * FROM TIMESTAMPTZ_TST ORDER BY a;
  a |              b               

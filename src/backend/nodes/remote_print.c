@@ -39,6 +39,9 @@ static int append_expr_list(StringInfo str, List *l, RemotePrintExprContext *rpe
 static int eval_nextval_expr(StringInfo str, NextValueExpr *nve);
 static int convert_numeric_func(Oid funcid, List *args, StringInfo str, RemotePrintExprContext *rpec);
 static const char *get_var_attname(const Var *var, const List *rtable);
+static SQLValueFunction*
+makeSQLValueFunction(SQLValueFunctionOp op, int32 typmod);
+static ParamExternData * eval_extern_param_val(ParamListInfo paramInfo, int paramId);
 
 #undef APPEND_CHAR
 #undef APPEND_EXPR
@@ -849,6 +852,25 @@ op_expr_done:
 					funcname = "";// funcname has been printed in convert_numeric_func.
 				}
 			}
+			else if (e->funcid == 1299 || e->funcid == 2647 ||
+					 e->funcid == 2648 || e->funcid == 2649) //ADAPT pg_proc.dat
+			{
+				/*
+				  We need to specially handle NOW(). It's semantically identical to
+				  CURRENT_TIMESTAMP, we want to keep this true so we produce the
+				  const value in computing nodes instead of sending it to
+				  storage shards in case the format and timestamp value were
+				  slightly different. We also support the 3 aliases of NOW() : 
+				  transaction_timestamp(), statement_timestamp, clock_timestamp().
+				  pg doc says there are still TODAY(), TOMORROW(), YESTERDAY(),
+				  but pg_proc.dat doesn't have these funcs.
+				*/
+				SQLValueFunction *svf = makeSQLValueFunction(SVFOP_CURRENT_TIMESTAMP, -1);
+				if ((nw1 = SQLValueFuncValue(svf, str)) < 0)
+					return nw1;
+				nw += nw1;
+				goto end;
+			}
 			else
 				goto unsupported;
 		}
@@ -960,10 +982,33 @@ op_expr_done:
 	else if (IsA(expr, Param) && !rpec->ignore_param_quals)
 	{
 		Param *param = (Param *)expr;
-		ParamExecData *ped = rpec->rpec_param_exec_vals + param->paramid;
+		ParamExecData *ped = NULL;
+		ParamExternData *pxd = NULL;
+		bool isnull;
+		Oid paramtype;
+		Datum pval;
 
-		if ((nw1 = output_const_type_value(str, ped->isnull, param->paramtype,
-				ped->value)) < 0)
+		if (param->paramkind == PARAM_EXEC)
+		{
+			ped = rpec->rpec_param_exec_vals + param->paramid;
+			Assert(ped);
+			isnull = ped->isnull;
+			paramtype = param->paramtype;
+			pval = ped->value;
+		}
+		else if (param->paramkind == PARAM_EXTERN)
+		{
+			pxd = eval_extern_param_val(rpec->rpec_param_list_info, param->paramid);
+			Assert(pxd != NULL);
+			isnull = pxd->isnull;
+			paramtype = pxd->ptype;
+			pval = pxd->value;
+		}
+		else
+			Assert(false);//PARAM_SUBLINK and PARAM_MULTIEXPR params are
+			// always converted to PARAM_EXEC during planning.
+
+		if ((nw1 = output_const_type_value(str, isnull, paramtype, pval)) < 0)
 			return nw1;
 		nw += nw1;
 	}
@@ -1124,6 +1169,18 @@ unsupported:
 	}
 end:
 	return nw;
+}
+
+static SQLValueFunction*
+makeSQLValueFunction(SQLValueFunctionOp op, int32 typmod)
+{
+    SQLValueFunction *svf = makeNode(SQLValueFunction);
+
+    svf->op = op; 
+    /* svf->type will be filled during parse analysis */
+    svf->typmod = typmod;
+    svf->location = -1;
+    return svf;
 }
 
 #define CONST_STR_LEN(conststr) conststr,(sizeof(conststr)-1)
@@ -1438,4 +1495,22 @@ static int convert_numeric_func(Oid funcid, List *args, StringInfo str,
 	appendStringInfoString(str, pos->funcname);
 	nw = strlen(pos->funcname);
 	return -nw; // caller need to continue to serialize the args of the function call
+}
+
+static ParamExternData * eval_extern_param_val(ParamListInfo paramInfo, int paramId)
+{
+	if (likely(paramInfo &&
+			   paramId > 0 && paramId <= paramInfo->numParams))
+	{	
+		ParamExternData *prm;
+		ParamExternData *prmdata = palloc0(sizeof(ParamExternData));
+
+		if (paramInfo->paramFetch != NULL)
+			prm = paramInfo->paramFetch(paramInfo, paramId, false, prmdata);
+		else
+			prm = &paramInfo->params[paramId - 1];
+		return prm;
+	}
+	return NULL;
+
 }

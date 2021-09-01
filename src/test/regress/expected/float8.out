@@ -418,9 +418,9 @@ UPDATE FLOAT8_TBL
    SET f1 = FLOAT8_TBL.f1 * '-1'
    WHERE FLOAT8_TBL.f1 > '0.0';
 SELECT '' AS bad, f.f1 * '1e200' from FLOAT8_TBL f;
-ERROR:  MySQL storage node (4, 8) returned error: 1690, DOUBLE value is out of range in '(`regression_$$_public`.`float8_tbl`.`f1` * 1e+200)'.
+ERROR:  Kunlun-db: MySQL storage node (4, 8) returned error: 1690, DOUBLE value is out of range in '(`regression_$$_public`.`float8_tbl`.`f1` * 1e+200)'.
 SELECT '' AS bad, f.f1 ^ '1e200' from FLOAT8_TBL f;
-ERROR:  MySQL storage node (4, 8) returned error: 1690, DOUBLE value is out of range in 'pow(`regression_$$_public`.`float8_tbl`.`f1`,1e+200)'.
+ERROR:  Kunlun-db: MySQL storage node (4, 8) returned error: 1690, DOUBLE value is out of range in 'pow(`regression_$$_public`.`float8_tbl`.`f1`,1e+200)'.
 SELECT 0 ^ 0 + 0 ^ 1 + 0 ^ 0.0 + 0 ^ 0.5;
  ?column? 
 ----------

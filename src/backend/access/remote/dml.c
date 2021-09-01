@@ -79,6 +79,10 @@ void post_remote_updel_stmt(ModifyTableState*mtstate, RemoteScan *rs, int i)
 	// For update&delete, always use params if any, we have to precisely
 	// locate the target row.
 	rpec.ignore_param_quals = false;
+	rpec.rpec_param_exec_vals =
+		(mtstate->ps.ps_ExprContext ?
+			mtstate->ps.ps_ExprContext->ecxt_param_exec_vals : NULL);
+	rpec.rpec_param_list_info = mtstate->ps.state->es_param_list_info;
 
 	if (operation == CMD_UPDATE)
 	{

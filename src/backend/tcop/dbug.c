@@ -43,12 +43,12 @@ update_session_debug(const char *newval, void *extra)
 
 const char *show_global_debug(void)
 {
-	return NULL;
+	return "<null>";
 }
 
 const char *show_session_debug(void)
 {
-	return NULL;
+	return "<null>";
 }
 
 bool enable_stacktrace = true;

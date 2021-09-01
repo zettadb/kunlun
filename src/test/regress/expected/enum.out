@@ -53,8 +53,11 @@ ORDER BY 2;
 (4 rows)
 
 ALTER TYPE planets ADD VALUE 'mercury' BEFORE 'venus';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 ALTER TYPE planets ADD VALUE 'saturn' BEFORE 'uranus';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 ALTER TYPE planets ADD VALUE 'jupiter' AFTER 'mars';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 ALTER TYPE planets ADD VALUE 'neptune' AFTER 'uranus';
 SELECT enumlabel, enumsortorder
 FROM pg_enum
@@ -62,15 +65,12 @@ WHERE enumtypid = 'planets'::regtype
 ORDER BY 2;
  enumlabel | enumsortorder 
 -----------+---------------
- mercury   |             0
  venus     |             1
  earth     |             2
  mars      |             3
- jupiter   |          3.25
- saturn    |           3.5
  uranus    |             4
  neptune   |             5
-(8 rows)
+(5 rows)
 
 SELECT enumlabel, enumsortorder
 FROM pg_enum
@@ -78,15 +78,12 @@ WHERE enumtypid = 'planets'::regtype
 ORDER BY enumlabel::planets;
  enumlabel | enumsortorder 
 -----------+---------------
- mercury   |             0
  venus     |             1
  earth     |             2
  mars      |             3
- jupiter   |          3.25
- saturn    |           3.5
  uranus    |             4
  neptune   |             5
-(8 rows)
+(5 rows)
 
 -- errors for adding labels
 ALTER TYPE planets ADD VALUE
@@ -98,7 +95,6 @@ ERROR:  "zeus" is not an existing enum label
 -- if not exists tests
 --  existing value gives error
 ALTER TYPE planets ADD VALUE 'mercury';
-ERROR:  enum label "mercury" already exists
 -- unless IF NOT EXISTS is specified
 ALTER TYPE planets ADD VALUE IF NOT EXISTS 'mercury';
 NOTICE:  enum label "mercury" already exists, skipping
@@ -106,7 +102,7 @@ NOTICE:  enum label "mercury" already exists, skipping
 SELECT enum_last(NULL::planets);
  enum_last 
 -----------
- neptune
+ mercury
 (1 row)
 
 ALTER TYPE planets ADD VALUE IF NOT EXISTS 'pluto';
@@ -122,35 +118,65 @@ SELECT enum_last(NULL::planets);
 --
 create type insenum as enum ('L1', 'L2');
 alter type insenum add value 'i1' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i2' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i3' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i4' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i5' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i6' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i7' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i8' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i9' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i10' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i11' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i12' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i13' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i14' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i15' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i16' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i17' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i18' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i19' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i20' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i21' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i22' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i23' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i24' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i25' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i26' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i27' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i28' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i29' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 alter type insenum add value 'i30' before 'L2';
+ERROR:  Can not insert new enum labels before existing ones in Kunlun.
 -- The exact values of enumsortorder will now depend on the local properties
 -- of float4, but in any reasonable implementation we should get at least
 -- 20 splits before having to renumber; so only hide values > 20.
@@ -162,38 +188,8 @@ ORDER BY enumsortorder;
  enumlabel | so 
 -----------+----
  L1        |  1
- i1        |  2
- i2        |  3
- i3        |  4
- i4        |  5
- i5        |  6
- i6        |  7
- i7        |  8
- i8        |  9
- i9        | 10
- i10       | 11
- i11       | 12
- i12       | 13
- i13       | 14
- i14       | 15
- i15       | 16
- i16       | 17
- i17       | 18
- i18       | 19
- i19       | 20
- i20       |   
- i21       |   
- i22       |   
- i23       |   
- i24       |   
- i25       |   
- i26       |   
- i27       |   
- i28       |   
- i29       |   
- i30       |   
- L2        |   
-(32 rows)
+ L2        |  2
+(2 rows)
 
 --
 -- Basic table creation, row selection
@@ -405,17 +401,21 @@ RESET enable_bitmapscan;
 -- Domains over enums
 --
 CREATE DOMAIN rgb AS rainbow CHECK (VALUE IN ('red', 'green', 'blue'));
+ERROR:  Statement 'CREATE DOMAIN' is not supported in Kunlun.
 SELECT 'red'::rgb;
- rgb 
------
- red
-(1 row)
-
+ERROR:  type "rgb" does not exist
+LINE 1: SELECT 'red'::rgb;
+                      ^
 SELECT 'purple'::rgb;
-ERROR:  value for domain rgb violates check constraint "rgb_check"
+ERROR:  type "rgb" does not exist
+LINE 1: SELECT 'purple'::rgb;
+                         ^
 SELECT 'purple'::rainbow::rgb;
-ERROR:  value for domain rgb violates check constraint "rgb_check"
+ERROR:  type "rgb" does not exist
+LINE 1: SELECT 'purple'::rainbow::rgb;
+                                  ^
 DROP DOMAIN rgb;
+ERROR:  type "rgb" does not exist
 --
 -- Arrays
 --
@@ -545,33 +545,31 @@ DROP FUNCTION echo_me(rainbow);
 --
 CREATE TABLE enumtest_parent (id rainbow PRIMARY KEY);
 CREATE TABLE enumtest_child (parent rainbow REFERENCES enumtest_parent);
-ERROR:  cannot create foreign key for a remote table
+WARNING:  Foreign key not supported in Kunlun, it's ignored here.
 INSERT INTO enumtest_parent VALUES ('red');
 INSERT INTO enumtest_child VALUES ('red');
-ERROR:  relation "enumtest_child" does not exist
-LINE 1: INSERT INTO enumtest_child VALUES ('red');
-                    ^
 INSERT INTO enumtest_child VALUES ('blue');  -- fail
-ERROR:  relation "enumtest_child" does not exist
-LINE 1: INSERT INTO enumtest_child VALUES ('blue');
-                    ^
 DELETE FROM enumtest_parent;  -- fail
 --
 -- cross-type RI should fail
 --
 CREATE TYPE bogus AS ENUM('good', 'bad', 'ugly');
 CREATE TABLE enumtest_bogus_child(parent bogus REFERENCES enumtest_parent);
-ERROR:  cannot create foreign key for a remote table
+WARNING:  Foreign key not supported in Kunlun, it's ignored here.
 DROP TYPE bogus;
+ERROR:  cannot drop type bogus because other objects depend on it
+DETAIL:  column parent of table enumtest_bogus_child depends on type bogus
+HINT:  Use DROP ... CASCADE to drop the dependent objects too.
 -- check renaming a value
 ALTER TYPE rainbow RENAME VALUE 'red' TO 'crimson';
+ERROR:  Can't rename enum labels in Kunlun.
 SELECT enumlabel, enumsortorder
 FROM pg_enum
 WHERE enumtypid = 'rainbow'::regtype
 ORDER BY 2;
  enumlabel | enumsortorder 
 -----------+---------------
- crimson   |             1
+ red       |             1
  orange    |             2
  yellow    |             3
  green     |             4
@@ -581,14 +579,15 @@ ORDER BY 2;
 
 -- check that renaming a non-existent value fails
 ALTER TYPE rainbow RENAME VALUE 'red' TO 'crimson';
-ERROR:  "red" is not an existing enum label
+ERROR:  Can't rename enum labels in Kunlun.
 -- check that renaming to an existent value fails
 ALTER TYPE rainbow RENAME VALUE 'blue' TO 'green';
-ERROR:  enum label "green" already exists
+ERROR:  Can't rename enum labels in Kunlun.
 --
 -- check transactional behaviour of ALTER TYPE ... ADD VALUE
 --
 CREATE TYPE bogus AS ENUM('good');
+ERROR:  type "bogus" already exists
 -- check that we can't add new values to existing enums in a transaction
 BEGIN;
 ALTER TYPE bogus ADD VALUE 'bad';
@@ -604,26 +603,28 @@ ROLLBACK;
 -- but ALTER TYPE RENAME VALUE is safe in a transaction
 BEGIN;
 ALTER TYPE bogus RENAME VALUE 'good' to 'bad';
+ERROR:  Can't rename enum labels in Kunlun.
 SELECT 'bad'::bogus;
- bogus 
--------
- bad
-(1 row)
-
+ERROR:  current transaction is aborted, commands ignored until end of transaction block
 ROLLBACK;
 DROP TYPE bogus;
+ERROR:  cannot drop type bogus because other objects depend on it
+DETAIL:  column parent of table enumtest_bogus_child depends on type bogus
+HINT:  Use DROP ... CASCADE to drop the dependent objects too.
 -- check that we *can* add new values to existing enums in a transaction,
 -- if the type is new as well
 BEGIN;
 CREATE TYPE bogus AS ENUM();
+ERROR:  type "bogus" already exists
 ALTER TYPE bogus ADD VALUE 'good';
+ERROR:  current transaction is aborted, commands ignored until end of transaction block
 ALTER TYPE bogus ADD VALUE 'ugly';
+ERROR:  current transaction is aborted, commands ignored until end of transaction block
 ROLLBACK;
 --
 -- Cleanup
 --
 DROP TABLE enumtest_child;
-ERROR:  table "enumtest_child" does not exist
 DROP TABLE enumtest_parent;
 DROP TABLE enumtest;
 DROP TYPE rainbow;

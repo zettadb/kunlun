@@ -70,6 +70,11 @@ static ParamExternData * eval_extern_param_val(ParamListInfo paramInfo, int para
 	nw += nw1;          \
 } while (0)
 
+#define APPEND_STR_FMT2(fmt, arg0, arg1)  do {   \
+	nw1 = appendStringInfo(str, fmt, arg0, arg1); \
+	nw += nw1;          \
+} while (0)
+
 #define APPEND_FUNC2(funcname, arg1, arg2) do {\
 	nw1 = appendStringInfoString(str, funcname);  \
 	appendStringInfoChar(str, '('); \
@@ -826,14 +831,34 @@ op_expr_done:
 		if (!mysql_has_func(funcname))
 		{
 			/*
-			  no need for such functions, let mysql do local type conversion
-			  if needed.
+			  We can let mysql do implicit type conversions locally, but
+			  we have to require mysql to do explicit type conversions.
 			*/
-			if (e->funcformat == COERCE_IMPLICIT_CAST ||
-				e->funcformat == COERCE_EXPLICIT_CAST ||
-				is_type_conversion_func(e->funcid))
+			Oid totypid = InvalidOid;
+			const char *castfn = NULL;
+
+			if (e->funcformat == COERCE_IMPLICIT_CAST)
 			{
 				APPEND_EXPR(linitial(e->args));
+				goto end;
+			}
+			else if ((e->funcformat == COERCE_EXPLICIT_CAST ||
+					  (is_type_conversion_func(e->funcid, &totypid) &&
+					   totypid == e->funcresulttype)) &&
+					 (castfn = mysql_can_cast(e->funcresulttype)) != NULL &&
+					 e->funcid != 1703/*NUMERIC cast is handled below */)
+			{
+				APPEND_STR(" CAST(");
+				APPEND_EXPR(linitial(e->args));
+				APPEND_STR_FMT(" as %s", castfn);
+				if (list_length(e->args) > 1)
+				{
+					// for existing conversion funcs, the 2nd arg is always the (N).
+					APPEND_CHAR('(');
+					APPEND_EXPR(lsecond(e->args));
+					APPEND_CHAR(')');
+				}
+				APPEND_STR(") ");
 				goto end;
 			}
 			else if (is_numeric_func(e->funcid))
@@ -1486,8 +1511,37 @@ static int convert_numeric_func(Oid funcid, List *args, StringInfo str,
 	}
 	else if (funcid == 1703)
 	{
+		int typmod = -1;
+		if (list_length(args) == 1) goto noprec;// no precision or scale specified
+
+		Expr *tme = (Expr*)lsecond(args);
+		if (!IsA(tme, Const)) return 0;
+		typmod = ((Const *)tme)->constvalue;
+	    if (typmod < (int32) (VARHDRSZ))
+	    {
+			return 0;// can't serialize
+	    }
+	
+		int precision = ((typmod - VARHDRSZ) >> 16) & 0xffff;
+		int scale = (typmod - VARHDRSZ) & 0xffff;
+		if (scale < 0 || scale > 30 || precision <= 0 || precision > 65)
+			return 0;
+noprec:
+		APPEND_STR(" CAST(");
 		APPEND_EXPR(linitial(args));
 		if (nw1 < 0) return 0;
+		APPEND_STR(" as DECIMAL");
+		if (typmod > 0)
+		{
+			if (scale > 0)
+				APPEND_STR_FMT2("(%d,%d)", precision, scale);
+			else
+				APPEND_STR_FMT("(%d)", precision);
+		}
+		else
+			APPEND_STR("(65,20)");
+
+		APPEND_STR(") ");
 		return nw;
 	}
 

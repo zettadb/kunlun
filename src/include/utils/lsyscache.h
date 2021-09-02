@@ -181,7 +181,7 @@ extern char *get_namespace_name_or_temp(Oid nspid);
 extern Oid	get_range_subtype(Oid rangeOid);
 extern int get_namespace_name2(Oid nspid, StringInfo str);
 extern int get_namespace_name3(Oid nspid, NameData *nm);
-extern bool is_type_conversion_func(Oid funcid);
+extern bool is_type_conversion_func(Oid funcid, Oid *typid);
 
 #define type_is_array(typid)  (get_element_type(typid) != InvalidOid)
 /* type_is_array_domain accepts both plain arrays and domains over arrays */

@@ -3197,7 +3197,7 @@ get_range_subtype(Oid rangeOid)
 /*
   dzw: check if funcid is type conversion function, like int2(), etc.
 */
-bool is_type_conversion_func(Oid funcid)
+bool is_type_conversion_func(Oid funcid, Oid *typid)
 {
 	HeapTuple	tp;
 	/*
@@ -3208,14 +3208,16 @@ bool is_type_conversion_func(Oid funcid)
 	const Oid internal_langid = 12;
 	bool ret = false;
 
+	*typid = InvalidOid;
 	tp = SearchSysCache1(PROCOID, ObjectIdGetDatum(funcid));
 	if (HeapTupleIsValid(tp))
 	{
 		Form_pg_proc functup = (Form_pg_proc) GETSTRUCT(tp);
 		if (functup->prolang == internal_langid && functup->pronargs == 1 &&
 			functup->prokind == PROKIND_FUNCTION && functup->proretset == false &&
-			TypenameGetTypid(functup->proname.data) != InvalidOid)
+			(*typid = TypenameGetTypid(functup->proname.data)) != InvalidOid)
 			ret = true;
+		else *typid = InvalidOid;
 		ReleaseSysCache(tp);
 	}
 	return ret;

@@ -134,12 +134,14 @@ extern char *format_type_extended(Oid type_oid, int32 typemod, bits16 flags);
 extern char *format_type_be(Oid type_oid);
 extern char *format_type_be_qualified(Oid type_oid);
 extern char *format_type_with_typemod(Oid type_oid, int32 typemod);
+
 extern int const_output_needs_quote(Oid type_oid);
 extern void InitRemoteTypeInfo(void);
 extern const char *format_type_remote(Oid type_oid);
 extern bool type_is_enum_lite(Oid typid);
 extern bool is_string_type(Oid typid);
 extern bool needs_mysql_keypart_len(Oid typid, int typmod);
+extern const char* mysql_can_cast(Oid typid);
 
 extern int32 type_maximum_size(Oid type_oid, int32 typemod);
 

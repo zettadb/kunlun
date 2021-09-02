@@ -103,7 +103,7 @@ static struct Type_id_name typid_names[] =
 	{BITOID, true, "bit"},  // b'01011010'
 	{VARBITOID, true, "bit"},
 	{NUMERICOID, false, "numeric"},
-	{CASHOID, false, "numeric"}, // provide modifier to make it decimal(50,15).
+	{CASHOID, false, "numeric"}, // provide modifier to make it decimal(65,8).
 	{BYTEAOID, true, "longblob"}, // exchange with storage node in hex string.TODO
 
 	{NAMEOID, true, "varchar(64)"},
@@ -263,5 +263,59 @@ bool is_string_type(Oid typid)
 
 	get_type_category_preferred(typid, &cat, &p);
 	return (cat == TYPCATEGORY_STRING);
+}
+
+typedef struct mysql_cast {
+	Oid from_typid;
+	const char *to_mysql_cast_type;
+} mysql_cast;
+
+inline static int mysql_cast_cmp(const void *v1, const void *v2)
+{
+	mysql_cast *vv1 = (mysql_cast *)v1;
+	mysql_cast *vv2 = (mysql_cast *)v2;
+	return vv1->from_typid > vv2->from_typid ? 1 :
+		(vv1->from_typid < vv2->from_typid ? -1 : 0);
+}
+
+const char* mysql_can_cast(Oid typid)
+{
+	static mysql_cast mysql_castable_types[] = {
+		{ CHAROID, "CHAR" },
+		{ INT8OID, "SIGNED" },
+		{ INT2OID, "SIGNED" },
+		{ INT4OID, "SIGNED" },
+		{ FLOAT4OID, "FLOAT" },
+		{ FLOAT8OID, "REAL" },
+		{ BPCHAROID, "CHAR" },
+		{ VARCHAROID, "CHAR" },
+		{ NUMERICOID, "DECIMAL" },// add (65,20) if typmod not specified. },
+		{ CASHOID, "DECIMAL(65,8)" },
+		{ NAMEOID, "CHAR(64)" },
+		{ OIDOID, "UNSIGNED" },
+		{ CSTRINGOID, "CHAR" },
+		{ DATEOID,	"DATE" },
+		{ TIMEOID,	"TIME" },
+		{ TIMESTAMPOID, "DATETIME" },
+		{ TIMESTAMPTZOID, "DATETIME" },
+		{ TIMETZOID, "TIME" }
+	};
+	static bool has_sorted = false;
+	const static size_t num = sizeof(mysql_castable_types) / sizeof(mysql_cast);
+	if (!has_sorted)
+	{
+		has_sorted = true;
+		qsort(mysql_castable_types, num, sizeof(mysql_cast), mysql_cast_cmp);
+	}
+	mysql_cast cast;
+	cast.from_typid = typid;
+	mysql_cast *res = (mysql_cast *)bsearch(&cast, mysql_castable_types, num,
+		sizeof(mysql_cast), mysql_cast_cmp);
+	if (res)
+	{
+		return res->to_mysql_cast_type;
+	}
+	else
+		return NULL;
 }
 

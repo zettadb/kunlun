@@ -841,6 +841,7 @@ with_segsize
 with_wal_blocksize
 with_CC
 with_llvm
+with_ggdb3
 enable_depend
 enable_cassert
 enable_thread_safety
@@ -1554,6 +1555,7 @@ Optional Packages:
                           set WAL block size in kB [8]
   --with-CC=CMD           set compiler (deprecated)
   --with-llvm             build with LLVM based JIT support
+  --without-ggdb3         build with -ggdb3
   --without-icu           build with ICU support
   --with-tcl              build Tcl modules (PL/Tcl)
   --with-tclconfig=DIR    tclConfig.sh is in DIR
@@ -5024,6 +5026,31 @@ fi
 
 fi # fi
 
+WITH_GGDB3="yes"
+
+
+
+# Check whether --with-ggdb3 was given.
+if test "${with_ggdb3+set}" = set; then :
+  withval=$with_ggdb3;
+  case $withval in
+    yes)
+      :
+      ;;
+    no)
+      WITH_GGDB3="no"
+      ;;
+    *)
+      as_fn_error $? "no argument expected for --with-ggdb3 option" "$LINENO" 5
+      ;;
+  esac
+
+else
+  with_ggdb3=yes
+
+fi
+
+
 
 unset CFLAGS
 unset CXXFLAGS
@@ -5074,7 +5101,7 @@ else
   fi
 fi
 
-if test "$GCC" = yes; then
+if test "$GCC" = yes -a "$WITH_GGDB3" = "yes"; then
 	CFLAGS="$CFLAGS -ggdb3"
 	CXXFLAGS="$CXXFLAGS -ggdb3"
 fi

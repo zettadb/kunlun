@@ -388,6 +388,8 @@ AS_IF([test "$with_llvm" = yes], [
   PGAC_LLVM_SUPPORT()
 ]) # fi
 
+WITH_GGDB3="yes"
+PGAC_ARG_BOOL(with, ggdb3, yes, [build with -ggdb3], [], [WITH_GGDB3="no"])
 
 unset CFLAGS
 unset CXXFLAGS
@@ -438,7 +440,7 @@ else
   fi
 fi
 
-if test "$GCC" = yes; then
+if test "$GCC" = yes -a "$WITH_GGDB3" = "yes"; then
 	CFLAGS="$CFLAGS -ggdb3"
 	CXXFLAGS="$CXXFLAGS -ggdb3"
 fi

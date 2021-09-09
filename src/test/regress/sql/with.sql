@@ -99,7 +99,7 @@ SELECT n, n IS OF (int) AS is_int FROM t;
 
 CREATE TEMP TABLE department (
 	id INTEGER PRIMARY KEY,  -- department ID
-	parent_department INTEGER REFERENCES department, -- upper department ID
+	parent_department INTEGER, -- upper department ID
 	name TEXT -- department name
 );
 
@@ -249,7 +249,7 @@ WITH RECURSIVE t(i,j) AS (
 --
 CREATE TEMPORARY TABLE tree(
     id INTEGER PRIMARY KEY,
-    parent_id INTEGER REFERENCES tree(id)
+    parent_id INTEGER
 );
 
 INSERT INTO tree
@@ -540,8 +540,6 @@ SELECT * FROM foo;
 
 -- disallow OLD/NEW reference in CTE
 CREATE TEMPORARY TABLE x (n integer);
-CREATE RULE r2 AS ON UPDATE TO x DO INSTEAD
-    WITH t AS (SELECT OLD.*) UPDATE y SET a = t.n FROM t;
 
 --
 -- test for bug #4902
@@ -737,10 +735,6 @@ SELECT * FROM t2;
 
 SELECT * FROM y;
 
--- unconditional DO INSTEAD rule
-CREATE RULE y_rule AS ON DELETE TO y DO INSTEAD
-  INSERT INTO y VALUES(42) RETURNING *;
-
 WITH t AS (
 	DELETE FROM y RETURNING *
 )
@@ -748,11 +742,9 @@ SELECT * FROM t;
 
 SELECT * FROM y;
 
-DROP RULE y_rule ON y;
-
 -- check merging of outer CTE with CTE in a rule action
-CREATE TEMP TABLE bug6051 AS
-  select i from generate_series(1,3) as t(i);
+CREATE TEMP TABLE bug6051(i int);
+insert into bug6051 select i from generate_series(1,3) as t(i);
 
 SELECT * FROM bug6051;
 
@@ -762,10 +754,6 @@ INSERT INTO bug6051 SELECT * FROM t1;
 SELECT * FROM bug6051;
 
 CREATE TEMP TABLE bug6051_2 (i int);
-
-CREATE RULE bug6051_ins AS ON INSERT TO bug6051 DO INSTEAD
- INSERT INTO bug6051_2
- SELECT NEW.i;
 
 WITH t1 AS ( DELETE FROM bug6051 RETURNING * )
 INSERT INTO bug6051 SELECT * FROM t1;
@@ -804,67 +792,22 @@ SELECT * FROM t LIMIT 10;
 
 SELECT * FROM y;
 
--- data-modifying WITH containing INSERT...ON CONFLICT DO UPDATE
-CREATE TABLE withz AS SELECT i AS k, (i || ' v')::text v FROM generate_series(1, 16, 3) i;
+CREATE TABLE withz(k int, v text);
+insert into withz SELECT i AS k, (i || ' v')::text v FROM generate_series(1, 16, 3) i;
 ALTER TABLE withz ADD UNIQUE (k);
 
-WITH t AS (
-    INSERT INTO withz SELECT i, 'insert'
-    FROM generate_series(0, 16) i
-    ON CONFLICT (k) DO UPDATE SET v = withz.v || ', now update'
-    RETURNING *
-)
 SELECT * FROM t JOIN y ON t.k = y.a ORDER BY a, k;
 
--- Test EXCLUDED.* reference within CTE
-WITH aa AS (
-    INSERT INTO withz VALUES(1, 5) ON CONFLICT (k) DO UPDATE SET v = EXCLUDED.v
-    WHERE withz.k != EXCLUDED.k
-    RETURNING *
-)
 SELECT * FROM aa;
 
 -- New query/snapshot demonstrates side-effects of previous query.
 SELECT * FROM withz ORDER BY k;
 
---
--- Ensure subqueries within the update clause work, even if they
--- reference outside values
---
-WITH aa AS (SELECT 1 a, 2 b)
-INSERT INTO withz VALUES(1, 'insert')
-ON CONFLICT (k) DO UPDATE SET v = (SELECT b || ' update' FROM aa WHERE a = 1 LIMIT 1);
-WITH aa AS (SELECT 1 a, 2 b)
-INSERT INTO withz VALUES(1, 'insert')
-ON CONFLICT (k) DO UPDATE SET v = ' update' WHERE withz.k = (SELECT a FROM aa);
-WITH aa AS (SELECT 1 a, 2 b)
-INSERT INTO withz VALUES(1, 'insert')
-ON CONFLICT (k) DO UPDATE SET v = (SELECT b || ' update' FROM aa WHERE a = 1 LIMIT 1);
-WITH aa AS (SELECT 'a' a, 'b' b UNION ALL SELECT 'a' a, 'b' b)
-INSERT INTO withz VALUES(1, 'insert')
-ON CONFLICT (k) DO UPDATE SET v = (SELECT b || ' update' FROM aa WHERE a = 'a' LIMIT 1);
-WITH aa AS (SELECT 1 a, 2 b)
-INSERT INTO withz VALUES(1, (SELECT b || ' insert' FROM aa WHERE a = 1 ))
-ON CONFLICT (k) DO UPDATE SET v = (SELECT b || ' update' FROM aa WHERE a = 1 LIMIT 1);
-
--- Update a row more than once, in different parts of a wCTE. That is
--- an allowed, presumably very rare, edge case, but since it was
--- broken in the past, having a test seems worthwhile.
-WITH simpletup AS (
-  SELECT 2 k, 'Green' v),
-upsert_cte AS (
-  INSERT INTO withz VALUES(2, 'Blue') ON CONFLICT (k) DO
-    UPDATE SET (k, v) = (SELECT k, v FROM simpletup WHERE simpletup.k = withz.k)
-    RETURNING k, v)
-INSERT INTO withz VALUES(2, 'Red') ON CONFLICT (k) DO
-UPDATE SET (k, v) = (SELECT k, v FROM upsert_cte WHERE upsert_cte.k = withz.k)
-RETURNING k, v;
-
 DROP TABLE withz;
 
 -- check that run to completion happens in proper ordering
 
-TRUNCATE TABLE y;
+delete from y;
 INSERT INTO y SELECT generate_series(1, 3);
 CREATE TEMPORARY TABLE yy (a INTEGER);
 
@@ -888,20 +831,8 @@ SELECT 1;
 SELECT * FROM y;
 SELECT * FROM yy;
 
--- triggers
-
-TRUNCATE TABLE y;
+delete from y;
 INSERT INTO y SELECT generate_series(1, 10);
-
-CREATE FUNCTION y_trigger() RETURNS trigger AS $$
-begin
-  raise notice 'y_trigger: a = %', new.a;
-  return new;
-end;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER y_trig BEFORE INSERT ON y FOR EACH ROW
-    EXECUTE PROCEDURE y_trigger();
 
 WITH t AS (
     INSERT INTO y
@@ -915,11 +846,6 @@ SELECT * FROM t;
 
 SELECT * FROM y;
 
-DROP TRIGGER y_trig ON y;
-
-CREATE TRIGGER y_trig AFTER INSERT ON y FOR EACH ROW
-    EXECUTE PROCEDURE y_trigger();
-
 WITH t AS (
     INSERT INTO y
     VALUES
@@ -931,18 +857,6 @@ WITH t AS (
 SELECT * FROM t LIMIT 1;
 
 SELECT * FROM y;
-
-DROP TRIGGER y_trig ON y;
-
-CREATE OR REPLACE FUNCTION y_trigger() RETURNS trigger AS $$
-begin
-  raise notice 'y_trigger';
-  return null;
-end;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER y_trig AFTER INSERT ON y FOR EACH STATEMENT
-    EXECUTE PROCEDURE y_trigger();
 
 WITH t AS (
     INSERT INTO y
@@ -956,36 +870,19 @@ SELECT * FROM t;
 
 SELECT * FROM y;
 
-DROP TRIGGER y_trig ON y;
-DROP FUNCTION y_trigger();
-
 -- WITH attached to inherited UPDATE or DELETE
 
 CREATE TEMP TABLE parent ( id int, val text );
-CREATE TEMP TABLE child1 ( ) INHERITS ( parent );
-CREATE TEMP TABLE child2 ( ) INHERITS ( parent );
 
 INSERT INTO parent VALUES ( 1, 'p1' );
-INSERT INTO child1 VALUES ( 11, 'c11' ),( 12, 'c12' );
-INSERT INTO child2 VALUES ( 23, 'c21' ),( 24, 'c22' );
 
 WITH rcte AS ( SELECT sum(id) AS totalid FROM parent )
 UPDATE parent SET id = id + totalid FROM rcte;
 
 SELECT * FROM parent;
 
-WITH wcte AS ( INSERT INTO child1 VALUES ( 42, 'new' ) RETURNING id AS newid )
-UPDATE parent SET id = id + newid FROM wcte;
-
-SELECT * FROM parent;
-
 WITH rcte AS ( SELECT max(id) AS maxid FROM parent )
 DELETE FROM parent USING rcte WHERE id = maxid;
-
-SELECT * FROM parent;
-
-WITH wcte AS ( INSERT INTO child2 VALUES ( 42, 'new2' ) RETURNING id AS newid )
-DELETE FROM parent USING wcte WHERE id = newid;
 
 SELECT * FROM parent;
 
@@ -1017,14 +914,13 @@ SELECT * FROM (
 ) ss;
 
 -- most variants of rules aren't allowed
-CREATE RULE y_rule AS ON INSERT TO y WHERE a=0 DO INSTEAD DELETE FROM y;
 WITH t AS (
 	INSERT INTO y VALUES(0)
 )
 VALUES(FALSE);
-DROP RULE y_rule ON y;
 
 -- check that parser lookahead for WITH doesn't cause any odd behavior
+drop table if exists foo;
 create table foo (with baz);  -- fail, WITH is a reserved word
 create table foo (with ordinality);  -- fail, WITH is a reserved word
 with ordinality as (select 1 as x) select * from ordinality;

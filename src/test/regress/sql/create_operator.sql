@@ -77,9 +77,9 @@ SELECT 2<=/**/3, 3>=/**/2, 2<>/**/3;
 SELECT 3<=/**/2, 2>=/**/3, 2<>/**/2;
 
 -- Should fail. CREATE OPERATOR requires USAGE on SCHEMA
+CREATE SCHEMA schema_op1;
 BEGIN TRANSACTION;
 CREATE ROLE regress_rol_op1;
-CREATE SCHEMA schema_op1;
 GRANT USAGE ON SCHEMA schema_op1 TO PUBLIC;
 REVOKE USAGE ON SCHEMA schema_op1 FROM regress_rol_op1;
 SET ROLE regress_rol_op1;
@@ -88,7 +88,7 @@ CREATE OPERATOR schema_op1.#*# (
    procedure = numeric_fac
 );
 ROLLBACK;
-
+DROP SCHEMA schema_op1;
 
 -- Should fail. SETOF type functions not allowed as argument (testing leftarg)
 BEGIN TRANSACTION;

@@ -283,8 +283,8 @@ ORDER BY a.b, b.b;
 
 CREATE FUNCTION mylt2 (x text, y text) RETURNS boolean LANGUAGE plpgsql AS $$
 declare
-  xx text := x;
-  yy text := y;
+  xx text = x;
+  yy text = y;
 begin
   return xx < yy;
 end
@@ -295,8 +295,8 @@ SELECT mylt2('a', 'B' collate "en-x-icu") as t, mylt2('a', 'B' collate "C") as f
 CREATE OR REPLACE FUNCTION
   mylt2 (x text, y text) RETURNS boolean LANGUAGE plpgsql AS $$
 declare
-  xx text COLLATE "POSIX" := x;
-  yy text := y;
+  xx text COLLATE "POSIX" = x;
+  yy text = y;
 begin
   return xx < yy;
 end

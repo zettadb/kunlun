@@ -314,14 +314,15 @@ DROP OPERATOR FAMILY alt_opf5 USING btree;
 ROLLBACK;
 
 -- Should fail. Need rights to namespace for ALTER OPERATOR FAMILY .. ADD / DROP
+CREATE SCHEMA alt_nsp6;
 BEGIN TRANSACTION;
 CREATE ROLE regress_alter_generic_user6;
-CREATE SCHEMA alt_nsp6;
 REVOKE ALL ON SCHEMA alt_nsp6 FROM regress_alter_generic_user6;
 CREATE OPERATOR FAMILY alt_nsp6.alt_opf6 USING btree;
 SET ROLE regress_alter_generic_user6;
 ALTER OPERATOR FAMILY alt_nsp6.alt_opf6 USING btree ADD OPERATOR 1 < (int4, int2);
 ROLLBACK;
+DROP SCHEMA alt_nsp6;
 
 -- Should fail. Only two arguments required for ALTER OPERATOR FAMILY ... DROP OPERATOR
 CREATE OPERATOR FAMILY alt_opf7 USING btree;
@@ -432,39 +433,6 @@ ALTER OPERATOR FAMILY alt_opf18 USING btree ADD
   FUNCTION 1 btint42cmp(int4, int2);
 ALTER OPERATOR FAMILY alt_opf18 USING btree DROP FUNCTION 2 (int4, int4);
 DROP OPERATOR FAMILY alt_opf18 USING btree;
-
---
--- Statistics
---
-SET SESSION AUTHORIZATION regress_alter_generic_user1;
-CREATE TABLE alt_regress_1 (a INTEGER, b INTEGER);
-CREATE STATISTICS alt_stat1 ON a, b FROM alt_regress_1;
-CREATE STATISTICS alt_stat2 ON a, b FROM alt_regress_1;
-
-ALTER STATISTICS alt_stat1 RENAME TO alt_stat2;   -- failed (name conflict)
-ALTER STATISTICS alt_stat1 RENAME TO alt_stat3;   -- failed (name conflict)
-ALTER STATISTICS alt_stat2 OWNER TO regress_alter_generic_user2;  -- failed (no role membership)
-ALTER STATISTICS alt_stat2 OWNER TO regress_alter_generic_user3;  -- OK
-ALTER STATISTICS alt_stat2 SET SCHEMA alt_nsp2;    -- OK
-
-SET SESSION AUTHORIZATION regress_alter_generic_user2;
-CREATE TABLE alt_regress_2 (a INTEGER, b INTEGER);
-CREATE STATISTICS alt_stat1 ON a, b FROM alt_regress_2;
-CREATE STATISTICS alt_stat2 ON a, b FROM alt_regress_2;
-
-ALTER STATISTICS alt_stat3 RENAME TO alt_stat4;    -- failed (not owner)
-ALTER STATISTICS alt_stat1 RENAME TO alt_stat4;    -- OK
-ALTER STATISTICS alt_stat3 OWNER TO regress_alter_generic_user2; -- failed (not owner)
-ALTER STATISTICS alt_stat2 OWNER TO regress_alter_generic_user3; -- failed (no role membership)
-ALTER STATISTICS alt_stat3 SET SCHEMA alt_nsp2;		-- failed (not owner)
-ALTER STATISTICS alt_stat2 SET SCHEMA alt_nsp2;		-- failed (name conflict)
-
-RESET SESSION AUTHORIZATION;
-SELECT nspname, stxname, rolname
-  FROM pg_statistic_ext s, pg_namespace n, pg_authid a
- WHERE s.stxnamespace = n.oid AND s.stxowner = a.oid
-   AND n.nspname in ('alt_nsp1', 'alt_nsp2')
- ORDER BY nspname, stxname;
 
 --
 -- Text Search Dictionary

@@ -1,15 +1,12 @@
---
---  CLUSTER
---
-
+drop table if exists clstr_tst_s;
 CREATE TABLE clstr_tst_s (rf_a SERIAL PRIMARY KEY,
 	b INT);
 
+drop table if exists clstr_tst;
 CREATE TABLE clstr_tst (a SERIAL PRIMARY KEY,
 	b INT,
-	c TEXT,
-	d TEXT,
-	CONSTRAINT clstr_tst_con FOREIGN KEY (b) REFERENCES clstr_tst_s);
+	c varchar(50),
+	d text);
 
 CREATE INDEX clstr_tst_b ON clstr_tst (b);
 CREATE INDEX clstr_tst_c ON clstr_tst (c);
@@ -23,7 +20,8 @@ INSERT INTO clstr_tst_s (b) SELECT b FROM clstr_tst_s;
 INSERT INTO clstr_tst_s (b) SELECT b FROM clstr_tst_s;
 INSERT INTO clstr_tst_s (b) SELECT b FROM clstr_tst_s;
 
-CREATE TABLE clstr_tst_inh () INHERITS (clstr_tst);
+drop table if exists clstr_tst_inh;
+CREATE TABLE clstr_tst_inh (like clstr_tst);
 
 INSERT INTO clstr_tst (b, c) VALUES (11, 'once');
 INSERT INTO clstr_tst (b, c) VALUES (10, 'diez');
@@ -59,8 +57,6 @@ INSERT INTO clstr_tst (b, c) VALUES (8, 'ocho');
 -- This entry is needed to test that TOASTED values are copied correctly.
 INSERT INTO clstr_tst (b, c, d) VALUES (6, 'seis', repeat('xyzzy', 100000));
 
-CLUSTER clstr_tst_c ON clstr_tst;
-
 SELECT a,b,c,substring(d for 30), length(d) from clstr_tst;
 SELECT a,b,c,substring(d for 30), length(d) from clstr_tst ORDER BY a;
 SELECT a,b,c,substring(d for 30), length(d) from clstr_tst ORDER BY b;
@@ -89,7 +85,6 @@ WHERE pg_class.oid=indexrelid
 	AND indisclustered;
 
 -- Try changing indisclustered
-ALTER TABLE clstr_tst CLUSTER ON clstr_tst_b_c;
 SELECT pg_class.relname FROM pg_index, pg_class, pg_class AS pg_class_2
 WHERE pg_class.oid=indexrelid
 	AND indrelid=pg_class_2.oid
@@ -97,7 +92,6 @@ WHERE pg_class.oid=indexrelid
 	AND indisclustered;
 
 -- Try turning off all clustering
-ALTER TABLE clstr_tst SET WITHOUT CLUSTER;
 SELECT pg_class.relname FROM pg_index, pg_class, pg_class AS pg_class_2
 WHERE pg_class.oid=indexrelid
 	AND indrelid=pg_class_2.oid
@@ -119,11 +113,6 @@ INSERT INTO clstr_2 VALUES (1);
 INSERT INTO clstr_3 VALUES (2);
 INSERT INTO clstr_3 VALUES (1);
 
--- "CLUSTER <tablename>" on a table that hasn't been clustered
-CLUSTER clstr_2;
-
-CLUSTER clstr_1_pkey ON clstr_1;
-CLUSTER clstr_2 USING clstr_2_pkey;
 SELECT * FROM clstr_1 UNION ALL
   SELECT * FROM clstr_2 UNION ALL
   SELECT * FROM clstr_3;
@@ -142,7 +131,6 @@ INSERT INTO clstr_3 VALUES (1);
 -- this user can only cluster clstr_1 and clstr_3, but the latter
 -- has not been clustered
 SET SESSION AUTHORIZATION regress_clstr_user;
-CLUSTER;
 SELECT * FROM clstr_1 UNION ALL
   SELECT * FROM clstr_2 UNION ALL
   SELECT * FROM clstr_3;
@@ -151,13 +139,12 @@ SELECT * FROM clstr_1 UNION ALL
 DELETE FROM clstr_1;
 INSERT INTO clstr_1 VALUES (2);
 INSERT INTO clstr_1 VALUES (1);
-CLUSTER clstr_1;
 SELECT * FROM clstr_1;
 
 -- Test MVCC-safety of cluster. There isn't much we can do to verify the
 -- results with a single backend...
 
-CREATE TABLE clustertest (key int PRIMARY KEY);
+CREATE TABLE clustertest (key1 int PRIMARY KEY);
 
 INSERT INTO clustertest VALUES (10);
 INSERT INTO clustertest VALUES (20);
@@ -165,22 +152,20 @@ INSERT INTO clustertest VALUES (30);
 INSERT INTO clustertest VALUES (40);
 INSERT INTO clustertest VALUES (50);
 
--- Use a transaction so that updates are not committed when CLUSTER sees 'em
 BEGIN;
 
 -- Test update where the old row version is found first in the scan
-UPDATE clustertest SET key = 100 WHERE key = 10;
+UPDATE clustertest SET key1 = 100 WHERE key1 = 10;
 
 -- Test update where the new row version is found first in the scan
-UPDATE clustertest SET key = 35 WHERE key = 40;
+UPDATE clustertest SET key1 = 35 WHERE key1 = 40;
 
 -- Test longer update chain
-UPDATE clustertest SET key = 60 WHERE key = 50;
-UPDATE clustertest SET key = 70 WHERE key = 60;
-UPDATE clustertest SET key = 80 WHERE key = 70;
+UPDATE clustertest SET key1 = 60 WHERE key1 = 50;
+UPDATE clustertest SET key1 = 70 WHERE key1 = 60;
+UPDATE clustertest SET key1 = 80 WHERE key1 = 70;
 
 SELECT * FROM clustertest;
-CLUSTER clustertest_pkey ON clustertest;
 SELECT * FROM clustertest;
 
 COMMIT;
@@ -190,7 +175,6 @@ SELECT * FROM clustertest;
 -- check that temp tables can be clustered
 create temp table clstr_temp (col1 int primary key, col2 text);
 insert into clstr_temp values (2, 'two'), (1, 'one');
-cluster clstr_temp using clstr_temp_pkey;
 select * from clstr_temp;
 drop table clstr_temp;
 
@@ -199,20 +183,16 @@ RESET SESSION AUTHORIZATION;
 -- Check that partitioned tables cannot be clustered
 CREATE TABLE clstrpart (a int) PARTITION BY RANGE (a);
 CREATE INDEX clstrpart_idx ON clstrpart (a);
-ALTER TABLE clstrpart CLUSTER ON clstrpart_idx;
-CLUSTER clstrpart USING clstrpart_idx;
 DROP TABLE clstrpart;
 
--- Test CLUSTER with external tuplesorting
 
-create table clstr_4 as select * from tenk1;
+create table clstr_4 (like tenk1);
+insert into clstr_4 select * from tenk1;
 create index cluster_sort on clstr_4 (hundred, thousand, tenthous);
--- ensure we don't use the index in CLUSTER nor the checking SELECTs
 set enable_indexscan = off;
 
 -- Use external sort:
 set maintenance_work_mem = '1MB';
-cluster clstr_4 using cluster_sort;
 select * from
 (select hundred, lag(hundred) over () as lhundred,
         thousand, lag(thousand) over () as lthousand,

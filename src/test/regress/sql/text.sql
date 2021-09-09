@@ -6,6 +6,7 @@ SELECT text 'this is a text string' = text 'this is a text string' AS true;
 
 SELECT text 'this is a text string' = text 'this is a text strin' AS false;
 
+DROP TABLE if exists TEXT_TBL;
 CREATE TABLE TEXT_TBL (f1 text);
 
 INSERT INTO TEXT_TBL VALUES ('doh!');

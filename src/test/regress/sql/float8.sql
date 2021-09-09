@@ -2,6 +2,7 @@
 -- FLOAT8
 --
 
+drop table if exists FLOAT8_TBL;
 CREATE TABLE FLOAT8_TBL(f1 float8);
 
 INSERT INTO FLOAT8_TBL(f1) VALUES ('    0.0   ');

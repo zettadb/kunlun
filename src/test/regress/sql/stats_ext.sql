@@ -89,7 +89,7 @@ CREATE STATISTICS tststats.s8 ON a, b FROM tststats.pt;
 CREATE STATISTICS tststats.s9 ON a, b FROM tststats.pt1;
 DO $$
 DECLARE
-	relname text := reltoastrelid::regclass FROM pg_class WHERE oid = 'tststats.t'::regclass;
+	relname text = reltoastrelid::regclass FROM pg_class WHERE oid = 'tststats.t'::regclass;
 BEGIN
 	EXECUTE 'CREATE STATISTICS tststats.s10 ON a, b FROM ' || relname;
 EXCEPTION WHEN wrong_object_type THEN

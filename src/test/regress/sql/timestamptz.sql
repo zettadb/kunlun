@@ -2,6 +2,7 @@
 -- TIMESTAMPTZ
 --
 
+DROP TABLE IF EXISTS TIMESTAMPTZ_TBL;
 CREATE TABLE TIMESTAMPTZ_TBL (d1 timestamp(2) with time zone);
 
 -- Test shorthand input values
@@ -273,11 +274,11 @@ CREATE TABLE TIMESTAMPTZ_TST (a int , b timestamptz);
 
 -- Test year field value with len > 4
 INSERT INTO TIMESTAMPTZ_TST VALUES(1, 'Sat Mar 12 23:58:48 1000 IST');
-INSERT INTO TIMESTAMPTZ_TST VALUES(2, 'Sat Mar 12 23:58:48 10000 IST');
-INSERT INTO TIMESTAMPTZ_TST VALUES(3, 'Sat Mar 12 23:58:48 100000 IST');
-INSERT INTO TIMESTAMPTZ_TST VALUES(3, '10000 Mar 12 23:58:48 IST');
-INSERT INTO TIMESTAMPTZ_TST VALUES(4, '100000312 23:58:48 IST');
-INSERT INTO TIMESTAMPTZ_TST VALUES(4, '1000000312 23:58:48 IST');
+--not supported by kunlun: INSERT INTO TIMESTAMPTZ_TST VALUES(2, 'Sat Mar 12 23:58:48 10000 IST');
+--not supported by kunlun: INSERT INTO TIMESTAMPTZ_TST VALUES(3, 'Sat Mar 12 23:58:48 100000 IST');
+--not supported by kunlun: INSERT INTO TIMESTAMPTZ_TST VALUES(3, '10000 Mar 12 23:58:48 IST');
+--not supported by kunlun: INSERT INTO TIMESTAMPTZ_TST VALUES(4, '100000312 23:58:48 IST');
+--not supported by kunlun: INSERT INTO TIMESTAMPTZ_TST VALUES(4, '1000000312 23:58:48 IST');
 --Verify data
 SELECT * FROM TIMESTAMPTZ_TST ORDER BY a;
 --Cleanup
@@ -460,3 +461,5 @@ insert into tmptz values ('2017-01-18 00:00+00');
 explain (costs off)
 select * from tmptz where f1 at time zone 'utc' = '2017-01-18 00:00';
 select * from tmptz where f1 at time zone 'utc' = '2017-01-18 00:00';
+
+-- DROP TABLE TIMESTAMPTZ_TBL;

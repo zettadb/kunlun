@@ -3,11 +3,13 @@
 -- Test the case statement
 --
 
+DROP TABLE if exists CASE_TBL;
 CREATE TABLE CASE_TBL (
   i integer,
   f double precision
 );
 
+DROP TABLE if exists CASE2_TBL;
 CREATE TABLE CASE2_TBL (
   i integer,
   j integer
@@ -123,7 +125,7 @@ SELECT * FROM CASE_TBL WHERE COALESCE(f,i) = 4;
 SELECT * FROM CASE_TBL WHERE NULLIF(f,i) = 2;
 
 SELECT COALESCE(a.f, b.i, b.j)
-  FROM CASE_TBL a, CASE2_TBL b;
+  FROM CASE_TBL a, CASE2_TBL b order by 1;
 
 SELECT *
   FROM CASE_TBL a, CASE2_TBL b
@@ -131,7 +133,7 @@ SELECT *
 
 SELECT '' AS Five, NULLIF(a.i,b.i) AS "NULLIF(a.i,b.i)",
   NULLIF(b.i, 4) AS "NULLIF(b.i,4)"
-  FROM CASE_TBL a, CASE2_TBL b;
+  FROM CASE_TBL a, CASE2_TBL b order by 2, 3;
 
 SELECT '' AS "Two", *
   FROM CASE_TBL a, CASE2_TBL b
@@ -153,11 +155,11 @@ UPDATE CASE_TBL
 
 SELECT * FROM CASE_TBL;
 
-UPDATE CASE_TBL
-  SET i = CASE WHEN b.i >= 2 THEN (2 * j)
-                ELSE (3 * j) END
-  FROM CASE2_TBL b
-  WHERE j = -CASE_TBL.i;
+--notsupported: UPDATE CASE_TBL
+--  SET i = CASE WHEN b.i >= 2 THEN (2 * j)
+--                ELSE (3 * j) END
+--  FROM CASE2_TBL b
+--  WHERE j = -CASE_TBL.i;
 
 SELECT * FROM CASE_TBL;
 
@@ -188,48 +190,6 @@ SELECT CASE
   WHEN 'it was foo!' THEN 'foo recognized'
   WHEN 'it was bar!' THEN 'bar recognized'
   ELSE 'unrecognized' END;
-
--- In this case, we can't inline the SQL function without confusing things.
-CREATE DOMAIN foodomain AS text;
-
-CREATE FUNCTION volfoo(text) returns foodomain as
-  'begin return $1::foodomain; end' language plpgsql volatile;
-
-CREATE FUNCTION inline_eq(foodomain, foodomain) returns boolean as
-  'SELECT CASE $2::text WHEN $1::text THEN true ELSE false END' language sql;
-
-CREATE OPERATOR = (procedure = inline_eq,
-                   leftarg = foodomain, rightarg = foodomain);
-
-SELECT CASE volfoo('bar') WHEN 'foo'::foodomain THEN 'is foo' ELSE 'is not foo' END;
-
-ROLLBACK;
-
--- Test multiple evaluation of a CASE arg that is a read/write object (#14472)
--- Wrap this in a single transaction so the transient '=' operator doesn't
--- cause problems in concurrent sessions
-BEGIN;
-
-CREATE DOMAIN arrdomain AS int[];
-
-CREATE FUNCTION make_ad(int,int) returns arrdomain as
-  'declare x arrdomain;
-   begin
-     x := array[$1,$2];
-     return x;
-   end' language plpgsql volatile;
-
-CREATE FUNCTION ad_eq(arrdomain, arrdomain) returns boolean as
-  'begin return array_eq($1, $2); end' language plpgsql;
-
-CREATE OPERATOR = (procedure = ad_eq,
-                   leftarg = arrdomain, rightarg = arrdomain);
-
-SELECT CASE make_ad(1,2)
-  WHEN array[2,4]::arrdomain THEN 'wrong'
-  WHEN array[2,5]::arrdomain THEN 'still wrong'
-  WHEN array[1,2]::arrdomain THEN 'right'
-  END;
 
 ROLLBACK;
 

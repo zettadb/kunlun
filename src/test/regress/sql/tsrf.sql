@@ -106,7 +106,9 @@ select 'foo' as f, generate_series(1,2) as g from few order by 1;
 select 'foo' as f, generate_series(1,2) as g from few order by 1;
 
 -- data modification
-CREATE TABLE fewmore AS SELECT generate_series(1,3) AS data;
+DROP TABLE if exists fewmore;
+CREATE TABLE fewmore(data int);
+INSERT INTO fewmore SELECT generate_series(1,3) AS data;
 INSERT INTO fewmore VALUES(generate_series(4,5));
 SELECT * FROM fewmore;
 

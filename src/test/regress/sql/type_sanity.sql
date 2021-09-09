@@ -16,7 +16,7 @@
 
 -- Look for illegal values in pg_type fields.
 
-SELECT p1.oid, p1.typname
+SELECT p1.typname
 FROM pg_type as p1
 WHERE p1.typnamespace = 0 OR
     (p1.typlen <= 0 AND p1.typlen != -1 AND p1.typlen != -2) OR
@@ -27,7 +27,7 @@ WHERE p1.typnamespace = 0 OR
 
 -- Look for "pass by value" types that can't be passed by value.
 
-SELECT p1.oid, p1.typname
+SELECT p1.typname
 FROM pg_type as p1
 WHERE p1.typbyval AND
     (p1.typlen != 1 OR p1.typalign != 'c') AND
@@ -37,7 +37,7 @@ WHERE p1.typbyval AND
 
 -- Look for "toastable" types that aren't varlena.
 
-SELECT p1.oid, p1.typname
+SELECT p1.typname
 FROM pg_type as p1
 WHERE p1.typstorage != 'p' AND
     (p1.typbyval OR p1.typlen != -1);
@@ -45,7 +45,7 @@ WHERE p1.typstorage != 'p' AND
 -- Look for complex types that do not have a typrelid entry,
 -- or basic types that do.
 
-SELECT p1.oid, p1.typname
+SELECT p1.typname
 FROM pg_type as p1
 WHERE (p1.typtype = 'c' AND p1.typrelid = 0) OR
     (p1.typtype != 'c' AND p1.typrelid != 0);
@@ -55,7 +55,7 @@ WHERE (p1.typtype = 'c' AND p1.typrelid = 0) OR
 -- make array types corresponding to the system catalogs' rowtypes.
 -- NOTE: as of v10, this check finds pg_node_tree, pg_ndistinct, smgr.
 
-SELECT p1.oid, p1.typname
+SELECT p1.typname
 FROM pg_type as p1
 WHERE p1.typtype not in ('c','d','p') AND p1.typname NOT LIKE E'\\_%'
     AND NOT EXISTS
@@ -64,20 +64,20 @@ WHERE p1.typtype not in ('c','d','p') AND p1.typname NOT LIKE E'\\_%'
            p2.typelem = p1.oid and p1.typarray = p2.oid);
 
 -- Make sure typarray points to a varlena array type of our own base
-SELECT p1.oid, p1.typname as basetype, p2.typname as arraytype,
+SELECT p1.typname as basetype, p2.typname as arraytype,
        p2.typelem, p2.typlen
 FROM   pg_type p1 LEFT JOIN pg_type p2 ON (p1.typarray = p2.oid)
 WHERE  p1.typarray <> 0 AND
        (p2.oid IS NULL OR p2.typelem <> p1.oid OR p2.typlen <> -1);
 
 -- Look for range types that do not have a pg_range entry
-SELECT p1.oid, p1.typname
+SELECT p1.typname
 FROM pg_type as p1
 WHERE p1.typtype = 'r' AND
    NOT EXISTS(SELECT 1 FROM pg_range r WHERE rngtypid = p1.oid);
 
 -- Look for range types whose typalign isn't sufficient
-SELECT p1.oid, p1.typname, p1.typalign, p2.typname, p2.typalign
+SELECT p1.typname, p1.typalign, p2.typname, p2.typalign
 FROM pg_type as p1
      LEFT JOIN pg_range as r ON rngtypid = p1.oid
      LEFT JOIN pg_type as p2 ON rngsubtype = p2.oid
@@ -88,13 +88,13 @@ WHERE p1.typtype = 'r' AND
 
 -- Text conversion routines must be provided.
 
-SELECT p1.oid, p1.typname
+SELECT p1.typname
 FROM pg_type as p1
 WHERE (p1.typinput = 0 OR p1.typoutput = 0);
 
 -- Check for bogus typinput routines
 
-SELECT p1.oid, p1.typname, p2.oid, p2.proname
+SELECT p1.typname, p2.proname
 FROM pg_type AS p1, pg_proc AS p2
 WHERE p1.typinput = p2.oid AND NOT
     ((p2.pronargs = 1 AND p2.proargtypes[0] = 'cstring'::regtype) OR
@@ -109,7 +109,7 @@ WHERE p1.typinput = p2.oid AND NOT
 -- ANYELEMENTOID if the type of the last element is ANYARRAYOID, and otherwise
 -- the element type corresponding to the array type.
 
-SELECT oid::regprocedure, provariadic::regtype, proargtypes::regtype[]
+SELECT provariadic::regtype, proargtypes::regtype[]
 FROM pg_proc
 WHERE provariadic != 0
 AND case proargtypes[array_length(proargtypes, 1)-1]
@@ -122,7 +122,7 @@ AND case proargtypes[array_length(proargtypes, 1)-1]
 
 -- Check that all and only those functions with a variadic type have
 -- a variadic argument.
-SELECT oid::regprocedure, proargmodes, provariadic
+SELECT proargmodes, provariadic
 FROM pg_proc
 WHERE (proargmodes IS NOT NULL AND 'v' = any(proargmodes))
     IS DISTINCT FROM
@@ -130,7 +130,7 @@ WHERE (proargmodes IS NOT NULL AND 'v' = any(proargmodes))
 
 -- As of 8.0, this check finds refcursor, which is borrowing
 -- other types' I/O routines
-SELECT p1.oid, p1.typname, p2.oid, p2.proname
+SELECT p1.typname, p2.proname
 FROM pg_type AS p1, pg_proc AS p2
 WHERE p1.typinput = p2.oid AND p1.typtype in ('b', 'p') AND NOT
     (p1.typelem != 0 AND p1.typlen < 0) AND NOT
@@ -139,7 +139,7 @@ ORDER BY 1;
 
 -- Varlena array types will point to array_in
 -- Exception as of 8.1: int2vector and oidvector have their own I/O routines
-SELECT p1.oid, p1.typname, p2.oid, p2.proname
+SELECT p1.typname, p2.proname
 FROM pg_type AS p1, pg_proc AS p2
 WHERE p1.typinput = p2.oid AND
     (p1.typelem != 0 AND p1.typlen < 0) AND NOT
@@ -147,7 +147,7 @@ WHERE p1.typinput = p2.oid AND
 ORDER BY 1;
 
 -- typinput routines should not be volatile
-SELECT p1.oid, p1.typname, p2.oid, p2.proname
+SELECT p1.typname, p2.proname
 FROM pg_type AS p1, pg_proc AS p2
 WHERE p1.typinput = p2.oid AND p2.provolatile NOT IN ('i', 's');
 
@@ -161,7 +161,7 @@ ORDER BY 1;
 
 -- As of 8.0, this check finds refcursor, which is borrowing
 -- other types' I/O routines
-SELECT p1.oid, p1.typname, p2.oid, p2.proname
+SELECT p1.typname, p2.proname
 FROM pg_type AS p1, pg_proc AS p2
 WHERE p1.typoutput = p2.oid AND p1.typtype in ('b', 'p') AND NOT
     (p2.pronargs = 1 AND
@@ -170,13 +170,13 @@ WHERE p1.typoutput = p2.oid AND p1.typtype in ('b', 'p') AND NOT
        p1.typelem != 0 AND p1.typlen = -1)))
 ORDER BY 1;
 
-SELECT p1.oid, p1.typname, p2.oid, p2.proname
+SELECT p1.typname, p2.proname
 FROM pg_type AS p1, pg_proc AS p2
 WHERE p1.typoutput = p2.oid AND NOT
     (p2.prorettype = 'cstring'::regtype AND NOT p2.proretset);
 
 -- typoutput routines should not be volatile
-SELECT p1.oid, p1.typname, p2.oid, p2.proname
+SELECT p1.typname, p2.proname
 FROM pg_type AS p1, pg_proc AS p2
 WHERE p1.typoutput = p2.oid AND p2.provolatile NOT IN ('i', 's');
 
@@ -187,13 +187,13 @@ WHERE p1.typtype not in ('b', 'd', 'p')
 ORDER BY 1;
 
 -- Domains should have same typoutput as their base types
-SELECT p1.oid, p1.typname, p2.oid, p2.typname
+SELECT p1.typname, p2.typname
 FROM pg_type AS p1 LEFT JOIN pg_type AS p2 ON p1.typbasetype = p2.oid
 WHERE p1.typtype = 'd' AND p1.typoutput IS DISTINCT FROM p2.typoutput;
 
 -- Check for bogus typreceive routines
 
-SELECT p1.oid, p1.typname, p2.oid, p2.proname
+SELECT p1.typname, p2.proname
 FROM pg_type AS p1, pg_proc AS p2
 WHERE p1.typreceive = p2.oid AND NOT
     ((p2.pronargs = 1 AND p2.proargtypes[0] = 'internal'::regtype) OR
@@ -205,7 +205,7 @@ WHERE p1.typreceive = p2.oid AND NOT
 
 -- As of 7.4, this check finds refcursor, which is borrowing
 -- other types' I/O routines
-SELECT p1.oid, p1.typname, p2.oid, p2.proname
+SELECT p1.typname, p2.proname
 FROM pg_type AS p1, pg_proc AS p2
 WHERE p1.typreceive = p2.oid AND p1.typtype in ('b', 'p') AND NOT
     (p1.typelem != 0 AND p1.typlen < 0) AND NOT
@@ -214,7 +214,7 @@ ORDER BY 1;
 
 -- Varlena array types will point to array_recv
 -- Exception as of 8.1: int2vector and oidvector have their own I/O routines
-SELECT p1.oid, p1.typname, p2.oid, p2.proname
+SELECT  p1.typname, p2.proname
 FROM pg_type AS p1, pg_proc AS p2
 WHERE p1.typreceive = p2.oid AND
     (p1.typelem != 0 AND p1.typlen < 0) AND NOT
@@ -222,13 +222,13 @@ WHERE p1.typreceive = p2.oid AND
 ORDER BY 1;
 
 -- Suspicious if typreceive doesn't take same number of args as typinput
-SELECT p1.oid, p1.typname, p2.oid, p2.proname, p3.oid, p3.proname
+SELECT p1.typname, p2.proname,  p3.proname
 FROM pg_type AS p1, pg_proc AS p2, pg_proc AS p3
 WHERE p1.typinput = p2.oid AND p1.typreceive = p3.oid AND
     p2.pronargs != p3.pronargs;
 
 -- typreceive routines should not be volatile
-SELECT p1.oid, p1.typname, p2.oid, p2.proname
+SELECT p1.typname,  p2.proname
 FROM pg_type AS p1, pg_proc AS p2
 WHERE p1.typreceive = p2.oid AND p2.provolatile NOT IN ('i', 's');
 
@@ -242,7 +242,7 @@ ORDER BY 1;
 
 -- As of 7.4, this check finds refcursor, which is borrowing
 -- other types' I/O routines
-SELECT p1.oid, p1.typname, p2.oid, p2.proname
+SELECT p1.typname, p2.proname
 FROM pg_type AS p1, pg_proc AS p2
 WHERE p1.typsend = p2.oid AND p1.typtype in ('b', 'p') AND NOT
     (p2.pronargs = 1 AND
@@ -251,13 +251,13 @@ WHERE p1.typsend = p2.oid AND p1.typtype in ('b', 'p') AND NOT
        p1.typelem != 0 AND p1.typlen = -1)))
 ORDER BY 1;
 
-SELECT p1.oid, p1.typname, p2.oid, p2.proname
+SELECT p1.typname, p2.proname
 FROM pg_type AS p1, pg_proc AS p2
 WHERE p1.typsend = p2.oid AND NOT
     (p2.prorettype = 'bytea'::regtype AND NOT p2.proretset);
 
 -- typsend routines should not be volatile
-SELECT p1.oid, p1.typname, p2.oid, p2.proname
+SELECT p1.typname,  p2.proname
 FROM pg_type AS p1, pg_proc AS p2
 WHERE p1.typsend = p2.oid AND p2.provolatile NOT IN ('i', 's');
 
@@ -268,13 +268,13 @@ WHERE p1.typtype not in ('b', 'd', 'p')
 ORDER BY 1;
 
 -- Domains should have same typsend as their base types
-SELECT p1.oid, p1.typname, p2.oid, p2.typname
+SELECT p1.typname, p2.typname
 FROM pg_type AS p1 LEFT JOIN pg_type AS p2 ON p1.typbasetype = p2.oid
 WHERE p1.typtype = 'd' AND p1.typsend IS DISTINCT FROM p2.typsend;
 
 -- Check for bogus typmodin routines
 
-SELECT p1.oid, p1.typname, p2.oid, p2.proname
+SELECT p1.typname, p2.proname
 FROM pg_type AS p1, pg_proc AS p2
 WHERE p1.typmodin = p2.oid AND NOT
     (p2.pronargs = 1 AND
@@ -282,13 +282,13 @@ WHERE p1.typmodin = p2.oid AND NOT
      p2.prorettype = 'int4'::regtype AND NOT p2.proretset);
 
 -- typmodin routines should not be volatile
-SELECT p1.oid, p1.typname, p2.oid, p2.proname
+SELECT p1.typname, p2.proname
 FROM pg_type AS p1, pg_proc AS p2
 WHERE p1.typmodin = p2.oid AND p2.provolatile NOT IN ('i', 's');
 
 -- Check for bogus typmodout routines
 
-SELECT p1.oid, p1.typname, p2.oid, p2.proname
+SELECT p1.typname, p2.proname
 FROM pg_type AS p1, pg_proc AS p2
 WHERE p1.typmodout = p2.oid AND NOT
     (p2.pronargs = 1 AND
@@ -296,26 +296,26 @@ WHERE p1.typmodout = p2.oid AND NOT
      p2.prorettype = 'cstring'::regtype AND NOT p2.proretset);
 
 -- typmodout routines should not be volatile
-SELECT p1.oid, p1.typname, p2.oid, p2.proname
+SELECT p1.typname, p2.proname
 FROM pg_type AS p1, pg_proc AS p2
 WHERE p1.typmodout = p2.oid AND p2.provolatile NOT IN ('i', 's');
 
 -- Array types should have same typmodin/out as their element types
 
-SELECT p1.oid, p1.typname, p2.oid, p2.typname
+SELECT p1.typname, p2.typname
 FROM pg_type AS p1, pg_type AS p2
 WHERE p1.typelem = p2.oid AND NOT
     (p1.typmodin = p2.typmodin AND p1.typmodout = p2.typmodout);
 
 -- Array types should have same typdelim as their element types
 
-SELECT p1.oid, p1.typname, p2.oid, p2.typname
+SELECT p1.typname, p2.typname
 FROM pg_type AS p1, pg_type AS p2
 WHERE p1.typarray = p2.oid AND NOT (p1.typdelim = p2.typdelim);
 
 -- Look for array types whose typalign isn't sufficient
 
-SELECT p1.oid, p1.typname, p1.typalign, p2.typname, p2.typalign
+SELECT p1.typname, p1.typalign, p2.typname, p2.typalign
 FROM pg_type AS p1, pg_type AS p2
 WHERE p1.typarray = p2.oid AND
     p2.typalign != (CASE WHEN p1.typalign = 'd' THEN 'd'::"char"
@@ -323,7 +323,7 @@ WHERE p1.typarray = p2.oid AND
 
 -- Check for bogus typanalyze routines
 
-SELECT p1.oid, p1.typname, p2.oid, p2.proname
+SELECT p1.typname,  p2.proname
 FROM pg_type AS p1, pg_proc AS p2
 WHERE p1.typanalyze = p2.oid AND NOT
     (p2.pronargs = 1 AND
@@ -334,14 +334,14 @@ WHERE p1.typanalyze = p2.oid AND NOT
 
 -- domains inherit their base type's typanalyze
 
-SELECT d.oid, d.typname, d.typanalyze, t.oid, t.typname, t.typanalyze
+SELECT d.typname, d.typanalyze, t.typname, t.typanalyze
 FROM pg_type d JOIN pg_type t ON d.typbasetype = t.oid
 WHERE d.typanalyze != t.typanalyze;
 
 -- range_typanalyze should be used for all and only range types
 -- (but exclude domains, which we checked above)
 
-SELECT t.oid, t.typname, t.typanalyze
+SELECT t.typname, t.typanalyze
 FROM pg_type t LEFT JOIN pg_range r on t.oid = r.rngtypid
 WHERE t.typbasetype = 0 AND
     (t.typanalyze = 'range_typanalyze'::regproc) != (r.rngtypid IS NOT NULL);
@@ -350,7 +350,7 @@ WHERE t.typbasetype = 0 AND
 -- (but exclude domains, which we checked above)
 -- As of 9.2 this finds int2vector and oidvector, which are weird anyway
 
-SELECT t.oid, t.typname, t.typanalyze
+SELECT t.typname, t.typanalyze
 FROM pg_type t
 WHERE t.typbasetype = 0 AND
     (t.typanalyze = 'array_typanalyze'::regproc) !=
@@ -361,7 +361,7 @@ ORDER BY 1;
 
 -- Look for illegal values in pg_class fields
 
-SELECT p1.oid, p1.relname
+SELECT p1.relname
 FROM pg_class as p1
 WHERE relkind NOT IN ('r', 'i', 'S', 't', 'v', 'm', 'c', 'f', 'p') OR
     relpersistence NOT IN ('p', 'u', 't') OR
@@ -369,7 +369,7 @@ WHERE relkind NOT IN ('r', 'i', 'S', 't', 'v', 'm', 'c', 'f', 'p') OR
 
 -- Indexes should have an access method, others not.
 
-SELECT p1.oid, p1.relname
+SELECT p1.relname
 FROM pg_class as p1
 WHERE (p1.relkind = 'i' AND p1.relam = 0) OR
     (p1.relkind != 'i' AND p1.relam != 0);
@@ -378,7 +378,7 @@ WHERE (p1.relkind = 'i' AND p1.relam = 0) OR
 
 -- Look for illegal values in pg_attribute fields
 
-SELECT p1.attrelid, p1.attname
+SELECT p1.attname
 FROM pg_attribute as p1
 WHERE p1.attrelid = 0 OR p1.atttypid = 0 OR p1.attnum = 0 OR
     p1.attcacheoff != -1 OR p1.attinhcount < 0 OR
@@ -386,14 +386,14 @@ WHERE p1.attrelid = 0 OR p1.atttypid = 0 OR p1.attnum = 0 OR
 
 -- Cross-check attnum against parent relation
 
-SELECT p1.attrelid, p1.attname, p2.oid, p2.relname
+SELECT p1.attname, p2.relname
 FROM pg_attribute AS p1, pg_class AS p2
 WHERE p1.attrelid = p2.oid AND p1.attnum > p2.relnatts;
 
 -- Detect missing pg_attribute entries: should have as many non-system
 -- attributes as parent relation expects
 
-SELECT p1.oid, p1.relname
+SELECT p1.relname
 FROM pg_class AS p1
 WHERE p1.relnatts != (SELECT count(*) FROM pg_attribute AS p2
                       WHERE p2.attrelid = p1.oid AND p2.attnum > 0);
@@ -402,7 +402,7 @@ WHERE p1.relnatts != (SELECT count(*) FROM pg_attribute AS p2
 -- NOTE: we allow attstorage to be 'plain' even when typstorage is not;
 -- this is mainly for toast tables.
 
-SELECT p1.attrelid, p1.attname, p2.oid, p2.typname
+SELECT p1.attname, p2.typname
 FROM pg_attribute AS p1, pg_type AS p2
 WHERE p1.atttypid = p2.oid AND
     (p1.attlen != p2.typlen OR

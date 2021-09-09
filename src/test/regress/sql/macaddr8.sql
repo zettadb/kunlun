@@ -31,6 +31,7 @@ SELECT '08:00:2b:01.02:03:04:05'::macaddr8; -- invalid
 -- in an ipv6 address
 SELECT macaddr8_set7bit('00:08:2b:01:02:03'::macaddr8);
 
+drop table if exists macaddr8_data;
 CREATE TABLE macaddr8_data (a int, b macaddr8);
 
 INSERT INTO macaddr8_data VALUES (1, '08:00:2b:01:02:03');
@@ -82,8 +83,8 @@ SELECT b =  '08:00:2b:01:02:03:04:05' FROM macaddr8_data WHERE a = 15; -- true
 SELECT b <> '08:00:2b:01:02:03:04:06' FROM macaddr8_data WHERE a = 15; -- true
 SELECT b <> '08:00:2b:01:02:03:04:05' FROM macaddr8_data WHERE a = 15; -- false
 
-SELECT ~b                       FROM macaddr8_data;
-SELECT  b & '00:00:00:ff:ff:ff' FROM macaddr8_data;
-SELECT  b | '01:02:03:04:05:06' FROM macaddr8_data;
+SELECT ~b                       FROM macaddr8_data order by 1;
+SELECT  b & '00:00:00:ff:ff:ff' FROM macaddr8_data order by 1;
+SELECT  b | '01:02:03:04:05:06' FROM macaddr8_data order by 1;
 
 DROP TABLE macaddr8_data;

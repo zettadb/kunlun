@@ -93,9 +93,8 @@ FROM (SELECT $$a$$ || x AS b,
       FROM generate_series(1,2) x,
            generate_series(4,5) y) q;
 
-CREATE TEMP TABLE rows AS
-SELECT x, 'txt' || x as y
-FROM generate_series(1,3) AS x;
+CREATE TEMP TABLE rows(x int, y text);
+insert into rows SELECT x, 'txt' || x as y FROM generate_series(1,3) AS x;
 
 SELECT row_to_json(q,true)
 FROM rows q;
@@ -384,12 +383,7 @@ select * from json_array_elements_text('[1,true,[1,[2,3]],null,{"f1":1,"f2":[7,8
 -- populate_record
 create type jpop as (a text, b int, c timestamp);
 
-CREATE DOMAIN js_int_not_null  AS int     NOT NULL;
-CREATE DOMAIN js_int_array_1d  AS int[]   CHECK(array_length(VALUE, 1) = 3);
-CREATE DOMAIN js_int_array_2d  AS int[][] CHECK(array_length(VALUE, 2) = 3);
-
 create type j_unordered_pair as (x int, y int);
-create domain j_ordered_pair as j_unordered_pair check((value).x <= (value).y);
 
 CREATE TYPE jsrec AS (
 	i	int,
@@ -581,10 +575,6 @@ SELECT (json_populate_record(NULL::jsrec, js)).* FROM jspoptest;
 
 DROP TYPE jsrec;
 DROP TYPE jsrec_i_not_null;
-DROP DOMAIN js_int_not_null;
-DROP DOMAIN js_int_array_1d;
-DROP DOMAIN js_int_array_2d;
-DROP DOMAIN j_ordered_pair;
 DROP TYPE j_unordered_pair;
 
 --json_typeof() function

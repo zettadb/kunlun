@@ -214,7 +214,7 @@ begin
           (select ten from tenk1 where ten < 100 order by ten) ss
           right join (values (1),(2),(3)) v(x) on true
     loop
-        ln := regexp_replace(ln, 'Memory: \S*',  'Memory: xxx');
+        ln = regexp_replace(ln, 'Memory: \S*',  'Memory: xxx');
         return next ln;
     end loop;
 end;
@@ -414,8 +414,8 @@ ORDER BY 1, 2, 3;
 CREATE FUNCTION make_some_array(int,int) returns int[] as
 $$declare x int[];
   begin
-    x[1] := $1;
-    x[2] := $2;
+    x[1] = $1;
+    x[2] = $2;
     return x;
   end$$ language plpgsql parallel safe;
 CREATE TABLE fooarr(f1 text, f2 int[], f3 text);

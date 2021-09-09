@@ -108,8 +108,8 @@ SELECT date '1994-01-01' + time '10:00' AS "Jan_01_1994_10am";
 SELECT date '1994-01-01' + timetz '11:00-5' AS "Jan_01_1994_8am";
 SELECT timestamptz(date '1994-01-01', time with time zone '11:00-5') AS "Jan_01_1994_8am";
 
-SELECT '' AS "64", d1 + interval '1 year' AS one_year FROM TIMESTAMP_TBL;
-SELECT '' AS "64", d1 - interval '1 year' AS one_year FROM TIMESTAMP_TBL;
+--SELECT '' AS "64", d1 + interval '1 year' AS one_year FROM TIMESTAMP_TBL;
+--SELECT '' AS "64", d1 - interval '1 year' AS one_year FROM TIMESTAMP_TBL;
 
 SELECT timestamp with time zone '1996-03-01' - interval '1 second' AS "Feb 29";
 SELECT timestamp with time zone '1999-03-01' - interval '1 second' AS "Feb 28";
@@ -136,8 +136,8 @@ SELECT timestamptz(date '1994-01-01', time with time zone '11:00-8') AS "Jan_01_
 SELECT timestamptz(date '1994-01-01', time with time zone '10:00-8') AS "Jan_01_1994_10am";
 SELECT timestamptz(date '1994-01-01', time with time zone '11:00-5') AS "Jan_01_1994_8am";
 
-SELECT '' AS "64", d1 + interval '1 year' AS one_year FROM TIMESTAMPTZ_TBL;
-SELECT '' AS "64", d1 - interval '1 year' AS one_year FROM TIMESTAMPTZ_TBL;
+--SELECT '' AS "64", d1 + interval '1 year' AS one_year FROM TIMESTAMPTZ_TBL;
+--SELECT '' AS "64", d1 - interval '1 year' AS one_year FROM TIMESTAMPTZ_TBL;
 
 --
 -- time, interval arithmetic
@@ -165,20 +165,6 @@ SELECT CAST(CAST(date 'today' + time with time zone '05:30'
 
 SELECT CAST(cast(date 'today' + time with time zone '03:30'
   + interval '1 month 04:01' as timestamp without time zone) AS time) AS "07:31:00";
-
-SELECT t.d1 AS t, i.f1 AS i, t.d1 + i.f1 AS "add", t.d1 - i.f1 AS "subtract"
-  FROM TIMESTAMP_TBL t, INTERVAL_TBL i
-  WHERE t.d1 BETWEEN '1990-01-01' AND '2001-01-01'
-    AND i.f1 BETWEEN '00:00' AND '23:00'
-  ORDER BY 1,2;
-
-SELECT t.f1 AS t, i.f1 AS i, t.f1 + i.f1 AS "add", t.f1 - i.f1 AS "subtract"
-  FROM TIME_TBL t, INTERVAL_TBL i
-  ORDER BY 1,2;
-
-SELECT t.f1 AS t, i.f1 AS i, t.f1 + i.f1 AS "add", t.f1 - i.f1 AS "subtract"
-  FROM TIMETZ_TBL t, INTERVAL_TBL i
-  ORDER BY 1,2;
 
 -- SQL9x OVERLAPS operator
 -- test with time zone
@@ -248,15 +234,6 @@ SELECT '' AS "16", f1 AS "timestamp"
   FROM TEMP_TIMESTAMP
   ORDER BY "timestamp";
 
-SELECT '' AS "160", d.f1 AS "timestamp", t.f1 AS "interval", d.f1 + t.f1 AS plus
-  FROM TEMP_TIMESTAMP d, INTERVAL_TBL t
-  ORDER BY plus, "timestamp", "interval";
-
-SELECT '' AS "160", d.f1 AS "timestamp", t.f1 AS "interval", d.f1 - t.f1 AS minus
-  FROM TEMP_TIMESTAMP d, INTERVAL_TBL t
-  WHERE isfinite(d.f1)
-  ORDER BY minus, "timestamp", "interval";
-
 SELECT '' AS "16", d.f1 AS "timestamp",
    timestamp with time zone '1980-01-06 00:00 GMT' AS gpstime_zero,
    d.f1 - timestamp with time zone '1980-01-06 00:00 GMT' AS difference
@@ -268,35 +245,6 @@ SELECT '' AS "226", d1.f1 AS timestamp1, d2.f1 AS timestamp2, d1.f1 - d2.f1 AS d
   ORDER BY timestamp1, timestamp2, difference;
 
 --
--- abstime, reltime arithmetic
---
-
-SELECT '' AS ten, ABSTIME_TBL.f1 AS abstime, RELTIME_TBL.f1 AS reltime
-    FROM ABSTIME_TBL, RELTIME_TBL
-   WHERE (ABSTIME_TBL.f1 + RELTIME_TBL.f1) < abstime 'Jan 14 14:00:00 1971'
-   ORDER BY abstime, reltime;
-
--- these four queries should return the same answer
--- the "infinity" and "-infinity" tuples in ABSTIME_TBL cannot be added and
--- therefore, should not show up in the results.
-
-SELECT '' AS three, * FROM ABSTIME_TBL
-  WHERE  (ABSTIME_TBL.f1 + reltime '@ 3 year')         -- +3 years
-    < abstime 'Jan 14 14:00:00 1977';
-
-SELECT '' AS three, * FROM ABSTIME_TBL
-   WHERE  (ABSTIME_TBL.f1 + reltime '@ 3 year ago')    -- -3 years
-     < abstime 'Jan 14 14:00:00 1971';
-
-SELECT '' AS three, * FROM ABSTIME_TBL
-   WHERE  (ABSTIME_TBL.f1 - reltime '@ 3 year')        -- -(+3) years
-    < abstime 'Jan 14 14:00:00 1971';
-
-SELECT '' AS three, * FROM ABSTIME_TBL
-   WHERE  (ABSTIME_TBL.f1 - reltime '@ 3 year ago')    -- -(-3) years
-     < abstime 'Jan 14 14:00:00 1977';
-
---
 -- Conversions
 --
 
@@ -304,27 +252,6 @@ SELECT '' AS "16", f1 AS "timestamp", date(f1) AS date
   FROM TEMP_TIMESTAMP
   WHERE f1 <> timestamp 'now'
   ORDER BY date, "timestamp";
-
-SELECT '' AS "16", f1 AS "timestamp", abstime(f1) AS abstime
-  FROM TEMP_TIMESTAMP
-  ORDER BY abstime;
-
-SELECT '' AS four, f1 AS abstime, date(f1) AS date
-  FROM ABSTIME_TBL
-  WHERE isfinite(f1) AND f1 <> abstime 'now'
-  ORDER BY date, abstime;
-
-SELECT '' AS two, d1 AS "timestamp", abstime(d1) AS abstime
-  FROM TIMESTAMP_TBL WHERE NOT isfinite(d1);
-
-SELECT '' AS three, f1 as abstime, cast(f1 as timestamp) AS "timestamp"
-  FROM ABSTIME_TBL WHERE NOT isfinite(f1);
-
-SELECT '' AS ten, f1 AS interval, reltime(f1) AS reltime
-  FROM INTERVAL_TBL;
-
-SELECT '' AS six, f1 as reltime, CAST(f1 AS interval) AS interval
-  FROM RELTIME_TBL;
 
 DROP TABLE TEMP_TIMESTAMP;
 
@@ -338,21 +265,15 @@ SHOW DateStyle;
 
 SELECT '' AS "64", d1 AS us_postgres FROM TIMESTAMP_TBL;
 
-SELECT '' AS seven, f1 AS us_postgres FROM ABSTIME_TBL;
-
 SET DateStyle TO 'US,ISO';
 
 SELECT '' AS "64", d1 AS us_iso FROM TIMESTAMP_TBL;
-
-SELECT '' AS seven, f1 AS us_iso FROM ABSTIME_TBL;
 
 SET DateStyle TO 'US,SQL';
 
 SHOW DateStyle;
 
 SELECT '' AS "64", d1 AS us_sql FROM TIMESTAMP_TBL;
-
-SELECT '' AS seven, f1 AS us_sql FROM ABSTIME_TBL;
 
 SET DateStyle TO 'European,Postgres';
 
@@ -364,23 +285,17 @@ SELECT count(*) as one FROM TIMESTAMP_TBL WHERE d1 = 'Jun 13 1957';
 
 SELECT '' AS "65", d1 AS european_postgres FROM TIMESTAMP_TBL;
 
-SELECT '' AS seven, f1 AS european_postgres FROM ABSTIME_TBL;
-
 SET DateStyle TO 'European,ISO';
 
 SHOW DateStyle;
 
 SELECT '' AS "65", d1 AS european_iso FROM TIMESTAMP_TBL;
 
-SELECT '' AS seven, f1 AS european_iso FROM ABSTIME_TBL;
-
 SET DateStyle TO 'European,SQL';
 
 SHOW DateStyle;
 
 SELECT '' AS "65", d1 AS european_sql FROM TIMESTAMP_TBL;
-
-SELECT '' AS seven, f1 AS european_sql FROM ABSTIME_TBL;
 
 RESET DateStyle;
 
@@ -536,7 +451,3 @@ RESET TIME ZONE;
 -- Drop tables that we don't want to keep because they interfere with
 -- testing pg_upgrade to v12 and up
 --
-
-DROP TABLE abstime_tbl;
-DROP TABLE reltime_tbl;
-DROP TABLE tinterval_tbl;

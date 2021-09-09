@@ -1,10 +1,12 @@
 -- regression test for the uuid datatype
 -- creating test tables
+drop table if exists guid1;
 CREATE TABLE guid1
 (
 	guid_field UUID,
 	text_field TEXT DEFAULT(now())
 );
+drop table if exists guid2;
 CREATE TABLE guid2
 (
 	guid_field UUID,
@@ -76,5 +78,5 @@ SELECT COUNT(*) FROM guid1 g1 INNER JOIN guid2 g2 ON g1.guid_field = g2.guid_fie
 SELECT COUNT(*) FROM guid1 g1 LEFT JOIN guid2 g2 ON g1.guid_field = g2.guid_field WHERE g2.guid_field IS NULL;
 
 -- clean up
-DROP TABLE guid1 CASCADE;
+DROP TABLE guid1;
 DROP TABLE guid2 CASCADE;

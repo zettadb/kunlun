@@ -282,10 +282,7 @@ explain (costs off)
 --
 
 CREATE TEMP TABLE t1c (b text, a text);
-ALTER TABLE t1c INHERIT t1;
-CREATE TEMP TABLE t2c (primary key (ab)) INHERITS (t2);
 INSERT INTO t1c VALUES ('v', 'w'), ('c', 'd'), ('m', 'n'), ('e', 'f');
-INSERT INTO t2c VALUES ('vw'), ('cd'), ('mn'), ('ef');
 CREATE INDEX t1c_ab_idx on t1c ((a || b));
 
 set enable_seqscan = on;
@@ -307,23 +304,6 @@ explain (costs off)
 reset enable_seqscan;
 reset enable_indexscan;
 reset enable_bitmapscan;
-
--- This simpler variant of the above test has been observed to fail differently
-
-create table events (event_id int primary key);
-create table other_events (event_id int primary key);
-create table events_child () inherits (events);
-
-explain (costs off)
-select event_id
- from (select event_id from events
-       union all
-       select event_id from other_events) ss
- order by event_id;
-
-drop table events_child, events, other_events;
-
-reset enable_indexonlyscan;
 
 -- Test constraint exclusion of UNION ALL subqueries
 explain (costs off)
@@ -406,27 +386,6 @@ select distinct q1 from
    union all
    select distinct * from int8_tbl i82) ss
 where -q1 = q2;
-
--- Test proper handling of parameterized appendrel paths when the
--- potential join qual is expensive
-create function expensivefunc(int) returns int
-language plpgsql immutable strict cost 10000
-as $$begin return $1; end$$;
-
-create temp table t3 as select generate_series(-1000,1000) as x;
-create index t3i on t3 (expensivefunc(x));
-analyze t3;
-
-explain (costs off)
-select * from
-  (select * from t3 a union all select * from t3 b) ss
-  join int4_tbl on f1 = expensivefunc(x);
-select * from
-  (select * from t3 a union all select * from t3 b) ss
-  join int4_tbl on f1 = expensivefunc(x);
-
-drop table t3;
-drop function expensivefunc(int);
 
 -- Test handling of appendrel quals that const-simplify into an AND
 explain (costs off)

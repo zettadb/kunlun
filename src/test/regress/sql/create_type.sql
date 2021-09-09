@@ -78,12 +78,6 @@ CREATE TYPE text_w_default (
    default = 'zippo'
 );
 
-CREATE TABLE default_test (f1 text_w_default, f2 int42);
-
-INSERT INTO default_test DEFAULT VALUES;
-
-SELECT * FROM default_test;
-
 -- invalid: non-lowercase quoted identifiers
 CREATE TYPE case_int42 (
 	"Internallength" = 4,
@@ -98,12 +92,6 @@ CREATE TYPE case_int42 (
 
 CREATE TYPE default_test_row AS (f1 text_w_default, f2 int42);
 
-CREATE FUNCTION get_default_test() RETURNS SETOF default_test_row AS '
-  SELECT * FROM default_test;
-' LANGUAGE SQL;
-
-SELECT * FROM get_default_test();
-
 -- Test comments
 COMMENT ON TYPE bad IS 'bad comment';
 COMMENT ON TYPE default_test_row IS 'good comment';
@@ -116,8 +104,6 @@ COMMENT ON COLUMN default_test_row.f1 IS NULL;
 CREATE TYPE text_w_default;		-- should fail
 
 DROP TYPE default_test_row CASCADE;
-
-DROP TABLE default_test;
 
 -- Check type create with input/output incompatibility
 CREATE TYPE not_existing_type (INPUT = array_in,

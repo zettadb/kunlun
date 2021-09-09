@@ -6,6 +6,7 @@
 -- result on different matchines.  See the definitions of
 -- part_part_test_int4_ops and part_test_text_ops in insert.sql.
 
+drop table if exists mchash;
 CREATE TABLE mchash (a int, b text, c jsonb)
   PARTITION BY HASH (a part_test_int4_ops, b part_test_text_ops);
 CREATE TABLE mchash1
@@ -56,6 +57,7 @@ SELECT satisfies_hash_partition('mchash'::regclass, 2, 1,
 								variadic array[1,2]::int[]);
 
 -- multiple partitioning columns of the same type
+drop table if exists mcinthash;
 CREATE TABLE mcinthash (a int, b int, c jsonb)
   PARTITION BY HASH (a part_test_int4_ops, b part_test_int4_ops);
 

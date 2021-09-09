@@ -2,6 +2,7 @@
 -- INT2
 --
 
+DROP TABLE if exists INT2_TBL;
 CREATE TABLE INT2_TBL(f1 int2);
 
 INSERT INTO INT2_TBL(f1) VALUES ('0   ');

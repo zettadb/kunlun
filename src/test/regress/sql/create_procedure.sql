@@ -38,7 +38,7 @@ CALL ptest2();
 
 
 -- nested CALL
-TRUNCATE cp_test;
+delete from cp_test;
 
 CREATE PROCEDURE ptest3(y text)
 LANGUAGE SQL
@@ -80,7 +80,7 @@ INSERT INTO cp_test VALUES(a, b);
 INSERT INTO cp_test VALUES(c, b);
 $$;
 
-TRUNCATE cp_test;
+delete from cp_test;
 
 CALL ptest5(10, 'Hello', 20);
 CALL ptest5(10, 'Hello');

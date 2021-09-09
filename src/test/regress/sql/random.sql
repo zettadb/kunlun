@@ -17,8 +17,9 @@ INTERSECT
   FROM onek ORDER BY random() LIMIT 1);
 
 -- count roughly 1/10 of the tuples
-SELECT count(*) AS random INTO RANDOM_TBL
-  FROM onek WHERE random() < 1.0/10;
+drop table if exists RANDOM_TBL;
+create table RANDOM_TBL(random int);
+INSERT INTO RANDOM_TBL SELECT count(*) FROM onek WHERE random() < 1.0/10;
 
 -- select again, the count should be different
 INSERT INTO RANDOM_TBL (random)

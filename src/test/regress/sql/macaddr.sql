@@ -2,6 +2,7 @@
 -- macaddr
 --
 
+drop table if exists macaddr_data;
 CREATE TABLE macaddr_data (a int, b macaddr);
 
 INSERT INTO macaddr_data VALUES (1, '08:00:2b:01:02:03');
@@ -36,8 +37,8 @@ SELECT b =  '08:00:2b:01:02:03' FROM macaddr_data WHERE a = 1; -- true
 SELECT b <> '08:00:2b:01:02:04' FROM macaddr_data WHERE a = 1; -- true
 SELECT b <> '08:00:2b:01:02:03' FROM macaddr_data WHERE a = 1; -- false
 
-SELECT ~b                       FROM macaddr_data;
-SELECT  b & '00:00:00:ff:ff:ff' FROM macaddr_data;
-SELECT  b | '01:02:03:04:05:06' FROM macaddr_data;
+SELECT ~b                       FROM macaddr_data order by 1;
+SELECT  b & '00:00:00:ff:ff:ff' FROM macaddr_data order by 1;
+SELECT  b | '01:02:03:04:05:06' FROM macaddr_data order by 1;
 
 DROP TABLE macaddr_data;

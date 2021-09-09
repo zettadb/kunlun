@@ -266,8 +266,6 @@ drop type testtype1, testtype2, testtype3, testtype4, testtype5, testtype6;
 -- Test case derived from bug #5716: check multiple uses of a rowtype result
 --
 
-BEGIN;
-
 CREATE TABLE price (
     id SERIAL PRIMARY KEY,
     active BOOLEAN NOT NULL,
@@ -283,6 +281,7 @@ CREATE TYPE price_key AS (
     id INTEGER
 );
 
+BEGIN;
 CREATE FUNCTION price_key_from_table(price) RETURNS price_key AS $$
     SELECT $1.id
 $$ LANGUAGE SQL;
@@ -293,14 +292,18 @@ $$ LANGUAGE SQL;
 
 insert into price values (1,false,42), (10,false,100), (11,true,17.99);
 
-UPDATE price
-    SET active = true, price = input_prices.price
-    FROM unnest(ARRAY[(10, 123.00), (11, 99.99)]::price_input[]) input_prices
-    WHERE price_key_from_table(price.*) = price_key_from_input(input_prices.*);
+-- kunlun does not support this: UPDATE price
+--    SET active = true, price = input_prices.price
+--    FROM unnest(ARRAY[(10, 123.00), (11, 99.99)]::price_input[]) input_prices
+--    WHERE price_key_from_table(price.*) = price_key_from_input(input_prices.*);
 
 select * from price;
 
 rollback;
+
+DROP TABLE price;
+DROP TYPE price_input;
+DROP TYPE price_key;
 
 --
 -- Test case derived from bug #9085: check * qualification of composite
@@ -404,16 +407,6 @@ select row_to_json(q) from
   (select thousand as x, tenthous as y from tenk1
    where thousand = 42 and tenthous < 2000 offset 0) q(a,b);
 
-create temp table tt1 as select * from int8_tbl limit 2;
-create temp table tt2 () inherits(tt1);
-insert into tt2 values(0,0);
-select row_to_json(r) from (select q2,q1 from tt1 offset 0) r;
-
--- check no-op rowtype conversions
-create temp table tt3 () inherits(tt2);
-insert into tt3 values(33,44);
-select row_to_json(tt3::tt2::tt1) from tt3;
-
 --
 -- IS [NOT] NULL should not recurse into nested composites (bug #14235)
 --
@@ -442,7 +435,8 @@ select r, r is null as isnull, r is not null as isnotnull from r;
 --
 -- Tests for component access / FieldSelect
 --
-CREATE TABLE compositetable(a text, b text) WITH OIDS;
+DROP TABLE if exists compositetable;
+CREATE TABLE compositetable(a text, b text) 
 INSERT INTO compositetable(a, b) VALUES('fa', 'fb');
 
 -- composite type columns can't directly be accessed (error)

@@ -4,7 +4,7 @@
 
 -- prepare the table...
 
-DROP TABLE INET_TBL;
+DROP TABLE if exists INET_TBL;
 CREATE TABLE INET_TBL (c cidr, i inet);
 INSERT INTO INET_TBL (c, i) VALUES ('192.168.1', '192.168.1.226/24');
 INSERT INTO INET_TBL (c, i) VALUES ('192.168.1.0/26', '192.168.1.226');
@@ -65,13 +65,13 @@ SELECT '' AS ten, set_masklen(inet(text(i)), 24) FROM INET_TBL;
 -- check that btree index works correctly
 CREATE INDEX inet_idx1 ON inet_tbl(i);
 SET enable_seqscan TO off;
-SELECT * FROM inet_tbl WHERE i<<'192.168.1.0/24'::cidr order by c;
-SELECT * FROM inet_tbl WHERE i<<='192.168.1.0/24'::cidr order by c;
+SELECT * FROM inet_tbl WHERE i<<'192.168.1.0/24'::cidr;
+SELECT * FROM inet_tbl WHERE i<<='192.168.1.0/24'::cidr;
 SET enable_seqscan TO on;
 DROP INDEX inet_idx1;
 
 -- check that gist index works correctly
-CREATE INDEX inet_idx2 ON inet_tbl using gist (i inet_ops);
+-- error for kunlun: CREATE INDEX inet_idx2 ON inet_tbl using gist (i inet_ops);
 SET enable_seqscan TO off;
 SELECT * FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
 SELECT * FROM inet_tbl WHERE i <<= '192.168.1.0/24'::cidr ORDER BY i;
@@ -91,10 +91,9 @@ SELECT i FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
 SELECT i FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
 
 SET enable_seqscan TO on;
-DROP INDEX inet_idx2;
 
 -- check that spgist index works correctly
-CREATE INDEX inet_idx3 ON inet_tbl using spgist (i);
+-- kunlun not support: CREATE INDEX inet_idx3 ON inet_tbl using spgist (i);
 SET enable_seqscan TO off;
 SELECT * FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
 SELECT * FROM inet_tbl WHERE i <<= '192.168.1.0/24'::cidr ORDER BY i;
@@ -114,7 +113,6 @@ SELECT i FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
 SELECT i FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
 
 SET enable_seqscan TO on;
-DROP INDEX inet_idx3;
 
 -- simple tests of inet boolean and arithmetic operators
 SELECT i, ~i AS "~i" FROM inet_tbl;
@@ -146,3 +144,5 @@ INSERT INTO INET_TBL (c, i) VALUES ('10', '10::/8');
 SELECT inet_merge(c, i) FROM INET_TBL;
 -- fix it by inet_same_family() condition
 SELECT inet_merge(c, i) FROM INET_TBL WHERE inet_same_family(c, i);
+
+DROP TABLE INET_TBL;

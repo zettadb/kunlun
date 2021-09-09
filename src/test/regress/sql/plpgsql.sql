@@ -255,13 +255,13 @@ begin
     if not found then
         raise exception $q$system "%" does not exist$q$, new.sysname;
     end if;
-    sname := 'IF.' || new.sysname;
-    sname := sname || '.';
-    sname := sname || new.ifname;
+    sname = 'IF.' || new.sysname;
+    sname = sname || '.';
+    sname = sname || new.ifname;
     if length(sname) > 20 then
         raise exception 'IFace slotname "%" too long (20 char max)', sname;
     end if;
-    new.slotname := sname;
+    new.slotname = sname;
     return new;
 end;
 $$ language plpgsql;
@@ -280,18 +280,18 @@ declare
     dummy	integer;
 begin
     if tg_op = ''INSERT'' then
-	dummy := tg_hub_adjustslots(new.name, 0, new.nslots);
+	dummy = tg_hub_adjustslots(new.name, 0, new.nslots);
 	return new;
     end if;
     if tg_op = ''UPDATE'' then
 	if new.name != old.name then
 	    update HSlot set hubname = new.name where hubname = old.name;
 	end if;
-	dummy := tg_hub_adjustslots(new.name, old.nslots, new.nslots);
+	dummy = tg_hub_adjustslots(new.name, old.nslots, new.nslots);
 	return new;
     end if;
     if tg_op = ''DELETE'' then
-	dummy := tg_hub_adjustslots(old.name, old.nslots, 0);
+	dummy = tg_hub_adjustslots(old.name, old.nslots, 0);
 	return old;
     end if;
 end;
@@ -352,13 +352,13 @@ begin
 	    raise exception ''no manual manipulation of HSlot'';
 	end if;
     end if;
-    sname := ''HS.'' || trim(new.hubname);
-    sname := sname || ''.'';
-    sname := sname || new.slotno::text;
+    sname = ''HS.'' || trim(new.hubname);
+    sname = sname || ''.'';
+    sname = sname || new.slotno::text;
     if length(sname) > 20 then
         raise exception ''HSlot slotname "%" too long (20 char max)'', sname;
     end if;
-    new.slotname := sname;
+    new.slotname = sname;
     return new;
 end;
 ' language plpgsql;
@@ -426,7 +426,7 @@ create trigger tg_chkslotname before insert
 create function tg_chkslotlink() returns trigger as '
 begin
     if new.slotlink isnull then
-        new.slotlink := '''';
+        new.slotlink = '''';
     end if;
     return new;
 end;
@@ -455,7 +455,7 @@ create trigger tg_chkslotlink before insert or update
 create function tg_chkbacklink() returns trigger as '
 begin
     if new.backlink isnull then
-        new.backlink := '''';
+        new.backlink = '''';
     end if;
     return new;
 end;
@@ -653,28 +653,28 @@ declare
 begin
     if tg_op = ''INSERT'' then
         if new.backlink != '''' then
-	    dummy := tg_backlink_set(new.backlink, new.slotname);
+	    dummy = tg_backlink_set(new.backlink, new.slotname);
 	end if;
 	return new;
     end if;
     if tg_op = ''UPDATE'' then
         if new.backlink != old.backlink then
 	    if old.backlink != '''' then
-	        dummy := tg_backlink_unset(old.backlink, old.slotname);
+	        dummy = tg_backlink_unset(old.backlink, old.slotname);
 	    end if;
 	    if new.backlink != '''' then
-	        dummy := tg_backlink_set(new.backlink, new.slotname);
+	        dummy = tg_backlink_set(new.backlink, new.slotname);
 	    end if;
 	else
 	    if new.slotname != old.slotname and new.backlink != '''' then
-	        dummy := tg_slotlink_set(new.backlink, new.slotname);
+	        dummy = tg_slotlink_set(new.backlink, new.slotname);
 	    end if;
 	end if;
 	return new;
     end if;
     if tg_op = ''DELETE'' then
         if old.backlink != '''' then
-	    dummy := tg_backlink_unset(old.backlink, old.slotname);
+	    dummy = tg_backlink_unset(old.backlink, old.slotname);
 	end if;
 	return old;
     end if;
@@ -703,8 +703,8 @@ declare
     link	char(4);
     rec		record;
 begin
-    mytype := substr(myname, 1, 2);
-    link := mytype || substr(blname, 1, 2);
+    mytype = substr(myname, 1, 2);
+    link = mytype || substr(blname, 1, 2);
     if link = ''PLPL'' then
         raise exception
 		''backlink between two phone lines does not make sense'';
@@ -760,7 +760,7 @@ declare
     mytype	char(2);
     rec		record;
 begin
-    mytype := substr(myname, 1, 2);
+    mytype = substr(myname, 1, 2);
     if mytype = ''PS'' then
         select into rec * from PSlot where slotname = myname;
 	if not found then
@@ -805,28 +805,28 @@ declare
 begin
     if tg_op = ''INSERT'' then
         if new.slotlink != '''' then
-	    dummy := tg_slotlink_set(new.slotlink, new.slotname);
+	    dummy = tg_slotlink_set(new.slotlink, new.slotname);
 	end if;
 	return new;
     end if;
     if tg_op = ''UPDATE'' then
         if new.slotlink != old.slotlink then
 	    if old.slotlink != '''' then
-	        dummy := tg_slotlink_unset(old.slotlink, old.slotname);
+	        dummy = tg_slotlink_unset(old.slotlink, old.slotname);
 	    end if;
 	    if new.slotlink != '''' then
-	        dummy := tg_slotlink_set(new.slotlink, new.slotname);
+	        dummy = tg_slotlink_set(new.slotlink, new.slotname);
 	    end if;
 	else
 	    if new.slotname != old.slotname and new.slotlink != '''' then
-	        dummy := tg_slotlink_set(new.slotlink, new.slotname);
+	        dummy = tg_slotlink_set(new.slotlink, new.slotname);
 	    end if;
 	end if;
 	return new;
     end if;
     if tg_op = ''DELETE'' then
         if old.slotlink != '''' then
-	    dummy := tg_slotlink_unset(old.slotlink, old.slotname);
+	    dummy = tg_slotlink_unset(old.slotlink, old.slotname);
 	end if;
 	return old;
     end if;
@@ -863,8 +863,8 @@ declare
     link	char(4);
     rec		record;
 begin
-    mytype := substr(myname, 1, 2);
-    link := mytype || substr(blname, 1, 2);
+    mytype = substr(myname, 1, 2);
+    link = mytype || substr(blname, 1, 2);
     if link = ''PHPH'' then
         raise exception
 		''slotlink between two phones does not make sense'';
@@ -948,7 +948,7 @@ declare
     mytype	char(2);
     rec		record;
 begin
-    mytype := substr(myname, 1, 2);
+    mytype = substr(myname, 1, 2);
     if mytype = ''PS'' then
         select into rec * from PSlot where slotname = myname;
 	if not found then
@@ -1021,26 +1021,26 @@ begin
     if rec.backlink = '''' then
         return ''-'';
     end if;
-    bltype := substr(rec.backlink, 1, 2);
+    bltype = substr(rec.backlink, 1, 2);
     if bltype = ''PL'' then
         declare
 	    rec		record;
 	begin
 	    select into rec * from PLine where slotname = "outer".rec.backlink;
-	    retval := ''Phone line '' || trim(rec.phonenumber);
+	    retval = ''Phone line '' || trim(rec.phonenumber);
 	    if rec.comment != '''' then
-	        retval := retval || '' ('';
-		retval := retval || rec.comment;
-		retval := retval || '')'';
+	        retval = retval || '' ('';
+		retval = retval || rec.comment;
+		retval = retval || '')'';
 	    end if;
 	    return retval;
 	end;
     end if;
     if bltype = ''WS'' then
         select into rec * from WSlot where slotname = rec.backlink;
-	retval := trim(rec.slotname) || '' in room '';
-	retval := retval || trim(rec.roomno);
-	retval := retval || '' -> '';
+	retval = trim(rec.slotname) || '' in room '';
+	retval = retval || trim(rec.roomno);
+	retval = retval || '' -> '';
 	return retval || wslot_slotlink_view(rec.slotname);
     end if;
     return rec.backlink;
@@ -1065,17 +1065,17 @@ begin
     if psrec.slotlink = '''' then
         return ''-'';
     end if;
-    sltype := substr(psrec.slotlink, 1, 2);
+    sltype = substr(psrec.slotlink, 1, 2);
     if sltype = ''PS'' then
-	retval := trim(psrec.slotlink) || '' -> '';
+	retval = trim(psrec.slotlink) || '' -> '';
 	return retval || pslot_backlink_view(psrec.slotlink);
     end if;
     if sltype = ''HS'' then
-        retval := comment from Hub H, HSlot HS
+        retval = comment from Hub H, HSlot HS
 			where HS.slotname = psrec.slotlink
 			  and H.name = HS.hubname;
-        retval := retval || '' slot '';
-	retval := retval || slotno::text from HSlot
+        retval = retval || '' slot '';
+	retval = retval || slotno::text from HSlot
 			where slotname = psrec.slotlink;
 	return retval;
     end if;
@@ -1101,14 +1101,14 @@ begin
     if rec.slotlink = '''' then
         return ''-'';
     end if;
-    sltype := substr(rec.slotlink, 1, 2);
+    sltype = substr(rec.slotlink, 1, 2);
     if sltype = ''PH'' then
         select into rec * from PHone where slotname = rec.slotlink;
-	retval := ''Phone '' || trim(rec.slotname);
+	retval = ''Phone '' || trim(rec.slotname);
 	if rec.comment != '''' then
-	    retval := retval || '' ('';
-	    retval := retval || rec.comment;
-	    retval := retval || '')'';
+	    retval = retval || '' ('';
+	    retval = retval || rec.comment;
+	    retval = retval || '')'';
 	end if;
 	return retval;
     end if;
@@ -1119,12 +1119,12 @@ begin
         begin
 	    select into ifrow * from IFace where slotname = rec.slotlink;
 	    select into syrow * from System where name = ifrow.sysname;
-	    retval := syrow.name || '' IF '';
-	    retval := retval || ifrow.ifname;
+	    retval = syrow.name || '' IF '';
+	    retval = retval || ifrow.ifname;
 	    if syrow.comment != '''' then
-	        retval := retval || '' ('';
-		retval := retval || syrow.comment;
-		retval := retval || '')'';
+	        retval = retval || '' ('';
+		retval = retval || syrow.comment;
+		retval = retval || '')'';
 	    end if;
 	    return retval;
 	end;
@@ -1571,7 +1571,7 @@ end$$ language plpgsql;
 
 create function f1(in i int, out j int) as $$
 begin
-  j := i+1;
+  j = i+1;
   return;
 end$$ language plpgsql;
 
@@ -1580,7 +1580,7 @@ select * from f1(42);
 
 create or replace function f1(inout i int) as $$
 begin
-  i := i+1;
+  i = i+1;
 end$$ language plpgsql;
 
 select f1(42);
@@ -1590,9 +1590,9 @@ drop function f1(int);
 
 create function f1(in i int, out j int) returns setof int as $$
 begin
-  j := i+1;
+  j = i+1;
   return next;
-  j := i+2;
+  j = i+2;
   return next;
   return;
 end$$ language plpgsql;
@@ -1603,9 +1603,9 @@ drop function f1(int);
 
 create function f1(in i int, out j int, out k text) as $$
 begin
-  j := i;
-  j := j+1;
-  k := 'foo';
+  j = i;
+  j = j+1;
+  k = 'foo';
 end$$ language plpgsql;
 
 select f1(42);
@@ -1615,11 +1615,11 @@ drop function f1(int);
 
 create function f1(in i int, out j int, out k text) returns setof record as $$
 begin
-  j := i+1;
-  k := 'foo';
+  j = i+1;
+  k = 'foo';
   return next;
-  j := j+1;
-  k := 'foot';
+  j = j+1;
+  k = 'foot';
   return next;
 end$$ language plpgsql;
 
@@ -1629,8 +1629,8 @@ drop function f1(int);
 
 create function duplic(in i anyelement, out j anyelement, out k anyarray) as $$
 begin
-  j := i;
-  k := array[j,j];
+  j = i;
+  k = array[j,j];
   return;
 end$$ language plpgsql;
 
@@ -1694,9 +1694,9 @@ declare x int;
 begin
 	begin	-- start a subtransaction
 		raise notice 'should see this';
-		x := 100 / $1;
+		x = 100 / $1;
 		raise notice 'should see this only if % <> 0', $1;
-		sx := $1;
+		sx = $1;
 		raise notice 'should see this only if % fits in smallint', $1;
 		if $1 < 0 then
 			raise exception '% is less than zero', $1;
@@ -1704,10 +1704,10 @@ begin
 	exception
 		when division_by_zero then
 			raise notice 'caught division_by_zero';
-			x := -1;
+			x = -1;
 		when NUMERIC_VALUE_OUT_OF_RANGE then
 			raise notice 'caught numeric_value_out_of_range';
-			x := -2;
+			x = -2;
 	end;
 	return x;
 end$$ language plpgsql;
@@ -1723,17 +1723,17 @@ declare x int;
 	y int;
 begin
 	begin	-- start a subtransaction
-		x := 100 / $1;
-		sx := $1;
+		x = 100 / $1;
+		sx = $1;
 		select into y unique1 from tenk1 where unique2 =
 			(select unique2 from tenk1 b where ten = $1);
 	exception
 		when data_exception then  -- category match
 			raise notice 'caught data_exception';
-			x := -1;
+			x = -1;
 		when NUMERIC_VALUE_OUT_OF_RANGE OR CARDINALITY_VIOLATION then
 			raise notice 'caught numeric_value_out_of_range or cardinality_violation';
-			x := -2;
+			x = -2;
 	end;
 	return x;
 end$$ language plpgsql;
@@ -1748,15 +1748,15 @@ create temp table foo (f1 int);
 create function subxact_rollback_semantics() returns int as $$
 declare x int;
 begin
-  x := 1;
+  x = 1;
   insert into foo values(x);
   begin
-    x := x + 1;
+    x = x + 1;
     insert into foo values(x);
     raise exception 'inner';
   exception
     when others then
-      x := x * 10;
+      x = x * 10;
   end;
   insert into foo values(x);
   return x;
@@ -1792,14 +1792,14 @@ rollback;
 create function test_variable_storage() returns text as $$
 declare x text;
 begin
-  x := '1234';
+  x = '1234';
   begin
-    x := x || '5678';
+    x = x || '5678';
     -- force error inside subtransaction SPI context
     perform trap_zero_divide(-100);
   exception
     when others then
-      x := x || '9012';
+      x = x || '9012';
   end;
   return x;
 end$$ language plpgsql;
@@ -1924,7 +1924,7 @@ declare
     rc refcursor;
     x record;
 begin
-    rc := return_unnamed_refcursor();
+    rc = return_unnamed_refcursor();
     fetch next from rc into x;
     return x.a;
 end
@@ -1986,7 +1986,7 @@ declare
     c1 cursor (param1 int, param12 int) for select * from rc_test where a > param1 and b > param12;
     nonsense record;
 begin
-    open c1(param12 := $2, param1 := $1);
+    open c1(param12 = $2, param1 = $1);
     fetch c1 into nonsense;
     close c1;
     if found then
@@ -2006,7 +2006,7 @@ declare
     c1 cursor (param1 int, param2 int) for select * from rc_test where a > param1 and b > param2;
     nonsense record;
 begin
-    open c1(param1 := $1, $2);
+    open c1(param1 = $1, $2);
     fetch c1 into nonsense;
     close c1;
     if found then
@@ -2024,7 +2024,7 @@ create function namedparmcursor_test3() returns void as $$
 declare
     c1 cursor (param1 int, param2 int) for select * from rc_test where a > param1 and b > param2;
 begin
-    open c1(param2 := 20, 21);
+    open c1(param2 = 20, 21);
 end
 $$ language plpgsql;
 
@@ -2033,7 +2033,7 @@ create function namedparmcursor_test4() returns void as $$
 declare
     c1 cursor (param1 int, param2 int) for select * from rc_test where a > param1 and b > param2;
 begin
-    open c1(20, param1 := 21);
+    open c1(20, param1 = 21);
 end
 $$ language plpgsql;
 
@@ -2043,7 +2043,7 @@ declare
   c1 cursor (p1 int, p2 int) for
     select * from tenk1 where thousand = p1 and tenthous = p2;
 begin
-  open c1 (p2 := 77, p2 := 42);
+  open c1 (p2 = 77, p2 = 42);
 end
 $$ language plpgsql;
 
@@ -2053,7 +2053,7 @@ declare
   c1 cursor (p1 int, p2 int) for
     select * from tenk1 where thousand = p1 and tenthous = p2;
 begin
-  open c1 (p2 := 77);
+  open c1 (p2 = 77);
 end
 $$ language plpgsql;
 
@@ -2064,7 +2064,7 @@ declare
   c1 cursor (p1 int, p2 int) for
     select * from tenk1 where thousand = p1 and tenthous = p2;
 begin
-  open c1 (p2 := 77, p1 := 42/0);
+  open c1 (p2 = 77, p1 = 42/0);
 end $$ language plpgsql;
 select namedparmcursor_test7();
 
@@ -2092,10 +2092,10 @@ declare
   c1 cursor (p1 int, p2 int, debug int) for
     select count(*) from tenk1 where thousand = p1 and tenthous = p2
       and four = debug;
-  p2 int4 := 1006;
+  p2 int4 = 1006;
   n int4;
 begin
-  open c1 (p1 := p1, p2 := p2, debug := 2);
+  open c1 (p1 = p1, p2 = p2, debug = 2);
   fetch c1 into n;
   return n;
 end $$ language plpgsql;
@@ -2159,9 +2159,9 @@ SELECT reraise_test();
 create function bad_sql1() returns int as $$
 declare a int;
 begin
-    a := 5;
+    a = 5;
     Johnny Yuma;
-    a := 10;
+    a = 10;
     return a;
 end$$ language plpgsql;
 
@@ -2300,7 +2300,7 @@ declare
     c varchar = 'xyz';
     i integer;
 begin
-    i := 2;
+    i = 2;
     raise notice '%; %; %; %; %; %', a, a[i], c, (select c || 'abc'), row(10,'aaa',NULL,30), NULL;
 end;$$ language plpgsql;
 
@@ -2443,8 +2443,8 @@ set plpgsql.print_strict_params to true;
 create or replace function stricttest() returns void as $$
 declare
 x record;
-p1 int := 2;
-p3 text := 'foo';
+p1 int = 2;
+p3 text = 'foo';
 begin
   -- no rows
   select * from foo where f1 = p1 and f1::text = p3 into strict x;
@@ -2456,8 +2456,8 @@ select stricttest();
 create or replace function stricttest() returns void as $$
 declare
 x record;
-p1 int := 2;
-p3 text := 'foo';
+p1 int = 2;
+p3 text = 'foo';
 begin
   -- too many rows
   select * from foo where f1 > p1 or f1::text = p3  into strict x;
@@ -2511,8 +2511,8 @@ create or replace function stricttest() returns void as $$
 #print_strict_params off
 declare
 x record;
-p1 int := 2;
-p3 text := 'foo';
+p1 int = 2;
+p3 text = 'foo';
 begin
   -- too many rows
   select * from foo where f1 > p1 or f1::text = p3  into strict x;
@@ -2528,8 +2528,8 @@ create or replace function stricttest() returns void as $$
 #print_strict_params on
 declare
 x record;
-p1 int := 2;
-p3 text := 'foo';
+p1 int = 2;
+p3 text = 'foo';
 begin
   -- too many rows
   select * from foo where f1 > p1 or f1::text = p3  into strict x;
@@ -2761,11 +2761,11 @@ drop function sc_test();
 create function pl_qual_names (param1 int) returns void as $$
 <<outerblock>>
 declare
-  param1 int := 1;
+  param1 int = 1;
 begin
   <<innerblock>>
   declare
-    param1 int := 2;
+    param1 int = 2;
   begin
     raise notice 'param1 = %', param1;
     raise notice 'pl_qual_names.param1 = %', pl_qual_names.param1;
@@ -2782,8 +2782,8 @@ drop function pl_qual_names(int);
 -- tests for RETURN QUERY
 create function ret_query1(out int, out int) returns setof record as $$
 begin
-    $1 := -1;
-    $2 := -2;
+    $1 = -1;
+    $2 = -2;
     return next;
     return query select x + 1, x * 10 from generate_series(0, 10) s (x);
     return next;
@@ -2861,14 +2861,14 @@ begin
   end loop;
   -- and try it with a hand-assigned name
   raise notice 'after loop, c2 = %', c2;
-  c2 := 'special_name';
+  c2 = 'special_name';
   for r in c2 loop
     raise notice '% from %', r.i, c2;
   end loop;
   raise notice 'after loop, c2 = %', c2;
   -- and try it with a generated name
   -- (which we can't show in the output because it's variable)
-  c2 := null;
+  c2 = null;
   for r in c2 loop
     raise notice '%', r.i;
   end loop;
@@ -2902,7 +2902,7 @@ select * from forc_test;
 -- same, with a cursor whose portal name doesn't match variable name
 create or replace function forc01() returns void as $$
 declare
-  c refcursor := 'fooled_ya';
+  c refcursor = 'fooled_ya';
   r record;
 begin
   open c for select * from forc_test;
@@ -2988,7 +2988,7 @@ create or replace function compos() returns compostype as $$
 declare
   v compostype;
 begin
-  v := (1, 'hello');
+  v = (1, 'hello');
   return v;
 end;
 $$ language plpgsql;
@@ -3000,7 +3000,7 @@ create or replace function compos() returns compostype as $$
 declare
   v record;
 begin
-  v := (1, 'hello'::varchar);
+  v = (1, 'hello'::varchar);
   return v;
 end;
 $$ language plpgsql;
@@ -3041,7 +3041,7 @@ create or replace function composrec() returns record as $$
 declare
   v record;
 begin
-  v := (1, 'hello');
+  v = (1, 'hello');
   return v;
 end;
 $$ language plpgsql;
@@ -3086,7 +3086,7 @@ select compos();
 
 -- RETURN variable is a different code path ...
 create or replace function compos() returns compostype as $$
-declare x int := 42;
+declare x int = 42;
 begin
   return x;
 end;
@@ -3101,7 +3101,7 @@ create or replace function compos() returns int as $$
 declare
   v compostype;
 begin
-  v := (1, 'hello');
+  v = (1, 'hello');
   return v;
 end;
 $$ language plpgsql;
@@ -3251,7 +3251,7 @@ select raise_test();
 
 -- test access to exception data
 create function zero_divide() returns int as $$
-declare v int := 0;
+declare v int = 0;
 begin
   return 10 / v;
 end;
@@ -3389,7 +3389,7 @@ returns numeric as $$
 declare aux numeric = $1[array_lower($1,1)];
 begin
   for i in array_lower($1,1)+1..array_upper($1,1) loop
-    if $1[i] < aux then aux := $1[i]; end if;
+    if $1[i] < aux then aux = $1[i]; end if;
   end loop;
   return aux;
 end;
@@ -3426,9 +3426,9 @@ select * from tftest(10);
 
 create or replace function tftest(a1 int) returns table(a int, b int) as $$
 begin
-  a := a1; b := a1 + 1;
+  a = a1; b = a1 + 1;
   return next;
-  a := a1 * 10; b := a1 * 10 + 1;
+  a = a1 * 10; b = a1 * 10 + 1;
   return next;
 end;
 $$ language plpgsql immutable strict;
@@ -3470,7 +3470,7 @@ DECLARE
   v_var INTEGER;
 BEGIN
   BEGIN
-    v_var := (leaker_2(fail)).error_code;
+    v_var = (leaker_2(fail)).error_code;
   EXCEPTION
     WHEN others THEN RETURN 0;
   END;
@@ -3484,8 +3484,8 @@ BEGIN
   IF fail THEN
     RAISE EXCEPTION 'fail ...';
   END IF;
-  error_code := 1;
-  new_id := 1;
+  error_code = 1;
+  new_id = 1;
   RETURN;
 END;
 $$ LANGUAGE plpgsql;
@@ -3505,11 +3505,11 @@ DECLARE
   lr text;
   i integer;
 BEGIN
-  arr := array[array['foo','bar'], array['baz', 'quux']];
-  lr := 'fool';
-  i := 1;
+  arr = array[array['foo','bar'], array['baz', 'quux']];
+  lr = 'fool';
+  i = 1;
   -- use sub-SELECTs to make expressions non-simple
-  arr[(SELECT i)][(SELECT i+1)] := (SELECT lr);
+  arr[(SELECT i)][(SELECT i+1)] = (SELECT lr);
   RETURN arr;
 END;
 $$ LANGUAGE plpgsql;
@@ -3520,13 +3520,13 @@ DROP FUNCTION nonsimple_expr_test();
 
 CREATE FUNCTION nonsimple_expr_test() RETURNS integer AS $$
 declare
-   i integer NOT NULL := 0;
+   i integer NOT NULL = 0;
 begin
   begin
-    i := (SELECT NULL::integer);  -- should throw error
+    i = (SELECT NULL::integer);  -- should throw error
   exception
     WHEN OTHERS THEN
-      i := (SELECT 1::integer);
+      i = (SELECT 1::integer);
   end;
   return i;
 end;
@@ -3613,8 +3613,8 @@ drop function sql_to_date(integer) cascade;
 -- used in this session)
 
 begin;
-do $$ declare x text[]; begin x := '{1.23, 4.56}'::numeric[]; end $$;
-do $$ declare x text[]; begin x := '{1.23, 4.56}'::numeric[]; end $$;
+do $$ declare x text[]; begin x = '{1.23, 4.56}'::numeric[]; end $$;
+do $$ declare x text[]; begin x = '{1.23, 4.56}'::numeric[]; end $$;
 end;
 
 -- Test for consistent reporting of error context
@@ -3706,7 +3706,7 @@ begin
       do $$
       declare x int = 0;
       begin
-        x := 1 / x;
+        x = 1 / x;
       end;
       $$;
     $ex$;
@@ -3721,10 +3721,10 @@ $outer$;
 -- default expressions.
 
 create function scope_test() returns int as $$
-declare x int := 42;
+declare x int = 42;
 begin
-  declare y int := x + 1;
-          x int := x + 2;
+  declare y int = x + 1;
+          x int = x + 2;
   begin
     return x * 100 + y;
   end;
@@ -3741,7 +3741,7 @@ set plpgsql.variable_conflict = error;
 
 create function conflict_test() returns setof int8_tbl as $$
 declare r record;
-  q1 bigint := 42;
+  q1 bigint = 42;
 begin
   for r in select q1,q2 from int8_tbl loop
     return next r;
@@ -3754,7 +3754,7 @@ select * from conflict_test();
 create or replace function conflict_test() returns setof int8_tbl as $$
 #variable_conflict use_variable
 declare r record;
-  q1 bigint := 42;
+  q1 bigint = 42;
 begin
   for r in select q1,q2 from int8_tbl loop
     return next r;
@@ -3767,7 +3767,7 @@ select * from conflict_test();
 create or replace function conflict_test() returns setof int8_tbl as $$
 #variable_conflict use_column
 declare r record;
-  q1 bigint := 42;
+  q1 bigint = 42;
 begin
   for r in select q1,q2 from int8_tbl loop
     return next r;
@@ -3783,9 +3783,9 @@ drop function conflict_test();
 
 create function unreserved_test() returns int as $$
 declare
-  forward int := 21;
+  forward int = 21;
 begin
-  forward := forward * 2;
+  forward = forward * 2;
   return forward;
 end
 $$ language plpgsql;
@@ -3794,9 +3794,9 @@ select unreserved_test();
 
 create or replace function unreserved_test() returns int as $$
 declare
-  return int := 42;
+  return int = 42;
 begin
-  return := return + 1;
+  return = return + 1;
   return return;
 end
 $$ language plpgsql;
@@ -3929,8 +3929,8 @@ create function arrayassign1() returns text[] language plpgsql as $$
 declare
  r record;
 begin
-  r := row(12, '{foo,bar,baz}')::rtype;
-  r.ar[2] := 'replace';
+  r = row(12, '{foo,bar,baz}')::rtype;
+  r.ar[2] = 'replace';
   return r.ar;
 end$$;
 
@@ -3947,8 +3947,8 @@ create function testoa(x1 int, x2 int, x3 int) returns orderedarray
 language plpgsql as $$
 declare res orderedarray;
 begin
-  res := array[x1, x2];
-  res[2] := x3;
+  res = array[x1, x2];
+  res[2] = x3;
   return res;
 end$$;
 
@@ -3968,7 +3968,7 @@ drop function testoa(x1 int, x2 int, x3 int);
 create function returns_rw_array(int) returns int[]
 language plpgsql as $$
   declare r int[];
-  begin r := array[$1, $1]; return r; end;
+  begin r = array[$1, $1]; return r; end;
 $$ stable;
 
 create function consumes_rw_array(int[]) returns int
@@ -4001,9 +4001,9 @@ select consumes_rw_array(a), a from
   (values (returns_rw_array(1)), (returns_rw_array(2))) v(a);
 
 do $$
-declare a int[] := array[1,2];
+declare a int[] = array[1,2];
 begin
-  a := a || 3;
+  a = a || 3;
   raise notice 'a = %', a;
 end$$;
 
@@ -4032,7 +4032,7 @@ declare
   myresult int;
 begin
   raise notice 'calling down into inner_func()';
-  myresult := inner_func($1);
+  myresult = inner_func($1);
   raise notice 'inner_func() done';
   return myresult;
 end;
@@ -4044,7 +4044,7 @@ declare
   myresult int;
 begin
   raise notice 'calling down into outer_func()';
-  myresult := outer_func($1);
+  myresult = outer_func($1);
   raise notice 'outer_func() done';
   return myresult;
 end;
@@ -4063,7 +4063,7 @@ create function inner_func(int)
 returns int as $$
 declare
   _context text;
-  sx int := 5;
+  sx int = 5;
 begin
   begin
     perform sx / 0;
@@ -4087,7 +4087,7 @@ declare
   myresult int;
 begin
   raise notice 'calling down into inner_func()';
-  myresult := inner_func($1);
+  myresult = inner_func($1);
   raise notice 'inner_func() done';
   return myresult;
 end;
@@ -4099,7 +4099,7 @@ declare
   myresult int;
 begin
   raise notice 'calling down into outer_func()';
-  myresult := outer_func($1);
+  myresult = outer_func($1);
   raise notice 'outer_func() done';
   return myresult;
 end;
@@ -4146,7 +4146,7 @@ reset plpgsql.check_asserts;
 
 -- test custom message
 do $$
-declare var text := 'some value';
+declare var text = 'some value';
 begin
   assert 1=0, format('assertion failed, var = "%s"', var);
 end;
@@ -4172,14 +4172,14 @@ create domain plpgsql_domain as integer check(plpgsql_domain_check(value));
 do $$
 declare v_test plpgsql_domain;
 begin
-  v_test := 1;
+  v_test = 1;
 end;
 $$;
 
 do $$
-declare v_test plpgsql_domain := 1;
+declare v_test plpgsql_domain = 1;
 begin
-  v_test := 0;  -- fail
+  v_test = 0;  -- fail
 end;
 $$;
 
@@ -4194,15 +4194,15 @@ create domain plpgsql_arr_domain as int[] check(plpgsql_arr_domain_check(value))
 do $$
 declare v_test plpgsql_arr_domain;
 begin
-  v_test := array[1];
-  v_test := v_test || 2;
+  v_test = array[1];
+  v_test = v_test || 2;
 end;
 $$;
 
 do $$
-declare v_test plpgsql_arr_domain := array[1];
+declare v_test plpgsql_arr_domain = array[1];
 begin
-  v_test := 0 || v_test;  -- fail
+  v_test = 0 || v_test;  -- fail
 end;
 $$;
 
@@ -4546,7 +4546,7 @@ DECLARE
     a_val partitioned_table.a%TYPE;
     result partitioned_table%ROWTYPE;
 BEGIN
-    a_val := $1;
+    a_val = $1;
     SELECT * INTO result FROM partitioned_table WHERE a = a_val;
     RETURN result;
 END; $$ LANGUAGE plpgsql;
@@ -4560,7 +4560,7 @@ DECLARE
     a_val partitioned_table.a%TYPE;
 BEGIN
     FOR row IN SELECT * FROM partitioned_table ORDER BY a LOOP
-        a_val := row.a;
+        a_val = row.a;
         RETURN NEXT a_val;
     END LOOP;
     RETURN;

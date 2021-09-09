@@ -1,7 +1,7 @@
 --
 -- VARCHAR
 --
-
+DROP TABLE if exists VARCHAR_TBL;
 CREATE TABLE VARCHAR_TBL(f1 varchar(1));
 
 INSERT INTO VARCHAR_TBL (f1) VALUES ('a');

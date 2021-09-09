@@ -283,7 +283,7 @@ CREATE SCHEMA foreign_schema;
 CREATE SERVER s0 FOREIGN DATA WRAPPER dummy;
 CREATE FOREIGN TABLE ft1 ();                                    -- ERROR
 CREATE FOREIGN TABLE ft1 () SERVER no_server;                   -- ERROR
-CREATE FOREIGN TABLE ft1 () SERVER s0 WITH OIDS;                -- ERROR
+CREATE FOREIGN TABLE ft1 () SERVER s0;                -- ERROR
 CREATE FOREIGN TABLE ft1 (
 	c1 integer OPTIONS ("param 1" 'val1') PRIMARY KEY,
 	c2 text OPTIONS (param2 'val2', param3 'val3'),
@@ -291,7 +291,7 @@ CREATE FOREIGN TABLE ft1 (
 ) SERVER s0 OPTIONS (delimiter ',', quote '"', "be quoted" 'value'); -- ERROR
 CREATE TABLE ref_table (id integer PRIMARY KEY);
 CREATE FOREIGN TABLE ft1 (
-	c1 integer OPTIONS ("param 1" 'val1') REFERENCES ref_table (id),
+	c1 integer OPTIONS ("param 1" 'val1'),
 	c2 text OPTIONS (param2 'val2', param3 'val3'),
 	c3 date
 ) SERVER s0 OPTIONS (delimiter ',', quote '"', "be quoted" 'value'); -- ERROR
@@ -304,9 +304,8 @@ CREATE FOREIGN TABLE ft1 (
 ) SERVER s0 OPTIONS (delimiter ',', quote '"', "be quoted" 'value'); -- ERROR
 CREATE FOREIGN TABLE ft1 (
 	c1 integer OPTIONS ("param 1" 'val1') NOT NULL,
-	c2 text OPTIONS (param2 'val2', param3 'val3') CHECK (c2 <> ''),
-	c3 date,
-	CHECK (c3 BETWEEN '1994-01-01'::date AND '1994-01-31'::date)
+	c2 text OPTIONS (param2 'val2', param3 'val3'),
+	c3 date
 ) SERVER s0 OPTIONS (delimiter ',', quote '"', "be quoted" 'value');
 COMMENT ON FOREIGN TABLE ft1 IS 'ft1';
 COMMENT ON COLUMN ft1.c1 IS 'ft1.c1';
@@ -328,16 +327,12 @@ CREATE TABLE lt1 (a INT) PARTITION BY RANGE (a);
 CREATE INDEX ON lt1 (a);
 CREATE FOREIGN TABLE ft_part1
   PARTITION OF lt1 FOR VALUES FROM (0) TO (1000) SERVER s0;
-CREATE FOREIGN TABLE ft_part2 (a INT) SERVER s0;
-ALTER TABLE lt1 ATTACH PARTITION ft_part2 FOR VALUES FROM (1000) TO (2000);
+CREATE FOREIGN TABLE ft_part2 PARTITION OF lt1 FOR VALUES FROM (1000) TO (2000) SERVER s0;
 DROP FOREIGN TABLE ft_part1, ft_part2;
 CREATE UNIQUE INDEX ON lt1 (a);
 ALTER TABLE lt1 ADD PRIMARY KEY (a);
-CREATE FOREIGN TABLE ft_part1
-  PARTITION OF lt1 FOR VALUES FROM (0) TO (1000) SERVER s0;     -- ERROR
-CREATE FOREIGN TABLE ft_part2 (a INT NOT NULL) SERVER s0;
-ALTER TABLE lt1 ATTACH PARTITION ft_part2
-  FOR VALUES FROM (1000) TO (2000);                             -- ERROR
+CREATE FOREIGN TABLE ft_part1 PARTITION OF lt1 FOR VALUES FROM (0) TO (1000) SERVER s0;     -- ERROR
+CREATE FOREIGN TABLE ft_part2 PARTITION OF lt1 FOR VALUES FROM (1000) TO (2000) SERVER s0;
 DROP TABLE lt1;
 DROP FOREIGN TABLE ft_part2;
 
@@ -348,8 +343,7 @@ CREATE TABLE lt1_part1
   PARTITION BY RANGE (a);
 CREATE FOREIGN TABLE ft_part_1_1
   PARTITION OF lt1_part1 FOR VALUES FROM (0) TO (100) SERVER s0;
-CREATE FOREIGN TABLE ft_part_1_2 (a INT) SERVER s0;
-ALTER TABLE lt1_part1 ATTACH PARTITION ft_part_1_2 FOR VALUES FROM (100) TO (200);
+CREATE FOREIGN TABLE ft_part_1_2 PARTITION OF lt1_part1 FOR VALUES FROM (100) TO (200) SERVER s0;
 CREATE UNIQUE INDEX ON lt1 (a);
 ALTER TABLE lt1 ADD PRIMARY KEY (a);
 DROP FOREIGN TABLE ft_part_1_1, ft_part_1_2;
@@ -357,8 +351,7 @@ CREATE UNIQUE INDEX ON lt1 (a);
 ALTER TABLE lt1 ADD PRIMARY KEY (a);
 CREATE FOREIGN TABLE ft_part_1_1
   PARTITION OF lt1_part1 FOR VALUES FROM (0) TO (100) SERVER s0;
-CREATE FOREIGN TABLE ft_part_1_2 (a INT NOT NULL) SERVER s0;
-ALTER TABLE lt1_part1 ATTACH PARTITION ft_part_1_2 FOR VALUES FROM (100) TO (200);
+CREATE FOREIGN TABLE ft_part_1_2 PARTITION OF lt1_part1 FOR VALUES FROM (100) TO (200) SERVER s0;
 DROP TABLE lt1;
 DROP FOREIGN TABLE ft_part_1_2;
 
@@ -387,24 +380,16 @@ ALTER FOREIGN TABLE ft1 ALTER COLUMN xmin OPTIONS (ADD p1 'v1'); -- ERROR
 ALTER FOREIGN TABLE ft1 ALTER COLUMN c7 OPTIONS (ADD p1 'v1', ADD p2 'v2'),
                         ALTER COLUMN c8 OPTIONS (ADD p1 'v1', ADD p2 'v2');
 ALTER FOREIGN TABLE ft1 ALTER COLUMN c8 OPTIONS (SET p2 'V2', DROP p1);
-ALTER FOREIGN TABLE ft1 ALTER COLUMN c1 SET STATISTICS 10000;
 ALTER FOREIGN TABLE ft1 ALTER COLUMN c1 SET (n_distinct = 100);
-ALTER FOREIGN TABLE ft1 ALTER COLUMN c8 SET STATISTICS -1;
-ALTER FOREIGN TABLE ft1 ALTER COLUMN c8 SET STORAGE PLAIN;
 \d+ ft1
 -- can't change the column type if it's used elsewhere
-CREATE TABLE use_ft1_column_type (x ft1);
 ALTER FOREIGN TABLE ft1 ALTER COLUMN c8 SET DATA TYPE integer;	-- ERROR
-DROP TABLE use_ft1_column_type;
 ALTER FOREIGN TABLE ft1 ADD PRIMARY KEY (c7);                   -- ERROR
-ALTER FOREIGN TABLE ft1 ADD CONSTRAINT ft1_c9_check CHECK (c9 < 0) NOT VALID;
-ALTER FOREIGN TABLE ft1 ALTER CONSTRAINT ft1_c9_check DEFERRABLE; -- ERROR
-ALTER FOREIGN TABLE ft1 DROP CONSTRAINT ft1_c9_check;
 ALTER FOREIGN TABLE ft1 DROP CONSTRAINT no_const;               -- ERROR
 ALTER FOREIGN TABLE ft1 DROP CONSTRAINT IF EXISTS no_const;
-ALTER FOREIGN TABLE ft1 SET WITH OIDS;
+--ALTER FOREIGN TABLE ft1 SET WITH OIDS;
 ALTER FOREIGN TABLE ft1 OWNER TO regress_test_role;
-ALTER FOREIGN TABLE ft1 OPTIONS (DROP delimiter, SET quote '~', ADD escape '@');
+--ALTER FOREIGN TABLE ft1 OPTIONS (DROP delimiter, SET quote '~', ADD escape '@');
 ALTER FOREIGN TABLE ft1 DROP COLUMN no_column;                  -- ERROR
 ALTER FOREIGN TABLE ft1 DROP COLUMN IF EXISTS no_column;
 ALTER FOREIGN TABLE ft1 DROP COLUMN c9;
@@ -431,7 +416,6 @@ ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 ALTER COLUMN c7 OPTIONS (ADD p1 '
 ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 ALTER COLUMN c8 OPTIONS (SET p2 'V2', DROP p1);
 
 ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 DROP CONSTRAINT IF EXISTS no_const;
-ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 DROP CONSTRAINT ft1_c1_check;
 ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 OWNER TO regress_test_role;
 ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 OPTIONS (DROP delimiter, SET quote '~', ADD escape '@');
 ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 DROP COLUMN IF EXISTS no_column;
@@ -574,87 +558,18 @@ RESET ROLE;
 DROP SERVER s10 CASCADE;
 \set VERBOSITY default
 
--- Triggers
-CREATE FUNCTION dummy_trigger() RETURNS TRIGGER AS $$
-  BEGIN
-    RETURN NULL;
-  END
-$$ language plpgsql;
-
-CREATE TRIGGER trigtest_before_stmt BEFORE INSERT OR UPDATE OR DELETE
-ON foreign_schema.foreign_table_1
-FOR EACH STATEMENT
-EXECUTE PROCEDURE dummy_trigger();
-
-CREATE TRIGGER trigtest_after_stmt AFTER INSERT OR UPDATE OR DELETE
-ON foreign_schema.foreign_table_1
-FOR EACH STATEMENT
-EXECUTE PROCEDURE dummy_trigger();
-
-CREATE TRIGGER trigtest_after_stmt_tt AFTER INSERT OR UPDATE OR DELETE -- ERROR
-ON foreign_schema.foreign_table_1
-REFERENCING NEW TABLE AS new_table
-FOR EACH STATEMENT
-EXECUTE PROCEDURE dummy_trigger();
-
-CREATE TRIGGER trigtest_before_row BEFORE INSERT OR UPDATE OR DELETE
-ON foreign_schema.foreign_table_1
-FOR EACH ROW
-EXECUTE PROCEDURE dummy_trigger();
-
-CREATE TRIGGER trigtest_after_row AFTER INSERT OR UPDATE OR DELETE
-ON foreign_schema.foreign_table_1
-FOR EACH ROW
-EXECUTE PROCEDURE dummy_trigger();
-
-CREATE CONSTRAINT TRIGGER trigtest_constraint AFTER INSERT OR UPDATE OR DELETE
-ON foreign_schema.foreign_table_1
-FOR EACH ROW
-EXECUTE PROCEDURE dummy_trigger();
-
-ALTER FOREIGN TABLE foreign_schema.foreign_table_1
-	DISABLE TRIGGER trigtest_before_stmt;
-ALTER FOREIGN TABLE foreign_schema.foreign_table_1
-	ENABLE TRIGGER trigtest_before_stmt;
-
-DROP TRIGGER trigtest_before_stmt ON foreign_schema.foreign_table_1;
-DROP TRIGGER trigtest_before_row ON foreign_schema.foreign_table_1;
-DROP TRIGGER trigtest_after_stmt ON foreign_schema.foreign_table_1;
-DROP TRIGGER trigtest_after_row ON foreign_schema.foreign_table_1;
-
-DROP FUNCTION dummy_trigger();
-
 -- Table inheritance
 CREATE TABLE fd_pt1 (
 	c1 integer NOT NULL,
 	c2 text,
 	c3 date
 );
-CREATE FOREIGN TABLE ft2 () INHERITS (fd_pt1)
-  SERVER s0 OPTIONS (delimiter ',', quote '"', "be quoted" 'value');
-\d+ fd_pt1
-\d+ ft2
-DROP FOREIGN TABLE ft2;
-\d+ fd_pt1
 CREATE FOREIGN TABLE ft2 (
 	c1 integer NOT NULL,
 	c2 text,
 	c3 date
 ) SERVER s0 OPTIONS (delimiter ',', quote '"', "be quoted" 'value');
-\d+ ft2
-ALTER FOREIGN TABLE ft2 INHERIT fd_pt1;
-\d+ fd_pt1
-\d+ ft2
-CREATE TABLE ct3() INHERITS(ft2);
-CREATE FOREIGN TABLE ft3 (
-	c1 integer NOT NULL,
-	c2 text,
-	c3 date
-) INHERITS(ft2)
-  SERVER s0;
-\d+ ft2
-\d+ ct3
-\d+ ft3
+
 
 -- add attributes recursively
 ALTER TABLE fd_pt1 ADD COLUMN c4 integer;
@@ -672,13 +587,10 @@ ALTER TABLE fd_pt1 ALTER COLUMN c4 SET DEFAULT 0;
 ALTER TABLE fd_pt1 ALTER COLUMN c5 DROP DEFAULT;
 ALTER TABLE fd_pt1 ALTER COLUMN c6 SET NOT NULL;
 ALTER TABLE fd_pt1 ALTER COLUMN c7 DROP NOT NULL;
-ALTER TABLE fd_pt1 ALTER COLUMN c8 TYPE char(10) USING '0';        -- ERROR
+ALTER TABLE fd_pt1 ALTER COLUMN c8 TYPE char(10) USING '0';
 ALTER TABLE fd_pt1 ALTER COLUMN c8 TYPE char(10);
 ALTER TABLE fd_pt1 ALTER COLUMN c8 SET DATA TYPE text;
-ALTER TABLE fd_pt1 ALTER COLUMN c1 SET STATISTICS 10000;
 ALTER TABLE fd_pt1 ALTER COLUMN c1 SET (n_distinct = 100);
-ALTER TABLE fd_pt1 ALTER COLUMN c8 SET STATISTICS -1;
-ALTER TABLE fd_pt1 ALTER COLUMN c8 SET STORAGE EXTERNAL;
 \d+ fd_pt1
 \d+ ft2
 
@@ -692,68 +604,36 @@ ALTER TABLE fd_pt1 DROP COLUMN c8;
 \d+ ft2
 
 -- add constraints recursively
-ALTER TABLE fd_pt1 ADD CONSTRAINT fd_pt1chk1 CHECK (c1 > 0) NO INHERIT;
-ALTER TABLE fd_pt1 ADD CONSTRAINT fd_pt1chk2 CHECK (c2 <> '');
--- connoinherit should be true for NO INHERIT constraint
 SELECT relname, conname, contype, conislocal, coninhcount, connoinherit
   FROM pg_class AS pc JOIN pg_constraint AS pgc ON (conrelid = pc.oid)
   WHERE pc.relname = 'fd_pt1'
   ORDER BY 1,2;
--- child does not inherit NO INHERIT constraints
 \d+ fd_pt1
 \d+ ft2
 \set VERBOSITY terse
-DROP FOREIGN TABLE ft2; -- ERROR
-DROP FOREIGN TABLE ft2 CASCADE;
+DROP FOREIGN TABLE ft2;
 \set VERBOSITY default
 CREATE FOREIGN TABLE ft2 (
 	c1 integer NOT NULL,
 	c2 text,
 	c3 date
 ) SERVER s0 OPTIONS (delimiter ',', quote '"', "be quoted" 'value');
--- child must have parent's INHERIT constraints
-ALTER FOREIGN TABLE ft2 INHERIT fd_pt1;                            -- ERROR
-ALTER FOREIGN TABLE ft2 ADD CONSTRAINT fd_pt1chk2 CHECK (c2 <> '');
-ALTER FOREIGN TABLE ft2 INHERIT fd_pt1;
--- child does not inherit NO INHERIT constraints
 \d+ fd_pt1
 \d+ ft2
-
--- drop constraints recursively
-ALTER TABLE fd_pt1 DROP CONSTRAINT fd_pt1chk1 CASCADE;
-ALTER TABLE fd_pt1 DROP CONSTRAINT fd_pt1chk2 CASCADE;
 
 -- NOT VALID case
 INSERT INTO fd_pt1 VALUES (1, 'fd_pt1'::text, '1994-01-01'::date);
-ALTER TABLE fd_pt1 ADD CONSTRAINT fd_pt1chk3 CHECK (c2 <> '') NOT VALID;
-\d+ fd_pt1
-\d+ ft2
--- VALIDATE CONSTRAINT need do nothing on foreign tables
-ALTER TABLE fd_pt1 VALIDATE CONSTRAINT fd_pt1chk3;
 \d+ fd_pt1
 \d+ ft2
 
--- OID system column
-ALTER TABLE fd_pt1 SET WITH OIDS;
-\d+ fd_pt1
-\d+ ft2
-ALTER TABLE ft2 SET WITHOUT OIDS;  -- ERROR
-ALTER TABLE fd_pt1 SET WITHOUT OIDS;
-\d+ fd_pt1
-\d+ ft2
 
 -- changes name of an attribute recursively
 ALTER TABLE fd_pt1 RENAME COLUMN c1 TO f1;
 ALTER TABLE fd_pt1 RENAME COLUMN c2 TO f2;
 ALTER TABLE fd_pt1 RENAME COLUMN c3 TO f3;
 -- changes name of a constraint recursively
-ALTER TABLE fd_pt1 RENAME CONSTRAINT fd_pt1chk3 TO f2_check;
 \d+ fd_pt1
 \d+ ft2
-
--- TRUNCATE doesn't work on foreign tables, either directly or recursively
-TRUNCATE ft2;  -- ERROR
-TRUNCATE fd_pt1;  -- ERROR
 
 DROP TABLE fd_pt1 CASCADE;
 
@@ -767,12 +647,9 @@ OPTIONS (option1 'value1', option2 'value2'); -- ERROR
 -- DROP FOREIGN TABLE
 DROP FOREIGN TABLE no_table;                                    -- ERROR
 DROP FOREIGN TABLE IF EXISTS no_table;
-DROP FOREIGN TABLE foreign_schema.foreign_table_1;
 
 -- REASSIGN OWNED/DROP OWNED of foreign objects
 REASSIGN OWNED BY regress_test_role TO regress_test_role2;
-DROP OWNED BY regress_test_role2;
-DROP OWNED BY regress_test_role2 CASCADE;
 
 -- Foreign partition DDL stuff
 CREATE TABLE fd_pt2 (
@@ -785,36 +662,11 @@ CREATE FOREIGN TABLE fd_pt2_1 PARTITION OF fd_pt2 FOR VALUES IN (1)
 \d+ fd_pt2
 \d+ fd_pt2_1
 
--- partition cannot have additional columns
-DROP FOREIGN TABLE fd_pt2_1;
-CREATE FOREIGN TABLE fd_pt2_1 (
-	c1 integer NOT NULL,
-	c2 text,
-	c3 date,
-	c4 char
-) SERVER s0 OPTIONS (delimiter ',', quote '"', "be quoted" 'value');
-\d+ fd_pt2_1
-ALTER TABLE fd_pt2 ATTACH PARTITION fd_pt2_1 FOR VALUES IN (1);       -- ERROR
-
-DROP FOREIGN TABLE fd_pt2_1;
-\d+ fd_pt2
-CREATE FOREIGN TABLE fd_pt2_1 (
-	c1 integer NOT NULL,
-	c2 text,
-	c3 date
-) SERVER s0 OPTIONS (delimiter ',', quote '"', "be quoted" 'value');
-\d+ fd_pt2_1
--- no attach partition validation occurs for foreign tables
-ALTER TABLE fd_pt2 ATTACH PARTITION fd_pt2_1 FOR VALUES IN (1);
-\d+ fd_pt2
-\d+ fd_pt2_1
-
 -- cannot add column to a partition
 ALTER TABLE fd_pt2_1 ADD c4 char;
 
 -- ok to have a partition's own constraints though
 ALTER TABLE fd_pt2_1 ALTER c3 SET NOT NULL;
-ALTER TABLE fd_pt2_1 ADD CONSTRAINT p21chk CHECK (c2 <> '');
 \d+ fd_pt2
 \d+ fd_pt2_1
 
@@ -822,38 +674,12 @@ ALTER TABLE fd_pt2_1 ADD CONSTRAINT p21chk CHECK (c2 <> '');
 ALTER TABLE fd_pt2_1 ALTER c1 DROP NOT NULL;
 
 -- partition must have parent's constraints
-ALTER TABLE fd_pt2 DETACH PARTITION fd_pt2_1;
 ALTER TABLE fd_pt2 ALTER c2 SET NOT NULL;
 \d+ fd_pt2
 \d+ fd_pt2_1
-ALTER TABLE fd_pt2 ATTACH PARTITION fd_pt2_1 FOR VALUES IN (1);       -- ERROR
-ALTER FOREIGN TABLE fd_pt2_1 ALTER c2 SET NOT NULL;
-ALTER TABLE fd_pt2 ATTACH PARTITION fd_pt2_1 FOR VALUES IN (1);
-
-ALTER TABLE fd_pt2 DETACH PARTITION fd_pt2_1;
-ALTER TABLE fd_pt2 ADD CONSTRAINT fd_pt2chk1 CHECK (c1 > 0);
-\d+ fd_pt2
-\d+ fd_pt2_1
-ALTER TABLE fd_pt2 ATTACH PARTITION fd_pt2_1 FOR VALUES IN (1);       -- ERROR
-ALTER FOREIGN TABLE fd_pt2_1 ADD CONSTRAINT fd_pt2chk1 CHECK (c1 > 0);
-ALTER TABLE fd_pt2 ATTACH PARTITION fd_pt2_1 FOR VALUES IN (1);
-
--- TRUNCATE doesn't work on foreign tables, either directly or recursively
-TRUNCATE fd_pt2_1;  -- ERROR
-TRUNCATE fd_pt2;  -- ERROR
 
 DROP FOREIGN TABLE fd_pt2_1;
 DROP TABLE fd_pt2;
-
--- foreign table cannot be part of partition tree made of temporary
--- relations.
-CREATE TEMP TABLE temp_parted (a int) PARTITION BY LIST (a);
-CREATE FOREIGN TABLE foreign_part PARTITION OF temp_parted DEFAULT
-  SERVER s0;  -- ERROR
-CREATE FOREIGN TABLE foreign_part (a int) SERVER s0;
-ALTER TABLE temp_parted ATTACH PARTITION foreign_part DEFAULT;  -- ERROR
-DROP FOREIGN TABLE foreign_part;
-DROP TABLE temp_parted;
 
 -- Cleanup
 DROP SCHEMA foreign_schema CASCADE;

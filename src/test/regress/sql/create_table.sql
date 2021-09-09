@@ -5,16 +5,19 @@
 --
 -- CLASS DEFINITIONS
 --
+drop table if exists hobbies_r;
 CREATE TABLE hobbies_r (
 	name		text,
 	person 		text
 );
 
+drop table if exists equipment_r;
 CREATE TABLE equipment_r (
 	name 		text,
 	hobby		text
 );
 
+drop table if exists onek;
 CREATE TABLE onek (
 	unique1		int4,
 	unique2		int4,
@@ -34,6 +37,7 @@ CREATE TABLE onek (
 	string4		name
 );
 
+drop table if exists tenk1;
 CREATE TABLE tenk1 (
 	unique1		int4,
 	unique2		int4,
@@ -51,8 +55,9 @@ CREATE TABLE tenk1 (
 	stringu1	name,
 	stringu2	name,
 	string4		name
-) ;
+);
 
+drop table if exists tenk2;
 CREATE TABLE tenk2 (
 	unique1 	int4,
 	unique2 	int4,
@@ -73,63 +78,41 @@ CREATE TABLE tenk2 (
 );
 
 
+drop table if exists person;
 CREATE TABLE person (
 	name 		text,
-	age			int4,
-	location 	point
+	age			int4
 );
 
-
+drop table if exists emp;
 CREATE TABLE emp (
+	name 		text,
+	age			int4,
 	salary 		int4,
 	manager 	name
-) INHERITS (person) ;
-
-
-CREATE TABLE student (
-	gpa 		float8
-) INHERITS (person);
-
-
-CREATE TABLE stud_emp (
-	percent 	int4
-) INHERITS (emp, student);
-
-
-CREATE TABLE city (
-	name		name,
-	location 	box,
-	budget 		city_budget
 );
 
+drop table if exists student;
+CREATE TABLE student (
+	name 		text,
+	age			int4,
+	gpa 		float8
+) ;
+
+drop table if exists stud_emp;
+CREATE TABLE stud_emp (
+	name 		text,
+	age			int4,`
+	salary 		int4,
+	manager 	name,
+	gpa 		float8,
+	percent 	int4
+);
+
+drop table if exists dept;
 CREATE TABLE dept (
 	dname		name,
 	mgrname 	text
-);
-
-CREATE TABLE slow_emp4000 (
-	home_base	 box
-);
-
-CREATE TABLE fast_emp4000 (
-	home_base	 box
-);
-
-CREATE TABLE road (
-	name		text,
-	thepath 	path
-);
-
-CREATE TABLE ihighway () INHERITS (road);
-
-CREATE TABLE shighway (
-	surface		text
-) INHERITS (road);
-
-CREATE TABLE real_city (
-	pop			int4,
-	cname		text,
-	outline 	path
 );
 
 --
@@ -142,51 +125,37 @@ CREATE TABLE real_city (
 -- e inherits from c (two-level single inheritance)
 -- f inherits from e (three-level single inheritance)
 --
+drop table if exists a_star;
 CREATE TABLE a_star (
 	class		char,
 	a 			int4
 );
 
-CREATE TABLE b_star (
-	b 			text
-) INHERITS (a_star);
-
-CREATE TABLE c_star (
-	c 			name
-) INHERITS (a_star);
-
-CREATE TABLE d_star (
-	d 			float8
-) INHERITS (b_star, c_star);
-
-CREATE TABLE e_star (
-	e 			int2
-) INHERITS (c_star);
-
-CREATE TABLE f_star (
-	f 			polygon
-) INHERITS (e_star);
-
+drop table if exists aggtest;
 CREATE TABLE aggtest (
 	a 			int2,
 	b			float4
 );
 
+drop table if exists hash_i4_heap;
 CREATE TABLE hash_i4_heap (
 	seqno 		int4,
 	random 		int4
 );
 
+drop table if exists hash_name_heap;
 CREATE TABLE hash_name_heap (
 	seqno 		int4,
 	random 		name
 );
 
+drop table if exists hash_txt_heap;
 CREATE TABLE hash_txt_heap (
 	seqno 		int4,
 	random 		text
 );
 
+drop table if exists hash_f8_heap;
 CREATE TABLE hash_f8_heap (
 	seqno		int4,
 	random 		float8
@@ -199,39 +168,31 @@ CREATE TABLE hash_f8_heap (
 --	x			int4,
 --	y			int4
 -- );
-
+drop table if exists bt_i4_heap;
 CREATE TABLE bt_i4_heap (
 	seqno 		int4,
 	random 		int4
 );
 
+drop table if exists bt_name_heap;
 CREATE TABLE bt_name_heap (
 	seqno 		name,
 	random 		int4
 );
 
+drop table if exists bt_txt_heap;
 CREATE TABLE bt_txt_heap (
 	seqno 		text,
 	random 		int4
 );
 
+drop table if exists bt_f8_heap;
 CREATE TABLE bt_f8_heap (
 	seqno 		float8,
 	random 		int4
 );
 
-CREATE TABLE array_op_test (
-	seqno		int4,
-	i			int4[],
-	t			text[]
-);
-
-CREATE TABLE array_index_op_test (
-	seqno		int4,
-	i			int4[],
-	t			text[]
-);
-
+drop table if exists testjsonb;
 CREATE TABLE testjsonb (
        j jsonb
 );
@@ -244,85 +205,42 @@ CREATE TYPE unknown_comptype AS (
 	u unknown    -- fail
 );
 
-CREATE TABLE IF NOT EXISTS test_tsvector(
-	t text,
-	a tsvector
-);
-
-CREATE TABLE IF NOT EXISTS test_tsvector(
-	t text
-);
 
 -- invalid: non-lowercase quoted reloptions identifiers
-CREATE TABLE tas_case WITH ("Fillfactor" = 10) AS SELECT 1 a;
-CREATE TABLE tas_case (a text) WITH ("Oids" = true);
+-- CREATE TABLE tas_case WITH ("Fillfactor" = 10) AS SELECT 1 a;
+drop table if exists tas_case;
+CREATE TABLE tas_case (a text);
 
-CREATE UNLOGGED TABLE unlogged1 (a int primary key);			-- OK
+-- CREATE UNLOGGED TABLE unlogged1 (a int primary key);			-- OK
 CREATE TEMPORARY TABLE unlogged2 (a int primary key);			-- OK
 SELECT relname, relkind, relpersistence FROM pg_class WHERE relname ~ '^unlogged\d' ORDER BY relname;
-REINDEX INDEX unlogged1_pkey;
-REINDEX INDEX unlogged2_pkey;
+-- REINDEX INDEX unlogged1_pkey;
+-- REINDEX INDEX unlogged2_pkey;
 SELECT relname, relkind, relpersistence FROM pg_class WHERE relname ~ '^unlogged\d' ORDER BY relname;
 DROP TABLE unlogged2;
-INSERT INTO unlogged1 VALUES (42);
-CREATE UNLOGGED TABLE public.unlogged2 (a int primary key);		-- also OK
-CREATE UNLOGGED TABLE pg_temp.unlogged3 (a int primary key);	-- not OK
+-- INSERT INTO unlogged1 VALUES (42);
+-- REATE UNLOGGED TABLE public.unlogged2 (a int primary key);		-- also OK
+-- CREATE UNLOGGED TABLE pg_temp.unlogged3 (a int primary key);	-- not OK
 CREATE TABLE pg_temp.implicitly_temp (a int primary key);		-- OK
 CREATE TEMP TABLE explicitly_temp (a int primary key);			-- also OK
 CREATE TEMP TABLE pg_temp.doubly_temp (a int primary key);		-- also OK
 CREATE TEMP TABLE public.temp_to_perm (a int primary key);		-- not OK
-DROP TABLE unlogged1;
-DROP TABLE public.unlogged2;
-
-CREATE TABLE as_select1 AS SELECT * FROM pg_class WHERE relkind = 'r';
-CREATE TABLE as_select1 AS SELECT * FROM pg_class WHERE relkind = 'r';
-CREATE TABLE IF NOT EXISTS as_select1 AS SELECT * FROM pg_class WHERE relkind = 'r';
-DROP TABLE as_select1;
-
-PREPARE select1 AS SELECT 1 as a;
-CREATE TABLE as_select1 AS EXECUTE select1;
-CREATE TABLE as_select1 AS EXECUTE select1;
-SELECT * FROM as_select1;
-CREATE TABLE IF NOT EXISTS as_select1 AS EXECUTE select1;
-DROP TABLE as_select1;
-DEALLOCATE select1;
-
--- create an extra wide table to test for issues related to that
--- (temporarily hide query, to avoid the long CREATE TABLE stmt)
-\set ECHO none
-SELECT 'CREATE TABLE extra_wide_table(firstc text, '|| array_to_string(array_agg('c'||i||' bool'),',')||', lastc text);'
-FROM generate_series(1, 1100) g(i)
-\gexec
-\set ECHO all
-INSERT INTO extra_wide_table(firstc, lastc) VALUES('first col', 'last col');
-SELECT firstc, lastc FROM extra_wide_table;
-
--- check that the oid column is added before the primary key is checked
-CREATE TABLE oid_pk (f1 INT, PRIMARY KEY(oid)) ;
-DROP TABLE oid_pk;
+-- DROP TABLE unlogged1;
+-- DROP TABLE public.unlogged2;
 
 --
 -- Partitioned tables
 --
 
--- cannot combine INHERITS and PARTITION BY (although grammar allows)
-CREATE TABLE partitioned (
-	a int
-) INHERITS (some_table) PARTITION BY LIST (a);
-
 -- cannot use more than 1 column as partition key for list partitioned table
+drop table if exists partitioned;
 CREATE TABLE partitioned (
 	a1 int,
 	a2 int
 ) PARTITION BY LIST (a1, a2);	-- fail
 
--- unsupported constraint type for partitioned tables
-CREATE TABLE partitioned (
-	a int,
-	EXCLUDE USING gist (a WITH &&)
-) PARTITION BY RANGE (a);
-
 -- prevent using prohibited expressions in the key
+drop function if exists retset(int);
 CREATE FUNCTION retset (a int) RETURNS SETOF int AS $$ SELECT 1; $$ LANGUAGE SQL IMMUTABLE;
 CREATE TABLE partitioned (
 	a int
@@ -346,6 +264,7 @@ CREATE TABLE partitioned (
 	a int
 ) PARTITION BY RANGE (('a'));
 
+drop function if exists const_func ();
 CREATE FUNCTION const_func () RETURNS int AS $$ SELECT 1; $$ LANGUAGE SQL IMMUTABLE;
 CREATE TABLE partitioned (
 	a int
@@ -368,6 +287,7 @@ CREATE TABLE partitioned (
 ) PARTITION BY RANGE (xmin);
 
 -- functions in key must be immutable
+drop function if exists immut_func(int);
 CREATE FUNCTION immut_func (a int) RETURNS int AS $$ SELECT a + random()::int; $$ LANGUAGE SQL;
 CREATE TABLE partitioned (
 	a int
@@ -379,27 +299,8 @@ CREATE TABLE partitioned (
 	a	int
 ) PARTITION BY RANGE ((partitioned));
 
--- prevent using columns of unsupported types in key (type must have a btree operator class)
-CREATE TABLE partitioned (
-	a point
-) PARTITION BY LIST (a);
-CREATE TABLE partitioned (
-	a point
-) PARTITION BY LIST (a point_ops);
-CREATE TABLE partitioned (
-	a point
-) PARTITION BY RANGE (a);
-CREATE TABLE partitioned (
-	a point
-) PARTITION BY RANGE (a point_ops);
-
--- cannot add NO INHERIT constraints to partitioned tables
-CREATE TABLE partitioned (
-	a int,
-	CONSTRAINT check_a CHECK (a > 0) NO INHERIT
-) PARTITION BY RANGE (a);
-
 -- some checks after successful creation of a partitioned table
+drop function if exists plusone(int);
 CREATE FUNCTION plusone(a int) RETURNS INT AS $$ SELECT a+1; $$ LANGUAGE SQL;
 
 CREATE TABLE partitioned (
@@ -416,11 +317,11 @@ SELECT relkind FROM pg_class WHERE relname = 'partitioned';
 DROP FUNCTION plusone(int);
 
 -- partitioned table cannot participate in regular inheritance
+drop table if exists partitioned2;
 CREATE TABLE partitioned2 (
 	a int,
 	b text
 ) PARTITION BY RANGE ((a+1), substr(b, 1, 5));
-CREATE TABLE fail () INHERITS (partitioned2);
 
 -- Partition key in describe output
 \d partitioned
@@ -430,41 +331,8 @@ INSERT INTO partitioned2 VALUES (1, 'hello');
 CREATE TABLE part2_1 PARTITION OF partitioned2 FOR VALUES FROM (-1, 'aaaaa') TO (100, 'ccccc');
 \d+ part2_1
 
-DROP TABLE partitioned;
+DROP TABLE partitioned
 DROP TABLE partitioned2;
-
--- check that dependencies of partition columns are handled correctly
-create domain intdom1 as int;
-
-create table partitioned (
-	a intdom1,
-	b text
-) partition by range (a);
-
-alter table partitioned drop column a;  -- fail
-
-drop domain intdom1;  -- fail, requires cascade
-
-drop domain intdom1 cascade;
-
-table partitioned;  -- gone
-
--- likewise for columns used in partition expressions
-create domain intdom1 as int;
-
-create table partitioned (
-	a intdom1,
-	b text
-) partition by range (plusone(a));
-
-alter table partitioned drop column a;  -- fail
-
-drop domain intdom1;  -- fail, requires cascade
-
-drop domain intdom1 cascade;
-
-table partitioned;  -- gone
-
 
 --
 -- Partitions
@@ -472,6 +340,7 @@ table partitioned;  -- gone
 
 -- check partition bound syntax
 
+drop table if exists list_parted;
 CREATE TABLE list_parted (
 	a int
 ) PARTITION BY LIST (a);
@@ -491,10 +360,11 @@ CREATE TABLE fail_part PARTITION OF list_parted FOR VALUES FROM (1) TO (2);
 CREATE TABLE fail_part PARTITION OF list_parted FOR VALUES WITH (MODULUS 10, REMAINDER 1);
 
 -- check default partition cannot be created more than once
-CREATE TABLE part_default PARTITION OF list_parted DEFAULT;
-CREATE TABLE fail_default_part PARTITION OF list_parted DEFAULT;
+--CREATE TABLE part_default PARTITION OF list_parted DEFAULT;
+--CREATE TABLE fail_default_part PARTITION OF list_parted DEFAULT;
 
 -- specified literal can't be cast to the partition column data type
+drop table if exists bools;
 CREATE TABLE bools (
 	a bool
 ) PARTITION BY LIST (a);
@@ -502,6 +372,7 @@ CREATE TABLE bools_true PARTITION OF bools FOR VALUES IN (1);
 DROP TABLE bools;
 
 -- specified literal can be cast, but cast isn't immutable
+drop table if exists moneyp;
 CREATE TABLE moneyp (
 	a money
 ) PARTITION BY LIST (a);
@@ -517,7 +388,7 @@ CREATE TABLE bigintp_10 PARTITION OF bigintp FOR VALUES IN (10);
 -- fails due to overlap:
 CREATE TABLE bigintp_10_2 PARTITION OF bigintp FOR VALUES IN ('10');
 DROP TABLE bigintp;
-DROP TABLE IF EXISTS range_parted;
+
 CREATE TABLE range_parted (
 	a date
 ) PARTITION BY RANGE (a);
@@ -538,6 +409,7 @@ CREATE TABLE fail_part PARTITION OF range_parted FOR VALUES FROM (null) TO (maxv
 CREATE TABLE fail_part PARTITION OF range_parted FOR VALUES WITH (MODULUS 10, REMAINDER 1);
 
 -- check partition bound syntax for the hash partition
+dropt table if exists hash_parted;
 CREATE TABLE hash_parted (
 	a int
 ) PARTITION BY HASH (a);
@@ -554,7 +426,7 @@ CREATE TABLE fail_part PARTITION OF hash_parted FOR VALUES FROM ('a', 1) TO ('z'
 CREATE TABLE fail_part PARTITION OF hash_parted FOR VALUES IN (1000);
 
 -- trying to create default partition for the hash partitioned table
-CREATE TABLE fail_default_part PARTITION OF hash_parted DEFAULT;
+--CREATE TABLE fail_default_part PARTITION OF hash_parted DEFAULT;
 
 -- check if compatible with the specified parent
 
@@ -577,17 +449,14 @@ DROP TABLE temp_parted;
 CREATE TABLE no_oids_parted (
 	a int
 ) PARTITION BY RANGE (a) WITHOUT OIDS;
-
--- with oid clause removed above so this stmt succeeds.
-CREATE TABLE fail_part PARTITION OF no_oids_parted FOR VALUES FROM (1) TO (10) ;
-drop table if exists fail_part;
+CREATE TABLE fail_part PARTITION OF no_oids_parted FOR VALUES FROM (1) TO (10);
 DROP TABLE no_oids_parted;
 
 -- If the partitioned table has oids, then the partition must have them.
 -- If the WITHOUT OIDS option is specified for partition, it is overridden.
 CREATE TABLE oids_parted (
 	a int
-) PARTITION BY RANGE (a) ;
+) PARTITION BY RANGE (a);
 CREATE TABLE part_forced_oids PARTITION OF oids_parted FOR VALUES FROM (1) TO (10) WITHOUT OIDS;
 \d+ part_forced_oids
 DROP TABLE oids_parted;
@@ -600,9 +469,8 @@ CREATE TABLE list_parted2 (
 ) PARTITION BY LIST (a);
 CREATE TABLE part_null_z PARTITION OF list_parted2 FOR VALUES IN (null, 'z');
 CREATE TABLE part_ab PARTITION OF list_parted2 FOR VALUES IN ('a', 'b');
-CREATE TABLE list_parted2_def PARTITION OF list_parted2 DEFAULT;
+--CREATE TABLE list_parted2_def PARTITION OF list_parted2 DEFAULT;
 
-drop table if exists fail_part;
 CREATE TABLE fail_part PARTITION OF list_parted2 FOR VALUES IN (null);
 CREATE TABLE fail_part PARTITION OF list_parted2 FOR VALUES IN ('b', 'c');
 -- check default partition overlap
@@ -620,23 +488,18 @@ CREATE TABLE fail_part PARTITION OF range_parted2 FOR VALUES FROM (1) TO (1);
 
 CREATE TABLE part0 PARTITION OF range_parted2 FOR VALUES FROM (minvalue) TO (1);
 CREATE TABLE fail_part PARTITION OF range_parted2 FOR VALUES FROM (minvalue) TO (2);
-drop table if exists part1;
 CREATE TABLE part1 PARTITION OF range_parted2 FOR VALUES FROM (1) TO (10);
 CREATE TABLE fail_part PARTITION OF range_parted2 FOR VALUES FROM (9) TO (maxvalue);
-drop table if exists part2;
 CREATE TABLE part2 PARTITION OF range_parted2 FOR VALUES FROM (20) TO (30);
-drop table if exists part3;
 CREATE TABLE part3 PARTITION OF range_parted2 FOR VALUES FROM (30) TO (40);
-drop table if exists fail_part;
 CREATE TABLE fail_part PARTITION OF range_parted2 FOR VALUES FROM (10) TO (30);
-drop table if exists fail_part;
 CREATE TABLE fail_part PARTITION OF range_parted2 FOR VALUES FROM (10) TO (50);
 
 -- Create a default partition for range partitioned table
-CREATE TABLE range2_default PARTITION OF range_parted2 DEFAULT;
+--CREATE TABLE range2_default PARTITION OF range_parted2 DEFAULT;
 
 -- More than one default partition is not allowed, so this should give error
-CREATE TABLE fail_default_part PARTITION OF range_parted2 DEFAULT;
+--CREATE TABLE fail_default_part PARTITION OF range_parted2 DEFAULT;
 
 -- Check if the range for default partitions overlap
 INSERT INTO range_parted2 VALUES (85);
@@ -656,7 +519,7 @@ CREATE TABLE part10 PARTITION OF range_parted3 FOR VALUES FROM (1, minvalue) TO 
 CREATE TABLE part11 PARTITION OF range_parted3 FOR VALUES FROM (1, 1) TO (1, 10);
 CREATE TABLE part12 PARTITION OF range_parted3 FOR VALUES FROM (1, 10) TO (1, maxvalue);
 CREATE TABLE fail_part PARTITION OF range_parted3 FOR VALUES FROM (1, 10) TO (1, 20);
-CREATE TABLE range3_default PARTITION OF range_parted3 DEFAULT;
+--CREATE TABLE range3_default PARTITION OF range_parted3 DEFAULT;
 
 -- cannot create a partition that says column b is allowed to range
 -- from -infinity to +infinity, while there exist partitions that have
@@ -682,8 +545,7 @@ CREATE TABLE fail_part PARTITION OF hash_parted2 FOR VALUES WITH (MODULUS 8, REM
 
 CREATE TABLE parted (
 	a text,
-	b int NOT NULL DEFAULT 0,
-	CONSTRAINT check_a CHECK (length(a) > 0)
+	b int NOT NULL DEFAULT 0
 ) PARTITION BY LIST (a);
 
 CREATE TABLE part_a PARTITION OF parted FOR VALUES IN ('a');
@@ -698,14 +560,11 @@ SELECT attname, attislocal, attinhcount FROM pg_attribute
 -- first check the "column specified more than once" error
 CREATE TABLE part_b PARTITION OF parted (
 	b NOT NULL,
-	b DEFAULT 1,
-	b CHECK (b >= 0),
-	CONSTRAINT check_a CHECK (length(a) > 0)
+	b DEFAULT 1
 ) FOR VALUES IN ('b');
 
 CREATE TABLE part_b PARTITION OF parted (
-	b NOT NULL DEFAULT 1 CHECK (b >= 0),
-	CONSTRAINT check_a CHECK (length(a) > 0)
+	b NOT NULL DEFAULT 1
 ) FOR VALUES IN ('b');
 -- conislocal should be false for any merged constraints
 SELECT conislocal, coninhcount FROM pg_constraint WHERE conrelid = 'part_b'::regclass AND conname = 'check_a';
@@ -798,38 +657,9 @@ SELECT obj_description('parted_col_comment'::regclass);
 \d+ parted_col_comment
 DROP TABLE parted_col_comment;
 
--- list partitioning on array type column
-CREATE TABLE arrlp (a int[]) PARTITION BY LIST (a);
-CREATE TABLE arrlp12 PARTITION OF arrlp FOR VALUES IN ('{1}', '{2}');
-\d+ arrlp12
-DROP TABLE arrlp;
-
 -- partition on boolean column
 create table boolspart (a bool) partition by list (a);
 create table boolspart_t partition of boolspart for values in (true);
 create table boolspart_f partition of boolspart for values in (false);
 \d+ boolspart
 drop table boolspart;
-
--- partitions mixing temporary and permanent relations
-create table perm_parted (a int) partition by list (a);
-create temporary table temp_parted (a int) partition by list (a);
-create table perm_part partition of temp_parted default; -- error
-create temp table temp_part partition of perm_parted default; -- error
-create temp table temp_part partition of temp_parted default; -- ok
-drop table perm_parted cascade;
-drop table temp_parted cascade;
-
--- check that adding partitions to a table while it is being used is prevented
-create table tab_part_create (a int) partition by list (a);
-create or replace function func_part_create() returns trigger
-  language plpgsql as $$
-  begin
-    execute 'create table tab_part_create_1 partition of tab_part_create for values in (1)';
-    return null;
-  end $$;
-create trigger trig_part_create before insert on tab_part_create
-  for each statement execute procedure func_part_create();
-insert into tab_part_create values (1);
-drop table tab_part_create;
-drop function func_part_create();

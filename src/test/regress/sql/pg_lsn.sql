@@ -2,6 +2,7 @@
 -- PG_LSN
 --
 
+drop table if exists PG_LSN_TBL;
 CREATE TABLE PG_LSN_TBL (f1 pg_lsn);
 
 -- Largest and smallest input

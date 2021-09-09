@@ -1,8 +1,7 @@
 --
 -- ARRAYS
 --
-
-CREATE TABLE arrtest (
+CREATE temp TABLE arrtest (
 	a 			int2[],
 	b 			int4[][][],
 	c 			name[],
@@ -278,13 +277,13 @@ SELECT array_length(array_positions(ARRAY(SELECT 'AAAAAAAAAAAAAAAAAAAAAAAAA'::te
 DO $$
 DECLARE
   o int;
-  a int[] := ARRAY[1,2,3,2,3,1,2];
+  a int[] = ARRAY[1,2,3,2,3,1,2];
 BEGIN
-  o := array_position(a, 2);
+  o = array_position(a, 2);
   WHILE o IS NOT NULL
   LOOP
     RAISE NOTICE '%', o;
-    o := array_position(a, 2, o + 1);
+    o = array_position(a, 2, o + 1);
   END LOOP;
 END
 $$ LANGUAGE plpgsql;
@@ -474,7 +473,7 @@ SELECT max(f1), min(f1), max(f2), min(f2), max(f3), min(f3) FROM arraggtest;
 
 create type comptype as (f1 int, f2 text);
 
-create table comptable (c1 comptype, c2 comptype[]);
+create temp table comptable (c1 comptype, c2 comptype[]);
 
 -- XXX would like to not have to specify row() construct types here ...
 insert into comptable
@@ -633,7 +632,7 @@ insert into dest select array[row(f1,f1)::textandtext] from src;
 select length(md5((f1[1]).c2)) from dest;
 delete from src;
 select length(md5((f1[1]).c2)) from dest;
-truncate table src;
+delete from src;
 drop table src;
 select length(md5((f1[1]).c2)) from dest;
 drop table dest;

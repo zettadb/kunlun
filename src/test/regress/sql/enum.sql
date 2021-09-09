@@ -2,6 +2,12 @@
 -- Enum tests
 --
 
+DROP TABLE if exists enumtest_child;
+DROP TABLE if exists enumtest_parent;
+DROP TABLE if exists enumtest;
+DROP TABLE if exists enumtest_bogus_child;
+
+drop type if exists rainbow;
 CREATE TYPE rainbow AS ENUM ('red', 'orange', 'yellow', 'green', 'blue', 'purple');
 
 --
@@ -19,6 +25,7 @@ SELECT 'mauve'::rainbow;
 -- adding new values
 --
 
+drop type if exists planets;
 CREATE TYPE planets AS ENUM ( 'venus', 'earth', 'mars' );
 
 SELECT enumlabel, enumsortorder
@@ -33,9 +40,9 @@ FROM pg_enum
 WHERE enumtypid = 'planets'::regtype
 ORDER BY 2;
 
-ALTER TYPE planets ADD VALUE 'mercury' BEFORE 'venus';
-ALTER TYPE planets ADD VALUE 'saturn' BEFORE 'uranus';
-ALTER TYPE planets ADD VALUE 'jupiter' AFTER 'mars';
+--not supported: ALTER TYPE planets ADD VALUE 'mercury' BEFORE 'venus';
+--not supported: ALTER TYPE planets ADD VALUE 'saturn' BEFORE 'uranus';
+--not supported: ALTER TYPE planets ADD VALUE 'jupiter' AFTER 'mars';
 ALTER TYPE planets ADD VALUE 'neptune' AFTER 'uranus';
 
 SELECT enumlabel, enumsortorder
@@ -74,38 +81,39 @@ SELECT enum_last(NULL::planets);
 -- Test inserting so many values that we have to renumber
 --
 
+drop type if exists insenum;
 create type insenum as enum ('L1', 'L2');
 
-alter type insenum add value 'i1' before 'L2';
-alter type insenum add value 'i2' before 'L2';
-alter type insenum add value 'i3' before 'L2';
-alter type insenum add value 'i4' before 'L2';
-alter type insenum add value 'i5' before 'L2';
-alter type insenum add value 'i6' before 'L2';
-alter type insenum add value 'i7' before 'L2';
-alter type insenum add value 'i8' before 'L2';
-alter type insenum add value 'i9' before 'L2';
-alter type insenum add value 'i10' before 'L2';
-alter type insenum add value 'i11' before 'L2';
-alter type insenum add value 'i12' before 'L2';
-alter type insenum add value 'i13' before 'L2';
-alter type insenum add value 'i14' before 'L2';
-alter type insenum add value 'i15' before 'L2';
-alter type insenum add value 'i16' before 'L2';
-alter type insenum add value 'i17' before 'L2';
-alter type insenum add value 'i18' before 'L2';
-alter type insenum add value 'i19' before 'L2';
-alter type insenum add value 'i20' before 'L2';
-alter type insenum add value 'i21' before 'L2';
-alter type insenum add value 'i22' before 'L2';
-alter type insenum add value 'i23' before 'L2';
-alter type insenum add value 'i24' before 'L2';
-alter type insenum add value 'i25' before 'L2';
-alter type insenum add value 'i26' before 'L2';
-alter type insenum add value 'i27' before 'L2';
-alter type insenum add value 'i28' before 'L2';
-alter type insenum add value 'i29' before 'L2';
-alter type insenum add value 'i30' before 'L2';
+--not supported:alter type insenum add value 'i1' before 'L2';
+--alter type insenum add value 'i2' before 'L2';
+--alter type insenum add value 'i3' before 'L2';
+--alter type insenum add value 'i4' before 'L2';
+--alter type insenum add value 'i5' before 'L2';
+--alter type insenum add value 'i6' before 'L2';
+--alter type insenum add value 'i7' before 'L2';
+--alter type insenum add value 'i8' before 'L2';
+--alter type insenum add value 'i9' before 'L2';
+--alter type insenum add value 'i10' before 'L2';
+--alter type insenum add value 'i11' before 'L2';
+--alter type insenum add value 'i12' before 'L2';
+--alter type insenum add value 'i13' before 'L2';
+--alter type insenum add value 'i14' before 'L2';
+--alter type insenum add value 'i15' before 'L2';
+--alter type insenum add value 'i16' before 'L2';
+--alter type insenum add value 'i17' before 'L2';
+--alter type insenum add value 'i18' before 'L2';
+--alter type insenum add value 'i19' before 'L2';
+--alter type insenum add value 'i20' before 'L2';
+--alter type insenum add value 'i21' before 'L2';
+--alter type insenum add value 'i22' before 'L2';
+--alter type insenum add value 'i23' before 'L2';
+--alter type insenum add value 'i24' before 'L2';
+--alter type insenum add value 'i25' before 'L2';
+--alter type insenum add value 'i26' before 'L2';
+--alter type insenum add value 'i27' before 'L2';
+--alter type insenum add value 'i28' before 'L2';
+--alter type insenum add value 'i29' before 'L2';
+--alter type insenum add value 'i30' before 'L2';
 
 -- The exact values of enumsortorder will now depend on the local properties
 -- of float4, but in any reasonable implementation we should get at least
@@ -122,13 +130,10 @@ ORDER BY enumsortorder;
 --
 CREATE TABLE enumtest (col rainbow);
 INSERT INTO enumtest values ('red'), ('orange'), ('yellow'), ('green');
---
--- In Kunlun we don't support COPY command for now yet, so use insert stmt to replace it.
--- COPY enumtest FROM stdin;
--- blue
--- purple
--- \.
-INSERT INTO enumtest values ('blue'), ('purple');
+COPY enumtest FROM stdin;
+blue
+purple
+\.
 SELECT * FROM enumtest;
 
 --
@@ -189,13 +194,13 @@ RESET enable_seqscan;
 RESET enable_bitmapscan;
 
 --
--- Domains over enums
+-- Domains over enums, not supported in Kunlun
 --
-CREATE DOMAIN rgb AS rainbow CHECK (VALUE IN ('red', 'green', 'blue'));
-SELECT 'red'::rgb;
-SELECT 'purple'::rgb;
-SELECT 'purple'::rainbow::rgb;
-DROP DOMAIN rgb;
+-- CREATE DOMAIN rgb AS rainbow CHECK (VALUE IN ('red', 'green', 'blue'));
+-- SELECT 'red'::rgb;
+-- SELECT 'purple'::rgb;
+-- SELECT 'purple'::rainbow::rgb;
+-- DROP DOMAIN rgb;
 
 --
 -- Arrays
@@ -248,28 +253,29 @@ DROP FUNCTION echo_me(rainbow);
 -- RI triggers on enum types
 --
 CREATE TABLE enumtest_parent (id rainbow PRIMARY KEY);
-CREATE TABLE enumtest_child (parent rainbow REFERENCES enumtest_parent);
+CREATE TABLE enumtest_child (parent rainbow);
 INSERT INTO enumtest_parent VALUES ('red');
 INSERT INTO enumtest_child VALUES ('red');
-INSERT INTO enumtest_child VALUES ('blue');  -- fail
-DELETE FROM enumtest_parent;  -- fail
+INSERT INTO enumtest_child VALUES ('blue');
+DELETE FROM enumtest_parent;
 --
 -- cross-type RI should fail
 --
+drop type if exists bogus;
 CREATE TYPE bogus AS ENUM('good', 'bad', 'ugly');
-CREATE TABLE enumtest_bogus_child(parent bogus REFERENCES enumtest_parent);
+CREATE TABLE enumtest_bogus_child(parent bogus);
 DROP TYPE bogus;
 
 -- check renaming a value
-ALTER TYPE rainbow RENAME VALUE 'red' TO 'crimson';
+-- not supported: ALTER TYPE rainbow RENAME VALUE 'red' TO 'crimson';
 SELECT enumlabel, enumsortorder
 FROM pg_enum
 WHERE enumtypid = 'rainbow'::regtype
 ORDER BY 2;
 -- check that renaming a non-existent value fails
-ALTER TYPE rainbow RENAME VALUE 'red' TO 'crimson';
+-- not supported: ALTER TYPE rainbow RENAME VALUE 'red' TO 'crimson';
 -- check that renaming to an existent value fails
-ALTER TYPE rainbow RENAME VALUE 'blue' TO 'green';
+-- not supported: ALTER TYPE rainbow RENAME VALUE 'blue' TO 'green';
 
 --
 -- check transactional behaviour of ALTER TYPE ... ADD VALUE
@@ -284,13 +290,13 @@ COMMIT;
 -- check that we recognize the case where the enum already existed but was
 -- modified in the current txn
 BEGIN;
-ALTER TYPE bogus RENAME TO bogon;
+-- not supported: ALTER TYPE bogus RENAME TO bogon;
 ALTER TYPE bogon ADD VALUE 'bad';
 ROLLBACK;
 
 -- but ALTER TYPE RENAME VALUE is safe in a transaction
 BEGIN;
-ALTER TYPE bogus RENAME VALUE 'good' to 'bad';
+-- not supported: ALTER TYPE bogus RENAME VALUE 'good' to 'bad';
 SELECT 'bad'::bogus;
 ROLLBACK;
 
@@ -310,6 +316,7 @@ ROLLBACK;
 DROP TABLE enumtest_child;
 DROP TABLE enumtest_parent;
 DROP TABLE enumtest;
+DROP TABLE enumtest_bogus_child;
 DROP TYPE rainbow;
 
 --

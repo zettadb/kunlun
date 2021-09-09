@@ -15,7 +15,7 @@ SELECT INTERVAL '1.5 weeks' AS "Ten days twelve hours";
 SELECT INTERVAL '1.5 months' AS "One month 15 days";
 SELECT INTERVAL '10 years -11 month -12 days +13:14' AS "9 years...";
 
-CREATE TABLE INTERVAL_TBL (f1 interval);
+CREATE TEMP TABLE INTERVAL_TBL (f1 interval);
 
 INSERT INTO INTERVAL_TBL (f1) VALUES ('@ 1 minute');
 INSERT INTO INTERVAL_TBL (f1) VALUES ('@ 5 hour');
@@ -95,7 +95,7 @@ DROP TABLE INTERVAL_TBL_OF;
 -- some time components be greater than 23:59:59 due to how intervals are
 -- stored internally.
 
-CREATE TABLE INTERVAL_MULDIV_TBL (span interval);
+CREATE TEMP TABLE INTERVAL_MULDIV_TBL (span interval);
 COPY INTERVAL_MULDIV_TBL FROM STDIN;
 41 mon 12 days 360:00
 -41 mon -12 days +360:00
@@ -296,15 +296,15 @@ select '30 days'::interval = '1 month'::interval as t;
 select interval_hash('30 days'::interval) = interval_hash('1 month'::interval) as t;
 
 -- numeric constructor
-select make_interval(years := 2);
-select make_interval(years := 1, months := 6);
-select make_interval(years := 1, months := -1, weeks := 5, days := -7, hours := 25, mins := -180);
+select make_interval(years = 2);
+select make_interval(years = 1, months = 6);
+select make_interval(years = 1, months = -1, weeks = 5, days = -7, hours = 25, mins = -180);
 
-select make_interval() = make_interval(years := 0, months := 0, weeks := 0, days := 0, mins := 0, secs := 0.0);
-select make_interval(hours := -2, mins := -10, secs := -25.3);
+select make_interval() = make_interval(years = 0, months = 0, weeks = 0, days = 0, mins = 0, secs = 0.0);
+select make_interval(hours = -2, mins = -10, secs = -25.3);
 
-select make_interval(years := 'inf'::float::int);
-select make_interval(months := 'NaN'::float::int);
-select make_interval(secs := 'inf');
-select make_interval(secs := 'NaN');
-select make_interval(secs := 7e12);
+select make_interval(years = 'inf'::float::int);
+select make_interval(months = 'NaN'::float::int);
+select make_interval(secs = 'inf');
+select make_interval(secs = 'NaN');
+select make_interval(secs = 7e12);

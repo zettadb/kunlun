@@ -7,6 +7,7 @@ CREATE USER regress_dep_user2;
 CREATE USER regress_dep_user3;
 CREATE GROUP regress_dep_group;
 
+drop table if exists deptest;
 CREATE TABLE deptest (f1 serial primary key, f2 text);
 
 GRANT SELECT ON TABLE deptest TO GROUP regress_dep_group;
@@ -44,19 +45,11 @@ DROP USER regress_dep_user3;
 DROP TABLE deptest;
 DROP USER regress_dep_user3;
 
--- Test DROP OWNED
 CREATE USER regress_dep_user0;
 CREATE USER regress_dep_user1;
 CREATE USER regress_dep_user2;
-SET SESSION AUTHORIZATION regress_dep_user0;
--- permission denied
-DROP OWNED BY regress_dep_user1;
-DROP OWNED BY regress_dep_user0, regress_dep_user2;
-REASSIGN OWNED BY regress_dep_user0 TO regress_dep_user1;
-REASSIGN OWNED BY regress_dep_user1 TO regress_dep_user0;
--- this one is allowed
-DROP OWNED BY regress_dep_user0;
 
+drop table if exists deptest1;
 CREATE TABLE deptest1 (f1 int unique);
 GRANT ALL ON deptest1 TO regress_dep_user1 WITH GRANT OPTION;
 
@@ -66,15 +59,15 @@ GRANT ALL ON deptest1 TO regress_dep_user2;
 RESET SESSION AUTHORIZATION;
 \z deptest1
 
-DROP OWNED BY regress_dep_user1;
 -- all grants revoked
 \z deptest1
 -- table was dropped
 \d deptest
+drop table deptest;
 
 -- Test REASSIGN OWNED
 GRANT ALL ON deptest1 TO regress_dep_user1;
-GRANT CREATE ON DATABASE regression TO regress_dep_user1;
+GRANT CREATE ON DATABASE postgres TO regress_dep_user1;
 
 SET SESSION AUTHORIZATION regress_dep_user1;
 CREATE SCHEMA deptest;
@@ -107,11 +100,26 @@ FROM pg_type JOIN pg_class c ON typrelid = c.oid WHERE typname = 'deptest_t';
 
 -- doesn't work: grant still exists
 DROP USER regress_dep_user1;
-DROP OWNED BY regress_dep_user1;
+ALTER DEFAULT PRIVILEGES FOR ROLE regress_dep_user1 IN SCHEMA deptest
+  REVOKE ALL ON TABLES FROM regress_dep_user2;
+REVOKE ALL ON deptest1 FROM regress_dep_user1 cascade;
+REVOKE CREATE ON DATABASE postgres FROM regress_dep_user1;
 DROP USER regress_dep_user1;
+
+DROP FUNCTION deptest_func();
+DROP TYPE deptest_enum;
+DROP TYPE deptest_range;
+DROP TABLE deptest2 cascade;
+DROP SEQUENCE ss1 cascade;
+DROP TYPE deptest_t;
+
+DROP SCHEMA deptest;
 
 \set VERBOSITY terse
 DROP USER regress_dep_user2;
-DROP OWNED BY regress_dep_user2, regress_dep_user0;
+drop sequence sequence deptest_a_seq cascade;
+drop table deptest cascade;
 DROP USER regress_dep_user2;
 DROP USER regress_dep_user0;
+
+

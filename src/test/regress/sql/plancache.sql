@@ -2,7 +2,8 @@
 -- Tests to exercise the plan caching/invalidation mechanism
 --
 
-CREATE TEMP TABLE pcachetest AS SELECT * FROM int8_tbl;
+CREATE TEMP TABLE pcachetest(like int8_tbl);
+insert into pcachetest SELECT * FROM int8_tbl;
 
 -- create and use a cached plan
 PREPARE prepstmt AS SELECT * FROM pcachetest;
@@ -22,7 +23,8 @@ EXECUTE prepstmt2(123);
 
 -- recreate the temp table (this demonstrates that the raw plan is
 -- purely textual and doesn't depend on OIDs, for instance)
-CREATE TEMP TABLE pcachetest AS SELECT * FROM int8_tbl ORDER BY 2;
+CREATE TEMP TABLE pcachetest(like int8_tbl);
+insert into pcachetest SELECT * FROM int8_tbl ORDER BY 2;
 
 EXECUTE prepstmt;
 EXECUTE prepstmt2(123);
@@ -56,6 +58,7 @@ EXECUTE vprep;
 
 -- Check basic SPI plan invalidation
 
+drop function if exists cache_test(int);
 create function cache_test(int) returns int as $$
 declare total int;
 begin
@@ -79,6 +82,7 @@ select cache_test(3);
 create temp view v1 as
   select 2+2 as f1;
 
+drop function if exists cache_test_2();
 create function cache_test_2() returns int as $$
 begin
 	return f1 from v1;
@@ -96,11 +100,11 @@ select cache_test_2();
 
 --- Check that change of search_path is honored when re-using cached plan
 
-create schema s1
-  create table abc (f1 int);
+create schema s1;
+create table s1.abc (f1 int);
 
-create schema s2
-  create table abc (f1 int);
+create schema s2;
+create table s2.abc (f1 int);
 
 insert into s1.abc values(123);
 insert into s2.abc values(456);
@@ -121,10 +125,12 @@ alter table s1.abc add column f2 float8;   -- force replan
 
 execute p1;
 
-drop schema s1 cascade;
-drop schema s2 cascade;
-
 reset search_path;
+
+drop table s1.abc cascade;
+drop schema s1 cascade;
+drop table s2.abc cascade;
+drop schema s2 cascade;
 
 -- Check that invalidation deals with regclass constants
 
@@ -143,11 +149,13 @@ execute p2;
 -- Check DDL via SPI, immediately followed by SPI plan re-use
 -- (bug in original coding)
 
+drop function if exists cachebug();
 create function cachebug() returns void as $$
 declare r int;
 begin
   drop table if exists temptable cascade;
-  create temp table temptable as select * from generate_series(1,3) as f1;
+  create temp table temptable(f1 int);
+  insert into temptable select * from generate_series(1,3) as f1;
   create temp view vv as select * from temptable;
   for r in select * from vv loop
     raise notice '%', r;
@@ -162,18 +170,10 @@ select cachebug();
 create table pc_list_parted (a int) partition by list(a);
 create table pc_list_part_null partition of pc_list_parted for values in (null);
 create table pc_list_part_1 partition of pc_list_parted for values in (1);
-create table pc_list_part_def partition of pc_list_parted default;
-prepare pstmt_def_insert (int) as insert into pc_list_part_def values($1);
--- should fail
-execute pstmt_def_insert(null);
-execute pstmt_def_insert(1);
 create table pc_list_part_2 partition of pc_list_parted for values in (2);
-execute pstmt_def_insert(2);
 alter table pc_list_parted detach partition pc_list_part_null;
 -- should be ok
-execute pstmt_def_insert(null);
 drop table pc_list_part_1;
 -- should be ok
-execute pstmt_def_insert(1);
-drop table pc_list_parted, pc_list_part_null;
-deallocate pstmt_def_insert;
+drop table pc_list_parted;
+drop table pc_list_part_null;

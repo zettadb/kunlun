@@ -4,7 +4,7 @@
 -- polygon logic
 --
 
-CREATE TABLE POLYGON_TBL(f1 polygon);
+CREATE TEMP TABLE POLYGON_TBL(f1 polygon);
 
 
 INSERT INTO POLYGON_TBL(f1) VALUES ('(2.0,0.0),(2.0,4.0),(0.0,0.0)');
@@ -121,7 +121,7 @@ SELECT	'(0,0)'::point <-> '((0,0),(1,2),(2,1))'::polygon as on_corner,
 -- Test the SP-GiST index
 --
 
-CREATE TABLE quad_poly_tbl (id int, p polygon);
+CREATE TEMP TABLE quad_poly_tbl (id int, p polygon);
 
 INSERT INTO quad_poly_tbl
 	SELECT (x - 1) * 100 + y, polygon(circle(point(x * 10, y * 10), 1 + (x + y) % 10))
@@ -139,24 +139,6 @@ INSERT INTO quad_poly_tbl
 		(11003, NULL);
 
 CREATE INDEX quad_poly_tbl_idx ON quad_poly_tbl USING spgist(p);
-
--- get reference results for ORDER BY distance from seq scan
-SET enable_seqscan = ON;
-SET enable_indexscan = OFF;
-SET enable_bitmapscan = OFF;
-
-CREATE TABLE quad_poly_tbl_ord_seq1 AS
-SELECT rank() OVER (ORDER BY p <-> point '123,456') n, p <-> point '123,456' dist, id
-FROM quad_poly_tbl;
-
-CREATE TABLE quad_poly_tbl_ord_seq2 AS
-SELECT rank() OVER (ORDER BY p <-> point '123,456') n, p <-> point '123,456' dist, id
-FROM quad_poly_tbl WHERE p <@ polygon '((300,300),(400,600),(600,500),(700,200))';
-
--- check results results from index scan
-SET enable_seqscan = OFF;
-SET enable_indexscan = OFF;
-SET enable_bitmapscan = ON;
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM quad_poly_tbl WHERE p << polygon '((300,300),(400,600),(600,500),(700,200))';

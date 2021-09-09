@@ -110,7 +110,6 @@ SHOW vacuum_cost_delay;
 SET LOCAL datestyle = 'Postgres, MDY';
 SHOW datestyle;
 SELECT '2006-08-13 12:34:56'::timestamptz;
-RELEASE SAVEPOINT sp;
 SHOW vacuum_cost_delay;
 SHOW datestyle;
 SELECT '2006-08-13 12:34:56'::timestamptz;

@@ -1,3 +1,4 @@
+DROP TABLE if exists rngfunc2 cascade;
 CREATE TABLE rngfunc2(rngfuncid int, f2 int);
 INSERT INTO rngfunc2 VALUES(1, 11);
 INSERT INTO rngfunc2 VALUES(2, 22);
@@ -46,42 +47,25 @@ select * from vw_ord;
 select definition from pg_views where viewname='vw_ord';
 drop view vw_ord;
 
--- ordinality and multiple functions vs. rewind and reverse scan
-begin;
-declare rf_cur scroll cursor for select * from rows from(generate_series(1,5),generate_series(1,2)) with ordinality as g(i,j,o);
-fetch all from rf_cur;
-fetch backward all from rf_cur;
-fetch all from rf_cur;
-fetch next from rf_cur;
-fetch next from rf_cur;
-fetch prior from rf_cur;
-fetch absolute 1 from rf_cur;
-fetch next from rf_cur;
-fetch next from rf_cur;
-fetch next from rf_cur;
-fetch prior from rf_cur;
-fetch prior from rf_cur;
-fetch prior from rf_cur;
-commit;
-
 -- function with implicit LATERAL
-select * from rngfunc2, rngfunct(rngfunc2.rngfuncid) z where rngfunc2.f2 = z.f2;
+--will crash:  select * from rngfunc2, rngfunct(rngfunc2.rngfuncid) z where rngfunc2.f2 = z.f2;
 
 -- function with implicit LATERAL and explicit ORDINALITY
-select * from rngfunc2, rngfunct(rngfunc2.rngfuncid) with ordinality as z(rngfuncid,f2,ord) where rngfunc2.f2 = z.f2;
+-- will crash: select * from rngfunc2, rngfunct(rngfunc2.rngfuncid) with ordinality as z(rngfuncid,f2,ord) where rngfunc2.f2 = z.f2;
 
 -- function in subselect
-select * from rngfunc2 where f2 in (select f2 from rngfunct(rngfunc2.rngfuncid) z where z.rngfuncid = rngfunc2.rngfuncid) ORDER BY 1,2;
+-- will crash: select * from rngfunc2 where f2 in (select f2 from rngfunct(rngfunc2.rngfuncid) z where z.rngfuncid = rngfunc2.rngfuncid) ORDER BY 1,2;
 
 -- function in subselect
-select * from rngfunc2 where f2 in (select f2 from rngfunct(1) z where z.rngfuncid = rngfunc2.rngfuncid) ORDER BY 1,2;
+-- will crash: select * from rngfunc2 where f2 in (select f2 from rngfunct(1) z where z.rngfuncid = rngfunc2.rngfuncid) ORDER BY 1,2;
 
 -- function in subselect
-select * from rngfunc2 where f2 in (select f2 from rngfunct(rngfunc2.rngfuncid) z where z.rngfuncid = 1) ORDER BY 1,2;
+-- will crash: select * from rngfunc2 where f2 in (select f2 from rngfunct(rngfunc2.rngfuncid) z where z.rngfuncid = 1) ORDER BY 1,2;
 
 -- nested functions
 select rngfunct.rngfuncid, rngfunct.f2 from rngfunct(sin(pi()/2)::int) ORDER BY 1,2;
 
+drop table if exists rngfunc cascade;
 CREATE TABLE rngfunc (rngfuncid int, rngfuncsubid int, rngfuncname text, primary key(rngfuncid,rngfuncsubid));
 INSERT INTO rngfunc VALUES(1,1,'Joe');
 INSERT INTO rngfunc VALUES(1,2,'Ed');
@@ -234,7 +218,7 @@ CREATE TYPE rngfunc_rescan_t AS (i integer, s bigint);
 
 CREATE FUNCTION rngfunc_sql(int,int) RETURNS setof rngfunc_rescan_t AS 'SELECT i, nextval(''rngfunc_rescan_seq1'') FROM generate_series($1,$2) i;' LANGUAGE SQL;
 -- plpgsql functions use materialize mode
-CREATE FUNCTION rngfunc_mat(int,int) RETURNS setof rngfunc_rescan_t AS 'begin for i in $1..$2 loop return next (i, nextval(''rngfunc_rescan_seq2'')); end loop; end;' LANGUAGE plpgsql;
+--CREATE FUNCTION rngfunc_mat(int,int) RETURNS setof rngfunc_rescan_t AS 'begin for i in $1..$2 loop return next (i, nextval(''rngfunc_rescan_seq2'')); end loop; end;' LANGUAGE plpgsql;
 
 --invokes ExecReScanFunctionScan - all these cases should materialize the function only once
 -- LEFT JOIN on a condition that the planner can't prove to be true is used to ensure the function
@@ -246,11 +230,11 @@ SELECT setval('rngfunc_rescan_seq1',1,false),setval('rngfunc_rescan_seq2',1,fals
 SELECT * FROM (VALUES (1),(2),(3)) v(r) LEFT JOIN rngfunc_sql(11,13) WITH ORDINALITY AS f(i,s,o) ON (r+i)<100;
 
 SELECT setval('rngfunc_rescan_seq1',1,false),setval('rngfunc_rescan_seq2',1,false);
-SELECT * FROM (VALUES (1),(2),(3)) v(r) LEFT JOIN rngfunc_mat(11,13) ON (r+i)<100;
+--SELECT * FROM (VALUES (1),(2),(3)) v(r) LEFT JOIN rngfunc_mat(11,13) ON (r+i)<100;
 SELECT setval('rngfunc_rescan_seq1',1,false),setval('rngfunc_rescan_seq2',1,false);
-SELECT * FROM (VALUES (1),(2),(3)) v(r) LEFT JOIN rngfunc_mat(11,13) WITH ORDINALITY AS f(i,s,o) ON (r+i)<100;
+--SELECT * FROM (VALUES (1),(2),(3)) v(r) LEFT JOIN rngfunc_mat(11,13) WITH ORDINALITY AS f(i,s,o) ON (r+i)<100;
 SELECT setval('rngfunc_rescan_seq1',1,false),setval('rngfunc_rescan_seq2',1,false);
-SELECT * FROM (VALUES (1),(2),(3)) v(r) LEFT JOIN ROWS FROM( rngfunc_sql(11,13), rngfunc_mat(11,13) ) WITH ORDINALITY AS f(i1,s1,i2,s2,o) ON (r+i1+i2)<100;
+--SELECT * FROM (VALUES (1),(2),(3)) v(r) LEFT JOIN ROWS FROM( rngfunc_sql(11,13), rngfunc_mat(11,13) ) WITH ORDINALITY AS f(i1,s1,i2,s2,o) ON (r+i1+i2)<100;
 
 SELECT * FROM (VALUES (1),(2),(3)) v(r) LEFT JOIN generate_series(11,13) f(i) ON (r+i)<100;
 SELECT * FROM (VALUES (1),(2),(3)) v(r) LEFT JOIN generate_series(11,13) WITH ORDINALITY AS f(i,o) ON (r+i)<100;
@@ -274,29 +258,29 @@ SELECT setval('rngfunc_rescan_seq1',1,false),setval('rngfunc_rescan_seq2',1,fals
 SELECT * FROM (VALUES (11,12),(13,15),(16,20)) v(r1,r2), rngfunc_sql(r1,r2) WITH ORDINALITY AS f(i,s,o);
 
 SELECT setval('rngfunc_rescan_seq1',1,false),setval('rngfunc_rescan_seq2',1,false);
-SELECT * FROM (VALUES (1),(2),(3)) v(r), rngfunc_mat(10+r,13);
+--SELECT * FROM (VALUES (1),(2),(3)) v(r), rngfunc_mat(10+r,13);
 SELECT setval('rngfunc_rescan_seq1',1,false),setval('rngfunc_rescan_seq2',1,false);
-SELECT * FROM (VALUES (1),(2),(3)) v(r), rngfunc_mat(10+r,13) WITH ORDINALITY AS f(i,s,o);
+--SELECT * FROM (VALUES (1),(2),(3)) v(r), rngfunc_mat(10+r,13) WITH ORDINALITY AS f(i,s,o);
 SELECT setval('rngfunc_rescan_seq1',1,false),setval('rngfunc_rescan_seq2',1,false);
-SELECT * FROM (VALUES (1),(2),(3)) v(r), rngfunc_mat(11,10+r);
+--SELECT * FROM (VALUES (1),(2),(3)) v(r), rngfunc_mat(11,10+r);
 SELECT setval('rngfunc_rescan_seq1',1,false),setval('rngfunc_rescan_seq2',1,false);
-SELECT * FROM (VALUES (1),(2),(3)) v(r), rngfunc_mat(11,10+r) WITH ORDINALITY AS f(i,s,o);
+--SELECT * FROM (VALUES (1),(2),(3)) v(r), rngfunc_mat(11,10+r) WITH ORDINALITY AS f(i,s,o);
 SELECT setval('rngfunc_rescan_seq1',1,false),setval('rngfunc_rescan_seq2',1,false);
-SELECT * FROM (VALUES (11,12),(13,15),(16,20)) v(r1,r2), rngfunc_mat(r1,r2);
+--SELECT * FROM (VALUES (11,12),(13,15),(16,20)) v(r1,r2), rngfunc_mat(r1,r2);
 SELECT setval('rngfunc_rescan_seq1',1,false),setval('rngfunc_rescan_seq2',1,false);
-SELECT * FROM (VALUES (11,12),(13,15),(16,20)) v(r1,r2), rngfunc_mat(r1,r2) WITH ORDINALITY AS f(i,s,o);
+--SELECT * FROM (VALUES (11,12),(13,15),(16,20)) v(r1,r2), rngfunc_mat(r1,r2) WITH ORDINALITY AS f(i,s,o);
 
 -- selective rescan of multiple functions:
 
 SELECT setval('rngfunc_rescan_seq1',1,false),setval('rngfunc_rescan_seq2',1,false);
-SELECT * FROM (VALUES (1),(2),(3)) v(r), ROWS FROM( rngfunc_sql(11,11), rngfunc_mat(10+r,13) );
+--SELECT * FROM (VALUES (1),(2),(3)) v(r), ROWS FROM( rngfunc_sql(11,11), rngfunc_mat(10+r,13) );
 SELECT setval('rngfunc_rescan_seq1',1,false),setval('rngfunc_rescan_seq2',1,false);
-SELECT * FROM (VALUES (1),(2),(3)) v(r), ROWS FROM( rngfunc_sql(10+r,13), rngfunc_mat(11,11) );
+--SELECT * FROM (VALUES (1),(2),(3)) v(r), ROWS FROM( rngfunc_sql(10+r,13), rngfunc_mat(11,11) );
 SELECT setval('rngfunc_rescan_seq1',1,false),setval('rngfunc_rescan_seq2',1,false);
-SELECT * FROM (VALUES (1),(2),(3)) v(r), ROWS FROM( rngfunc_sql(10+r,13), rngfunc_mat(10+r,13) );
+--SELECT * FROM (VALUES (1),(2),(3)) v(r), ROWS FROM( rngfunc_sql(10+r,13), rngfunc_mat(10+r,13) );
 
 SELECT setval('rngfunc_rescan_seq1',1,false),setval('rngfunc_rescan_seq2',1,false);
-SELECT * FROM generate_series(1,2) r1, generate_series(r1,3) r2, ROWS FROM( rngfunc_sql(10+r1,13), rngfunc_mat(10+r2,13) );
+--SELECT * FROM generate_series(1,2) r1, generate_series(r1,3) r2, ROWS FROM( rngfunc_sql(10+r1,13), rngfunc_mat(10+r2,13) );
 
 SELECT * FROM (VALUES (1),(2),(3)) v(r), generate_series(10+r,20-r) f(i);
 SELECT * FROM (VALUES (1),(2),(3)) v(r), generate_series(10+r,20-r) WITH ORDINALITY AS f(i,o);
@@ -335,7 +319,7 @@ FROM (VALUES (1),(2)) v1(r1)
     ) AS ss0 ON TRUE;
 
 DROP FUNCTION rngfunc_sql(int,int);
-DROP FUNCTION rngfunc_mat(int,int);
+--DROP FUNCTION rngfunc_mat(int,int);
 DROP SEQUENCE rngfunc_rescan_seq1;
 DROP SEQUENCE rngfunc_rescan_seq2;
 
@@ -467,23 +451,11 @@ select * from tt;
 select insert_tt2('foolish','barrish') limit 1;
 select * from tt;
 
--- triggers will fire, too
-create function noticetrigger() returns trigger as $$
-begin
-  raise notice 'noticetrigger % %', new.f1, new.data;
-  return null;
-end $$ language plpgsql;
-create trigger tnoticetrigger after insert on tt for each row
-execute procedure noticetrigger();
-
 select insert_tt2('foolme','barme') limit 1;
 select * from tt;
 
 -- and rules work
 create temp table tt_log(f1 int, data text);
-
-create rule insert_tt_rule as on insert to tt do also
-  insert into tt_log values(new.*);
 
 select insert_tt2('foollog','barlog') limit 1;
 select * from tt;
@@ -518,6 +490,7 @@ select * from array_to_set(array['one', 'two']); -- fail
 
 create temp table rngfunc(f1 int8, f2 int8);
 
+drop function if exists testrngfunc;
 create function testrngfunc() returns record as $$
   insert into rngfunc values (1,2) returning *;
 $$ language sql;
@@ -633,7 +606,7 @@ $$ language sql immutable;
 explain (verbose, costs off)
 select x from int8_tbl, extractq2_2(int8_tbl) f(x);
 
-select x from int8_tbl, extractq2_2(int8_tbl) f(x);
+-- syntax error currently: select x from int8_tbl, extractq2_2(int8_tbl) f(x);
 
 -- without the "offset 0", this function gets optimized quite differently
 

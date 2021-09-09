@@ -17,8 +17,6 @@ DROP ROLE IF EXISTS regress_priv_user4;
 DROP ROLE IF EXISTS regress_priv_user5;
 DROP ROLE IF EXISTS regress_priv_user6;
 
-SELECT lo_unlink(oid) FROM pg_largeobject_metadata WHERE oid >= 1000 AND oid < 3000 ORDER BY oid;
-
 RESET client_min_messages;
 
 -- test proper begins here
@@ -44,12 +42,13 @@ GRANT regress_priv_group2 TO regress_priv_user4 WITH ADMIN OPTION;
 SET SESSION AUTHORIZATION regress_priv_user1;
 SELECT session_user, current_user;
 
+DROP TABLE if exists atest1;
 CREATE TABLE atest1 ( a int, b text );
 SELECT * FROM atest1;
 INSERT INTO atest1 VALUES (1, 'one');
 DELETE FROM atest1;
 UPDATE atest1 SET a = 1 WHERE b = 'blech';
-TRUNCATE atest1;
+delete from atest1;
 BEGIN;
 LOCK atest1 IN ACCESS EXCLUSIVE MODE;
 COMMIT;
@@ -61,11 +60,11 @@ GRANT ALL ON atest1 TO regress_priv_user2;
 GRANT SELECT ON atest1 TO regress_priv_user3, regress_priv_user4;
 SELECT * FROM atest1;
 
+drop table if exists atest2;
 CREATE TABLE atest2 (col1 varchar(10), col2 boolean);
 GRANT SELECT ON atest2 TO regress_priv_user2;
 GRANT UPDATE ON atest2 TO regress_priv_user3;
 GRANT INSERT ON atest2 TO regress_priv_user4;
-GRANT TRUNCATE ON atest2 TO regress_priv_user5;
 
 
 SET SESSION AUTHORIZATION regress_priv_user2;
@@ -80,10 +79,8 @@ INSERT INTO atest2 VALUES ('foo', true); -- fail
 INSERT INTO atest1 SELECT 1, b FROM atest1; -- ok
 UPDATE atest1 SET a = 1 WHERE a = 2; -- ok
 UPDATE atest2 SET col2 = NOT col2; -- fail
-SELECT * FROM atest1 FOR UPDATE; -- ok
-SELECT * FROM atest2 FOR UPDATE; -- fail
 DELETE FROM atest2; -- fail
-TRUNCATE atest2; -- fail
+delete from atest2; -- fail
 BEGIN;
 LOCK atest2 IN ACCESS EXCLUSIVE MODE; -- fail
 COMMIT;
@@ -93,7 +90,6 @@ GRANT ALL ON atest1 TO PUBLIC; -- fail
 -- checks in subquery, both ok
 SELECT * FROM atest1 WHERE ( b IN ( SELECT col1 FROM atest2 ) );
 SELECT * FROM atest2 WHERE ( col1 IN ( SELECT b FROM atest1 ) );
-
 
 SET SESSION AUTHORIZATION regress_priv_user3;
 SELECT session_user, current_user;
@@ -106,24 +102,16 @@ INSERT INTO atest1 SELECT 1, b FROM atest1; -- fail
 UPDATE atest1 SET a = 1 WHERE a = 2; -- fail
 UPDATE atest2 SET col2 = NULL; -- ok
 UPDATE atest2 SET col2 = NOT col2; -- fails; requires SELECT on atest2
-UPDATE atest2 SET col2 = true FROM atest1 WHERE atest1.a = 5; -- ok
-SELECT * FROM atest1 FOR UPDATE; -- fail
-SELECT * FROM atest2 FOR UPDATE; -- fail
-DELETE FROM atest2; -- fail
-TRUNCATE atest2; -- fail
+delete from atest2; -- fail
 BEGIN;
 LOCK atest2 IN ACCESS EXCLUSIVE MODE; -- ok
 COMMIT;
-COPY atest2 FROM stdin; -- fail
 
 -- checks in subquery, both fail
 SELECT * FROM atest1 WHERE ( b IN ( SELECT col1 FROM atest2 ) );
 SELECT * FROM atest2 WHERE ( col1 IN ( SELECT b FROM atest1 ) );
 
 SET SESSION AUTHORIZATION regress_priv_user4;
-COPY atest2 FROM stdin; -- ok
-bar	true
-\.
 SELECT * FROM atest1; -- ok
 
 
@@ -132,11 +120,10 @@ SELECT * FROM atest1; -- ok
 -- regress_priv_user1 will own a table and provide views for it.
 SET SESSION AUTHORIZATION regress_priv_user1;
 
-CREATE TABLE atest12 as
-  SELECT x AS a, 10001 - x AS b FROM generate_series(1,10000) x;
+drop table if exists atest12;
+create table atest12(a int, b int);
+insert into atest12 SELECT x AS a, 10001 - x AS b FROM generate_series(1,10000) x;
 CREATE INDEX ON atest12 (a);
-CREATE INDEX ON atest12 (abs(a));
-VACUUM ANALYZE atest12;
 
 CREATE FUNCTION leak(integer,integer) RETURNS boolean
   AS $$begin return $1 < $2; end$$
@@ -147,7 +134,7 @@ CREATE OPERATOR <<< (procedure = leak, leftarg = integer, rightarg = integer,
 -- views with leaky operator
 CREATE VIEW atest12v AS
   SELECT * FROM atest12 WHERE b <<< 5;
-CREATE VIEW atest12sbv WITH (security_barrier=true) AS
+CREATE VIEW atest12sbv AS
   SELECT * FROM atest12 WHERE b <<< 5;
 GRANT SELECT ON atest12v TO PUBLIC;
 GRANT SELECT ON atest12sbv TO PUBLIC;
@@ -208,6 +195,7 @@ DROP FUNCTION leak2(integer, integer) CASCADE;
 -- groups
 
 SET SESSION AUTHORIZATION regress_priv_user3;
+drop table if exists atest3;
 CREATE TABLE atest3 (one int, two int, three int);
 GRANT DELETE ON atest3 TO GROUP regress_priv_group2;
 
@@ -272,7 +260,9 @@ SELECT * FROM atestv2; -- fail (even though regress_priv_user2 can access underl
 -- Test column level permissions
 
 SET SESSION AUTHORIZATION regress_priv_user1;
+drop table if exists atest5;
 CREATE TABLE atest5 (one int, two int unique, three int, four int unique);
+drop table if exists atest6;
 CREATE TABLE atest6 (one int, two int, blue int);
 GRANT SELECT (one), INSERT (two), UPDATE (three) ON atest5 TO regress_priv_user4;
 GRANT ALL (one) ON atest5 TO regress_priv_user3;
@@ -282,11 +272,8 @@ INSERT INTO atest5 VALUES (1,2,3);
 SET SESSION AUTHORIZATION regress_priv_user4;
 SELECT * FROM atest5; -- fail
 SELECT one FROM atest5; -- ok
-COPY atest5 (one) TO stdout; -- ok
 SELECT two FROM atest5; -- fail
-COPY atest5 (two) TO stdout; -- fail
 SELECT atest5 FROM atest5; -- fail
-COPY atest5 (one,two) TO stdout; -- fail
 SELECT 1 FROM atest5; -- ok
 SELECT 1 FROM atest5 a JOIN atest5 b USING (one); -- ok
 SELECT 1 FROM atest5 a JOIN atest5 b USING (two); -- fail
@@ -314,29 +301,12 @@ SELECT one, two FROM atest5 NATURAL JOIN atest6; -- ok now
 
 -- test column-level privileges for INSERT and UPDATE
 INSERT INTO atest5 (two) VALUES (3); -- ok
-COPY atest5 FROM stdin; -- fail
-COPY atest5 (two) FROM stdin; -- ok
-1
-\.
 INSERT INTO atest5 (three) VALUES (4); -- fail
 INSERT INTO atest5 VALUES (5,5,5); -- fail
 UPDATE atest5 SET three = 10; -- ok
 UPDATE atest5 SET one = 8; -- fail
 UPDATE atest5 SET three = 5, one = 2; -- fail
 -- Check that column level privs are enforced in RETURNING
--- Ok.
-INSERT INTO atest5(two) VALUES (6) ON CONFLICT (two) DO UPDATE set three = 10;
--- Error. No SELECT on column three.
-INSERT INTO atest5(two) VALUES (6) ON CONFLICT (two) DO UPDATE set three = 10 RETURNING atest5.three;
--- Ok.  May SELECT on column "one":
-INSERT INTO atest5(two) VALUES (6) ON CONFLICT (two) DO UPDATE set three = 10 RETURNING atest5.one;
--- Check that column level privileges are enforced for EXCLUDED
--- Ok. we may select one
-INSERT INTO atest5(two) VALUES (6) ON CONFLICT (two) DO UPDATE set three = EXCLUDED.one;
--- Error. No select rights on three
-INSERT INTO atest5(two) VALUES (6) ON CONFLICT (two) DO UPDATE set three = EXCLUDED.three;
-INSERT INTO atest5(two) VALUES (6) ON CONFLICT (two) DO UPDATE set one = 8; -- fails (due to UPDATE)
-INSERT INTO atest5(three) VALUES (4) ON CONFLICT (two) DO UPDATE set three = 10; -- fails (due to INSERT)
 
 -- Check that the columns in the inference require select privileges
 INSERT INTO atest5(four) VALUES (4); -- fail
@@ -345,16 +315,11 @@ SET SESSION AUTHORIZATION regress_priv_user1;
 GRANT INSERT (four) ON atest5 TO regress_priv_user4;
 SET SESSION AUTHORIZATION regress_priv_user4;
 
-INSERT INTO atest5(four) VALUES (4) ON CONFLICT (four) DO UPDATE set three = 3; -- fails (due to SELECT)
-INSERT INTO atest5(four) VALUES (4) ON CONFLICT ON CONSTRAINT atest5_four_key DO UPDATE set three = 3; -- fails (due to SELECT)
 INSERT INTO atest5(four) VALUES (4); -- ok
 
 SET SESSION AUTHORIZATION regress_priv_user1;
 GRANT SELECT (four) ON atest5 TO regress_priv_user4;
 SET SESSION AUTHORIZATION regress_priv_user4;
-
-INSERT INTO atest5(four) VALUES (4) ON CONFLICT (four) DO UPDATE set three = 3; -- ok
-INSERT INTO atest5(four) VALUES (4) ON CONFLICT ON CONSTRAINT atest5_four_key DO UPDATE set three = 3; -- ok
 
 SET SESSION AUTHORIZATION regress_priv_user1;
 REVOKE ALL (one) ON atest5 FROM regress_priv_user4;
@@ -363,12 +328,11 @@ GRANT SELECT (one,two,blue) ON atest6 TO regress_priv_user4;
 SET SESSION AUTHORIZATION regress_priv_user4;
 SELECT one FROM atest5; -- fail
 UPDATE atest5 SET one = 1; -- fail
-SELECT atest6 FROM atest6; -- ok
-COPY atest6 TO stdout; -- ok
 
 -- check error reporting with column privs
 SET SESSION AUTHORIZATION regress_priv_user1;
-CREATE TABLE t1 (c1 int, c2 int, c3 int check (c3 < 5), primary key (c1, c2));
+drop table if exists t1;
+CREATE TABLE t1 (c1 int, c2 int, c3 int, primary key (c1, c2));
 GRANT SELECT (c1) ON t1 TO regress_priv_user2;
 GRANT INSERT (c1, c2, c3) ON t1 TO regress_priv_user2;
 GRANT UPDATE (c1, c2, c3) ON t1 TO regress_priv_user2;
@@ -407,7 +371,6 @@ SET SESSION AUTHORIZATION regress_priv_user1;
 ALTER TABLE atest6 DROP COLUMN three;
 
 SET SESSION AUTHORIZATION regress_priv_user4;
-SELECT atest6 FROM atest6; -- ok
 SELECT one FROM atest5 NATURAL JOIN atest6; -- ok
 
 SET SESSION AUTHORIZATION regress_priv_user1;
@@ -421,30 +384,6 @@ SELECT 1 FROM atest6; -- fail
 SET SESSION AUTHORIZATION regress_priv_user3;
 DELETE FROM atest5 WHERE one = 1; -- fail
 DELETE FROM atest5 WHERE two = 2; -- ok
-
--- check inheritance cases
-SET SESSION AUTHORIZATION regress_priv_user1;
-CREATE TABLE atestp1 (f1 int, f2 int) WITH OIDS;
-CREATE TABLE atestp2 (fx int, fy int) WITH OIDS;
-CREATE TABLE atestc (fz int) INHERITS (atestp1, atestp2);
-GRANT SELECT(fx,fy,oid) ON atestp2 TO regress_priv_user2;
-GRANT SELECT(fx) ON atestc TO regress_priv_user2;
-
-SET SESSION AUTHORIZATION regress_priv_user2;
-SELECT fx FROM atestp2; -- ok
-SELECT fy FROM atestp2; -- ok
-SELECT atestp2 FROM atestp2; -- ok
-SELECT oid FROM atestp2; -- ok
-SELECT fy FROM atestc; -- fail
-
-SET SESSION AUTHORIZATION regress_priv_user1;
-GRANT SELECT(fy,oid) ON atestc TO regress_priv_user2;
-
-SET SESSION AUTHORIZATION regress_priv_user2;
-SELECT fx FROM atestp2; -- still ok
-SELECT fy FROM atestp2; -- ok
-SELECT atestp2 FROM atestp2; -- ok
-SELECT oid FROM atestp2; -- ok
 
 -- privileges on functions, languages
 
@@ -522,114 +461,9 @@ ROLLBACK;
 -- switch to superuser
 \c -
 
-CREATE TYPE priv_testtype1 AS (a int, b text);
-REVOKE USAGE ON TYPE priv_testtype1 FROM PUBLIC;
-GRANT USAGE ON TYPE priv_testtype1 TO regress_priv_user2;
-GRANT USAGE ON TYPE _priv_testtype1 TO regress_priv_user2; -- fail
-GRANT USAGE ON DOMAIN priv_testtype1 TO regress_priv_user2; -- fail
-
-CREATE DOMAIN priv_testdomain1 AS int;
-REVOKE USAGE on DOMAIN priv_testdomain1 FROM PUBLIC;
-GRANT USAGE ON DOMAIN priv_testdomain1 TO regress_priv_user2;
-GRANT USAGE ON TYPE priv_testdomain1 TO regress_priv_user2; -- ok
-
-SET SESSION AUTHORIZATION regress_priv_user1;
-
--- commands that should fail
-
-CREATE AGGREGATE priv_testagg1a(priv_testdomain1) (sfunc = int4_sum, stype = bigint);
-
-CREATE DOMAIN priv_testdomain2a AS priv_testdomain1;
-
-CREATE DOMAIN priv_testdomain3a AS int;
-CREATE FUNCTION castfunc(int) RETURNS priv_testdomain3a AS $$ SELECT $1::priv_testdomain3a $$ LANGUAGE SQL;
-CREATE CAST (priv_testdomain1 AS priv_testdomain3a) WITH FUNCTION castfunc(int);
-DROP FUNCTION castfunc(int) CASCADE;
-DROP DOMAIN priv_testdomain3a;
-
-CREATE FUNCTION priv_testfunc5a(a priv_testdomain1) RETURNS int LANGUAGE SQL AS $$ SELECT $1 $$;
-CREATE FUNCTION priv_testfunc6a(b int) RETURNS priv_testdomain1 LANGUAGE SQL AS $$ SELECT $1::priv_testdomain1 $$;
-
-CREATE OPERATOR !+! (PROCEDURE = int4pl, LEFTARG = priv_testdomain1, RIGHTARG = priv_testdomain1);
-
-CREATE TABLE test5a (a int, b priv_testdomain1);
-CREATE TABLE test6a OF priv_testtype1;
-CREATE TABLE test10a (a int[], b priv_testtype1[]);
-
-CREATE TABLE test9a (a int, b int);
-ALTER TABLE test9a ADD COLUMN c priv_testdomain1;
-ALTER TABLE test9a ALTER COLUMN b TYPE priv_testdomain1;
-
-CREATE TYPE test7a AS (a int, b priv_testdomain1);
-
-CREATE TYPE test8a AS (a int, b int);
-ALTER TYPE test8a ADD ATTRIBUTE c priv_testdomain1;
-ALTER TYPE test8a ALTER ATTRIBUTE b TYPE priv_testdomain1;
-
-CREATE TABLE test11a AS (SELECT 1::priv_testdomain1 AS a);
-
-REVOKE ALL ON TYPE priv_testtype1 FROM PUBLIC;
-
-SET SESSION AUTHORIZATION regress_priv_user2;
-
--- commands that should succeed
-
-CREATE AGGREGATE priv_testagg1b(priv_testdomain1) (sfunc = int4_sum, stype = bigint);
-
-CREATE DOMAIN priv_testdomain2b AS priv_testdomain1;
-
-CREATE DOMAIN priv_testdomain3b AS int;
-CREATE FUNCTION castfunc(int) RETURNS priv_testdomain3b AS $$ SELECT $1::priv_testdomain3b $$ LANGUAGE SQL;
-CREATE CAST (priv_testdomain1 AS priv_testdomain3b) WITH FUNCTION castfunc(int);
-
-CREATE FUNCTION priv_testfunc5b(a priv_testdomain1) RETURNS int LANGUAGE SQL AS $$ SELECT $1 $$;
-CREATE FUNCTION priv_testfunc6b(b int) RETURNS priv_testdomain1 LANGUAGE SQL AS $$ SELECT $1::priv_testdomain1 $$;
-
-CREATE OPERATOR !! (PROCEDURE = priv_testfunc5b, RIGHTARG = priv_testdomain1);
-
-CREATE TABLE test5b (a int, b priv_testdomain1);
-CREATE TABLE test6b OF priv_testtype1;
-CREATE TABLE test10b (a int[], b priv_testtype1[]);
-
-CREATE TABLE test9b (a int, b int);
-ALTER TABLE test9b ADD COLUMN c priv_testdomain1;
-ALTER TABLE test9b ALTER COLUMN b TYPE priv_testdomain1;
-
-CREATE TYPE test7b AS (a int, b priv_testdomain1);
-
-CREATE TYPE test8b AS (a int, b int);
-ALTER TYPE test8b ADD ATTRIBUTE c priv_testdomain1;
-ALTER TYPE test8b ALTER ATTRIBUTE b TYPE priv_testdomain1;
-
-CREATE TABLE test11b AS (SELECT 1::priv_testdomain1 AS a);
-
-REVOKE ALL ON TYPE priv_testtype1 FROM PUBLIC;
-
-\c -
-DROP AGGREGATE priv_testagg1b(priv_testdomain1);
-DROP DOMAIN priv_testdomain2b;
-DROP OPERATOR !! (NONE, priv_testdomain1);
-DROP FUNCTION priv_testfunc5b(a priv_testdomain1);
-DROP FUNCTION priv_testfunc6b(b int);
-DROP TABLE test5b;
-DROP TABLE test6b;
-DROP TABLE test9b;
-DROP TABLE test10b;
-DROP TYPE test7b;
-DROP TYPE test8b;
-DROP CAST (priv_testdomain1 AS priv_testdomain3b);
-DROP FUNCTION castfunc(int) CASCADE;
-DROP DOMAIN priv_testdomain3b;
-DROP TABLE test11b;
-
-DROP TYPE priv_testtype1; -- ok
-DROP DOMAIN priv_testdomain1; -- ok
-
-
--- truncate
 SET SESSION AUTHORIZATION regress_priv_user5;
-TRUNCATE atest2; -- ok
-TRUNCATE atest3; -- fail
+delete from atest2; -- ok
+delete from atest3; -- fail
 
 -- has_table_privilege function
 
@@ -668,7 +502,6 @@ from (select oid from pg_class where relname = 'pg_authid') as t1,
 
 select has_table_privilege('pg_authid','update');
 select has_table_privilege('pg_authid','delete');
-select has_table_privilege('pg_authid','truncate');
 
 select has_table_privilege(t1.oid,'select')
 from (select oid from pg_class where relname = 'pg_authid') as t1;
@@ -698,7 +531,6 @@ from (select oid from pg_class where relname = 'pg_class') as t1,
 
 select has_table_privilege('pg_class','update');
 select has_table_privilege('pg_class','delete');
-select has_table_privilege('pg_class','truncate');
 
 select has_table_privilege(t1.oid,'select')
 from (select oid from pg_class where relname = 'pg_class') as t1;
@@ -725,7 +557,6 @@ from (select oid from pg_class where relname = 'atest1') as t1,
 
 select has_table_privilege('atest1','update');
 select has_table_privilege('atest1','delete');
-select has_table_privilege('atest1','truncate');
 
 select has_table_privilege(t1.oid,'select')
 from (select oid from pg_class where relname = 'atest1') as t1;
@@ -755,6 +586,7 @@ drop table mytable;
 
 SET SESSION AUTHORIZATION regress_priv_user1;
 
+drop table if exists atest4;
 CREATE TABLE atest4 (a int);
 
 GRANT SELECT ON atest4 TO regress_priv_user2 WITH GRANT OPTION;
@@ -952,43 +784,6 @@ ALTER DEFAULT PRIVILEGES FOR ROLE regress_priv_user1 REVOKE EXECUTE ON FUNCTIONS
 
 ALTER DEFAULT PRIVILEGES IN SCHEMA testns GRANT USAGE ON SCHEMAS TO regress_priv_user2; -- error
 
---
--- Testing blanket default grants is very hazardous since it might change
--- the privileges attached to objects created by concurrent regression tests.
--- To avoid that, be sure to revoke the privileges again before committing.
---
-BEGIN;
-
-ALTER DEFAULT PRIVILEGES GRANT USAGE ON SCHEMAS TO regress_priv_user2;
-
-CREATE SCHEMA testns2;
-
-SELECT has_schema_privilege('regress_priv_user2', 'testns2', 'USAGE'); -- yes
-SELECT has_schema_privilege('regress_priv_user2', 'testns2', 'CREATE'); -- no
-
-ALTER DEFAULT PRIVILEGES REVOKE USAGE ON SCHEMAS FROM regress_priv_user2;
-
-CREATE SCHEMA testns3;
-
-SELECT has_schema_privilege('regress_priv_user2', 'testns3', 'USAGE'); -- no
-SELECT has_schema_privilege('regress_priv_user2', 'testns3', 'CREATE'); -- no
-
-ALTER DEFAULT PRIVILEGES GRANT ALL ON SCHEMAS TO regress_priv_user2;
-
-CREATE SCHEMA testns4;
-
-SELECT has_schema_privilege('regress_priv_user2', 'testns4', 'USAGE'); -- yes
-SELECT has_schema_privilege('regress_priv_user2', 'testns4', 'CREATE'); -- yes
-
-ALTER DEFAULT PRIVILEGES REVOKE ALL ON SCHEMAS FROM regress_priv_user2;
-
-COMMIT;
-
-CREATE SCHEMA testns5;
-
-SELECT has_schema_privilege('regress_priv_user2', 'testns5', 'USAGE'); -- no
-SELECT has_schema_privilege('regress_priv_user2', 'testns5', 'CREATE'); -- no
-
 SET ROLE regress_priv_user1;
 
 CREATE FUNCTION testns.foo() RETURNS int AS 'select 1' LANGUAGE sql;
@@ -1018,30 +813,14 @@ DROP PROCEDURE testns.bar();
 
 ALTER DEFAULT PRIVILEGES FOR ROLE regress_priv_user1 REVOKE USAGE ON TYPES FROM public;
 
-CREATE DOMAIN testns.priv_testdomain1 AS int;
-
-SELECT has_type_privilege('regress_priv_user2', 'testns.priv_testdomain1', 'USAGE'); -- no
-
-ALTER DEFAULT PRIVILEGES IN SCHEMA testns GRANT USAGE ON TYPES to public;
-
-DROP DOMAIN testns.priv_testdomain1;
-CREATE DOMAIN testns.priv_testdomain1 AS int;
-
-SELECT has_type_privilege('regress_priv_user2', 'testns.priv_testdomain1', 'USAGE'); -- yes
-
-DROP DOMAIN testns.priv_testdomain1;
-
 RESET ROLE;
 
 SELECT count(*)
   FROM pg_default_acl d LEFT JOIN pg_namespace n ON defaclnamespace = n.oid
   WHERE nspname = 'testns';
 
+DROP TABLE testns.acltest1;
 DROP SCHEMA testns CASCADE;
-DROP SCHEMA testns2 CASCADE;
-DROP SCHEMA testns3 CASCADE;
-DROP SCHEMA testns4 CASCADE;
-DROP SCHEMA testns5 CASCADE;
 
 SELECT d.*     -- check that entries went away
   FROM pg_default_acl d LEFT JOIN pg_namespace n ON defaclnamespace = n.oid
@@ -1092,6 +871,8 @@ SELECT has_function_privilege('regress_priv_user1', 'testns.priv_testagg(int)', 
 SELECT has_function_privilege('regress_priv_user1', 'testns.priv_testproc(int)', 'EXECUTE'); -- true
 
 \set VERBOSITY terse \\ -- suppress cascade details
+drop table testns.t1 cascade;
+drop table testns.t2 cascade;
 DROP SCHEMA testns CASCADE;
 \set VERBOSITY default
 
@@ -1120,6 +901,8 @@ DROP SCHEMA testns CASCADE;
 \c -
 
 DROP ROLE regress_schemauser1;
+drop table testns.t1 cascade;
+drop schema testns;
 DROP ROLE regress_schemauser_renamed;
 
 
@@ -1166,15 +949,12 @@ DROP VIEW atestv3 CASCADE;
 -- this should complain "does not exist"
 DROP VIEW atestv4;
 
-DROP TABLE atest1;
-DROP TABLE atest2;
-DROP TABLE atest3;
-DROP TABLE atest4;
-DROP TABLE atest5;
-DROP TABLE atest6;
-DROP TABLE atestc;
-DROP TABLE atestp1;
-DROP TABLE atestp2;
+DROP TABLE atest1 cascade;
+DROP TABLE atest2 cascade;
+DROP TABLE atest3 cascade;
+DROP TABLE atest4 cascade;
+DROP TABLE atest5 cascade;
+DROP TABLE atest6 cascade;
 
 SELECT lo_unlink(oid) FROM pg_largeobject_metadata WHERE oid >= 1000 AND oid < 3000 ORDER BY oid;
 
@@ -1183,8 +963,11 @@ DROP GROUP regress_priv_group2;
 
 -- these are needed to clean up permissions
 REVOKE USAGE ON LANGUAGE sql FROM regress_priv_user1;
-DROP OWNED BY regress_priv_user1;
+drop table atest12 cascade;
+drop function leak(integer,integer) cascade;
 
+ALTER DEFAULT PRIVILEGES FOR ROLE regress_priv_user1 grant EXECUTE ON FUNCTIONS to public;
+ALTER DEFAULT PRIVILEGES FOR ROLE regress_priv_user1 grant USAGE ON TYPES to public;
 DROP USER regress_priv_user1;
 DROP USER regress_priv_user2;
 DROP USER regress_priv_user3;
@@ -1257,8 +1040,6 @@ COMMIT;
 \c
 REVOKE DELETE ON lock_table FROM regress_locktable_user;
 
--- LOCK TABLE and TRUNCATE permission
-GRANT TRUNCATE ON lock_table TO regress_locktable_user;
 SET SESSION AUTHORIZATION regress_locktable_user;
 BEGIN;
 LOCK TABLE lock_table IN ROW EXCLUSIVE MODE; -- should pass
@@ -1270,7 +1051,6 @@ BEGIN;
 LOCK TABLE lock_table IN ACCESS EXCLUSIVE MODE; -- should pass
 COMMIT;
 \c
-REVOKE TRUNCATE ON lock_table FROM regress_locktable_user;
 
 -- clean up
 DROP TABLE lock_table;

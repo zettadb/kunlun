@@ -2,8 +2,8 @@
 -- \crosstabview
 --
 
-CREATE TABLE ctv_data (v, h, c, i, d) AS
-VALUES
+CREATE TABLE ctv_data (v varchar(30), h varchar(30), c varchar(30), i int, d date); 
+insert into ctv_data VALUES
    ('v1','h2','foo', 3, '2015-04-01'::date),
    ('v2','h1','bar', 3, '2015-01-02'),
    ('v1','h0','baz', NULL, '2015-07-12'),
@@ -11,9 +11,6 @@ VALUES
    ('v0','h4','dbl', -3, '2014-12-15'),
    ('v0',NULL,'qux', 5, '2014-07-15'),
    ('v1','h2','quux',7, '2015-04-04');
-
--- make plans more stable
-ANALYZE ctv_data;
 
 -- running \crosstabview after query uses query in buffer
 SELECT v, EXTRACT(year FROM d), count(*)

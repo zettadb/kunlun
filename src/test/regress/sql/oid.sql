@@ -2,6 +2,7 @@
 -- OID
 --
 
+drop table if exists OID_TBL;
 CREATE TABLE OID_TBL(f1 oid);
 
 INSERT INTO OID_TBL(f1) VALUES ('1234');

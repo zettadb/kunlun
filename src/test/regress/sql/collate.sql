@@ -15,14 +15,14 @@ SET search_path = collate_tests;
 
 CREATE TABLE collate_test1 (
     a int,
-    b text COLLATE "C" NOT NULL
+    b varchar(50) COLLATE "C" NOT NULL
 );
 
 \d collate_test1
 
 CREATE TABLE collate_test_fail (
     a int COLLATE "C",
-    b text
+    b varchar(50)
 );
 
 CREATE TABLE collate_test_like (
@@ -33,7 +33,7 @@ CREATE TABLE collate_test_like (
 
 CREATE TABLE collate_test2 (
     a int,
-    b text COLLATE "POSIX"
+    b varchar(50) COLLATE "POSIX"
 );
 
 INSERT INTO collate_test1 VALUES (1, 'abc'), (2, 'Abc'), (3, 'bbc'), (4, 'ABD');
@@ -43,23 +43,6 @@ SELECT * FROM collate_test1 WHERE b COLLATE "C" >= 'abc';
 SELECT * FROM collate_test1 WHERE b >= 'abc' COLLATE "C";
 SELECT * FROM collate_test1 WHERE b COLLATE "C" >= 'abc' COLLATE "C";
 SELECT * FROM collate_test1 WHERE b COLLATE "C" >= 'bbc' COLLATE "POSIX"; -- fail
-
-CREATE DOMAIN testdomain_p AS text COLLATE "POSIX";
-CREATE DOMAIN testdomain_i AS int COLLATE "POSIX"; -- fail
-CREATE TABLE collate_test4 (
-    a int,
-    b testdomain_p
-);
-INSERT INTO collate_test4 SELECT * FROM collate_test1;
-SELECT a, b FROM collate_test4 ORDER BY b;
-
-CREATE TABLE collate_test5 (
-    a int,
-    b testdomain_p COLLATE "C"
-);
-INSERT INTO collate_test5 SELECT * FROM collate_test1;
-SELECT a, b FROM collate_test5 ORDER BY b;
-
 
 SELECT a, b FROM collate_test1 ORDER BY b;
 SELECT a, b FROM collate_test2 ORDER BY b;
@@ -78,8 +61,8 @@ SELECT 'bbc' COLLATE "POSIX" < 'Abc' COLLATE "POSIX" AS "false";
 
 CREATE TABLE collate_test10 (
     a int,
-    x text COLLATE "C",
-    y text COLLATE "POSIX"
+    x varchar(50) COLLATE "C",
+    y varchar(50) COLLATE "POSIX"
 );
 
 INSERT INTO collate_test10 VALUES (1, 'hij', 'hij'), (2, 'HIJ', 'HIJ');
@@ -116,12 +99,6 @@ SELECT a, lower(nullif(x, 'foo')), lower(nullif(y, 'foo')) FROM collate_test10;
 SELECT a, CASE b WHEN 'abc' THEN 'abcd' ELSE b END FROM collate_test1 ORDER BY 2;
 SELECT a, CASE b WHEN 'abc' THEN 'abcd' ELSE b END FROM collate_test2 ORDER BY 2;
 
-CREATE DOMAIN testdomain AS text;
-SELECT a, b::testdomain FROM collate_test1 ORDER BY 2;
-SELECT a, b::testdomain FROM collate_test2 ORDER BY 2;
-SELECT a, b::testdomain_p FROM collate_test2 ORDER BY 2;
-SELECT a, lower(x::testdomain), lower(y::testdomain) FROM collate_test10;
-
 SELECT min(b), max(b) FROM collate_test1;
 SELECT min(b), max(b) FROM collate_test2;
 
@@ -146,10 +123,8 @@ SELECT a, b COLLATE "C" FROM collate_test1 UNION SELECT a, b FROM collate_test2 
 SELECT a, b FROM collate_test1 INTERSECT SELECT a, b FROM collate_test2 ORDER BY 2; -- fail
 SELECT a, b FROM collate_test1 EXCEPT SELECT a, b FROM collate_test2 ORDER BY 2; -- fail
 
-CREATE TABLE test_u AS SELECT a, b FROM collate_test1 UNION ALL SELECT a, b FROM collate_test2; -- fail
-
 -- ideally this would be a parse-time error, but for now it must be run-time:
-select x < y from collate_test10; -- fail
+-- select x < y from collate_test10; -- fail, kunlun always uses utf-8, but official pg does not allow
 select x || y from collate_test10; -- ok, because || is not collation aware
 select x, y from collate_test10 order by x || y; -- not so ok
 
@@ -166,7 +141,7 @@ SELECT a, b, a < b as lt FROM
 
 -- casting
 
-SELECT CAST('42' AS text COLLATE "C");
+SELECT CAST('42' AS varchar(50) COLLATE "C");
 
 SELECT a, CAST(b AS varchar) FROM collate_test1 ORDER BY 2;
 SELECT a, CAST(b AS varchar) FROM collate_test2 ORDER BY 2;
@@ -187,10 +162,7 @@ SELECT a, dup(b) FROM collate_test2 ORDER BY 2;
 -- indexes
 
 CREATE INDEX collate_test1_idx1 ON collate_test1 (b);
-CREATE INDEX collate_test1_idx2 ON collate_test1 (b COLLATE "POSIX");
 CREATE INDEX collate_test1_idx3 ON collate_test1 ((b COLLATE "POSIX")); -- this is different grammatically
-CREATE INDEX collate_test1_idx4 ON collate_test1 (((b||'foo') COLLATE "POSIX"));
-
 CREATE INDEX collate_test1_idx5 ON collate_test1 (a COLLATE "POSIX"); -- fail
 CREATE INDEX collate_test1_idx6 ON collate_test1 ((a COLLATE "POSIX")); -- fail
 
@@ -205,16 +177,14 @@ SET enable_seqscan TO 0;
 SET enable_hashjoin TO 0;
 SET enable_nestloop TO 0;
 
-CREATE TABLE collate_test20 (f1 text COLLATE "C" PRIMARY KEY);
+CREATE TABLE collate_test20 (f1 varchar(50) COLLATE "C" PRIMARY KEY);
 INSERT INTO collate_test20 VALUES ('foo'), ('bar');
-CREATE TABLE collate_test21 (f2 text COLLATE "POSIX" REFERENCES collate_test20);
+CREATE TABLE collate_test21 (f2 varchar(50) COLLATE "POSIX");
 INSERT INTO collate_test21 VALUES ('foo'), ('bar');
 INSERT INTO collate_test21 VALUES ('baz'); -- fail
-CREATE TABLE collate_test22 (f2 text COLLATE "POSIX");
+CREATE TABLE collate_test22 (f2 varchar(50) COLLATE "POSIX");
 INSERT INTO collate_test22 VALUES ('foo'), ('bar'), ('baz');
-ALTER TABLE collate_test22 ADD FOREIGN KEY (f2) REFERENCES collate_test20; -- fail
 DELETE FROM collate_test22 WHERE f2 = 'baz';
-ALTER TABLE collate_test22 ADD FOREIGN KEY (f2) REFERENCES collate_test20;
 
 RESET enable_seqscan;
 RESET enable_hashjoin;
@@ -236,7 +206,7 @@ CREATE COLLATION mycoll2 ( LC_COLLATE = "POSIX", LC_CTYPE = "POSIX" );
 CREATE COLLATION mycoll3 FROM "default";  -- intentionally unsupported
 
 DROP COLLATION mycoll1;
-CREATE TABLE collate_test23 (f1 text collate mycoll2);
+CREATE TABLE collate_test23 (f1 varchar(50) collate mycoll2);
 DROP COLLATION mycoll2;  -- fail
 
 -- invalid: non-lowercase quoted identifiers
@@ -260,4 +230,12 @@ SELECT collation for ((SELECT b FROM collate_test1 LIMIT 1));
 -- must get rid of them.
 --
 \set VERBOSITY terse
+drop table collate_tests.collate_test1 cascade;
+drop table collate_tests.collate_test2 cascade;
+drop table collate_tests.collate_test10 cascade;
+drop table collate_tests.collate_test20 cascade;
+drop table collate_tests.collate_test21 cascade;
+drop table collate_tests.collate_test22 cascade;
+drop table collate_tests.collate_test23 cascade;
+drop table collate_tests.collate_test_like cascade;
 DROP SCHEMA collate_tests CASCADE;

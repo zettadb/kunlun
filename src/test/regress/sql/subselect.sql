@@ -24,7 +24,7 @@ SELECT ((SELECT ARRAY[1,2,3]))[2];
 SELECT (((SELECT ARRAY[1,2,3])))[3];
 
 -- Set up some simple test tables
-
+DROP TABLE if exists SUBSELECT_TBL;
 CREATE TABLE SUBSELECT_TBL (
   f1 integer,
   f2 integer,
@@ -176,6 +176,7 @@ SELECT * FROM foo WHERE id IN
 -- recalculated properly.  Per bug report from Didier Moens.
 --
 
+DROP TABLE if exists orderstest;
 CREATE TABLE orderstest (
     approver_ref integer,
     po_ref integer,
@@ -255,9 +256,6 @@ create temp table shipped (
 create temp view shipped_view as
     select * from shipped where ttype = 'wt';
 
-create rule shipped_view_insert as on insert to shipped_view do instead
-    insert into shipped values('wt', new.ordnum, new.partnum, new.value);
-
 insert into parts (partnum, cost) values (1, 1234.56);
 
 insert into shipped_view (ordnum, partnum, value)
@@ -265,16 +263,11 @@ insert into shipped_view (ordnum, partnum, value)
 
 select * from shipped_view;
 
-create rule shipped_view_update as on update to shipped_view do instead
-    update shipped set partnum = new.partnum, value = new.value
-        where ttype = new.ttype and ordnum = new.ordnum;
-
-update shipped_view set value = 11
-    from int4_tbl a join int4_tbl b
-      on (a.f1 = (select f1 from int4_tbl c where c.f1=b.f1))
-    where ordnum = a.f1;
-
-select * from shipped_view;
+--update shipped_view set value = 11
+--    from int4_tbl a join int4_tbl b
+--      on (a.f1 = (select f1 from int4_tbl c where c.f1=b.f1))
+--    where ordnum = a.f1;
+-- select * from shipped_view;
 
 select f1, ss1 as relabel from
     (select *, (select sum(f1) from int4_tbl b where f1 >= a.f1) as ss1
@@ -380,19 +373,6 @@ with q as (select max(f1) from int4_tbl group by f1 order by f1)
 -- Test case for sublinks pulled up into joinaliasvars lists in an
 -- inherited update/delete query
 --
-
-begin;  --  this shouldn't delete anything, but be safe
-
-delete from road
-where exists (
-  select 1
-  from
-    int4_tbl cross join
-    ( select f1, array(select q1 from int8_tbl) as arr
-      from text_tbl ) ss
-  where road.name = ss.f1 );
-
-rollback;
 
 --
 -- Test case for sublinks pushed down into subselects via join alias expansion
@@ -604,9 +584,9 @@ begin
         explain (analyze, summary off, timing off, costs off)
         select * from (select pk,c2 from sq_limit order by c1,pk) as x limit 3
     loop
-        ln := regexp_replace(ln, 'Memory: \S*',  'Memory: xxx');
+        ln = regexp_replace(ln, 'Memory: \S*',  'Memory: xxx');
         -- this case might occur if force_parallel_mode is on:
-        ln := regexp_replace(ln, 'Worker 0:  Sort Method',  'Sort Method');
+        ln = regexp_replace(ln, 'Worker 0:  Sort Method',  'Sort Method');
         return next ln;
     end loop;
 end;

@@ -1,6 +1,7 @@
 --
 -- CREATE SEQUENCE
 --
+
 -- various error cases
 CREATE UNLOGGED SEQUENCE sequence_testx;
 CREATE SEQUENCE sequence_testx INCREMENT BY 0;
@@ -14,7 +15,7 @@ CREATE SEQUENCE sequence_testx CACHE 0;
 CREATE SEQUENCE sequence_testx OWNED BY nobody;  -- nonsense word
 CREATE SEQUENCE sequence_testx OWNED BY pg_class_oid_index.oid;  -- not a table
 CREATE SEQUENCE sequence_testx OWNED BY pg_class.relname;  -- not same schema
-CREATE TABLE sequence_test_table (a int primary key);
+CREATE TABLE sequence_test_table (a int);
 CREATE SEQUENCE sequence_testx OWNED BY sequence_test_table.b;  -- wrong column
 DROP TABLE sequence_test_table;
 
@@ -51,7 +52,7 @@ ALTER SEQUENCE sequence_test14 AS int;  -- min and max will be adjusted
 --- test creation of SERIAL column
 ---
 
-CREATE TABLE serialTest1 (f1 text, f2 serial primary key);
+CREATE TABLE serialTest1 (f1 text, f2 serial);
 
 INSERT INTO serialTest1 VALUES ('foo');
 INSERT INTO serialTest1 VALUES ('bar');
@@ -64,7 +65,7 @@ SELECT pg_get_serial_sequence('serialTest1', 'f2');
 
 -- test smallserial / bigserial
 CREATE TABLE serialTest2 (f1 text, f2 serial, f3 smallserial, f4 serial2,
-  f5 bigserial, f6 serial8 primary key);
+  f5 bigserial, f6 serial8);
 
 INSERT INTO serialTest2 (f1)
   VALUES ('test_defaults');
@@ -131,13 +132,13 @@ DROP SEQUENCE sequence_test;
 
 -- renaming sequences
 CREATE SEQUENCE foo_seq;
-ALTER TABLE foo_seq RENAME TO foo_seq_new;
--- SELECT * FROM foo_seq_new; dzw: we don't have such a table
+--not support: ALTER TABLE foo_seq RENAME TO foo_seq_new;
+--not support: SELECT * FROM foo_seq_new;
 SELECT nextval('foo_seq_new');
 SELECT nextval('foo_seq_new');
 -- log_cnt can be higher if there is a checkpoint just at the right
 -- time, so just test for the expected range
--- SELECT last_value, log_cnt IN (31, 32) AS log_cnt_ok, is_called FROM foo_seq_new; dzw: we don't have such a table
+-- not supporte: SELECT last_value, log_cnt IN (31, 32) AS log_cnt_ok, is_called FROM foo_seq_new;
 DROP SEQUENCE foo_seq_new;
 
 -- renaming serial sequences
@@ -287,90 +288,99 @@ ROLLBACK;
 -- privileges tests
 
 -- nextval
+CREATE SEQUENCE seq3;
 BEGIN;
 SET LOCAL SESSION AUTHORIZATION regress_seq_user;
-CREATE SEQUENCE seq3;
 REVOKE ALL ON seq3 FROM regress_seq_user;
 GRANT SELECT ON seq3 TO regress_seq_user;
 SELECT nextval('seq3');
 ROLLBACK;
+DROP SEQUENCE seq3;
 
+CREATE SEQUENCE seq3;
 BEGIN;
 SET LOCAL SESSION AUTHORIZATION regress_seq_user;
-CREATE SEQUENCE seq3;
 REVOKE ALL ON seq3 FROM regress_seq_user;
 GRANT UPDATE ON seq3 TO regress_seq_user;
 SELECT nextval('seq3');
 ROLLBACK;
+DROP SEQUENCE seq3;
 
+CREATE SEQUENCE seq3;
 BEGIN;
 SET LOCAL SESSION AUTHORIZATION regress_seq_user;
-CREATE SEQUENCE seq3;
 REVOKE ALL ON seq3 FROM regress_seq_user;
 GRANT USAGE ON seq3 TO regress_seq_user;
 SELECT nextval('seq3');
 ROLLBACK;
+DROP SEQUENCE seq3;
 
 -- currval
+CREATE SEQUENCE seq3;
 BEGIN;
 SET LOCAL SESSION AUTHORIZATION regress_seq_user;
-CREATE SEQUENCE seq3;
 SELECT nextval('seq3');
 REVOKE ALL ON seq3 FROM regress_seq_user;
 GRANT SELECT ON seq3 TO regress_seq_user;
 SELECT currval('seq3');
 ROLLBACK;
+DROP SEQUENCE seq3;
 
+CREATE SEQUENCE seq3;
 BEGIN;
 SET LOCAL SESSION AUTHORIZATION regress_seq_user;
-CREATE SEQUENCE seq3;
 SELECT nextval('seq3');
 REVOKE ALL ON seq3 FROM regress_seq_user;
 GRANT UPDATE ON seq3 TO regress_seq_user;
 SELECT currval('seq3');
 ROLLBACK;
+DROP SEQUENCE seq3;
 
+CREATE SEQUENCE seq3;
 BEGIN;
 SET LOCAL SESSION AUTHORIZATION regress_seq_user;
-CREATE SEQUENCE seq3;
 SELECT nextval('seq3');
 REVOKE ALL ON seq3 FROM regress_seq_user;
 GRANT USAGE ON seq3 TO regress_seq_user;
 SELECT currval('seq3');
 ROLLBACK;
+DROP SEQUENCE seq3;
 
 -- lastval
+CREATE SEQUENCE seq3;
 BEGIN;
 SET LOCAL SESSION AUTHORIZATION regress_seq_user;
-CREATE SEQUENCE seq3;
 SELECT nextval('seq3');
 REVOKE ALL ON seq3 FROM regress_seq_user;
 GRANT SELECT ON seq3 TO regress_seq_user;
 SELECT lastval();
 ROLLBACK;
+DROP SEQUENCE seq3;
 
+CREATE SEQUENCE seq3;
 BEGIN;
 SET LOCAL SESSION AUTHORIZATION regress_seq_user;
-CREATE SEQUENCE seq3;
 SELECT nextval('seq3');
 REVOKE ALL ON seq3 FROM regress_seq_user;
 GRANT UPDATE ON seq3 TO regress_seq_user;
 SELECT lastval();
 ROLLBACK;
+DROP SEQUENCE seq3;
 
+CREATE SEQUENCE seq3;
 BEGIN;
 SET LOCAL SESSION AUTHORIZATION regress_seq_user;
-CREATE SEQUENCE seq3;
 SELECT nextval('seq3');
 REVOKE ALL ON seq3 FROM regress_seq_user;
 GRANT USAGE ON seq3 TO regress_seq_user;
 SELECT lastval();
 ROLLBACK;
+DROP SEQUENCE seq3;
 
 -- setval
+CREATE SEQUENCE seq3;
 BEGIN;
 SET LOCAL SESSION AUTHORIZATION regress_seq_user;
-CREATE SEQUENCE seq3;
 REVOKE ALL ON seq3 FROM regress_seq_user;
 SAVEPOINT save;
 SELECT setval('seq3', 5);
@@ -379,6 +389,7 @@ GRANT UPDATE ON seq3 TO regress_seq_user;
 SELECT setval('seq3', 5);
 SELECT nextval('seq3');
 ROLLBACK;
+DROP SEQUENCE seq3;
 
 -- ALTER SEQUENCE
 BEGIN;
@@ -387,7 +398,8 @@ ALTER SEQUENCE sequence_test2 START WITH 1;
 ROLLBACK;
 
 -- Sequences should get wiped out as well:
-DROP TABLE serialTest1, serialTest2;
+DROP TABLE serialTest1;
+DROP TABLE serialTest2;
 
 -- Make sure sequences are gone:
 SELECT * FROM information_schema.sequences WHERE sequence_name IN
@@ -405,111 +417,3 @@ SELECT nextval('test_seq1');
 SELECT nextval('test_seq1');
 
 DROP SEQUENCE test_seq1;
-
-create table tseq(a serial primary key, b int);
-create table tseq3(a serial primary key, b smallserial, c bigserial);
-CREATE TABLE itest8 (a int GENERATED ALWAYS AS IDENTITY primary key, b text, c bigserial);
-create table tseq2(a serial primary key, b smallserial, c bigserial) partition by hash(a);
-create table tseq1(a serial primary key, b smallserial, c bigserial) partition by hash(a);
-create table tseq11 partition of tseq1 for values with (modulus 4, remainder 0);
-create table tseq12 partition of tseq1 for values with (modulus 4, remainder 1);
-create table tseq13 partition of tseq1 for values with (modulus 4, remainder 2);
-create table tseq14 partition of tseq1 for values with (modulus 4, remainder 3);
-drop table tseq1;
-drop table tseq2;
-drop table itest8;
-drop table tseq3;
-drop table tseq;
-
-CREATE TABLE itest8 (a int GENERATED ALWAYS AS IDENTITY primary key, b text, c bigserial);
-create table tseq(a serial primary key, b int);
-create table tseq3(a serial primary key, b smallserial, c bigserial);
-create table tseq2(a serial primary key, b smallserial, c bigserial) partition by hash(a);
-create table tseq4(a serial primary key, b int generated always as identity, c bigserial);
-create table tseq5(a serial primary key, b int generated always as identity);
-create table tseq6(a serial primary key, b int);
-
-create table tseq1(a serial primary key, b smallserial, c bigserial) partition by hash(a);
-create table tseq11 partition of tseq1 for values with (modulus 4, remainder 0);
-create table tseq12 partition of tseq1 for values with (modulus 4, remainder 1);
-create table tseq13 partition of tseq1 for values with (modulus 4, remainder 2);
-create table tseq14 partition of tseq1 for values with (modulus 4, remainder 3);
-drop table tseq3;
-drop table tseq;
-drop table itest8;
-drop table tseq2;
-drop table tseq4;
-drop table tseq5;
-drop table tseq6;
-drop table tseq1;
-
--- oracle sequence grammar
-create sequence seq34 nomaxvalue nominvalue nocache nocycle noorder starts with 34;
-create sequence seq35 nomaxvalue nominvalue cache 1 no cycle order starts with 35;
-select seq34.nextval;
-select seq35.currval;
-select seq35.nextval;
-select seq35.currval;
-drop sequence seq35;
-drop sequence seq34;
-
--- seq value fetch
-drop table if exists t6 cascade;
-create table t6(a int auto_increment primary key, b serial, c int generated by default as identity,d int);
-insert into t6(d) values(11),(22),(33);
-insert into t6(d) values(11),(22),(33);
-insert into t6(d) values(11),(22),(33);
-insert into t6(d) values(11),(22),(33);
-select*from t6;
-select currval('t6_a_seq');
-select currval('t6_b_seq');
-select currval('t6_c_seq');
-
-create sequence seq7;
-create sequence seq6;
-
-drop table if exists t55 cascade;
-create table t55(a serial primary key, b int, c int);
-create sequence seq56 owned by t55.b;
-insert into t55(c) values(1),(2),(3);
-select*from t55;
-
-drop table if exists t7 cascade;
-create table t7(a int auto_increment primary key, b serial, c int generated by default as identity,d int default nextval('seq7'), e int);
-insert into t7 (e) values(11),(22),(33) returning *;
-insert into t7 (e) values(11),(22),(33) returning *;
-insert into t7 (e) values(11),(22),(33) returning *;
-insert into t7 (e) values(11),(22),(33) returning *;
-select*from t7;
-select currval('t7_a_seq');
-select currval('t7_b_seq');
-select currval('t7_c_seq');
-select currval('seq7');
-select seq7.nextval, seq7.currval, seq7.nextval, seq7.currval;
-select seq6.nextval, seq7.currval, seq7.nextval, seq6.currval;
-
-insert into t6(c,d) values(seq6.nextval, seq7.nextval),(seq6.nextval, seq7.nextval),(seq6.currval, seq7.currval);
-insert into t6(c,d) values(seq6.nextval, seq7.nextval),(seq6.nextval, seq7.nextval),(seq6.currval, seq7.currval);
-insert into t6(c,d) values(seq6.nextval, seq7.nextval),(seq6.nextval, seq7.nextval),(seq6.currval, seq7.currval);
-insert into t6(c,d) values(seq6.currval, seq7.currval),(seq6.currval, seq7.currval),(seq6.nextval, seq7.nextval);
-
-drop table t6;
-drop table t7;
-drop table t55;
-drop sequence seq7;
-drop sequence seq6;
-drop sequence seq56;
-
-drop sequence sequence_test5;
-drop sequence sequence_test6;
-drop sequence sequence_test7;
-drop sequence sequence_test8;
-drop sequence sequence_test9;
-drop sequence sequence_test10;
-drop sequence sequence_test11;
-drop sequence sequence_test12;
-drop sequence sequence_test13;
-drop sequence sequence_test14;
-drop sequence sequence_test3;
-drop sequence sequence_test4;
-drop sequence sequence_test2;

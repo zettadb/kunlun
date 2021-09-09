@@ -1,6 +1,7 @@
 --
 -- Test partitioning planner code
 --
+drop table if exists lp;
 create table lp (a char) partition by list (a);
 create table lp_default partition of lp default;
 create table lp_ef partition of lp for values in ('e', 'f');
@@ -22,6 +23,7 @@ explain (costs off) select * from lp where a <> 'a' and a <> 'd';
 explain (costs off) select * from lp where a not in ('a', 'd');
 
 -- collation matches the partitioning collation, pruning works
+drop table if exists coll_pruning;
 create table coll_pruning (a text collate "C") partition by list (a);
 create table coll_pruning_a partition of coll_pruning for values in ('a');
 create table coll_pruning_b partition of coll_pruning for values in ('b');
@@ -30,6 +32,7 @@ explain (costs off) select * from coll_pruning where a collate "C" = 'a' collate
 -- collation doesn't match the partitioning collation, no pruning occurs
 explain (costs off) select * from coll_pruning where a collate "POSIX" = 'a' collate "POSIX";
 
+drop table if exists rlp;
 create table rlp (a int, b varchar) partition by range (a);
 create table rlp_default partition of rlp default partition by list (a);
 create table rlp_default_default partition of rlp_default default;
@@ -39,6 +42,7 @@ create table rlp_default_null partition of rlp_default for values in (null);
 create table rlp1 partition of rlp for values from (minvalue) to (1);
 create table rlp2 partition of rlp for values from (1) to (10);
 
+drop table if exists rlp3;
 create table rlp3 (b varchar, a int) partition by list (b varchar_ops);
 create table rlp3_default partition of rlp3 default;
 create table rlp3abcd partition of rlp3 for values in ('ab', 'cd');
@@ -92,6 +96,7 @@ explain (costs off) select * from rlp where a = 1 and a = 3;	/* empty */
 explain (costs off) select * from rlp where (a = 1 and a = 3) or (a > 1 and a = 15);
 
 -- multi-column keys
+drop table if exists mc3p;
 create table mc3p (a int, b int, c int) partition by range (a, abs(b), c);
 create table mc3p_default partition of mc3p default;
 create table mc3p0 partition of mc3p for values from (minvalue, minvalue, minvalue) to (1, 1, 1);
@@ -124,6 +129,7 @@ explain (costs off) select * from mc3p where (a = 1 and abs(b) = 1) or (a = 10 a
 explain (costs off) select * from mc3p where (a = 1 and abs(b) = 1) or (a = 10 and abs(b) = 9);
 
 -- a simpler multi-column keys case
+drop table if exists mc2p;
 create table mc2p (a int, b int) partition by range (a, b);
 create table mc2p_default partition of mc2p default;
 create table mc2p0 partition of mc2p for values from (minvalue, minvalue) to (1, minvalue);
@@ -146,6 +152,7 @@ explain (costs off) select * from mc2p where a is null;
 explain (costs off) select * from mc2p where b is null;
 
 -- boolean partitioning
+drop table if exists boolpart;
 create table boolpart (a bool) partition by list (a);
 create table boolpart_default partition of boolpart default;
 create table boolpart_t partition of boolpart for values in ('true');
@@ -160,6 +167,7 @@ explain (costs off) select * from boolpart where a is not true and a is not fals
 explain (costs off) select * from boolpart where a is unknown;
 explain (costs off) select * from boolpart where a is not unknown;
 
+drop table if exists boolrangep;
 create table boolrangep (a bool, b bool, c int) partition by range (a,b,c);
 create table boolrangep_tf partition of boolrangep for values from ('true', 'false', 0) to ('true', 'false', 100);
 create table boolrangep_ft partition of boolrangep for values from ('false', 'true', 0) to ('false', 'true', 100);
@@ -170,6 +178,7 @@ create table boolrangep_ff2 partition of boolrangep for values from ('false', 'f
 explain (costs off)  select * from boolrangep where not a and not b and c = 25;
 
 -- test scalar-to-array operators
+drop table if exists coercepart;
 create table coercepart (a varchar) partition by list (a);
 create table coercepart_ab partition of coercepart for values in ('ab');
 create table coercepart_bc partition of coercepart for values in ('bc');
@@ -183,6 +192,7 @@ explain (costs off) select * from coercepart where a !~ all ('{ab,bc}');
 
 drop table coercepart;
 
+DROP TABLE if exists part;
 CREATE TABLE part (a INT, b INT) PARTITION BY LIST (a);
 CREATE TABLE part_p1 PARTITION OF part FOR VALUES IN (-2,-1,0,1,2);
 CREATE TABLE part_p2 PARTITION OF part DEFAULT PARTITION BY RANGE(a);
@@ -212,6 +222,7 @@ explain (costs off) select * from mc2p t1, lateral (select count(*) from mc3p t2
 --
 
 -- doesn't prune range partitions
+drop table if exists rp;
 create table rp (a int) partition by range (a);
 create table rp0 partition of rp for values from (minvalue) to (1);
 create table rp1 partition of rp for values from (1) to (2);
@@ -235,6 +246,7 @@ explain (costs off) select * from rlp where a = 15 and b <> 'ab' and b <> 'cd' a
 --
 -- different collations for different keys with same expression
 --
+drop table if exists coll_pruning_multi;
 create table coll_pruning_multi (a text) partition by range (substr(a, 1) collate "POSIX", substr(a, 1) collate "C");
 create table coll_pruning_multi1 partition of coll_pruning_multi for values from ('a', 'a') to ('a', 'e');
 create table coll_pruning_multi2 partition of coll_pruning_multi for values from ('a', 'e') to ('a', 'z');
@@ -252,6 +264,7 @@ explain (costs off) select * from coll_pruning_multi where substr(a, 1) = 'e' co
 --
 -- LIKE operators don't prune
 --
+drop table if exists like_op_noprune;
 create table like_op_noprune (a text) partition by list (a);
 create table like_op_noprune1 partition of like_op_noprune for values in ('ABC');
 create table like_op_noprune2 partition of like_op_noprune for values in ('BCD');
@@ -260,11 +273,13 @@ explain (costs off) select * from like_op_noprune where a like '%BC';
 --
 -- tests wherein clause value requires a cross-type comparison function
 --
+drop table if exists lparted_by_int2;
 create table lparted_by_int2 (a smallint) partition by list (a);
 create table lparted_by_int2_1 partition of lparted_by_int2 for values in (1);
 create table lparted_by_int2_16384 partition of lparted_by_int2 for values in (16384);
 explain (costs off) select * from lparted_by_int2 where a = 100000000000000;
 
+drop table if exists rparted_by_int2;
 create table rparted_by_int2 (a smallint) partition by range (a);
 create table rparted_by_int2_1 partition of rparted_by_int2 for values from (1) to (10);
 create table rparted_by_int2_16384 partition of rparted_by_int2 for values from (10) to (16384);
@@ -274,7 +289,18 @@ create table rparted_by_int2_maxvalue partition of rparted_by_int2 for values fr
 -- all partitions but rparted_by_int2_maxvalue pruned
 explain (costs off) select * from rparted_by_int2 where a > 100000000000000;
 
-drop table lp, coll_pruning, rlp, mc3p, mc2p, boolpart, boolrangep, rp, coll_pruning_multi, like_op_noprune, lparted_by_int2, rparted_by_int2;
+drop table lp;
+drop table coll_pruning;
+drop table rlp;
+drop table mc3p;
+drop table mc2p;
+drop table boolpart;
+drop table boolrangep;
+drop table rp;
+drop table coll_pruning_multi;
+drop tabne like_op_noprune;
+drop table lparted_by_int2;
+drop table rparted_by_int2;
 
 --
 -- Test Partition pruning for HASH partitioning
@@ -284,6 +310,7 @@ drop table lp, coll_pruning, rlp, mc3p, mc2p, boolpart, boolrangep, rp, coll_pru
 -- part_part_test_int4_ops and part_test_text_ops in insert.sql.
 --
 
+drop table if exists hp;
 create table hp (a int, b text) partition by hash (a part_test_int4_ops, b part_test_text_ops);
 create table hp0 partition of hp for values with (modulus 4, remainder 0);
 create table hp3 partition of hp for values with (modulus 4, remainder 3);
@@ -322,6 +349,7 @@ drop table hp;
 --
 -- Test runtime partition pruning
 --
+drop table if exists ab;
 create table ab (a int not null, b int not null) partition by list (a);
 create table ab_a2 partition of ab for values in(2) partition by list (b);
 create table ab_a2_b1 partition of ab_a2 for values in (1);
@@ -352,8 +380,8 @@ execute ab_q1 (1, 8, 3);
 execute ab_q1 (1, 8, 3);
 execute ab_q1 (1, 8, 3);
 
-explain (analyze, costs off, summary off, timing off) execute ab_q1 (2, 2, 3);
-explain (analyze, costs off, summary off, timing off) execute ab_q1 (1, 2, 3);
+explain (costs off, summary off, timing off) execute ab_q1 (2, 2, 3);
+explain (costs off, summary off, timing off) execute ab_q1 (1, 2, 3);
 
 deallocate ab_q1;
 
@@ -369,8 +397,8 @@ execute ab_q1 (1, 8);
 execute ab_q1 (1, 8);
 execute ab_q1 (1, 8);
 
-explain (analyze, costs off, summary off, timing off) execute ab_q1 (2, 2);
-explain (analyze, costs off, summary off, timing off) execute ab_q1 (2, 4);
+explain (costs off, summary off, timing off) execute ab_q1 (2, 2);
+explain (costs off, summary off, timing off) execute ab_q1 (2, 4);
 
 -- Ensure a mix of PARAM_EXTERN and PARAM_EXEC Params work together at
 -- different levels of partitioning.
@@ -383,7 +411,7 @@ execute ab_q2 (1, 8);
 execute ab_q2 (1, 8);
 execute ab_q2 (1, 8);
 
-explain (analyze, costs off, summary off, timing off) execute ab_q2 (2, 2);
+explain (costs off, summary off, timing off) execute ab_q2 (2, 2);
 
 -- As above, but swap the PARAM_EXEC Param to the first partition level
 prepare ab_q3 (int, int) as
@@ -395,9 +423,10 @@ execute ab_q3 (1, 8);
 execute ab_q3 (1, 8);
 execute ab_q3 (1, 8);
 
-explain (analyze, costs off, summary off, timing off) execute ab_q3 (2, 2);
+explain (costs off, summary off, timing off) execute ab_q3 (2, 2);
 
 -- Test a backwards Append scan
+drop table if exists list_part;
 create table list_part (a int) partition by list (a);
 create table list_part1 partition of list_part for values in (1);
 create table list_part2 partition of list_part for values in (2);
@@ -405,36 +434,6 @@ create table list_part3 partition of list_part for values in (3);
 create table list_part4 partition of list_part for values in (4);
 
 insert into list_part select generate_series(1,4);
-
-begin;
-
--- Don't select an actual value out of the table as the order of the Append's
--- subnodes may not be stable.
-declare cur SCROLL CURSOR for select 1 from list_part where a > (select 1) and a < (select 4);
-
--- move beyond the final row
-move 3 from cur;
-
--- Ensure we get two rows.
-fetch backward all from cur;
-
-commit;
-
-begin;
-
--- Test run-time pruning using stable functions
-create function list_part_fn(int) returns int as $$ begin return $1; end;$$ language plpgsql stable;
-
--- Ensure pruning works using a stable function containing no Vars
-explain (analyze, costs off, summary off, timing off) select * from list_part where a = list_part_fn(1);
-
--- Ensure pruning does not take place when the function has a Var parameter
-explain (analyze, costs off, summary off, timing off) select * from list_part where a = list_part_fn(a);
-
--- Ensure pruning does not take place when the expression contains a Var.
-explain (analyze, costs off, summary off, timing off) select * from list_part where a = list_part_fn(1) + a;
-
-rollback;
 
 drop table list_part;
 
@@ -450,11 +449,11 @@ declare
     ln text;
 begin
     for ln in
-        execute format('explain (analyze, costs off, summary off, timing off) %s',
+        execute format('explain (costs off, summary off, timing off) %s',
             $1)
     loop
         if ln like '%Parallel%' then
-            ln := regexp_replace(ln, 'loops=\d*',  'loops=N');
+            ln = regexp_replace(ln, 'loops=\d*',  'loops=N');
         end if;
         return next ln;
     end loop;
@@ -502,14 +501,13 @@ select explain_parallel_append('execute ab_q5 (33, 44, 55)');
 select explain_parallel_append('select count(*) from ab where (a = (select 1) or a = (select 3)) and b = 2');
 
 -- Test pruning during parallel nested loop query
+drop table if exists rparted_by_int2;
 create table lprt_a (a int not null);
 -- Insert some values we won't find in ab
 insert into lprt_a select 0 from generate_series(1,100);
 
 -- and insert some values that we should find.
 insert into lprt_a values(1),(1);
-
-analyze lprt_a;
 
 create index ab_a2_b1_a_idx on ab_a2_b1 (a);
 create index ab_a2_b2_a_idx on ab_a2_b2 (a);
@@ -547,15 +545,15 @@ reset min_parallel_table_scan_size;
 reset max_parallel_workers_per_gather;
 
 -- Test run-time partition pruning with an initplan
-explain (analyze, costs off, summary off, timing off)
+explain (costs off, summary off, timing off)
 select * from ab where a = (select max(a) from lprt_a) and b = (select max(a)-1 from lprt_a);
 
 -- Test run-time partition pruning with UNION ALL parents
-explain (analyze, costs off, summary off, timing off)
+explain (costs off, summary off, timing off)
 select * from (select * from ab where a = 1 union all select * from ab) ab where b = (select 1);
 
 -- A case containing a UNION ALL with a non-partitioned child.
-explain (analyze, costs off, summary off, timing off)
+explain (costs off, summary off, timing off)
 select * from (select * from ab where a = 1 union all (values(10,5)) union all select * from ab) ab where b = (select 1);
 
 deallocate ab_q1;
@@ -566,17 +564,20 @@ deallocate ab_q5;
 
 -- UPDATE on a partition subtree has been seen to have problems.
 insert into ab values (1,2);
-explain (analyze, costs off, summary off, timing off)
+explain (costs off, summary off, timing off)
 update ab_a1 set b = 3 from ab where ab.a = 1 and ab.a = ab_a1.a;
 table ab;
 
-drop table ab, lprt_a;
+drop table ab;
+drop table lprt_a;
 
 -- Join
+drop table if exists tbl1;
 create table tbl1(col1 int);
 insert into tbl1 values (501), (505);
 
 -- Basic table
+drop table if exists tprt;
 create table tprt (col1 int) partition by range (col1);
 create table tprt_1 partition of tprt for values from (1) to (501);
 create table tprt_2 partition of tprt for values from (501) to (1001);
@@ -597,10 +598,10 @@ insert into tprt values (10), (20), (501), (502), (505), (1001), (4500);
 set enable_hashjoin = off;
 set enable_mergejoin = off;
 
-explain (analyze, costs off, summary off, timing off)
+explain (costs off, summary off, timing off)
 select * from tbl1 join tprt on tbl1.col1 > tprt.col1;
 
-explain (analyze, costs off, summary off, timing off)
+explain (costs off, summary off, timing off)
 select * from tbl1 join tprt on tbl1.col1 = tprt.col1;
 
 select tbl1.col1, tprt.col1 from tbl1
@@ -613,10 +614,10 @@ order by tbl1.col1, tprt.col1;
 
 -- Multiple partitions
 insert into tbl1 values (1001), (1010), (1011);
-explain (analyze, costs off, summary off, timing off)
+explain (costs off, summary off, timing off)
 select * from tbl1 inner join tprt on tbl1.col1 > tprt.col1;
 
-explain (analyze, costs off, summary off, timing off)
+explain (costs off, summary off, timing off)
 select * from tbl1 inner join tprt on tbl1.col1 = tprt.col1;
 
 select tbl1.col1, tprt.col1 from tbl1
@@ -630,7 +631,7 @@ order by tbl1.col1, tprt.col1;
 -- Last partition
 delete from tbl1;
 insert into tbl1 values (4400);
-explain (analyze, costs off, summary off, timing off)
+explain (costs off, summary off, timing off)
 select * from tbl1 join tprt on tbl1.col1 < tprt.col1;
 
 select tbl1.col1, tprt.col1 from tbl1
@@ -640,16 +641,21 @@ order by tbl1.col1, tprt.col1;
 -- No matching partition
 delete from tbl1;
 insert into tbl1 values (10000);
-explain (analyze, costs off, summary off, timing off)
+explain (costs off, summary off, timing off)
 select * from tbl1 join tprt on tbl1.col1 = tprt.col1;
 
 select tbl1.col1, tprt.col1 from tbl1
 inner join tprt on tbl1.col1 = tprt.col1
 order by tbl1.col1, tprt.col1;
 
-drop table tbl1, tprt;
+drop table tbl1;
+drop table tprt;
 
 -- Test with columns defined in varying orders between each level
+drop table if exists part_abc;
+drop table if exists part_bac;
+drop table if exists part_cab;
+drop table if exists part_abc_p1;
 create table part_abc (a int not null, b int not null, c int not null) partition by list (a);
 create table part_bac (b int not null, a int not null, c int not null) partition by list (b);
 create table part_cab (c int not null, a int not null, b int not null) partition by list (c);
@@ -671,7 +677,7 @@ execute part_abc_q1 (1, 2, 3);
 execute part_abc_q1 (1, 2, 3);
 
 -- Single partition should be scanned.
-explain (analyze, costs off, summary off, timing off) execute part_abc_q1 (1, 2, 3);
+explain (costs off, summary off, timing off) execute part_abc_q1 (1, 2, 3);
 
 deallocate part_abc_q1;
 
@@ -679,6 +685,7 @@ drop table part_abc;
 
 -- Ensure that an Append node properly handles a sub-partitioned table
 -- matching without any of its leaf partitions matching the clause.
+drop table if exists listp;
 create table listp (a int, b int) partition by list (a);
 create table listp_1 partition of listp for values in(1) partition by list (b);
 create table listp_1_1 partition of listp_1 for values in(1);
@@ -697,13 +704,13 @@ execute q1 (1,2);
 execute q1 (1,2);
 execute q1 (1,2);
 
-explain (analyze, costs off, summary off, timing off)  execute q1 (1,1);
+explain (costs off, summary off, timing off)  execute q1 (1,1);
 
-explain (analyze, costs off, summary off, timing off)  execute q1 (2,2);
+explain (costs off, summary off, timing off)  execute q1 (2,2);
 
 -- Try with no matching partitions. One subplan should remain in this case,
 -- but it shouldn't be executed.
-explain (analyze, costs off, summary off, timing off)  execute q1 (0,0);
+explain (costs off, summary off, timing off)  execute q1 (0,0);
 
 deallocate q1;
 
@@ -717,14 +724,14 @@ execute q1 (1,2,3,4);
 execute q1 (1,2,3,4);
 
 -- Both partitions allowed by IN clause, but one disallowed by <> clause
-explain (analyze, costs off, summary off, timing off)  execute q1 (1,2,2,0);
+explain (costs off, summary off, timing off)  execute q1 (1,2,2,0);
 
 -- Both partitions allowed by IN clause, then both excluded again by <> clauses.
 -- One subplan will remain in this case, but it should not be executed.
-explain (analyze, costs off, summary off, timing off)  execute q1 (1,2,2,1);
+explain (costs off, summary off, timing off)  execute q1 (1,2,2,1);
 
 -- Ensure Params that evaluate to NULL properly prune away all partitions
-explain (analyze, costs off, summary off, timing off)
+explain (costs off, summary off, timing off)
 select * from listp where a = (select null::int);
 
 drop table listp;
@@ -732,6 +739,7 @@ drop table listp;
 --
 -- check that stable query clauses are only used in run-time pruning
 --
+drop table if exists stable_qual_pruning;
 create table stable_qual_pruning (a timestamp) partition by range (a);
 create table stable_qual_pruning1 partition of stable_qual_pruning
   for values from ('2000-01-01') to ('2000-02-01');
@@ -741,27 +749,27 @@ create table stable_qual_pruning3 partition of stable_qual_pruning
   for values from ('3000-02-01') to ('3000-03-01');
 
 -- comparison against a stable value requires run-time pruning
-explain (analyze, costs off, summary off, timing off)
+explain (costs off, summary off, timing off)
 select * from stable_qual_pruning where a < localtimestamp;
 
 -- timestamp < timestamptz comparison is only stable, not immutable
-explain (analyze, costs off, summary off, timing off)
+explain (costs off, summary off, timing off)
 select * from stable_qual_pruning where a < '2000-02-01'::timestamptz;
 
 -- check ScalarArrayOp cases
-explain (analyze, costs off, summary off, timing off)
+explain (costs off, summary off, timing off)
 select * from stable_qual_pruning
   where a = any(array['2010-02-01', '2020-01-01']::timestamp[]);
-explain (analyze, costs off, summary off, timing off)
+explain (costs off, summary off, timing off)
 select * from stable_qual_pruning
   where a = any(array['2000-02-01', '2010-01-01']::timestamp[]);
-explain (analyze, costs off, summary off, timing off)
+explain (costs off, summary off, timing off)
 select * from stable_qual_pruning
   where a = any(array['2000-02-01', localtimestamp]::timestamp[]);
-explain (analyze, costs off, summary off, timing off)
+explain (costs off, summary off, timing off)
 select * from stable_qual_pruning
   where a = any(array['2010-02-01', '2020-01-01']::timestamptz[]);
-explain (analyze, costs off, summary off, timing off)
+explain (costs off, summary off, timing off)
 select * from stable_qual_pruning
   where a = any(array['2000-02-01', '2010-01-01']::timestamptz[]);
 
@@ -772,6 +780,7 @@ drop table stable_qual_pruning;
 -- it must ignore clauses for trailing keys once it has seen a clause with
 -- non-inclusive operator for an earlier key
 --
+drop table if exists mc3p;
 create table mc3p (a int, b int, c int) partition by range (a, abs(b), c);
 create table mc3p0 partition of mc3p
   for values from (0, 0, 0) to (0, maxvalue, maxvalue);
@@ -781,7 +790,7 @@ create table mc3p2 partition of mc3p
   for values from (2, minvalue, minvalue) to (3, maxvalue, maxvalue);
 insert into mc3p values (0, 1, 1), (1, 1, 1), (2, 1, 1);
 
-explain (analyze, costs off, summary off, timing off)
+explain (costs off, summary off, timing off)
 select * from mc3p where a < 3 and abs(b) = 1;
 
 --
@@ -794,29 +803,31 @@ select * from mc3p where a < 3 and abs(b) = 1;
 --
 prepare ps1 as
   select * from mc3p where a = $1 and abs(b) < (select 3);
-explain (analyze, costs off, summary off, timing off)
+explain (costs off, summary off, timing off)
 execute ps1(1);
 deallocate ps1;
 prepare ps2 as
   select * from mc3p where a <= $1 and abs(b) < (select 3);
-explain (analyze, costs off, summary off, timing off)
+explain (costs off, summary off, timing off)
 execute ps2(1);
 deallocate ps2;
 
 drop table mc3p;
 
 -- Ensure runtime pruning works with initplans params with boolean types
+drop table if exists boolvalues;
 create table boolvalues (value bool not null);
 insert into boolvalues values('t'),('f');
 
+drop table if exists boolp;
 create table boolp (a bool) partition by list (a);
 create table boolp_t partition of boolp for values in('t');
 create table boolp_f partition of boolp for values in('f');
 
-explain (analyze, costs off, summary off, timing off)
+explain (costs off, summary off, timing off)
 select * from boolp where a = (select value from boolvalues where value);
 
-explain (analyze, costs off, summary off, timing off)
+explain (costs off, summary off, timing off)
 select * from boolp where a = (select value from boolvalues where not value);
 
 drop table boolp;
@@ -828,29 +839,8 @@ reset enable_indexonlyscan;
 -- pseudotype
 --
 
--- array type list partition key
-create table pp_arrpart (a int[]) partition by list (a);
-create table pp_arrpart1 partition of pp_arrpart for values in ('{1}');
-create table pp_arrpart2 partition of pp_arrpart for values in ('{2, 3}', '{4, 5}');
-explain (costs off) select * from pp_arrpart where a = '{1}';
-explain (costs off) select * from pp_arrpart where a = '{1, 2}';
-explain (costs off) select * from pp_arrpart where a in ('{4, 5}', '{1}');
-explain (costs off) update pp_arrpart set a = a where a = '{1}';
-explain (costs off) delete from pp_arrpart where a = '{1}';
-drop table pp_arrpart;
-
--- array type hash partition key
-create table pph_arrpart (a int[]) partition by hash (a);
-create table pph_arrpart1 partition of pph_arrpart for values with (modulus 2, remainder 0);
-create table pph_arrpart2 partition of pph_arrpart for values with (modulus 2, remainder 1);
-insert into pph_arrpart values ('{1}'), ('{1, 2}'), ('{4, 5}');
-select tableoid::regclass, * from pph_arrpart order by 1;
-explain (costs off) select * from pph_arrpart where a = '{1}';
-explain (costs off) select * from pph_arrpart where a = '{1, 2}';
-explain (costs off) select * from pph_arrpart where a in ('{4, 5}', '{1}');
-drop table pph_arrpart;
-
 -- enum type list partition key
+drop table if exists pp_colors;
 create type pp_colors as enum ('green', 'blue', 'black');
 create table pp_enumpart (a pp_colors) partition by list (a);
 create table pp_enumpart_green partition of pp_enumpart for values in ('green');
@@ -860,28 +850,10 @@ explain (costs off) select * from pp_enumpart where a = 'black';
 drop table pp_enumpart;
 drop type pp_colors;
 
--- record type as partition key
-create type pp_rectype as (a int, b int);
-create table pp_recpart (a pp_rectype) partition by list (a);
-create table pp_recpart_11 partition of pp_recpart for values in ('(1,1)');
-create table pp_recpart_23 partition of pp_recpart for values in ('(2,3)');
-explain (costs off) select * from pp_recpart where a = '(1,1)'::pp_rectype;
-explain (costs off) select * from pp_recpart where a = '(1,2)'::pp_rectype;
-drop table pp_recpart;
-drop type pp_rectype;
-
--- range type partition key
-create table pp_intrangepart (a int4range) partition by list (a);
-create table pp_intrangepart12 partition of pp_intrangepart for values in ('[1,2]');
-create table pp_intrangepart2inf partition of pp_intrangepart for values in ('[2,)');
-explain (costs off) select * from pp_intrangepart where a = '[1,2]'::int4range;
-explain (costs off) select * from pp_intrangepart where a = '(1,2)'::int4range;
-drop table pp_intrangepart;
-
 --
 -- Ensure the enable_partition_prune GUC properly disables partition pruning.
 --
-
+drop table if exists pp_lp;
 create table pp_lp (a int, value int) partition by list (a);
 create table pp_lp1 partition of pp_lp for values in(1);
 create table pp_lp2 partition of pp_lp for values in(2);
@@ -908,6 +880,7 @@ drop table pp_lp;
 
 -- Ensure enable_partition_prune does not affect non-partitioned tables.
 
+drop table if exists inh_lp;
 create table inh_lp (a int, value int);
 create table inh_lp1 (a int, value int, check(a = 1)) inherits (inh_lp);
 create table inh_lp2 (a int, value int, check(a = 2)) inherits (inh_lp);
@@ -973,16 +946,18 @@ from (
      ) s(a, b, c)
 where s.a = 1 and s.b = 1 and s.c = (select 1);
 
-drop table p, q;
+drop table p;
+drop table q;
 
 -- Ensure run-time pruning works correctly when we match a partitioned table
 -- on the first level but find no matching partitions on the second level.
+drop table if exists listp;
 create table listp (a int, b int) partition by list (a);
 create table listp1 partition of listp for values in(1);
 create table listp2 partition of listp for values in(2) partition by list(b);
 create table listp2_10 partition of listp2 for values in (10);
 
-explain (analyze, costs off, summary off, timing off)
+explain (costs off, summary off, timing off)
 select * from listp where a = (select 2) and b <> 10;
 
 --

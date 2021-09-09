@@ -2,6 +2,7 @@
 -- TIME
 --
 
+DROP TABLE if exists TIME_TBL;
 CREATE TABLE TIME_TBL (f1 time(2));
 
 INSERT INTO TIME_TBL VALUES ('00:00');
@@ -40,3 +41,4 @@ SELECT f1 AS "Eight" FROM TIME_TBL WHERE f1 >= '00:00';
 -- where we do mixed-type arithmetic. - thomas 2000-12-02
 
 SELECT f1 + time '00:01' AS "Illegal" FROM TIME_TBL;
+DROP TABLE TIME_TBL;

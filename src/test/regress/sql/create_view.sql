@@ -4,19 +4,8 @@
 --	(this also tests the query rewrite system)
 --
 
-CREATE VIEW street AS
-   SELECT r.name, r.thepath, c.cname AS cname
-   FROM ONLY road r, real_city c
-   WHERE c.outline ## r.thepath;
-
-CREATE VIEW iexit AS
-   SELECT ih.name, ih.thepath,
-	interpt_pp(ih.thepath, r.thepath) AS exit
-   FROM ihighway ih, ramp r
-   WHERE ih.thepath ## r.thepath;
-
 CREATE VIEW toyemp AS
-   SELECT name, age, location, 12*salary AS annualsal
+   SELECT name, age, 12*salary AS annualsal
    FROM emp;
 
 -- Test comments
@@ -26,27 +15,28 @@ COMMENT ON VIEW toyemp IS NULL;
 
 -- These views are left around mainly to exercise special cases in pg_dump.
 
-CREATE TABLE view_base_table (key int PRIMARY KEY, data varchar(20));
+drop table if exists view_base_table cascade;
+CREATE TABLE view_base_table (key1 int PRIMARY KEY, data varchar(20));
 
 CREATE VIEW key_dependent_view AS
-   SELECT * FROM view_base_table GROUP BY key;
+   SELECT * FROM view_base_table GROUP BY key1;
 
 ALTER TABLE view_base_table DROP CONSTRAINT view_base_table_pkey;  -- fails
 
 CREATE VIEW key_dependent_view_no_cols AS
-   SELECT FROM view_base_table GROUP BY key HAVING length(data) > 0;
+   SELECT FROM view_base_table GROUP BY key1 HAVING length(data) > 0;
 
 --
 -- CREATE OR REPLACE VIEW
 --
-
+-- copy not supported.
 CREATE TABLE viewtest_tbl (a int, b int);
-COPY viewtest_tbl FROM stdin;
-5	10
-10	15
-15	20
-20	25
-\.
+--COPY viewtest_tbl FROM stdin;
+--5	10
+--10	15
+--15	20
+--20	25
+--\.
 
 CREATE OR REPLACE VIEW viewtest AS
 	SELECT * FROM viewtest_tbl;
@@ -82,9 +72,9 @@ DROP TABLE viewtest_tbl;
 
 -- tests for temporary views
 
-CREATE SCHEMA temp_view_test
-    CREATE TABLE base_table (a int, id int)
-    CREATE TABLE base_table2 (a int, id int);
+CREATE SCHEMA temp_view_test;
+CREATE TABLE temp_view_test.base_table (a int, id int);
+CREATE TABLE temp_view_test.base_table2 (a int, id int);
 
 SET search_path TO temp_view_test, public;
 
@@ -101,9 +91,10 @@ CREATE VIEW temp_view_test.v2 AS SELECT * FROM base_table;
 -- should fail
 CREATE VIEW temp_view_test.v3_temp AS SELECT * FROM temp_table;
 -- should fail
-CREATE SCHEMA test_view_schema
-    CREATE TEMP VIEW testview AS SELECT 1;
-
+CREATE SCHEMA test_view_schema;
+CREATE TEMP VIEW test_view_schema.testview AS SELECT 1;
+DROP VIEW test_view_schema.testview;
+DROP SCHEMA test_view_schema;
 -- joins: if any of the join relations are temporary, the view
 -- should also be temporary
 
@@ -504,8 +495,6 @@ create view tt14v as select t.* from tt14f() t;
 select pg_get_viewdef('tt14v', true);
 select * from tt14v;
 
-begin;
-
 -- this perhaps should be rejected, but it isn't:
 alter table tt14t drop column f3;
 
@@ -515,10 +504,6 @@ select pg_get_viewdef('tt14v', true);
 select f1, f4 from tt14v;
 select * from tt14v;
 
-rollback;
-
-begin;
-
 -- this perhaps should be rejected, but it isn't:
 alter table tt14t alter column f4 type integer using f4::integer;
 
@@ -527,8 +512,6 @@ select pg_get_viewdef('tt14v', true);
 -- but will fail at execution
 select f1, f3 from tt14v;
 select * from tt14v;
-
-rollback;
 
 -- check display of whole-row variables in some corner cases
 
@@ -603,5 +586,35 @@ select pg_get_ruledef(oid, true) from pg_rewrite
 
 -- clean up all the random objects we made above
 \set VERBOSITY terse \\ -- suppress cascade details
-DROP SCHEMA temp_view_test CASCADE;
-DROP SCHEMA testviewschm2 CASCADE;
+DROP TABLE temp_view_test.base_table cascade;
+DROP TABLE temp_view_test.base_table2 cascade;
+DROP TABLE temp_view_test.tt1 cascade;
+DROP TABLE temp_view_test.tx1 cascade;
+DROP VIEW temp_view_test.v9 cascade;
+DROP SEQUENCE temp_view_test.seq1;
+DROP SCHEMA temp_view_test;
+
+DROP TABLE testviewschm2.t1 cascade;
+DROP TABLE testviewschm2.t2 cascade;
+DROP TABLE testviewschm2.tbl1 cascade;
+DROP TABLE testviewschm2.tbl2 cascade;
+DROP TABLE testviewschm2.tbl3 cascade;
+DROP TABLE testviewschm2.tbl4 cascade;
+DROP TABLE testviewschm2.tt1 cascade;
+DROP TABLE testviewschm2.tt2 cascade;
+DROP TABLE testviewschm2.tt3 cascade;
+DROP TABLE testviewschm2.tt4 cascade;
+DROP TABLE testviewschm2.tt5 cascade;
+DROP TABLE testviewschm2.tt6 cascade;
+DROP TABLE testviewschm2.tt7 cascade;
+DROP TABLE testviewschm2.tt7a cascade;
+DROP TABLE testviewschm2.tt8 cascade;
+DROP TABLE testviewschm2.tt8a cascade;
+DROP TABLE testviewschm2.tx1 cascade;
+DROP TABLE testviewschm2.tt9 cascade;
+DROP TABLE testviewschm2.tt10 cascade;
+DROP TABLE testviewschm2.tt11 cascade;
+DROP TABLE testviewschm2.tt12 cascade;
+DROP TABLE testviewschm2.tt13 cascade;
+DROP TABLE testviewschm2.tt14t cascade;
+DROP SCHEMA testviewschm2 cascade;

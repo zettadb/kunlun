@@ -4,7 +4,7 @@
 --
 
 --DROP TABLE LSEG_TBL;
-CREATE TABLE LSEG_TBL (s lseg);
+CREATE TEMP TABLE LSEG_TBL (s lseg);
 
 INSERT INTO LSEG_TBL VALUES ('[(1,2),(3,4)]');
 INSERT INTO LSEG_TBL VALUES ('(0,0),(6,6)');
@@ -23,3 +23,5 @@ select * from LSEG_TBL;
 SELECT * FROM LSEG_TBL WHERE s <= lseg '[(1,2),(3,4)]';
 
 SELECT * FROM LSEG_TBL WHERE (s <-> lseg '[(1,2),(3,4)]') < 10;
+
+DROP TABLE LSEG_TBL;

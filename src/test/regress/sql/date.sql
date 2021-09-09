@@ -2,6 +2,7 @@
 -- DATE
 --
 
+drop table if exists DATE_TBL;
 CREATE TABLE DATE_TBL (f1 date);
 
 INSERT INTO DATE_TBL VALUES ('1957-04-09');
@@ -346,3 +347,5 @@ select make_date(2013, 13, 1);
 select make_date(2013, 11, -1);
 select make_time(10, 55, 100.1);
 select make_time(24, 0, 2.1);
+
+drop table DATE_TBL;

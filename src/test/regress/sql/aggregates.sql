@@ -121,46 +121,6 @@ select array(select sum(x+y) s
   from generate_series(1,3) x;
 
 --
--- test for bitwise integer aggregates
---
-CREATE TEMPORARY TABLE bitwise_test(
-  i2 INT2,
-  i4 INT4,
-  i8 INT8,
-  i INTEGER,
-  x INT2,
-  y BIT(4)
-);
-
--- empty case
-SELECT
-  BIT_AND(i2) AS "?",
-  BIT_OR(i4)  AS "?"
-FROM bitwise_test;
-
-COPY bitwise_test FROM STDIN NULL 'null';
-1	1	1	1	1	B0101
-3	3	3	null	2	B0100
-7	7	7	3	4	B1100
-\.
-
-SELECT
-  BIT_AND(i2) AS "1",
-  BIT_AND(i4) AS "1",
-  BIT_AND(i8) AS "1",
-  BIT_AND(i)  AS "?",
-  BIT_AND(x)  AS "0",
-  BIT_AND(y)  AS "0100",
-
-  BIT_OR(i2)  AS "7",
-  BIT_OR(i4)  AS "7",
-  BIT_OR(i8)  AS "7",
-  BIT_OR(i)   AS "?",
-  BIT_OR(x)   AS "7",
-  BIT_OR(y)   AS "1101"
-FROM bitwise_test;
-
---
 -- test boolean aggregates
 --
 -- first test all possible transition and final states
@@ -192,51 +152,6 @@ SELECT
   boolor_statefunc(TRUE, FALSE) AS "t",
   boolor_statefunc(FALSE, TRUE) AS "t",
   NOT boolor_statefunc(FALSE, FALSE) AS "t";
-
-CREATE TEMPORARY TABLE bool_test(
-  b1 BOOL,
-  b2 BOOL,
-  b3 BOOL,
-  b4 BOOL);
-
--- empty case
-SELECT
-  BOOL_AND(b1)   AS "n",
-  BOOL_OR(b3)    AS "n"
-FROM bool_test;
-
-COPY bool_test FROM STDIN NULL 'null';
-TRUE	null	FALSE	null
-FALSE	TRUE	null	null
-null	TRUE	FALSE	null
-\.
-
-SELECT
-  BOOL_AND(b1)     AS "f",
-  BOOL_AND(b2)     AS "t",
-  BOOL_AND(b3)     AS "f",
-  BOOL_AND(b4)     AS "n",
-  BOOL_AND(NOT b2) AS "f",
-  BOOL_AND(NOT b3) AS "t"
-FROM bool_test;
-
-SELECT
-  EVERY(b1)     AS "f",
-  EVERY(b2)     AS "t",
-  EVERY(b3)     AS "f",
-  EVERY(b4)     AS "n",
-  EVERY(NOT b2) AS "f",
-  EVERY(NOT b3) AS "t"
-FROM bool_test;
-
-SELECT
-  BOOL_OR(b1)      AS "t",
-  BOOL_OR(b2)      AS "t",
-  BOOL_OR(b3)      AS "f",
-  BOOL_OR(b4)      AS "n",
-  BOOL_OR(NOT b2)  AS "f",
-  BOOL_OR(NOT b3)  AS "t"
-FROM bool_test;
 
 --
 -- Test cases that should be optimized into indexscans instead of
@@ -305,32 +220,6 @@ explain (costs off)
   select max(100) from tenk1;
 select max(100) from tenk1;
 
--- try it on an inheritance tree
-create table minmaxtest(f1 int);
-create table minmaxtest1() inherits (minmaxtest);
-create table minmaxtest2() inherits (minmaxtest);
-create table minmaxtest3() inherits (minmaxtest);
-create index minmaxtesti on minmaxtest(f1);
-create index minmaxtest1i on minmaxtest1(f1);
-create index minmaxtest2i on minmaxtest2(f1 desc);
-create index minmaxtest3i on minmaxtest3(f1) where f1 is not null;
-
-insert into minmaxtest values(11), (12);
-insert into minmaxtest1 values(13), (14);
-insert into minmaxtest2 values(15), (16);
-insert into minmaxtest3 values(17), (18);
-
-explain (costs off)
-  select min(f1), max(f1) from minmaxtest;
-select min(f1), max(f1) from minmaxtest;
-
--- DISTINCT doesn't do anything useful here, but it shouldn't fail
-explain (costs off)
-  select distinct min(f1), max(f1) from minmaxtest;
-select distinct min(f1), max(f1) from minmaxtest;
-
-drop table minmaxtest cascade;
-
 -- check for correct detection of nested-aggregate errors
 select max(min(unique1)) from tenk1;
 select (select max(min(unique1)) from int8_tbl) from tenk1;
@@ -361,8 +250,6 @@ group by t1.a,t1.b,t1.c,t1.d,t2.x,t2.z;
 
 -- Cannot optimize when PK is deferrable
 explain (costs off) select * from t3 group by a,b,c;
-
-create temp table t1c () inherits (t1);
 
 -- Ensure we don't remove any columns when t1 has a child table
 explain (costs off) select * from t1 group by a,b,c,d;
@@ -694,14 +581,14 @@ begin
 	raise notice 'avg_transfn called with %', n;
 	if state is null then
 		if n is not null then
-			new_state.total := n;
-			new_state.count := 1;
+			new_state.total = n;
+			new_state.count = 1;
 			return new_state;
 		end if;
 		return null;
 	elsif n is not null then
-		state.total := state.total + n;
-		state.count := state.count + 1;
+		state.total = state.total + n;
+		state.count = state.count + 1;
 		return state;
 	end if;
 
@@ -824,12 +711,12 @@ begin
 	raise notice 'sum_transfn called with %', n;
 	if state is null then
 		if n is not null then
-			new_state := n;
+			new_state = n;
 			return new_state;
 		end if;
 		return null;
 	elsif n is not null then
-		state := state + n;
+		state = state + n;
 		return state;
 	end if;
 
@@ -921,7 +808,7 @@ CREATE AGGREGATE balk(int4)
 );
 
 -- force use of parallelism
-ALTER TABLE tenk1 set (parallel_workers = 4);
+--ALTER TABLE tenk1 set (parallel_workers = 4);
 SET LOCAL parallel_setup_cost=0;
 SET LOCAL max_parallel_workers_per_gather=4;
 

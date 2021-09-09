@@ -522,7 +522,7 @@ end$$ language plpgsql;
 select doubledecrement(3); -- fail because of implicit null assignment
 
 create or replace function doubledecrement(p1 pos_int) returns pos_int as $$
-declare v pos_int := 0;
+declare v pos_int = 0;
 begin
     return p1;
 end$$ language plpgsql;
@@ -530,9 +530,9 @@ end$$ language plpgsql;
 select doubledecrement(3); -- fail at initialization assignment
 
 create or replace function doubledecrement(p1 pos_int) returns pos_int as $$
-declare v pos_int := 1;
+declare v pos_int = 1;
 begin
-    v := p1 - 1;
+    v = p1 - 1;
     return v - 1;
 end$$ language plpgsql;
 
@@ -606,7 +606,7 @@ create or replace function array_elem_check(numeric) returns numeric as $$
 declare
   x numeric(4,2)[1];
 begin
-  x[1] := $1;
+  x[1] = $1;
   return x[1];
 end$$ language plpgsql;
 
@@ -619,7 +619,7 @@ create or replace function array_elem_check(numeric) returns numeric as $$
 declare
   x mynums;
 begin
-  x[1] := $1;
+  x[1] = $1;
   return x[1];
 end$$ language plpgsql;
 
@@ -632,7 +632,7 @@ create or replace function array_elem_check(numeric) returns numeric as $$
 declare
   x mynums2;
 begin
-  x[1] := $1;
+  x[1] = $1;
   return x[1];
 end$$ language plpgsql;
 
@@ -660,9 +660,9 @@ select * from op;
 
 create or replace function array_elem_check(int) returns int as $$
 declare
-  x orderedpair := '{1,2}';
+  x orderedpair = '{1,2}';
 begin
-  x[2] := $1;
+  x[2] = $1;
   return x[2];
 end$$ language plpgsql;
 
@@ -680,7 +680,7 @@ create domain di as int;
 create function dom_check(int) returns di as $$
 declare d di;
 begin
-  d := $1;
+  d = $1;
   return d;
 end
 $$ language plpgsql immutable;

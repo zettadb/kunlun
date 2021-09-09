@@ -2,6 +2,7 @@
 -- INT4
 --
 
+DROP table if exists INT4_TBL;
 CREATE TABLE INT4_TBL(f1 int4);
 
 INSERT INTO INT4_TBL(f1) VALUES ('   0  ');
@@ -155,3 +156,4 @@ FROM (VALUES (-2.5::numeric),
              (0.5::numeric),
              (1.5::numeric),
              (2.5::numeric)) t(x);
+

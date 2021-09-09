@@ -1,3 +1,5 @@
+
+DROP TABLE if exists xmltest;
 CREATE TABLE xmltest (
     id int,
     data xml
@@ -200,7 +202,7 @@ SELECT xpath('root', '<root/>');
 -- Round-trip non-ASCII data through xpath().
 DO $$
 DECLARE
-  xml_declaration text := '<?xml version="1.0" encoding="ISO-8859-1"?>';
+  xml_declaration text = '<?xml version="1.0" encoding="ISO-8859-1"?>';
   degree_symbol text;
   res xml[];
 BEGIN
@@ -214,8 +216,8 @@ BEGIN
     RETURN;
   END IF;
 
-  degree_symbol := convert_from('\xc2b0', 'UTF8');
-  res := xpath('text()', (xml_declaration ||
+  degree_symbol = convert_from('\xc2b0', 'UTF8');
+  res = xpath('text()', (xml_declaration ||
     '<x>' || degree_symbol || '</x>')::xml);
   IF degree_symbol <> res[1]::text THEN
     RAISE 'expected % (%), got % (%)',
@@ -258,6 +260,7 @@ SELECT COUNT(id) FROM xmltest WHERE xpath_exists('/myns:menu/myns:beer',data,ARR
 SELECT COUNT(id) FROM xmltest WHERE xpath_exists('/myns:menu/myns:beers',data,ARRAY[ARRAY['myns','http://myns.com']]);
 SELECT COUNT(id) FROM xmltest WHERE xpath_exists('/myns:menu/myns:beers/myns:name[text() = ''Molson'']',data,ARRAY[ARRAY['myns','http://myns.com']]);
 
+DROP TABLE if exists query;
 CREATE TABLE query ( expr TEXT );
 INSERT INTO query VALUES ('/menu/beers/cost[text() = ''lots'']');
 SELECT COUNT(id) FROM xmltest, query WHERE xmlexists(expr PASSING BY REF data);
@@ -316,6 +319,7 @@ SELECT XMLPARSE(DOCUMENT '<!DOCTYPE foo [<!ENTITY c SYSTEM "/etc/no.such.file">]
 SELECT XMLPARSE(DOCUMENT '<!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN" "http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd"><chapter>&nbsp;</chapter>');
 
 -- XMLPATH tests
+DROP TABLE if exists xmldata;
 CREATE TABLE xmldata(data xml);
 INSERT INTO xmldata VALUES('<ROWS>
 <ROW id="1">
@@ -592,6 +596,7 @@ WITH
    SELECT * FROM z
    EXCEPT SELECT * FROM x;
 
+DROP TABLE if exists xmltest2;
 CREATE TABLE xmltest2(x xml, _path text);
 
 INSERT INTO xmltest2 VALUES('<d><r><ac>1</ac></r></d>', 'A');

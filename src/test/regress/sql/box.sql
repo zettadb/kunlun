@@ -19,7 +19,7 @@
 -- boxes are specified by two points, given by four floats x1,y1,x2,y2
 
 
-CREATE TABLE BOX_TBL (f1 box);
+CREATE TEMP TABLE BOX_TBL (f1 box);
 
 INSERT INTO BOX_TBL (f1) VALUES ('(2.0,2.0,0.0,0.0)');
 
@@ -183,7 +183,7 @@ DROP INDEX box_spgist;
 --
 -- Test the SP-GiST index on the larger volume of data
 --
-CREATE TABLE quad_box_tbl (b box);
+CREATE TEMP TABLE quad_box_tbl (b box);
 
 INSERT INTO quad_box_tbl
 	SELECT box(point(x * 10, y * 10), point(x * 10 + 5, y * 10 + 5))

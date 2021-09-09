@@ -8,6 +8,7 @@
 
 
 -- create a simple table that we'll use in the tests
+drop table if not exists pxtest1;
 CREATE TABLE pxtest1 (foobar VARCHAR(10));
 
 INSERT INTO pxtest1 VALUES ('aaa');
@@ -87,10 +88,12 @@ SELECT gid FROM pg_prepared_xacts;
 
 -- Clean up
 DROP TABLE pxtest1;
+CREATE TABLE pxtest2 (a int);
+CREATE TABLE pxtest3(fff int);
+CREATE TABLE pxtest4 (a int);
 
 -- Test subtransactions
 BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;
-  CREATE TABLE pxtest2 (a int);
   INSERT INTO pxtest2 VALUES (1);
   SAVEPOINT a;
     INSERT INTO pxtest2 VALUES (2);
@@ -99,21 +102,11 @@ BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;
   INSERT INTO pxtest2 VALUES (3);
 PREPARE TRANSACTION 'regress-one';
 
-CREATE TABLE pxtest3(fff int);
-
 -- Test shared invalidation
 BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;
-  DROP TABLE pxtest3;
-  CREATE TABLE pxtest4 (a int);
   INSERT INTO pxtest4 VALUES (1);
   INSERT INTO pxtest4 VALUES (2);
-  DECLARE foo CURSOR FOR SELECT * FROM pxtest4;
-  -- Fetch 1 tuple, keeping the cursor open
-  FETCH 1 FROM foo;
 PREPARE TRANSACTION 'regress-two';
-
--- No such cursor
-FETCH 1 FROM foo;
 
 -- Table doesn't exist, the creation hasn't been committed yet
 SELECT * FROM pxtest2;

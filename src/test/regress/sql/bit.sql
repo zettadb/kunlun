@@ -56,18 +56,18 @@ SELECT v,
 --- Bit operations
 DROP TABLE varbit_table;
 CREATE TABLE varbit_table (a BIT VARYING(16), b BIT VARYING(16));
--- COPY varbit_table FROM stdin;
-insert into varbit_table values(X'0F', X'10');
-insert into varbit_table values(X'1F', X'11');
-insert into varbit_table values(X'2F', X'12');
-insert into varbit_table values(X'3F', X'13');
-insert into varbit_table values(X'8F', X'04');
-insert into varbit_table values(X'000F', X'0010');
-insert into varbit_table values(X'0123', X'FFFF');
-insert into varbit_table values(X'2468', X'2468');
-insert into varbit_table values(X'FA50', X'05AF');
-insert into varbit_table values(X'1234', X'FFF5');
--- \.
+COPY varbit_table FROM stdin;
+X0F	X10
+X1F	X11
+X2F	X12
+X3F	X13
+X8F	X04
+X000F	X0010
+X0123	XFFFF
+X2468	X2468
+XFA50	X05AF
+X1234	XFFF5
+\.
 
 SELECT a, b, ~a AS "~ a", a & b AS "a & b",
        a | b AS "a | b", a # b AS "a # b" FROM varbit_table;
@@ -80,18 +80,18 @@ DROP TABLE varbit_table;
 --- Bit operations
 DROP TABLE bit_table;
 CREATE TABLE bit_table (a BIT(16), b BIT(16));
--- COPY bit_table FROM stdin;
-insert into bit_table values(X'0F00', X'1000');
-insert into bit_table values(X'1F00', X'1100');
-insert into bit_table values(X'2F00', X'1200');
-insert into bit_table values(X'3F00', X'1300');
-insert into bit_table values(X'8F00', X'0400');
-insert into bit_table values(X'000F', X'0010');
-insert into bit_table values(X'0123', X'FFFF');
-insert into bit_table values(X'2468', X'2468');
-insert into bit_table values(X'FA50', X'05AF');
-insert into bit_table values(X'1234', X'FFF5');
--- \.
+COPY bit_table FROM stdin;
+X0F00	X1000
+X1F00	X1100
+X2F00	X1200
+X3F00	X1300
+X8F00	X0400
+X000F	X0010
+X0123	XFFFF
+X2468	X2468
+XFA50	X05AF
+X1234	XFFF5
+\.
 
 SELECT a,b,~a AS "~ a",a & b AS "a & b",
 	a|b AS "a | b", a # b AS "a # b" FROM bit_table;
@@ -206,3 +206,4 @@ CREATE TABLE bit_defaults(
 \d bit_defaults
 INSERT INTO bit_defaults DEFAULT VALUES;
 TABLE bit_defaults;
+DROP TABLE bit_defaults;

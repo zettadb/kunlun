@@ -21,23 +21,8 @@ UPDATE indtoasttest SET cnt = cnt +1, f1 = '-'||f1||'-' RETURNING substring(indt
 
 SELECT substring(indtoasttest::text, 1, 200) FROM indtoasttest;
 -- check we didn't screw with main/toast tuple visibility
-VACUUM FREEZE indtoasttest;
 SELECT substring(indtoasttest::text, 1, 200) FROM indtoasttest;
 
--- now create a trigger that forces all Datums to be indirect ones
-CREATE FUNCTION update_using_indirect()
-        RETURNS trigger
-        LANGUAGE plpgsql AS $$
-BEGIN
-    NEW := make_tuple_indirect(NEW);
-    RETURN NEW;
-END$$;
-
-CREATE TRIGGER indtoasttest_update_indirect
-        BEFORE INSERT OR UPDATE
-        ON indtoasttest
-        FOR EACH ROW
-        EXECUTE PROCEDURE update_using_indirect();
 
 -- modification without changing varlenas
 UPDATE indtoasttest SET cnt = cnt +1 RETURNING substring(indtoasttest::text, 1, 200);
@@ -54,8 +39,6 @@ INSERT INTO indtoasttest(descr, f1, f2) VALUES('one-toasted,one-null, via indire
 
 SELECT substring(indtoasttest::text, 1, 200) FROM indtoasttest;
 -- check we didn't screw with main/toast tuple visibility
-VACUUM FREEZE indtoasttest;
 SELECT substring(indtoasttest::text, 1, 200) FROM indtoasttest;
 
 DROP TABLE indtoasttest;
-DROP FUNCTION update_using_indirect();

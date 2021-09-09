@@ -1,11 +1,15 @@
+
 CREATE TABLE ttable1 OF nothing;
 
-CREATE TYPE person_type AS (id int, name text);
+drop table if exists persons;
+drop type if exists person_type;
+CREATE TYPE person_type AS (id int, name varchar(50));
 CREATE TABLE persons OF person_type;
 CREATE TABLE IF NOT EXISTS persons OF person_type;
 SELECT * FROM persons;
 \d persons
 
+drop function if exists get_all_persons();
 CREATE FUNCTION get_all_persons() RETURNS SETOF person_type
 LANGUAGE SQL
 AS $$
@@ -24,6 +28,7 @@ ALTER TABLE persons INHERIT stuff;
 
 CREATE TABLE personsx OF person_type (myname WITH OPTIONS NOT NULL); -- error
 
+drop table if exists persons2;
 CREATE TABLE persons2 OF person_type (
     id WITH OPTIONS PRIMARY KEY,
     UNIQUE (name)
@@ -31,6 +36,7 @@ CREATE TABLE persons2 OF person_type (
 
 \d persons2
 
+drop table if exists persons3;
 CREATE TABLE persons3 OF person_type (
     PRIMARY KEY (id),
     name WITH OPTIONS DEFAULT ''
@@ -44,6 +50,8 @@ CREATE TABLE persons4 OF person_type (
 );
 
 DROP TYPE person_type RESTRICT;
+DROP TABLE persons2;
+DROP TABLE persons3;
 DROP TYPE person_type CASCADE;
 
 CREATE TABLE persons5 OF stuff; -- only CREATE TYPE AS types may be used
@@ -53,7 +61,7 @@ DROP TABLE stuff;
 
 -- implicit casting
 
-CREATE TYPE person_type AS (id int, name text);
+CREATE TYPE person_type AS (id int, name varchar(50));
 CREATE TABLE persons OF person_type;
 INSERT INTO persons VALUES (1, 'test');
 

@@ -66,16 +66,6 @@ SELECT * FROM temptest;
 
 DROP TABLE temptest;
 
-BEGIN;
-CREATE TEMP TABLE temptest(col) ON COMMIT DELETE ROWS AS SELECT 1;
-
-SELECT * FROM temptest;
-COMMIT;
-
-SELECT * FROM temptest;
-
-DROP TABLE temptest;
-
 -- Test ON COMMIT DROP
 
 BEGIN;
@@ -89,35 +79,6 @@ SELECT * FROM temptest;
 COMMIT;
 
 SELECT * FROM temptest;
-
-BEGIN;
-CREATE TEMP TABLE temptest(col) ON COMMIT DROP AS SELECT 1;
-
-SELECT * FROM temptest;
-COMMIT;
-
-SELECT * FROM temptest;
-
--- ON COMMIT is only allowed for TEMP
-
-CREATE TABLE temptest(col int) ON COMMIT DELETE ROWS;
-CREATE TABLE temptest(col) ON COMMIT DELETE ROWS AS SELECT 1;
-
--- Test foreign keys
-BEGIN;
-CREATE TEMP TABLE temptest1(col int PRIMARY KEY);
-CREATE TEMP TABLE temptest2(col int REFERENCES temptest1)
-  ON COMMIT DELETE ROWS;
-INSERT INTO temptest1 VALUES (1);
-INSERT INTO temptest2 VALUES (1);
-COMMIT;
-SELECT * FROM temptest1;
-SELECT * FROM temptest2;
-
-BEGIN;
-CREATE TEMP TABLE temptest3(col int PRIMARY KEY) ON COMMIT DELETE ROWS;
-CREATE TEMP TABLE temptest4(col int REFERENCES temptest3);
-COMMIT;
 
 -- Test manipulation of temp schema's placement in search path
 
@@ -151,15 +112,6 @@ select whoami();
 select pg_temp.whoami();
 
 drop table public.whereami;
-
--- types in temp schema
-set search_path = pg_temp, public;
-create domain pg_temp.nonempty as text check (value <> '');
--- function-syntax invocation of types matches rules for functions
-select nonempty('');
-select pg_temp.nonempty('');
--- other syntax matches rules for tables
-select ''::nonempty;
 
 reset search_path;
 

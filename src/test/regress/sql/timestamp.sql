@@ -2,6 +2,7 @@
 -- TIMESTAMP
 --
 
+drop table if exists TIMESTAMP_TBL;
 CREATE TABLE TIMESTAMP_TBL (d1 timestamp(2) without time zone);
 
 -- Test shorthand input values
@@ -230,3 +231,5 @@ SELECT '' AS to_char_11, to_char(d1, 'FMIYYY FMIYY FMIY FMI FMIW FMIDDD FMID')
 
 -- timestamp numeric fields constructor
 SELECT make_timestamp(2014,12,28,6,30,45.887);
+
+-- drop table TIMESTAMP_TBL;

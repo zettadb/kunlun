@@ -97,3 +97,5 @@ END;
 $$;
 SELECT test_future_xid_status(:inprogress + 10000);
 ROLLBACK;
+
+drop table snapshot_test;

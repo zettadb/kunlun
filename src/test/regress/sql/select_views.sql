@@ -1,15 +1,4 @@
 --
--- SELECT_VIEWS
--- test the views defined in CREATE_VIEWS
---
-
-SELECT * FROM street;
-
-SELECT name, #thepath FROM iexit ORDER BY name COLLATE "C", 2;
-
-SELECT * FROM toyemp WHERE name = 'sharon';
-
---
 -- Test for Leaky view scenario
 --
 CREATE ROLE regress_alice;
@@ -18,6 +7,7 @@ CREATE FUNCTION f_leak (text)
        RETURNS bool LANGUAGE 'plpgsql' COST 0.0000001
        AS 'BEGIN RAISE NOTICE ''f_leak => %'', $1; RETURN true; END';
 
+DROP TABLE if exists customer cascade;
 CREATE TABLE customer (
        cid      int primary key,
        name     text not null,
@@ -25,16 +15,18 @@ CREATE TABLE customer (
        passwd	text
 );
 
+DROP TABLE if exists credit_card cascade;
 CREATE TABLE credit_card (
-       cid      int references customer(cid),
+       cid      int,
        cnum     text,
        climit   int
 );
 
+DROP TABLE if exists credit_usage cascade;
 CREATE TABLE credit_usage (
-       cid      int references customer(cid),
+       cid      int,
        ymd      date,
-       usage    int
+       usage1    int
 );
 
 INSERT INTO customer
@@ -144,8 +136,8 @@ PREPARE p2 AS SELECT * FROM my_property_secure WHERE f_leak(passwd);
 EXECUTE p1;
 EXECUTE p2;
 RESET SESSION AUTHORIZATION;
-ALTER VIEW my_property_normal SET (security_barrier=true);
-ALTER VIEW my_property_secure SET (security_barrier=false);
+--ALTER VIEW my_property_normal SET (security_barrier=true);
+--ALTER VIEW my_property_secure SET (security_barrier=false);
 SET SESSION AUTHORIZATION regress_alice;
 EXECUTE p1;		-- To be perform as a view with security-barrier
 EXECUTE p2;		-- To be perform as a view without security-barrier

@@ -20,7 +20,7 @@ CREATE TEXT SEARCH TEMPLATE addr_ts_temp (lexize=dsimple_lexize);
 CREATE TEXT SEARCH PARSER addr_ts_prs
     (start = prsd_start, gettoken = prsd_nexttoken, end = prsd_end, lextypes = prsd_lextype);
 CREATE TABLE addr_nsp.gentable (
-	a serial primary key CONSTRAINT a_chk CHECK (a > 0),
+	a serial primary key,
 	b text DEFAULT 'hello');
 CREATE TABLE addr_nsp.parttable (
 	a int PRIMARY KEY
@@ -31,10 +31,6 @@ CREATE TYPE addr_nsp.gencomptype AS (a int);
 CREATE TYPE addr_nsp.genenum AS ENUM ('one', 'two');
 CREATE FOREIGN TABLE addr_nsp.genftable (a int) SERVER addr_fserv;
 CREATE AGGREGATE addr_nsp.genaggr(int4) (sfunc = int4pl, stype = int4);
-CREATE DOMAIN addr_nsp.gendomain AS int4 CONSTRAINT domconstr CHECK (value > 0);
-CREATE FUNCTION addr_nsp.trig() RETURNS TRIGGER LANGUAGE plpgsql AS $$ BEGIN END; $$;
-CREATE TRIGGER t BEFORE INSERT ON addr_nsp.gentable FOR EACH ROW EXECUTE PROCEDURE addr_nsp.trig();
-CREATE POLICY genpol ON addr_nsp.gentable;
 CREATE PROCEDURE addr_nsp.proc(int4) LANGUAGE SQL AS $$ $$;
 CREATE SERVER "integer" FOREIGN DATA WRAPPER addr_fdw;
 CREATE USER MAPPING FOR regress_addr_user SERVER "integer";
@@ -45,9 +41,6 @@ ALTER DEFAULT PRIVILEGES FOR ROLE regress_addr_user REVOKE DELETE ON TABLES FROM
 CREATE TRANSFORM FOR int LANGUAGE SQL (
 	FROM SQL WITH FUNCTION prsd_lextype(internal),
 	TO SQL WITH FUNCTION int4recv(internal));
-CREATE PUBLICATION addr_pub FOR TABLE addr_nsp.gentable;
-CREATE SUBSCRIPTION addr_sub CONNECTION '' PUBLICATION bar WITH (connect = false, slot_name = NONE);
-CREATE STATISTICS addr_nsp.gentable_stat ON a, b FROM addr_nsp.gentable;
 
 -- test some error cases
 SELECT pg_get_object_address('stone', '{}', '{}');
@@ -88,8 +81,8 @@ BEGIN
 		('materialized view'), ('foreign table'),
 		('table column'), ('foreign table column'),
 		('aggregate'), ('function'), ('procedure'), ('type'), ('cast'),
-		('table constraint'), ('domain constraint'), ('conversion'), ('default value'),
-		('operator'), ('operator class'), ('operator family'), ('rule'), ('trigger'),
+		('table constraint'), ('conversion'), ('default value'),
+		('operator'), ('operator class'), ('operator family'), ('rule'), 
 		('text search parser'), ('text search dictionary'),
 		('text search template'), ('text search configuration'),
 		('policy'), ('user mapping'), ('default acl'), ('transform'),
@@ -131,8 +124,6 @@ SELECT pg_get_object_address('server', '{one}', '{}');
 SELECT pg_get_object_address('server', '{one,two}', '{}');
 SELECT pg_get_object_address('extension', '{one}', '{}');
 SELECT pg_get_object_address('extension', '{one,two}', '{}');
-SELECT pg_get_object_address('event trigger', '{one}', '{}');
-SELECT pg_get_object_address('event trigger', '{one,two}', '{}');
 SELECT pg_get_object_address('access method', '{one}', '{}');
 SELECT pg_get_object_address('access method', '{one,two}', '{}');
 SELECT pg_get_object_address('publication', '{one}', '{}');
@@ -157,13 +148,11 @@ WITH objects (type, name, args) AS (VALUES
 				('function', '{pg_catalog, pg_identify_object}', '{pg_catalog.oid, pg_catalog.oid, int4}'),
 				('procedure', '{addr_nsp, proc}', '{int4}'),
 				('type', '{pg_catalog._int4}', '{}'),
-				('type', '{addr_nsp.gendomain}', '{}'),
 				('type', '{addr_nsp.gencomptype}', '{}'),
 				('type', '{addr_nsp.genenum}', '{}'),
 				('cast', '{int8}', '{int4}'),
 				('collation', '{default}', '{}'),
 				('table constraint', '{addr_nsp, gentable, a_chk}', '{}'),
-				('domain constraint', '{addr_nsp.gendomain}', '{domconstr}'),
 				('conversion', '{pg_catalog, ascii_to_mic}', '{}'),
 				('default value', '{addr_nsp, gentable, b}', '{}'),
 				('language', '{plpgsql}', '{}'),
@@ -174,7 +163,6 @@ WITH objects (type, name, args) AS (VALUES
 				('operator of access method', '{btree,integer_ops,1}', '{integer,integer}'),
 				('function of access method', '{btree,integer_ops,2}', '{integer,integer}'),
 				('rule', '{addr_nsp, genview, _RETURN}', '{}'),
-				('trigger', '{addr_nsp, gentable, t}', '{}'),
 				('schema', '{addr_nsp}', '{}'),
 				('text search parser', '{addr_ts_prs}', '{}'),
 				('text search dictionary', '{addr_ts_dict}', '{}'),
@@ -189,7 +177,6 @@ WITH objects (type, name, args) AS (VALUES
 				('default acl', '{regress_addr_user,public}', '{r}'),
 				('default acl', '{regress_addr_user}', '{r}'),
 				-- extension
-				-- event trigger
 				('policy', '{addr_nsp, gentable, genpol}', '{}'),
 				('transform', '{int}', '{sql}'),
 				('access method', '{btree}', '{}'),
@@ -213,10 +200,11 @@ SELECT (pg_identify_object(addr1.classid, addr1.objid, addr1.objsubid)).*,
 \set VERBOSITY terse \\ -- suppress cascade details
 
 DROP FOREIGN DATA WRAPPER addr_fdw CASCADE;
-DROP PUBLICATION addr_pub;
-DROP SUBSCRIPTION addr_sub;
-
+drop table addr_nsp.parttable cascade;
+drop table addr_nsp.gentable cascade;
 DROP SCHEMA addr_nsp CASCADE;
 
-DROP OWNED BY regress_addr_user;
+ALTER DEFAULT PRIVILEGES FOR ROLE regress_addr_user IN SCHEMA public REVOKE ALL ON TABLES FROM regress_addr_user;
+ALTER DEFAULT PRIVILEGES FOR ROLE regress_addr_user GRANT DELETE ON TABLES TO regress_addr_user;
+
 DROP USER regress_addr_user;

@@ -4,7 +4,8 @@
 -- Note that we assume lc_monetary has been set to C.
 --
 
-CREATE TABLE money_data (m money primary key);
+DROP TABLE if exists money_data;
+CREATE TABLE money_data (m money);
 
 INSERT INTO money_data VALUES ('123');
 SELECT * FROM money_data;
@@ -129,3 +130,5 @@ SELECT '12345678901234567'::money::numeric;
 SELECT '-12345678901234567'::money::numeric;
 SELECT '92233720368547758.07'::money::numeric;
 SELECT '-92233720368547758.08'::money::numeric;
+
+DROP TABLE if exists money_data;

@@ -10,7 +10,7 @@ SELECT char 'c' = char 'c' AS true;
 --
 -- Build a table for testing
 --
-
+DROP TABLE if exists CHAR_TBL;
 CREATE TABLE CHAR_TBL(f1 char);
 
 INSERT INTO CHAR_TBL (f1) VALUES ('a');

@@ -341,6 +341,7 @@ SELECT text 'text' || varchar ' and varchar' AS "Concat text to varchar";
 --
 -- test substr with toasted text values
 --
+DROP TABLE if exists toasttest;
 CREATE TABLE toasttest(f1 text);
 
 insert into toasttest values(repeat('1234567890',10000));
@@ -349,8 +350,8 @@ insert into toasttest values(repeat('1234567890',10000));
 --
 -- Ensure that some values are uncompressed, to test the faster substring
 -- operation used in that case
---
-alter table toasttest alter column f1 set storage external;
+-- set storage not supported in Kunlun
+-- alter table toasttest alter column f1 set storage external;
 insert into toasttest values(repeat('1234567890',10000));
 insert into toasttest values(repeat('1234567890',10000));
 
@@ -369,22 +370,23 @@ SELECT substr(f1, 99995) from toasttest;
 -- string length
 SELECT substr(f1, 99995, 10) from toasttest;
 
-TRUNCATE TABLE toasttest;
+-- TRUNCATE is not supported by Kunlun
+-- TRUNCATE TABLE toasttest;
+DELETE FROM toasttest;
 INSERT INTO toasttest values (repeat('1234567890',300));
 INSERT INTO toasttest values (repeat('1234567890',300));
 INSERT INTO toasttest values (repeat('1234567890',300));
 INSERT INTO toasttest values (repeat('1234567890',300));
 -- expect >0 blocks
-select 0 = pg_relation_size('pg_toast.pg_toast_'||(select oid from pg_class where relname = 'toasttest'))/current_setting('block_size')::integer as blocks;
 
-TRUNCATE TABLE toasttest;
-ALTER TABLE toasttest set (toast_tuple_target = 4080);
+-- TRUNCATE TABLE toasttest;
+DELETE FROM toasttest;
+-- ALTER TABLE toasttest set (toast_tuple_target = 4080);
 INSERT INTO toasttest values (repeat('1234567890',300));
 INSERT INTO toasttest values (repeat('1234567890',300));
 INSERT INTO toasttest values (repeat('1234567890',300));
 INSERT INTO toasttest values (repeat('1234567890',300));
 -- expect 0 blocks
-select 0 = pg_relation_size('pg_toast.pg_toast_'||(select oid from pg_class where relname = 'toasttest'))/current_setting('block_size')::integer as blocks;
 
 DROP TABLE toasttest;
 
@@ -399,8 +401,8 @@ insert into toasttest values(decode(repeat('1234567890',10000),'escape'));
 --
 -- Ensure that some values are uncompressed, to test the faster substring
 -- operation used in that case
---
-alter table toasttest alter column f1 set storage external;
+-- not supported in kunlun
+-- alter table toasttest alter column f1 set storage external;
 insert into toasttest values(decode(repeat('1234567890',10000),'escape'));
 insert into toasttest values(decode(repeat('1234567890',10000),'escape'));
 
@@ -427,8 +429,8 @@ DROP TABLE toasttest;
 -- corner case in packed-varlena handling: even though small, the compressed
 -- datum must be given a 4-byte header because there are no bits to indicate
 -- compression in a 1-byte header
-
-CREATE TABLE toasttest (c varchar(4096));
+-- 
+CREATE TABLE toasttest (c char(200));
 INSERT INTO toasttest VALUES('x');
 SELECT length(c), c::text FROM toasttest;
 SELECT c FROM toasttest;

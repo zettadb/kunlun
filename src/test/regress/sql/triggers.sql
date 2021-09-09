@@ -430,7 +430,7 @@ declare
 
 begin
 
-	relid := TG_relid::regclass;
+	relid = TG_relid::regclass;
 
 	-- plpgsql can't discover its trigger data in a hash like perl and python
 	-- can, or by a sort of reflection like tcl can,
@@ -445,14 +445,14 @@ begin
 	raise NOTICE 'TG_TABLE_SCHEMA: %', TG_table_schema;
 	raise NOTICE 'TG_NARGS: %', TG_nargs;
 
-	argstr := '[';
+	argstr = '[';
 	for i in 0 .. TG_nargs - 1 loop
 		if i > 0 then
-			argstr := argstr || ', ';
+			argstr = argstr || ', ';
 		end if;
-		argstr := argstr || TG_argv[i];
+		argstr = argstr || TG_argv[i];
 	end loop;
-	argstr := argstr || ']';
+	argstr = argstr || ']';
 	raise NOTICE 'TG_ARGV: %', argstr;
 
 	if TG_OP != 'INSERT' then
@@ -623,13 +623,13 @@ CREATE VIEW main_view AS SELECT a, b FROM main_table;
 CREATE OR REPLACE FUNCTION view_trigger() RETURNS trigger
 LANGUAGE plpgsql AS $$
 declare
-    argstr text := '';
+    argstr text = '';
 begin
     for i in 0 .. TG_nargs - 1 loop
         if i > 0 then
-            argstr := argstr || ', ';
+            argstr = argstr || ', ';
         end if;
-        argstr := argstr || TG_argv[i];
+        argstr = argstr || TG_argv[i];
     end loop;
 
     raise notice '% % % % (%)', TG_RELNAME, TG_WHEN, TG_OP, TG_LEVEL, argstr;
@@ -810,7 +810,7 @@ begin
             raise exception 'No such country: "%"', NEW.country_name;
         end if;
     else
-        NEW.continent := NULL;
+        NEW.continent = NULL;
     end if;
 
     if NEW.city_id IS NOT NULL then
@@ -859,7 +859,7 @@ begin
         UPDATE city_table SET city_name = NEW.city_name,
                               population = NEW.population
             WHERE city_id = OLD.city_id;
-        NEW.continent := OLD.continent;
+        NEW.continent = OLD.continent;
     end if;
 
     if NOT FOUND then RETURN NULL; end if;
@@ -1256,8 +1256,8 @@ begin
   elsif (TG_OP = 'INSERT') then
     raise warning 'before insert (new): %', new.*::text;
     if new.key % 2 = 0 then
-      new.key := new.key + 1;
-      new.color := new.color || ' trig modified';
+      new.key = new.key + 1;
+      new.color = new.color || ' trig modified';
       raise warning 'before insert (new, modified): %', new.*::text;
     end if;
   end if;

@@ -84,15 +84,6 @@ SELECT count(*) FROM test_missing_target x, test_missing_target y
 	WHERE x.a = y.a
 	GROUP BY x.b ORDER BY x.b;
 
---   group w/o existing GROUP BY target under ambiguous condition
---   into a table
-SELECT count(*) INTO TABLE test_missing_target2
-FROM test_missing_target x, test_missing_target y
-	WHERE x.a = y.a
-	GROUP BY x.b ORDER BY x.b;
-SELECT * FROM test_missing_target2;
-
-
 --  Functions and expressions
 
 --   w/ existing GROUP BY target
@@ -140,15 +131,5 @@ SELECT count(b) FROM test_missing_target x, test_missing_target y
 	WHERE x.a = y.a
 	GROUP BY x.b/2;
 
---   group w/o existing GROUP BY target under ambiguous condition
---   into a table
-SELECT count(x.b) INTO TABLE test_missing_target3
-FROM test_missing_target x, test_missing_target y
-	WHERE x.a = y.a
-	GROUP BY x.b/2 ORDER BY x.b/2;
-SELECT * FROM test_missing_target3;
-
 --   Cleanup
 DROP TABLE test_missing_target;
-DROP TABLE test_missing_target2;
-DROP TABLE test_missing_target3;

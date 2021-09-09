@@ -59,11 +59,11 @@ loop
   execute 'select min(oid) from ' || relnm into lowoid;
   continue when lowoid is null or lowoid >= 16384;
   if shared then
-    pinned := exists(select 1 from pg_shdepend
+    pinned = exists(select 1 from pg_shdepend
                      where refclassid = reloid and refobjid = lowoid
                      and deptype = 'p');
   else
-    pinned := exists(select 1 from pg_depend
+    pinned = exists(select 1 from pg_depend
                      where refclassid = reloid and refobjid = lowoid
                      and deptype = 'p');
   end if;

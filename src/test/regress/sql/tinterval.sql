@@ -2,7 +2,7 @@
 -- TINTERVAL
 --
 
-CREATE TABLE TINTERVAL_TBL (f1  tinterval);
+CREATE TEMP TABLE TINTERVAL_TBL (f1  tinterval);
 
 -- Should accept any abstime,
 -- so do not bother with extensive testing of values

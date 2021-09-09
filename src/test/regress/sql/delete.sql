@@ -1,3 +1,4 @@
+drop table if exists delete_test;
 CREATE TABLE delete_test (
     id SERIAL PRIMARY KEY,
     a INT,

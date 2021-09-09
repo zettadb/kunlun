@@ -1555,7 +1555,7 @@ Optional Packages:
                           set WAL block size in kB [8]
   --with-CC=CMD           set compiler (deprecated)
   --with-llvm             build with LLVM based JIT support
-  --without-ggdb3         build with -ggdb3
+  --without-ggdb3         build without -ggdb3
   --without-icu           build with ICU support
   --with-tcl              build Tcl modules (PL/Tcl)
   --with-tclconfig=DIR    tclConfig.sh is in DIR
@@ -5038,7 +5038,7 @@ if test "${with_ggdb3+set}" = set; then :
       :
       ;;
     no)
-      WITH_GGDB3="no"
+      WITH_GGDB3="$withval"
       ;;
     *)
       as_fn_error $? "no argument expected for --with-ggdb3 option" "$LINENO" 5

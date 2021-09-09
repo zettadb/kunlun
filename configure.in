@@ -389,7 +389,7 @@ AS_IF([test "$with_llvm" = yes], [
 ]) # fi
 
 WITH_GGDB3="yes"
-PGAC_ARG_BOOL(with, ggdb3, yes, [build with -ggdb3], [], [WITH_GGDB3="no"])
+PGAC_ARG_BOOL(with, ggdb3, yes, [build without -ggdb3], [], [WITH_GGDB3="$withval"])
 
 unset CFLAGS
 unset CXXFLAGS

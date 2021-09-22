@@ -24,6 +24,9 @@ parser.add_argument('--usemgr', type=str, default='True'); # used for internal t
 
 args = parser.parse_args()
 args.usemgr=strtobool(args.usemgr)
+ha_mode = 'no_rep'
+if args.usemgr:
+    ha_mode = 'mgr'
 
 meta_jsconf = open(args.meta_config)
 meta_jstr = meta_jsconf.read()
@@ -39,14 +42,14 @@ meta_cursor = meta_conn.cursor(prepared=True)
 meta_cursor0 = meta_conn.cursor()
 
 # insert cluster info into db_clusters
-stmt = "insert into db_clusters(name, owner, ddl_log_tblname, business) values(%s, %s, %s, %s)"
+stmt = "insert into db_clusters(name, owner, ddl_log_tblname, business, ha_mode) values(%s, %s, %s, %s, %s)"
 ddl_log_tblname='ddl_ops_log_'+args.cluster_name  # must be like this, don't change the format
 
 print "Creating database cluster " + args.cluster_name
 print "Step 1. Inserting meta-data row for database cluster " + args.cluster_name
 meta_cursor0.execute("start transaction")
 
-meta_cursor.execute(stmt, (args.cluster_name, args.cluster_owner, ddl_log_tblname, args.cluster_biz))
+meta_cursor.execute(stmt, (args.cluster_name, args.cluster_owner, ddl_log_tblname, args.cluster_biz, ha_mode))
 
 meta_cursor0.execute("commit")
 

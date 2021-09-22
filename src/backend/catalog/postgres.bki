@@ -5886,6 +5886,7 @@ create pg_cluster_meta 12349 shared_relation without_oids
  comp_node_id = oid ,
  cluster_id = oid ,
  cluster_master_id = oid ,
+ ha_mode = int ,
  cluster_name = name ,
  comp_node_name = name
  )

@@ -86,6 +86,7 @@ CREATE TABLE `db_clusters` (
   `when_created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `business` varchar(120) NOT NULL,
   `memo` text,
+  `ha_mode` enum('no_rep','mgr','rbr') not null,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

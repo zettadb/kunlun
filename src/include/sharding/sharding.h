@@ -27,7 +27,7 @@ extern Shard_node_id_t Invalid_shard_node_id;
 extern Shard_node_id_t First_shard_node_id;
 
 typedef enum Storage_HA_Mode {
-	HA_ALL_MASTERS = 0,
+	HA_NO_REP = 0,
 	HA_MGR,
 	HA_STRONG_SYNC
 } Storage_HA_Mode;

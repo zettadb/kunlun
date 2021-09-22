@@ -44,6 +44,7 @@
 #include "access/transam.h"
 #include "access/visibilitymap.h"
 #include "access/xlog.h"
+#include "catalog/catalog.h"
 #include "catalog/storage.h"
 #include "commands/dbcommands.h"
 #include "commands/progress.h"
@@ -60,7 +61,6 @@
 #include "utils/pg_rusage.h"
 #include "utils/timestamp.h"
 #include "utils/tqual.h"
-
 
 /*
  * Space/time tradeoff parameters: do these need to be user-tunable?
@@ -210,6 +210,11 @@ lazy_vacuum_rel(Relation onerel, int options, VacuumParams *params,
 	MultiXactId new_min_multi;
 
 	Assert(params != NULL);
+
+	/*
+	  dzw: skip vacumming of any kind for remote relations.
+	*/
+	if (onerel && IsRemoteRelation(onerel)) return;
 
 	/* measure elapsed time iff autovacuum logging requires it */
 	if (IsAutoVacuumWorkerProcess() && params->log_min_duration >= 0)

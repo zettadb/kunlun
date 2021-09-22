@@ -257,7 +257,7 @@ AsyncStmtInfo *GetAsyncStmtInfoNode(Oid shardid, Oid shardNodeId, bool req_chk_o
 		  shard's master node. Otherwise caller simply want to connect to
 		  the node, so don't check it's a master.
 		 */
-		if (storage_ha_mode != HA_ALL_MASTERS) want_master = true;
+		if (storage_ha_mode != HA_NO_REP) want_master = true;
 	}
 
 	for (int i = 0; i < cur_session.num_asis_used; i++)
@@ -1925,7 +1925,7 @@ void CancelAllRemoteStmtsInQueue(bool freestmts)
 static void
 make_check_mysql_node_status_stmt(AsyncStmtInfo *asi, bool want_master)
 {
-	Assert(storage_ha_mode != HA_ALL_MASTERS);
+	Assert(storage_ha_mode != HA_NO_REP);
 
 	static const char *stmt_mgr = "select MEMBER_HOST, MEMBER_PORT from performance_schema.replication_group_members where channel_name='group_replication_applier' and MEMBER_STATE='ONLINE' and MEMBER_ROLE='PRIMARY'";
 	static const char *stmt_strong_sync = "show slave status"; // TODO: this need extra work
@@ -1945,7 +1945,7 @@ make_check_mysql_node_status_stmt(AsyncStmtInfo *asi, bool want_master)
 static void
 check_mysql_node_status(AsyncStmtInfo *asi, bool want_master)
 {
-	Assert(storage_ha_mode != HA_ALL_MASTERS);
+	Assert(storage_ha_mode != HA_NO_REP);
 
 	Assert(storage_ha_mode == HA_MGR); // this is true only for now.
 

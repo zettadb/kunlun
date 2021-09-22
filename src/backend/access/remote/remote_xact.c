@@ -190,10 +190,14 @@ bool Send1stPhaseRemote(const char *txnid)
 		}
 
 		if (asi->did_write && asi->txn_wrows > 0)
+		{
+			elog(DEBUG2, "Found written shard in transaction %s shard node (%u,%u) at %s:%u, %d rows written.",
+				 txnid, asi->shard_id, asi->node_id, asi->conn->host, asi->conn->port, asi->txn_wrows);
 			nw++;
+		}
 		if (asi->did_ddl)
 			nddls++;
-		if (ASIReadOnly(asi)) // !asi->did_write && !asi->did_ddl && asi->did_read)
+		if (ASIReadOnly(asi) || (ASIAccessed(asi) && asi->txn_wrows == 0))
 		{
 			if (!filled)
 			{
@@ -201,7 +205,12 @@ bool Send1stPhaseRemote(const char *txnid)
 				Assert(len < slen);
 			    filled = true;
 			}
-
+			/*
+			  If we send an update to a shard but no maching rows updated, it's marked
+			  written but txn_wrows is 0.
+			*/
+			elog(DEBUG2, "Found in transaction %s shard node (%u,%u) at %s:%u read only branch, doing 1pc to it.",
+				 txnid, asi->shard_id, asi->node_id, asi->conn->host, asi->conn->port);
 			// In MySQL, XA COMMIT  ... ONE PHASE is also a SQLCOM_XA_COMMIT.
 			append_async_stmt(asi, stmt, len, CMD_TXN_MGMT, false, SQLCOM_XA_COMMIT);
 			Assert(asi->result_pending == false);
@@ -216,8 +225,8 @@ bool Send1stPhaseRemote(const char *txnid)
 			  and it's not an error, we can simply ignore the situation.
 			*/
 			ereport(LOG, (errcode(ERRCODE_INTERNAL_ERROR),
-				    errmsg("A shard (%u) node (%u)'s connection not read or written is seen as used, probably because the connection was broken already.",
-					asi->shard_id, asi->node_id)));
+				    errmsg("A shard (%u) node (%u)'s connection not read or written in transaction %s is seen as used, probably because the connection was broken already.",
+					asi->shard_id, asi->node_id, txnid)));
 		}
 	}
 
@@ -229,7 +238,8 @@ bool Send1stPhaseRemote(const char *txnid)
 			metadata DDL log.*/)
 		{
 			ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
-				    errmsg("As required by MySQL, a DDL statement must be a single autocommit transaction, it should never be in an explicit transaction.")));
+				    errmsg("State error for transaction %s: As required by MySQL, a DDL statement must be a single autocommit transaction, it should never be in an explicit transaction(nDDLs: %d, nWrittenShards: %d, nReadShards: %d).",
+						  txnid, nddls, nw, nr)));
 		}
 
 		return false;
@@ -256,9 +266,11 @@ bool Send1stPhaseRemote(const char *txnid)
 					filled = true;
 				}
 			    sqlcom = SQLCOM_XA_ROLLBACK;
+				elog(DEBUG2, "Aborting transaction %s 's branch in shard node (%u,%u) at %s:%u",
+				 	txnid, asi->shard_id, asi->node_id, asi->conn->host, asi->conn->port);
 				append_async_stmt(asi, stmt2, len, CMD_TXN_MGMT, false, sqlcom);
 			}
-			else if (nw == 1 || asi->txn_wrows == 0)
+			else if (nw == 1 && ASIAccessed(asi) && asi->txn_wrows > 0)
 			{
 				if (filled1 == false)
 				{
@@ -266,17 +278,20 @@ bool Send1stPhaseRemote(const char *txnid)
 					filled1 = true;
 				}
 			    sqlcom = SQLCOM_XA_COMMIT;
+				elog(DEBUG2, "Only 1 written shard found for transaction %s in shard node (%u,%u) at %s:%u, doing 1pc to it.",
+				 	txnid, asi->shard_id, asi->node_id, asi->conn->host, asi->conn->port);
 				append_async_stmt(asi, stmt1, len, CMD_TXN_MGMT, false, sqlcom);
 			}
-			else if (nw > 1)
+			else if (nw > 1 && asi->txn_wrows > 0)
 			{
-				Assert(asi->txn_wrows > 0);
 				if (filled2 == false)
 				{
 			    	len = snprintf(stmt2, slen, "XA END '%s';XA PREPARE '%s'", txnid, txnid);
 					filled2 = true;
 				}
 			    sqlcom = SQLCOM_XA_PREPARE;
+				elog(DEBUG2, "Found %d written shards for transaction %s, preparing in shard node (%u,%u) at %s:%u",
+				 	nw, txnid, asi->shard_id, asi->node_id, asi->conn->host, asi->conn->port);
 				append_async_stmt(asi, stmt2, len, CMD_TXN_MGMT, false, sqlcom);
 			}
 
@@ -328,6 +343,8 @@ void Send2ndPhaseRemote(const char *txnid)
 			    filled = true;
 			}
 
+			elog(DEBUG2, "For transaction %s doing 2pc commit in shard node (%u,%u) at %s:%u",
+				 txnid, asi->shard_id, asi->node_id, asi->conn->host, asi->conn->port);
 			append_async_stmt(asi, stmt, len, CMD_TXN_MGMT, false, SQLCOM_XA_COMMIT);
 		}
 	}
@@ -610,7 +627,7 @@ static void stack_push(Stack *stk, PathNode*pn)
 	{
 		Size stkspc = sizeof(PathNode) * stk->capacity;
 		stk->base = repalloc(stk->base, stkspc * 2);
-		memset(stk->base + stkspc, 0, stkspc);
+		memset(((char*)stk->base) + stkspc, 0, stkspc);
 		stk->capacity *= 2;
 	}
 	stk->base[stk->top++] = *pn;

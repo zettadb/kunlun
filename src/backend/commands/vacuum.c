@@ -30,6 +30,7 @@
 #include "access/multixact.h"
 #include "access/transam.h"
 #include "access/xact.h"
+#include "catalog/catalog.h"
 #include "catalog/namespace.h"
 #include "catalog/pg_database.h"
 #include "catalog/pg_inherits.h"
@@ -51,7 +52,6 @@
 #include "utils/snapmgr.h"
 #include "utils/syscache.h"
 #include "utils/tqual.h"
-
 
 /*
  * GUC parameters
@@ -1379,6 +1379,17 @@ vacuum_rel(Oid relid, RangeVar *relation, int options, VacuumParams *params)
 	{
 		onerel = NULL;
 		rel_lock = false;
+	}
+
+	/*
+	  dzw: Skip vacumming for remote relations.
+	*/
+	if (onerel && IsRemoteRelation(onerel))
+	{
+		relation_close(onerel, lmode);
+		PopActiveSnapshot();
+		CommitTransactionCommand();
+		return false;
 	}
 
 	/*

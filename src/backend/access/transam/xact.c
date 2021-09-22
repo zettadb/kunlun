@@ -2115,6 +2115,12 @@ CommitTransaction(void)
 
 		int tc_phase = 1;
 		bool doing_2pc_commit = false;
+		NameData txnname;
+		if (s->name)
+		{
+			memset(&txnname, 0, sizeof(txnname));
+			strncpy(txnname.data, s->name, NAMEDATALEN-1);
+		}
 
 		PG_TRY();
 		{
@@ -2159,6 +2165,7 @@ CommitTransaction(void)
 		PG_CATCH();
 		{
 			int ec = geterrcode();
+			EmitErrorReport();
 			if (doing_2pc_commit)
 			{
 				if (ec == ERRCODE_QUERY_CANCELED)
@@ -2171,7 +2178,7 @@ CommitTransaction(void)
 					disconnect_storage_shards();
 					ereport(WARNING,
 							(errcode(ERRCODE_CONNECTION_EXCEPTION),
-							 errmsg("Kunlun-db: Timed out in 2nd phase of global transaction commit. This transaction (%s) will be committed in a few seconds.", s->name)));
+							 errmsg("Kunlun-db: Timed out in 2nd phase of global transaction commit. This transaction (%s) will be committed in a few seconds.", txnname.data)));
 				}
 				else
 				{
@@ -2185,11 +2192,13 @@ CommitTransaction(void)
 					errfinish(0);
 					FlushErrorState();
 					RESUME_INTERRUPTS();
+					elog(WARNING, "Error(%d) doing 2nd phase commit of transaction %s.", ec, txnname.data);
 				}
 				// do not rethrow otherwise the global txn will be aborted.
 			}
 			else if (tc_phase == 1)
 			{
+				elog(WARNING, "Error(%d) doing 1st phase prepare of transaction %s, will abort it.", ec, txnname.data);
 				SendRollbackRemote(s->name, false, false/*all shards*/);
 				ResetTopTxnState(s);
 				// although we've aborted the global txn, rethrow to cleanup
@@ -2198,6 +2207,8 @@ CommitTransaction(void)
 			}
 			else
 			{
+				elog(WARNING, "Error(%d) doing %s of transaction %s, will disconnect storage shards and let cluster_mgr handle it.",
+					 ec, tc_phase == 2 ? "commit logging" : "2nd phase commit", txnname.data);
 				if (tc_phase == 3) request_topo_checks_used_shards();
 
 				// if tc_phase == 2, also request topo check although requested

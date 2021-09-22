@@ -154,6 +154,15 @@ analyze_rel(Oid relid, RangeVar *relation, int options,
 	}
 
 	/*
+	  dzw: skip vacuuming for remote relations.
+	*/
+	if (onerel && IsRemoteRelation(onerel))
+	{
+		relation_close(onerel, ShareUpdateExclusiveLock);
+		return;
+	}
+
+	/*
 	 * If we failed to open or lock the relation, emit a log message before
 	 * exiting.
 	 */

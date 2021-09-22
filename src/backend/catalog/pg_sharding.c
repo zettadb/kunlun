@@ -68,6 +68,8 @@ static size_t LoadAllShards(bool init);
 static Shard_node_t *find_node_by_ip_port(Shard_t *ps, const char *ip, uint16_t port);
 static Shard_t* FindCachedShardInternal(const Oid shardid, bool cache_nodes);
 
+extern int storage_ha_mode;
+
 /*
  * Copy shard meta info from px to py
  * */
@@ -119,6 +121,8 @@ static void copy_shard_node_meta(Form_pg_shard_node px, Shard_node_t *py, HeapTu
 static void AddShard_node_ref_t(Shard_t *pshard, Shard_node_ref_t *noderef)
 {
 	Shard_node_ref_t *slot = NULL;
+	Assert(noderef && noderef->id != Invalid_shard_node_id && noderef->ptr != NULL);
+	Assert(pshard && pshard->id != Invalid_shard_id);
 	Assert(noderef->ptr->shard_id == pshard->id);
 
 	for (int i = 0; i < MAX_NODES_PER_SHARD; i++)
@@ -126,7 +130,12 @@ static void AddShard_node_ref_t(Shard_t *pshard, Shard_node_ref_t *noderef)
 		Shard_node_ref_t *ref = pshard->shard_nodes + i;
 		if (ref->id == noderef->id)
 		{
-			Assert(ref->ptr == noderef->ptr);
+			Assert(ref->ptr != NULL);
+			if (ref->ptr != noderef->ptr)
+			{
+				pfree(ref->ptr);
+				ref->ptr = noderef->ptr;
+			}
 			return;
 		}
 
@@ -239,7 +248,7 @@ static size_t LoadAllShards(bool init)
 
 		Shard_node_ref_t* shardnoderef = hash_search(ShardNodeCache, &px->id, HASH_ENTER, &found);
 		Assert(!init || !found);
-		Shard_node_t *py = shardnoderef->ptr;
+		Shard_node_t *py = NULL;
 
 		if (!found)
 		{
@@ -250,6 +259,8 @@ static size_t LoadAllShards(bool init)
 			shardnoderef->ptr = py;
 			shardnoderef->id = py->id;
 		}
+		else
+			py = shardnoderef->ptr;
 
 		Shard_ref_t *shardref = hash_search(ShardCache, &py->shard_id, HASH_FIND, &found);
 		Assert(shardref != NULL && shardref->ptr != NULL && found);
@@ -301,6 +312,8 @@ void InvalidateCachedShard(Oid shardid, bool includingShardNodes)
 				Assert(ref->ptr);
 				hash_search(ShardNodeCache, &ref->id, HASH_REMOVE, &found);
 				pfree(ref->ptr);
+				ref->ptr = NULL;
+				ref->id = Invalid_shard_node_id;
 				Assert(found);
 			}
 		}
@@ -970,6 +983,8 @@ void ShardingTopoCheckShmemInit(void)
 */
 bool RequestShardingTopoCheck(Oid shardid)
 {
+	if (storage_ha_mode == HA_NO_REP) return false;
+
 	bool done = false;
 	LWLockAcquire(ShardingTopoCheckLock, LW_EXCLUSIVE);
 	if (ShardingTopoChkReqs->endidx >= MAX_SHARDS)
@@ -998,6 +1013,7 @@ static int RequestShardingTopoChecks(Oid *poids, int n)
 {
 	int ndones = 0;
 
+	if (storage_ha_mode == HA_NO_REP) return 0;
 	LWLockAcquire(ShardingTopoCheckLock, LW_EXCLUSIVE);
 	for (int j = 0; j < n; j++)
 	{
@@ -1081,6 +1097,7 @@ static Shard_node_t *find_node_by_ip_port(Shard_t *ps, const char *ip, uint16_t 
 void RequestShardingTopoCheckAllStorageShards()
 {
 
+	if (storage_ha_mode == HA_NO_REP) return;
 	SetCurrentStatementStartTimestamp();
 	bool end_txn = false;
 

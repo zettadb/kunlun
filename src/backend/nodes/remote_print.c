@@ -1320,7 +1320,7 @@ static int SQLValueFuncValue(SQLValueFunction *svfo, StringInfo str_res)
 	}
 
 	char *val = SPI_getvalue(SPI_tuptable->vals[0], SPI_tuptable->tupdesc, 1);
-	if (is_datetime) pg_to_mysql_const(TIMESTAMPTZOID, val);
+	if (is_datetime) val = pg_to_mysql_const(TIMESTAMPTZOID, val);
 	nw = appendStringInfo(str_res, "'%s'", val);
 
 	if (orig_datestyle != -1)

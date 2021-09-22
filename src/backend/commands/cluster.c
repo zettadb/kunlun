@@ -285,6 +285,11 @@ cluster_rel(Oid tableOid, Oid indexOid, bool recheck, bool verbose)
 		return;
 
 	/*
+	  dzw: skip clustering for remote relations.
+	*/
+	if (IsRemoteRelation(OldHeap)) return;
+
+	/*
 	 * Since we may open a new transaction for each relation, we have to check
 	 * that the relation still is what we think it is.
 	 *

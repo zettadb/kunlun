@@ -3284,15 +3284,6 @@ static struct config_int ConfigureNamesInt[] =
 	},
 
 	{
-		{"storage_ha_mode", PGC_USERSET, DEVELOPER_OPTIONS,
-			gettext_noop("HA mode for storage shards, 0 for all primaries, i.e. don't check for primary nodes; 1 for MGR; 2 for traditional semisync/strong-sync binlog replication(not supported for now)."),
-		},
-		&storage_ha_mode,
-		0, 0, 1,
-		NULL, NULL, NULL
-	},
-
-	{
 		{"max_remote_insert_blocks", PGC_USERSET, DEVELOPER_OPTIONS,
 			gettext_noop("Max NO. of blocks ever allowed to be allocated to one session to insert rows."),
 		},

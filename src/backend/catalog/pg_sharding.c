@@ -68,8 +68,6 @@ static size_t LoadAllShards(bool init);
 static Shard_node_t *find_node_by_ip_port(Shard_t *ps, const char *ip, uint16_t port);
 static Shard_t* FindCachedShardInternal(const Oid shardid, bool cache_nodes);
 
-extern int storage_ha_mode;
-
 /*
  * Copy shard meta info from px to py
  * */

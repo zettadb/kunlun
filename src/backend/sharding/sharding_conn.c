@@ -55,7 +55,7 @@ int mysql_read_timeout = 10;
 int mysql_write_timeout = 10;
 int mysql_max_packet_size = 16384;
 bool mysql_transmit_compress = false;
-int storage_ha_mode = 0;
+Storage_HA_Mode storage_ha_mode = HA_NO_REP;
 
 static void send_stmt_to_multi(AsyncStmtInfo *asis, size_t shard_cnt);
 static void send_stmt_to_multi_wait(AsyncStmtInfo *asis, size_t shard_cnt);
@@ -1928,14 +1928,16 @@ make_check_mysql_node_status_stmt(AsyncStmtInfo *asi, bool want_master)
 	Assert(storage_ha_mode != HA_NO_REP);
 
 	static const char *stmt_mgr = "select MEMBER_HOST, MEMBER_PORT from performance_schema.replication_group_members where channel_name='group_replication_applier' and MEMBER_STATE='ONLINE' and MEMBER_ROLE='PRIMARY'";
-	static const char *stmt_strong_sync = "show slave status"; // TODO: this need extra work
+	static const char *stmt_rbr = "show slave status"; // TODO: this need extra work
 
 	static size_t stmtlen = 0;
 	const char *stmt = NULL;
 	if (storage_ha_mode == HA_MGR)
 		stmt = stmt_mgr;
-	else if (storage_ha_mode == HA_STRONG_SYNC)
-		stmt = stmt_strong_sync;
+	else if (storage_ha_mode == HA_RBR)
+		stmt = stmt_rbr;
+	else
+		Assert(false);
 	
 	if (stmtlen == 0 && stmt) stmtlen = strlen(stmt);
 

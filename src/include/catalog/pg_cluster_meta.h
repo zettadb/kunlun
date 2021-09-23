@@ -34,7 +34,7 @@ CATALOG(pg_cluster_meta,12349,ClusterMetaRelationId) BKI_SHARED_RELATION BKI_WIT
   Oid comp_node_id; /* ID and name of the computing node, used to identify this node in the cluster.*/
   Oid cluster_id; /* the ID and name of the cluster this computing node belongs to. */
   Oid cluster_master_id;/* the cluster's master node's server_id, references pg_cluster_meta_nodes.server_id */
-  int ha_mode; /* 0: no_rep; 1: mgr; 2: rbr */
+  int32 ha_mode; /* 0: no_rep; 1: mgr; 2: rbr */
   NameData cluster_name;
   NameData comp_node_name;
 } FormData_pg_cluster_meta;

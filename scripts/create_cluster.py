@@ -24,9 +24,11 @@ parser.add_argument('--usemgr', type=str, default='True'); # used for internal t
 
 args = parser.parse_args()
 args.usemgr=strtobool(args.usemgr)
+args.ha_mode = 0
 ha_mode = 'no_rep'
 if args.usemgr:
     ha_mode = 'mgr'
+    args.ha_mode = 1
 
 meta_jsconf = open(args.meta_config)
 meta_jstr = meta_jsconf.read()

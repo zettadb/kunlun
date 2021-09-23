@@ -89,8 +89,8 @@ def add_computing_nodes(mysql_conn_params, args, config_path, install_ids) :
         conn = psycopg2.connect(host=compcfg['ip'], port=compcfg['port'], user=compcfg['user'], database='postgres', password=compcfg['password'])
         cur = conn.cursor()
         cur.execute("set skip_tidsync = true; start transaction")
-        cur.execute("insert into pg_cluster_meta values(%s, %s, %s, %s, %s)",
-                (compcfg['id'], cluster_id, 0, args.cluster_name, compcfg['name']))
+        cur.execute("insert into pg_cluster_meta values(%s, %s, %s, %s, %s, %s)",
+                (compcfg['id'], cluster_id, 0, args.ha_mode, args.cluster_name, compcfg['name']))
         for meta_node in meta_dbnodes:
             is_master = False
             

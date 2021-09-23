@@ -1208,6 +1208,9 @@ if test "$with_gssapi" = yes ; then
   fi
 fi
 
+LDFLAGS="$LDFLAGS -L$ac_pwd/resources"
+export LD_LIBRARY_PATH="$ac_pwd/resources:$LD_LIBRARY_PATH"
+
 if test "$with_openssl" = yes ; then
   dnl Order matters!
   if test "$PORTNAME" != "win32"; then
@@ -2364,7 +2367,6 @@ AC_MSG_WARN([*** skipping thread test on Win32])
 fi
 fi
 
-LDFLAGS="$LDFLAGS -L$ac_pwd/resources"
 LIBS="$LIBS -lmariadb"
 
 # If compiler will take -Wl,--as-needed (or various platform-specific

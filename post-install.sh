@@ -15,8 +15,6 @@ cp -f ../resources/libcrypto.so.1.1 $1/lib
 cd $1/lib
 rm -f libmysqlclient.so && ln -s ./libmariadb.so.3  libmysqlclient.so
 rm -f libmariadb.so && ln -s ./libmariadb.so.3  libmariadb.so
-rm -f libssl.so && ln -s ./libssl.so.1.1 libssl.so
-rm -f libcrypto.so && ln -s ./libcrypto.so.1.1 libcrypto.so
 
 mkdir -p deps
 

@@ -11708,9 +11708,6 @@ fi
   fi
 fi
 
-LDFLAGS="$LDFLAGS -L$ac_pwd/resources"
-export LD_LIBRARY_PATH="$ac_pwd/resources:$LD_LIBRARY_PATH"
-
 if test "$with_openssl" = yes ; then
     if test "$PORTNAME" != "win32"; then
      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for CRYPTO_new_ex_data in -lcrypto" >&5
@@ -18887,6 +18884,8 @@ $as_echo "$as_me: WARNING: *** skipping thread test on Win32" >&2;}
 fi
 fi
 
+LDFLAGS="$LDFLAGS -L$ac_pwd/resources"
+export LD_LIBRARY_PATH="$ac_pwd/resources:$LD_LIBRARY_PATH"
 LIBS="$LIBS -lmariadb"
 
 # If compiler will take -Wl,--as-needed (or various platform-specific

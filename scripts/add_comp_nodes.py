@@ -53,11 +53,19 @@ def add_computing_nodes(mysql_conn_params, args, config_path, install_ids) :
                 jscfg.append(cfg)
 
     meta_cursor = meta_conn.cursor(prepared=True)
-    get_cluster_id_stmt = "select id, @@server_id as svrid from db_clusters where name=%s"
+    get_cluster_id_stmt = "select id, @@server_id as svrid, ha_mode from db_clusters where name=%s"
     meta_cursor.execute(get_cluster_id_stmt, (args.cluster_name,))
     row = meta_cursor.fetchone()
     cluster_id = row[0]
     cluster_master_svrid = row[1]
+
+    ha_mode = -1
+    if row[2] == 'no_rep':
+        ha_mode = 0
+    elif row[2] == 'mgr':
+        ha_mode = 1
+    elif row[2] == 'rbr':
+        ha_mode = 2
 
     meta_cursor0 = meta_conn.cursor(buffered=True, dictionary=True)
 
@@ -90,7 +98,7 @@ def add_computing_nodes(mysql_conn_params, args, config_path, install_ids) :
         cur = conn.cursor()
         cur.execute("set skip_tidsync = true; start transaction")
         cur.execute("insert into pg_cluster_meta values(%s, %s, %s, %s, %s, %s)",
-                (compcfg['id'], cluster_id, 0, args.ha_mode, args.cluster_name, compcfg['name']))
+                (compcfg['id'], cluster_id, 0, ha_mode, args.cluster_name, compcfg['name']))
         for meta_node in meta_dbnodes:
             is_master = False
             

@@ -1087,9 +1087,6 @@ static bool build_wait_for_graph()
 
 	if (nshards == 1) {
 		hash_seq_term(&seqstat);
-		SPI_finish();
-		PopActiveSnapshot();
-		CommitTransactionCommand();
 		return false;
 	}
 

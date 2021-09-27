@@ -7861,8 +7861,11 @@ static void set_config_option2(VariableSetStmt *stmt)
 	if (is_mysql_conn && (stmt->kind == VAR_SET_VALUE || stmt->kind == VAR_SET_DEFAULT))
 	{
 		PG_TRY();
+		{
 		set_var_shard(stmt);
+		}
 		PG_CATCH();
+		{
 		const int toperr = top_errcode();
 
 		if (toperr == ERRCODE_UNDEFINED_OBJECT) {
@@ -7874,17 +7877,21 @@ static void set_config_option2(VariableSetStmt *stmt)
 		}
 		else
 			PG_RE_THROW();
+		}
 		PG_END_TRY();
 	}
 	else
 	{
 		PG_TRY();
+		{
 		(void) set_config_option(stmt->name,
 								 ExtractSetVariableArgs(stmt),
 								 (superuser() ? PGC_SUSET : PGC_USERSET),
 								 PGC_S_SESSION,
 								 action, true, 0, false);
+		}
 		PG_CATCH();
+		{
 		const int toperr = top_errcode();
 		if ((stmt->kind == VAR_SET_VALUE || stmt->kind == VAR_SET_DEFAULT) &&
 			toperr == ERRCODE_UNDEFINED_OBJECT)
@@ -7898,6 +7905,7 @@ static void set_config_option2(VariableSetStmt *stmt)
 		}
 		else
 			PG_RE_THROW();
+		}
 		PG_END_TRY();
 	}
 }
@@ -8729,8 +8737,11 @@ GetPGVariable(VariableShowStmt *n, DestReceiver *dest)
 	else
 	{
 		PG_TRY();
+		{
 		ShowGUCConfigOption(n->name, dest);
+		}
 		PG_CATCH();
+		{
 		if (geterrcode() == ERRCODE_UNDEFINED_OBJECT)
 		{
 			n->sv_scope = SVS_SESSION;
@@ -8738,6 +8749,7 @@ GetPGVariable(VariableShowStmt *n, DestReceiver *dest)
 		}
 		else
 			PG_RE_THROW();
+		}
 		PG_END_TRY();
 	}
 }
@@ -8767,16 +8779,20 @@ GetPGVariableResultDesc(VariableShowStmt *n)
 
 		/* Get the canonical spelling of name */
 		PG_TRY();
+		{
 		(void) GetConfigOptionByName(name, &varname, false);
 
 		/* need a tuple descriptor representing a single TEXT column */
 		tupdesc = CreateTemplateTupleDesc(1, false);
 		TupleDescInitEntry(tupdesc, (AttrNumber) 1, varname,
 						   TEXTOID, -1, 0);
+		}
 		PG_CATCH();
+		{
 		Var_def *vd = find_var_def(name);
 		if (vd) tupdesc = GetMysqlVariableResultDesc();
 		else PG_RE_THROW();
+		}
 		PG_END_TRY();
 	}
 	return tupdesc;

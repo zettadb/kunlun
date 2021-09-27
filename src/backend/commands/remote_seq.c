@@ -566,8 +566,11 @@ static void RemoteSeqFetch(SeqFetchReqs*dest)
 	}
 
 	PG_TRY();
+	{
 	send_multi_stmts_to_multi();
+	}
 	PG_CATCH();
+	{
 	/*
 	  set fetching to off for all seqs.
 	*/
@@ -580,6 +583,7 @@ static void RemoteSeqFetch(SeqFetchReqs*dest)
 	}
 
 	PG_RE_THROW();
+	}
 	PG_END_TRY();
 
 	size_t num_asis = GetAsyncStmtInfoUsed();
@@ -676,6 +680,7 @@ void fetchSeqValues()
 			break;
 
 		PG_TRY();
+		{
 		StartTransactionCommand();
 		SPI_connect();
 		RemoteSeqFetch(&reqq);
@@ -683,8 +688,11 @@ void fetchSeqValues()
 		SPI_finish();
 
 		PG_TRY();
+		{
 		CommitTransactionCommand();
+		}
 		PG_CATCH();
+		{
 		LWLockReleaseAll();
 		/*
 		  clear requested&cached seqs from dynahash.
@@ -704,13 +712,17 @@ void fetchSeqValues()
 		}
 		LWLockRelease(RemoteSeqFetchLock);
 		PG_RE_THROW();
+		}
 		PG_END_TRY();
 
 		informRemoteSeqWaiters(&reqq);
+		}
 		PG_CATCH();
+		{
 		LWLockReleaseAll();
 		informRemoteSeqWaiters(&reqq);
 		PG_RE_THROW();
+		}
 		PG_END_TRY();
 	}
 

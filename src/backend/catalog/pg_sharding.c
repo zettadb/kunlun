@@ -1278,11 +1278,12 @@ void appendShardConnKillReq(ShardConnKillReq*req)
 		  statement timeout mechanism can't work here since enable_timeout()
 		  not called explicitly and not in a txn.
 		*/
-		if (cntr++ > 100)
+		if (cntr++ > 7)
 			return;
 		elog(WARNING, "shard conn kill req queue is full, waiting to enq a req.");
 
-		if (!curproc_is_main_applier)
+		if (!curproc_is_main_applier && g_remote_meta_sync &&
+			g_remote_meta_sync->main_applier_pid != 0)
 			kill(g_remote_meta_sync->main_applier_pid, SIGUSR2);
 
 		usleep(10000);
@@ -1298,7 +1299,7 @@ void appendShardConnKillReq(ShardConnKillReq*req)
 	shard_conn_kill_reqs->nreqs++;
 	if (!locked) LWLockRelease(KillShardConnReqLock);
 
-	if (!curproc_is_main_applier)
+	if (!curproc_is_main_applier && g_remote_meta_sync->main_applier_pid != 0)
 		kill(g_remote_meta_sync->main_applier_pid, SIGUSR2);
 }
 
@@ -1355,6 +1356,7 @@ void reapShardConnKillReqs()
 
 	LWLockAcquire(KillShardConnReqLock, LW_EXCLUSIVE);
 	PG_TRY();
+	{
 	for (uint32_t i = 0; i < shard_conn_kill_reqs->nreqs; i++)
 	{
 		ShardConnKillReq *req = (ShardConnKillReq *)((char*)shard_conn_kill_reqs + pos);
@@ -1399,7 +1401,9 @@ void reapShardConnKillReqs()
 	shard_conn_kill_reqs->nreqs = 0;
 
 	LWLockRelease(KillShardConnReqLock);
+	}
 	PG_CATCH(); // the GetAsyncStmtInfoNode() could fail of mysql connect error.
+	{
 	LWLockReleaseAll();
 	/*
 	  For mysql connect error, don't rethrow, but request a master check and
@@ -1413,18 +1417,23 @@ void reapShardConnKillReqs()
 		RequestShardingTopoCheck(cur_shardid);
 	else
 		PG_RE_THROW();
+	}
 	PG_END_TRY();
 
 	if (num_shard_reqs == 0) goto do_meta;
 
 	PG_TRY();
+	{
 	/*
 	  Connection could break while sending the stmts or receiving results,
 	  and this is perfectly OK, topo check and kill-conn reqs are all enqueued
 	*/
 	send_multi_stmts_to_multi();
+	}
 	PG_CATCH();
+	{
 
+	}
 	PG_END_TRY();
 
 	// reset ignore_err fields.

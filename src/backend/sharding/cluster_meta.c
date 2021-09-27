@@ -1122,8 +1122,13 @@ uint64_t log_ddl_op(MYSQL_CONN *conn, const char *xa_txnid, const char *db,
 		  be caught below and handled.
 		*/
 		PG_TRY();
+		{
 		send_stmt_to_cluster_meta(conn, rbstmt, ret, CMD_UTILITY, false);
+		}
 		PG_CATCH();
+		{
+
+		}
 		PG_END_TRY();
 		/*
 		 * Rollback the XA txn. this can't be generally done in send_stmt_to_cluster_meta()
@@ -1132,11 +1137,15 @@ uint64_t log_ddl_op(MYSQL_CONN *conn, const char *xa_txnid, const char *db,
 		 * */
 		ret = snprintf(rbstmt, sizeof(rbstmt), "XA ROLLBACK '%s'", xa_txnid);
 		PG_TRY();
+		{
 		send_stmt_to_cluster_meta(conn, rbstmt, ret, CMD_UTILITY, false);
+		}
 		PG_CATCH();
+		{
 		// make sure cluster_mgr can takeover and abort it.
 		disconnect_metadata_shard();
 		PG_RE_THROW();
+		}
 		PG_END_TRY();
 
 		// if metadata shard server&connection is perfectly OK, we got some
@@ -1469,11 +1478,16 @@ static int do_ddl_apply(log_apply_func_t apply, MYSQL_CONN *conn, uint64_t newpo
 	const char *objname, bool*execed)
 {
 	PG_TRY();
-	return apply(newpos, sqlstr, optype, objtype, objname, execed);
+	{
+		int ret = apply(newpos, sqlstr, optype, objtype, objname, execed);
+		return ret;
+	}
 	PG_CATCH();
-	free_metadata_cluster_result(conn);
-	disconnect_request_kill_meta_conn(0, 0);
+	{
+	//free_metadata_cluster_result(conn);
+	//disconnect_request_kill_meta_conn(0, 0);
 	PG_RE_THROW();
+	}
 	PG_END_TRY();
 	Assert(false); // never reached
 	return 0;

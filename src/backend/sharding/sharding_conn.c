@@ -1126,6 +1126,7 @@ void send_multi_stmts_to_multi()
 	size_t shard_cnt = cur_session.num_asis_used;
 
 	PG_TRY();
+	{
 	while (true)
 	{
 		bool has_more = false;
@@ -1166,9 +1167,9 @@ void send_multi_stmts_to_multi()
 		CHECK_FOR_INTERRUPTS();
 	}
 	disable_timeout(WRITE_SHARD_RESULT_TIMEOUT, false);
-
+	}
 	PG_CATCH();
-
+	{
 	if (geterrcode() == ERRCODE_QUERY_CANCELED)
 	{
 		// statement timeout
@@ -1203,6 +1204,7 @@ void send_multi_stmts_to_multi()
 	CancelAllRemoteStmtsInQueue(true);
 
 	PG_RE_THROW();
+	}
 	PG_END_TRY();
 }
 

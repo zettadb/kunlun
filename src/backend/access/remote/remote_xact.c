@@ -100,16 +100,25 @@ void SendRollbackRemote(const char *txnid, bool xa_end, bool written_only)
 
 	int ihoc = InterruptHoldoffCount;
 	PG_TRY();
+	{
 		if (xa_end)
 			send_txn_cmd(SQLCOM_XA_ROLLBACK, written_only, "XA END '%s';XA ROLLBACK '%s'", txnid, txnid);
 		else
 			send_txn_cmd(SQLCOM_XA_ROLLBACK, written_only, "XA ROLLBACK '%s'", txnid);
+	}
 	PG_CATCH();
+	{
 		PG_TRY();
+		{
 		disconnect_storage_shards();
 		request_topo_checks_used_shards();
+		}
 		PG_CATCH();
+		{
+
+		}
 		PG_END_TRY();
+	}
 	PG_END_TRY();
 
 	InterruptHoldoffCount = ihoc;

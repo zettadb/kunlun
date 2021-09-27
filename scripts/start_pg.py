@@ -33,7 +33,7 @@ if __name__ == "__main__":
 
     pg_logfp = datadir + "/logfile-" + port
 
-    cmd0 = "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:" + install_path + "/lib;"
+    cmd0 = "export LD_LIBRARY_PATH=" + install_path + "/lib:$LD_LIBRARY_PATH;"
     cmd1 = 'export LD_PRELOAD="' + install_path + '/resources/libjemalloc.so.3.6.0"; ulimit -c unlimited; '
     startup_cmd = cmd0 + cmd1 + install_path + '/bin/postgres -D ' + datadir + " > " + pg_logfp + " 2>&1 &"
     os.system(startup_cmd)

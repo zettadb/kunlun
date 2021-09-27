@@ -3,6 +3,7 @@
 # combined with Common Clause Condition 1.0, as detailed in the NOTICE file.
 
 import os
+import os.path
 import getpass
 import sys
 import re
@@ -43,7 +44,7 @@ def install_pg(config_template_file, install_path, compcfg, usemgr):
         raise Exception("Invalid port:" + portstr + ", The port is in use!")
 
     # do initdb
-    cmd0 = "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:" + install_path + "/lib;"
+    cmd0 = "export LD_LIBRARY_PATH=" + install_path + "/lib:$LD_LIBRARY_PATH;"
     cmd1 = 'export LD_PRELOAD="' + install_path + '/resources/libjemalloc.so.3.6.0"; ulimit -c unlimited; '
     initcmd = cmd0 + install_path + '/bin/initdb -D ' + datadir
     os.system(initcmd)
@@ -78,7 +79,7 @@ def install_pg(config_template_file, install_path, compcfg, usemgr):
     # add initial user for clients to use later.
     # TODO: use more restricted privs than superuser
     sql = "set skip_tidsync = true; CREATE USER " + compcfg['user'].strip() + " PASSWORD '" + compcfg['password'] + '\' superuser;'
-    psql_cmd = install_path + "/bin/psql -h localhost -p" + str(compcfg['port']) + " -U " + getpass.getuser() + " -d postgres -c \"" + sql + "\""
+    psql_cmd = cmd0 + install_path + "/bin/psql -h localhost -p" + str(compcfg['port']) + " -U " + getpass.getuser() + " -d postgres -c \"" + sql + "\""
     os.system(psql_cmd)
 
     # append the new instance's port to datadir mapping into instance_list.txt
@@ -99,7 +100,7 @@ if __name__ == "__main__":
         else:
             install_ids = [-1]
 
-        install_path = os.getcwd()[:-8] # cut off the /scripts tail
+        install_path = os.path.dirname(os.getcwd())
         config_template_file = install_path + "/resources/postgresql.conf"
         print "Installing computing nodes, please wait..."
         jsconf = open(config_path)

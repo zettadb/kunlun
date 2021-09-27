@@ -190,7 +190,6 @@ CREATE TABLE `shards` (
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
-DELIMITER ;;
 CREATE PROCEDURE `append_ddl_log_entry`(tblname varchar(256), dbname varchar(64), schema_name varchar(64), objname varchar(64), obj_type varchar(16), op_type varchar(16), cur_opid bigint unsigned, sql_src text, sql_src_sn text, target_shardid int unsigned, initiator_id int unsigned, OUT my_opid bigint unsigned)
     MODIFIES SQL DATA
     SQL SECURITY INVOKER
@@ -234,8 +233,7 @@ BEGIN
         DEALLOCATE PREPARE stmt1;
         DEALLOCATE PREPARE stmt2;
     END IF; 
-END ;;
-DELIMITER ;
+END ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;

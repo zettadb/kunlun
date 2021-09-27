@@ -33,14 +33,19 @@ jsconf = open(args.config)
 jstr = jsconf.read()
 jscfg = json.loads(jstr)
 mysql_conn_params = common.mysql_shard_check(jscfg, True)
-mysql_conn_params['database'] = 'Kunlun_Metadata_DB'
 
+mysql_conn_params['database'] = 'mysql'
 fbootstrap_sql = open(args.bootstrap_sql)
+bootsql = fbootstrap_sql.read()
 # load bootstrap sql file to create metadata tables
-subp = subprocess.Popen(['mysql', '-h', mysql_conn_params['host'], '-P', str(mysql_conn_params['port']), '-u', mysql_conn_params['user'], '-p'+mysql_conn_params['password']], stdin=fbootstrap_sql, stdout=subprocess.PIPE)
-subp.wait()
+meta_conn = mysql.connector.connect(**mysql_conn_params)
+meta_conn.autocommit = True
+for result in meta_conn.cmd_query_iter(bootsql):
+    pass
+meta_conn.close()
 fbootstrap_sql.close()
 
+mysql_conn_params['database'] = 'Kunlun_Metadata_DB'
 meta_conn = mysql.connector.connect(**mysql_conn_params)
 meta_cursor = meta_conn.cursor(prepared=True)
 meta_cursor0 = meta_conn.cursor()
@@ -53,6 +58,5 @@ meta_cursor0.execute("commit")
 meta_cursor.close()
 meta_cursor0.close()
 meta_conn.close()
-fbootstrap_sql.close()
 jsconf.close()
 print "Bootstrapping completed!"

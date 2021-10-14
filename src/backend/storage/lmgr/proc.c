@@ -58,7 +58,7 @@
 
 /* GUC variables */
 int			DeadlockTimeout = 1000;
-int			StatementTimeout = 0;
+int			StatementTimeout = 100000;
 int			LockTimeout = 0;
 int			IdleInTransactionSessionTimeout = 0;
 bool		log_lock_waits = false;

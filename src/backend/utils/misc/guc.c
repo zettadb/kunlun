@@ -2378,7 +2378,7 @@ static struct config_int ConfigureNamesInt[] =
 			GUC_UNIT_MS
 		},
 		&StatementTimeout,
-		10000, 0, INT_MAX,
+		100000, 0, INT_MAX,
 		NULL, NULL, NULL
 	},
 
@@ -3182,7 +3182,7 @@ static struct config_int ConfigureNamesInt[] =
 			gettext_noop("timeout in seconds when connecting to a mysql storage node."),
 		},
 		&mysql_connect_timeout,
-		10, 1, 10000,
+		100, 1, 10000,
 		NULL, NULL, NULL
 	},
 
@@ -3191,7 +3191,7 @@ static struct config_int ConfigureNamesInt[] =
 			gettext_noop("timeout in seconds when reading from a mysql storage node."),
 		},
 		&mysql_read_timeout,
-		10, 1, 10000,
+		100, 1, 10000,
 		NULL, NULL, NULL
 	},
 
@@ -3200,7 +3200,7 @@ static struct config_int ConfigureNamesInt[] =
 			gettext_noop("timeout in seconds when writing to a mysql storage node."),
 		},
 		&mysql_write_timeout,
-		10, 1, 10000,
+		100, 1, 10000,
 		NULL, NULL, NULL
 	},
 
@@ -3209,7 +3209,7 @@ static struct config_int ConfigureNamesInt[] =
 			gettext_noop("Max packet size in bytes in a connection to a mysql storage node."),
 		},
 		&mysql_max_packet_size,
-		65536, 1024, 1073741824,
+		1073741824, 1024, 1073741824,
 		NULL, NULL, NULL
 	},
 	

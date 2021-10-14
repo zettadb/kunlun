@@ -4596,7 +4596,7 @@ set_deparse_planstate(deparse_namespace *dpns, PlanState *ps)
 	else if (IsA(ps, MergeAppendState))
 		dpns->outer_planstate = ((MergeAppendState *) ps)->mergeplans[0];
 	else if (IsA(ps, ModifyTableState))
-		dpns->outer_planstate = ((ModifyTableState *) ps)->mt_plans[0];
+		dpns->outer_planstate = (PlanState *)(((ModifyTableState *) ps)->mt_plans[0]);
 	else
 		dpns->outer_planstate = outerPlanState(ps);
 
@@ -6566,6 +6566,18 @@ get_utility_query_def(Query *query, deparse_context *context)
 	}
 }
 
+inline static bool IsRemoteExecNode(PlanState *ps, RemoteScanState **pprss)
+{
+	if (!ps) return false;
+	if (IsA(ps, RemoteScanState))
+	{
+		*pprss = (RemoteScanState*)ps;
+		return true;
+	}
+	if (!IsA(ps, MaterialState)) return false;
+	return IsRemoteExecNode(outerPlanState(ps), pprss);
+}
+
 /*
  * Display a Var appropriately.
  *
@@ -6702,6 +6714,42 @@ get_variable(Var *var, int levelsup, bool istoplevel, deparse_context *context)
 		Assert(refname == NULL);
 	}
 
+	RemoteScanState *prss1 = NULL, *prss2 = NULL;
+	bool is_remote_outer = IsRemoteExecNode(dpns->outer_planstate, &prss1);
+	bool is_remote_inner = IsRemoteExecNode(dpns->inner_planstate, &prss2);
+	if ((rte->rtekind == RTE_JOIN || rte->rtekind == RTE_RELATION) &&
+		rte->relshardid != 0 &&
+		((dpns->outer_tlist && dpns->outer_planstate && is_remote_outer) ||
+		 (dpns->inner_tlist && dpns->inner_planstate && is_remote_inner)))
+	{
+		TargetEntry *tle;
+		List *rstl = NULL;
+		if (dpns->outer_tlist && dpns->inner_tlist)
+		{
+			Assert(var->varno == ((RemoteScan*)prss1->ss.ps.plan)->scanrelid ||
+				   var->varno == ((RemoteScan*)prss2->ss.ps.plan)->scanrelid);
+			if (var->varno == ((RemoteScan*)prss1->ss.ps.plan)->scanrelid)
+				rstl = dpns->outer_tlist;
+			else
+				rstl = dpns->inner_tlist;
+		}
+		else
+		{
+			rstl = dpns->outer_tlist ? dpns->outer_tlist : dpns->inner_tlist;
+			if (dpns->outer_tlist)
+				Assert(var->varno == ((RemoteScan*)prss1->ss.ps.plan)->scanrelid);
+			else
+				Assert(var->varno == ((RemoteScan*)prss2->ss.ps.plan)->scanrelid);
+		}
+
+		tle = get_tle_by_resno(rstl, var->varattno);
+		if (!tle)
+			elog(ERROR, "invalid attnum %d for relation \"%s\"",
+				 var->varattno, rte->eref->aliasname);
+		attname = tle->resname;
+		goto found;
+	}
+
 	if (attnum == InvalidAttrNumber)
 		attname = NULL;
 	else if (attnum > 0)
@@ -6720,7 +6768,7 @@ get_variable(Var *var, int levelsup, bool istoplevel, deparse_context *context)
 		/* System column - name is fixed, get it from the catalog */
 		attname = get_rte_attribute_name(rte, attnum);
 	}
-
+found:
 	if (refname && (context->varprefix || attname == NULL))
 	{
 		appendStringInfoString(buf, quote_identifier(refname));

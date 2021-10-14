@@ -489,7 +489,7 @@ static void updateRemoteSeqCache(SeqFetchReqs *dest)
 	    }
 	
 		replaces[Anum_pg_sequence_last_fetched - 1] = true;
-		values[Anum_pg_sequence_last_fetched - 1] = Int8GetDatum(dest_reqi->cache);
+		values[Anum_pg_sequence_last_fetched - 1] = Int64GetDatum(dest_reqi->cache);
 		HeapTuple newtuple =
 	        heap_modify_tuple(tup, RelationGetDescr(seqrel),
 		                      values, nulls, replaces);

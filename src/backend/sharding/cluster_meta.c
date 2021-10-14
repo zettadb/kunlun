@@ -886,7 +886,7 @@ bool SetLatestDDLOperationId(uint64_t newopid)
 	bool nulls[3] = {false, false, false};
 	bool replaces[3] = {false, false, false};
 	replaces[Anum_pg_ddl_log_progress_ddl_op_id - 1] = true;
-	values[Anum_pg_ddl_log_progress_ddl_op_id - 1] = Int8GetDatum(newopid);
+	values[Anum_pg_ddl_log_progress_ddl_op_id - 1] = UInt64GetDatum(newopid);
 	HeapTuple newtuple =
 		heap_modify_tuple(tup, RelationGetDescr(ddloplog_rel),
 	                      values, nulls, replaces);
@@ -1196,7 +1196,7 @@ static void update_max_ddl_op_id(Oid dbid, uint64_t opid)
 
 	replaces[Anum_pg_ddl_log_progress_max_op_id_done_local - 1] = true;
 	values[Anum_pg_ddl_log_progress_max_op_id_done_local - 1] =
-		Int8GetDatum(opid);
+		UInt64GetDatum(opid);
 
 	SysScanDesc scan = systable_beginscan(ddloplog_rel, DDLLogDbidIndexId, true,
 							              NULL, 1, &key);
@@ -1477,20 +1477,8 @@ static int do_ddl_apply(log_apply_func_t apply, MYSQL_CONN *conn, uint64_t newpo
 	const char *sqlstr, DDL_OP_Types optype, DDL_ObjTypes objtype,
 	const char *objname, bool*execed)
 {
-	PG_TRY();
-	{
-		int ret = apply(newpos, sqlstr, optype, objtype, objname, execed);
-		return ret;
-	}
-	PG_CATCH();
-	{
-	//free_metadata_cluster_result(conn);
-	//disconnect_request_kill_meta_conn(0, 0);
-	PG_RE_THROW();
-	}
-	PG_END_TRY();
-	Assert(false); // never reached
-	return 0;
+	int ret = apply(newpos, sqlstr, optype, objtype, objname, execed);
+	return ret;
 }
 
 /*

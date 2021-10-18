@@ -3182,7 +3182,7 @@ static struct config_int ConfigureNamesInt[] =
 			gettext_noop("timeout in seconds when connecting to a mysql storage node."),
 		},
 		&mysql_connect_timeout,
-		100, 1, 10000,
+		100, 1, 100000,
 		NULL, NULL, NULL
 	},
 
@@ -3191,7 +3191,7 @@ static struct config_int ConfigureNamesInt[] =
 			gettext_noop("timeout in seconds when reading from a mysql storage node."),
 		},
 		&mysql_read_timeout,
-		100, 1, 10000,
+		100, 1, 1000000,
 		NULL, NULL, NULL
 	},
 
@@ -3200,7 +3200,7 @@ static struct config_int ConfigureNamesInt[] =
 			gettext_noop("timeout in seconds when writing to a mysql storage node."),
 		},
 		&mysql_write_timeout,
-		100, 1, 10000,
+		100, 1, 1000000,
 		NULL, NULL, NULL
 	},
 
@@ -3209,7 +3209,7 @@ static struct config_int ConfigureNamesInt[] =
 			gettext_noop("Max packet size in bytes in a connection to a mysql storage node."),
 		},
 		&mysql_max_packet_size,
-		1073741824, 1024, 1073741824,
+		1073741824, 1024, 1024*1073741824,
 		NULL, NULL, NULL
 	},
 	
@@ -3227,7 +3227,7 @@ static struct config_int ConfigureNamesInt[] =
 			gettext_noop("Commit log xid write group size."),
 		},
 		&cluster_commitlog_group_size,
-		8, 1, 65536,
+		8, 1, 65536*1024,
 		NULL, NULL, NULL
 	},
 
@@ -3236,7 +3236,7 @@ static struct config_int ConfigureNamesInt[] =
 			gettext_noop("The max delay time in milliseconds for the GTSS process to send commit log to metadata server."),
 		},
 		&cluster_commitlog_delay_ms,
-		10, 1, 10000,
+		10, 1, 1000000,
 		NULL, NULL, NULL
 	},
 #ifdef ENABLE_DEBUG_SYNC
@@ -3264,7 +3264,7 @@ static struct config_int ConfigureNamesInt[] =
 			gettext_noop("Max wait time in seconds of a commit log request to meta-data shard primary node."),
 		},
 		&global_txn_commit_log_wait_max_secs,
-		10, 1, 10000,
+		10, 1, 100000,
 		NULL, NULL, NULL
 	},
 
@@ -3288,7 +3288,7 @@ static struct config_int ConfigureNamesInt[] =
 			gettext_noop("Max NO. of blocks ever allowed to be allocated to one session to insert rows."),
 		},
 		&max_remote_insert_blocks,
-		1024, 8, 1024*16,
+		1024, 8, 1024*1024,
 		NULL, NULL, NULL
 	},
 
@@ -3297,7 +3297,7 @@ static struct config_int ConfigureNamesInt[] =
 			gettext_noop("String key-part length suffix used in DDL statements sent to storage shard."),
 		},
 		&str_key_part_len,
-		64, 1, 1024*32,
+		64, 1, 1024*64,
 		NULL, NULL, NULL
 	},
 	/* End-of-list marker */

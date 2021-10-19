@@ -53,6 +53,14 @@ SUBPARTITIONS 32
 -- Table structure for table `comp_nodes`
 --
 
+DROP TABLE IF EXISTS `comp_nodes_id_seq`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+ SET character_set_client = utf8mb4 ;
+CREATE TABLE `comp_nodes_id_seq` (
+  `id` int PRIMARY KEY AUTO_INCREMENT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
 DROP TABLE IF EXISTS `comp_nodes`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
  SET character_set_client = utf8mb4 ;

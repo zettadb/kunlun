@@ -38,9 +38,9 @@ CATALOG(pg_cluster_meta_nodes,12350,ClusterMetaNodesRelationId) BKI_SHARED_RELAT
    * */
   bool is_master;
   int32 port;
-  NameData ip; /* ip address, ipv6 or ipv4. */
   NameData user_name;
 #ifdef CATALOG_VARLEN
+  text hostaddr; /* socket host address, ipv6 or ipv4, or domain name. */
   text passwd BKI_FORCE_NOT_NULL;
 #endif
 } FormData_pg_cluster_meta_nodes;

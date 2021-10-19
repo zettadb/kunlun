@@ -5898,8 +5898,8 @@ create pg_cluster_meta_nodes 12350 shared_relation without_oids
  cluster_id = oid ,
  is_master = bool ,
  port = int4 ,
- ip = name ,
  user_name = name ,
+ hostaddr = text ,
  passwd = text FORCE NOT NULL
  )
 open pg_cluster_meta_nodes
@@ -6694,8 +6694,8 @@ create pg_shard_node 12345 shared_relation without_oids
  shard_id = oid ,
  svr_node_id = oid ,
  ro_weight = int2 ,
- ip = name ,
  user_name = name ,
+ hostaddr = text ,
  passwd = text FORCE NOT NULL ,
  when_created = timestamptz
  )
@@ -6861,7 +6861,7 @@ declare unique index pg_subscription_rel_srrelid_srsubid_index 6117 on pg_subscr
 declare unique index pg_shard_node_oid_index 6666 on pg_shard_node using btree(id oid_ops)
 declare unique index pg_shard_oid_index 6667 on pg_shard using btree(id oid_ops)
 declare index pg_shard_node_shardid_index 6668 on pg_shard_node using btree(shard_id oid_ops)
-declare unique index pg_shard_node_ip_port_svr_index 6669 on pg_shard_node using btree(ip name_ops, port int4_ops, svr_node_id oid_ops)
+declare unique index pg_shard_node_ip_port_svr_index 6669 on pg_shard_node using btree(hostaddr text_pattern_ops, port int4_ops, svr_node_id oid_ops)
 declare unique index pg_shard_name_index 6670 on pg_shard using btree(name name_ops)
 declare unique index pg_comp_node_stat_id_tstz_index 6671 on pg_computing_node_stat using btree(comp_node_id oid_ops, accumulated_since timestamptz_ops)
 declare unique index pg_cluster_meta_nodes_serverid_index 6672 on pg_cluster_meta_nodes using btree(server_id oid_ops)

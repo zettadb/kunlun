@@ -93,7 +93,6 @@ static void copy_shard_node_meta(Form_pg_shard_node px, Shard_node_t *py, HeapTu
 	py->id = px->id;
 	py->shard_id = px->shard_id;
 	py->svr_node_id = px->svr_node_id;
-	py->ip = px->ip; // ip address
 	Assert(px->port < 0xffff);
 	py->port = (uint16)px->port;
 	py->ro_weight = px->ro_weight;
@@ -101,8 +100,14 @@ static void copy_shard_node_meta(Form_pg_shard_node px, Shard_node_t *py, HeapTu
 	// copy py->passwd
 	bool isNull = false;
 	MemoryContext old_memcxt;
-	Datum value = heap_getattr(tup, Anum_pg_shard_node_passwd, RelationGetDescr(shardnoderel), &isNull);
+	Datum value = heap_getattr(tup, Anum_pg_shard_node_hostaddr, RelationGetDescr(shardnoderel), &isNull);
 	old_memcxt = MemoryContextSwitchTo(CacheMemoryContext);
+	if (!isNull)
+		py->hostaddr = TextDatumGetCString(value); // palloc's memory for the string
+	else
+		py->hostaddr = NULL;
+
+	value = heap_getattr(tup, Anum_pg_shard_node_passwd, RelationGetDescr(shardnoderel), &isNull);
 	if (!isNull)
 		py->passwd = TextDatumGetCString(value); // palloc's memory for the string
 	else
@@ -1085,7 +1090,7 @@ static Shard_node_t *find_node_by_ip_port(Shard_t *ps, const char *ip, uint16_t 
 	for (int i = 0; i < ps->num_nodes; i++)
 	{
 		Shard_node_t *sn = pnoderef[i].ptr;
-		if (strcmp(sn->ip.data, ip) == 0 && port == sn->port)
+		if (strcmp(sn->hostaddr, ip) == 0 && port == sn->port)
 			return sn;
 	}
 	return NULL;

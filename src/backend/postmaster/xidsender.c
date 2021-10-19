@@ -223,8 +223,11 @@ retry:
 	if (isnull)
 		elog(ERROR, "Non-nullable field 'passwd' in table pg_cluster_meta_nodes has NULL value.");
 
+	Datum hostaddr_dat = SysCacheGetAttr(CLUSTER_META_NODES, cmtup, Anum_pg_cluster_meta_nodes_hostaddr, &isnull);
+	if (isnull)
+		elog(ERROR, "Non-nullable field 'hostaddr' in table pg_cluster_meta_nodes has NULL value.");
 	char *pwd = TextDatumGetCString(pwdfld);
-
+	char *hostaddr = TextDatumGetCString(hostaddr_dat);
 
 	int rcm = 0;
 	/*
@@ -243,12 +246,12 @@ retry:
 	Assert(cmnode->is_master);
 
 	int conn_fail = 0;
-	char master_ip[128];
 	uint16_t master_port;
-	strncpy(master_ip, cmnode->ip.data, sizeof(master_ip));
+	char master_ip[64];
+	strncpy(master_ip, hostaddr, sizeof(master_ip) - 1);
 	master_port = cmnode->port;
 
-	if ((rcm = connect_mysql_master(&cluster_conn, cmnode->ip.data, cmnode->port, cmnode->user_name.data, pwd, isbg)))
+	if ((rcm = connect_mysql_master(&cluster_conn, hostaddr, cmnode->port, cmnode->user_name.data, pwd, isbg)))
 	{
 		if (cmnode->is_master && rcm == -2)
 		{
@@ -312,7 +315,6 @@ end:
 	}
 
 	if (recover_txnid)recover_nextXid();
-
 	return &cluster_conn;
 }
 
@@ -367,11 +369,16 @@ retry:
 	Datum pwdfld = SysCacheGetAttr(CLUSTER_META_NODES, cmtup, Anum_pg_cluster_meta_nodes_passwd, &isnull);
 	if (isnull)
 		elog(ERROR, "Non-nullable field 'passwd' in table pg_cluster_meta_nodes has NULL value.");
+	Datum hostaddr_dat = SysCacheGetAttr(CLUSTER_META_NODES, cmtup, Anum_pg_cluster_meta_nodes_hostaddr, &isnull);
+	if (isnull)
+		elog(ERROR, "Non-nullable field 'hostaddr' in table pg_cluster_meta_nodes has NULL value.");
 
 	char *pwd = TextDatumGetCString(pwdfld);
+	char *hostaddr = TextDatumGetCString(hostaddr_dat);
 	int conn_fail = 0, rcm = 0;
 
-	if ((rcm = connect_mysql_master(&cluster_conn, cmnode->ip.data, cmnode->port, cmnode->user_name.data, pwd, true)))
+	if ((rcm = connect_mysql_master(&cluster_conn, hostaddr, cmnode->port,
+		cmnode->user_name.data, pwd, true)))
 	{
 		if (cmnode->is_master && rcm == -2)
 		{

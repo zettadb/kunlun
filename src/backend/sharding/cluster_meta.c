@@ -1694,8 +1694,8 @@ static bool check_ddl_logs_complete(bool is_recovery, uint64_t min_opid, uint64_
 }
 
 typedef struct CMNConnInfo {
-	NameData ip;
 	NameData usr;
+	char *hostaddr;
 	char* pwd;
 	uint16_t port;
 	bool is_primary;
@@ -1712,7 +1712,7 @@ typedef struct CMNConnInfo {
 */
 static int check_metashard_master(MYSQL_CONN *cnconn, CMNConnInfo *ci, CMNConnInfo *cis, int num_ci)
 {
-	int cret = connect_mysql(cnconn, ci->ip.data, ci->port, ci->usr.data, ci->pwd, true, -1);
+	int cret = connect_mysql(cnconn, ci->hostaddr, ci->port, ci->usr.data, ci->pwd, true, -1);
 	if (cret < 0)
 	{
 		Assert(cret == -1);
@@ -1743,11 +1743,11 @@ static int check_metashard_master(MYSQL_CONN *cnconn, CMNConnInfo *ci, CMNConnIn
 		}
 
 		char *endptr = NULL;
-		const char *ip = row[0];
+		const char *hostaddr = row[0];
 		uint16_t port = strtoul(row[1], &endptr, 10);
 		for (int i = 0; i < num_ci; i++)
 		{
-			if (strcmp(cis[i].ip.data, ip) == 0 && port == cis[i].port)
+			if (strcmp(cis[i].hostaddr, hostaddr) == 0 && port == cis[i].port)
 			{
 				ret = i;
 				break;
@@ -1757,7 +1757,7 @@ static int check_metashard_master(MYSQL_CONN *cnconn, CMNConnInfo *ci, CMNConnIn
 		// when (ip, port) not found, ret is -1 here as expected.
 		if (ret == -1)
 			elog(WARNING, "Found a new primary node(%s, %u) of metadata shard not in pg_cluster_meta_node, "
-				 "meta data in pg_cluster_meta_node isn't up to date, retry later.", ip, port);
+				 "meta data in pg_cluster_meta_node isn't up to date, retry later.", hostaddr, port);
 
 end:
 		free_metadata_cluster_result(cnconn);
@@ -1807,7 +1807,10 @@ int FindCurrentMetaShardMasterNodeId(Oid *pmaster_nodeid, Oid *old_master_nodeid
 	{
 		Form_pg_cluster_meta_nodes cmn = ((Form_pg_cluster_meta_nodes) GETSTRUCT(tup));
 		CMNConnInfo *pci = cmnodes + cur_idx;
-		pci->ip = cmn->ip;
+		Datum hostaddr_dat = SysCacheGetAttr(CLUSTER_META_NODES, tup, Anum_pg_cluster_meta_nodes_hostaddr, &isNull);
+		Assert(!isNull);
+		char *hostaddr = TextDatumGetCString(hostaddr_dat);
+		pci->hostaddr = pstrdup(hostaddr);
 		pci->usr = cmn->user_name;
 		Datum pwd_value = heap_getattr(tup, Anum_pg_cluster_meta_nodes_passwd, RelationGetDescr(cmr), &isNull);
 		MemoryContext old_memcxt = MemoryContextSwitchTo(CurTransactionContext);
@@ -1868,19 +1871,19 @@ int FindCurrentMetaShardMasterNodeId(Oid *pmaster_nodeid, Oid *old_master_nodeid
 		else if (master_idx == -2) // master unknown in this node
 		{
 			elog(WARNING, "Primary node unknown in metadata shard node (%s, %u, %u).",
-				 cmn->ip.data, cmn->port, cmn->nodeid);
+				 cmn->hostaddr, cmn->port, cmn->nodeid);
 			num_unknowns++;
 		}
 		else if (master_idx == -3)
 		{
 			elog(WARNING, "Metadata shard node (%s, %u, %u) can't be connected.",
-				 cmn->ip.data, cmn->port, cmn->nodeid);
+				 cmn->hostaddr, cmn->port, cmn->nodeid);
 			num_unavails++;
 		}
 		else if (master_nodeid == InvalidOid) // 1st master
 		{
 			master_nodeid = cmnodes[master_idx].nodeid;
-			master_ip = cmnodes[master_idx].ip.data;
+			master_ip = cmnodes[master_idx].hostaddr;
 			master_port = cmnodes[master_idx].port;
 			Assert(num_masters == 0);
 			num_masters++;
@@ -1890,7 +1893,7 @@ int FindCurrentMetaShardMasterNodeId(Oid *pmaster_nodeid, Oid *old_master_nodeid
 		{
 			elog(WARNING, "Found a new primary node(%s, %u, %u) of metadata shard when we already found a new primary node (%s, %u, %u),"
 			 	 " might be a brain split bug of MGR, but more likely a master switch is happening right now, retry later.",
-			 	 cmn->ip.data, cmn->port, cmn->nodeid, master_ip, master_port, master_nodeid);
+			 	 cmn->hostaddr, cmn->port, cmn->nodeid, master_ip, master_port, master_nodeid);
 			num_masters++;
 		}
 		else
@@ -1903,7 +1906,8 @@ int FindCurrentMetaShardMasterNodeId(Oid *pmaster_nodeid, Oid *old_master_nodeid
 	if (num_new_masters > 0)
 	{
 		elog(WARNING, "Found %d new primary nodes in metadata shard which are not registered in pg_cluster_meta/pg_cluster_meta_nodes and can't be used by current computing node. Primary node is unknown in %d nodes, with %d unavailable nodes. Retry later.", num_new_masters, num_unknowns, num_unavails);
-		return -1;
+		num_masters = -1;
+		goto end;
 	}
 	if (num_masters == 0)
 		elog(WARNING, "Primary node not found in metadata shard, it's unknown in %d nodes, with %d unavailable nodes. Retry later.", num_unknowns, num_unavails);
@@ -1914,6 +1918,13 @@ int FindCurrentMetaShardMasterNodeId(Oid *pmaster_nodeid, Oid *old_master_nodeid
 			 master_ip, master_port, master_nodeid, num_quorum, num_unknowns, num_unavails);
 
 	*pmaster_nodeid = master_nodeid;
+end:
+	
+	for (int i = 0; i < num_nodes; i++)
+	{
+		CMNConnInfo *cmn = cmnodes + i;
+		pfree(cmn->hostaddr);
+	}
 	return num_masters;
 }
 
@@ -2085,7 +2096,7 @@ void KillMetaShardConn(char type, uint32_t connid)
 	for (int i = 0; i < cnt; i++)
 	{
 		CMNConnInfo *ci = cmnodes+i;
-		int cret = connect_mysql(cnconn, ci->ip.data, ci->port, ci->usr.data, ci->pwd, true, -1);
+		int cret = connect_mysql(cnconn, ci->hostaddr, ci->port, ci->usr.data, ci->pwd, true, -1);
 		if (cret < 0)
 		{
 			continue;
@@ -2100,7 +2111,7 @@ void KillMetaShardConn(char type, uint32_t connid)
 
 		elog(INFO, "%s %sconnection %u on metadata cluster %s node (%s, %d) as requested.",
 			done ? "Killed" : "Failed to kill", type == 1 ? "" : "query on ",
-			connid, NDTYP(cnconn), ci->ip.data, ci->port);
+			connid, NDTYP(cnconn), ci->hostaddr, ci->port);
 	}
 }
 
@@ -2140,7 +2151,10 @@ static int FindMetaShardAllNodes(CMNConnInfo *cmnodes, size_t n)
 	{
 		Form_pg_cluster_meta_nodes cmn = ((Form_pg_cluster_meta_nodes) GETSTRUCT(tup));
 		CMNConnInfo *pci = cmnodes + cur_idx;
-		pci->ip = cmn->ip;
+		Datum hostaddr_dat = SysCacheGetAttr(CLUSTER_META_NODES, tup, Anum_pg_cluster_meta_nodes_hostaddr, &isNull);
+		Assert(!isNull);
+		char *hostaddr = TextDatumGetCString(hostaddr_dat);
+		pci->hostaddr = pstrdup(hostaddr);
 		pci->usr = cmn->user_name;
 		Datum pwd_value = heap_getattr(tup, Anum_pg_cluster_meta_nodes_passwd, RelationGetDescr(cmr), &isNull);
 		MemoryContext old_memcxt = MemoryContextSwitchTo(CurTransactionContext);

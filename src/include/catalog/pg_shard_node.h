@@ -43,12 +43,13 @@ CATALOG(pg_shard_node,12345,ShardNodeRelationId) BKI_SHARED_RELATION BKI_WITHOUT
   Oid svr_node_id;
   /*
    * When dispatching read only select stmts to a slave, choose the one with
-   * max ro_weight of a shard.
+   * max ro_weight of a shard. set it to 0 to disable slave reading to the node.
    */
   int16 ro_weight;
-  NameData ip; /* ip address, ipv6 or ipv4. */
   NameData user_name;
 #ifdef CATALOG_VARLEN
+  /* host address , ipv6 or ipv4, or host name/domain name, denoted by addrtype. */
+  text hostaddr;
   text passwd BKI_FORCE_NOT_NULL;
   timestamptz when_created BKI_DEFAULT(0);
 #endif

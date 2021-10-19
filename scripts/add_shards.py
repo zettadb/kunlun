@@ -136,7 +136,7 @@ def add_new_shards_to_all_computing_nodes(cluster_id, meta_conn, jscfg):
                             (shardcfg['shard_name'], shardcfg['shard_id'], shardcfg['num_nodes'], shardcfg['shard_nodes'][0]['shard_node_id'], 0, 0, cluster_id))
                     for v in shardcfg['shard_nodes']:
                         cur.execute("insert into pg_shard_node values(%s, %s, %s, %s, %s, %s, %s, %s, now())",
-                                (v['shard_node_id'], v['port'], shardcfg['shard_id'], 0, 0, v['ip'], v['user'], v['password']))
+                                (v['shard_node_id'], v['port'], shardcfg['shard_id'], 0, 0, v['user'], v['ip'], v['password']))
                 cur.execute("commit")
                 break
             except psycopg2.Error as pgerr:

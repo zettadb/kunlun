@@ -67,7 +67,7 @@ DROP TABLE IF EXISTS `comp_nodes`;
 CREATE TABLE `comp_nodes` (
   `id` int(10) unsigned NOT NULL,
   `name` varchar(64) NOT NULL,
-  `ip` varchar(128) NOT NULL,
+  `hostaddr` varchar(8192) NOT NULL,
   `port` smallint(5) unsigned NOT NULL,
   `db_cluster_id` int(10) unsigned NOT NULL,
   `when_created` timestamp NULL DEFAULT (now()),
@@ -132,7 +132,7 @@ DROP TABLE IF EXISTS `meta_db_nodes`;
  SET character_set_client = utf8mb4 ;
 CREATE TABLE `meta_db_nodes` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `ip` varchar(64) NOT NULL,
+  `hostaddr` varchar(8192) NOT NULL,
   `port` smallint(5) unsigned NOT NULL,
   `user_name` varchar(64) NOT NULL,
   `passwd` varchar(120) NOT NULL,
@@ -151,7 +151,7 @@ DROP TABLE IF EXISTS `shard_nodes`;
 CREATE TABLE `shard_nodes` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `ro_weight` smallint(6) DEFAULT '0',
-  `ip` varchar(64) NOT NULL,
+  `hostaddr` varchar(8192) NOT NULL,
   `port` smallint(5) unsigned NOT NULL,
   `user_name` varchar(64) NOT NULL,
   `passwd` varchar(120) NOT NULL,
@@ -162,7 +162,7 @@ CREATE TABLE `shard_nodes` (
   `master_priority` smallint(6) NOT NULL,
   `status` enum('creating','inactive','active') DEFAULT 'creating',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `ip` (`ip`,`port`,`svr_node_id`)
+  UNIQUE KEY `hostaddr_port_svrnodeid_uniq` (`hostaddr`,`port`,`svr_node_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

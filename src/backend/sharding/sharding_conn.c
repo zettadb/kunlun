@@ -469,7 +469,7 @@ static int AllocShardConnNodeSlot(ShardConnection *sconn, Oid nodeid, int *newco
 make_conn:
 	pnode = FindCachedShardNode(sconn->shard_id, nodeid);
 
-	if (!async_connect(mysql_conn, pnode->ip.data, pnode->port, pnode->user_name.data, pnode->passwd))
+	if (!async_connect(mysql_conn, pnode->hostaddr, pnode->port, pnode->user_name.data, pnode->passwd))
 	{
 		if (req_chk_onfail) RequestShardingTopoCheck(sconn->shard_id);
 		/*
@@ -479,7 +479,7 @@ make_conn:
 		ereport(ERROR,
 				(errcode(ERRCODE_CONNECTION_FAILURE),
 				 errmsg("Kunlun-db: Failed to connect to mysql storage node at (%s, %u): %d, %s",
-						pnode->ip.data, pnode->port, mysql_errno(mysql_conn), mysql_error(mysql_conn))));
+						pnode->hostaddr, pnode->port, mysql_errno(mysql_conn), mysql_error(mysql_conn))));
 	}
 	sconn->conn_flags[inspos] |= CONN_VALID;
 

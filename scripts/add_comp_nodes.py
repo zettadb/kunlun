@@ -107,7 +107,7 @@ def add_computing_nodes(mysql_conn_params, args, config_path, install_ids) :
                 meta_master_id = meta_node['id']
 
             cur.execute("insert into pg_cluster_meta_nodes values(%s, %s, %s, %s, %s, %s, %s)",
-                    (meta_node['id'], cluster_id, is_master, meta_node['port'], meta_node['ip'], meta_node['user_name'], meta_node['passwd']))
+                    (meta_node['id'], cluster_id, is_master, meta_node['port'], meta_node['user_name'], meta_node['ip'], meta_node['passwd']))
         # if this is from a backup then it may already have some or all shard info, proceed anyway.
         cur1 = conn.cursor()
         cur1.execute("select id from pg_shard")
@@ -130,7 +130,7 @@ def add_computing_nodes(mysql_conn_params, args, config_path, install_ids) :
             shard_nrows[shard_node_row['shard_id']] += 1;
             cur.execute("insert into pg_shard_node values(%s, %s, %s, %s, %s, %s, %s, %s, %s)",
                     (shard_node_row['id'], shard_node_row['port'], shard_node_row['shard_id'], 0, 0,
-                     shard_node_row['ip'], shard_node_row['user_name'], shard_node_row['passwd'], shard_node_row['when_created']))
+                     shard_node_row['user_name'], shard_node_row['ip'], shard_node_row['passwd'], shard_node_row['when_created']))
             # update master_node_id to any node's id of the shard, it can't be 0 otherwise computing node won't be able to work.
             cur.execute("update pg_shard set master_node_id = %s where master_node_id = 0 and id=%s", (shard_node_row['id'], shard_node_row['shard_id']))
         # update 'num_rows' for each pg_shard row.

@@ -49,7 +49,6 @@ extern Storage_HA_Mode storage_ha_mode;
 typedef struct Shard_node_t
 {
   NameData user_name;
-  NameData ip; // ip address
 
   uint32 shard_id; /* The owner shard, references pg_shard(id). BKI can't specify
 				   foreign key though. */
@@ -61,7 +60,7 @@ typedef struct Shard_node_t
    */
   int16_t ro_weight;
   Shard_node_id_t id;
-
+  char *hostaddr;
   char *passwd;
 } Shard_node_t;
 

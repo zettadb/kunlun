@@ -16,6 +16,7 @@ import subprocess
 import json
 import shlex
 from distutils.util import strtobool
+import argparse
 
 # This script installs one or more specified computing node instances on current server.
 # the configs of these computing nodes are all stored in the supplied config file.
@@ -26,7 +27,7 @@ def param_replace(string, rep_dict):
     pattern = re.compile("|".join([re.escape(k) for k in rep_dict.keys()]), re.M)
     return pattern.sub(lambda x: rep_dict[x.group(0)], string)
 
-def install_pg(config_template_file, install_path, compcfg, usemgr):
+def install_pg(config_template_file, install_path, compcfg):
     #check install datadir is empty, make it if not exist
     datadir = compcfg['datadir'].strip()
     if datadir[0] != '/':
@@ -67,8 +68,6 @@ def install_pg(config_template_file, install_path, compcfg, usemgr):
     os.system('echo "host all all ' + compcfg['ip'].strip() + '/32 trust" >> ' + datadir + '/pg_hba.conf')
     os.system('echo "host all all 127.0.0.1/32  trust" >> ' + datadir + '/pg_hba.conf')
     os.system('echo "host all all 0.0.0.0/0 md5" >> ' + datadir + '/pg_hba.conf')
-    if not usemgr:
-        os.system("sed -i 's/storage_ha_mode.*/storage_ha_mode=0/g' " + conf_path)
 
     # startup postgres, put log file in datadir too
     pg_logfp = datadir + "/logfile-" + str(compcfg['port'])
@@ -87,13 +86,15 @@ def install_pg(config_template_file, install_path, compcfg, usemgr):
         os.mkdir(etc_path)
     os.system("echo \"" + str(compcfg['port']) + "==>" + datadir + "\" >> " + conf_list_file)
 
-# install_pg.py config=/path/of/config/file install_ids=comma-seperated-comp_id-list|all
+# install_pg.py --config /path/of/config/file --install_ids comma-seperated-comp_id-list|all
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Install the computing node.')
+    parser.add_argument('--config', type=str, help="The config path", required=True)
+    parser.add_argument('--install_ids', type=str, help = "The ids for the nodes to install", default='all')
+    args = parser.parse_args()
     try:
-        args = dict([arg.split('=') for arg in sys.argv[1:]])
-        config_path = args["config"]
-        if "install_ids" in args and args["install_ids"] != "all":
-            idstr = args["install_ids"].split(',')
+        if args.install_ids != "all":
+            idstr = args.install_ids.split(',')
             install_ids = []
             for id in idstr:
                 install_ids.append(int(id))
@@ -103,18 +104,15 @@ if __name__ == "__main__":
         install_path = os.path.dirname(os.getcwd())
         config_template_file = install_path + "/resources/postgresql.conf"
         print "Installing computing nodes, please wait..."
-        jsconf = open(config_path)
+        jsconf = open(args.config)
         jstr = jsconf.read()
         jscfg = json.loads(jstr)
         idx = 0
-        # undocument option, used for internal testing. usemgr=False
-        usemgr=args.get('usemgr', 'True')
-        usemgr=strtobool(usemgr)
         for compcfg in jscfg:
             if install_ids[0] == -1 or install_ids.count(compcfg['id']) > 0:
-                install_pg(config_template_file, install_path, compcfg, usemgr)
+                install_pg(config_template_file, install_path, compcfg)
                 print "Installation completed for instance in " + compcfg['datadir'].strip()
-        print "Installation of computing nodes with ID(s) " + str(install_ids) + " in file " + config_path + " completed."
+        print "Installation of computing nodes with ID(s) " + str(install_ids) + " in file " + args.config + " completed."
     except KeyError, e:
-        print 'install_pg.py config=/path/of/config/file install_ids=comma-seperated-comp_id-list|all'
+        print 'install_pg.py --config /path/of/config/file --install_ids comma-seperated-comp_id-list|all'
         print e

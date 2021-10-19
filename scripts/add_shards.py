@@ -36,9 +36,9 @@ from distutils.util import strtobool
 # { more shard configs like above}
 # ]
 
-def add_shards_to_cluster(mysql_conn_params, cluster_name, config_path, install_names, usemgr):
+def add_shards_to_cluster(mysql_conn_params, cluster_name, config_path, install_names, ha_mode):
     meta_conn = mysql.connector.connect(**mysql_conn_params)
-
+    usemgr = ha_mode == 'mgr'
 
     jsconf = open(config_path)
     jstr = jsconf.read()
@@ -155,11 +155,9 @@ if __name__ == '__main__':
     parser.add_argument('--meta_config', type=str, help="metadata cluster config file path")
     parser.add_argument('--cluster_name', type=str)
     parser.add_argument('--targets', type=str, help="target shards to install, specified by shard names. If none, add all shards.")
-    parser.add_argument('--usemgr', type=str, default='True'); # used for internal testing, --usemgr=True|False
+    parser.add_argument('--ha_mode', type=str, default='mgr', choices=['mgr','no_rep', 'rbr']); # used for internal testing,
 
     args = parser.parse_args()
-    args.usemgr=strtobool(args.usemgr)
-
     install_names = []
 
     if args.targets:
@@ -179,5 +177,5 @@ if __name__ == '__main__':
 
     mysql_conn_params = common.mysql_shard_check(meta_jscfg, True)
     mysql_conn_params['database'] = 'Kunlun_Metadata_DB'
-    num_done = add_shards_to_cluster(mysql_conn_params, args.cluster_name, args.config, install_names, args.usemgr)
+    num_done = add_shards_to_cluster(mysql_conn_params, args.cluster_name, args.config, install_names, args.ha_mode)
     print "Shard nodes successfully added to cluster {} : {}".format(args.cluster_name, num_done)

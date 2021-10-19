@@ -77,7 +77,7 @@ def add_comp_self(install_path, config_template_file, mysql_conn_params, config_
             os.system("chown -R postgres:postgres /pgdatadir")
             os.system("su postgres -c 'cd /kunlun && . ./env.sh; cd postgresql-11.5-rel/scripts; python2 install_pg.py config=./%s install_ids=%d' " % (config_path, maxid))
         else:
-            install_pg.install_pg(config_template_file, install_path, selfobj, args.usemgr)
+            install_pg.install_pg(config_template_file, install_path, selfobj)
     conn = checkserver(selfip, args.port, args.user, args.password, 'postgres')
     if conn is None:
         raise Exception("Computing server is not installed correctly, please check the installation!")
@@ -110,7 +110,6 @@ if __name__ == '__main__':
     parser.add_argument('--datadir', type=str, help="The data directory", default='/pgdatadir')
     parser.add_argument('--install', help="install it first", default=False, action='store_true')
     parser.add_argument('--docker', help="process is in docker container", default=False, action='store_true')
-    parser.add_argument('--usemgr', type=bool, default=True); # used for internal testing, --usemgr=True|False
 
     args = parser.parse_args()
 

@@ -390,17 +390,11 @@ INSERT INTO INT8_TBL(q1, q2)  VALUES('4567890123456789','123');
 INSERT INTO INT8_TBL(q1, q2)  VALUES(+4567890123456789,'4567890123456789');
 INSERT INTO INT8_TBL(q1, q2)  VALUES('+4567890123456789','-4567890123456789');
 select t1.q2, count(t2.*) from int8_tbl t1 left join (select * from int8_tbl) t2 on (t1.q2 = t2.q1) group by t1.q2 order by 1;
-
+explain select t1.q2, count(t2.*) from int8_tbl t1 left join (select * from int8_tbl) t2 on (t1.q2 = t2.q1) group by t1.q2 order by 1;
 select t1.q2, count(t2.*) from int8_tbl t1 left join (select q1, case when q2=1 then 1 else q2 end as q2 from int8_tbl) t2 on (t1.q2 = t2.q1) group by t1.q2 order by 1;
-
-drop table if exists INT8_TBL;
-CREATE TABLE INT8_TBL(id serial primary key, q1 int8, q2 int8);
-INSERT INTO INT8_TBL(q1, q2) VALUES(' 123 ',' 456');
-INSERT INTO INT8_TBL(q1, q2)  VALUES('123 ','4567890123456789');
-INSERT INTO INT8_TBL(q1, q2)  VALUES('4567890123456789','123');
-INSERT INTO INT8_TBL(q1, q2)  VALUES(+4567890123456789,'4567890123456789');
-INSERT INTO INT8_TBL(q1, q2)  VALUES('+4567890123456789','-4567890123456789');
+explain select t1.q2, count(t2.*) from int8_tbl t1 left join (select q1, case when q2=1 then 1 else q2 end as q2 from int8_tbl) t2 on (t1.q2 = t2.q1) group by t1.q2 order by 1;
 select t1.q2, count(t2.*) from int8_tbl t1 left join int8_tbl t2 on (t1.q2 = t2.q1) group by t1.q2 order by 1;
+explain select t1.q2, count(t2.*) from int8_tbl t1 left join int8_tbl t2 on (t1.q2 = t2.q1) group by t1.q2 order by 1;
 
 
 -- bug 71

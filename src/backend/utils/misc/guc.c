@@ -3209,7 +3209,7 @@ static struct config_int ConfigureNamesInt[] =
 			gettext_noop("Max packet size in bytes in a connection to a mysql storage node."),
 		},
 		&mysql_max_packet_size,
-		1073741824, 1024, 1024*1073741824,
+		1073741824, 1024, 2*1073741824 - 1,
 		NULL, NULL, NULL
 	},
 	

@@ -369,7 +369,7 @@ DECLARE_UNIQUE_INDEX(pg_shard_oid_index, 6667, on pg_shard using btree(id oid_op
 #define ShardOidIndexId 6667
 DECLARE_INDEX(pg_shard_node_shardid_index, 6668, on pg_shard_node using btree(shard_id oid_ops));
 #define ShardNodeShardIdIndexId 6668
-DECLARE_UNIQUE_INDEX(pg_shard_node_ip_port_svr_index, 6669, on pg_shard_node using btree(ip name_ops, port int4_ops, svr_node_id oid_ops));
+DECLARE_UNIQUE_INDEX(pg_shard_node_ip_port_svr_index, 6669, on pg_shard_node using btree(hostaddr text_pattern_ops, port int4_ops, svr_node_id oid_ops));
 #define ShardNodeIpPortSrvIndexId 6669
 DECLARE_UNIQUE_INDEX(pg_shard_name_index, 6670, on pg_shard using btree(name name_ops));
 #define ShardNameIndexId 6670

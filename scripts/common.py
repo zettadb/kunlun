@@ -83,8 +83,8 @@ def mysql_shard_check(shard_conn_params, do_check):
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='test functions in this file')
-	parser.add_argument('config', help="shard config file path")
-	parser.add_argument('meta_config', type=str, help="metadata cluster config file path")
+	parser.add_argument('--config', help="shard config file path")
+	parser.add_argument('--meta_config', type=str, help="metadata cluster config file path")
 	parser.add_argument('--usemgr', type=str, default='True'); # used for internal testing, --usemgr=True|False
 
 	args = parser.parse_args()

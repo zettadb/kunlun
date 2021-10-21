@@ -44,6 +44,8 @@
 #include <limits.h>
 #include <time.h>
 
+static char*get_storage_node_version(AsyncStmtInfo *asi);
+static bool check_gdd_supported(AsyncStmtInfo *asi);
 static void send_txn_cmd(enum enum_sql_command sqlcom, bool written_only, const char *fmt,...);
 static void init_txn_cmd(void);
 void downgrade_error(void);
@@ -1103,11 +1105,17 @@ static bool build_wait_for_graph()
 	/*
 	 * build the wait-for graph.
 	 * */
+	int shardidx = 0;
+	bool gdd_supported = true;
+
 	while ((ptr = hash_seq_search(&seqstat)) != NULL)
 	{
 		AsyncStmtInfo *asi = NULL;
 		PG_TRY(); {
 			asi = GetAsyncStmtInfo(ptr->id);
+			if (shardidx == 0 && !(gdd_supported = check_gdd_supported(asi)))
+				break;
+			shardidx++;
 		} PG_CATCH(); {
 			/*
 			  Get rid of the exception, log it to server log only to free
@@ -1133,6 +1141,8 @@ static bool build_wait_for_graph()
 			// anyway and it's safe to skip it for now.
 			nshards--;
 	}
+	if (!gdd_supported)
+		return false;
 
 	enable_remote_timeout();
 	send_multi_stmts_to_multi();
@@ -1235,8 +1245,7 @@ static bool build_wait_for_graph()
 
 	disable_remote_timeout();
 
-
-	return true;
+	return true/*GDD supported*/;
 }
 
 
@@ -1539,7 +1548,8 @@ void perform_deadlock_detect()
 	StartTransactionCommand();
 	SPI_connect();
 	PushActiveSnapshot(GetTransactionSnapshot());
-	if (build_wait_for_graph())
+	bool gdd_supported;
+	if ((gdd_supported = build_wait_for_graph()))
 	{
 		CHECK_FOR_INTERRUPTS();
 	    find_and_resolve_global_deadlock();
@@ -1550,4 +1560,54 @@ void perform_deadlock_detect()
 	SPI_finish();
 	PopActiveSnapshot();
 	CommitTransactionCommand();
+	if (!gdd_supported)
+		sleep(10000);
+}
+
+static bool check_gdd_supported(AsyncStmtInfo *asi)
+{
+	bool ret = false;
+	char *verstr = get_storage_node_version(asi);
+	if (!verstr)
+	{
+		elog(WARNING, "GDD: Can't get storage node version from shard.node(%u.%u), won't perform GDD.",
+			 asi->shard_id, asi->node_id);
+		return false;
+	}
+
+	if (strcasestr(verstr, "kunlun-storage"))
+		ret = true;
+	else
+		elog(LOG, "GDD: Not using kunlun-storage as storage nodes, won't perform GDD.");
+	pfree(verstr);
+	return ret;
+}
+
+/*
+  All storage nodes in a Kunlun cluster must be of same version, so it's OK
+  to connect to any shard node for such a check.
+*/
+static char*get_storage_node_version(AsyncStmtInfo *asi)
+{
+	const char *stmt = "select version()";
+	append_async_stmt(asi, stmt, strlen(stmt), CMD_SELECT, false, SQLCOM_SELECT);
+	enable_remote_timeout();
+	send_multi_stmts_to_multi();
+
+	MYSQL_RES *mres = asi->mysql_res;
+	char *verstr = NULL;
+
+	if (mres == NULL)
+		goto end;
+
+	MYSQL_ROW row = mysql_fetch_row(mres);
+	if (row == NULL)
+	{
+		check_mysql_fetch_row_status(asi);
+		goto end;
+	}
+	verstr = pstrdup(row[0]);
+end:
+	free_mysql_result(asi);
+	return verstr;
 }

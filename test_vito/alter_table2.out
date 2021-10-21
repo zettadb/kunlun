@@ -1,0 +1,1013 @@
+drop table if exists t1;
+psql:alter_table2.sql:1: NOTICE:  table "t1" does not exist, skipping
+DROP TABLE
+create table t1(a serial primary key, b int);
+CREATE TABLE
+insert into t1(b) values(11),(22),(33);
+INSERT 0 3
+alter table t1 add column c int not null;
+ALTER TABLE
+\d+ t1;
+                                                Table "public.t1"
+ Column |  Type   | Collation | Nullable |             Default             | Storage | Stats target | Description 
+--------+---------+-----------+----------+---------------------------------+---------+--------------+-------------
+ a      | integer |           | not null | "nextval"('t1_a_seq'::regclass) | plain   |              | 
+ b      | integer |           |          |                                 | plain   |              | 
+ c      | integer |           | not null |                                 | plain   |              | 
+Indexes:
+    "t1_pkey" PRIMARY KEY, btree (a)
+
+select*from t1;
+ a | b  | c 
+---+----+---
+ 1 | 11 | 0
+ 2 | 22 | 0
+ 3 | 33 | 0
+(3 rows)
+
+alter table t1 drop column c;
+ALTER TABLE
+select*from t1;
+ a | b  
+---+----
+ 1 | 11
+ 2 | 22
+ 3 | 33
+(3 rows)
+
+alter table t1 add column c int;
+ALTER TABLE
+\d+ t1;
+                                                Table "public.t1"
+ Column |  Type   | Collation | Nullable |             Default             | Storage | Stats target | Description 
+--------+---------+-----------+----------+---------------------------------+---------+--------------+-------------
+ a      | integer |           | not null | "nextval"('t1_a_seq'::regclass) | plain   |              | 
+ b      | integer |           |          |                                 | plain   |              | 
+ c      | integer |           |          |                                 | plain   |              | 
+Indexes:
+    "t1_pkey" PRIMARY KEY, btree (a)
+
+select*from t1;
+ a | b  | c 
+---+----+---
+ 1 | 11 |  
+ 2 | 22 |  
+ 3 | 33 |  
+(3 rows)
+
+alter table t1 alter column c set default 123;
+ALTER TABLE
+\d+ t1;
+                                                Table "public.t1"
+ Column |  Type   | Collation | Nullable |             Default             | Storage | Stats target | Description 
+--------+---------+-----------+----------+---------------------------------+---------+--------------+-------------
+ a      | integer |           | not null | "nextval"('t1_a_seq'::regclass) | plain   |              | 
+ b      | integer |           |          |                                 | plain   |              | 
+ c      | integer |           |          | 123                             | plain   |              | 
+Indexes:
+    "t1_pkey" PRIMARY KEY, btree (a)
+
+insert into t1(b) values(44);
+INSERT 0 1
+insert into t1(b,c) values(44, 45);
+INSERT 0 1
+select*from t1;
+ a | b  |  c  
+---+----+-----
+ 1 | 11 |    
+ 2 | 22 |    
+ 3 | 33 |    
+ 4 | 44 | 123
+ 5 | 44 |  45
+(5 rows)
+
+alter table t1 alter column c drop default;
+ALTER TABLE
+\d+ t1;
+                                                Table "public.t1"
+ Column |  Type   | Collation | Nullable |             Default             | Storage | Stats target | Description 
+--------+---------+-----------+----------+---------------------------------+---------+--------------+-------------
+ a      | integer |           | not null | "nextval"('t1_a_seq'::regclass) | plain   |              | 
+ b      | integer |           |          |                                 | plain   |              | 
+ c      | integer |           |          |                                 | plain   |              | 
+Indexes:
+    "t1_pkey" PRIMARY KEY, btree (a)
+
+insert into t1(b) values(55);
+INSERT 0 1
+select*from t1;
+ a | b  |  c  
+---+----+-----
+ 1 | 11 |    
+ 2 | 22 |    
+ 3 | 33 |    
+ 4 | 44 | 123
+ 5 | 44 |  45
+ 6 | 55 |    
+(6 rows)
+
+alter table t1 drop column c;
+ALTER TABLE
+alter table t1 add column c int default 123456789;
+ALTER TABLE
+\d+ t1;
+                                                Table "public.t1"
+ Column |  Type   | Collation | Nullable |             Default             | Storage | Stats target | Description 
+--------+---------+-----------+----------+---------------------------------+---------+--------------+-------------
+ a      | integer |           | not null | "nextval"('t1_a_seq'::regclass) | plain   |              | 
+ b      | integer |           |          |                                 | plain   |              | 
+ c      | integer |           |          | 123456789                       | plain   |              | 
+Indexes:
+    "t1_pkey" PRIMARY KEY, btree (a)
+
+select*from t1;
+ a | b  |     c     
+---+----+-----------
+ 1 | 11 | 123456789
+ 2 | 22 | 123456789
+ 3 | 33 | 123456789
+ 4 | 44 | 123456789
+ 5 | 44 | 123456789
+ 6 | 55 | 123456789
+(6 rows)
+
+alter table t1 alter column c smallint not null;
+psql:alter_table2.sql:27: ERROR:  syntax error at or near "smallint"
+LINE 1: alter table t1 alter column c smallint not null;
+                                      ^
+alter table t1 alter column c type smallint;
+psql:alter_table2.sql:28: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1264, Out of range value for column 'c' at row 1.
+\d+ t1;
+                                                Table "public.t1"
+ Column |  Type   | Collation | Nullable |             Default             | Storage | Stats target | Description 
+--------+---------+-----------+----------+---------------------------------+---------+--------------+-------------
+ a      | integer |           | not null | "nextval"('t1_a_seq'::regclass) | plain   |              | 
+ b      | integer |           |          |                                 | plain   |              | 
+ c      | integer |           |          | 123456789                       | plain   |              | 
+Indexes:
+    "t1_pkey" PRIMARY KEY, btree (a)
+
+alter table t1 alter column c type int not null;
+psql:alter_table2.sql:31: ERROR:  syntax error at or near "not"
+LINE 1: alter table t1 alter column c type int not null;
+                                               ^
+alter table t1 alter column c set not null;
+ALTER TABLE
+\d+ t1;
+                                                Table "public.t1"
+ Column |  Type   | Collation | Nullable |             Default             | Storage | Stats target | Description 
+--------+---------+-----------+----------+---------------------------------+---------+--------------+-------------
+ a      | integer |           | not null | "nextval"('t1_a_seq'::regclass) | plain   |              | 
+ b      | integer |           |          |                                 | plain   |              | 
+ c      | integer |           | not null | 123456789                       | plain   |              | 
+Indexes:
+    "t1_pkey" PRIMARY KEY, btree (a)
+
+insert into t1(b) values(66);
+INSERT 0 1
+select*from t1;
+ a | b  |     c     
+---+----+-----------
+ 1 | 11 | 123456789
+ 2 | 22 | 123456789
+ 3 | 33 | 123456789
+ 4 | 44 | 123456789
+ 5 | 44 | 123456789
+ 6 | 55 | 123456789
+ 7 | 66 | 123456789
+(7 rows)
+
+\d+ t1;
+                                                Table "public.t1"
+ Column |  Type   | Collation | Nullable |             Default             | Storage | Stats target | Description 
+--------+---------+-----------+----------+---------------------------------+---------+--------------+-------------
+ a      | integer |           | not null | "nextval"('t1_a_seq'::regclass) | plain   |              | 
+ b      | integer |           |          |                                 | plain   |              | 
+ c      | integer |           | not null | 123456789                       | plain   |              | 
+Indexes:
+    "t1_pkey" PRIMARY KEY, btree (a)
+
+alter table t1 alter column c drop not null;
+ALTER TABLE
+\d+ t1;
+                                                Table "public.t1"
+ Column |  Type   | Collation | Nullable |             Default             | Storage | Stats target | Description 
+--------+---------+-----------+----------+---------------------------------+---------+--------------+-------------
+ a      | integer |           | not null | "nextval"('t1_a_seq'::regclass) | plain   |              | 
+ b      | integer |           |          |                                 | plain   |              | 
+ c      | integer |           |          | 123456789                       | plain   |              | 
+Indexes:
+    "t1_pkey" PRIMARY KEY, btree (a)
+
+insert into t1(b) values(66);
+INSERT 0 1
+select*from t1;
+ a | b  |     c     
+---+----+-----------
+ 1 | 11 | 123456789
+ 2 | 22 | 123456789
+ 3 | 33 | 123456789
+ 4 | 44 | 123456789
+ 5 | 44 | 123456789
+ 6 | 55 | 123456789
+ 7 | 66 | 123456789
+ 8 | 66 | 123456789
+(8 rows)
+
+alter table t1 alter column c set not null;
+ALTER TABLE
+\d+ t1;
+                                                Table "public.t1"
+ Column |  Type   | Collation | Nullable |             Default             | Storage | Stats target | Description 
+--------+---------+-----------+----------+---------------------------------+---------+--------------+-------------
+ a      | integer |           | not null | "nextval"('t1_a_seq'::regclass) | plain   |              | 
+ b      | integer |           |          |                                 | plain   |              | 
+ c      | integer |           | not null | 123456789                       | plain   |              | 
+Indexes:
+    "t1_pkey" PRIMARY KEY, btree (a)
+
+insert into t1(b) values(66);
+INSERT 0 1
+select*from t1;
+ a | b  |     c     
+---+----+-----------
+ 1 | 11 | 123456789
+ 2 | 22 | 123456789
+ 3 | 33 | 123456789
+ 4 | 44 | 123456789
+ 5 | 44 | 123456789
+ 6 | 55 | 123456789
+ 7 | 66 | 123456789
+ 8 | 66 | 123456789
+ 9 | 66 | 123456789
+(9 rows)
+
+alter table t1 add column d varchar(32) not null;
+ALTER TABLE
+alter table t1 add column d varchar(32);
+psql:alter_table2.sql:47: ERROR:  column "d" of relation "t1" already exists
+\d+ t1;
+                                                        Table "public.t1"
+ Column |         Type          | Collation | Nullable |             Default             | Storage  | Stats target | Description 
+--------+-----------------------+-----------+----------+---------------------------------+----------+--------------+-------------
+ a      | integer               |           | not null | "nextval"('t1_a_seq'::regclass) | plain    |              | 
+ b      | integer               |           |          |                                 | plain    |              | 
+ c      | integer               |           | not null | 123456789                       | plain    |              | 
+ d      | character varying(32) |           | not null |                                 | extended |              | 
+Indexes:
+    "t1_pkey" PRIMARY KEY, btree (a)
+
+select*, d is null as disnull, length(d) from t1;
+ a | b  |     c     | d | disnull | length 
+---+----+-----------+---+---------+--------
+ 1 | 11 | 123456789 |   | f       |      0
+ 2 | 22 | 123456789 |   | f       |      0
+ 3 | 33 | 123456789 |   | f       |      0
+ 4 | 44 | 123456789 |   | f       |      0
+ 5 | 44 | 123456789 |   | f       |      0
+ 6 | 55 | 123456789 |   | f       |      0
+ 7 | 66 | 123456789 |   | f       |      0
+ 8 | 66 | 123456789 |   | f       |      0
+ 9 | 66 | 123456789 |   | f       |      0
+(9 rows)
+
+alter table t1 alter column d set default 'ddd';
+ALTER TABLE
+\d+ t1;
+                                                        Table "public.t1"
+ Column |         Type          | Collation | Nullable |             Default             | Storage  | Stats target | Description 
+--------+-----------------------+-----------+----------+---------------------------------+----------+--------------+-------------
+ a      | integer               |           | not null | "nextval"('t1_a_seq'::regclass) | plain    |              | 
+ b      | integer               |           |          |                                 | plain    |              | 
+ c      | integer               |           | not null | 123456789                       | plain    |              | 
+ d      | character varying(32) |           | not null | 'ddd'::character varying        | extended |              | 
+Indexes:
+    "t1_pkey" PRIMARY KEY, btree (a)
+
+insert into t1(b) values(77);
+INSERT 0 1
+select*from t1;
+ a  | b  |     c     |  d  
+----+----+-----------+-----
+  1 | 11 | 123456789 | 
+  2 | 22 | 123456789 | 
+  3 | 33 | 123456789 | 
+  4 | 44 | 123456789 | 
+  5 | 44 | 123456789 | 
+  6 | 55 | 123456789 | 
+  7 | 66 | 123456789 | 
+  8 | 66 | 123456789 | 
+  9 | 66 | 123456789 | 
+ 10 | 77 | 123456789 | ddd
+(10 rows)
+
+alter table t1 alter column d drop default;
+ALTER TABLE
+\d+ t1;
+                                                        Table "public.t1"
+ Column |         Type          | Collation | Nullable |             Default             | Storage  | Stats target | Description 
+--------+-----------------------+-----------+----------+---------------------------------+----------+--------------+-------------
+ a      | integer               |           | not null | "nextval"('t1_a_seq'::regclass) | plain    |              | 
+ b      | integer               |           |          |                                 | plain    |              | 
+ c      | integer               |           | not null | 123456789                       | plain    |              | 
+ d      | character varying(32) |           | not null |                                 | extended |              | 
+Indexes:
+    "t1_pkey" PRIMARY KEY, btree (a)
+
+insert into t1(b) values(77);
+psql:alter_table2.sql:57: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1048, Column 'd' cannot be null.
+select*from t1;
+ a  | b  |     c     |  d  
+----+----+-----------+-----
+  1 | 11 | 123456789 | 
+  2 | 22 | 123456789 | 
+  3 | 33 | 123456789 | 
+  4 | 44 | 123456789 | 
+  5 | 44 | 123456789 | 
+  6 | 55 | 123456789 | 
+  7 | 66 | 123456789 | 
+  8 | 66 | 123456789 | 
+  9 | 66 | 123456789 | 
+ 10 | 77 | 123456789 | ddd
+(10 rows)
+
+alter table t1 alter column d set not null;
+ALTER TABLE
+\d+ t1;
+                                                        Table "public.t1"
+ Column |         Type          | Collation | Nullable |             Default             | Storage  | Stats target | Description 
+--------+-----------------------+-----------+----------+---------------------------------+----------+--------------+-------------
+ a      | integer               |           | not null | "nextval"('t1_a_seq'::regclass) | plain    |              | 
+ b      | integer               |           |          |                                 | plain    |              | 
+ c      | integer               |           | not null | 123456789                       | plain    |              | 
+ d      | character varying(32) |           | not null |                                 | extended |              | 
+Indexes:
+    "t1_pkey" PRIMARY KEY, btree (a)
+
+insert into t1(b) values(77);
+psql:alter_table2.sql:62: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1048, Column 'd' cannot be null.
+select*from t1;
+ a  | b  |     c     |  d  
+----+----+-----------+-----
+  1 | 11 | 123456789 | 
+  2 | 22 | 123456789 | 
+  3 | 33 | 123456789 | 
+  4 | 44 | 123456789 | 
+  5 | 44 | 123456789 | 
+  6 | 55 | 123456789 | 
+  7 | 66 | 123456789 | 
+  8 | 66 | 123456789 | 
+  9 | 66 | 123456789 | 
+ 10 | 77 | 123456789 | ddd
+(10 rows)
+
+alter table t1 alter column d drop not null;
+ALTER TABLE
+\d+ t1;
+                                                        Table "public.t1"
+ Column |         Type          | Collation | Nullable |             Default             | Storage  | Stats target | Description 
+--------+-----------------------+-----------+----------+---------------------------------+----------+--------------+-------------
+ a      | integer               |           | not null | "nextval"('t1_a_seq'::regclass) | plain    |              | 
+ b      | integer               |           |          |                                 | plain    |              | 
+ c      | integer               |           | not null | 123456789                       | plain    |              | 
+ d      | character varying(32) |           |          |                                 | extended |              | 
+Indexes:
+    "t1_pkey" PRIMARY KEY, btree (a)
+
+insert into t1(b) values(77);
+INSERT 0 1
+select*from t1;
+ a  | b  |     c     |  d  
+----+----+-----------+-----
+  1 | 11 | 123456789 | 
+  2 | 22 | 123456789 | 
+  3 | 33 | 123456789 | 
+  4 | 44 | 123456789 | 
+  5 | 44 | 123456789 | 
+  6 | 55 | 123456789 | 
+  7 | 66 | 123456789 | 
+  8 | 66 | 123456789 | 
+  9 | 66 | 123456789 | 
+ 10 | 77 | 123456789 | ddd
+ 13 | 77 | 123456789 | 
+(11 rows)
+
+alter table t1 drop column d;
+ALTER TABLE
+alter table t1 add column d varchar(32) default 'dddddddd';
+ALTER TABLE
+select*from t1;
+ a  | b  |     c     |    d     
+----+----+-----------+----------
+  1 | 11 | 123456789 | dddddddd
+  2 | 22 | 123456789 | dddddddd
+  3 | 33 | 123456789 | dddddddd
+  4 | 44 | 123456789 | dddddddd
+  5 | 44 | 123456789 | dddddddd
+  6 | 55 | 123456789 | dddddddd
+  7 | 66 | 123456789 | dddddddd
+  8 | 66 | 123456789 | dddddddd
+  9 | 66 | 123456789 | dddddddd
+ 10 | 77 | 123456789 | dddddddd
+ 13 | 77 | 123456789 | dddddddd
+(11 rows)
+
+alter table t1 alter column d type varchar(2) default 'd';
+psql:alter_table2.sql:72: ERROR:  syntax error at or near "default"
+LINE 1: alter table t1 alter column d type varchar(2) default 'd';
+                                                      ^
+alter table t1 alter column d type varchar(2);
+psql:alter_table2.sql:73: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1265, Data truncated for column 'd' at row 1.
+alter table t1 alter column d type char(2) default 'd';
+psql:alter_table2.sql:74: ERROR:  syntax error at or near "default"
+LINE 1: alter table t1 alter column d type char(2) default 'd';
+                                                   ^
+alter table t1 alter column d type char(2);
+psql:alter_table2.sql:75: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1406, Data too long for column 'd' at row 1.
+alter table t1 alter column d type char(32);
+ALTER TABLE
+\d+ t1;
+                                                    Table "public.t1"
+ Column |     Type      | Collation | Nullable |             Default             | Storage  | Stats target | Description 
+--------+---------------+-----------+----------+---------------------------------+----------+--------------+-------------
+ a      | integer       |           | not null | "nextval"('t1_a_seq'::regclass) | plain    |              | 
+ b      | integer       |           |          |                                 | plain    |              | 
+ c      | integer       |           | not null | 123456789                       | plain    |              | 
+ d      | character(32) |           |          | 'dddddddd'::character varying   | extended |              | 
+Indexes:
+    "t1_pkey" PRIMARY KEY, btree (a)
+
+insert into t1 (b) values(88);
+INSERT 0 1
+select*from t1;
+ a  | b  |     c     |                d                 
+----+----+-----------+----------------------------------
+  1 | 11 | 123456789 | dddddddd                        
+  2 | 22 | 123456789 | dddddddd                        
+  3 | 33 | 123456789 | dddddddd                        
+  4 | 44 | 123456789 | dddddddd                        
+  5 | 44 | 123456789 | dddddddd                        
+  6 | 55 | 123456789 | dddddddd                        
+  7 | 66 | 123456789 | dddddddd                        
+  8 | 66 | 123456789 | dddddddd                        
+  9 | 66 | 123456789 | dddddddd                        
+ 10 | 77 | 123456789 | dddddddd                        
+ 13 | 77 | 123456789 | dddddddd                        
+ 14 | 88 | 123456789 | dddddddd                        
+(12 rows)
+
+alter table t1 add column e varchar(32) not null default 'abc';
+ALTER TABLE
+select*from t1;
+ a  | b  |     c     |                d                 |  e  
+----+----+-----------+----------------------------------+-----
+  1 | 11 | 123456789 | dddddddd                         | abc
+  2 | 22 | 123456789 | dddddddd                         | abc
+  3 | 33 | 123456789 | dddddddd                         | abc
+  4 | 44 | 123456789 | dddddddd                         | abc
+  5 | 44 | 123456789 | dddddddd                         | abc
+  6 | 55 | 123456789 | dddddddd                         | abc
+  7 | 66 | 123456789 | dddddddd                         | abc
+  8 | 66 | 123456789 | dddddddd                         | abc
+  9 | 66 | 123456789 | dddddddd                         | abc
+ 10 | 77 | 123456789 | dddddddd                         | abc
+ 13 | 77 | 123456789 | dddddddd                         | abc
+ 14 | 88 | 123456789 | dddddddd                         | abc
+(12 rows)
+
+alter table t1 rename c to cc, drop column c;
+psql:alter_table2.sql:83: ERROR:  syntax error at or near ","
+LINE 1: alter table t1 rename c to cc, drop column c;
+                                     ^
+alter table t1 rename c to cc, rename b to bb;
+psql:alter_table2.sql:84: ERROR:  syntax error at or near ","
+LINE 1: alter table t1 rename c to cc, rename b to bb;
+                                     ^
+alter table t1 rename a to aa;
+ALTER TABLE
+\d+ t1;
+                                                        Table "public.t1"
+ Column |         Type          | Collation | Nullable |             Default             | Storage  | Stats target | Description 
+--------+-----------------------+-----------+----------+---------------------------------+----------+--------------+-------------
+ aa     | integer               |           | not null | "nextval"('t1_a_seq'::regclass) | plain    |              | 
+ b      | integer               |           |          |                                 | plain    |              | 
+ c      | integer               |           | not null | 123456789                       | plain    |              | 
+ d      | character(32)         |           |          | 'dddddddd'::character varying   | extended |              | 
+ e      | character varying(32) |           | not null | 'abc'::character varying        | extended |              | 
+Indexes:
+    "t1_pkey" PRIMARY KEY, btree (aa)
+
+insert into t1 (b) values(99);
+INSERT 0 1
+select*from t1;
+ aa | b  |     c     |                d                 |  e  
+----+----+-----------+----------------------------------+-----
+  1 | 11 | 123456789 | dddddddd                         | abc
+  2 | 22 | 123456789 | dddddddd                         | abc
+  3 | 33 | 123456789 | dddddddd                         | abc
+  4 | 44 | 123456789 | dddddddd                         | abc
+  5 | 44 | 123456789 | dddddddd                         | abc
+  6 | 55 | 123456789 | dddddddd                         | abc
+  7 | 66 | 123456789 | dddddddd                         | abc
+  8 | 66 | 123456789 | dddddddd                         | abc
+  9 | 66 | 123456789 | dddddddd                         | abc
+ 10 | 77 | 123456789 | dddddddd                         | abc
+ 13 | 77 | 123456789 | dddddddd                         | abc
+ 14 | 88 | 123456789 | dddddddd                         | abc
+ 15 | 99 | 123456789 | dddddddd                         | abc
+(13 rows)
+
+alter table t1 drop column c, add column f int not null default 123, alter column b type bigint;
+ALTER TABLE
+\d+ t1;
+                                                        Table "public.t1"
+ Column |         Type          | Collation | Nullable |             Default             | Storage  | Stats target | Description 
+--------+-----------------------+-----------+----------+---------------------------------+----------+--------------+-------------
+ aa     | integer               |           | not null | "nextval"('t1_a_seq'::regclass) | plain    |              | 
+ b      | bigint                |           |          |                                 | plain    |              | 
+ d      | character(32)         |           |          | 'dddddddd'::character varying   | extended |              | 
+ e      | character varying(32) |           | not null | 'abc'::character varying        | extended |              | 
+ f      | integer               |           | not null | 123                             | plain    |              | 
+Indexes:
+    "t1_pkey" PRIMARY KEY, btree (aa)
+
+select*from t1;
+ aa | b  |                d                 |  e  |  f  
+----+----+----------------------------------+-----+-----
+  1 | 11 | dddddddd                         | abc | 123
+  2 | 22 | dddddddd                         | abc | 123
+  3 | 33 | dddddddd                         | abc | 123
+  4 | 44 | dddddddd                         | abc | 123
+  5 | 44 | dddddddd                         | abc | 123
+  6 | 55 | dddddddd                         | abc | 123
+  7 | 66 | dddddddd                         | abc | 123
+  8 | 66 | dddddddd                         | abc | 123
+  9 | 66 | dddddddd                         | abc | 123
+ 10 | 77 | dddddddd                         | abc | 123
+ 13 | 77 | dddddddd                         | abc | 123
+ 14 | 88 | dddddddd                         | abc | 123
+ 15 | 99 | dddddddd                         | abc | 123
+(13 rows)
+
+insert into t1(f) values(333);
+INSERT 0 1
+insert into t1(b) values(222);
+INSERT 0 1
+select*from t1;
+ aa |  b  |                d                 |  e  |  f  
+----+-----+----------------------------------+-----+-----
+  1 |  11 | dddddddd                         | abc | 123
+  2 |  22 | dddddddd                         | abc | 123
+  3 |  33 | dddddddd                         | abc | 123
+  4 |  44 | dddddddd                         | abc | 123
+  5 |  44 | dddddddd                         | abc | 123
+  6 |  55 | dddddddd                         | abc | 123
+  7 |  66 | dddddddd                         | abc | 123
+  8 |  66 | dddddddd                         | abc | 123
+  9 |  66 | dddddddd                         | abc | 123
+ 10 |  77 | dddddddd                         | abc | 123
+ 13 |  77 | dddddddd                         | abc | 123
+ 14 |  88 | dddddddd                         | abc | 123
+ 15 |  99 | dddddddd                         | abc | 123
+ 16 |     | dddddddd                         | abc | 333
+ 17 | 222 | dddddddd                         | abc | 123
+(15 rows)
+
+alter table t1 rename f to ff;
+ALTER TABLE
+alter table t1 rename d to dd;
+ALTER TABLE
+\d+ t1;
+                                                        Table "public.t1"
+ Column |         Type          | Collation | Nullable |             Default             | Storage  | Stats target | Description 
+--------+-----------------------+-----------+----------+---------------------------------+----------+--------------+-------------
+ aa     | integer               |           | not null | "nextval"('t1_a_seq'::regclass) | plain    |              | 
+ b      | bigint                |           |          |                                 | plain    |              | 
+ dd     | character(32)         |           |          | 'dddddddd'::character varying   | extended |              | 
+ e      | character varying(32) |           | not null | 'abc'::character varying        | extended |              | 
+ ff     | integer               |           | not null | 123                             | plain    |              | 
+Indexes:
+    "t1_pkey" PRIMARY KEY, btree (aa)
+
+select*from t1;
+ aa |  b  |                dd                |  e  | ff  
+----+-----+----------------------------------+-----+-----
+  1 |  11 | dddddddd                         | abc | 123
+  2 |  22 | dddddddd                         | abc | 123
+  3 |  33 | dddddddd                         | abc | 123
+  4 |  44 | dddddddd                         | abc | 123
+  5 |  44 | dddddddd                         | abc | 123
+  6 |  55 | dddddddd                         | abc | 123
+  7 |  66 | dddddddd                         | abc | 123
+  8 |  66 | dddddddd                         | abc | 123
+  9 |  66 | dddddddd                         | abc | 123
+ 10 |  77 | dddddddd                         | abc | 123
+ 13 |  77 | dddddddd                         | abc | 123
+ 14 |  88 | dddddddd                         | abc | 123
+ 15 |  99 | dddddddd                         | abc | 123
+ 16 |     | dddddddd                         | abc | 333
+ 17 | 222 | dddddddd                         | abc | 123
+(15 rows)
+
+alter table t1 rename to t11;
+ALTER TABLE
+\d+ t1;
+psql:alter_table2.sql:102: error: Did not find any relation named "t1".
+\d+ t11;
+                                                       Table "public.t11"
+ Column |         Type          | Collation | Nullable |             Default             | Storage  | Stats target | Description 
+--------+-----------------------+-----------+----------+---------------------------------+----------+--------------+-------------
+ aa     | integer               |           | not null | "nextval"('t1_a_seq'::regclass) | plain    |              | 
+ b      | bigint                |           |          |                                 | plain    |              | 
+ dd     | character(32)         |           |          | 'dddddddd'::character varying   | extended |              | 
+ e      | character varying(32) |           | not null | 'abc'::character varying        | extended |              | 
+ ff     | integer               |           | not null | 123                             | plain    |              | 
+Indexes:
+    "t1_pkey" PRIMARY KEY, btree (aa)
+
+alter table t11 rename b to bb;
+ALTER TABLE
+\d+ t11;
+                                                       Table "public.t11"
+ Column |         Type          | Collation | Nullable |             Default             | Storage  | Stats target | Description 
+--------+-----------------------+-----------+----------+---------------------------------+----------+--------------+-------------
+ aa     | integer               |           | not null | "nextval"('t1_a_seq'::regclass) | plain    |              | 
+ bb     | bigint                |           |          |                                 | plain    |              | 
+ dd     | character(32)         |           |          | 'dddddddd'::character varying   | extended |              | 
+ e      | character varying(32) |           | not null | 'abc'::character varying        | extended |              | 
+ ff     | integer               |           | not null | 123                             | plain    |              | 
+Indexes:
+    "t1_pkey" PRIMARY KEY, btree (aa)
+
+select*from t11;
+ aa | bb  |                dd                |  e  | ff  
+----+-----+----------------------------------+-----+-----
+  1 |  11 | dddddddd                         | abc | 123
+  2 |  22 | dddddddd                         | abc | 123
+  3 |  33 | dddddddd                         | abc | 123
+  4 |  44 | dddddddd                         | abc | 123
+  5 |  44 | dddddddd                         | abc | 123
+  6 |  55 | dddddddd                         | abc | 123
+  7 |  66 | dddddddd                         | abc | 123
+  8 |  66 | dddddddd                         | abc | 123
+  9 |  66 | dddddddd                         | abc | 123
+ 10 |  77 | dddddddd                         | abc | 123
+ 13 |  77 | dddddddd                         | abc | 123
+ 14 |  88 | dddddddd                         | abc | 123
+ 15 |  99 | dddddddd                         | abc | 123
+ 16 |     | dddddddd                         | abc | 333
+ 17 | 222 | dddddddd                         | abc | 123
+(15 rows)
+
+create index t11_b on t11(bb);
+CREATE INDEX
+\d+ t11;
+                                                       Table "public.t11"
+ Column |         Type          | Collation | Nullable |             Default             | Storage  | Stats target | Description 
+--------+-----------------------+-----------+----------+---------------------------------+----------+--------------+-------------
+ aa     | integer               |           | not null | "nextval"('t1_a_seq'::regclass) | plain    |              | 
+ bb     | bigint                |           |          |                                 | plain    |              | 
+ dd     | character(32)         |           |          | 'dddddddd'::character varying   | extended |              | 
+ e      | character varying(32) |           | not null | 'abc'::character varying        | extended |              | 
+ ff     | integer               |           | not null | 123                             | plain    |              | 
+Indexes:
+    "t1_pkey" PRIMARY KEY, btree (aa)
+    "t11_b" btree (bb)
+
+alter index t11_b rename to t11_bb;
+ALTER INDEX
+\d+ t11;
+                                                       Table "public.t11"
+ Column |         Type          | Collation | Nullable |             Default             | Storage  | Stats target | Description 
+--------+-----------------------+-----------+----------+---------------------------------+----------+--------------+-------------
+ aa     | integer               |           | not null | "nextval"('t1_a_seq'::regclass) | plain    |              | 
+ bb     | bigint                |           |          |                                 | plain    |              | 
+ dd     | character(32)         |           |          | 'dddddddd'::character varying   | extended |              | 
+ e      | character varying(32) |           | not null | 'abc'::character varying        | extended |              | 
+ ff     | integer               |           | not null | 123                             | plain    |              | 
+Indexes:
+    "t1_pkey" PRIMARY KEY, btree (aa)
+    "t11_bb" btree (bb)
+
+select*from t11;
+ aa | bb  |                dd                |  e  | ff  
+----+-----+----------------------------------+-----+-----
+  1 |  11 | dddddddd                         | abc | 123
+  2 |  22 | dddddddd                         | abc | 123
+  3 |  33 | dddddddd                         | abc | 123
+  4 |  44 | dddddddd                         | abc | 123
+  5 |  44 | dddddddd                         | abc | 123
+  6 |  55 | dddddddd                         | abc | 123
+  7 |  66 | dddddddd                         | abc | 123
+  8 |  66 | dddddddd                         | abc | 123
+  9 |  66 | dddddddd                         | abc | 123
+ 10 |  77 | dddddddd                         | abc | 123
+ 13 |  77 | dddddddd                         | abc | 123
+ 14 |  88 | dddddddd                         | abc | 123
+ 15 |  99 | dddddddd                         | abc | 123
+ 16 |     | dddddddd                         | abc | 333
+ 17 | 222 | dddddddd                         | abc | 123
+(15 rows)
+
+create schema scm3;
+CREATE SCHEMA
+alter table t11 set schema scm3;
+ALTER TABLE
+insert into scm3.t11(bb) values(333);
+INSERT 0 1
+select*from scm3.t11;
+ aa | bb  |                dd                |  e  | ff  
+----+-----+----------------------------------+-----+-----
+  1 |  11 | dddddddd                         | abc | 123
+  2 |  22 | dddddddd                         | abc | 123
+  3 |  33 | dddddddd                         | abc | 123
+  4 |  44 | dddddddd                         | abc | 123
+  5 |  44 | dddddddd                         | abc | 123
+  6 |  55 | dddddddd                         | abc | 123
+  7 |  66 | dddddddd                         | abc | 123
+  8 |  66 | dddddddd                         | abc | 123
+  9 |  66 | dddddddd                         | abc | 123
+ 10 |  77 | dddddddd                         | abc | 123
+ 13 |  77 | dddddddd                         | abc | 123
+ 14 |  88 | dddddddd                         | abc | 123
+ 15 |  99 | dddddddd                         | abc | 123
+ 16 |     | dddddddd                         | abc | 333
+ 17 | 222 | dddddddd                         | abc | 123
+ 18 | 333 | dddddddd                         | abc | 123
+(16 rows)
+
+update scm3.t11 set ff=ff+1 where bb > 10;
+UPDATE 15
+select*from scm3.t11;
+ aa | bb  |                dd                |  e  | ff  
+----+-----+----------------------------------+-----+-----
+  1 |  11 | dddddddd                         | abc | 124
+  2 |  22 | dddddddd                         | abc | 124
+  3 |  33 | dddddddd                         | abc | 124
+  4 |  44 | dddddddd                         | abc | 124
+  5 |  44 | dddddddd                         | abc | 124
+  6 |  55 | dddddddd                         | abc | 124
+  7 |  66 | dddddddd                         | abc | 124
+  8 |  66 | dddddddd                         | abc | 124
+  9 |  66 | dddddddd                         | abc | 124
+ 10 |  77 | dddddddd                         | abc | 124
+ 13 |  77 | dddddddd                         | abc | 124
+ 14 |  88 | dddddddd                         | abc | 124
+ 15 |  99 | dddddddd                         | abc | 124
+ 16 |     | dddddddd                         | abc | 333
+ 17 | 222 | dddddddd                         | abc | 124
+ 18 | 333 | dddddddd                         | abc | 124
+(16 rows)
+
+delete from scm3.t11 where bb < 10;
+DELETE 0
+select*from scm3.t11;
+ aa | bb  |                dd                |  e  | ff  
+----+-----+----------------------------------+-----+-----
+  1 |  11 | dddddddd                         | abc | 124
+  2 |  22 | dddddddd                         | abc | 124
+  3 |  33 | dddddddd                         | abc | 124
+  4 |  44 | dddddddd                         | abc | 124
+  5 |  44 | dddddddd                         | abc | 124
+  6 |  55 | dddddddd                         | abc | 124
+  7 |  66 | dddddddd                         | abc | 124
+  8 |  66 | dddddddd                         | abc | 124
+  9 |  66 | dddddddd                         | abc | 124
+ 10 |  77 | dddddddd                         | abc | 124
+ 13 |  77 | dddddddd                         | abc | 124
+ 14 |  88 | dddddddd                         | abc | 124
+ 15 |  99 | dddddddd                         | abc | 124
+ 16 |     | dddddddd                         | abc | 333
+ 17 | 222 | dddddddd                         | abc | 124
+ 18 | 333 | dddddddd                         | abc | 124
+(16 rows)
+
+create table t11 (like scm3.t11 including all);
+CREATE TABLE
+select*from t11;
+ aa | bb | dd | e | ff 
+----+----+----+---+----
+(0 rows)
+
+insert into t11(bb) values(333);
+INSERT 0 1
+select*from t11;
+ aa | bb  |                dd                |  e  | ff  
+----+-----+----------------------------------+-----+-----
+ 19 | 333 | dddddddd                         | abc | 123
+(1 row)
+
+update t11 set ff=ff+1 where bb > 10;
+UPDATE 1
+select*from t11;
+ aa | bb  |                dd                |  e  | ff  
+----+-----+----------------------------------+-----+-----
+ 19 | 333 | dddddddd                         | abc | 124
+(1 row)
+
+delete from t11 where bb < 10;
+DELETE 0
+select*from t11;
+ aa | bb  |                dd                |  e  | ff  
+----+-----+----------------------------------+-----+-----
+ 19 | 333 | dddddddd                         | abc | 124
+(1 row)
+
+create table t30(a serial primary key, b int unique not null default 3);
+CREATE TABLE
+alter table t30 add column c serial unique;
+ALTER TABLE
+insert into t30 (b) values(11),(12),(13);
+INSERT 0 3
+insert into t30 (b) values(14);
+INSERT 0 1
+insert into t30 (b) values(15);
+INSERT 0 1
+insert into t30 (b) values(16);
+INSERT 0 1
+insert into t30 (b) values(17);
+INSERT 0 1
+select*from t30;
+ a | b  | c 
+---+----+---
+ 1 | 11 | 1
+ 2 | 12 | 2
+ 3 | 13 | 3
+ 4 | 14 | 4
+ 5 | 15 | 5
+ 6 | 16 | 6
+ 7 | 17 | 7
+(7 rows)
+
+-- when there are rows, can't demand uniqueness for the target column even the
+-- column is nullable because mysql will add 0 as 'default default value' when
+-- no default value specified.
+alter table t30 add column d serial;
+ALTER TABLE
+select*from t30;
+ a | b  | c | d 
+---+----+---+---
+ 1 | 11 | 1 | 0
+ 2 | 12 | 2 | 0
+ 3 | 13 | 3 | 0
+ 4 | 14 | 4 | 0
+ 5 | 15 | 5 | 0
+ 6 | 16 | 6 | 0
+ 7 | 17 | 7 | 0
+(7 rows)
+
+alter table t30 rename a to aa;
+ALTER TABLE
+alter table t30 rename b to bb;
+ALTER TABLE
+alter table t30 rename c to cc;
+ALTER TABLE
+alter table t30 add column e int not null;
+ALTER TABLE
+alter table t30 add column f int;
+ALTER TABLE
+alter table t30 alter column bb drop default;
+ALTER TABLE
+alter table t30 alter column bb add generated by default as identity(start 100);
+ALTER TABLE
+\d+ t30;
+                                                Table "public.t30"
+ Column |  Type   | Collation | Nullable |             Default              | Storage | Stats target | Description 
+--------+---------+-----------+----------+----------------------------------+---------+--------------+-------------
+ aa     | integer |           | not null | "nextval"('t30_a_seq'::regclass) | plain   |              | 
+ bb     | integer |           | not null | generated by default as identity | plain   |              | 
+ cc     | integer |           | not null | "nextval"('t30_c_seq'::regclass) | plain   |              | 
+ d      | integer |           | not null | "nextval"('t30_d_seq'::regclass) | plain   |              | 
+ e      | integer |           | not null |                                  | plain   |              | 
+ f      | integer |           |          |                                  | plain   |              | 
+Indexes:
+    "t30_pkey" PRIMARY KEY, btree (aa)
+    "t30_b_key" UNIQUE CONSTRAINT, btree (bb)
+    "t30_c_key" UNIQUE CONSTRAINT, btree (cc)
+
+insert into t30(e) values(1111),(1111),(1111),(1111);
+INSERT 0 4
+update t30 set f=2222;
+UPDATE 11
+select*from t30;
+ aa | bb  | cc | d |  e   |  f   
+----+-----+----+---+------+------
+  1 |  11 |  1 | 0 |    0 | 2222
+  2 |  12 |  2 | 0 |    0 | 2222
+  3 |  13 |  3 | 0 |    0 | 2222
+  4 |  14 |  4 | 0 |    0 | 2222
+  5 |  15 |  5 | 0 |    0 | 2222
+  6 |  16 |  6 | 0 |    0 | 2222
+  7 |  17 |  7 | 0 |    0 | 2222
+  8 | 100 |  8 | 1 | 1111 | 2222
+  9 | 101 |  9 | 2 | 1111 | 2222
+ 10 | 102 | 10 | 3 | 1111 | 2222
+ 11 | 103 | 11 | 4 | 1111 | 2222
+(11 rows)
+
+alter table t30 alter column e add generated by default as identity, alter column f set not null, alter column f add generated by default as identity, alter bb drop identity;
+ALTER TABLE
+\d+ t30;
+                                                Table "public.t30"
+ Column |  Type   | Collation | Nullable |             Default              | Storage | Stats target | Description 
+--------+---------+-----------+----------+----------------------------------+---------+--------------+-------------
+ aa     | integer |           | not null | "nextval"('t30_a_seq'::regclass) | plain   |              | 
+ bb     | integer |           | not null |                                  | plain   |              | 
+ cc     | integer |           | not null | "nextval"('t30_c_seq'::regclass) | plain   |              | 
+ d      | integer |           | not null | "nextval"('t30_d_seq'::regclass) | plain   |              | 
+ e      | integer |           | not null | generated by default as identity | plain   |              | 
+ f      | integer |           | not null | generated by default as identity | plain   |              | 
+Indexes:
+    "t30_pkey" PRIMARY KEY, btree (aa)
+    "t30_b_key" UNIQUE CONSTRAINT, btree (bb)
+    "t30_c_key" UNIQUE CONSTRAINT, btree (cc)
+
+insert into t30(bb) values(200),(201),(202),(203);
+INSERT 0 4
+select*from t30;
+ aa | bb  | cc | d |  e   |  f   
+----+-----+----+---+------+------
+  1 |  11 |  1 | 0 |    0 | 2222
+  2 |  12 |  2 | 0 |    0 | 2222
+  3 |  13 |  3 | 0 |    0 | 2222
+  4 |  14 |  4 | 0 |    0 | 2222
+  5 |  15 |  5 | 0 |    0 | 2222
+  6 |  16 |  6 | 0 |    0 | 2222
+  7 |  17 |  7 | 0 |    0 | 2222
+  8 | 100 |  8 | 1 | 1111 | 2222
+  9 | 101 |  9 | 2 | 1111 | 2222
+ 10 | 102 | 10 | 3 | 1111 | 2222
+ 11 | 103 | 11 | 4 | 1111 | 2222
+ 12 | 200 | 12 | 5 |    1 |    1
+ 13 | 201 | 13 | 6 |    2 |    2
+ 14 | 202 | 14 | 7 |    3 |    3
+ 15 | 203 | 15 | 8 |    4 |    4
+(15 rows)
+
+--alter table t30 alter column e set start 1000;
+create table t31 (like t30 including all);
+CREATE TABLE
+\d+ t31;
+                                                Table "public.t31"
+ Column |  Type   | Collation | Nullable |             Default              | Storage | Stats target | Description 
+--------+---------+-----------+----------+----------------------------------+---------+--------------+-------------
+ aa     | integer |           | not null | "nextval"('t30_a_seq'::regclass) | plain   |              | 
+ bb     | integer |           | not null |                                  | plain   |              | 
+ cc     | integer |           | not null | "nextval"('t30_c_seq'::regclass) | plain   |              | 
+ d      | integer |           | not null | "nextval"('t30_d_seq'::regclass) | plain   |              | 
+ e      | integer |           | not null | generated by default as identity | plain   |              | 
+ f      | integer |           | not null | generated by default as identity | plain   |              | 
+Indexes:
+    "t31_pkey" PRIMARY KEY, btree (aa)
+    "t31_bb_key" UNIQUE CONSTRAINT, btree (bb)
+    "t31_cc_key" UNIQUE CONSTRAINT, btree (cc)
+
+insert into t31 (bb) values(1),(2),(3),(4),(5),(6),(7),(8),(9);
+INSERT 0 9
+select*from t31;
+ aa | bb | cc | d  | e | f 
+----+----+----+----+---+---
+ 16 |  1 | 16 |  9 | 1 | 1
+ 17 |  2 | 17 | 10 | 2 | 2
+ 18 |  3 | 18 | 11 | 3 | 3
+ 19 |  4 | 19 | 12 | 4 | 4
+ 20 |  5 | 20 | 13 | 5 | 5
+ 21 |  6 | 21 | 14 | 6 | 6
+ 22 |  7 | 22 | 15 | 7 | 7
+ 23 |  8 | 23 | 16 | 8 | 8
+ 24 |  9 | 24 | 17 | 9 | 9
+(9 rows)
+
+update t31 set bb=bb-1 where bb < 5;
+UPDATE 4
+select*from t31;
+ aa | bb | cc | d  | e | f 
+----+----+----+----+---+---
+ 16 |  0 | 16 |  9 | 1 | 1
+ 17 |  1 | 17 | 10 | 2 | 2
+ 18 |  2 | 18 | 11 | 3 | 3
+ 19 |  3 | 19 | 12 | 4 | 4
+ 20 |  5 | 20 | 13 | 5 | 5
+ 21 |  6 | 21 | 14 | 6 | 6
+ 22 |  7 | 22 | 15 | 7 | 7
+ 23 |  8 | 23 | 16 | 8 | 8
+ 24 |  9 | 24 | 17 | 9 | 9
+(9 rows)
+
+delete from t31 where cc > 8;
+DELETE 9
+select*from t31;
+ aa | bb | cc | d | e | f 
+----+----+----+---+---+---
+(0 rows)
+
+drop table t11;
+DROP TABLE
+drop table t31;
+DROP TABLE
+drop table t30;
+DROP TABLE
+drop table scm3.t11;
+DROP TABLE
+drop schema scm3 cascade;
+DROP SCHEMA

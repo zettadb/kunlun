@@ -162,7 +162,7 @@ CREATE TABLE `shard_nodes` (
   `master_priority` smallint(6) NOT NULL,
   `status` enum('creating','inactive','active') DEFAULT 'creating',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `hostaddr_port_svrnodeid_uniq` (`hostaddr`,`port`,`svr_node_id`)
+  UNIQUE KEY `hostaddr_port_svrnodeid_uniq` (`hostaddr`(256),`port`,`svr_node_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

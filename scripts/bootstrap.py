@@ -49,7 +49,7 @@ mysql_conn_params['database'] = 'Kunlun_Metadata_DB'
 meta_conn = mysql.connector.connect(**mysql_conn_params)
 meta_cursor = meta_conn.cursor(prepared=True)
 meta_cursor0 = meta_conn.cursor()
-stmt = "insert into meta_db_nodes(ip, port, user_name, passwd) values(%s, %s, %s, %s)"
+stmt = "insert into meta_db_nodes(hostaddr, port, user_name, passwd) values(%s, %s, %s, %s)"
 # insert meta-cluster node info
 meta_cursor0.execute("start transaction")
 for node in jscfg:

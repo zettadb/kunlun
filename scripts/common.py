@@ -85,11 +85,10 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='test functions in this file')
 	parser.add_argument('--config', help="shard config file path")
 	parser.add_argument('--meta_config', type=str, help="metadata cluster config file path")
-	parser.add_argument('--usemgr', type=str, default='True'); # used for internal testing, --usemgr=True|False
+	parser.add_argument('--usemgr', type=bool, default=True); # used for internal testing, --usemgr=True|False
 
 	args = parser.parse_args()
-	args.usemgr=strtobool(args.usemgr)
-	
+
 	meta_jsconf = open(args.meta_config)
 	meta_jstr = meta_jsconf.read()
 	meta_jscfg = json.loads(meta_jstr)

@@ -298,9 +298,14 @@ AsyncStmtInfo *GetAsyncStmtInfoNode(Oid shardid, Oid shardNodeId, bool req_chk_o
 							  true, SQLCOM_SET_OPTION);
 
 		char cmdbuf[256];
-		int cmdlen = snprintf(cmdbuf, sizeof(cmdbuf),
-			"SET NAMES 'utf8'; set session autocommit = true; set computing_node_id=%u; set global_conn_id=%u",
-			comp_node_id, getpid());
+		int cmdlen = 0;
+		if (storage_ha_mode != HA_NO_REP)
+			cmdlen = snprintf(cmdbuf, sizeof(cmdbuf),
+				"SET NAMES 'utf8'; set session autocommit = true; set computing_node_id=%u; set global_conn_id=%u",
+				comp_node_id, getpid());
+		else
+			cmdlen = snprintf(cmdbuf, sizeof(cmdbuf),
+				"SET NAMES 'utf8'; set session autocommit = true ");
 		Assert(cmdlen < sizeof(cmdbuf));
 
 		append_async_stmt(asi, cmdbuf, cmdlen, CMD_UTILITY, false, SQLCOM_SET_OPTION);

@@ -141,6 +141,7 @@ extern int global_txn_commit_log_wait_max_secs;
 extern bool use_mysql_native_seq;
 extern int max_remote_insert_blocks;
 extern int str_key_part_len;
+extern int sharding_policy;
 
 #ifdef TRACE_SYNCSCAN
 extern bool trace_syncscan;
@@ -3498,6 +3499,14 @@ static struct config_real ConfigureNamesReal[] =
 		},
 		&vacuum_cleanup_index_scale_factor,
 		0.1, 0.0, 1e10,
+		NULL, NULL, NULL
+	},
+	{
+		{"sharding_policy", PGC_USERSET, DEVELOPER_OPTIONS,
+			gettext_noop("policy to choose which shard to place a table. 0: random; 1: least storage; 2: least tables"),
+		},
+		&sharding_policy,
+		0, 0, 5,
 		NULL, NULL, NULL
 	},
 

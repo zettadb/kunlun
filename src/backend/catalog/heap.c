@@ -783,6 +783,7 @@ AddNewAttributeTuples(Oid new_rel_oid,
  * otherwise it's NULL.
  * --------------------------------
  */
+int sharding_policy = 0;
 void
 InsertPgClassTuple(Relation pg_class_desc,
 				   Relation new_rel_desc,
@@ -843,7 +844,7 @@ InsertPgClassTuple(Relation pg_class_desc,
 			if (!pshard && target_shard_id == InvalidOid)
 			{
 				Assert(GetRemoteContextShardId() == InvalidOid);
-				pshard = FindBestCachedShard(1/* TODO: make this configurable. */);
+				pshard = FindBestCachedShard(sharding_policy/* make this configurable. */);
 				target_shard_id = pshard->id;
 				if (pshard == NULL)
 					ereport(ERROR,

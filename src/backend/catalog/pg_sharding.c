@@ -597,9 +597,14 @@ Shard_t *FindBestCachedShard(int which)
 		LoadAllShards(false);
 	}
 
+	int num_shards = 0;
+	List *pshard_list = NULL;
+
 	while ((ref = hash_seq_search(&seq_status)) != NULL)
 	{
+		num_shards++;
 		ps = ref->ptr;
+		if (which  == 0) pshard_list = lappend(pshard_list, ps);
 		if (which == 1 && (!best || ps->storage_volumn < minval))
 		{
 			minval = ps->storage_volumn;
@@ -612,6 +617,8 @@ Shard_t *FindBestCachedShard(int which)
 			best = ps;
 		}
 	}
+	
+	if (which  == 0) best = list_nth(pshard_list, rand() % num_shards);
 
 	if (!best)
 	{

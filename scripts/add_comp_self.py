@@ -81,7 +81,7 @@ def add_comp_self(install_path, config_template_file, mysql_conn_params, config_
     conn = checkserver(selfip, args.port, args.user, args.password, 'postgres')
     if conn is None:
         raise Exception("Computing server is not installed correctly, please check the installation!")
-    add_comp_nodes.add_computing_nodes(mysql_conn_params, args, config_path, [maxid])
+    add_comp_nodes.add_computing_nodes(mysql_conn_params, args, config_path, [maxid], False)
     sys.stdout.flush()
     sys.stderr.flush()
 

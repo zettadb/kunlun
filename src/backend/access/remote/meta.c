@@ -801,7 +801,8 @@ void end_remote_ddl_stmt()
 		 rsdc && rsdc->target_shard_id != InvalidOid; rsdc = rsdc->next)
 	{
 		Assert((rsdc->remote_ddl.data && rsdc->remote_ddl.len > 0) ||
-			   (rsdc->remote_ddl.data == NULL && rsdc->remote_ddl.len == 0));
+			   (rsdc->remote_ddl.data == NULL && rsdc->remote_ddl.len == 0) ||
+			   (rsdc->remote_ddl.data[0] == '\0' && rsdc->remote_ddl.len == 0));
 		if (rsdc->remote_ddl.len > 0)
 		{
 			AsyncStmtInfo *asi = GetAsyncStmtInfo(rsdc->target_shard_id);

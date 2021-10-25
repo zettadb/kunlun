@@ -545,6 +545,7 @@ static int output_const_type_value(StringInfo str, bool isnull, Oid type,
 		IntervalStyle = orig_intvstyle;
 		session_timezone = origtz;
 	}
+	char *old_val = outputstr;
 	outputstr = pg_to_mysql_const(type, outputstr);
 	const int ics = const_output_needs_quote(type);
 	/*
@@ -557,7 +558,8 @@ static int output_const_type_value(StringInfo str, bool isnull, Oid type,
 	APPEND_STR(outputstr);
 	if (ics == 1)
 		APPEND_CHAR('\'');
-	pfree(outputstr);
+
+	pfree(old_val);
 
 	return nw1 + ics ? 2 : 0;
 }

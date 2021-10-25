@@ -909,3 +909,10 @@ PREPARE pq3(float) AS update t1 set v1=v1+$1;
 EXECUTE pq3(2.0);
 PREPARE pq4(float, float) AS SELECT * FROM t1 WHERE v1 between $1 and $2;
 EXECUTE pq4(-8.0, 8.0);
+
+-- bug 190
+drop table if exists t2 cascade;
+create table t2(id int primary key, good boolean);
+insert into t2 values(1, true);
+insert into t2 values(2, false);
+update t2 set good = false where id = 1;

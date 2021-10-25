@@ -1050,11 +1050,11 @@ end:
 	return ndones;
 }
 
+int check_primary_interval_secs = 3;
 
 void ProcessShardingTopoReqs()
 {
-	Oid reqs[MAX_SHARDS], fail_reqs[MAX_SHARDS];
-	memset(reqs, 0, sizeof(reqs));
+	static Oid reqs[MAX_SHARDS], fail_reqs[MAX_SHARDS];
 	int nreqs = 0, nfail_reqs = 0;
 
 	LWLockAcquire(ShardingTopoCheckLock, LW_EXCLUSIVE);
@@ -1066,6 +1066,19 @@ void ProcessShardingTopoReqs()
 	}
 	LWLockRelease(ShardingTopoCheckLock);
 
+	static time_t last_master_update_ts = 0;
+	if (nreqs == 0 && storage_ha_mode != HA_NO_REP &&
+		last_master_update_ts + check_primary_interval_secs < time(NULL))
+	{
+		HASH_SEQ_STATUS seq_status;
+		hash_seq_init(&seq_status, ShardCache);
+		Shard_ref_t *ref;
+		while ((ref = hash_seq_search(&seq_status)) != NULL)
+		{
+			reqs[nreqs++] = ref->id;
+		}
+		reqs[nreqs++] = METADATA_SHARDID;
+	}
 	if (nreqs > 0)
 		elog(LOG, "Start processing %d sharding topology checks.", nreqs);
 
@@ -1088,7 +1101,11 @@ void ProcessShardingTopoReqs()
 	}
 
 	if (nreqs > 0)
-		elog(LOG, "Completed processing %d sharding topology checks, failed %d checks and will retry later.", nreqs - nfail_reqs, nfail_reqs);
+	{
+		last_master_update_ts = time(NULL);
+		elog(LOG, "Completed processing %d sharding topology checks, failed %d checks and will retry later.",
+			 nreqs - nfail_reqs, nfail_reqs);
+	}
 }
 
 static Shard_node_t *find_node_by_ip_port(Shard_t *ps, const char *ip, uint16_t port)

@@ -142,7 +142,7 @@ extern bool use_mysql_native_seq;
 extern int max_remote_insert_blocks;
 extern int str_key_part_len;
 extern int sharding_policy;
-
+extern int check_primary_interval_secs;
 #ifdef TRACE_SYNCSCAN
 extern bool trace_syncscan;
 #endif
@@ -3301,6 +3301,24 @@ static struct config_int ConfigureNamesInt[] =
 		64, 1, 1024*64,
 		NULL, NULL, NULL
 	},
+	{
+		{"check_primary_interval_secs", PGC_USERSET, DEVELOPER_OPTIONS,
+			gettext_noop("check current primary nodes of all stoarge shards and the metadata shard, if no such actions performed since last such actions for this many seconds."),
+		},
+		&check_primary_interval_secs,
+		3, 1, 100,
+		NULL, NULL, NULL
+	},
+
+	{
+		{"sharding_policy", PGC_USERSET, DEVELOPER_OPTIONS,
+			gettext_noop("policy to choose which shard to place a table. 0: random; 1: least storage; 2: least tables"),
+		},
+		&sharding_policy,
+		0, 0, 5,
+		NULL, NULL, NULL
+	},
+	
 	/* End-of-list marker */
 	{
 		{NULL, 0, 0, NULL, NULL}, NULL, 0, 0, 0, NULL, NULL, NULL
@@ -3499,14 +3517,6 @@ static struct config_real ConfigureNamesReal[] =
 		},
 		&vacuum_cleanup_index_scale_factor,
 		0.1, 0.0, 1e10,
-		NULL, NULL, NULL
-	},
-	{
-		{"sharding_policy", PGC_USERSET, DEVELOPER_OPTIONS,
-			gettext_noop("policy to choose which shard to place a table. 0: random; 1: least storage; 2: least tables"),
-		},
-		&sharding_policy,
-		0, 0, 5,
 		NULL, NULL, NULL
 	},
 

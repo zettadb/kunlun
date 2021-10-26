@@ -84,6 +84,7 @@ EXECUTE q2(0, 10);
 EXECUTE q1(10, 30);
 EXECUTE q2(5, 40);
 deallocate q1;
+drop table if exists t4 cascade;
 create table t4(a int primary key, b serial);
 insert into t4 values(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
 

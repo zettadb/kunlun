@@ -916,3 +916,18 @@ create table t2(id int primary key, good boolean);
 insert into t2 values(1, true);
 insert into t2 values(2, false);
 update t2 set good = false where id = 1;
+
+-- bug 199
+drop table if exists t4 cascade;
+create table t4(a money);
+
+insert into t4 values(999);
+insert into t4 values(1000);
+insert into t4 values (-92233720368547758.08);
+insert into t4 values (+92233720368547758.07);
+select*from t4;
+insert into t4 values (-92233720368547758.09); -- bigint out of range
+insert into t4 values (+92233720368547758.08); -- bigint out of range
+
+insert into t4 values (-1111);
+select*from t4;

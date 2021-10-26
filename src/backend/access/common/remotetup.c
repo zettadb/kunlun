@@ -373,17 +373,27 @@ char *pg_to_mysql_const(Oid typid, char *c)
 		/*
 		 * Money value begins with a cash sign, e.g. $. maybe some bizzar
 		 * cash sign has >1 chars.
-		 * */
-		for (int i = 0; ; i++)
+		 * remove the money value format chars such as $ and , e.g. $1,000.00
+		*/
+		bool cival = false;
+		int cpidx = -1;
+
+		for (int i = 0; c[i] ; i++)
 		{
 			char ci = c[i];
-			if (ci == '\0')
-				break;
-			if (!((ci >= '0' && ci <= '9') || ci == '+' || ci == '-' || ci == '.'))
-				c[i] = ' ';
+			if ((ci >= '0' && ci <= '9') || ci == '+' || ci == '-' || ci == '.')
+				cival = true;
 			else
-				break;
+				cival = false;
+
+			Assert(cpidx < i);
+			if (cpidx >= 0 && cival)
+				c[cpidx++] = c[i];
+			else if (cpidx < 0 && !cival)
+				cpidx = i;
 		}
+
+		if (cpidx > 0) c[cpidx] = '\0';
 	}
 
 	return c;

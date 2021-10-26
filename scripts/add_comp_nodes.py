@@ -37,7 +37,7 @@ import common
 #]
 
 
-def add_computing_nodes(mysql_conn_params, args, config_path, install_ids) :
+def add_computing_nodes(mysql_conn_params, args, config_path, install_ids, intoSeqTable=True) :
     meta_conn = mysql.connector.connect(**mysql_conn_params)
     jsconf = open(config_path)
     jstr = jsconf.read()
@@ -71,10 +71,13 @@ def add_computing_nodes(mysql_conn_params, args, config_path, install_ids) :
 
     # insert computing nodes info into meta-tables.
     stmt = "insert into comp_nodes(id, name, hostaddr, port, db_cluster_id,user_name,passwd) values(%s, %s, %s, %s, %s, %s, %s)"
+    idstmt = "insert into comp_nodes_id_seq(id) values(%s)"
     meta_cursor0.execute("start transaction")
 
     for compcfg in jscfg:
         meta_cursor.execute(stmt, (compcfg['id'], compcfg['name'],compcfg['ip'], compcfg['port'], cluster_id, compcfg['user'], compcfg['password']))
+        if intoSeqTable:
+            meta_cursor.execute(idstmt % str(compcfg['id']))
     meta_cursor.close()
     meta_cursor0.execute("select*from meta_db_nodes")
     meta_dbnodes = meta_cursor0.fetchall()

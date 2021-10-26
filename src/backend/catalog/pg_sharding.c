@@ -1067,6 +1067,7 @@ void ProcessShardingTopoReqs()
 	LWLockRelease(ShardingTopoCheckLock);
 
 	static time_t last_master_update_ts = 0;
+	bool selfinit = false;
 	if (nreqs == 0 && storage_ha_mode != HA_NO_REP &&
 		last_master_update_ts + check_primary_interval_secs < time(NULL))
 	{
@@ -1078,9 +1079,12 @@ void ProcessShardingTopoReqs()
 			reqs[nreqs++] = ref->id;
 		}
 		reqs[nreqs++] = METADATA_SHARDID;
+		selfinit = true;
 	}
+
 	if (nreqs > 0)
-		elog(LOG, "Start processing %d sharding topology checks.", nreqs);
+		elog(LOG, "Start processing %d %s sharding topology checks.",
+			 nreqs, selfinit ? "actively initiated" : "");
 
 	for (int i = 0; i < nreqs; i++)
 	{

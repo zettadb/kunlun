@@ -65,7 +65,7 @@ Oid comp_node_id = 0;
 NameData g_cluster_name = {'\0'};
 
 /* Only used for error reporting. */
-static NameData cur_meta_ip;
+static char *cur_meta_hostaddr = NULL;
 static uint16_t cur_meta_port;
 
 static bool get_min_max_ddl_opid(uint64_t * pmax, uint64_t *pmin);
@@ -275,9 +275,10 @@ static int connect_mysql(MYSQL_CONN *mysql, const char *host, uint16_t port,
 	// Never reconnect, because that messes up txnal status.
 	my_bool reconnect = 0;
 	mysql_options(&mysql->conn, MYSQL_OPT_RECONNECT, &reconnect);
-
-	cur_meta_ip.data[0] = '\0';
-	strncat(cur_meta_ip.data, host, NAMEDATALEN - 1);
+#define MAX_HOSTADDR_LEN 8192 // align with def in metadata tables.
+	if (cur_meta_hostaddr == NULL)
+		cur_meta_hostaddr = MemoryContextAlloc(TopMemoryContext, MAX_HOSTADDR_LEN);
+	strncat(cur_meta_hostaddr, host, MAX_HOSTADDR_LEN - 1);
 	cur_meta_port = port;
 
 	/* Returns 0 when done, else flag for what to wait for when need to block. */
@@ -394,19 +395,19 @@ static int handle_metadata_cluster_error(MYSQL_CONN *conn, bool throw_error)
 	{
 		if (ret == CR_SERVER_LOST || ret == CR_SERVER_GONE_ERROR)
 			elog(WARNING, "Kunlun-db: Connection with metadata shard %s node (%s, %u) is gone: %d, %s.",
-				 NDTYP(conn), cur_meta_ip.data, cur_meta_port, ret, errmsg_buf);
+				 NDTYP(conn), cur_meta_hostaddr, cur_meta_port, ret, errmsg_buf);
 		else if (ret == CR_UNKNOWN_ERROR)
 			elog(WARNING, "Kunlun-db: Unknown error from metadata shard %s node (%s, %u) : %d, %s.",
-				 NDTYP(conn), cur_meta_ip.data, cur_meta_port, ret, errmsg_buf);
+				 NDTYP(conn), cur_meta_hostaddr, cur_meta_port, ret, errmsg_buf);
 		else if (ret == CR_COMMANDS_OUT_OF_SYNC)
 			elog(WARNING, "Kunlun-db: Command out of sync from metadata shard %s node (%s, %u) : %d, %s.",
-				 NDTYP(conn), cur_meta_ip.data, cur_meta_port, ret, errmsg_buf);
+				 NDTYP(conn), cur_meta_hostaddr, cur_meta_port, ret, errmsg_buf);
 		else if (IS_MYSQL_CLIENT_ERROR(ret))
 			elog(WARNING, "Kunlun-db: MySQL client error from metadata shard %s node (%s, %u) : %d, %s.",
-				 NDTYP(conn), cur_meta_ip.data, cur_meta_port, ret, errmsg_buf);
+				 NDTYP(conn), cur_meta_hostaddr, cur_meta_port, ret, errmsg_buf);
 		else
 			elog(WARNING, "Kunlun-db: MySQL client error from metadata shard %s node (%s, %u) : %d, %s.",
-				 NDTYP(conn), cur_meta_ip.data, cur_meta_port, ret, errmsg_buf);
+				 NDTYP(conn), cur_meta_hostaddr, cur_meta_port, ret, errmsg_buf);
 		conn->inside_err_hdlr = false;
 		return ret;
 	}
@@ -416,27 +417,27 @@ static int handle_metadata_cluster_error(MYSQL_CONN *conn, bool throw_error)
 		ereport(ERROR,
 				(errcode(ERRCODE_CONNECTION_EXCEPTION),
 				 errmsg("Kunlun-db: Connection with metadata shard %s node (%s, %u) is gone: %d, %s. Resend the statement.",
-						NDTYP(conn), cur_meta_ip.data, cur_meta_port, ret, errmsg_buf)));
+						NDTYP(conn), cur_meta_hostaddr, cur_meta_port, ret, errmsg_buf)));
 	else if (ret == CR_UNKNOWN_ERROR)
 		ereport(ERROR,
 				(errcode(ERRCODE_INTERNAL_ERROR),
 				 errmsg("Kunlun-db: Unknown MySQL client error from metadata shard %s node (%s, %u) : %d, %s. Resend the statement.",
-						NDTYP(conn), cur_meta_ip.data, cur_meta_port, ret, errmsg_buf)));
+						NDTYP(conn), cur_meta_hostaddr, cur_meta_port, ret, errmsg_buf)));
 	else if (ret == CR_COMMANDS_OUT_OF_SYNC)
 		ereport(ERROR,
 				(errcode(ERRCODE_INTERNAL_ERROR),
 				 errmsg("Kunlun-db: Commands out of sync from metadata shard %s node (%s, %u) : %d, %s. Resend the statement.",
-						NDTYP(conn), cur_meta_ip.data, cur_meta_port, ret, errmsg_buf)));
+						NDTYP(conn), cur_meta_hostaddr, cur_meta_port, ret, errmsg_buf)));
 	else if (IS_MYSQL_CLIENT_ERROR(ret))
 		ereport(ERROR,
 				(errcode(ERRCODE_INTERNAL_ERROR),
 				 errmsg("Kunlun-db: MySQL client error from metadata shard %s node (%s, %u) : %d, %s. Resend the statement.",
-						NDTYP(conn), cur_meta_ip.data, cur_meta_port, ret, errmsg_buf)));
+						NDTYP(conn), cur_meta_hostaddr, cur_meta_port, ret, errmsg_buf)));
 	else
 		ereport(ERROR,
 				(errcode(ERRCODE_INTERNAL_ERROR),
 				 errmsg("Kunlun-db: MySQL client error from metadata shard %s node (%s, %u) : %d, %s.",
-						NDTYP(conn), cur_meta_ip.data, cur_meta_port, ret, errmsg_buf)));
+						NDTYP(conn), cur_meta_hostaddr, cur_meta_port, ret, errmsg_buf)));
 	conn->inside_err_hdlr = false;
 	return ret;
 }

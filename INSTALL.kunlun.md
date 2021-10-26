@@ -20,7 +20,7 @@ Install these software first. Below statement supposes this file is in $Kunlun.
 2. MySQL python connector, provided in $Kunlun/resources/mysql-connector-python-2.1.3.tar.gz
 3. PostgreSQL python connector, provided in $Kunlun/resources/psycopg2-2.8.4.tar.gz
 4. Set PATH to include kunlun-storage/bin so that the 'mysql' client program can be found by shell and python;
-   and set LD_LIBRARY_PATH to include $Kunlun/lib: export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$Kunlun/lib
+   and set LD_LIBRARY_PATH to include $Kunlun/lib: export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$Kunlun/lib(or lib64 for SLES 64-bit)
 
 ### Library dependencies
 
@@ -97,7 +97,7 @@ The connection info of a storage shard should be stored in a json file of below 
 Install computing nodes of Kunlun distributed database cluster using "KunLun", i.e. this piece of software, using the script in $Kunlun/scripts/install_pg.py
 One needs to prepare a config file using the template in $Kunlun/scripts/comp-nodes.json. In this file we name it 'my-comps.json', and it will be used in next steps too. When you fill my-comps.json properly, run install_pg.py using the filled config file:
 
-`python install_pg.py config=my-comps.json install_ids=1,2,3`
+`python install_pg.py --config=my-comps.json --install_ids=1,2,3`
 
 Note that the `install_ids` argument specifies the computing nodes that one wants to install on current server, by its ID in the config file. It can be 'all', to install all computing nodes specified in the config file into current server; Or it can be a comma seperated list of computing IDs to only install such nodes here. If not specified, all computing nodes will be installed.
 

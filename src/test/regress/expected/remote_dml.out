@@ -1,5 +1,4 @@
 drop table if exists t1;
-NOTICE:  table "t1" does not exist, skipping
 drop table if exists t100;
 NOTICE:  table "t100" does not exist, skipping
 drop table if exists t101;
@@ -148,7 +147,7 @@ start transaction;
 insert into t2 values(1) returning *;
  a |                  b                  |  c  
 ---+-------------------------------------+-----
- 1 | Wed Jun 02 03:53:35.160998 2021 PDT | xyz
+ 1 | Mon Oct 25 20:44:08.827023 2021 PDT | xyz
 (1 row)
 
 insert into t2 values(8, NULL, 'xxx'),(9, NULL, NULL) returning *;
@@ -161,18 +160,18 @@ insert into t2 values(8, NULL, 'xxx'),(9, NULL, NULL) returning *;
 insert into t2 values(10, now(), 'abc'),(11, '2006-06-02 13:36:35+08', '你好');
 commit;
 insert into t2 values(1) returning *;
-ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '1' for key 'PRIMARY'.
+ERROR:  Kunlun-db: MySQL storage node (2, 2) returned error: 1062, Duplicate entry '1' for key 'PRIMARY'.
 begin;
 insert into t2 values(1) returning *;
-ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '1' for key 'PRIMARY'.
+ERROR:  Kunlun-db: MySQL storage node (2, 2) returned error: 1062, Duplicate entry '1' for key 'PRIMARY'.
 commit;
 select*from t2;
  a  |              b               |  c   
 ----+------------------------------+------
-  1 | Wed Jun 02 03:53:35 2021 PDT | xyz
+  1 | Mon Oct 25 20:44:09 2021 PDT | xyz
   8 |                              | xxx
   9 |                              | 
- 10 | Wed Jun 02 03:53:35 2021 PDT | abc
+ 10 | Mon Oct 25 20:44:09 2021 PDT | abc
  11 | Thu Jun 01 22:36:35 2006 PDT | 你好
 (5 rows)
 
@@ -212,38 +211,38 @@ create table t504 partition of t5 for values from (30) to (MAXVALUE);
 insert into t5 values(-10),(0), (15),(40) returning *;
   a  |                  b                  |  c  
 -----+-------------------------------------+-----
- -10 | Wed Jun 02 03:53:35.511728 2021 PDT | abc
-   0 | Wed Jun 02 03:53:35.511728 2021 PDT | abc
-  15 | Wed Jun 02 03:53:35.511728 2021 PDT | abc
-  40 | Wed Jun 02 03:53:35.511728 2021 PDT | abc
+ -10 | Mon Oct 25 20:44:09.273783 2021 PDT | abc
+   0 | Mon Oct 25 20:44:09.273783 2021 PDT | abc
+  15 | Mon Oct 25 20:44:09.273783 2021 PDT | abc
+  40 | Mon Oct 25 20:44:09.273783 2021 PDT | abc
 (4 rows)
 
 insert into t5 values(-20),(10), (25),(400);
 select*from t5 where a between 30 and 100;
  a  |              b               |  c  
 ----+------------------------------+-----
- 40 | Wed Jun 02 03:53:36 2021 PDT | abc
+ 40 | Mon Oct 25 20:44:09 2021 PDT | abc
 (1 row)
 
 PREPARE q1(int, int) AS SELECT * FROM t5 WHERE a between $1 and $2;
 EXECUTE q1(-100, 20);
   a  |              b               |  c  
 -----+------------------------------+-----
- -20 | Wed Jun 02 03:53:36 2021 PDT | abc
- -10 | Wed Jun 02 03:53:36 2021 PDT | abc
-   0 | Wed Jun 02 03:53:36 2021 PDT | abc
-  10 | Wed Jun 02 03:53:36 2021 PDT | abc
-  15 | Wed Jun 02 03:53:36 2021 PDT | abc
+ -20 | Mon Oct 25 20:44:09 2021 PDT | abc
+ -10 | Mon Oct 25 20:44:09 2021 PDT | abc
+   0 | Mon Oct 25 20:44:09 2021 PDT | abc
+  10 | Mon Oct 25 20:44:09 2021 PDT | abc
+  15 | Mon Oct 25 20:44:09 2021 PDT | abc
 (5 rows)
 
 EXECUTE q1(0, 40);
  a  |              b               |  c  
 ----+------------------------------+-----
-  0 | Wed Jun 02 03:53:36 2021 PDT | abc
- 10 | Wed Jun 02 03:53:36 2021 PDT | abc
- 15 | Wed Jun 02 03:53:36 2021 PDT | abc
- 25 | Wed Jun 02 03:53:36 2021 PDT | abc
- 40 | Wed Jun 02 03:53:36 2021 PDT | abc
+  0 | Mon Oct 25 20:44:09 2021 PDT | abc
+ 10 | Mon Oct 25 20:44:09 2021 PDT | abc
+ 15 | Mon Oct 25 20:44:09 2021 PDT | abc
+ 25 | Mon Oct 25 20:44:09 2021 PDT | abc
+ 40 | Mon Oct 25 20:44:09 2021 PDT | abc
 (5 rows)
 
 PREPARE q2(int, int) AS SELECT * FROM t1 WHERE a between $1 and $2;
@@ -263,9 +262,9 @@ EXECUTE q2(0, 10);
 EXECUTE q1(10, 30);
  a  |              b               |  c  
 ----+------------------------------+-----
- 10 | Wed Jun 02 03:53:36 2021 PDT | abc
- 15 | Wed Jun 02 03:53:36 2021 PDT | abc
- 25 | Wed Jun 02 03:53:36 2021 PDT | abc
+ 10 | Mon Oct 25 20:44:09 2021 PDT | abc
+ 15 | Mon Oct 25 20:44:09 2021 PDT | abc
+ 25 | Mon Oct 25 20:44:09 2021 PDT | abc
 (3 rows)
 
 EXECUTE q2(5, 40);
@@ -286,6 +285,7 @@ EXECUTE q2(5, 40);
 (12 rows)
 
 deallocate q1;
+drop table if exists t4 cascade;
 create table t4(a int primary key, b serial);
 insert into t4 values(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
 PREPARE q3(int, int) AS SELECT * FROM t4 WHERE a between $1 and $2;
@@ -408,23 +408,23 @@ EXECUTE q6(33);
 select*from t5;
   a  |              b               |  c  
 -----+------------------------------+-----
- -20 | Wed Jun 02 03:53:36 2021 PDT | abc
- -10 | Wed Jun 02 03:53:36 2021 PDT | abc
-   0 | Wed Jun 02 03:53:36 2021 PDT | abc
-   1 | Wed Jun 02 03:53:39 2021 PDT | abc
-   2 | Wed Jun 02 03:53:39 2021 PDT | abc
-  10 | Wed Jun 02 03:53:36 2021 PDT | abc
-  12 | Wed Jun 02 03:53:39 2021 PDT | abc
-  13 | Wed Jun 02 03:53:39 2021 PDT | abc
-  15 | Wed Jun 02 03:53:36 2021 PDT | abc
-  21 | Wed Jun 02 03:53:39 2021 PDT | abc
-  22 | Wed Jun 02 03:53:39 2021 PDT | abc
-  23 | Wed Jun 02 03:53:39 2021 PDT | abc
-  25 | Wed Jun 02 03:53:36 2021 PDT | abc
-  31 | Wed Jun 02 03:53:39 2021 PDT | abc
-  33 | Wed Jun 02 03:53:39 2021 PDT | abc
-  40 | Wed Jun 02 03:53:36 2021 PDT | abc
- 400 | Wed Jun 02 03:53:36 2021 PDT | abc
+ -20 | Mon Oct 25 20:44:09 2021 PDT | abc
+ -10 | Mon Oct 25 20:44:09 2021 PDT | abc
+   0 | Mon Oct 25 20:44:09 2021 PDT | abc
+   1 | Mon Oct 25 20:44:12 2021 PDT | abc
+   2 | Mon Oct 25 20:44:12 2021 PDT | abc
+  10 | Mon Oct 25 20:44:09 2021 PDT | abc
+  12 | Mon Oct 25 20:44:12 2021 PDT | abc
+  13 | Mon Oct 25 20:44:12 2021 PDT | abc
+  15 | Mon Oct 25 20:44:09 2021 PDT | abc
+  21 | Mon Oct 25 20:44:12 2021 PDT | abc
+  22 | Mon Oct 25 20:44:13 2021 PDT | abc
+  23 | Mon Oct 25 20:44:13 2021 PDT | abc
+  25 | Mon Oct 25 20:44:09 2021 PDT | abc
+  31 | Mon Oct 25 20:44:13 2021 PDT | abc
+  33 | Mon Oct 25 20:44:13 2021 PDT | abc
+  40 | Mon Oct 25 20:44:09 2021 PDT | abc
+ 400 | Mon Oct 25 20:44:09 2021 PDT | abc
 (17 rows)
 
 commit;
@@ -477,27 +477,27 @@ select*from t1 where a between 9 and 12;
 select*from t5 ;
   a  |              b               |  c  
 -----+------------------------------+-----
- -20 | Wed Jun 02 03:53:36 2021 PDT | abc
- -10 | Wed Jun 02 03:53:36 2021 PDT | abc
-   0 | Wed Jun 02 03:53:36 2021 PDT | abc
-   1 | Wed Jun 02 03:53:39 2021 PDT | abc
-   2 | Wed Jun 02 03:53:39 2021 PDT | abc
-   3 | Wed Jun 02 03:53:39 2021 PDT | abc
-   4 | Wed Jun 02 03:53:39 2021 PDT | abc
-  10 | Wed Jun 02 03:53:36 2021 PDT | def
-  11 | Wed Jun 02 03:53:39 2021 PDT | abc
-  12 | Wed Jun 02 03:53:39 2021 PDT | abc
-  13 | Wed Jun 02 03:53:39 2021 PDT | abc
-  15 | Wed Jun 02 03:53:36 2021 PDT | abc
-  21 | Wed Jun 02 03:53:39 2021 PDT | abc
-  22 | Wed Jun 02 03:53:39 2021 PDT | abc
-  23 | Wed Jun 02 03:53:39 2021 PDT | abc
-  25 | Wed Jun 02 03:53:36 2021 PDT | abc
-  31 | Wed Jun 02 03:53:39 2021 PDT | def
-  32 | Wed Jun 02 03:53:39 2021 PDT | abc
-  33 | Wed Jun 02 03:53:39 2021 PDT | abc
-  40 | Wed Jun 02 03:53:36 2021 PDT | abc
- 400 | Wed Jun 02 03:53:36 2021 PDT | abc
+ -20 | Mon Oct 25 20:44:09 2021 PDT | abc
+ -10 | Mon Oct 25 20:44:09 2021 PDT | abc
+   0 | Mon Oct 25 20:44:09 2021 PDT | abc
+   1 | Mon Oct 25 20:44:12 2021 PDT | abc
+   2 | Mon Oct 25 20:44:12 2021 PDT | abc
+   3 | Mon Oct 25 20:44:13 2021 PDT | abc
+   4 | Mon Oct 25 20:44:13 2021 PDT | abc
+  10 | Mon Oct 25 20:44:09 2021 PDT | def
+  11 | Mon Oct 25 20:44:13 2021 PDT | abc
+  12 | Mon Oct 25 20:44:12 2021 PDT | abc
+  13 | Mon Oct 25 20:44:12 2021 PDT | abc
+  15 | Mon Oct 25 20:44:09 2021 PDT | abc
+  21 | Mon Oct 25 20:44:12 2021 PDT | abc
+  22 | Mon Oct 25 20:44:13 2021 PDT | abc
+  23 | Mon Oct 25 20:44:13 2021 PDT | abc
+  25 | Mon Oct 25 20:44:09 2021 PDT | abc
+  31 | Mon Oct 25 20:44:13 2021 PDT | def
+  32 | Mon Oct 25 20:44:13 2021 PDT | abc
+  33 | Mon Oct 25 20:44:13 2021 PDT | abc
+  40 | Mon Oct 25 20:44:09 2021 PDT | abc
+ 400 | Mon Oct 25 20:44:09 2021 PDT | abc
 (21 rows)
 
 EXECUTE q5('xyz', 3, 'def');
@@ -507,16 +507,16 @@ EXECUTE q5('MNO', 5, 'abc');
 select*from t5 where a%7=3 or a%7=4 or a%7=5;
  a  |              b               |  c  
 ----+------------------------------+-----
-  3 | Wed Jun 02 03:53:39 2021 PDT | abc
-  4 | Wed Jun 02 03:53:39 2021 PDT | XYZ
- 10 | Wed Jun 02 03:53:36 2021 PDT | xyz
- 11 | Wed Jun 02 03:53:39 2021 PDT | XYZ
- 12 | Wed Jun 02 03:53:39 2021 PDT | MNO
- 25 | Wed Jun 02 03:53:36 2021 PDT | XYZ
- 31 | Wed Jun 02 03:53:39 2021 PDT | xyz
- 32 | Wed Jun 02 03:53:39 2021 PDT | XYZ
- 33 | Wed Jun 02 03:53:39 2021 PDT | MNO
- 40 | Wed Jun 02 03:53:36 2021 PDT | MNO
+  3 | Mon Oct 25 20:44:13 2021 PDT | abc
+  4 | Mon Oct 25 20:44:13 2021 PDT | XYZ
+ 10 | Mon Oct 25 20:44:09 2021 PDT | xyz
+ 11 | Mon Oct 25 20:44:13 2021 PDT | XYZ
+ 12 | Mon Oct 25 20:44:12 2021 PDT | MNO
+ 25 | Mon Oct 25 20:44:09 2021 PDT | XYZ
+ 31 | Mon Oct 25 20:44:13 2021 PDT | xyz
+ 32 | Mon Oct 25 20:44:13 2021 PDT | XYZ
+ 33 | Mon Oct 25 20:44:13 2021 PDT | MNO
+ 40 | Mon Oct 25 20:44:09 2021 PDT | MNO
 (10 rows)
 
 EXECUTE q5('qps', 11, 'XYZ');

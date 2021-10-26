@@ -96,7 +96,7 @@ static struct Type_id_name typid_names[] =
 	{INT2OID, false, "smallint"},
 	{INT4OID, false, "int"},
 	{TEXTOID, true, "longtext"},
-	{FLOAT4OID, false, "float"},
+	{FLOAT4OID, false, "real"},
 	{FLOAT8OID, false, "double"},
 	{BPCHAROID, true, "char"},  // Blank Padded char
 	{VARCHAROID, true, "varchar"},
@@ -285,7 +285,7 @@ const char* mysql_can_cast(Oid typid)
 		{ INT8OID, "SIGNED" },
 		{ INT2OID, "SIGNED" },
 		{ INT4OID, "SIGNED" },
-		{ FLOAT4OID, "FLOAT" },
+		{ FLOAT4OID, "REAL" },
 		{ FLOAT8OID, "REAL" },
 		{ BPCHAROID, "CHAR" },
 		{ VARCHAROID, "CHAR" },

@@ -931,3 +931,16 @@ insert into t4 values (+92233720368547758.08); -- bigint out of range
 
 insert into t4 values (-1111);
 select*from t4;
+
+-- bug 94
+ drop table if exists FLOAT4_TBL cascade;
+CREATE TABLE FLOAT4_TBL (f1 float4);
+INSERT INTO FLOAT4_TBL(f1) VALUES (' 0.0');
+INSERT INTO FLOAT4_TBL(f1) VALUES ('1004.30 ');
+INSERT INTO FLOAT4_TBL(f1) VALUES (' -34.84 ');
+INSERT INTO FLOAT4_TBL(f1) VALUES ('1.2345678901234e+20');
+INSERT INTO FLOAT4_TBL(f1) VALUES ('1.2345678901234e-20');
+select f1 from float4_tbl;
+SELECT f.* FROM FLOAT4_TBL f WHERE f.f1 = 1004.3;
+SELECT f.* FROM FLOAT4_TBL f WHERE f.f1 <> '1004.3';
+

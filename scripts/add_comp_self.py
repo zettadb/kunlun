@@ -75,7 +75,7 @@ def add_comp_self(install_path, config_template_file, mysql_conn_params, config_
             # install is not performed here currently, since the meta_config file needs to
             os.system("chmod a+rwx /kunlun/env.sh")
             os.system("chown -R postgres:postgres /pgdatadir")
-            os.system("su postgres -c 'cd /kunlun && . ./env.sh; cd postgresql-11.5-rel/scripts; python2 install_pg.py config=./%s install_ids=%d' " % (config_path, maxid))
+            os.system("su postgres -c 'cd /kunlun && . ./env.sh; cd postgresql-11.5-rel/scripts; python2 install_pg.py --config=./%s --install_ids=%d' " % (config_path, maxid))
         else:
             install_pg.install_pg(config_template_file, install_path, selfobj)
     conn = checkserver(selfip, args.port, args.user, args.password, 'postgres')

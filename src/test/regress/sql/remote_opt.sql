@@ -45,6 +45,7 @@ insert into t10(a  , b  , c) values
 
 select*from t10 order by a;
 
+drop table if exists t11 cascade;
 create table t11 (like t10 INCLUDING ALL);
 insert into t11 select*from t10;
 select*from t11 order by a;
@@ -132,9 +133,3 @@ select a, (case b  when '' then 'empty' when NULL then 'NULL' else b end) as b, 
 select a, b is null as bisnull, c is null as cisnull from t14 order by a;
 select a, (case b  when '' then 'empty' else case b is null when  true then 'NULL' else b end end) as b, c is null from t14 order by a;
 select a, (case (b is null)  when true then 'NULL' else case b when '' then 'empty' else b end end) as b, c is null from t14 order by a;
-
-drop table t10 cascade;
-drop table t11;
-drop table t12;
-drop table t13;
-drop table t14;

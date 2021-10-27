@@ -124,6 +124,11 @@ typedef struct Mat_tree_remote_ctx
 	Bitmapset *mat_subplans;
 } Mat_tree_remote_ctx;
 
+#define MAT_OUTER_STRICT(ctx) ((ctx)->mat_target_branch == OUTER)
+#define MAT_INNER_STRICT(ctx) ((ctx)->mat_target_branch == INNER)
+#define MAT_OUTER(ctx) ((ctx)->mat_target_branch == OUTER || (ctx)->mat_target_branch == OUTER_AND_INNER)
+#define MAT_INNER(ctx) ((ctx)->mat_target_branch == INNER || (ctx)->mat_target_branch == OUTER_AND_INNER)
+
 static void
 materialize_branch_conflicting_remotescans(PlannedStmt *pstmt, Plan *plan,
 	Mat_tree_remote_ctx *matctx);
@@ -333,30 +338,17 @@ static void materialize_branch_conflicting_remotescans(PlannedStmt *pstmt,
 		(!inp || (!inp->shard_remotescan_refs && !IsA(inp, FunctionScan))))
 		goto init;
 
-	/*
-	  hashjoin *almost* always first cache all inner tuples, but there are
-	  exceptions where one row is fetched first in outer plan.
-	  Nestloop may choose to materialize its inner tree but always one row is
-	  fetched from outer plan first.
-	  In such cases if outer tree is Append, only its 1st remotescan child
-	  need to be materialized and only if the child conflicts with inner tree.
-	*/
-	bool mat_1st_only = false;
-	if ((IsA(plan, HashJoin) || (IsA(plan, NestLoop) && IsA(inp, Material))) &&
-		IsA(outp, Append))
-		mat_1st_only = true;
-	
 	int nmats = 0;
 	/*
 	  A precached node N's descendants won't conflict with any node outside N's tree.
 	*/
 	Plan *tgt_plan = NULL, *other_plan = NULL;
-	if (ctx->mat_target_branch == OUTER)
+	if (MAT_OUTER_STRICT(ctx))
 	{
 		tgt_plan = outp;
 		other_plan = inp;
 	}
-	else if (ctx->mat_target_branch == INNER)
+	else if (MAT_INNER_STRICT(ctx))
 	{
 		tgt_plan = inp;
 		other_plan = outp;
@@ -382,12 +374,12 @@ static void materialize_branch_conflicting_remotescans(PlannedStmt *pstmt,
 			if (q->shardid == p->shardid)
 			{
 				ShardRemoteScanRef *tgt = NULL;
-				if (ctx->mat_target_branch == OUTER)
+				if (MAT_OUTER(ctx))
 					tgt = p;
-				else if (ctx->mat_target_branch == INNER)
+				else if (MAT_INNER(ctx))
 					tgt = q;
 
-				materialize_remotescans(tgt, mat_1st_only);
+				materialize_remotescans(tgt, false);
 				nmats++;
 				break;
 			}
@@ -399,8 +391,12 @@ branches_done:
 	  inner node, otherwise the descendants in inner node may cache&rewind,
 	  but the mysql results may be removed by some  descendent in right branch.
 	*/
-	if (nmats > 0 && IsA(plan, NestLoop) && !PlanSubtreeResultPrecached(inp))
+	if (nmats > 0 && IsA(plan, NestLoop) && !IsA(inp, Material))
+	{
+		if (inp->shard_remotescan_refs)
+			materialize_remotescans(inp->shard_remotescan_refs, false);
 		innerPlan(plan) = materialize_finished_plan(inp);
+	}
 init:
 	/*
 	  some code paths above have not handled initPlan yet.
@@ -512,6 +508,8 @@ static bool handle_plan_traverse(PlannedStmt *pstmt, Plan *parent_plan,
 	case T_Material:
 		((Material*)plan)->remote_fetch_all = true;
 		matctx->under_material = false;// its descendants have all been visited.
+		materialize_branch_conflicting_remotescans(pstmt, plan,
+			(Mat_tree_remote_ctx*)ctx);
 		plan_merge_accessed_shards(pstmt, plan);
 		break;
 	case T_RemoteScan:
@@ -526,11 +524,8 @@ static bool handle_plan_traverse(PlannedStmt *pstmt, Plan *parent_plan,
 		  qual and/or targetlist, or have initPlans(uncorrelated plans).
 		*/
 	default:
-		if (!matctx->under_material)
-		{
-			materialize_branch_conflicting_remotescans(pstmt, plan,
-				(Mat_tree_remote_ctx*)ctx);
-		}
+		materialize_branch_conflicting_remotescans(pstmt, plan,
+			(Mat_tree_remote_ctx*)ctx);
 		plan_merge_accessed_shards(pstmt, plan);
 		break;
 	}
@@ -689,14 +684,13 @@ self:
 
 /*
   Note this isn't the same as ExecMaterializesOutput().
-  If a plan node's subtree's result is pre-cached, its all rows is cached to
-  tuplestore/tuplesort when the 1st row is fetched, and this means any
-  decendant RemoteScan node won't occupy the communication channel when nodes
-  out of the subtree is executed, so this plan's decendant remotescan nodes don't
-  need to be materialized for execution of nodes out of the plan subtree.
+  Although plan's descendants' result rows are cached in 'plan', the execution
+  of such descendants may still conflict, so they also must be materialized.
 */
 static bool PlanSubtreeResultPrecached(Plan *plan)
 {
+	return false;
+
 	bool ret = false;
 	switch (plan->type)
 	{
@@ -789,8 +783,8 @@ materialize_subplan_list(PlannedStmt *pstmt, Plan *plan, List *plans,
 			ShardRemoteScanRef *q = NULL;
 			if ((q = shard_used_in_following_sibling_plans(lc->next, p->shardid)))
 			{
-				materialize_remotescans(ctx->mat_target_branch == OUTER ? p :
-					(ctx->mat_target_branch == INNER ? q : NULL), false);
+				materialize_remotescans(MAT_OUTER(ctx) ? p :
+					(MAT_INNER(ctx) ? q : NULL), false);
 				break;
 			}
 		}
@@ -805,19 +799,13 @@ static void materialize_children(PlannedStmt *pstmt, Plan *plan, Mat_tree_remote
 		   plan->type == T_Append);
 	/*
 	  Never need to materialize is_multi_children_plan() nodes' children
-	  other than the two below because remotescans
-	  don't do tidbitmap scan, and table partitions are read one after another
-	  in Append node.
-	  However upper nodes might still materialize the remote table partitions
-	  later which are children of this Append node when its siblings conflict,
-	  so we must merge them to the Append node in plan_merge_children().
-	*/
-	if (plan->type == T_Append) return;
+	  other than the two below because remotescans don't do tidbitmap scan.
+	  For Append's children, they may conflict because when one child's rows
+	  is consumed, the remote connection&result isn't released, so next child
+	  will get no results.
 
-	/*
-	  MergeAppend and ModifyTable have to be handled specifically.
-	  For MergeAppend node, its children nodes are fetched from the 1st one to
-	  the last one, so for any child[i] (i in [0, N-1)),
+	  For MergeAppend&Append node, its children nodes are fetched from the
+	  1st one to the last one, so for any child[i] (i in [0, N-1)),
 	  if child[i+j] (j>=1, i+j<N) accesses a shard accessed by child[i], this
 	  shard must be materialized.
 
@@ -827,10 +815,13 @@ static void materialize_children(PlannedStmt *pstmt, Plan *plan, Mat_tree_remote
 	*/
 	ListCell *lc = NULL;
 
-	if (plan->type == T_MergeAppend)
+	if (plan->type == T_MergeAppend || plan->type == T_Append)
 	{
-		MergeAppend *merge_append = (MergeAppend *)plan;
-		foreach(lc, merge_append->mergeplans)
+		List *cplist = NULL;
+		if (plan->type == T_Append) cplist = ((Append*)plan)->appendplans;
+		else cplist = ((MergeAppend *)plan)->mergeplans;
+
+		foreach(lc, cplist)
 		{
 			Plan *outp = (Plan*)lfirst(lc);
 			if (PlanSubtreeResultPrecached(outp)) continue;
@@ -838,11 +829,8 @@ static void materialize_children(PlannedStmt *pstmt, Plan *plan, Mat_tree_remote
 			{
 				ShardRemoteScanRef *q = NULL;
 				if ((q = shard_used_in_following_sibling_plans(lc->next, p->shardid)))
-				{
-					materialize_remotescans(ctx->mat_target_branch == OUTER ? p :
-						(ctx->mat_target_branch == INNER ? q : NULL), false);
-					break;
-				}
+					materialize_remotescans(MAT_OUTER(ctx) ? p :
+						(MAT_INNER(ctx) ? q : NULL), false);
 			}
 		}
 	}

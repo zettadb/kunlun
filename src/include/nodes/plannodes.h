@@ -361,6 +361,11 @@ typedef struct RemoteScan
 	to contain a single boolean column. */
 	bool		check_exists;
 	/*
+	  True iff this node has a Material parent. This is to prevent multiple
+	  Materialization to the same RS node when it's referenced by multiple places.
+	*/
+	bool		materialized;
+	/*
 	 * TODO:
 	 * we don't need to decide for storage node which index to use to fetch
 	 * target rows, but we do need below fields of IndexScan to decide whether to

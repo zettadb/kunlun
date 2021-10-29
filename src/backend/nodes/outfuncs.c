@@ -550,6 +550,7 @@ _outRemoteScan(StringInfo str, const RemoteScan *node)
 	_outPlanInfo(str, (const Plan *) node);
 	WRITE_OID_FIELD(scanrelid);
 	WRITE_BOOL_FIELD(check_exists);
+	WRITE_BOOL_FIELD(materialized);
 	WRITE_INT_FIELD(query_level);
 }
 

@@ -77,10 +77,16 @@ RemoteNext(RemoteScanState *node)
 		  This happens after a ReScan which really regenerated&resent queries
 		  because of param changes.
 		*/
+		node->asi->rss_owner = node;
 		send_multi_stmts_to_multi();
 	}
 
 	Assert(node->asi->mysql_res);
+
+	if (node->asi->rss_owner != NULL && node->asi->rss_owner != node)
+		ereport(ERROR,
+				(errcode(ERRCODE_INTERNAL_ERROR),
+				 errmsg("Kunlun-db: Internal error: communication channel in use.")));
 
 	MYSQL_ROW mysql_row = mysql_fetch_row(node->asi->mysql_res);
 	unsigned long *lengths = ((mysql_row && node->asi->mysql_res) ?
@@ -134,6 +140,13 @@ static TupleTableSlot *
 ExecRemoteScan(PlanState *pstate)
 {
 	RemoteScanState *node = castNode(RemoteScanState, pstate);
+	Assert(node->asi);
+	if (!node->asi)
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_INTERNAL_ERROR),
+				 errmsg("Kunlun-db: Internal error: Communication channel has been released.")));
+	}
 
 	if (!node->asi->mysql_res && !node->asi->result_pending)
 	{
@@ -792,7 +805,7 @@ ExecInitRemoteScan(RemoteScan *node, EState *estate, int eflags)
 		scanstate->ss.ss_ScanTupleSlot, estate);
 
 	scanstate->asi = GetAsyncStmtInfo(rel->rd_rel->relshardid);
-	
+
 	/*
 	  build_subplan() doesn't add EXEC_FLAG_REWIND for subplans having params,
 	  don't modify the generic logic there. for remote scans as long as the
@@ -861,10 +874,19 @@ end:
 void release_shard_conn(RemoteScanState *node)
 {
 	if (node->fetches_remote_data == false)
+	{
+		Assert(!node->asi);
 		return;
+	}
 
 	free_mysql_result(node->asi);
 	cleanup_asi_work_queue(node->asi);
+	if (node->asi->rss_owner == node)
+	{
+		node->asi->rss_owner = NULL;
+		// must hold asi, it can be used in a rescan.
+		//node->asi = NULL;
+	}
 }
 
 /* ----------------------------------------------------------------

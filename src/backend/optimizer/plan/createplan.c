@@ -4962,6 +4962,7 @@ make_remotescan(List *qptlist,
 	node->scanrelid = scanrelid;
 	node->query_level = 0;
 	node->check_exists = false;
+	node->materialized = false;
 	return node;
 }
 
@@ -5978,6 +5979,7 @@ make_material(Plan *lefttree)
 	plan->qual = NIL;
 	plan->lefttree = lefttree;
 	plan->righttree = NULL;
+	node->remote_fetch_all = true;
 
 	return node;
 }

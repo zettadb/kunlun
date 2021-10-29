@@ -282,6 +282,7 @@ AsyncStmtInfo *GetAsyncStmtInfoNode(Oid shardid, Oid shardNodeId, bool req_chk_o
 	asi->shard_id = shardid;
 	asi->node_id = shardNodeId;
 	asi->need_abort = true;
+	asi->rss_owner = NULL;
 
 	/*
 	 * Set session status to the new connection, including all cached mysql var

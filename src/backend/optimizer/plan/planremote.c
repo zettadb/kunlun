@@ -199,6 +199,11 @@ ShardRemoteScanRef *dupShardRemoteScanRefs(ShardRemoteScanRef *src)
 	{
 		ShardRemoteScanRef *srsr = (ShardRemoteScanRef*)palloc0(sizeof(ShardRemoteScanRef));
 		*srsr = *src;
+		/*
+		  The RemoteScanRef objects are not duplicated, both lists' items
+		  point to the same group of RemoteScanRef objects. This is what we
+		  need now.
+		*/
 		srsr->rsrl = list_copy(src->rsrl);
 
 		if (tail) tail->next = srsr;
@@ -463,13 +468,13 @@ static void materialize_remotescans(ShardRemoteScanRef *p, bool mat_1st_only)
 	foreach (lc, p->rsrl)
 	{
 		RemoteScanRef *rsr = (RemoteScanRef *)lfirst(lc);
-		if (rsr->materialized || (mat_1st_only && !rsr->is_append_1st)) continue;
+		if (rsr->rs->materialized || (mat_1st_only && !rsr->is_append_1st)) continue;
 		Material *matnode = (Material*)materialize_finished_plan((Plan*)rsr->rs);
 		*rsr->pptr = (Plan*)matnode;
+		rsr->rs->materialized = true;
 		matnode->remote_fetch_all = true;
 		matnode->plan.shard_remotescan_refs =
 			dupShardRemoteScanRefs(rsr->rs->plan.shard_remotescan_refs);
-		rsr->materialized = true;
 
 		Plan *plan = (Plan *)rsr->rs;
 		Plan *pplan = (Plan *)matnode;
@@ -508,9 +513,11 @@ static bool handle_plan_traverse(PlannedStmt *pstmt, Plan *parent_plan,
 	case T_Material:
 		((Material*)plan)->remote_fetch_all = true;
 		matctx->under_material = false;// its descendants have all been visited.
+		/*
+		  The mat node may have a big plan tree which need to be materialized.
+		*/
 		materialize_branch_conflicting_remotescans(pstmt, plan,
 			(Mat_tree_remote_ctx*)ctx);
-		plan_merge_accessed_shards(pstmt, plan);
 		break;
 	case T_RemoteScan:
 		if (parent_plan && IsA(parent_plan, Append) &&
@@ -526,10 +533,10 @@ static bool handle_plan_traverse(PlannedStmt *pstmt, Plan *parent_plan,
 	default:
 		materialize_branch_conflicting_remotescans(pstmt, plan,
 			(Mat_tree_remote_ctx*)ctx);
-		plan_merge_accessed_shards(pstmt, plan);
 		break;
 	}
 
+	plan_merge_accessed_shards(pstmt, plan);
 	return true;
 }
 
@@ -738,6 +745,12 @@ void materialize_conflicting_remotescans(PlannedStmt *pstmt)
 
 	plan_tree_traverse(pstmt, NULL, &pstmt->planTree, handle_plan_traverse,
 		visit_plan_node, &ctx);
+	List *root_plans = NULL;
+	Plan *root_plan = NULL;
+	plan_list_traverse(pstmt, &root_plan, pstmt->subplans, handle_plan_traverse,
+		visit_plan_node, &ctx, false);
+	root_plans = lappend(root_plans, pstmt->planTree);
+	materialize_plan_lists(pstmt->subplans, root_plans, OUTER_AND_INNER);
 }
 
 /*

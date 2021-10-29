@@ -75,6 +75,7 @@ typedef struct StmtQueue
 	int capacity;
 } StmtQueue;
 
+struct RemoteScanState;
 /*
  * A communication port with one storage node, which mostly is a master.
  * It should be reset/cleared at start of each statement.
@@ -107,6 +108,13 @@ typedef struct AsyncStmtInfo
 	int ignore_error;
 
 	MYSQL *conn;
+
+	/*
+	  The RS node that's using this channel to pull data.
+	  NULL when the channel is used in other scenarios such as
+	  insert/update/delete/DDL.
+	*/
+	struct RemoteScanState *rss_owner;
 
 	/*
 	 * Info about current stmt to work on, and the result of the commands.

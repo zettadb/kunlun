@@ -450,6 +450,7 @@ _copyRemoteScan(const RemoteScan *from)
 	COPY_SCALAR_FIELD(query_level);
 	COPY_SCALAR_FIELD(scanrelid);
 	COPY_SCALAR_FIELD(check_exists);
+	COPY_SCALAR_FIELD(materialized);
 
 	return newnode;
 }

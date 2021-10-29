@@ -98,6 +98,7 @@ alter table t1 rename d to dd;
 \d+ t1;
 select*from t1;
 
+drop table if exists t11 cascade;
 alter table t1 rename to t11;
 \d+ t1;
 \d+ t11;

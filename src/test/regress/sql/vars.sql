@@ -78,6 +78,15 @@ show global variables like 'innodb_lock_wait_timeout';
 show persist variables like 'innodb_lock_wait_timeout' strict;
 show persist_only variables like 'innodb_lock_wait_timeout' strict;
 
+-- bug 139 set [shard][@@]global/session/local/persist/persist_only varname=value come to nothing 
+set @@local.innodb_lock_wait_timeout = 5;
+set @@persist.innodb_lock_wait_timeout = 9;
+set @@session.innodb_lock_wait_timeout = 3;
+set @@global.innodb_lock_wait_timeout = 4;
+set persist innodb_lock_wait_timeout = 11;
+set shard persist innodb_lock_wait_timeout = 11;
+
+
 create table tt(a int primary key, b int) partition by list(a);
 create table tt1 partition of tt for values in (1);
 create table tt2 partition of tt for values in (2);

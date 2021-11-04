@@ -2638,6 +2638,7 @@ CreateCommandTag(Node *parsetree)
 				case VAR_SET_CURRENT:
 				case VAR_SET_DEFAULT:
 				case VAR_SET_MULTI:
+				case VAR_SET_SHARD:
 					tag = "SET";
 					break;
 				case VAR_RESET:

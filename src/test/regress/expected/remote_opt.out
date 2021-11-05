@@ -1,13 +1,8 @@
 drop table if exists t10 cascade;
-NOTICE:  table "t10" does not exist, skipping
 drop table if exists t100 cascade;
-NOTICE:  table "t100" does not exist, skipping
 drop table if exists t101 cascade;
-NOTICE:  table "t101" does not exist, skipping
 drop table if exists t102 cascade;
-NOTICE:  table "t102" does not exist, skipping
 drop table if exists t103 cascade;
-NOTICE:  table "t103" does not exist, skipping
 create table t10(a serial primary key, b int, c int not null) partition by hash(a);
 create table t100 partition of t10 for values with (modulus 4, remainder 0); 
 create table t101 partition of t10 for values with (modulus 4, remainder 1); 
@@ -83,6 +78,8 @@ select*from t10 order by a;
  50 |    | 3
 (32 rows)
 
+drop table if exists t11 cascade;
+NOTICE:  table "t11" does not exist, skipping
 create table t11 (like t10 INCLUDING ALL);
 insert into t11 select*from t10;
 select*from t11 order by a;
@@ -257,31 +254,32 @@ select*from t12 where c not in (select c from t13 where a > 30) order by t12.a;
 (6 rows)
 
 explain select*from t12 where c not in (select c from t13 where a > 30) order by t12.a;
-                                                     QUERY PLAN                                                     
---------------------------------------------------------------------------------------------------------------------
+                                                 QUERY PLAN                                                 
+------------------------------------------------------------------------------------------------------------
  Sort  (cost=0.07..0.08 rows=4 width=12)
    Sort Key: t120.a
    ->  Append  (cost=0.00..0.03 rows=4 width=12)
-         ->  Materialize  (cost=0.00..0.01 rows=1 width=12)
-               ->  RemoteScan on t120  (cost=0.00..0.00 rows=1 width=12)
-                     Filter: (NOT (hashed SubPlan 1))
-                     Shard: 1    Remote SQL: select a, b, c from regression_$$_public.t120 
-                     SubPlan 1
-                       ->  Materialize  (cost=0.00..0.01 rows=1 width=4)
-                             ->  RemoteScan on t13  (cost=0.00..0.00 rows=1 width=4)
-                                   Filter: (a > 30)
-                                   Shard: 1      Remote SQL: select c from regression_$$_public.t13  where (a > 30)
-         ->  RemoteScan on t121  (cost=0.00..0.00 rows=1 width=12)
+         ->  RemoteScan on t120  (cost=0.00..0.00 rows=1 width=12)
                Filter: (NOT (hashed SubPlan 1))
-               Shard: 2  Remote SQL: select a, b, c from regression_$$_public.t121 
+               Shard: 1  Remote SQL: select a, b, c from regression_$$_public.t120 
+               SubPlan 1
+                 ->  Materialize  (cost=0.00..0.01 rows=1 width=4)
+                       ->  RemoteScan on t13  (cost=0.00..0.00 rows=1 width=4)
+                             Filter: (c > 30)
+                             Shard: 2    Remote SQL: select c from regression_$$_public.t13  where (a > 30)
+         ->  Materialize  (cost=0.00..0.01 rows=1 width=12)
+               ->  RemoteScan on t121  (cost=0.00..0.00 rows=1 width=12)
+                     Filter: (NOT (hashed SubPlan 1))
+                     Shard: 2    Remote SQL: select a, b, c from regression_$$_public.t121 
          ->  Materialize  (cost=0.00..0.01 rows=1 width=12)
                ->  RemoteScan on t122  (cost=0.00..0.00 rows=1 width=12)
                      Filter: (NOT (hashed SubPlan 1))
-                     Shard: 1    Remote SQL: select a, b, c from regression_$$_public.t122 
-         ->  RemoteScan on t123  (cost=0.00..0.00 rows=1 width=12)
-               Filter: (NOT (hashed SubPlan 1))
-               Shard: 2  Remote SQL: select a, b, c from regression_$$_public.t123 
-(22 rows)
+                     Shard: 2    Remote SQL: select a, b, c from regression_$$_public.t122 
+         ->  Materialize  (cost=0.00..0.01 rows=1 width=12)
+               ->  RemoteScan on t123  (cost=0.00..0.00 rows=1 width=12)
+                     Filter: (NOT (hashed SubPlan 1))
+                     Shard: 2    Remote SQL: select a, b, c from regression_$$_public.t123 
+(23 rows)
 
 select*from t12 where c not in (select c from t13 where a < 10) order by t12.a;
  a  | b | c 
@@ -316,31 +314,32 @@ select*from t12 where c not in (select c from t13 where a < 10) order by t12.a;
 (27 rows)
 
 explain select*from t12 where c not in (select c from t13 where a < 10) order by t12.a;
-                                                     QUERY PLAN                                                     
---------------------------------------------------------------------------------------------------------------------
+                                                 QUERY PLAN                                                 
+------------------------------------------------------------------------------------------------------------
  Sort  (cost=0.07..0.08 rows=4 width=12)
    Sort Key: t120.a
    ->  Append  (cost=0.00..0.03 rows=4 width=12)
-         ->  Materialize  (cost=0.00..0.01 rows=1 width=12)
-               ->  RemoteScan on t120  (cost=0.00..0.00 rows=1 width=12)
-                     Filter: (NOT (hashed SubPlan 1))
-                     Shard: 1    Remote SQL: select a, b, c from regression_$$_public.t120 
-                     SubPlan 1
-                       ->  Materialize  (cost=0.00..0.01 rows=1 width=4)
-                             ->  RemoteScan on t13  (cost=0.00..0.00 rows=1 width=4)
-                                   Filter: (a < 10)
-                                   Shard: 1      Remote SQL: select c from regression_$$_public.t13  where (a < 10)
-         ->  RemoteScan on t121  (cost=0.00..0.00 rows=1 width=12)
+         ->  RemoteScan on t120  (cost=0.00..0.00 rows=1 width=12)
                Filter: (NOT (hashed SubPlan 1))
-               Shard: 2  Remote SQL: select a, b, c from regression_$$_public.t121 
+               Shard: 1  Remote SQL: select a, b, c from regression_$$_public.t120 
+               SubPlan 1
+                 ->  Materialize  (cost=0.00..0.01 rows=1 width=4)
+                       ->  RemoteScan on t13  (cost=0.00..0.00 rows=1 width=4)
+                             Filter: (c < 10)
+                             Shard: 2    Remote SQL: select c from regression_$$_public.t13  where (a < 10)
+         ->  Materialize  (cost=0.00..0.01 rows=1 width=12)
+               ->  RemoteScan on t121  (cost=0.00..0.00 rows=1 width=12)
+                     Filter: (NOT (hashed SubPlan 1))
+                     Shard: 2    Remote SQL: select a, b, c from regression_$$_public.t121 
          ->  Materialize  (cost=0.00..0.01 rows=1 width=12)
                ->  RemoteScan on t122  (cost=0.00..0.00 rows=1 width=12)
                      Filter: (NOT (hashed SubPlan 1))
-                     Shard: 1    Remote SQL: select a, b, c from regression_$$_public.t122 
-         ->  RemoteScan on t123  (cost=0.00..0.00 rows=1 width=12)
-               Filter: (NOT (hashed SubPlan 1))
-               Shard: 2  Remote SQL: select a, b, c from regression_$$_public.t123 
-(22 rows)
+                     Shard: 2    Remote SQL: select a, b, c from regression_$$_public.t122 
+         ->  Materialize  (cost=0.00..0.01 rows=1 width=12)
+               ->  RemoteScan on t123  (cost=0.00..0.00 rows=1 width=12)
+                     Filter: (NOT (hashed SubPlan 1))
+                     Shard: 2    Remote SQL: select a, b, c from regression_$$_public.t123 
+(23 rows)
 
 select*from t12 where exists (select c from t13 where a < 10) order by t13.a;
 ERROR:  missing FROM-clause entry for table "t13"
@@ -847,11 +846,3 @@ select a, (case (b is null)  when true then 'NULL' else case b when '' then 'emp
  8 | yale  | t
 (8 rows)
 
-drop table t10 cascade;
-NOTICE:  drop cascades to 2 other objects
-DETAIL:  drop cascades to default value for column a of table t11
-drop cascades to default value for column a of table t13
-drop table t11;
-drop table t12;
-drop table t13;
-drop table t14;

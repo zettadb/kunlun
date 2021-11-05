@@ -6601,13 +6601,13 @@ static char *
 get_variable(Var *var, int levelsup, bool istoplevel, deparse_context *context)
 {
 	StringInfo	buf = context->buf;
-	RangeTblEntry *rte;
+	RangeTblEntry *rte = NULL;
 	AttrNumber	attnum;
 	int			netlevelsup;
 	deparse_namespace *dpns;
 	deparse_columns *colinfo;
-	char	   *refname;
-	char	   *attname;
+	char	   *refname = NULL;
+	char	   *attname = NULL;
 
 	/* Find appropriate nesting depth */
 	netlevelsup = var->varlevelsup + levelsup;
@@ -6714,40 +6714,31 @@ get_variable(Var *var, int levelsup, bool istoplevel, deparse_context *context)
 		Assert(refname == NULL);
 	}
 
-	RemoteScanState *prss1 = NULL, *prss2 = NULL;
+	RemoteScanState *prss1 = NULL, *prss2 = NULL, *prss0 = NULL;
 	bool is_remote_outer = IsRemoteExecNode(dpns->outer_planstate, &prss1);
 	bool is_remote_inner = IsRemoteExecNode(dpns->inner_planstate, &prss2);
-	if ((rte->rtekind == RTE_JOIN || rte->rtekind == RTE_RELATION) &&
-		rte->relshardid != 0 &&
+	bool is_remote_ps = IsRemoteExecNode(dpns->planstate, &prss0);
+	if (rte == NULL ||
+		((rte->rtekind == RTE_JOIN || rte->rtekind == RTE_RELATION) &&
+		(rte->relshardid != 0 || rte->relkind == RELKIND_PARTITIONED_TABLE) &&
 		((dpns->outer_tlist && dpns->outer_planstate && is_remote_outer) ||
-		 (dpns->inner_tlist && dpns->inner_planstate && is_remote_inner)))
+		 (dpns->inner_tlist && dpns->inner_planstate && is_remote_inner) ||
+		 (dpns->planstate && is_remote_ps))))
 	{
 		TargetEntry *tle;
 		List *rstl = NULL;
-		if (dpns->outer_tlist && dpns->inner_tlist)
-		{
-			Assert(var->varno == ((RemoteScan*)prss1->ss.ps.plan)->scanrelid ||
-				   var->varno == ((RemoteScan*)prss2->ss.ps.plan)->scanrelid);
-			if (var->varno == ((RemoteScan*)prss1->ss.ps.plan)->scanrelid)
-				rstl = dpns->outer_tlist;
-			else
-				rstl = dpns->inner_tlist;
-		}
-		else
-		{
-			rstl = dpns->outer_tlist ? dpns->outer_tlist : dpns->inner_tlist;
-			if (dpns->outer_tlist)
-				Assert(var->varno == ((RemoteScan*)prss1->ss.ps.plan)->scanrelid);
-			else
-				Assert(var->varno == ((RemoteScan*)prss2->ss.ps.plan)->scanrelid);
-		}
+		if (prss1 && var->varno == ((RemoteScan*)prss1->ss.ps.plan)->scanrelid)
+			rstl = dpns->outer_tlist;
+		else if (prss2 && var->varno == ((RemoteScan*)prss2->ss.ps.plan)->scanrelid)
+			rstl = dpns->inner_tlist;
+		else if (prss0)
+			rstl = dpns->planstate->plan->targetlist;
 
 		tle = get_tle_by_resno(rstl, var->varattno);
-		if (!tle)
-			elog(ERROR, "invalid attnum %d for relation \"%s\"",
-				 var->varattno, rte->eref->aliasname);
-		attname = tle->resname;
-		goto found;
+		if (tle)
+			attname = tle->resname;
+		if (attname || !(attnum > 0 && attnum <= colinfo->num_cols))
+			goto found;
 	}
 
 	if (attnum == InvalidAttrNumber)
@@ -6822,6 +6813,7 @@ resolve_special_varno(Node *node, deparse_context *context, void *private,
 {
 	Var		   *var;
 	deparse_namespace *dpns;
+	RemoteScanState *prjs = NULL;
 
 	/* If it's not a Var, invoke the callback. */
 	if (!IsA(node, Var))
@@ -6877,6 +6869,10 @@ resolve_special_varno(Node *node, deparse_context *context, void *private,
 		resolve_special_varno((Node *) tle->expr, context, private, callback);
 		return;
 	}
+	else if (var->varno == INNER_VAR && dpns->inner_tlist == NULL)
+		return;// dzw: happens for semi-join, don't print the var anymore.
+	else if (var->varno == 0 && IsRemoteExecNode(dpns->planstate, &prjs))
+		;// dzw: handle this in get_variable(), don't error out.
 	else if (var->varno < 1 || var->varno > list_length(dpns->rtable))
 		elog(ERROR, "bogus varno: %d", var->varno);
 

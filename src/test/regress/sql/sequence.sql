@@ -171,17 +171,20 @@ DROP SEQUENCE myseq2;
 -- Alter sequence
 --
 
-ALTER SEQUENCE IF EXISTS sequence_test2 RESTART WITH 24
-  INCREMENT BY 4 MAXVALUE 36 MINVALUE 5 CYCLE;
 
 ALTER SEQUENCE serialTest1 CYCLE;  -- error, not a sequence
-
+drop sequence if exists sequence_test2;
+drop sequence if exists sequence_test4;
 CREATE SEQUENCE sequence_test2 START WITH 32;
 CREATE SEQUENCE sequence_test4 INCREMENT BY -1;
 
 SELECT nextval('sequence_test2');
 SELECT nextval('sequence_test4');
 
+ALTER SEQUENCE IF EXISTS sequence_test2 RESTART WITH 24
+  INCREMENT BY 4 MAXVALUE 36 MINVALUE 5 CYCLE;
+SELECT nextval('sequence_test2');
+SELECT nextval('sequence_test4');
 ALTER SEQUENCE sequence_test2 RESTART;
 SELECT nextval('sequence_test2');
 

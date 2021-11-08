@@ -941,6 +941,134 @@ SET SESSION AUTHORIZATION regress_rls_bob;
 SELECT * FROM t1;
 EXPLAIN (COSTS OFF) SELECT * FROM t1;
 
+--
+-- COPY TO/FROM
+--
+
+RESET SESSION AUTHORIZATION;
+DROP TABLE copy_t CASCADE;
+CREATE TABLE copy_t (a integer, b text);
+--CREATE POLICY p1 ON copy_t USING (a % 2 = 0);
+
+--ALTER TABLE copy_t ENABLE ROW LEVEL SECURITY;
+
+GRANT ALL ON copy_t TO regress_rls_bob, regress_rls_exempt_user;
+
+INSERT INTO copy_t (SELECT x, md5(x::text) FROM generate_series(0,10) x);
+
+-- Check COPY TO as Superuser/owner.
+RESET SESSION AUTHORIZATION;
+SET row_security TO OFF;
+COPY (SELECT * FROM copy_t ORDER BY a ASC) TO STDOUT WITH DELIMITER ',';
+SET row_security TO ON;
+COPY (SELECT * FROM copy_t ORDER BY a ASC) TO STDOUT WITH DELIMITER ',';
+
+-- Check COPY TO as user with permissions.
+SET SESSION AUTHORIZATION regress_rls_bob;
+SET row_security TO OFF;
+COPY (SELECT * FROM copy_t ORDER BY a ASC) TO STDOUT WITH DELIMITER ','; --fail - would be affected by RLS
+SET row_security TO ON;
+COPY (SELECT * FROM copy_t ORDER BY a ASC) TO STDOUT WITH DELIMITER ','; --ok
+
+-- Check COPY TO as user with permissions and BYPASSRLS
+SET SESSION AUTHORIZATION regress_rls_exempt_user;
+SET row_security TO OFF;
+COPY (SELECT * FROM copy_t ORDER BY a ASC) TO STDOUT WITH DELIMITER ','; --ok
+SET row_security TO ON;
+COPY (SELECT * FROM copy_t ORDER BY a ASC) TO STDOUT WITH DELIMITER ','; --ok
+
+-- Check COPY TO as user without permissions. SET row_security TO OFF;
+SET SESSION AUTHORIZATION regress_rls_carol;
+SET row_security TO OFF;
+COPY (SELECT * FROM copy_t ORDER BY a ASC) TO STDOUT WITH DELIMITER ','; --fail - would be affected by RLS
+SET row_security TO ON;
+COPY (SELECT * FROM copy_t ORDER BY a ASC) TO STDOUT WITH DELIMITER ','; --fail - permission denied
+
+-- Check COPY relation TO; keep it just one row to avoid reordering issues
+RESET SESSION AUTHORIZATION;
+SET row_security TO ON;
+CREATE TABLE copy_rel_to (a integer, b text);
+--CREATE POLICY p1 ON copy_rel_to USING (a % 2 = 0);
+
+--ALTER TABLE copy_rel_to ENABLE ROW LEVEL SECURITY;
+
+GRANT ALL ON copy_rel_to TO regress_rls_bob, regress_rls_exempt_user;
+
+INSERT INTO copy_rel_to VALUES (1, md5('1'));
+
+-- Check COPY TO as Superuser/owner.
+RESET SESSION AUTHORIZATION;
+SET row_security TO OFF;
+COPY copy_rel_to TO STDOUT WITH DELIMITER ',';
+SET row_security TO ON;
+COPY copy_rel_to TO STDOUT WITH DELIMITER ',';
+
+-- Check COPY TO as user with permissions.
+SET SESSION AUTHORIZATION regress_rls_bob;
+SET row_security TO OFF;
+COPY copy_rel_to TO STDOUT WITH DELIMITER ','; --fail - would be affected by RLS
+SET row_security TO ON;
+COPY copy_rel_to TO STDOUT WITH DELIMITER ','; --ok
+
+-- Check COPY TO as user with permissions and BYPASSRLS
+SET SESSION AUTHORIZATION regress_rls_exempt_user;
+SET row_security TO OFF;
+COPY copy_rel_to TO STDOUT WITH DELIMITER ','; --ok
+SET row_security TO ON;
+COPY copy_rel_to TO STDOUT WITH DELIMITER ','; --ok
+
+-- Check COPY TO as user without permissions. SET row_security TO OFF;
+SET SESSION AUTHORIZATION regress_rls_carol;
+SET row_security TO OFF;
+COPY copy_rel_to TO STDOUT WITH DELIMITER ','; --fail - permission denied
+SET row_security TO ON;
+COPY copy_rel_to TO STDOUT WITH DELIMITER ','; --fail - permission denied
+
+-- Check COPY FROM as Superuser/owner.
+RESET SESSION AUTHORIZATION;
+SET row_security TO OFF;
+COPY copy_t FROM STDIN; --ok
+1	abc
+2	bcd
+3	cde
+4	def
+\.
+SET row_security TO ON;
+COPY copy_t FROM STDIN; --ok
+1	abc
+2	bcd
+3	cde
+4	def
+\.
+
+-- Check COPY FROM as user with permissions.
+SET SESSION AUTHORIZATION regress_rls_bob;
+SET row_security TO OFF;
+COPY copy_t FROM STDIN; --fail - would be affected by RLS.
+SET row_security TO ON;
+COPY copy_t FROM STDIN; --fail - COPY FROM not supported by RLS.
+
+-- Check COPY FROM as user with permissions and BYPASSRLS
+SET SESSION AUTHORIZATION regress_rls_exempt_user;
+SET row_security TO ON;
+COPY copy_t FROM STDIN; --ok
+1	abc
+2	bcd
+3	cde
+4	def
+\.
+
+-- Check COPY FROM as user without permissions.
+SET SESSION AUTHORIZATION regress_rls_carol;
+SET row_security TO OFF;
+COPY copy_t FROM STDIN; --fail - permission denied.
+SET row_security TO ON;
+COPY copy_t FROM STDIN; --fail - permission denied.
+
+RESET SESSION AUTHORIZATION;
+DROP TABLE copy_t;
+DROP TABLE copy_rel_to CASCADE;
+
 -- Check WHERE CURRENT OF
 SET SESSION AUTHORIZATION regress_rls_alice;
 

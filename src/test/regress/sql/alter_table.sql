@@ -503,6 +503,29 @@ drop table atacc1;
 create table p1(id int, name text);
 create table p2(id2 int, name text, height int);
 
+-- test copy in/out
+create table attest (a int4, b int4, c int4);
+insert into attest values (1,2,3);
+alter table attest drop a;
+copy attest to stdout;
+copy attest(a) to stdout;
+copy attest("........pg.dropped.1........") to stdout;
+copy attest from stdin;
+10	11	12
+\.
+select * from attest;
+copy attest from stdin;
+21	22
+\.
+select * from attest;
+copy attest(a) from stdin;
+copy attest("........pg.dropped.1........") from stdin;
+copy attest(b,c) from stdin;
+31	32
+\.
+select * from attest;
+drop table attest;
+
 -- should work
 alter table only p1 drop column name;
 -- should work. Now c1.name is local and inhcount is 0.

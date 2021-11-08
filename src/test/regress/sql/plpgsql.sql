@@ -21,839 +21,96 @@
 --     or into a room.
 --
 
-
+drop table if exists Room;
 create table Room (
     roomno	char(8),
     comment	text
 );
-
 create unique index Room_rno on Room using btree (roomno bpchar_ops);
 
-
+drop table if exists WSlot;
 create table WSlot (
     slotname	char(20),
     roomno	char(8),
     slotlink	char(20),
     backlink	char(20)
 );
-
 create unique index WSlot_name on WSlot using btree (slotname bpchar_ops);
 
-
+drop table if exists PField;
 create table PField (
     name	text,
     comment	text
 );
-
 create unique index PField_name on PField using btree (name text_ops);
 
-
+drop table if exists PSlot;
 create table PSlot (
     slotname	char(20),
     pfname	text,
     slotlink	char(20),
     backlink	char(20)
 );
-
 create unique index PSlot_name on PSlot using btree (slotname bpchar_ops);
 
-
+drop table if exists PLine;
 create table PLine (
     slotname	char(20),
     phonenumber	char(20),
     comment	text,
     backlink	char(20)
 );
-
 create unique index PLine_name on PLine using btree (slotname bpchar_ops);
 
-
+drop table if exists Hub;
 create table Hub (
     name	char(14),
     comment	text,
     nslots	integer
 );
-
 create unique index Hub_name on Hub using btree (name bpchar_ops);
 
-
+drop table if exists HSlot;
 create table HSlot (
     slotname	char(20),
     hubname	char(14),
     slotno	integer,
     slotlink	char(20)
 );
-
 create unique index HSlot_name on HSlot using btree (slotname bpchar_ops);
 create index HSlot_hubname on HSlot using btree (hubname bpchar_ops);
 
-
+drop table if exists System;
 create table System (
     name	text,
     comment	text
 );
-
 create unique index System_name on System using btree (name text_ops);
 
-
+drop table if exists IFace;
 create table IFace (
     slotname	char(20),
     sysname	text,
     ifname	text,
     slotlink	char(20)
 );
-
 create unique index IFace_name on IFace using btree (slotname bpchar_ops);
 
-
+drop table if exists PHone;
 create table PHone (
     slotname	char(20),
     comment	text,
     slotlink	char(20)
 );
-
 create unique index PHone_name on PHone using btree (slotname bpchar_ops);
 
-
--- ************************************************************
--- *
--- * Trigger procedures and functions for the patchfield
--- * test of PL/pgSQL
--- *
--- ************************************************************
-
-
--- ************************************************************
--- * AFTER UPDATE on Room
--- *	- If room no changes let wall slots follow
--- ************************************************************
-create function tg_room_au() returns trigger as '
-begin
-    if new.roomno != old.roomno then
-        update WSlot set roomno = new.roomno where roomno = old.roomno;
-    end if;
-    return new;
-end;
-' language plpgsql;
-
-create trigger tg_room_au after update
-    on Room for each row execute procedure tg_room_au();
-
-
--- ************************************************************
--- * AFTER DELETE on Room
--- *	- delete wall slots in this room
--- ************************************************************
-create function tg_room_ad() returns trigger as '
-begin
-    delete from WSlot where roomno = old.roomno;
-    return old;
-end;
-' language plpgsql;
-
-create trigger tg_room_ad after delete
-    on Room for each row execute procedure tg_room_ad();
-
-
--- ************************************************************
--- * BEFORE INSERT or UPDATE on WSlot
--- *	- Check that room exists
--- ************************************************************
-create function tg_wslot_biu() returns trigger as $$
-begin
-    if count(*) = 0 from Room where roomno = new.roomno then
-        raise exception 'Room % does not exist', new.roomno;
-    end if;
-    return new;
-end;
-$$ language plpgsql;
-
-create trigger tg_wslot_biu before insert or update
-    on WSlot for each row execute procedure tg_wslot_biu();
-
-
--- ************************************************************
--- * AFTER UPDATE on PField
--- *	- Let PSlots of this field follow
--- ************************************************************
-create function tg_pfield_au() returns trigger as '
-begin
-    if new.name != old.name then
-        update PSlot set pfname = new.name where pfname = old.name;
-    end if;
-    return new;
-end;
-' language plpgsql;
-
-create trigger tg_pfield_au after update
-    on PField for each row execute procedure tg_pfield_au();
-
-
--- ************************************************************
--- * AFTER DELETE on PField
--- *	- Remove all slots of this patchfield
--- ************************************************************
-create function tg_pfield_ad() returns trigger as '
-begin
-    delete from PSlot where pfname = old.name;
-    return old;
-end;
-' language plpgsql;
-
-create trigger tg_pfield_ad after delete
-    on PField for each row execute procedure tg_pfield_ad();
-
-
--- ************************************************************
--- * BEFORE INSERT or UPDATE on PSlot
--- *	- Ensure that our patchfield does exist
--- ************************************************************
-create function tg_pslot_biu() returns trigger as $proc$
-declare
-    pfrec	record;
-    ps          alias for new;
-begin
-    select into pfrec * from PField where name = ps.pfname;
-    if not found then
-        raise exception $$Patchfield "%" does not exist$$, ps.pfname;
-    end if;
-    return ps;
-end;
-$proc$ language plpgsql;
-
-create trigger tg_pslot_biu before insert or update
-    on PSlot for each row execute procedure tg_pslot_biu();
-
-
--- ************************************************************
--- * AFTER UPDATE on System
--- *	- If system name changes let interfaces follow
--- ************************************************************
-create function tg_system_au() returns trigger as '
-begin
-    if new.name != old.name then
-        update IFace set sysname = new.name where sysname = old.name;
-    end if;
-    return new;
-end;
-' language plpgsql;
-
-create trigger tg_system_au after update
-    on System for each row execute procedure tg_system_au();
-
-
--- ************************************************************
--- * BEFORE INSERT or UPDATE on IFace
--- *	- set the slotname to IF.sysname.ifname
--- ************************************************************
-create function tg_iface_biu() returns trigger as $$
-declare
-    sname	text;
-    sysrec	record;
-begin
-    select into sysrec * from system where name = new.sysname;
-    if not found then
-        raise exception $q$system "%" does not exist$q$, new.sysname;
-    end if;
-    sname = 'IF.' || new.sysname;
-    sname = sname || '.';
-    sname = sname || new.ifname;
-    if length(sname) > 20 then
-        raise exception 'IFace slotname "%" too long (20 char max)', sname;
-    end if;
-    new.slotname = sname;
-    return new;
-end;
-$$ language plpgsql;
-
-create trigger tg_iface_biu before insert or update
-    on IFace for each row execute procedure tg_iface_biu();
-
-
--- ************************************************************
--- * AFTER INSERT or UPDATE or DELETE on Hub
--- *	- insert/delete/rename slots as required
--- ************************************************************
-create function tg_hub_a() returns trigger as '
-declare
-    hname	text;
-    dummy	integer;
-begin
-    if tg_op = ''INSERT'' then
-	dummy = tg_hub_adjustslots(new.name, 0, new.nslots);
-	return new;
-    end if;
-    if tg_op = ''UPDATE'' then
-	if new.name != old.name then
-	    update HSlot set hubname = new.name where hubname = old.name;
-	end if;
-	dummy = tg_hub_adjustslots(new.name, old.nslots, new.nslots);
-	return new;
-    end if;
-    if tg_op = ''DELETE'' then
-	dummy = tg_hub_adjustslots(old.name, old.nslots, 0);
-	return old;
-    end if;
-end;
-' language plpgsql;
-
-create trigger tg_hub_a after insert or update or delete
-    on Hub for each row execute procedure tg_hub_a();
-
-
--- ************************************************************
--- * Support function to add/remove slots of Hub
--- ************************************************************
-create function tg_hub_adjustslots(hname bpchar,
-                                   oldnslots integer,
-                                   newnslots integer)
-returns integer as '
-begin
-    if newnslots = oldnslots then
-        return 0;
-    end if;
-    if newnslots < oldnslots then
-        delete from HSlot where hubname = hname and slotno > newnslots;
-	return 0;
-    end if;
-    for i in oldnslots + 1 .. newnslots loop
-        insert into HSlot (slotname, hubname, slotno, slotlink)
-		values (''HS.dummy'', hname, i, '''');
-    end loop;
-    return 0;
-end
-' language plpgsql;
 
 -- Test comments
 COMMENT ON FUNCTION tg_hub_adjustslots_wrong(bpchar, integer, integer) IS 'function with args';
 COMMENT ON FUNCTION tg_hub_adjustslots(bpchar, integer, integer) IS 'function with args';
 COMMENT ON FUNCTION tg_hub_adjustslots(bpchar, integer, integer) IS NULL;
 
--- ************************************************************
--- * BEFORE INSERT or UPDATE on HSlot
--- *	- prevent from manual manipulation
--- *	- set the slotname to HS.hubname.slotno
--- ************************************************************
-create function tg_hslot_biu() returns trigger as '
-declare
-    sname	text;
-    xname	HSlot.slotname%TYPE;
-    hubrec	record;
-begin
-    select into hubrec * from Hub where name = new.hubname;
-    if not found then
-        raise exception ''no manual manipulation of HSlot'';
-    end if;
-    if new.slotno < 1 or new.slotno > hubrec.nslots then
-        raise exception ''no manual manipulation of HSlot'';
-    end if;
-    if tg_op = ''UPDATE'' and new.hubname != old.hubname then
-	if count(*) > 0 from Hub where name = old.hubname then
-	    raise exception ''no manual manipulation of HSlot'';
-	end if;
-    end if;
-    sname = ''HS.'' || trim(new.hubname);
-    sname = sname || ''.'';
-    sname = sname || new.slotno::text;
-    if length(sname) > 20 then
-        raise exception ''HSlot slotname "%" too long (20 char max)'', sname;
-    end if;
-    new.slotname = sname;
-    return new;
-end;
-' language plpgsql;
 
-create trigger tg_hslot_biu before insert or update
-    on HSlot for each row execute procedure tg_hslot_biu();
-
-
--- ************************************************************
--- * BEFORE DELETE on HSlot
--- *	- prevent from manual manipulation
--- ************************************************************
-create function tg_hslot_bd() returns trigger as '
-declare
-    hubrec	record;
-begin
-    select into hubrec * from Hub where name = old.hubname;
-    if not found then
-        return old;
-    end if;
-    if old.slotno > hubrec.nslots then
-        return old;
-    end if;
-    raise exception ''no manual manipulation of HSlot'';
-end;
-' language plpgsql;
-
-create trigger tg_hslot_bd before delete
-    on HSlot for each row execute procedure tg_hslot_bd();
-
-
--- ************************************************************
--- * BEFORE INSERT on all slots
--- *	- Check name prefix
--- ************************************************************
-create function tg_chkslotname() returns trigger as '
-begin
-    if substr(new.slotname, 1, 2) != tg_argv[0] then
-        raise exception ''slotname must begin with %'', tg_argv[0];
-    end if;
-    return new;
-end;
-' language plpgsql;
-
-create trigger tg_chkslotname before insert
-    on PSlot for each row execute procedure tg_chkslotname('PS');
-
-create trigger tg_chkslotname before insert
-    on WSlot for each row execute procedure tg_chkslotname('WS');
-
-create trigger tg_chkslotname before insert
-    on PLine for each row execute procedure tg_chkslotname('PL');
-
-create trigger tg_chkslotname before insert
-    on IFace for each row execute procedure tg_chkslotname('IF');
-
-create trigger tg_chkslotname before insert
-    on PHone for each row execute procedure tg_chkslotname('PH');
-
-
--- ************************************************************
--- * BEFORE INSERT or UPDATE on all slots with slotlink
--- *	- Set slotlink to empty string if NULL value given
--- ************************************************************
-create function tg_chkslotlink() returns trigger as '
-begin
-    if new.slotlink isnull then
-        new.slotlink = '''';
-    end if;
-    return new;
-end;
-' language plpgsql;
-
-create trigger tg_chkslotlink before insert or update
-    on PSlot for each row execute procedure tg_chkslotlink();
-
-create trigger tg_chkslotlink before insert or update
-    on WSlot for each row execute procedure tg_chkslotlink();
-
-create trigger tg_chkslotlink before insert or update
-    on IFace for each row execute procedure tg_chkslotlink();
-
-create trigger tg_chkslotlink before insert or update
-    on HSlot for each row execute procedure tg_chkslotlink();
-
-create trigger tg_chkslotlink before insert or update
-    on PHone for each row execute procedure tg_chkslotlink();
-
-
--- ************************************************************
--- * BEFORE INSERT or UPDATE on all slots with backlink
--- *	- Set backlink to empty string if NULL value given
--- ************************************************************
-create function tg_chkbacklink() returns trigger as '
-begin
-    if new.backlink isnull then
-        new.backlink = '''';
-    end if;
-    return new;
-end;
-' language plpgsql;
-
-create trigger tg_chkbacklink before insert or update
-    on PSlot for each row execute procedure tg_chkbacklink();
-
-create trigger tg_chkbacklink before insert or update
-    on WSlot for each row execute procedure tg_chkbacklink();
-
-create trigger tg_chkbacklink before insert or update
-    on PLine for each row execute procedure tg_chkbacklink();
-
-
--- ************************************************************
--- * BEFORE UPDATE on PSlot
--- *	- do delete/insert instead of update if name changes
--- ************************************************************
-create function tg_pslot_bu() returns trigger as '
-begin
-    if new.slotname != old.slotname then
-        delete from PSlot where slotname = old.slotname;
-	insert into PSlot (
-		    slotname,
-		    pfname,
-		    slotlink,
-		    backlink
-		) values (
-		    new.slotname,
-		    new.pfname,
-		    new.slotlink,
-		    new.backlink
-		);
-        return null;
-    end if;
-    return new;
-end;
-' language plpgsql;
-
-create trigger tg_pslot_bu before update
-    on PSlot for each row execute procedure tg_pslot_bu();
-
-
--- ************************************************************
--- * BEFORE UPDATE on WSlot
--- *	- do delete/insert instead of update if name changes
--- ************************************************************
-create function tg_wslot_bu() returns trigger as '
-begin
-    if new.slotname != old.slotname then
-        delete from WSlot where slotname = old.slotname;
-	insert into WSlot (
-		    slotname,
-		    roomno,
-		    slotlink,
-		    backlink
-		) values (
-		    new.slotname,
-		    new.roomno,
-		    new.slotlink,
-		    new.backlink
-		);
-        return null;
-    end if;
-    return new;
-end;
-' language plpgsql;
-
-create trigger tg_wslot_bu before update
-    on WSlot for each row execute procedure tg_Wslot_bu();
-
-
--- ************************************************************
--- * BEFORE UPDATE on PLine
--- *	- do delete/insert instead of update if name changes
--- ************************************************************
-create function tg_pline_bu() returns trigger as '
-begin
-    if new.slotname != old.slotname then
-        delete from PLine where slotname = old.slotname;
-	insert into PLine (
-		    slotname,
-		    phonenumber,
-		    comment,
-		    backlink
-		) values (
-		    new.slotname,
-		    new.phonenumber,
-		    new.comment,
-		    new.backlink
-		);
-        return null;
-    end if;
-    return new;
-end;
-' language plpgsql;
-
-create trigger tg_pline_bu before update
-    on PLine for each row execute procedure tg_pline_bu();
-
-
--- ************************************************************
--- * BEFORE UPDATE on IFace
--- *	- do delete/insert instead of update if name changes
--- ************************************************************
-create function tg_iface_bu() returns trigger as '
-begin
-    if new.slotname != old.slotname then
-        delete from IFace where slotname = old.slotname;
-	insert into IFace (
-		    slotname,
-		    sysname,
-		    ifname,
-		    slotlink
-		) values (
-		    new.slotname,
-		    new.sysname,
-		    new.ifname,
-		    new.slotlink
-		);
-        return null;
-    end if;
-    return new;
-end;
-' language plpgsql;
-
-create trigger tg_iface_bu before update
-    on IFace for each row execute procedure tg_iface_bu();
-
-
--- ************************************************************
--- * BEFORE UPDATE on HSlot
--- *	- do delete/insert instead of update if name changes
--- ************************************************************
-create function tg_hslot_bu() returns trigger as '
-begin
-    if new.slotname != old.slotname or new.hubname != old.hubname then
-        delete from HSlot where slotname = old.slotname;
-	insert into HSlot (
-		    slotname,
-		    hubname,
-		    slotno,
-		    slotlink
-		) values (
-		    new.slotname,
-		    new.hubname,
-		    new.slotno,
-		    new.slotlink
-		);
-        return null;
-    end if;
-    return new;
-end;
-' language plpgsql;
-
-create trigger tg_hslot_bu before update
-    on HSlot for each row execute procedure tg_hslot_bu();
-
-
--- ************************************************************
--- * BEFORE UPDATE on PHone
--- *	- do delete/insert instead of update if name changes
--- ************************************************************
-create function tg_phone_bu() returns trigger as '
-begin
-    if new.slotname != old.slotname then
-        delete from PHone where slotname = old.slotname;
-	insert into PHone (
-		    slotname,
-		    comment,
-		    slotlink
-		) values (
-		    new.slotname,
-		    new.comment,
-		    new.slotlink
-		);
-        return null;
-    end if;
-    return new;
-end;
-' language plpgsql;
-
-create trigger tg_phone_bu before update
-    on PHone for each row execute procedure tg_phone_bu();
-
-
--- ************************************************************
--- * AFTER INSERT or UPDATE or DELETE on slot with backlink
--- *	- Ensure that the opponent correctly points back to us
--- ************************************************************
-create function tg_backlink_a() returns trigger as '
-declare
-    dummy	integer;
-begin
-    if tg_op = ''INSERT'' then
-        if new.backlink != '''' then
-	    dummy = tg_backlink_set(new.backlink, new.slotname);
-	end if;
-	return new;
-    end if;
-    if tg_op = ''UPDATE'' then
-        if new.backlink != old.backlink then
-	    if old.backlink != '''' then
-	        dummy = tg_backlink_unset(old.backlink, old.slotname);
-	    end if;
-	    if new.backlink != '''' then
-	        dummy = tg_backlink_set(new.backlink, new.slotname);
-	    end if;
-	else
-	    if new.slotname != old.slotname and new.backlink != '''' then
-	        dummy = tg_slotlink_set(new.backlink, new.slotname);
-	    end if;
-	end if;
-	return new;
-    end if;
-    if tg_op = ''DELETE'' then
-        if old.backlink != '''' then
-	    dummy = tg_backlink_unset(old.backlink, old.slotname);
-	end if;
-	return old;
-    end if;
-end;
-' language plpgsql;
-
-
-create trigger tg_backlink_a after insert or update or delete
-    on PSlot for each row execute procedure tg_backlink_a('PS');
-
-create trigger tg_backlink_a after insert or update or delete
-    on WSlot for each row execute procedure tg_backlink_a('WS');
-
-create trigger tg_backlink_a after insert or update or delete
-    on PLine for each row execute procedure tg_backlink_a('PL');
-
-
--- ************************************************************
--- * Support function to set the opponents backlink field
--- * if it does not already point to the requested slot
--- ************************************************************
-create function tg_backlink_set(myname bpchar, blname bpchar)
-returns integer as '
-declare
-    mytype	char(2);
-    link	char(4);
-    rec		record;
-begin
-    mytype = substr(myname, 1, 2);
-    link = mytype || substr(blname, 1, 2);
-    if link = ''PLPL'' then
-        raise exception
-		''backlink between two phone lines does not make sense'';
-    end if;
-    if link in (''PLWS'', ''WSPL'') then
-        raise exception
-		''direct link of phone line to wall slot not permitted'';
-    end if;
-    if mytype = ''PS'' then
-        select into rec * from PSlot where slotname = myname;
-	if not found then
-	    raise exception ''% does not exist'', myname;
-	end if;
-	if rec.backlink != blname then
-	    update PSlot set backlink = blname where slotname = myname;
-	end if;
-	return 0;
-    end if;
-    if mytype = ''WS'' then
-        select into rec * from WSlot where slotname = myname;
-	if not found then
-	    raise exception ''% does not exist'', myname;
-	end if;
-	if rec.backlink != blname then
-	    update WSlot set backlink = blname where slotname = myname;
-	end if;
-	return 0;
-    end if;
-    if mytype = ''PL'' then
-        select into rec * from PLine where slotname = myname;
-	if not found then
-	    raise exception ''% does not exist'', myname;
-	end if;
-	if rec.backlink != blname then
-	    update PLine set backlink = blname where slotname = myname;
-	end if;
-	return 0;
-    end if;
-    raise exception ''illegal backlink beginning with %'', mytype;
-end;
-' language plpgsql;
-
-
--- ************************************************************
--- * Support function to clear out the backlink field if
--- * it still points to specific slot
--- ************************************************************
-create function tg_backlink_unset(bpchar, bpchar)
-returns integer as '
-declare
-    myname	alias for $1;
-    blname	alias for $2;
-    mytype	char(2);
-    rec		record;
-begin
-    mytype = substr(myname, 1, 2);
-    if mytype = ''PS'' then
-        select into rec * from PSlot where slotname = myname;
-	if not found then
-	    return 0;
-	end if;
-	if rec.backlink = blname then
-	    update PSlot set backlink = '''' where slotname = myname;
-	end if;
-	return 0;
-    end if;
-    if mytype = ''WS'' then
-        select into rec * from WSlot where slotname = myname;
-	if not found then
-	    return 0;
-	end if;
-	if rec.backlink = blname then
-	    update WSlot set backlink = '''' where slotname = myname;
-	end if;
-	return 0;
-    end if;
-    if mytype = ''PL'' then
-        select into rec * from PLine where slotname = myname;
-	if not found then
-	    return 0;
-	end if;
-	if rec.backlink = blname then
-	    update PLine set backlink = '''' where slotname = myname;
-	end if;
-	return 0;
-    end if;
-end
-' language plpgsql;
-
-
--- ************************************************************
--- * AFTER INSERT or UPDATE or DELETE on slot with slotlink
--- *	- Ensure that the opponent correctly points back to us
--- ************************************************************
-create function tg_slotlink_a() returns trigger as '
-declare
-    dummy	integer;
-begin
-    if tg_op = ''INSERT'' then
-        if new.slotlink != '''' then
-	    dummy = tg_slotlink_set(new.slotlink, new.slotname);
-	end if;
-	return new;
-    end if;
-    if tg_op = ''UPDATE'' then
-        if new.slotlink != old.slotlink then
-	    if old.slotlink != '''' then
-	        dummy = tg_slotlink_unset(old.slotlink, old.slotname);
-	    end if;
-	    if new.slotlink != '''' then
-	        dummy = tg_slotlink_set(new.slotlink, new.slotname);
-	    end if;
-	else
-	    if new.slotname != old.slotname and new.slotlink != '''' then
-	        dummy = tg_slotlink_set(new.slotlink, new.slotname);
-	    end if;
-	end if;
-	return new;
-    end if;
-    if tg_op = ''DELETE'' then
-        if old.slotlink != '''' then
-	    dummy = tg_slotlink_unset(old.slotlink, old.slotname);
-	end if;
-	return old;
-    end if;
-end;
-' language plpgsql;
-
-
-create trigger tg_slotlink_a after insert or update or delete
-    on PSlot for each row execute procedure tg_slotlink_a('PS');
-
-create trigger tg_slotlink_a after insert or update or delete
-    on WSlot for each row execute procedure tg_slotlink_a('WS');
-
-create trigger tg_slotlink_a after insert or update or delete
-    on IFace for each row execute procedure tg_slotlink_a('IF');
-
-create trigger tg_slotlink_a after insert or update or delete
-    on HSlot for each row execute procedure tg_slotlink_a('HS');
-
-create trigger tg_slotlink_a after insert or update or delete
-    on PHone for each row execute procedure tg_slotlink_a('PH');
-
-
--- ************************************************************
--- * Support function to set the opponents slotlink field
--- * if it does not already point to the requested slot
--- ************************************************************
 create function tg_slotlink_set(bpchar, bpchar)
 returns integer as '
 declare
@@ -1400,8 +657,8 @@ update PSlot set slotlink = 'HS.base.hub1.1' where slotname = 'PS.base.b2';
 --
 -- Now we take a look at the patchfield
 --
-select * from PField_v1 where pfname = 'PF0_1' order by slotname;
-select * from PField_v1 where pfname = 'PF0_2' order by slotname;
+--select * from PField_v1 where pfname = 'PF0_1' order by slotname;
+--select * from PField_v1 where pfname = 'PF0_2' order by slotname;
 
 --
 -- Finally we want errors
@@ -1439,89 +696,8 @@ END;' LANGUAGE plpgsql;
 
 SELECT recursion_test(4,3);
 
---
--- Test the FOUND magic variable
---
-CREATE TABLE found_test_tbl (a int);
 
-create function test_found()
-  returns boolean as '
-  declare
-  begin
-  insert into found_test_tbl values (1);
-  if FOUND then
-     insert into found_test_tbl values (2);
-  end if;
-
-  update found_test_tbl set a = 100 where a = 1;
-  if FOUND then
-    insert into found_test_tbl values (3);
-  end if;
-
-  delete from found_test_tbl where a = 9999; -- matches no rows
-  if not FOUND then
-    insert into found_test_tbl values (4);
-  end if;
-
-  for i in 1 .. 10 loop
-    -- no need to do anything
-  end loop;
-  if FOUND then
-    insert into found_test_tbl values (5);
-  end if;
-
-  -- never executes the loop
-  for i in 2 .. 1 loop
-    -- no need to do anything
-  end loop;
-  if not FOUND then
-    insert into found_test_tbl values (6);
-  end if;
-  return true;
-  end;' language plpgsql;
-
-select test_found();
-select * from found_test_tbl;
-
---
--- Test set-returning functions for PL/pgSQL
---
-
-create function test_table_func_rec() returns setof found_test_tbl as '
-DECLARE
-	rec RECORD;
-BEGIN
-	FOR rec IN select * from found_test_tbl LOOP
-		RETURN NEXT rec;
-	END LOOP;
-	RETURN;
-END;' language plpgsql;
-
-select * from test_table_func_rec();
-
-create function test_table_func_row() returns setof found_test_tbl as '
-DECLARE
-	row found_test_tbl%ROWTYPE;
-BEGIN
-	FOR row IN select * from found_test_tbl LOOP
-		RETURN NEXT row;
-	END LOOP;
-	RETURN;
-END;' language plpgsql;
-
-select * from test_table_func_row();
-
-create function test_ret_set_scalar(int,int) returns setof int as '
-DECLARE
-	i int;
-BEGIN
-	FOR i IN $1 .. $2 LOOP
-		RETURN NEXT i + 1;
-	END LOOP;
-	RETURN;
-END;' language plpgsql;
-
-select * from test_ret_set_scalar(1,10);
+--select * from test_ret_set_scalar(1,10);
 
 create function test_ret_set_rec_dyn(int) returns setof record as '
 DECLARE
@@ -1812,7 +988,7 @@ select test_variable_storage();
 
 create temp table master(f1 int primary key);
 
-create temp table slave(f1 int references master deferrable);
+--create temp table slave(f1 int references master deferrable);
 
 insert into master values(1);
 insert into slave values(1);
@@ -2881,8 +2057,8 @@ select forc01();
 
 -- try updating the cursor's current row
 
-create temp table forc_test as
-  select n as i, n as j from generate_series(1,10) n;
+--create temp table forc_test as
+--  select n as i, n as j from generate_series(1,10) n;
 
 create or replace function forc01() returns void as $$
 declare
@@ -2895,9 +2071,9 @@ begin
 end;
 $$ language plpgsql;
 
-select forc01();
+--select forc01();
 
-select * from forc_test;
+--select * from forc_test;
 
 -- same, with a cursor whose portal name doesn't match variable name
 create or replace function forc01() returns void as $$
@@ -2915,9 +2091,9 @@ begin
 end;
 $$ language plpgsql;
 
-select forc01();
+--select forc01();
 
-select * from forc_test;
+--select * from forc_test;
 
 drop function forc01();
 
@@ -3059,21 +2235,6 @@ select composrec();
 
 drop function composrec();
 
--- test: row expr in RETURN NEXT statement.
-create or replace function compos() returns setof compostype as $$
-begin
-  for i in 1..3
-  loop
-    return next (1, 'hello'::varchar);
-  end loop;
-  return next null::compostype;
-  return next (2, 'goodbye')::compostype;
-end;
-$$ language plpgsql;
-
-select * from compos();
-
-drop function compos();
 
 -- test: use invalid expr in return statement.
 create or replace function compos() returns compostype as $$
@@ -3367,38 +2528,6 @@ select stacked_diagnostics_test();
 
 drop function stacked_diagnostics_test();
 
--- test variadic functions
-
-create or replace function vari(variadic int[])
-returns void as $$
-begin
-  for i in array_lower($1,1)..array_upper($1,1) loop
-    raise notice '%', $1[i];
-  end loop; end;
-$$ language plpgsql;
-
-select vari(1,2,3,4,5);
-select vari(3,4,5);
-select vari(variadic array[5,6,7]);
-
-drop function vari(int[]);
-
--- coercion test
-create or replace function pleast(variadic numeric[])
-returns numeric as $$
-declare aux numeric = $1[array_lower($1,1)];
-begin
-  for i in array_lower($1,1)+1..array_upper($1,1) loop
-    if $1[i] < aux then aux = $1[i]; end if;
-  end loop;
-  return aux;
-end;
-$$ language plpgsql immutable strict;
-
-select pleast(10,1,2,3,-16);
-select pleast(10.2,2.2,-1.1);
-select pleast(10.2,10, -20);
-select pleast(10,20, -1.0);
 
 -- in case of conflict, non-variadic version is preferred
 create or replace function pleast(numeric)
@@ -3411,7 +2540,7 @@ $$ language plpgsql immutable strict;
 
 select pleast(10);
 
-drop function pleast(numeric[]);
+--drop function pleast(numeric[]);
 drop function pleast(numeric);
 
 -- test table functions
@@ -3551,7 +2680,7 @@ begin
     return $1;
   end if;
 end;
-$$ language plpgsql;
+--$$ language plpgsql;
 
 -- "limit" is to prevent this from being inlined
 create function sql_recurse(float8) returns float8 as
@@ -3567,7 +2696,7 @@ begin
   return error1(p_name_table);
 end$$;
 
-BEGIN;
+--BEGIN;
 create table public.stuffs (stuff text);
 SAVEPOINT a;
 select error2('nonexistent.stuffs');
@@ -3699,7 +2828,7 @@ END$$;
 
 -- Check handling of errors thrown from/into anonymous code blocks.
 do $outer$
-begin
+--begin
   for i in 1..10 loop
    begin
     execute $ex$
@@ -3937,29 +3066,6 @@ end$$;
 select arrayassign1();
 select arrayassign1(); -- try again to exercise internal caching
 
-create domain orderedarray as int[2]
-  constraint sorted check (value[1] < value[2]);
-
-select '{1,2}'::orderedarray;
-select '{2,1}'::orderedarray;  -- fail
-
-create function testoa(x1 int, x2 int, x3 int) returns orderedarray
-language plpgsql as $$
-declare res orderedarray;
-begin
-  res = array[x1, x2];
-  res[2] = x3;
-  return res;
-end$$;
-
-select testoa(1,2,3);
-select testoa(1,2,3); -- try again to exercise internal caching
-select testoa(2,1,3); -- fail at initial assign
-select testoa(1,2,1); -- fail at update
-
-drop function arrayassign1();
-drop function testoa(x1 int, x2 int, x3 int);
-
 
 --
 -- Test handling of expanded arrays
@@ -4161,50 +3267,6 @@ exception when others then
 end;
 $$;
 
--- Test use of plpgsql in a domain check constraint (cf. bug #14414)
-
-create function plpgsql_domain_check(val int) returns boolean as $$
-begin return val > 0; end
-$$ language plpgsql immutable;
-
-create domain plpgsql_domain as integer check(plpgsql_domain_check(value));
-
-do $$
-declare v_test plpgsql_domain;
-begin
-  v_test = 1;
-end;
-$$;
-
-do $$
-declare v_test plpgsql_domain = 1;
-begin
-  v_test = 0;  -- fail
-end;
-$$;
-
--- Test handling of expanded array passed to a domain constraint (bug #14472)
-
-create function plpgsql_arr_domain_check(val int[]) returns boolean as $$
-begin return val[1] > 0; end
-$$ language plpgsql immutable;
-
-create domain plpgsql_arr_domain as int[] check(plpgsql_arr_domain_check(value));
-
-do $$
-declare v_test plpgsql_arr_domain;
-begin
-  v_test = array[1];
-  v_test = v_test || 2;
-end;
-$$;
-
-do $$
-declare v_test plpgsql_arr_domain = array[1];
-begin
-  v_test = 0 || v_test;  -- fail
-end;
-$$;
 
 --
 -- test usage of transition tables in AFTER triggers
@@ -4212,70 +3274,27 @@ $$;
 
 CREATE TABLE transition_table_base (id int PRIMARY KEY, val text);
 
-CREATE FUNCTION transition_table_base_ins_func()
-  RETURNS trigger
-  LANGUAGE plpgsql
-AS $$
-DECLARE
-  t text;
-  l text;
-BEGIN
-  t = '';
-  FOR l IN EXECUTE
-           $q$
-             EXPLAIN (TIMING off, COSTS off, VERBOSE on)
-             SELECT * FROM newtable
-           $q$ LOOP
-    t = t || l || E'\n';
-  END LOOP;
+--CREATE TRIGGER transition_table_base_ins_trig
+--  AFTER INSERT ON transition_table_base
+--  REFERENCING OLD TABLE AS oldtable NEW TABLE AS newtable
+--  FOR EACH STATEMENT
+--  EXECUTE PROCEDURE transition_table_base_ins_func();
 
-  RAISE INFO '%', t;
-  RETURN new;
-END;
-$$;
-
-CREATE TRIGGER transition_table_base_ins_trig
-  AFTER INSERT ON transition_table_base
-  REFERENCING OLD TABLE AS oldtable NEW TABLE AS newtable
-  FOR EACH STATEMENT
-  EXECUTE PROCEDURE transition_table_base_ins_func();
-
-CREATE TRIGGER transition_table_base_ins_trig
-  AFTER INSERT ON transition_table_base
-  REFERENCING NEW TABLE AS newtable
-  FOR EACH STATEMENT
-  EXECUTE PROCEDURE transition_table_base_ins_func();
+--CREATE TRIGGER transition_table_base_ins_trig
+--  AFTER INSERT ON transition_table_base
+--  REFERENCING NEW TABLE AS newtable
+--  FOR EACH STATEMENT
+--  EXECUTE PROCEDURE transition_table_base_ins_func();
 
 INSERT INTO transition_table_base VALUES (1, 'One'), (2, 'Two');
 INSERT INTO transition_table_base VALUES (3, 'Three'), (4, 'Four');
 
-CREATE OR REPLACE FUNCTION transition_table_base_upd_func()
-  RETURNS trigger
-  LANGUAGE plpgsql
-AS $$
-DECLARE
-  t text;
-  l text;
-BEGIN
-  t = '';
-  FOR l IN EXECUTE
-           $q$
-             EXPLAIN (TIMING off, COSTS off, VERBOSE on)
-             SELECT * FROM oldtable ot FULL JOIN newtable nt USING (id)
-           $q$ LOOP
-    t = t || l || E'\n';
-  END LOOP;
 
-  RAISE INFO '%', t;
-  RETURN new;
-END;
-$$;
-
-CREATE TRIGGER transition_table_base_upd_trig
-  AFTER UPDATE ON transition_table_base
-  REFERENCING OLD TABLE AS oldtable NEW TABLE AS newtable
-  FOR EACH STATEMENT
-  EXECUTE PROCEDURE transition_table_base_upd_func();
+--CREATE TRIGGER transition_table_base_upd_trig
+--  AFTER UPDATE ON transition_table_base
+--  REFERENCING OLD TABLE AS oldtable NEW TABLE AS newtable
+--  FOR EACH STATEMENT
+-- EXECUTE PROCEDURE transition_table_base_upd_func();
 
 UPDATE transition_table_base
   SET val = '*' || val || '*'
@@ -4304,126 +3323,62 @@ CREATE TABLE transition_table_status
        PRIMARY KEY (level, node_no)
 ) WITHOUT OIDS;
 
-CREATE FUNCTION transition_table_level1_ri_parent_del_func()
-  RETURNS TRIGGER
-  LANGUAGE plpgsql
-AS $$
-  DECLARE n bigint;
-  BEGIN
-    PERFORM FROM p JOIN transition_table_level2 c ON c.parent_no = p.level1_no;
-    IF FOUND THEN
-      RAISE EXCEPTION 'RI error';
-    END IF;
-    RETURN NULL;
-  END;
-$$;
+--CREATE TRIGGER transition_table_level1_ri_parent_del_trigger
+--  AFTER DELETE ON transition_table_level1
+--  REFERENCING OLD TABLE AS p
+--  FOR EACH STATEMENT EXECUTE PROCEDURE
+--    transition_table_level1_ri_parent_del_func();
 
-CREATE TRIGGER transition_table_level1_ri_parent_del_trigger
-  AFTER DELETE ON transition_table_level1
-  REFERENCING OLD TABLE AS p
-  FOR EACH STATEMENT EXECUTE PROCEDURE
-    transition_table_level1_ri_parent_del_func();
+--CREATE TRIGGER transition_table_level1_ri_parent_upd_trigger
+--  AFTER UPDATE ON transition_table_level1
+--  REFERENCING OLD TABLE AS d NEW TABLE AS i
+--  FOR EACH STATEMENT EXECUTE PROCEDURE
+--    transition_table_level1_ri_parent_upd_func();
+--CREATE TRIGGER transition_table_level2_ri_child_ins_trigger
+--  AFTER INSERT ON transition_table_level2
+--  REFERENCING NEW TABLE AS i
+--  FOR EACH STATEMENT EXECUTE PROCEDURE
+--    transition_table_level2_ri_child_insupd_func();
 
-CREATE FUNCTION transition_table_level1_ri_parent_upd_func()
-  RETURNS TRIGGER
-  LANGUAGE plpgsql
-AS $$
-  DECLARE
-    x int;
-  BEGIN
-    WITH p AS (SELECT level1_no, sum(delta) cnt
-                 FROM (SELECT level1_no, 1 AS delta FROM i
-                       UNION ALL
-                       SELECT level1_no, -1 AS delta FROM d) w
-                 GROUP BY level1_no
-                 HAVING sum(delta) < 0)
-    SELECT level1_no
-      FROM p JOIN transition_table_level2 c ON c.parent_no = p.level1_no
-      INTO x;
-    IF FOUND THEN
-      RAISE EXCEPTION 'RI error';
-    END IF;
-    RETURN NULL;
-  END;
-$$;
-
-CREATE TRIGGER transition_table_level1_ri_parent_upd_trigger
-  AFTER UPDATE ON transition_table_level1
-  REFERENCING OLD TABLE AS d NEW TABLE AS i
-  FOR EACH STATEMENT EXECUTE PROCEDURE
-    transition_table_level1_ri_parent_upd_func();
-
-CREATE FUNCTION transition_table_level2_ri_child_insupd_func()
-  RETURNS TRIGGER
-  LANGUAGE plpgsql
-AS $$
-  BEGIN
-    PERFORM FROM i
-      LEFT JOIN transition_table_level1 p
-        ON p.level1_no IS NOT NULL AND p.level1_no = i.parent_no
-      WHERE p.level1_no IS NULL;
-    IF FOUND THEN
-      RAISE EXCEPTION 'RI error';
-    END IF;
-    RETURN NULL;
-  END;
-$$;
-
-CREATE TRIGGER transition_table_level2_ri_child_ins_trigger
-  AFTER INSERT ON transition_table_level2
-  REFERENCING NEW TABLE AS i
-  FOR EACH STATEMENT EXECUTE PROCEDURE
-    transition_table_level2_ri_child_insupd_func();
-
-CREATE TRIGGER transition_table_level2_ri_child_upd_trigger
-  AFTER UPDATE ON transition_table_level2
-  REFERENCING NEW TABLE AS i
-  FOR EACH STATEMENT EXECUTE PROCEDURE
-    transition_table_level2_ri_child_insupd_func();
+--CREATE TRIGGER transition_table_level2_ri_child_upd_trigger
+--  AFTER UPDATE ON transition_table_level2
+--  REFERENCING NEW TABLE AS i
+--  FOR EACH STATEMENT EXECUTE PROCEDURE
+--    transition_table_level2_ri_child_insupd_func();
 
 -- create initial test data
 INSERT INTO transition_table_level1 (level1_no)
   SELECT generate_series(1,200);
-ANALYZE transition_table_level1;
+--ANALYZE transition_table_level1;
 
 INSERT INTO transition_table_level2 (level2_no, parent_no)
   SELECT level2_no, level2_no / 50 + 1 AS parent_no
     FROM generate_series(1,9999) level2_no;
-ANALYZE transition_table_level2;
+--ANALYZE transition_table_level2;
 
 INSERT INTO transition_table_status (level, node_no, status)
   SELECT 1, level1_no, 0 FROM transition_table_level1;
 
 INSERT INTO transition_table_status (level, node_no, status)
   SELECT 2, level2_no, 0 FROM transition_table_level2;
-ANALYZE transition_table_status;
+--ANALYZE transition_table_status;
 
 INSERT INTO transition_table_level1(level1_no)
   SELECT generate_series(201,1000);
-ANALYZE transition_table_level1;
+--ANALYZE transition_table_level1;
 
 -- behave reasonably if someone tries to modify a transition table
-CREATE FUNCTION transition_table_level2_bad_usage_func()
-  RETURNS TRIGGER
-  LANGUAGE plpgsql
-AS $$
-  BEGIN
-    INSERT INTO dx VALUES (1000000, 1000000, 'x');
-    RETURN NULL;
-  END;
-$$;
-
-CREATE TRIGGER transition_table_level2_bad_usage_trigger
-  AFTER DELETE ON transition_table_level2
-  REFERENCING OLD TABLE AS dx
-  FOR EACH STATEMENT EXECUTE PROCEDURE
-    transition_table_level2_bad_usage_func();
+--CREATE TRIGGER transition_table_level2_bad_usage_trigger
+--  AFTER DELETE ON transition_table_level2
+--  REFERENCING OLD TABLE AS dx
+--  FOR EACH STATEMENT EXECUTE PROCEDURE
+--   transition_table_level2_bad_usage_func();
 
 DELETE FROM transition_table_level2
   WHERE level2_no BETWEEN 301 AND 305;
 
-DROP TRIGGER transition_table_level2_bad_usage_trigger
-  ON transition_table_level2;
+--DROP TRIGGER transition_table_level2_bad_usage_trigger
+--  ON transition_table_level2;
 
 -- attempt modifications which would break RI (should all fail)
 DELETE FROM transition_table_level1
@@ -4459,32 +3414,20 @@ CREATE TABLE alter_table_under_transition_tables
   name text
 );
 
-CREATE FUNCTION alter_table_under_transition_tables_upd_func()
-  RETURNS TRIGGER
-  LANGUAGE plpgsql
-AS $$
-BEGIN
-  RAISE WARNING 'old table = %, new table = %',
-                  (SELECT string_agg(id || '=' || name, ',') FROM d),
-                  (SELECT string_agg(id || '=' || name, ',') FROM i);
-  RAISE NOTICE 'one = %', (SELECT 1 FROM alter_table_under_transition_tables LIMIT 1);
-  RETURN NULL;
-END;
-$$;
 
 -- should fail, TRUNCATE is not compatible with transition tables
-CREATE TRIGGER alter_table_under_transition_tables_upd_trigger
-  AFTER TRUNCATE OR UPDATE ON alter_table_under_transition_tables
-  REFERENCING OLD TABLE AS d NEW TABLE AS i
-  FOR EACH STATEMENT EXECUTE PROCEDURE
-    alter_table_under_transition_tables_upd_func();
+--CREATE TRIGGER alter_table_under_transition_tables_upd_trigger
+--  AFTER TRUNCATE OR UPDATE ON alter_table_under_transition_tables
+--  REFERENCING OLD TABLE AS d NEW TABLE AS i
+--  FOR EACH STATEMENT EXECUTE PROCEDURE
+ --   alter_table_under_transition_tables_upd_func();
 
 -- should work
-CREATE TRIGGER alter_table_under_transition_tables_upd_trigger
-  AFTER UPDATE ON alter_table_under_transition_tables
-  REFERENCING OLD TABLE AS d NEW TABLE AS i
-  FOR EACH STATEMENT EXECUTE PROCEDURE
-    alter_table_under_transition_tables_upd_func();
+--CREATE TRIGGER alter_table_under_transition_tables_upd_trigger
+--  AFTER UPDATE ON alter_table_under_transition_tables
+--  REFERENCING OLD TABLE AS d NEW TABLE AS i
+--  FOR EACH STATEMENT EXECUTE PROCEDURE
+--    alter_table_under_transition_tables_upd_func();
 
 INSERT INTO alter_table_under_transition_tables
   VALUES (1, '1'), (2, '2'), (3, '3');
@@ -4503,6 +3446,7 @@ ALTER TABLE alter_table_under_transition_tables
 UPDATE alter_table_under_transition_tables
   SET id = id;
 
+
 --
 -- Test multiple reference to a transition table
 --
@@ -4510,21 +3454,11 @@ UPDATE alter_table_under_transition_tables
 CREATE TABLE multi_test (i int);
 INSERT INTO multi_test VALUES (1);
 
-CREATE OR REPLACE FUNCTION multi_test_trig() RETURNS trigger
-LANGUAGE plpgsql AS $$
-BEGIN
-    RAISE NOTICE 'count = %', (SELECT COUNT(*) FROM new_test);
-    RAISE NOTICE 'count union = %',
-      (SELECT COUNT(*)
-       FROM (SELECT * FROM new_test UNION ALL SELECT * FROM new_test) ss);
-    RETURN NULL;
-END$$;
+--CREATE TRIGGER my_trigger AFTER UPDATE ON multi_test
+--  REFERENCING NEW TABLE AS new_test OLD TABLE as old_test
+--  FOR EACH STATEMENT EXECUTE PROCEDURE multi_test_trig();
 
-CREATE TRIGGER my_trigger AFTER UPDATE ON multi_test
-  REFERENCING NEW TABLE AS new_test OLD TABLE as old_test
-  FOR EACH STATEMENT EXECUTE PROCEDURE multi_test_trig();
-
-UPDATE multi_test SET i = i;
+--UPDATE multi_test SET i = i;
 
 DROP TABLE multi_test;
 DROP FUNCTION multi_test_trig();

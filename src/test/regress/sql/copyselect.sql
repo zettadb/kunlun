@@ -19,6 +19,10 @@ create view v_test1
 as select 'v_'||t from test1;
 
 --
+-- Test COPY table TO
+--
+copy test1 to stdout;
+--
 -- This should fail
 --
 copy v_test1 to stdout;
@@ -59,6 +63,10 @@ copy (select * from (select t from test1 where id = 1 UNION select * from v_test
 --
 copy (select t from test1 where id = 1) to stdout csv header force quote t;
 --
+-- Test psql builtins, plain table
+--
+\copy test1 to stdout
+--
 -- This should fail
 --
 \copy v_test1 to stdout
@@ -77,3 +85,12 @@ drop table test1;
 copy (select 1) to stdout\; select 1/0;	-- row, then error
 select 1/0\; copy (select 1) to stdout; -- error only
 copy (select 1) to stdout\; copy (select 2) to stdout\; select 0\; select 3; -- 1 2 3
+
+create table test3 (c int);
+select 0\; copy test3 from stdin\; copy test3 from stdin\; select 1; -- 1
+1
+\.
+2
+\.
+select * from test3;
+drop table test3;

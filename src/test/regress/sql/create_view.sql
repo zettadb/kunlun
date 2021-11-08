@@ -29,14 +29,14 @@ CREATE VIEW key_dependent_view_no_cols AS
 --
 -- CREATE OR REPLACE VIEW
 --
--- copy not supported.
+
 CREATE TABLE viewtest_tbl (a int, b int);
---COPY viewtest_tbl FROM stdin;
---5	10
---10	15
---15	20
---20	25
---\.
+COPY viewtest_tbl FROM stdin;
+5	10
+10	15
+15	20
+20	25
+\.
 
 CREATE OR REPLACE VIEW viewtest AS
 	SELECT * FROM viewtest_tbl;

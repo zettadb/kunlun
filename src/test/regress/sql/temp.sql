@@ -206,9 +206,10 @@ drop function pg_temp.twophase_func();
 prepare transaction 'twophase_func';
 -- Operator creation
 begin;
-create operator pg_temp.@@ (leftarg = int4, rightarg = int4, procedure = int4mi);
+--create operator pg_temp.@@ (leftarg = int4, rightarg = int4, procedure = int4mi);
 prepare transaction 'twophase_operator';
 
+-- These generate errors about temporary tables.
 -- These generate errors about temporary tables.
 begin;
 create type pg_temp.twophase_type as (a int);

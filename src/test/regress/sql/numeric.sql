@@ -955,7 +955,6 @@ select exp(1234.5678);
 select * from generate_series(0.0::numeric, 4.0::numeric);
 select * from generate_series(0.1::numeric, 4.0::numeric, 1.3::numeric);
 select * from generate_series(4.0::numeric, -1.5::numeric, -2.2::numeric);
-select * from generate_series(0::numeric, '11111'::numeric, 10::numeric);
 -- Trigger errors
 select * from generate_series(-100::numeric, 100::numeric, 0::numeric);
 select * from generate_series(-100::numeric, 100::numeric, 'nan'::numeric);

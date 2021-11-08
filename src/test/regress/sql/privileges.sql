@@ -91,6 +91,7 @@ GRANT ALL ON atest1 TO PUBLIC; -- fail
 SELECT * FROM atest1 WHERE ( b IN ( SELECT col1 FROM atest2 ) );
 SELECT * FROM atest2 WHERE ( col1 IN ( SELECT b FROM atest1 ) );
 
+
 SET SESSION AUTHORIZATION regress_priv_user3;
 SELECT session_user, current_user;
 
@@ -106,12 +107,16 @@ delete from atest2; -- fail
 BEGIN;
 LOCK atest2 IN ACCESS EXCLUSIVE MODE; -- ok
 COMMIT;
+COPY atest2 FROM stdin; -- fail
 
 -- checks in subquery, both fail
 SELECT * FROM atest1 WHERE ( b IN ( SELECT col1 FROM atest2 ) );
 SELECT * FROM atest2 WHERE ( col1 IN ( SELECT b FROM atest1 ) );
 
 SET SESSION AUTHORIZATION regress_priv_user4;
+COPY atest2 FROM stdin; -- ok
+bar	true
+\.
 SELECT * FROM atest1; -- ok
 
 
@@ -272,8 +277,11 @@ INSERT INTO atest5 VALUES (1,2,3);
 SET SESSION AUTHORIZATION regress_priv_user4;
 SELECT * FROM atest5; -- fail
 SELECT one FROM atest5; -- ok
+COPY atest5 (one) TO stdout; -- ok
 SELECT two FROM atest5; -- fail
+COPY atest5 (two) TO stdout; -- fail
 SELECT atest5 FROM atest5; -- fail
+COPY atest5 (one,two) TO stdout; -- fail
 SELECT 1 FROM atest5; -- ok
 SELECT 1 FROM atest5 a JOIN atest5 b USING (one); -- ok
 SELECT 1 FROM atest5 a JOIN atest5 b USING (two); -- fail
@@ -301,6 +309,10 @@ SELECT one, two FROM atest5 NATURAL JOIN atest6; -- ok now
 
 -- test column-level privileges for INSERT and UPDATE
 INSERT INTO atest5 (two) VALUES (3); -- ok
+COPY atest5 FROM stdin; -- fail
+COPY atest5 (two) FROM stdin; -- ok
+1
+\.
 INSERT INTO atest5 (three) VALUES (4); -- fail
 INSERT INTO atest5 VALUES (5,5,5); -- fail
 UPDATE atest5 SET three = 10; -- ok
@@ -328,6 +340,8 @@ GRANT SELECT (one,two,blue) ON atest6 TO regress_priv_user4;
 SET SESSION AUTHORIZATION regress_priv_user4;
 SELECT one FROM atest5; -- fail
 UPDATE atest5 SET one = 1; -- fail
+SELECT atest6 FROM atest6; -- ok
+COPY atest6 TO stdout; -- ok
 
 -- check error reporting with column privs
 SET SESSION AUTHORIZATION regress_priv_user1;

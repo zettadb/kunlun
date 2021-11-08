@@ -119,6 +119,34 @@ select array(select sum(x+y) s
 select array(select sum(x+y) s
             from generate_series(1,3) y group by y order by s)
   from generate_series(1,3) x;
+  
+  -- empty case
+SELECT
+  BIT_AND(i2) AS "?",
+  BIT_OR(i4)  AS "?"
+FROM bitwise_test;
+
+COPY bitwise_test FROM STDIN NULL 'null';
+1	1	1	1	1	B0101
+3	3	3	null	2	B0100
+7	7	7	3	4	B1100
+\.
+
+SELECT
+  BIT_AND(i2) AS "1",
+  BIT_AND(i4) AS "1",
+  BIT_AND(i8) AS "1",
+  BIT_AND(i)  AS "?",
+  BIT_AND(x)  AS "0",
+  BIT_AND(y)  AS "0100",
+
+  BIT_OR(i2)  AS "7",
+  BIT_OR(i4)  AS "7",
+  BIT_OR(i8)  AS "7",
+  BIT_OR(i)   AS "?",
+  BIT_OR(x)   AS "7",
+  BIT_OR(y)   AS "1101"
+FROM bitwise_test;
 
 --
 -- test boolean aggregates
@@ -152,6 +180,46 @@ SELECT
   boolor_statefunc(TRUE, FALSE) AS "t",
   boolor_statefunc(FALSE, TRUE) AS "t",
   NOT boolor_statefunc(FALSE, FALSE) AS "t";
+  
+  
+  -- empty case
+SELECT
+  BOOL_AND(b1)   AS "n",
+  BOOL_OR(b3)    AS "n"
+FROM bool_test;
+
+COPY bool_test FROM STDIN NULL 'null';
+TRUE	null	FALSE	null
+FALSE	TRUE	null	null
+null	TRUE	FALSE	null
+\.
+
+SELECT
+  BOOL_AND(b1)     AS "f",
+  BOOL_AND(b2)     AS "t",
+  BOOL_AND(b3)     AS "f",
+  BOOL_AND(b4)     AS "n",
+  BOOL_AND(NOT b2) AS "f",
+  BOOL_AND(NOT b3) AS "t"
+FROM bool_test;
+
+SELECT
+  EVERY(b1)     AS "f",
+  EVERY(b2)     AS "t",
+  EVERY(b3)     AS "f",
+  EVERY(b4)     AS "n",
+  EVERY(NOT b2) AS "f",
+  EVERY(NOT b3) AS "t"
+FROM bool_test;
+
+SELECT
+  BOOL_OR(b1)      AS "t",
+  BOOL_OR(b2)      AS "t",
+  BOOL_OR(b3)      AS "f",
+  BOOL_OR(b4)      AS "n",
+  BOOL_OR(NOT b2)  AS "f",
+  BOOL_OR(NOT b3)  AS "t"
+FROM bool_test;
 
 --
 -- Test cases that should be optimized into indexscans instead of

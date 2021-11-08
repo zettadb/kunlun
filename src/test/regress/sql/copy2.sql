@@ -20,11 +20,11 @@ CREATE FUNCTION fn_x_after () RETURNS TRIGGER AS '
 	END;
 ' LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_x_after AFTER INSERT ON x
-FOR EACH ROW EXECUTE PROCEDURE fn_x_after();
+--CREATE TRIGGER trg_x_after AFTER INSERT ON x
+--FOR EACH ROW EXECUTE PROCEDURE fn_x_after();
 
-CREATE TRIGGER trg_x_before BEFORE INSERT ON x
-FOR EACH ROW EXECUTE PROCEDURE fn_x_before();
+--CREATE TRIGGER trg_x_before BEFORE INSERT ON x
+--FOR EACH ROW EXECUTE PROCEDURE fn_x_before();
 
 COPY x (a, b, c, d, e) from stdin;
 9999	\N	\\N	\NN	\N
@@ -178,89 +178,89 @@ COPY testnull FROM stdin WITH NULL AS E'\\0';
 
 SELECT * FROM testnull;
 
-BEGIN;
+--BEGIN;
 CREATE TABLE vistest (LIKE testeoc);
 COPY vistest FROM stdin CSV;
 a0
 b
 \.
-COMMIT;
+--COMMIT;
 SELECT * FROM vistest;
-BEGIN;
-TRUNCATE vistest;
+--BEGIN;
+--TRUNCATE vistest;
 COPY vistest FROM stdin CSV;
 a1
 b
 \.
 SELECT * FROM vistest;
 SAVEPOINT s1;
-TRUNCATE vistest;
+--TRUNCATE vistest;
 COPY vistest FROM stdin CSV;
 d1
 e
 \.
 SELECT * FROM vistest;
-COMMIT;
+--COMMIT;
 SELECT * FROM vistest;
 
-BEGIN;
-TRUNCATE vistest;
+--BEGIN;
+--TRUNCATE vistest;
 COPY vistest FROM stdin CSV FREEZE;
 a2
 b
 \.
 SELECT * FROM vistest;
 SAVEPOINT s1;
-TRUNCATE vistest;
+--TRUNCATE vistest;
 COPY vistest FROM stdin CSV FREEZE;
 d2
 e
 \.
 SELECT * FROM vistest;
-COMMIT;
+--COMMIT;
 SELECT * FROM vistest;
 
-BEGIN;
-TRUNCATE vistest;
+--BEGIN;
+--TRUNCATE vistest;
 COPY vistest FROM stdin CSV FREEZE;
 x
 y
 \.
 SELECT * FROM vistest;
-COMMIT;
-TRUNCATE vistest;
+--COMMIT;
+--TRUNCATE vistest;
 COPY vistest FROM stdin CSV FREEZE;
 p
 g
 \.
-BEGIN;
-TRUNCATE vistest;
+--BEGIN;
+--TRUNCATE vistest;
 SAVEPOINT s1;
 COPY vistest FROM stdin CSV FREEZE;
 m
 k
 \.
-COMMIT;
-BEGIN;
+--COMMIT;
+--BEGIN;
 INSERT INTO vistest VALUES ('z');
 SAVEPOINT s1;
-TRUNCATE vistest;
+--TRUNCATE vistest;
 ROLLBACK TO SAVEPOINT s1;
 COPY vistest FROM stdin CSV FREEZE;
 d3
 e
 \.
-COMMIT;
+--COMMIT;
 CREATE FUNCTION truncate_in_subxact() RETURNS VOID AS
 $$
-BEGIN
+--BEGIN
 	TRUNCATE vistest;
 EXCEPTION
   WHEN OTHERS THEN
 	INSERT INTO vistest VALUES ('subxact failure');
 END;
 $$ language plpgsql;
-BEGIN;
+--BEGIN;
 INSERT INTO vistest VALUES ('z');
 SELECT truncate_in_subxact();
 COPY vistest FROM stdin CSV FREEZE;
@@ -268,7 +268,7 @@ d4
 e
 \.
 SELECT * FROM vistest;
-COMMIT;
+--COMMIT;
 SELECT * FROM vistest;
 -- Test FORCE_NOT_NULL and FORCE_NULL options
 CREATE TEMP TABLE forcetest (
@@ -316,7 +316,7 @@ begin
   raise notice 'input = %', row_to_json($1);
   return $1.f1 > 0;
 end $$ language plpgsql immutable;
-alter table check_con_tbl add check (check_con_function(check_con_tbl.*));
+--alter table check_con_tbl add check (check_con_function(check_con_tbl.*));
 \d+ check_con_tbl
 copy check_con_tbl from stdin;
 1
@@ -339,9 +339,9 @@ COPY rls_t1 (a, b, c) from stdin;
 4	1	4
 \.
 
-CREATE POLICY p1 ON rls_t1 FOR SELECT USING (a % 2 = 0);
-ALTER TABLE rls_t1 ENABLE ROW LEVEL SECURITY;
-ALTER TABLE rls_t1 FORCE ROW LEVEL SECURITY;
+--CREATE POLICY p1 ON rls_t1 FOR SELECT USING (a % 2 = 0);
+--ALTER TABLE rls_t1 ENABLE ROW LEVEL SECURITY;
+--ALTER TABLE rls_t1 FORCE ROW LEVEL SECURITY;
 
 GRANT SELECT ON TABLE rls_t1 TO regress_rls_copy_user;
 GRANT SELECT (a, b) ON TABLE rls_t1 TO regress_rls_copy_user_colperms;
@@ -396,14 +396,14 @@ test1
 \.
 
 CREATE FUNCTION fun_instead_of_insert_tbl() RETURNS trigger AS $$
-BEGIN
+--BEGIN
   INSERT INTO instead_of_insert_tbl (name) VALUES (NEW.str);
   RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
-CREATE TRIGGER trig_instead_of_insert_tbl_view
-  INSTEAD OF INSERT ON instead_of_insert_tbl_view
-  FOR EACH ROW EXECUTE PROCEDURE fun_instead_of_insert_tbl();
+--CREATE TRIGGER trig_instead_of_insert_tbl_view
+ --INSTEAD OF INSERT ON instead_of_insert_tbl_view
+ -- FOR EACH ROW EXECUTE PROCEDURE fun_instead_of_insert_tbl();
 
 COPY instead_of_insert_tbl_view FROM stdin;
 test1
@@ -414,18 +414,18 @@ SELECT * FROM instead_of_insert_tbl;
 -- Test of COPY optimization with view using INSTEAD OF INSERT
 -- trigger when relation is created in the same transaction as
 -- when COPY is executed.
-BEGIN;
+--BEGIN;
 CREATE VIEW instead_of_insert_tbl_view_2 as select ''::text as str;
-CREATE TRIGGER trig_instead_of_insert_tbl_view_2
-  INSTEAD OF INSERT ON instead_of_insert_tbl_view_2
-  FOR EACH ROW EXECUTE PROCEDURE fun_instead_of_insert_tbl();
+--CREATE TRIGGER trig_instead_of_insert_tbl_view_2
+ -- INSTEAD OF INSERT ON instead_of_insert_tbl_view_2
+  --FOR EACH ROW EXECUTE PROCEDURE fun_instead_of_insert_tbl();
 
 COPY instead_of_insert_tbl_view_2 FROM stdin;
 test1
 \.
 
 SELECT * FROM instead_of_insert_tbl;
-COMMIT;
+--COMMIT;
 
 -- clean up
 DROP TABLE forcetest;

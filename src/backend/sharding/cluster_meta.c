@@ -2188,3 +2188,26 @@ static int FindMetaShardAllNodes(CMNConnInfo *cmnodes, size_t n)
 	}
 	return cur_idx;
 }
+
+Storage_HA_Mode storage_ha_mode()
+{
+	bool need_txn = !IsTransactionState();
+	if (need_txn)
+	{
+		SetCurrentStatementStartTimestamp();
+		StartTransactionCommand();
+		PushActiveSnapshot(GetTransactionSnapshot());
+	}
+
+	HeapTuple ctup = SearchSysCache1(CLUSTER_META, comp_node_id);
+	Form_pg_cluster_meta cmeta = (Form_pg_cluster_meta)GETSTRUCT(ctup);
+	Storage_HA_Mode ret = cmeta ? cmeta->ha_mode : HA_NO_REP;
+	if (ctup) ReleaseSysCache(ctup);
+	if (need_txn)
+	{
+		PopActiveSnapshot();
+		CommitTransactionCommand();
+	}
+	return ret;
+}
+

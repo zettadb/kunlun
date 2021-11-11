@@ -55,7 +55,6 @@ int mysql_read_timeout = 10;
 int mysql_write_timeout = 10;
 int mysql_max_packet_size = 16384;
 bool mysql_transmit_compress = false;
-Storage_HA_Mode storage_ha_mode = HA_NO_REP;
 
 static void send_stmt_to_multi(AsyncStmtInfo *asis, size_t shard_cnt);
 static void send_stmt_to_multi_wait(AsyncStmtInfo *asis, size_t shard_cnt);
@@ -247,6 +246,7 @@ AsyncStmtInfo *GetAsyncStmtInfoNode(Oid shardid, Oid shardNodeId, bool req_chk_o
 	}
 
 	bool want_master = false;
+	Storage_HA_Mode ha_mode = storage_ha_mode();
 
 	if (shardNodeId == InvalidOid)
 	{
@@ -257,7 +257,7 @@ AsyncStmtInfo *GetAsyncStmtInfoNode(Oid shardid, Oid shardNodeId, bool req_chk_o
 		  shard's master node. Otherwise caller simply want to connect to
 		  the node, so don't check it's a master.
 		 */
-		if (storage_ha_mode != HA_NO_REP) want_master = true;
+		if (ha_mode != HA_NO_REP) want_master = true;
 	}
 
 	for (int i = 0; i < cur_session.num_asis_used; i++)
@@ -300,7 +300,7 @@ AsyncStmtInfo *GetAsyncStmtInfoNode(Oid shardid, Oid shardNodeId, bool req_chk_o
 
 		char cmdbuf[256];
 		int cmdlen = 0;
-		if (storage_ha_mode != HA_NO_REP)
+		if (ha_mode != HA_NO_REP)
 			cmdlen = snprintf(cmdbuf, sizeof(cmdbuf),
 				"SET NAMES 'utf8'; set session autocommit = true; set computing_node_id=%u; set global_conn_id=%u",
 				comp_node_id, getpid());
@@ -1933,16 +1933,17 @@ void CancelAllRemoteStmtsInQueue(bool freestmts)
 static void
 make_check_mysql_node_status_stmt(AsyncStmtInfo *asi, bool want_master)
 {
-	Assert(storage_ha_mode != HA_NO_REP);
+	Storage_HA_Mode ha_mode = storage_ha_mode();
+	Assert(ha_mode != HA_NO_REP);
 
 	static const char *stmt_mgr = "select MEMBER_HOST, MEMBER_PORT from performance_schema.replication_group_members where channel_name='group_replication_applier' and MEMBER_STATE='ONLINE' and MEMBER_ROLE='PRIMARY'";
 	static const char *stmt_rbr = "show slave status"; // TODO: this need extra work
 
 	static size_t stmtlen = 0;
 	const char *stmt = NULL;
-	if (storage_ha_mode == HA_MGR)
+	if (ha_mode == HA_MGR)
 		stmt = stmt_mgr;
-	else if (storage_ha_mode == HA_RBR)
+	else if (ha_mode == HA_RBR)
 		stmt = stmt_rbr;
 	else
 		Assert(false);
@@ -1955,9 +1956,10 @@ make_check_mysql_node_status_stmt(AsyncStmtInfo *asi, bool want_master)
 static void
 check_mysql_node_status(AsyncStmtInfo *asi, bool want_master)
 {
-	Assert(storage_ha_mode != HA_NO_REP);
+	Storage_HA_Mode ha_mode = storage_ha_mode();
+	Assert(ha_mode != HA_NO_REP);
 
-	Assert(storage_ha_mode == HA_MGR); // this is true only for now.
+	Assert(ha_mode == HA_MGR); // this is true only for now.
 
 	MYSQL_RES *mres = asi->mysql_res;
 	Assert(mres);

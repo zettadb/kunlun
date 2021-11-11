@@ -153,7 +153,6 @@ MYSQL_CONN* get_metadata_cluster_conn(bool isbg)
 	 return &cluster_conn;
 }
 
-
 /*
   Connect metadata master node, and optionally recover current computing node's nextXid.
 */
@@ -210,7 +209,6 @@ retry:
 	Form_pg_cluster_meta cmeta = (Form_pg_cluster_meta)GETSTRUCT(ctup);
 	cluster_id = cmeta->cluster_id;
 	g_cluster_name = cmeta->cluster_name;
-	storage_ha_mode = (Storage_HA_Mode)cmeta->ha_mode;
 
 	Oid cmid = cmeta->cluster_master_id;
 	HeapTuple cmtup = SearchSysCache1(CLUSTER_META_NODES, cmid);

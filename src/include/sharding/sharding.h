@@ -36,7 +36,7 @@ typedef enum Storage_HA_Mode {
   All storage shards of a kunlun cluster share the same HA mode and
   they never change it after the cluster is created.
 */
-extern Storage_HA_Mode storage_ha_mode;
+extern Storage_HA_Mode storage_ha_mode();
 
 /*
  * A shard has one master node and multiple slaves nodes. they contain

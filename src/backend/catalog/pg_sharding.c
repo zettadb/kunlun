@@ -993,7 +993,8 @@ void ShardingTopoCheckShmemInit(void)
 */
 bool RequestShardingTopoCheck(Oid shardid)
 {
-	if (storage_ha_mode == HA_NO_REP) return false;
+	Storage_HA_Mode ha_mode = storage_ha_mode();
+	if (ha_mode == HA_NO_REP) return false;
 
 	bool done = false;
 	LWLockAcquire(ShardingTopoCheckLock, LW_EXCLUSIVE);
@@ -1022,8 +1023,9 @@ end:
 static int RequestShardingTopoChecks(Oid *poids, int n)
 {
 	int ndones = 0;
+	Storage_HA_Mode ha_mode = storage_ha_mode();
 
-	if (storage_ha_mode == HA_NO_REP) return 0;
+	if (ha_mode == HA_NO_REP) return 0;
 	LWLockAcquire(ShardingTopoCheckLock, LW_EXCLUSIVE);
 	for (int j = 0; j < n; j++)
 	{
@@ -1068,7 +1070,8 @@ void ProcessShardingTopoReqs()
 
 	static time_t last_master_update_ts = 0;
 	bool selfinit = false;
-	if (nreqs == 0 && storage_ha_mode != HA_NO_REP &&
+	Storage_HA_Mode ha_mode = storage_ha_mode();
+	if (nreqs == 0 && ha_mode != HA_NO_REP &&
 		last_master_update_ts + check_primary_interval_secs < time(NULL))
 	{
 		HASH_SEQ_STATUS seq_status;
@@ -1127,8 +1130,8 @@ static Shard_node_t *find_node_by_ip_port(Shard_t *ps, const char *ip, uint16_t 
 
 void RequestShardingTopoCheckAllStorageShards()
 {
-
-	if (storage_ha_mode == HA_NO_REP) return;
+	Storage_HA_Mode ha_mode = storage_ha_mode();
+	if (ha_mode == HA_NO_REP) return;
 	SetCurrentStatementStartTimestamp();
 	bool end_txn = false;
 

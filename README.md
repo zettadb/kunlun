@@ -2,6 +2,7 @@
 
 For more information, resources, documentation of Kunlun distributed RDBMS, please visit www.zettadb.com
 See ReleaseNotes.md for the list of features released in each version of Kunlun distributed DBMS.
+Join our Slack channel kunlun_users to get involved in technical discussions with our developers and our community.
 
 To build computing node program from source, use build.sh directly or refer to it for instructions.
 To build kunlun-storage from source, see kunlun-storage/INSTALL.kunlun.md for instructions.
@@ -137,9 +138,9 @@ Do not modify anything (table, stored procedure, etc) in Kunlun_Metadata_DB data
 
 ## Contact
 
-Although we already have many useful features, some very useful features are still being actively developed, and you are welcome to give us feedbacks, bug reports and feature requests in this github page. Also please visit www.zettadb.com for more information about Kunlun distributed DBMS.
+Although we already have many useful features, some very useful features are still being actively developed, and you are welcome to give us feedbacks, bug reports and feature requests in this github page. Also please visit www.zettadb.com for more information about Kunlun distributed DBMS, visit downloads.zettadb.com to download docker images, built binaries and pdf docs about Kunlun distributed database, and bugs.zettadb.com for the bugs and tasks we completed and plan to work on.
 
-If you want to communicate with us, you are welcome to join our Slack channel, click the link to join kunlun_users: https://join.slack.com/t/kunlunusers/shared_invite/zt-yslip1ev-R9N~7UdsTKX~huPDtHZHEw
+You are welcome to join our Slack channel kunlun_users, search for 'kunlun_users' (without the quotes) in slack or click this link to join: https://join.slack.com/t/kunlunusers/shared_invite/zt-yslip1ev-R9N~7UdsTKX~huPDtHZHEw
 
 
  

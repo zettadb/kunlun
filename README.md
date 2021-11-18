@@ -139,4 +139,7 @@ Do not modify anything (table, stored procedure, etc) in Kunlun_Metadata_DB data
 
 Although we already have many useful features, some very useful features are still being actively developed, and you are welcome to give us feedbacks, bug reports and feature requests in this github page. Also please visit www.zettadb.com for more information about Kunlun distributed DBMS.
 
+If you want to communicate with us, you are welcome to join our Slack channel, click the link to join kunlun_users: https://join.slack.com/t/kunlunusers/shared_invite/zt-yslip1ev-R9N~7UdsTKX~huPDtHZHEw
+
+
  

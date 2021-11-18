@@ -8648,16 +8648,13 @@ EmitWarningsOnPlaceholders(const char *className)
 
 static AsyncStmtInfo *FindAnyShard()
 {
-	HASH_SEQ_STATUS seqstat;
-	size_t nshards = startShardCacheSeq(&seqstat);
-	if (nshards == 0)
+	List *pshards = GetAllShardIds();
+	if (pshards == NULL || list_length(pshards) == 0)
 		ereport(ERROR,
 				(errcode(ERRCODE_INTERNAL_ERROR),
 				 errmsg("No storage shard found.")));
 
-	Shard_ref_t *ptr = hash_seq_search(&seqstat);
-	AsyncStmtInfo *asi = GetAsyncStmtInfo(ptr->id);
-	hash_seq_term(&seqstat);
+	AsyncStmtInfo *asi = GetAsyncStmtInfo(linitial_oid(pshards));
 	return asi;
 }
 

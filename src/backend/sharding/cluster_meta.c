@@ -278,7 +278,8 @@ static int connect_mysql(MYSQL_CONN *mysql, const char *host, uint16_t port,
 #define MAX_HOSTADDR_LEN 8192 // align with def in metadata tables.
 	if (cur_meta_hostaddr == NULL)
 		cur_meta_hostaddr = MemoryContextAlloc(TopMemoryContext, MAX_HOSTADDR_LEN);
-	strncat(cur_meta_hostaddr, host, MAX_HOSTADDR_LEN - 1);
+	strncpy(cur_meta_hostaddr, host, MAX_HOSTADDR_LEN - 1);
+	cur_meta_hostaddr[MAX_HOSTADDR_LEN - 1] = '\0';
 	cur_meta_port = port;
 
 	/* Returns 0 when done, else flag for what to wait for when need to block. */

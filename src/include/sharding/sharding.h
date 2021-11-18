@@ -20,7 +20,10 @@
 #include "catalog/pg_shard_node.h"
 #include "catalog/pg_shard.h"
 #include "utils/hsearch.h"
+#include "utils/rel.h" // Relation
 
+
+#define MAX_NODES_PER_SHARD 7
 
 typedef uint32 Shard_node_id_t;
 extern Shard_node_id_t Invalid_shard_node_id;
@@ -36,7 +39,7 @@ typedef enum Storage_HA_Mode {
   All storage shards of a kunlun cluster share the same HA mode and
   they never change it after the cluster is created.
 */
-extern Storage_HA_Mode storage_ha_mode();
+extern Storage_HA_Mode storage_ha_mode(void);
 
 /*
  * A shard has one master node and multiple slaves nodes. they contain
@@ -64,18 +67,6 @@ typedef struct Shard_node_t
   char *passwd;
 } Shard_node_t;
 
-#define MAX_NODES_PER_SHARD 7
-
-/*
- * Cache reference, in order for Shard_node_t objects to be
- * cached/invalidated seperately.
- * */
-typedef struct Shard_node_ref_t
-{
-  Shard_node_id_t id;
-  Shard_node_t *ptr; // this is 0 if the node is invalidated from cache.
-} Shard_node_ref_t;
-
 // A cluster can have at most 2^16 shards, i.e. a table can be split to
 // at most 2^16 tablets.
 typedef uint16_t Nshards_t;
@@ -84,27 +75,6 @@ typedef uint32 Shard_id_t;
 extern Shard_id_t Invalid_shard_id;
 extern Shard_id_t First_shard_id;
 
-
-typedef struct Shard_t
-{
-  NameData name;
-  uint8_t master_node_idx; // master node index into shard_nodes.
-  uint8_t num_nodes; // number of nodes, including master;
-  Shard_id_t id; // shard id
-  Shard_node_id_t master_node_id; // this is mainly needed at cache init.
-  Shard_node_ref_t shard_nodes[MAX_NODES_PER_SHARD];
-
-  // Below fields changes much more frequently than above, they should be in
-  // another cache line.
-  uint32_t storage_volumn;// data volumn in KBs
-  uint32_t num_tablets;// number of tablets, including whole tables
-} Shard_t;
-
-typedef struct Shard_ref_t
-{
-  Oid id; // shard id
-  Shard_t *ptr;
-} Shard_ref_t;
 
 /*
  * If one modifies this number, do modify ERRORDATA_STACK_SIZE to the
@@ -147,17 +117,16 @@ extern void InvalidateCachedShardNode(Oid shardid, Oid nodeid);
  * Find from hash table the cached shard, if not found, scan tables to load it,
  * and setup reference to its Shard_node_t objects.
  * */
-extern Shard_t* FindCachedShard(Oid shardid);
+extern bool ShardExists(Oid shardid);
 
 /*
  * Find cached Shard_node_t objects. If not cached, scan table to cache it and
  * setup its owner's reference to it if the owner is also cached.
  * */
-extern Shard_node_t* FindCachedShardNode(Oid shardid, Oid nodeid);
+extern bool FindCachedShardNode(Oid shardid, Oid nodeid, Shard_node_t* out);
 
-extern Shard_t *FindBestCachedShard(int which);
-extern size_t startShardCacheSeq(HASH_SEQ_STATUS *seq_status);
-extern size_t get_num_all_valid_shards(void);
+extern Oid FindBestShardForTable(int policy, Relation rel);
+extern Oid GetShardMasterNodeId(Oid shardid);
 
 extern Size ShardingTopoCheckSize(void);
 extern void ShardingTopoCheckShmemInit(void);
@@ -175,4 +144,5 @@ extern ShardConnKillReq *makeMetaConnKillReq(char type, uint32_t connid);
 extern ShardConnKillReq *makeShardConnKillReq(char type);
 extern void inform_cluster_log_applier_main(void);
 
+extern List *GetAllShardIds(void);
 #endif /* !SHARDING_H */

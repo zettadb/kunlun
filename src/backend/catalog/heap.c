@@ -814,10 +814,10 @@ InsertPgClassTuple(Relation pg_class_desc,
 			 * the same storage shard so that we simply can use one with shard=N
 			 * to pass the shard info to peer computing nodes.
 			 * */
-			Shard_t *pshard = NULL;
 			Oid relshardid = InvalidOid;
 			bytea *relopts = heap_reloptions(new_rel_desc->rd_rel->relkind, reloptions, false);
 			Oid target_shard_id = GetRemoteContextShardId();
+			bool found_shard = false;
 
 			if (relopts)
 			{
@@ -833,23 +833,23 @@ InsertPgClassTuple(Relation pg_class_desc,
 					if (target_shard_id == InvalidOid)
 						target_shard_id = relshardid;
 
-					pshard = FindCachedShard(relshardid);
-					if (!pshard)
+					found_shard = ShardExists(relshardid);
+					if (!found_shard)
 						ereport(ERROR,
 								(errcode(ERRCODE_INTERNAL_ERROR),
-								 errmsg("Specified shard (%u) is not found.", relshardid)));
+								 errmsg("Specified shard (shard_id = %u) is not found.", relshardid)));
 				}
 			}
 
-			if (!pshard && target_shard_id == InvalidOid)
+			if (!found_shard && target_shard_id == InvalidOid)
 			{
 				Assert(GetRemoteContextShardId() == InvalidOid);
-				pshard = FindBestCachedShard(sharding_policy/* make this configurable. */);
-				target_shard_id = pshard->id;
-				if (pshard == NULL)
+				target_shard_id = FindBestShardForTable(sharding_policy, new_rel_desc);
+				if (target_shard_id == InvalidOid)
 					ereport(ERROR,
 							(errcode(ERRCODE_INTERNAL_ERROR),
-							 errmsg("No shard available.")));
+							 errmsg("No shard available for relation (%d) %s.",
+							 	    new_rel_desc->rd_id, rd_rel->relname.data)));
 			}
 
 			SetRemoteContextShardId(target_shard_id);

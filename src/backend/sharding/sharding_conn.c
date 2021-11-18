@@ -69,7 +69,6 @@ static void handle_backend_disconnect(AsyncStmtInfo *asi);
 static int wait_for_mysql_multi(AsyncStmtInfo *asi, size_t len, struct pollfd *pfds, int timeout_ms);
 static void handle_mysql_result(AsyncStmtInfo *pasi);
 static void handle_mysql_error(int ret, AsyncStmtInfo *asi);
-static MYSQL *GetConnShardMaster2(Shard_t *ps, int *newconn);
 static MYSQL *GetConnShardNode(Oid shardid, Oid nodeid, int *newconn, bool req_chk_onfail);
 static MYSQL *GetConnShardMaster(Oid shardid, int *newconn);
 static bool ConnHasFlag(AsyncStmtInfo *asi, int flagbit);
@@ -250,8 +249,7 @@ AsyncStmtInfo *GetAsyncStmtInfoNode(Oid shardid, Oid shardNodeId, bool req_chk_o
 
 	if (shardNodeId == InvalidOid)
 	{
-   		Shard_t *ps = FindCachedShard(shardid);
-		shardNodeId = ps->master_node_id;
+		shardNodeId = GetShardMasterNodeId(shardid);
 		/*
 		  Iff shardNodeId == InvalidOid do caller want to connect to the
 		  shard's master node. Otherwise caller simply want to connect to
@@ -423,7 +421,6 @@ static int AllocShardConnNodeSlot(ShardConnection *sconn, Oid nodeid, int *newco
 	int inspos = -1;
 	int pos = bin_search(&nodeid, ids, sconn->num_nodes, sizeof(nodeid), oid_cmp, &inspos);
 	MYSQL *mysql_conn;
-	Shard_node_t* pnode;
 
 	// Most likely an already existing mysql connection.
 	*newconn = 0;
@@ -431,6 +428,8 @@ static int AllocShardConnNodeSlot(ShardConnection *sconn, Oid nodeid, int *newco
 	if (likely(pos >= 0 && ShardBackendConnValid(sconn, pos)))
 		return pos;
 
+	Shard_node_t snode;
+	bool found_shard_node;
 	/*
 	  If the new connection isn't valid, establish it. Especially, the MYSQL slot
 	  could be unallocated because we failed to connect to the target mysql
@@ -473,9 +472,11 @@ static int AllocShardConnNodeSlot(ShardConnection *sconn, Oid nodeid, int *newco
 	sconn->conns[inspos] = mysql_conn;
 	sconn->conn_flags[inspos] = 0;
 make_conn:
-	pnode = FindCachedShardNode(sconn->shard_id, nodeid);
+	found_shard_node = FindCachedShardNode(sconn->shard_id, nodeid, &snode);
 
-	if (!async_connect(mysql_conn, pnode->hostaddr, pnode->port, pnode->user_name.data, pnode->passwd))
+	if (found_shard_node &&
+		!async_connect(mysql_conn, snode.hostaddr, snode.port,
+					   snode.user_name.data, snode.passwd))
 	{
 		if (req_chk_onfail) RequestShardingTopoCheck(sconn->shard_id);
 		/*
@@ -485,7 +486,8 @@ make_conn:
 		ereport(ERROR,
 				(errcode(ERRCODE_CONNECTION_FAILURE),
 				 errmsg("Kunlun-db: Failed to connect to mysql storage node at (%s, %u): %d, %s",
-						pnode->hostaddr, pnode->port, mysql_errno(mysql_conn), mysql_error(mysql_conn))));
+						snode.hostaddr, snode.port, mysql_errno(mysql_conn),
+						mysql_error(mysql_conn))));
 	}
 	sconn->conn_flags[inspos] |= CONN_VALID;
 
@@ -584,14 +586,8 @@ static MYSQL *GetConnShardNode(Oid shardid, Oid nodeid, int *newconn, bool req_c
  * */
 static MYSQL *GetConnShardMaster(Oid shardid, int *newconn)
 {
-	Shard_t *ps = FindCachedShard(shardid);
-	return GetConnShardMaster2(ps, newconn);
-}
-
-static MYSQL *GetConnShardMaster2(Shard_t *ps, int *newconn)
-{
-	ShardConnection*sconn = GetConnShard(ps->id);
-	int slot = AllocShardConnNodeSlot(sconn, ps->master_node_id, newconn, true);
+	ShardConnection*sconn = GetConnShard(shardid);
+	int slot = AllocShardConnNodeSlot(sconn, GetShardMasterNodeId(shardid), newconn, true);
 	return sconn->conns[slot];
 }
 #if 0
@@ -732,8 +728,7 @@ static void handle_mysql_error(int ret, AsyncStmtInfo *asi)
 	if (ret == CR_SERVER_LOST || ret == CR_SERVER_GONE_ERROR ||
 		ret == CR_SERVER_HANDSHAKE_ERR)
 	{
-		Shard_t *ps = FindCachedShard(asi->shard_id);
-		if (ps && ps->master_node_id == asi->node_id)
+		if (GetShardMasterNodeId(asi->shard_id) == asi->node_id)
 		    RequestShardingTopoCheck(asi->shard_id);
 
 		ereport(ERROR,
@@ -1048,22 +1043,21 @@ void
 send_stmt_to_all_shards(char *stmt, size_t len, CmdType cmdtype, bool owns_it,
 	enum enum_sql_command sqlcom)
 {
-	Shard_ref_t *ptr;
-	HASH_SEQ_STATUS seqstat;
-	size_t nshards = startShardCacheSeq(&seqstat);
+	List *shardids = GetAllShardIds();
+	ListCell *lc = NULL;
 
-	while ((ptr = hash_seq_search(&seqstat)) != NULL)
+	foreach (lc, shardids)
 	{
 		/*
 		 * Txn mgmt cmds are never supposed to be sent to all shards existing
 		 * in system.
 		 * */
 		Assert(cmdtype != CMD_TXN_MGMT);
-		AsyncStmtInfo *asi = GetAsyncStmtInfo(ptr->id);
+		AsyncStmtInfo *asi = GetAsyncStmtInfo(lfirst_oid(lc));
 		append_async_stmt(asi, stmt, len, cmdtype, owns_it, sqlcom);
 	}
 
-	send_stmt_to_multi(cur_session.asis, nshards);
+	send_stmt_to_multi(cur_session.asis, list_length(shardids));
 }
 
 /*

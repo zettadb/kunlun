@@ -1089,30 +1089,28 @@ static bool build_wait_for_graph()
 	static int qlen_wait = 0;
 	if (qlen_wait == 0) qlen_wait = strlen(query_wait);
 
-	Shard_ref_t *ptr;
-	HASH_SEQ_STATUS seqstat;
-
 	ResetCommunicationHub();
-
-	size_t nshards = startShardCacheSeq(&seqstat);
-
+	
+	List *pshards = GetAllShardIds();
+	size_t nshards = list_length(pshards);
 	if (nshards == 1) {
-		hash_seq_term(&seqstat);
 		return false;
 	}
-
 
 	/*
 	 * build the wait-for graph.
 	 * */
 	int shardidx = 0;
 	bool gdd_supported = true;
+	ListCell *lc;
 
-	while ((ptr = hash_seq_search(&seqstat)) != NULL)
+	foreach(lc, pshards)
 	{
 		AsyncStmtInfo *asi = NULL;
+		Oid shardid = lfirst_oid(lc);
+
 		PG_TRY(); {
-			asi = GetAsyncStmtInfo(ptr->id);
+			asi = GetAsyncStmtInfo(shardid);
 			if (shardidx == 0 && !(gdd_supported = check_gdd_supported(asi)))
 				break;
 			shardidx++;
@@ -1130,8 +1128,7 @@ static bool build_wait_for_graph()
 			errfinish(0);
 			FlushErrorState();
 			RESUME_INTERRUPTS();
-			elog(DEBUG1, "GDD: Skipping shard (%s, %u) when building wait-for graph because its master %u isn't available for now.",
-				 ptr->ptr->name.data, ptr->id, ptr->ptr->master_node_id);
+			elog(DEBUG1, "GDD: Skipping shard(%u) when building wait-for graph because its master isn't available for now.", shardid);
 		} PG_END_TRY();
 
 		if (asi)

@@ -452,6 +452,12 @@ static bool FindCachedShardInternal(const Oid shardid, bool cache_nodes, Shard_t
 	Shard_t *pshard = NULL;
 	Shard_ref_t *shardref = (Shard_ref_t *)
 		hash_search(ShardCache, &shardid, HASH_FIND, &found_shard);
+	Relation shardrel = heap_open(ShardRelationId, RowExclusiveLock);
+	Relation shardnoderel = heap_open(ShardNodeRelationId, RowExclusiveLock);
+	ScanKeyData key, key1;
+	SysScanDesc scan;
+	HeapTuple	tuple;
+	int nfound = 0;
 
 	if (shardref)
 	{
@@ -472,14 +478,6 @@ static bool FindCachedShardInternal(const Oid shardid, bool cache_nodes, Shard_t
 	}
 
 	// The object was invalidated, fetch it from pg_shard table and cache it.
-	ScanKeyData key, key1;
-	SysScanDesc scan;
-	HeapTuple	tuple;
-	int nfound = 0;
-
-	Relation shardrel = heap_open(ShardRelationId, RowExclusiveLock);
-	Relation shardnoderel = heap_open(ShardNodeRelationId, RowExclusiveLock);
-
 	ScanKeyInit(&key,
 				/*ObjectIdAttributeNumber*/Anum_pg_shard_id,
 				BTEqualStrategyNumber,
@@ -554,9 +552,9 @@ fetch_nodes:
 	Assert(nfound > 0);
 	systable_endscan(scan);
 
+end:
 	heap_close(shardnoderel, NoLock);
 	heap_close(shardrel, NoLock);
-end:
 	if (commit_txn)
 		CommitTransactionCommand();
 	return pshard != NULL;

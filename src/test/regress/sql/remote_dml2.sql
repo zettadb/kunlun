@@ -1240,7 +1240,7 @@ INSERT INTO INT4_TBL(f1) VALUES (' -123456');
 INSERT INTO INT4_TBL(f1) VALUES ('2147483647');
 INSERT INTO INT4_TBL(f1) VALUES ('-2147483647');
 
-SELECT AS eight, ss.f1 AS "Correlated Field", ss.f3 AS "Second Field"
+SELECT ss.f1 AS "Correlated Field", ss.f3 AS "Second Field"
 
     FROM SUBSELECT_TBL ss
     WHERE f1 NOT IN (SELECT f1+1 FROM INT4_TBL

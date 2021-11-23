@@ -167,11 +167,17 @@ bool check_mysql_instance_status(MYSQL_CONN *conn, uint64_t checks, bool isbg)
 		if (result == false) return result;
 	}
 
-	if (checks & CHECK_MGR_MASTER)
+	if (checks & (CHECK_MGR_MASTER | CHECK_RBR_MASTER))
 	{
-	    static const char *stmt = "select MEMBER_HOST, MEMBER_PORT from performance_schema.replication_group_members where channel_name='group_replication_applier' and MEMBER_STATE='ONLINE' and MEMBER_ROLE='PRIMARY'";
-	    static size_t stmtlen = 0;
-	    if (stmtlen == 0) stmtlen = strlen(stmt);
+	    const char *stmt = NULL;
+		if (checks & CHECK_MGR_MASTER) stmt = "select MEMBER_HOST, MEMBER_PORT from performance_schema.replication_group_members where channel_name='group_replication_applier' and MEMBER_STATE='ONLINE' and MEMBER_ROLE='PRIMARY'";
+		else if (checks & CHECK_RBR_MASTER)
+		{
+			stmt = "select host, port, Channel_name  from mysql.slave_master_info ";
+			Assert(false); // TODO: may need extra work.
+		}
+
+	    size_t stmtlen = stmt ? strlen(stmt) : 0;
 
 		ret = mysql_real_query(&conn->conn, stmt, stmtlen);
 		if (ret)
@@ -1728,9 +1734,23 @@ static int check_metashard_master(MYSQL_CONN *cnconn, CMNConnInfo *ci, CMNConnIn
 	}
 	Assert(cret == 0);
 	cnconn->node_type = (ci->is_primary ? 1 : 0);
-	static const char *stmt = "select MEMBER_HOST, MEMBER_PORT from performance_schema.replication_group_members where channel_name='group_replication_applier' and MEMBER_STATE='ONLINE' and MEMBER_ROLE='PRIMARY'";
-	static size_t stmtlen = 0;
-	if (stmtlen == 0) stmtlen = strlen(stmt);
+	const char *stmt = NULL;
+	Storage_HA_Mode ha_mode = storage_ha_mode();
+
+	if (ha_mode == HA_MGR) stmt = "select MEMBER_HOST, MEMBER_PORT from performance_schema.replication_group_members where channel_name='group_replication_applier' and MEMBER_STATE='ONLINE' and MEMBER_ROLE='PRIMARY'";
+	else if (ha_mode == HA_RBR)
+	{
+		stmt = "select host, port, Channel_name from mysql.slave_master_info ";
+		Assert(false);
+	}
+	else
+	{
+		Assert(ha_mode == HA_NO_REP);// the only master is itself.
+		return 0;
+	}
+
+	size_t stmtlen = 0;
+	if (stmt) stmtlen = strlen(stmt);
 
 	bool done = !send_stmt_to_cluster_meta(cnconn, stmt, stmtlen, CMD_SELECT, true);
 	int ret = -1;
@@ -1932,6 +1952,7 @@ end:
 	{
 		CMNConnInfo *cmn = cmnodes + i;
 		pfree(cmn->hostaddr);
+		pfree(cmn->pwd);
 	}
 	return num_masters;
 }

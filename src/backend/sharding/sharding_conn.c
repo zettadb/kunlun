@@ -1930,18 +1930,24 @@ make_check_mysql_node_status_stmt(AsyncStmtInfo *asi, bool want_master)
 	Storage_HA_Mode ha_mode = storage_ha_mode();
 	Assert(ha_mode != HA_NO_REP);
 
-	static const char *stmt_mgr = "select MEMBER_HOST, MEMBER_PORT from performance_schema.replication_group_members where channel_name='group_replication_applier' and MEMBER_STATE='ONLINE' and MEMBER_ROLE='PRIMARY'";
-	static const char *stmt_rbr = "show slave status"; // TODO: this need extra work
+	const char *stmt_mgr = "select MEMBER_HOST, MEMBER_PORT from performance_schema.replication_group_members where channel_name='group_replication_applier' and MEMBER_STATE='ONLINE' and MEMBER_ROLE='PRIMARY'";
+	const char *stmt_rbr = "select host, port, Channel_name from mysql.slave_master_info"; // TODO: this need extra work
 
-	static size_t stmtlen = 0;
+	size_t stmtlen = 0;
 	const char *stmt = NULL;
 	if (ha_mode == HA_MGR)
 		stmt = stmt_mgr;
 	else if (ha_mode == HA_RBR)
+	{
 		stmt = stmt_rbr;
-	else
 		Assert(false);
-	
+	}
+	else
+	{
+		Assert(ha_mode == HA_NO_REP);
+		return;
+	}
+
 	if (stmtlen == 0 && stmt) stmtlen = strlen(stmt);
 
 	if (stmt) append_async_stmt(asi, stmt, stmtlen, CMD_SELECT, false, SQLCOM_SELECT);

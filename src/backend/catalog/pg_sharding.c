@@ -710,9 +710,21 @@ Oid FindBestShardForTable(int which, Relation rel)
 static int FindCurrentMasterNodeId(Oid shardid, Oid *pmaster_nodeid)
 {
 	Assert(shardid != InvalidOid && pmaster_nodeid);
-	static const char *fetch_gr_members_sql = "select MEMBER_HOST, MEMBER_PORT from performance_schema.replication_group_members where channel_name='group_replication_applier' and MEMBER_STATE='ONLINE' and MEMBER_ROLE='PRIMARY'";
-	static size_t sqllen = 0;
-	if (!sqllen) sqllen = strlen(fetch_gr_members_sql);
+	const char *fetch_gr_members_sql = NULL;
+
+	Storage_HA_Mode ha_mode = storage_ha_mode();
+	if (ha_mode == HA_MGR)
+		fetch_gr_members_sql = "select MEMBER_HOST, MEMBER_PORT from performance_schema.replication_group_members where channel_name='group_replication_applier' and MEMBER_STATE='ONLINE' and MEMBER_ROLE='PRIMARY'";
+	else if (ha_mode == HA_RBR)
+	{
+		fetch_gr_members_sql = "select host, port, Channel_name from mysql.slave_master_info";
+		Assert(false);
+	}
+	else Assert(ha_mode == HA_NO_REP);
+
+	size_t sqllen = 0;
+	if (fetch_gr_members_sql) sqllen = strlen(fetch_gr_members_sql);
+
 	int num_conn_fails = 0;
 	Shard_t shard;
 	Shard_t *ps = NULL;
@@ -725,10 +737,17 @@ static int FindCurrentMasterNodeId(Oid shardid, Oid *pmaster_nodeid)
 	}
 
 	Shard_node_ref_t *pnoderef = ps->shard_nodes;
+	if (ha_mode == HA_NO_REP)
+	{
+		Assert(ps->num_nodes == 1);
+		*pmaster_nodeid = pnoderef[0].ptr->id;
+		return 1;
+	}
 
 	for (int i = 0; i < ps->num_nodes; i++)
 	{
 		Shard_node_t *pnode = pnoderef[i].ptr;
+
 		AsyncStmtInfo *asi = NULL;
 		PG_TRY(); {
 			asi = GetAsyncStmtInfoNode(pnode->shard_id, pnode->id, false);

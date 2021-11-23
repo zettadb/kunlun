@@ -294,10 +294,16 @@ static int connect_mysql(MYSQL_CONN *mysql, const char *host, uint16_t port,
 
 	mysql->node_type = -1;
 
+	// Whether and how to check master status.
+	Storage_HA_Mode ha_mode = storage_ha_mode();
+	int master_bit = 0;
+	if (ha_mode == HA_MGR) master_bit = CHECK_MGR_MASTER;
+	else if (ha_mode == HA_RBR) master_bit = CHECK_RBR_MASTER;
+
 	mysql->connected = true; // check_mysql_instance_status() needs this set to true here.
 	if (check_master != -1 &&
 		!check_mysql_instance_status(mysql, check_master == 1 ?
-			(CHECK_NOT_READONLY | CHECK_MGR_MASTER) : CHECK_IS_READONLY, is_bg))
+			(CHECK_NOT_READONLY | master_bit) : CHECK_IS_READONLY, is_bg))
 	{
 		/*
 		  Recorded node type is not true any more, request topology check.

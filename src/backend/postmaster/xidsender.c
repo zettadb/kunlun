@@ -245,7 +245,7 @@ retry:
 
 	int conn_fail = 0;
 	uint16_t master_port;
-	char master_ip[64];
+	char master_ip[256];
 	strncpy(master_ip, hostaddr, sizeof(master_ip) - 1);
 	master_port = cmnode->port;
 

@@ -417,6 +417,10 @@ retry:
 			appendShardConnKillReq(req);
 			pfree(req);
 		}
+	    ereport(ERROR, 
+	            (errcode(ERRCODE_INTERNAL_ERROR),
+	             errmsg("Kunlun-db: Timed out reserving sequence(%u) value range.",
+				 		seqrelid)));
 	}
 	else
 		Assert(ret == 0);

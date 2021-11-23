@@ -38,6 +38,7 @@ extern NameData g_cluster_name;
 #define CHECK_IS_READONLY 0x4
 #define CHECK_SET_NAMES 0x8
 #define CHECK_MGR_MASTER 0x10
+#define CHECK_RBR_MASTER 0x20
 
 /*
  * A mysql connection for synchronous communication, currently only used to

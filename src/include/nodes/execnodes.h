@@ -1066,14 +1066,6 @@ typedef struct RemoteModifyState
 {
 	AsyncStmtInfo *asi;         /* communication channel with storage node. */
 	StringInfoData remote_dml;
-	/*   
-	 * Attr Nums in this set is a 'long expression', i.e. longer than NAMEDATALEN.
-	 * Suppose the i'th 1 bit in long_exprs_bmp denotes number x, then the
-	 * tupdesc->attrs[x].attname doesn't contail complete expr text, need to use
-	 * long_exprs[i] instead.
-	 * */
-	Bitmapset *long_exprs_bmp;
-	List *long_exprs;
 } RemoteModifyState;
 
 /* ----------------
@@ -1090,7 +1082,19 @@ typedef struct ModifyTableState
 	PlanState **mt_plans;		/* subplans (one per target rel) */
 	int			mt_nplans;		/* number of plans in the array */
 	int			mt_whichplan;	/* which one is being executed (0..n-1) */
+
 	RemoteModifyState *mt_remote_states; /* per-subplan remote modify state */
+	/*   
+	 * Attr Nums in this set is a 'long expression', i.e. longer than NAMEDATALEN.
+	 * Suppose the i'th 1 bit in long_exprs_bmp denotes number x, then the
+	 * tupdesc->attrs[x].attname doesn't contail complete expr text, need to use
+	 * long_exprs[i] instead.
+	 * All mt_plan subplans share the same column names, so they should be here
+	 * instead of RemoteModifyState.
+	 * */
+	Bitmapset *long_exprs_bmp;
+	List *long_exprs;
+
 	ResultRelInfo *resultRelInfo;	/* per-subplan target relations */
 	ResultRelInfo *rootResultRelInfo;	/* root target relation (partitioned
 										 * table root) */

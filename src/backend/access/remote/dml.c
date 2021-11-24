@@ -177,7 +177,6 @@ void post_remote_updel_stmt(ModifyTableState*mtstate, RemoteScan *rs, int i)
 	{
 	    TupleDesc tupdesc = mtstate->ps.scandesc;
 	    ListCell *next_long_expr = NULL;
-		RemoteModifyState *rms0 = mtstate->mt_remote_states;
 		int nrettgts = 0;
 
 	    for (int i = 0; i < tupdesc->natts; i++)
@@ -197,9 +196,9 @@ void post_remote_updel_stmt(ModifyTableState*mtstate, RemoteScan *rs, int i)
 	                    (errcode(ERRCODE_INTERNAL_ERROR),
 	                     errmsg("Invalid target column name(NULL) in kunlun-db.")));
 	
-	        if (bms_is_member(i+1, rms0->long_exprs_bmp))
+	        if (bms_is_member(i+1, mtstate->long_exprs_bmp))
 	        {
-	            next_long_expr = (next_long_expr ? lnext(next_long_expr) : list_head(rms0->long_exprs));
+	            next_long_expr = (next_long_expr ? lnext(next_long_expr) : list_head(mtstate->long_exprs));
 	            if (next_long_expr == NULL)
 	            {
 	                ereport(ERROR,

@@ -1214,7 +1214,7 @@ SELECT t1.* FROM prt1 t1 WHERE t1.a IN (SELECT t1.b FROM prt2 t1, prt1_e t2 WHER
 EXPLAIN (verbose, COSTS OFF)
 SELECT t1.* FROM prt1 t1 WHERE t1.a IN (SELECT t1.b FROM prt2 t1, prt1_e t2 WHERE t1.a = 0 AND t1.b = (t2.a + t2.b)/2) AND t1.b = 0 ORDER BY t1.a;
 
--- bug 226 subselect.sql,connection to server was lost
+-- bug 226 Wrong Assert causing failure when an expression target is pushed down
 DROP TABLE if exists SUBSELECT_TBL;
 CREATE TABLE SUBSELECT_TBL (
 
@@ -1246,3 +1246,14 @@ SELECT ss.f1 AS "Correlated Field", ss.f3 AS "Second Field"
     WHERE f1 NOT IN (SELECT f1+1 FROM INT4_TBL
 
         WHERE f1 != ss.f1 AND f1 < 2147483647);
+
+-- bug #236 Error about 'distinct on'
+DROP table if exists INT4_TBL;
+CREATE TABLE INT4_TBL(f1 int4);
+INSERT INTO INT4_TBL(f1) VALUES (' 0 ');
+INSERT INTO INT4_TBL(f1) VALUES ('123456 ');
+INSERT INTO INT4_TBL(f1) VALUES (' -123456');
+INSERT INTO INT4_TBL(f1) VALUES ('2147483647');
+INSERT INTO INT4_TBL(f1) VALUES ('-2147483647');
+
+select distinct on (1) floor(random()) as r, f1 from int4_tbl order by 1,2;

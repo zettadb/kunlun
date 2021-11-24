@@ -3022,7 +3022,6 @@ ExecScanTypeFromTL(EState *estate, ModifyTableState *mts,
 	typeInfo = CreateTemplateTupleDesc(len, false /*hasoid*/);
 
 	StringInfoData colexpr_str;
-	RemoteModifyState *rms0 = mts->mt_remote_states;
 
 	foreach(l, targetList)
 	{
@@ -3099,8 +3098,8 @@ ExecScanTypeFromTL(EState *estate, ModifyTableState *mts,
 
 				if (lengthStringInfo(&colexpr_str) >= sizeof(NameData))
 				{
-					rms0->long_exprs_bmp = bms_add_member(rms0->long_exprs_bmp, cur_resno);
-					rms0->long_exprs = lappend(rms0->long_exprs, pstrdup(colexpr_str.data));
+					mts->long_exprs_bmp = bms_add_member(mts->long_exprs_bmp, cur_resno);
+					mts->long_exprs = lappend(mts->long_exprs, pstrdup(colexpr_str.data));
 					colexpr_str.data[sizeof(NameData) - 1] = '\0';
 				}
 				colname = donateStringInfo(&colexpr_str);

@@ -66,3 +66,45 @@ create view tt18v as
     select * from int8_tbl xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz;
 
 explain (costs off) select * from tt18v;
+
+-- bug  #234 View derived conflicting RemoteScans not materialized 
+drop table if exists test1;
+create table test1 (id serial, t text);
+insert into test1 (t) values ('a');
+insert into test1 (t) values ('b');
+insert into test1 (t) values ('c');
+insert into test1 (t) values ('d');
+insert into test1 (t) values ('e');
+
+create view v_test1
+as select 'v_' || t from test1;
+
+copy (select t from test1 where id = 1 UNION select * from v_test1 ORDER BY 1) to stdout;
+
+copy (select * from (select t from test1 where id = 1 UNION select * from v_test1 ORDER BY 1) t1) to stdout;
+
+-- bug  #257 subquery produces more content than expected 
+DROP TABLE if exists SUBSELECT_TBL;
+CREATE TABLE SUBSELECT_TBL (
+
+    f1 integer,
+    f2 integer,
+    f3 float
+
+);
+
+INSERT INTO SUBSELECT_TBL VALUES (1, 2, 3);
+INSERT INTO SUBSELECT_TBL VALUES (2, 3, 4);
+INSERT INTO SUBSELECT_TBL VALUES (3, 4, 5);
+INSERT INTO SUBSELECT_TBL VALUES (1, 1, 1);
+INSERT INTO SUBSELECT_TBL VALUES (2, 2, 2);
+INSERT INTO SUBSELECT_TBL VALUES (3, 3, 3);
+INSERT INTO SUBSELECT_TBL VALUES (6, 7, 8);
+INSERT INTO SUBSELECT_TBL VALUES (8, 9, NULL);
+
+SELECT f1, f2
+
+    FROM SUBSELECT_TBL
+    WHERE (f1, f2) NOT IN (SELECT f2, CAST(f3 AS int4) FROM SUBSELECT_TBL
+
+        WHERE f3 IS NOT NULL);

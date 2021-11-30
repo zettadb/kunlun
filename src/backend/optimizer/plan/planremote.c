@@ -153,6 +153,13 @@ makeRemoteScanRef(PlannedStmt *planned_stmt, Plan **pptr,
 	  find rs's shardid and assign to rsr1->shardid
 	*/
 	RangeTblEntry *rte = rt_fetch(rs->scanrelid, planned_stmt->rtable);
+	if (rte->relshardid == InvalidOid && rte->relid != InvalidOid &&
+		rte->relkind == RELKIND_RELATION && rte->rtekind == RTE_RELATION)
+	{
+		Relation rel = relation_open(rte->relid, RowExclusiveLock);
+		rte->relshardid = rel->rd_rel->relshardid;
+		relation_close(rel, NoLock);
+	}
 	rsr1->shardid = rte->relshardid;
 	rsr1->is_append_1st = append1st;
 	return rsr1;

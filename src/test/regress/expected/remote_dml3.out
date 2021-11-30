@@ -135,8 +135,325 @@ explain (costs off) select * from tt18v;
  Append
    ->  Materialize
          ->  RemoteScan on int8_tbl xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-               Shard: 1  Remote SQL: select q1, q2 from regression_$$_public.int8_tbl 
+               Shard: 2  Remote SQL: select q1, q2 from regression_$$_public.int8_tbl 
    ->  RemoteScan on int8_tbl xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx_1
-         Shard: 1        Remote SQL: select q1, q2 from regression_$$_public.int8_tbl 
+         Shard: 2        Remote SQL: select q1, q2 from regression_$$_public.int8_tbl 
 (6 rows)
+
+select * from tt18v;
+        q1        |        q2         
+------------------+-------------------
+              123 |               456
+              123 |  4567890123456789
+ 4567890123456789 |               123
+ 4567890123456789 |  4567890123456789
+ 4567890123456789 | -4567890123456789
+              123 |               456
+              123 |  4567890123456789
+ 4567890123456789 |               123
+ 4567890123456789 |  4567890123456789
+ 4567890123456789 | -4567890123456789
+(10 rows)
+
+-- bug #229 partition_join.sql,connection to server was lost 
+DROP TABLE if exists prt2;
+NOTICE:  table "prt2" does not exist, skipping
+CREATE TABLE prt2 (a int, b int, c varchar) PARTITION BY RANGE(b);
+CREATE TABLE prt2_p1 PARTITION OF prt2 FOR VALUES FROM (0) TO (250);
+CREATE TABLE prt2_p2 PARTITION OF prt2 FOR VALUES FROM (250) TO (500);
+CREATE TABLE prt2_p3 PARTITION OF prt2 FOR VALUES FROM (500) TO (600);
+INSERT INTO prt2 SELECT i % 25, i, to_char(i, 'FM0000') FROM generate_series(0, 599) i WHERE i % 3 = 0;
+DROP TABLE if exists prt1;
+NOTICE:  table "prt1" does not exist, skipping
+CREATE TABLE prt1 (a int, b int, c varchar) PARTITION BY RANGE(a);
+CREATE TABLE prt1_p1 PARTITION OF prt1 FOR VALUES FROM (0) TO (250);
+CREATE TABLE prt1_p3 PARTITION OF prt1 FOR VALUES FROM (500) TO (600);
+CREATE TABLE prt1_p2 PARTITION OF prt1 FOR VALUES FROM (250) TO (500);
+INSERT INTO prt1 SELECT i, i % 25, to_char(i, 'FM0000') FROM generate_series(0, 599) i WHERE i % 2 = 0;
+EXPLAIN (COSTS OFF)
+SELECT t1.a, t1.c, t2.b, t2.c FROM prt1 t1, prt2 t2 WHERE t1.a = t2.b AND t1.a < 450 AND t2.b > 250 AND t1.b = 0 ORDER BY t1.a, t2.b;
+                                                           QUERY PLAN                                                           
+--------------------------------------------------------------------------------------------------------------------------------
+ Merge Join
+   Merge Cond: (t1.a = t2.b)
+   ->  Sort
+         Sort Key: t1.a
+         ->  Append
+               ->  Materialize
+                     ->  RemoteScan on prt1_p1 t1
+                           Filter: ((a < 450) AND (c = 0))
+                           Shard: 2      Remote SQL: select a, c from regression_$$_public.prt1_p1  where (a < 450) AND (b = 0)
+               ->  Materialize
+                     ->  RemoteScan on prt1_p2 t1_1
+                           Filter: ((a < 450) AND (c = 0))
+                           Shard: 1      Remote SQL: select a, c from regression_$$_public.prt1_p2  where (a < 450) AND (b = 0)
+   ->  Sort
+         Sort Key: t2.b
+         ->  Append
+               ->  RemoteScan on prt2_p2 t2
+                     Filter: (c > 250)
+                     Shard: 2    Remote SQL: select b, c from regression_$$_public.prt2_p2  where (b > 250)
+               ->  RemoteScan on prt2_p3 t2_1
+                     Filter: (c > 250)
+                     Shard: 1    Remote SQL: select b, c from regression_$$_public.prt2_p3  where (b > 250)
+(22 rows)
+
+SELECT t1.a, t1.c, t2.b, t2.c FROM prt1 t1, prt2 t2 WHERE t1.a = t2.b AND t1.a < 450 AND t2.b > 250 AND t1.b = 0 ORDER BY t1.a, t2.b;
+  a  |  c   |  b  |  c   
+-----+------+-----+------
+ 300 | 0300 | 300 | 0300
+(1 row)
+
+-- bug [#247] Wrong Assert for multi-layer Append nodes 
+SELECT 1 AS three UNION SELECT 2 UNION ALL SELECT 2 ORDER BY 1;
+ three 
+-------
+     1
+     2
+     2
+(3 rows)
+
+EXPLAIN SELECT 1 AS three UNION SELECT 2 UNION ALL SELECT 2 ORDER BY 1;
+                               QUERY PLAN                               
+------------------------------------------------------------------------
+ Sort  (cost=0.13..0.14 rows=3 width=4)
+   Sort Key: (1)
+   ->  Append  (cost=0.06..0.11 rows=3 width=4)
+         ->  Unique  (cost=0.06..0.07 rows=2 width=4)
+               ->  Sort  (cost=0.06..0.07 rows=2 width=4)
+                     Sort Key: (1)
+                     ->  Append  (cost=0.00..0.05 rows=2 width=4)
+                           ->  Result  (cost=0.00..0.01 rows=1 width=4)
+                           ->  Result  (cost=0.00..0.01 rows=1 width=4)
+         ->  Result  (cost=0.00..0.01 rows=1 width=4)
+(10 rows)
+
+SELECT 1 AS three UNION SELECT 3 UNION SELECT 2 UNION ALL SELECT 2 ORDER BY 1;
+ three 
+-------
+     1
+     2
+     2
+     3
+(4 rows)
+
+EXPLAIN SELECT 1 AS three UNION SELECT 3 UNION SELECT 2 UNION ALL SELECT 2 ORDER BY 1;
+                            QUERY PLAN                            
+------------------------------------------------------------------
+ Sort  (cost=0.19..0.20 rows=4 width=4)
+   Sort Key: (1)
+   ->  Append  (cost=0.08..0.15 rows=4 width=4)
+         ->  HashAggregate  (cost=0.08..0.11 rows=3 width=4)
+               Group Key: (1)
+               ->  Append  (cost=0.00..0.07 rows=3 width=4)
+                     ->  Result  (cost=0.00..0.01 rows=1 width=4)
+                     ->  Result  (cost=0.00..0.01 rows=1 width=4)
+                     ->  Result  (cost=0.00..0.01 rows=1 width=4)
+         ->  Result  (cost=0.00..0.01 rows=1 width=4)
+(10 rows)
+
+-- bug 245 Sort should not be pushed down if it uses a set returning funcs or exprs to sort
+drop table if exists few;
+NOTICE:  table "few" does not exist, skipping
+CREATE TABLE few(id int, dataa text, datab text);
+INSERT INTO few VALUES(1, 'a', 'foo'),(2, 'a', 'bar'),(3, 'b', 'bar');
+SELECT few.id, generate_series(1,3) g FROM few ORDER BY id, g DESC;
+ id | g 
+----+---
+  1 | 3
+  1 | 2
+  1 | 1
+  2 | 3
+  2 | 2
+  2 | 1
+  3 | 3
+  3 | 2
+  3 | 1
+(9 rows)
+
+EXPLAIN SELECT few.id, generate_series(1,3) g FROM few ORDER BY id, g DESC;
+                                         QUERY PLAN                                         
+--------------------------------------------------------------------------------------------
+ Sort  (cost=54.84..57.34 rows=1000 width=8)
+   Sort Key: id, (generate_series(1, 3)) DESC
+   ->  ProjectSet  (cost=0.00..5.01 rows=1000 width=8)
+         ->  RemoteScan on few  (cost=0.00..0.00 rows=1 width=4)
+               Shard: 1  Remote SQL: select id, dataa, datab from regression_$$_public.few 
+(5 rows)
+
+SELECT few.id  FROM few ORDER BY id, random() DESC;
+ id 
+----
+  1
+  2
+  3
+(3 rows)
+
+EXPLAIN SELECT few.id  FROM few ORDER BY id, random() DESC;
+                                  QUERY PLAN                                  
+------------------------------------------------------------------------------
+ Sort  (cost=0.01..0.02 rows=1 width=12)
+   Sort Key: id, (random()) DESC
+   ->  RemoteScan on few  (cost=0.00..0.00 rows=1 width=12)
+         Shard: 1        Remote SQL: select id from regression_$$_public.few 
+(4 rows)
+
+-- bug #221 string_agg omitted from agg pushdown 
+CREATE TABLE ctv_data (v varchar(30), h varchar(30), c varchar(30), i int, d date);
+insert into ctv_data VALUES
+    ('v1','h2','foo', 3, '2015-04-01'::date),
+    ('v2','h1','bar', 3, '2015-01-02'),
+    ('v1','h0','baz', NULL, '2015-07-12'),
+    ('v0','h4','qux', 4, '2015-07-15'),
+    ('v0','h4','dbl', -3, '2014-12-15'),
+    ('v0',NULL,'qux', 5, '2014-07-15'),
+    ('v1','h2','quux',7, '2015-04-04');
+    SELECT v,h, string_agg(c, E'\n') AS c, row_number() OVER(ORDER BY h) AS r
+FROM ctv_data GROUP BY v, h ORDER BY 1,3,2
+    \crosstabview v h c r
+ v  | h0  | h1  |  h2  | h4  |     
+----+-----+-----+------+-----+-----
+ v0 |     |     |      | qux+| qux
+    |     |     |      | dbl | 
+ v1 | baz |     | foo +|     | 
+    |     |     | quux |     | 
+ v2 |     | bar |      |     | 
+(3 rows)
+
+-- bug  #244 Agg not pushed down for count(1) 
+drop table if exists atest5;
+CREATE TABLE atest5 (one int, two int unique, three int, four int unique);
+INSERT INTO atest5 VALUES (1,2,3),(2,3,4),(3,4,5),(5,6,7);
+SELECT count(1) FROM atest5 a JOIN atest5 b USING (one);
+ count 
+-------
+     4
+(1 row)
+
+EXPLAIN SELECT count(1) FROM atest5 a JOIN atest5 b USING (one);
+                                                 QUERY PLAN                                                 
+------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=0.02..0.03 rows=1 width=8)
+   ->  Nested Loop  (cost=0.00..0.01 rows=1 width=0)
+         Join Filter: (a.one = b.one)
+         ->  Materialize  (cost=0.00..0.01 rows=1 width=4)
+               ->  RemoteScan on atest5 a  (cost=0.00..0.00 rows=1 width=4)
+                     Shard: 1    Remote SQL: select one, two, three, four from regression_$$_public.atest5 
+         ->  Materialize  (cost=0.00..0.01 rows=1 width=4)
+               ->  RemoteScan on atest5 b  (cost=0.00..0.00 rows=1 width=4)
+                     Shard: 1    Remote SQL: select one, two, three, four from regression_$$_public.atest5 
+(9 rows)
+
+SELECT count(1) FROM atest5;
+ count 
+-------
+     4
+(1 row)
+
+EXPLAIN SELECT count(1) FROM atest5;
+                                             QUERY PLAN                                             
+----------------------------------------------------------------------------------------------------
+ Aggregate  (cost=0.00..0.01 rows=1 width=8)
+   ->  RemoteScan on atest5  (cost=0.00..0.00 rows=1 width=0)
+         Shard: 1        Remote SQL: select one, two, three, four from regression_$$_public.atest5 
+(3 rows)
+
+SELECT sum(2+3) FROM atest5 a JOIN atest5 b USING (one);
+ sum 
+-----
+  20
+(1 row)
+
+EXPLAIN SELECT sum(2+3) FROM atest5 a JOIN atest5 b USING (one);
+                                                 QUERY PLAN                                                 
+------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=0.02..0.03 rows=1 width=8)
+   ->  Nested Loop  (cost=0.00..0.01 rows=1 width=0)
+         Join Filter: (a.one = b.one)
+         ->  Materialize  (cost=0.00..0.01 rows=1 width=4)
+               ->  RemoteScan on atest5 a  (cost=0.00..0.00 rows=1 width=4)
+                     Shard: 1    Remote SQL: select one, two, three, four from regression_$$_public.atest5 
+         ->  Materialize  (cost=0.00..0.01 rows=1 width=4)
+               ->  RemoteScan on atest5 b  (cost=0.00..0.00 rows=1 width=4)
+                     Shard: 1    Remote SQL: select one, two, three, four from regression_$$_public.atest5 
+(9 rows)
+
+SELECT sum(2+3) FROM atest5;
+ sum 
+-----
+  20
+(1 row)
+
+EXPLAIN SELECT sum(2+3) FROM atest5;
+                                             QUERY PLAN                                             
+----------------------------------------------------------------------------------------------------
+ Aggregate  (cost=0.00..0.01 rows=1 width=8)
+   ->  RemoteScan on atest5  (cost=0.00..0.00 rows=1 width=0)
+         Shard: 1        Remote SQL: select one, two, three, four from regression_$$_public.atest5 
+(3 rows)
+
+-- bug  #234 View derived conflicting RemoteScans not materialized 
+drop table if exists test1;
+NOTICE:  table "test1" does not exist, skipping
+create table test1 (id serial, t text);
+insert into test1 (t) values ('a');
+insert into test1 (t) values ('b');
+insert into test1 (t) values ('c');
+insert into test1 (t) values ('d');
+insert into test1 (t) values ('e');
+create view v_test1
+as select 'v_' || t from test1;
+copy (select t from test1 where id = 1 UNION select * from v_test1 ORDER BY 1) to stdout;
+a
+v_a
+v_b
+v_c
+v_d
+v_e
+copy (select * from (select t from test1 where id = 1 UNION select * from v_test1 ORDER BY 1) t1) to stdout;
+a
+v_a
+v_b
+v_c
+v_d
+v_e
+-- bug  #257 subquery produces more content than expected 
+DROP TABLE if exists SUBSELECT_TBL;
+NOTICE:  table "subselect_tbl" does not exist, skipping
+CREATE TABLE SUBSELECT_TBL (
+    f1 integer,
+    f2 integer,
+    f3 float
+);
+INSERT INTO SUBSELECT_TBL VALUES (1, 2, 3);
+INSERT INTO SUBSELECT_TBL VALUES (2, 3, 4);
+INSERT INTO SUBSELECT_TBL VALUES (3, 4, 5);
+INSERT INTO SUBSELECT_TBL VALUES (1, 1, 1);
+INSERT INTO SUBSELECT_TBL VALUES (2, 2, 2);
+INSERT INTO SUBSELECT_TBL VALUES (3, 3, 3);
+INSERT INTO SUBSELECT_TBL VALUES (6, 7, 8);
+INSERT INTO SUBSELECT_TBL VALUES (8, 9, NULL);
+SELECT f1, f2
+    FROM SUBSELECT_TBL
+    WHERE (f1, f2) NOT IN (SELECT f2, CAST(f3 AS int4) FROM SUBSELECT_TBL
+        WHERE f3 IS NOT NULL);
+ f1 | f2 
+----+----
+  1 |  2
+  6 |  7
+  8 |  9
+(3 rows)
+
+-- bug  #230 value too long for type character 
+DROP TABLE if exists TEXT_TBL;
+NOTICE:  table "text_tbl" does not exist, skipping
+CREATE TABLE TEXT_TBL (f1 text);
+INSERT INTO TEXT_TBL VALUES ('doh!');
+INSERT INTO TEXT_TBL VALUES ('hi de ho neighbor');
+SELECT CAST(f1 AS char(10)) AS "char(text)" FROM TEXT_TBL;
+ char(text) 
+------------
+ doh!      
+ hi de ho n
+(2 rows)
 

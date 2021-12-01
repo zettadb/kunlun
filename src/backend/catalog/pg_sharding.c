@@ -409,7 +409,8 @@ void InvalidateCachedShardNode(Oid shardid, Oid nodeid)
 next_step:
 	// 2. Remove the shardnode entry from ShardNodeCache.
 	found = false;
-	Shard_node_ref_t *shardnoderef = (Shard_node_ref_t *)hash_search(ShardNodeCache, &nodeid, HASH_FIND, &found);
+	Shard_node_ref_t *shardnoderef = (Shard_node_ref_t *)
+		hash_search(ShardNodeCache, &nodeid, HASH_FIND, &found);
 	if (shardnoderef)
 	{
 		pfree(shardnoderef->ptr);
@@ -450,14 +451,14 @@ static bool FindCachedShardInternal(const Oid shardid, bool cache_nodes, Shard_t
 	}
 
 	Shard_t *pshard = NULL;
-	Shard_ref_t *shardref = (Shard_ref_t *)
-		hash_search(ShardCache, &shardid, HASH_FIND, &found_shard);
 	Relation shardrel = heap_open(ShardRelationId, RowExclusiveLock);
 	Relation shardnoderel = heap_open(ShardNodeRelationId, RowExclusiveLock);
 	ScanKeyData key, key1;
 	SysScanDesc scan;
 	HeapTuple	tuple;
 	int nfound = 0;
+	Shard_ref_t *shardref = (Shard_ref_t *)
+		hash_search(ShardCache, &shardid, HASH_FIND, &found_shard);
 
 	if (shardref)
 	{
@@ -573,7 +574,9 @@ bool FindCachedShardNode(Oid shardid, Oid nodeid, Shard_node_t*out)
 		return NULL;
 
 	Shard_node_t *pnode = NULL;
-	Shard_node_ref_t *shardnoderef = (Shard_node_ref_t *)hash_search(ShardNodeCache, &nodeid, HASH_FIND, &found);
+	Relation shardrel = heap_open(ShardNodeRelationId, RowExclusiveLock);
+	Shard_node_ref_t *shardnoderef = (Shard_node_ref_t *)
+		hash_search(ShardNodeCache, &nodeid, HASH_FIND, &found);
 	if (shardnoderef)
 	{
 		pnode = shardnoderef->ptr;
@@ -591,7 +594,6 @@ bool FindCachedShardNode(Oid shardid, Oid nodeid, Shard_node_t*out)
 		StartTransactionCommand();
 		end_txn = true;
 	}
-	Relation shardrel = heap_open(ShardNodeRelationId, RowExclusiveLock);
 	ScanKeyInit(&key,
 				/*ObjectIdAttributeNumber*/Anum_pg_shard_node_id,
 				BTEqualStrategyNumber,
@@ -628,6 +630,7 @@ end:
 	out->hostaddr = pstrdup(pnode->hostaddr);
 	out->passwd = pstrdup(pnode->passwd);
 
+	heap_close(shardrel, NoLock);
 	return pnode != NULL;
 }
 
@@ -641,7 +644,6 @@ end:
 Oid FindBestShardForTable(int which, Relation rel)
 {
 	HASH_SEQ_STATUS seq_status;
-	hash_seq_init(&seq_status, ShardCache);
 	Shard_ref_t *ref;
 	Shard_t *ps, *best = NULL;
 	uint32_t minval = UINT_MAX;
@@ -653,6 +655,7 @@ Oid FindBestShardForTable(int which, Relation rel)
 
 	int num_shards = 0;
 	List *pshard_list = NULL;
+	hash_seq_init(&seq_status, ShardCache);
 
 	while ((ref = hash_seq_search(&seq_status)) != NULL)
 	{

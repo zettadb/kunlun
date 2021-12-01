@@ -8,7 +8,7 @@ select*from tvehicles where b <= 'mpv';
 select*from tvehicles where a>2;
 select*from tvehicles where b='suv';
 update tvehicles set b='mpv' where b='truck';
-select*from tvehicles;
+select*from tvehicles order by a;
 delete from tvehicles where b='mpv';
 select*from tvehicles;
 delete from tvehicles where b='suv';

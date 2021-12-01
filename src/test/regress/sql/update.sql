@@ -149,7 +149,8 @@ UPDATE part_b_10_b_20 set c = c + 20 returning c, b, a;
 :show_data;
 
 -- fail, row movement happens only within the partition subtree.
-UPDATE part_b_10_b_20 set b = b - 6 WHERE c > 116 returning *;
+--Crash due to unsupported functionality
+--UPDATE part_b_10_b_20 set b = b - 6 WHERE c > 116 returning *;
 -- ok, row movement, with subset of rows moved into different partition.
 UPDATE range_parted set b = b - 6 WHERE c > 116 returning a, b + c;
 

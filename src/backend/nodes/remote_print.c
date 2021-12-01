@@ -856,8 +856,18 @@ op_expr_done:
 				if (list_length(e->args) > 1)
 				{
 					// for existing conversion funcs, the 2nd arg is always the (N).
+					// For string types, pg added the VARHDRSZ, must remove it.
 					APPEND_CHAR('(');
-					APPEND_EXPR(lsecond(e->args));
+					Node *arg2 = lsecond(e->args);
+					if ((strcasecmp(castfn, "char") == 0 ||
+						 strcasecmp(castfn, "varchar") == 0) &&
+						IsA(arg2, Const))
+					{
+						Const *arg2c =  (Const *)arg2;
+						APPEND_STR_FMT("%lu", arg2c->constvalue - VARHDRSZ);
+					}
+					else
+						APPEND_EXPR(arg2);
 					APPEND_CHAR(')');
 				}
 				APPEND_STR(") ");

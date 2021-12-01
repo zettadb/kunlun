@@ -121,6 +121,7 @@ select*from rw_view2;
 drop table base_tbl cascade;
 NOTICE:  drop cascades to view rw_view2
 -- bug 39
+drop table if exists SUBSELECT_TBL cascade;
 CREATE TABLE SUBSELECT_TBL ( id serial primary key, f1 integer, f2 integer, f3 float );
 INSERT INTO SUBSELECT_TBL (f1, f2, f3) VALUES (1, 2, 3), (2, 3, 4), (3, 4, 5), (1, 1, 1), (2, 2, 2), (3, 3, 3), (6, 7, 8), (8, 9, NULL);
 SELECT f1 AS "Correlated Field", f2 AS "Second Field" FROM SUBSELECT_TBL upper WHERE f1 IN (SELECT f2 FROM SUBSELECT_TBL WHERE f1 = upper.f1);
@@ -492,16 +493,16 @@ EXPLAIN (costs off) UPDATE rw_view1 SET a=6 WHERE a=5;
  Update on base_tbl
    ->  RemoteScan on base_tbl
          Filter: ((a > 0) AND (a = 5))
-         Shard: 1        Remote SQL: (null)
+         Shard: 2        Remote SQL: (null)
 (4 rows)
 
 EXPLAIN (costs off) DELETE FROM rw_view1 WHERE a=5;
-                 QUERY PLAN                 
---------------------------------------------
+                 QUERY PLAN                  
+---------------------------------------------
  Delete on base_tbl
    ->  RemoteScan on base_tbl
-         Filter: ((a > 0) AND (a = 5))
-         Shard: 1        Remote SQL: (null)
+         Filter: ((ctid > 0) AND (ctid = 5))
+         Shard: 2        Remote SQL: (null)
 (4 rows)
 
 DROP table if exists T;
@@ -529,7 +530,7 @@ EXPLAIN (costs off)
  HashAggregate
    Group Key: type
    ->  RemoteScan on mvtest_t
-         Shard: 2        Remote SQL: select id, type, amt from regression_$$_public.mvtest_t 
+         Shard: 1        Remote SQL: select id, type, amt from regression_$$_public.mvtest_t 
 (4 rows)
 
 -- bug 36
@@ -559,7 +560,6 @@ drop table if exists int4_tbl cascade;
 drop table if exists int8_tbl cascade;
 NOTICE:  drop cascades to view tt18v
 drop table if exists text_tbl cascade;
-NOTICE:  table "text_tbl" does not exist, skipping
 CREATE TABLE INT4_TBL(id serial primary key, f1 int4);
 CREATE TABLE INT8_TBL(id serial primary key, q1 int8, q2 int8);
 CREATE TABLE TEXT_TBL (id serial primary key, f1 text);
@@ -587,13 +587,13 @@ where t1.f1 = ss2.f1;
                      Output: t1.id, t1.f1
                      ->  RemoteScan on public.text_tbl t1
                            Output: t1.id, t1.f1
-                           Shard: 2      Remote SQL: select id, f1 from regression_$$_public.text_tbl 
+                           Shard: 1      Remote SQL: select id, f1 from regression_$$_public.text_tbl 
                ->  Materialize
                      Output: i8.id, i8.q1, i8.q2
                      ->  RemoteScan on public.int8_tbl i8
                            Output: i8.id, i8.q1, i8.q2
                            Filter: (i8.q2 = 2)
-                           Shard: 2      Remote SQL: select id, q1, q2 from regression_$$_public.int8_tbl  where (q2 = 2)
+                           Shard: 1      Remote SQL: select id, q1, q2 from regression_$$_public.int8_tbl  where (q2 = 2)
          ->  Materialize
                Output: (i8.q1), t2.q1
                ->  Limit
@@ -602,7 +602,7 @@ where t1.f1 = ss2.f1;
                            Output: i8.q1, t2.q1
                            ->  RemoteScan on public.text_tbl t2
                                  Output: i8.q1, t2.q1
-                                 Shard: 2        Remote SQL: select f1 from regression_$$_public.text_tbl 
+                                 Shard: 1        Remote SQL: select f1 from regression_$$_public.text_tbl 
    ->  Materialize
          Output: ((i8.q1)), (t2.q1)
          ->  Limit
@@ -611,7 +611,7 @@ where t1.f1 = ss2.f1;
                      Output: (i8.q1), t2.q1
                      ->  RemoteScan on public.text_tbl t3
                            Output: (i8.q1), t2.q1
-                           Shard: 2      Remote SQL: select f1 from regression_$$_public.text_tbl 
+                           Shard: 1      Remote SQL: select f1 from regression_$$_public.text_tbl 
 (36 rows)
 
 -- AND no explain--
@@ -653,24 +653,24 @@ where ss1.c2 = 2;
                            Output: i41.id, i41.f1
                            ->  RemoteScan on public.int4_tbl i41  (cost=0.00..0.00 rows=1 width=8)
                                  Output: i41.id, i41.f1
-                                 Shard: 1        Remote SQL: select id, f1 from regression_$$_public.int4_tbl 
+                                 Shard: 2        Remote SQL: select id, f1 from regression_$$_public.int4_tbl 
                      ->  Materialize  (cost=0.00..0.01 rows=1 width=4)
                            Output: i42.id, i42.f1
                            ->  RemoteScan on public.int4_tbl i42  (cost=0.00..0.00 rows=1 width=4)
                                  Output: i42.id, i42.f1
-                                 Shard: 1        Remote SQL: select id, f1 from regression_$$_public.int4_tbl 
+                                 Shard: 2        Remote SQL: select id, f1 from regression_$$_public.int4_tbl 
                ->  Materialize  (cost=0.00..0.01 rows=1 width=20)
                      Output: i8.id, i8.q1, i8.q2
                      ->  RemoteScan on public.int8_tbl i8  (cost=0.00..0.00 rows=1 width=20)
                            Output: i8.id, i8.q1, i8.q2
                            Filter: (i8.q1 = 2)
-                           Shard: 2      Remote SQL: select id, q1, q2 from regression_$$_public.int8_tbl  where (q1 = 2)
+                           Shard: 1      Remote SQL: select id, q1, q2 from regression_$$_public.int8_tbl  where (q1 = 2)
          ->  Materialize  (cost=0.00..0.01 rows=1 width=4)
                Output: i43.id, i43.f1
                ->  RemoteScan on public.int4_tbl i43  (cost=0.00..0.00 rows=1 width=4)
                      Output: i43.id, i43.f1
                      Filter: (i43.f1 = 2)
-                     Shard: 1    Remote SQL: select id, f1 from regression_$$_public.int4_tbl  where (f1 = 2)
+                     Shard: 2    Remote SQL: select id, f1 from regression_$$_public.int4_tbl  where (f1 = 2)
    ->  Materialize  (cost=0.00..0.01 rows=1 width=40)
          Output: (i41.id), (i41.f1), (i8.id), (i8.q1), (i8.q2), (i42.f1), (i43.f1), ((42))
          ->  Limit  (cost=0.00..0.00 rows=1 width=40)
@@ -679,7 +679,7 @@ where ss1.c2 = 2;
                      Output: i41.id, i41.f1, i8.id, i8.q1, i8.q2, i42.f1, i43.f1, (42)
                      ->  RemoteScan on public.text_tbl  (cost=0.00..0.00 rows=1 width=40)
                            Output: i41.id, i41.f1, i8.id, i8.q1, i8.q2, i42.f1, i43.f1, (42)
-                           Shard: 2      Remote SQL: select f1 from regression_$$_public.text_tbl 
+                           Shard: 1      Remote SQL: select f1 from regression_$$_public.text_tbl 
 (40 rows)
 
 select ss2.* from
@@ -804,7 +804,7 @@ SELECT * FROM prt1_l t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t2.c AS t2c, t2.b
                      ->  RemoteScan on public.prt1_l_p2_p1 t1_1  (cost=0.00..0.00 rows=1 width=40)
                            Output: t1_1.a, t1_1.b, t1_1.c
                            Filter: (t1_1.b = 0)
-                           Shard: 2      Remote SQL: select a, b, c from regression_$$_public.prt1_l_p2_p1  where (b = 0)
+                           Shard: 1      Remote SQL: select a, b, c from regression_$$_public.prt1_l_p2_p1  where (b = 0)
                ->  Materialize  (cost=0.00..0.01 rows=1 width=40)
                      Output: t1_2.a, t1_2.b, t1_2.c
                      ->  RemoteScan on public.prt1_l_p2_p2 t1_2  (cost=0.00..0.00 rows=1 width=40)
@@ -816,7 +816,7 @@ SELECT * FROM prt1_l t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t2.c AS t2c, t2.b
                      ->  RemoteScan on public.prt1_l_p3_p1 t1_3  (cost=0.00..0.00 rows=1 width=40)
                            Output: t1_3.a, t1_3.b, t1_3.c
                            Filter: (t1_3.b = 0)
-                           Shard: 2      Remote SQL: select a, b, c from regression_$$_public.prt1_l_p3_p1  where (b = 0)
+                           Shard: 1      Remote SQL: select a, b, c from regression_$$_public.prt1_l_p3_p1  where (b = 0)
          ->  Materialize  (cost=0.10..0.18 rows=1 width=48)
                Output: t2.a, t2.c, t2.b, , LEAST(t1.a, t2.a, )
                ->  Hash Join  (cost=0.10..0.17 rows=1 width=48)
@@ -834,7 +834,7 @@ SELECT * FROM prt1_l t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t2.c AS t2c, t2.b
                                  ->  RemoteScan on public.prt1_l_p2_p1 t2_1  (cost=0.00..0.00 rows=1 width=40)
                                        Output: t2_1.a, t2_1.c, t2_1.b
                                        Filter: ((t1.a = t2_1.a) AND ((t1.c)::text = (t2_1.c)::text))
-                                       Shard: 2  Remote SQL: select a, c, b from regression_$$_public.prt1_l_p2_p1 
+                                       Shard: 1  Remote SQL: select a, c, b from regression_$$_public.prt1_l_p2_p1 
                            ->  Materialize  (cost=0.00..0.01 rows=1 width=40)
                                  Output: t2_2.a, t2_2.c, t2_2.b
                                  ->  RemoteScan on public.prt1_l_p2_p2 t2_2  (cost=0.00..0.00 rows=1 width=40)
@@ -846,13 +846,13 @@ SELECT * FROM prt1_l t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t2.c AS t2c, t2.b
                                  ->  RemoteScan on public.prt1_l_p3_p1 t2_3  (cost=0.00..0.00 rows=1 width=40)
                                        Output: t2_3.a, t2_3.c, t2_3.b
                                        Filter: ((t1.a = t2_3.a) AND ((t1.c)::text = (t2_3.c)::text))
-                                       Shard: 2  Remote SQL: select a, c, b from regression_$$_public.prt1_l_p3_p1 
+                                       Shard: 1  Remote SQL: select a, c, b from regression_$$_public.prt1_l_p3_p1 
                            ->  Materialize  (cost=0.00..0.01 rows=1 width=40)
                                  Output: t2_4.a, t2_4.c, t2_4.b
                                  ->  RemoteScan on public.prt1_l_p3_p2 t2_4  (cost=0.00..0.00 rows=1 width=40)
                                        Output: t2_4.a, t2_4.c, t2_4.b
                                        Filter: ((t1.a = t2_4.a) AND ((t1.c)::text = (t2_4.c)::text))
-                                       Shard: 2  Remote SQL: select a, c, b from regression_$$_public.prt1_l_p3_p2 
+                                       Shard: 1  Remote SQL: select a, c, b from regression_$$_public.prt1_l_p3_p2 
                      ->  Hash  (cost=0.03..0.03 rows=5 width=36)
                            Output: t3.b, t3.c
                            ->  Append  (cost=0.00..0.03 rows=5 width=36)
@@ -860,7 +860,7 @@ SELECT * FROM prt1_l t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t2.c AS t2c, t2.b
                                        Output: t3.b, t3.c
                                        ->  RemoteScan on public.prt2_l_p1 t3  (cost=0.00..0.00 rows=1 width=36)
                                              Output: t3.b, t3.c
-                                             Shard: 1    Remote SQL: select b, c from regression_$$_public.prt2_l_p1 
+                                             Shard: 2    Remote SQL: select b, c from regression_$$_public.prt2_l_p1 
                                  ->  Materialize  (cost=0.00..0.01 rows=1 width=36)
                                        Output: t3_1.b, t3_1.c
                                        ->  RemoteScan on public.prt2_l_p2_p1 t3_1  (cost=0.00..0.00 rows=1 width=36)
@@ -871,21 +871,19 @@ SELECT * FROM prt1_l t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t2.c AS t2c, t2.b
                                        ->  RemoteScan on public.prt2_l_p2_p2 t3_2  (cost=0.00..0.00 rows=1 width=36)
                                              Output: t3_2.b, t3_2.c
                                              Shard: 1    Remote SQL: select b, c from regression_$$_public.prt2_l_p2_p2 
-                                 ->  RemoteScan on public.prt2_l_p3_p1 t3_3  (cost=0.00..0.00 rows=1 width=36)
-                                       Output: t3_3.b, t3_3.c
-                                       Shard: 1  Remote SQL: select b, c from regression_$$_public.prt2_l_p3_p1 
                                  ->  Materialize  (cost=0.00..0.01 rows=1 width=36)
+                                       Output: t3_3.b, t3_3.c
+                                       ->  RemoteScan on public.prt2_l_p3_p1 t3_3  (cost=0.00..0.00 rows=1 width=36)
+                                             Output: t3_3.b, t3_3.c
+                                             Shard: 1    Remote SQL: select b, c from regression_$$_public.prt2_l_p3_p1 
+                                 ->  RemoteScan on public.prt2_l_p3_p2 t3_4  (cost=0.00..0.00 rows=1 width=36)
                                        Output: t3_4.b, t3_4.c
-                                       ->  RemoteScan on public.prt2_l_p3_p2 t3_4  (cost=0.00..0.00 rows=1 width=36)
-                                             Output: t3_4.b, t3_4.c
-                                             Shard: 2    Remote SQL: select b, c from regression_$$_public.prt2_l_p3_p2 
+                                       Shard: 1  Remote SQL: select b, c from regression_$$_public.prt2_l_p3_p2 
 (92 rows)
 
 -- bug 66 
 DROP TABLE if exists prt1;
-NOTICE:  table "prt1" does not exist, skipping
 DROP TABLE if exists prt2;
-NOTICE:  table "prt2" does not exist, skipping
 CREATE TABLE prt1 (a int primary key, b int, c varchar) PARTITION BY RANGE(a);
 CREATE TABLE prt1_p1 PARTITION OF prt1 FOR VALUES FROM (0) TO (250);
 CREATE TABLE prt1_p3 PARTITION OF prt1 FOR VALUES FROM (500) TO (600);
@@ -929,17 +927,19 @@ SELECT t1, t2 FROM prt1 t1 LEFT JOIN prt2 t2 ON t1.a = t2.b WHERE t1.b = 0 ORDER
                      ->  RemoteScan on public.prt1_p1 t1  (cost=0.00..0.00 rows=1 width=36)
                            Output: t1.*, t1.a
                            Filter: (t1.b = 0)
-                           Shard: 2      Remote SQL: select a, b, c from regression_$$_public.prt1_p1  where (b = 0)
+                           Shard: 1      Remote SQL: select a, b, c from regression_$$_public.prt1_p1  where (b = 0)
                ->  Materialize  (cost=0.00..0.01 rows=1 width=36)
                      Output: t1_1.*, t1_1.a
                      ->  RemoteScan on public.prt1_p2 t1_1  (cost=0.00..0.00 rows=1 width=36)
                            Output: t1_1.*, t1_1.a
                            Filter: (t1_1.b = 0)
-                           Shard: 1      Remote SQL: select a, b, c from regression_$$_public.prt1_p2  where (b = 0)
-               ->  RemoteScan on public.prt1_p3 t1_2  (cost=0.00..0.00 rows=1 width=36)
+                           Shard: 2      Remote SQL: select a, b, c from regression_$$_public.prt1_p2  where (b = 0)
+               ->  Materialize  (cost=0.00..0.01 rows=1 width=36)
                      Output: t1_2.*, t1_2.a
-                     Filter: (t1_2.b = 0)
-                     Shard: 2    Remote SQL: select a, b, c from regression_$$_public.prt1_p3  where (b = 0)
+                     ->  RemoteScan on public.prt1_p3 t1_2  (cost=0.00..0.00 rows=1 width=36)
+                           Output: t1_2.*, t1_2.a
+                           Filter: (t1_2.b = 0)
+                           Shard: 2      Remote SQL: select a, b, c from regression_$$_public.prt1_p3  where (b = 0)
          ->  Hash  (cost=0.01..0.01 rows=3 width=36)
                Output: ((t2.*)::prt2), t2.b
                ->  Append  (cost=0.00..0.01 rows=3 width=36)
@@ -948,11 +948,9 @@ SELECT t1, t2 FROM prt1 t1 LEFT JOIN prt2 t2 ON t1.a = t2.b WHERE t1.b = 0 ORDER
                            ->  RemoteScan on public.prt2_p1 t2  (cost=0.00..0.00 rows=1 width=36)
                                  Output: t2.*, t2.b
                                  Shard: 1        Remote SQL: select a, b, c from regression_$$_public.prt2_p1 
-                     ->  Materialize  (cost=0.00..0.01 rows=1 width=36)
+                     ->  RemoteScan on public.prt2_p2 t2_1  (cost=0.00..0.00 rows=1 width=36)
                            Output: t2_1.*, t2_1.b
-                           ->  RemoteScan on public.prt2_p2 t2_1  (cost=0.00..0.00 rows=1 width=36)
-                                 Output: t2_1.*, t2_1.b
-                                 Shard: 1        Remote SQL: select a, b, c from regression_$$_public.prt2_p2 
+                           Shard: 2      Remote SQL: select a, b, c from regression_$$_public.prt2_p2 
                      ->  RemoteScan on public.prt2_p3 t2_2  (cost=0.00..0.00 rows=1 width=36)
                            Output: t2_2.*, t2_2.b
                            Shard: 1      Remote SQL: select a, b, c from regression_$$_public.prt2_p3 
@@ -996,13 +994,13 @@ SELECT * FROM prt1 t1 LEFT JOIN  (SELECT t2.a AS t2a, t3.a AS t3a, least(t2.a,t3
                      ->  RemoteScan on public.prt1_p1 t1  (cost=0.00..0.00 rows=1 width=40)
                            Output: t1.a, t1.b, t1.c
                            Filter: (t1.b = 0)
-                           Shard: 2      Remote SQL: select a, b, c from regression_$$_public.prt1_p1  where (b = 0)
+                           Shard: 1      Remote SQL: select a, b, c from regression_$$_public.prt1_p1  where (b = 0)
                ->  Materialize  (cost=0.00..0.01 rows=1 width=40)
                      Output: t1_1.a, t1_1.b, t1_1.c
                      ->  RemoteScan on public.prt1_p2 t1_1  (cost=0.00..0.00 rows=1 width=40)
                            Output: t1_1.a, t1_1.b, t1_1.c
                            Filter: (t1_1.b = 0)
-                           Shard: 1      Remote SQL: select a, b, c from regression_$$_public.prt1_p2  where (b = 0)
+                           Shard: 2      Remote SQL: select a, b, c from regression_$$_public.prt1_p2  where (b = 0)
                ->  Materialize  (cost=0.00..0.01 rows=1 width=40)
                      Output: t1_2.a, t1_2.b, t1_2.c
                      ->  RemoteScan on public.prt1_p3 t1_2  (cost=0.00..0.00 rows=1 width=40)
@@ -1020,15 +1018,17 @@ SELECT * FROM prt1 t1 LEFT JOIN  (SELECT t2.a AS t2a, t3.a AS t3a, least(t2.a,t3
                            Output: t2.a
                            ->  RemoteScan on public.prt1_p1 t2  (cost=0.00..0.00 rows=1 width=4)
                                  Output: t2.a
-                                 Shard: 2        Remote SQL: select a from regression_$$_public.prt1_p1 
+                                 Shard: 1        Remote SQL: select a from regression_$$_public.prt1_p1 
                      ->  Materialize  (cost=0.00..0.01 rows=1 width=4)
                            Output: t2_1.a
                            ->  RemoteScan on public.prt1_p2 t2_1  (cost=0.00..0.00 rows=1 width=4)
                                  Output: t2_1.a
-                                 Shard: 1        Remote SQL: select a from regression_$$_public.prt1_p2 
-                     ->  RemoteScan on public.prt1_p3 t2_2  (cost=0.00..0.00 rows=1 width=4)
+                                 Shard: 2        Remote SQL: select a from regression_$$_public.prt1_p2 
+                     ->  Materialize  (cost=0.00..0.01 rows=1 width=4)
                            Output: t2_2.a
-                           Shard: 2      Remote SQL: select a from regression_$$_public.prt1_p3 
+                           ->  RemoteScan on public.prt1_p3 t2_2  (cost=0.00..0.00 rows=1 width=4)
+                                 Output: t2_2.a
+                                 Shard: 2        Remote SQL: select a from regression_$$_public.prt1_p3 
                ->  Hash  (cost=0.01..0.01 rows=3 width=8)
                      Output: t3.a, t3.b
                      ->  Append  (cost=0.00..0.01 rows=3 width=8)
@@ -1037,11 +1037,9 @@ SELECT * FROM prt1 t1 LEFT JOIN  (SELECT t2.a AS t2a, t3.a AS t3a, least(t2.a,t3
                                  ->  RemoteScan on public.prt2_p1 t3  (cost=0.00..0.00 rows=1 width=8)
                                        Output: t3.a, t3.b
                                        Shard: 1  Remote SQL: select a, b from regression_$$_public.prt2_p1 
-                           ->  Materialize  (cost=0.00..0.01 rows=1 width=8)
+                           ->  RemoteScan on public.prt2_p2 t3_1  (cost=0.00..0.00 rows=1 width=8)
                                  Output: t3_1.a, t3_1.b
-                                 ->  RemoteScan on public.prt2_p2 t3_1  (cost=0.00..0.00 rows=1 width=8)
-                                       Output: t3_1.a, t3_1.b
-                                       Shard: 1  Remote SQL: select a, b from regression_$$_public.prt2_p2 
+                                 Shard: 2        Remote SQL: select a, b from regression_$$_public.prt2_p2 
                            ->  RemoteScan on public.prt2_p3 t3_2  (cost=0.00..0.00 rows=1 width=8)
                                  Output: t3_2.a, t3_2.b
                                  Shard: 1        Remote SQL: select a, b from regression_$$_public.prt2_p3 
@@ -1079,13 +1077,13 @@ SELECT * FROM prt1 t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t3.a AS t3a, least(
                      ->  RemoteScan on public.prt1_p1 t1  (cost=0.00..0.00 rows=1 width=40)
                            Output: t1.a, t1.b, t1.c
                            Filter: (t1.b = 0)
-                           Shard: 2      Remote SQL: select a, b, c from regression_$$_public.prt1_p1  where (b = 0)
+                           Shard: 1      Remote SQL: select a, b, c from regression_$$_public.prt1_p1  where (b = 0)
                ->  Materialize  (cost=0.00..0.01 rows=1 width=40)
                      Output: t1_1.a, t1_1.b, t1_1.c
                      ->  RemoteScan on public.prt1_p2 t1_1  (cost=0.00..0.00 rows=1 width=40)
                            Output: t1_1.a, t1_1.b, t1_1.c
                            Filter: (t1_1.b = 0)
-                           Shard: 1      Remote SQL: select a, b, c from regression_$$_public.prt1_p2  where (b = 0)
+                           Shard: 2      Remote SQL: select a, b, c from regression_$$_public.prt1_p2  where (b = 0)
                ->  Materialize  (cost=0.00..0.01 rows=1 width=40)
                      Output: t1_2.a, t1_2.b, t1_2.c
                      ->  RemoteScan on public.prt1_p3 t1_2  (cost=0.00..0.00 rows=1 width=40)
@@ -1103,17 +1101,19 @@ SELECT * FROM prt1 t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t3.a AS t3a, least(
                                  ->  RemoteScan on public.prt1_p1 t2  (cost=0.00..0.00 rows=1 width=4)
                                        Output: t2.a
                                        Filter: (t1.a = t2.a)
-                                       Shard: 2  Remote SQL: select a from regression_$$_public.prt1_p1 
+                                       Shard: 1  Remote SQL: select a from regression_$$_public.prt1_p1 
                            ->  Materialize  (cost=0.00..0.01 rows=1 width=4)
                                  Output: t2_1.a
                                  ->  RemoteScan on public.prt1_p2 t2_1  (cost=0.00..0.00 rows=1 width=4)
                                        Output: t2_1.a
                                        Filter: (t1.a = t2_1.a)
-                                       Shard: 1  Remote SQL: select a from regression_$$_public.prt1_p2 
-                           ->  RemoteScan on public.prt1_p3 t2_2  (cost=0.00..0.00 rows=1 width=4)
+                                       Shard: 2  Remote SQL: select a from regression_$$_public.prt1_p2 
+                           ->  Materialize  (cost=0.00..0.01 rows=1 width=4)
                                  Output: t2_2.a
-                                 Filter: (t1.a = t2_2.a)
-                                 Shard: 2        Remote SQL: select a from regression_$$_public.prt1_p3 
+                                 ->  RemoteScan on public.prt1_p3 t2_2  (cost=0.00..0.00 rows=1 width=4)
+                                       Output: t2_2.a
+                                       Filter: (t1.a = t2_2.a)
+                                       Shard: 2  Remote SQL: select a from regression_$$_public.prt1_p3 
                      ->  Hash  (cost=0.01..0.01 rows=3 width=8)
                            Output: t3.a, t3.b
                            ->  Append  (cost=0.00..0.01 rows=3 width=8)
@@ -1126,12 +1126,10 @@ SELECT * FROM prt1 t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t3.a AS t3a, least(
                                        Output: t3_1.a, t3_1.b
                                        ->  RemoteScan on public.prt2_p2 t3_1  (cost=0.00..0.00 rows=1 width=8)
                                              Output: t3_1.a, t3_1.b
-                                             Shard: 1    Remote SQL: select a, b from regression_$$_public.prt2_p2 
-                                 ->  Materialize  (cost=0.00..0.01 rows=1 width=8)
+                                             Shard: 2    Remote SQL: select a, b from regression_$$_public.prt2_p2 
+                                 ->  RemoteScan on public.prt2_p3 t3_2  (cost=0.00..0.00 rows=1 width=8)
                                        Output: t3_2.a, t3_2.b
-                                       ->  RemoteScan on public.prt2_p3 t3_2  (cost=0.00..0.00 rows=1 width=8)
-                                             Output: t3_2.a, t3_2.b
-                                             Shard: 1    Remote SQL: select a, b from regression_$$_public.prt2_p3 
+                                       Shard: 1  Remote SQL: select a, b from regression_$$_public.prt2_p3 
 (64 rows)
 
 SET enable_partitionwise_join to true;
@@ -1168,17 +1166,19 @@ SELECT t1, t2 FROM prt1 t1 LEFT JOIN prt2 t2 ON t1.a = t2.b WHERE t1.b = 0 ORDER
                      ->  RemoteScan on public.prt1_p1 t1  (cost=0.00..0.00 rows=1 width=36)
                            Output: t1.*, t1.a
                            Filter: (t1.b = 0)
-                           Shard: 2      Remote SQL: select a, b, c from regression_$$_public.prt1_p1  where (b = 0)
+                           Shard: 1      Remote SQL: select a, b, c from regression_$$_public.prt1_p1  where (b = 0)
                ->  Materialize  (cost=0.00..0.01 rows=1 width=36)
                      Output: t1_1.*, t1_1.a
                      ->  RemoteScan on public.prt1_p2 t1_1  (cost=0.00..0.00 rows=1 width=36)
                            Output: t1_1.*, t1_1.a
                            Filter: (t1_1.b = 0)
-                           Shard: 1      Remote SQL: select a, b, c from regression_$$_public.prt1_p2  where (b = 0)
-               ->  RemoteScan on public.prt1_p3 t1_2  (cost=0.00..0.00 rows=1 width=36)
+                           Shard: 2      Remote SQL: select a, b, c from regression_$$_public.prt1_p2  where (b = 0)
+               ->  Materialize  (cost=0.00..0.01 rows=1 width=36)
                      Output: t1_2.*, t1_2.a
-                     Filter: (t1_2.b = 0)
-                     Shard: 2    Remote SQL: select a, b, c from regression_$$_public.prt1_p3  where (b = 0)
+                     ->  RemoteScan on public.prt1_p3 t1_2  (cost=0.00..0.00 rows=1 width=36)
+                           Output: t1_2.*, t1_2.a
+                           Filter: (t1_2.b = 0)
+                           Shard: 2      Remote SQL: select a, b, c from regression_$$_public.prt1_p3  where (b = 0)
          ->  Hash  (cost=0.01..0.01 rows=3 width=36)
                Output: ((t2.*)::prt2), t2.b
                ->  Append  (cost=0.00..0.01 rows=3 width=36)
@@ -1187,11 +1187,9 @@ SELECT t1, t2 FROM prt1 t1 LEFT JOIN prt2 t2 ON t1.a = t2.b WHERE t1.b = 0 ORDER
                            ->  RemoteScan on public.prt2_p1 t2  (cost=0.00..0.00 rows=1 width=36)
                                  Output: t2.*, t2.b
                                  Shard: 1        Remote SQL: select a, b, c from regression_$$_public.prt2_p1 
-                     ->  Materialize  (cost=0.00..0.01 rows=1 width=36)
+                     ->  RemoteScan on public.prt2_p2 t2_1  (cost=0.00..0.00 rows=1 width=36)
                            Output: t2_1.*, t2_1.b
-                           ->  RemoteScan on public.prt2_p2 t2_1  (cost=0.00..0.00 rows=1 width=36)
-                                 Output: t2_1.*, t2_1.b
-                                 Shard: 1        Remote SQL: select a, b, c from regression_$$_public.prt2_p2 
+                           Shard: 2      Remote SQL: select a, b, c from regression_$$_public.prt2_p2 
                      ->  RemoteScan on public.prt2_p3 t2_2  (cost=0.00..0.00 rows=1 width=36)
                            Output: t2_2.*, t2_2.b
                            Shard: 1      Remote SQL: select a, b, c from regression_$$_public.prt2_p3 
@@ -1235,15 +1233,17 @@ SELECT * FROM prt1 t1 LEFT JOIN  (SELECT t2.a AS t2a, t3.a AS t3a, least(t2.a,t3
                      ->  RemoteScan on public.prt1_p1 t1  (cost=0.00..0.00 rows=1 width=40)
                            Output: t1.a, t1.b, t1.c
                            Filter: (t1.b = 0)
-                           Shard: 2      Remote SQL: select a, b, c from regression_$$_public.prt1_p1  where (b = 0)
+                           Shard: 1      Remote SQL: select a, b, c from regression_$$_public.prt1_p1  where (b = 0)
                ->  Materialize  (cost=0.00..0.02 rows=1 width=12)
                      Output: t2.a, , LEAST(t2.a, )
                      ->  Nested Loop  (cost=0.00..0.02 rows=1 width=12)
                            Output: t2.a, t3.a, LEAST(t2.a, t3.b)
                            Join Filter: (t2.a = t3.b)
-                           ->  RemoteScan on public.prt1_p1 t2  (cost=0.00..0.00 rows=1 width=4)
+                           ->  Materialize  (cost=0.00..0.01 rows=1 width=4)
                                  Output: t2.a
-                                 Shard: 2        Remote SQL: select a from regression_$$_public.prt1_p1 
+                                 ->  RemoteScan on public.prt1_p1 t2  (cost=0.00..0.00 rows=1 width=4)
+                                       Output: t2.a
+                                       Shard: 1  Remote SQL: select a from regression_$$_public.prt1_p1 
                            ->  Materialize  (cost=0.00..0.01 rows=1 width=8)
                                  Output: t3.a, t3.b
                                  ->  RemoteScan on public.prt2_p1 t3  (cost=0.00..0.00 rows=1 width=8)
@@ -1257,7 +1257,7 @@ SELECT * FROM prt1 t1 LEFT JOIN  (SELECT t2.a AS t2a, t3.a AS t3a, least(t2.a,t3
                      ->  RemoteScan on public.prt1_p2 t1_1  (cost=0.00..0.00 rows=1 width=40)
                            Output: t1_1.a, t1_1.b, t1_1.c
                            Filter: (t1_1.b = 0)
-                           Shard: 1      Remote SQL: select a, b, c from regression_$$_public.prt1_p2  where (b = 0)
+                           Shard: 2      Remote SQL: select a, b, c from regression_$$_public.prt1_p2  where (b = 0)
                ->  Materialize  (cost=0.00..0.02 rows=1 width=12)
                      Output: t2_1.a, , LEAST(t2_1.a, )
                      ->  Nested Loop  (cost=0.00..0.02 rows=1 width=12)
@@ -1267,12 +1267,12 @@ SELECT * FROM prt1 t1 LEFT JOIN  (SELECT t2.a AS t2a, t3.a AS t3a, least(t2.a,t3
                                  Output: t2_1.a
                                  ->  RemoteScan on public.prt1_p2 t2_1  (cost=0.00..0.00 rows=1 width=4)
                                        Output: t2_1.a
-                                       Shard: 1  Remote SQL: select a from regression_$$_public.prt1_p2 
+                                       Shard: 2  Remote SQL: select a from regression_$$_public.prt1_p2 
                            ->  Materialize  (cost=0.00..0.01 rows=1 width=8)
                                  Output: t3_1.a, t3_1.b
                                  ->  RemoteScan on public.prt2_p2 t3_1  (cost=0.00..0.00 rows=1 width=8)
                                        Output: t3_1.a, t3_1.b
-                                       Shard: 1  Remote SQL: select a, b from regression_$$_public.prt2_p2 
+                                       Shard: 2  Remote SQL: select a, b from regression_$$_public.prt2_p2 
          ->  Nested Loop Left Join  (cost=0.00..0.03 rows=1 width=56)
                Output: t1_2.a, t1_2.b, t1_2.c, t2_2.a, , (LEAST(t2_2.a, )), t1_2.a
                Join Filter: (t1_2.a = t2_2.a)
@@ -1295,7 +1295,7 @@ SELECT * FROM prt1 t1 LEFT JOIN  (SELECT t2.a AS t2a, t3.a AS t3a, least(t2.a,t3
                                  ->  RemoteScan on public.prt2_p3 t3_2  (cost=0.00..0.00 rows=1 width=8)
                                        Output: t3_2.a, t3_2.b
                                        Shard: 1  Remote SQL: select a, b from regression_$$_public.prt2_p3 
-(72 rows)
+(74 rows)
 
 SELECT * FROM prt1 t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t3.a AS t3a, least(t1.a,t2.a,t3.b) FROM prt1 t2 JOIN prt2 t3 ON (t2.a = t3.b)) ss ON t1.a = ss.t2a WHERE t1.b = 0 ORDER BY t1.a;
   a  | b |  c   | t2a | t3a | least 
@@ -1303,7 +1303,6 @@ SELECT * FROM prt1 t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t3.a AS t3a, least(
    0 | 0 | 0000 |   0 |   0 |     0
   50 | 0 | 0050 |     |     |      
  100 | 0 | 0100 |     |     |      
- 150 | 0 | 0150 | 150 |   0 |   150
  150 | 0 | 0150 | 150 |   0 |   150
  200 | 0 | 0200 |     |     |      
  250 | 0 | 0250 |     |     |      
@@ -1313,7 +1312,7 @@ SELECT * FROM prt1 t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t3.a AS t3a, least(
  450 | 0 | 0450 | 450 |   0 |   450
  500 | 0 | 0500 |     |     |      
  550 | 0 | 0550 |     |     |      
-(13 rows)
+(12 rows)
 
 EXPLAIN(verbose)
 SELECT * FROM prt1 t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t3.a AS t3a, least(t1.a,t2.a,t3.b) FROM prt1 t2 JOIN prt2 t3 ON (t2.a = t3.b)) ss ON t1.a = ss.t2a WHERE t1.b = 0 ORDER BY t1.a;
@@ -1330,16 +1329,18 @@ SELECT * FROM prt1 t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t3.a AS t3a, least(
                      ->  RemoteScan on public.prt1_p1 t1  (cost=0.00..0.00 rows=1 width=40)
                            Output: t1.a, t1.b, t1.c
                            Filter: (t1.b = 0)
-                           Shard: 2      Remote SQL: select a, b, c from regression_$$_public.prt1_p1  where (b = 0)
+                           Shard: 1      Remote SQL: select a, b, c from regression_$$_public.prt1_p1  where (b = 0)
                ->  Materialize  (cost=0.00..0.02 rows=1 width=12)
                      Output: t2.a, , LEAST(t1.a, t2.a, )
                      ->  Nested Loop  (cost=0.00..0.02 rows=1 width=12)
                            Output: t2.a, t3.a, LEAST(t1.a, t2.a, t3.b)
                            Join Filter: (t2.a = t3.b)
-                           ->  RemoteScan on public.prt1_p1 t2  (cost=0.00..0.00 rows=1 width=4)
+                           ->  Materialize  (cost=0.00..0.01 rows=1 width=4)
                                  Output: t2.a
-                                 Filter: (t1.a = t2.a)
-                                 Shard: 2        Remote SQL: select a from regression_$$_public.prt1_p1 
+                                 ->  RemoteScan on public.prt1_p1 t2  (cost=0.00..0.00 rows=1 width=4)
+                                       Output: t2.a
+                                       Filter: (t1.a = t2.a)
+                                       Shard: 1  Remote SQL: select a from regression_$$_public.prt1_p1 
                            ->  Materialize  (cost=0.00..0.01 rows=1 width=8)
                                  Output: t3.a, t3.b
                                  ->  RemoteScan on public.prt2_p1 t3  (cost=0.00..0.00 rows=1 width=8)
@@ -1352,7 +1353,7 @@ SELECT * FROM prt1 t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t3.a AS t3a, least(
                      ->  RemoteScan on public.prt1_p2 t1_1  (cost=0.00..0.00 rows=1 width=40)
                            Output: t1_1.a, t1_1.b, t1_1.c
                            Filter: (t1_1.b = 0)
-                           Shard: 1      Remote SQL: select a, b, c from regression_$$_public.prt1_p2  where (b = 0)
+                           Shard: 2      Remote SQL: select a, b, c from regression_$$_public.prt1_p2  where (b = 0)
                ->  Materialize  (cost=0.00..0.02 rows=1 width=12)
                      Output: t2_1.a, , LEAST(t1_1.a, t2_1.a, )
                      ->  Nested Loop  (cost=0.00..0.02 rows=1 width=12)
@@ -1363,12 +1364,12 @@ SELECT * FROM prt1 t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t3.a AS t3a, least(
                                  ->  RemoteScan on public.prt1_p2 t2_1  (cost=0.00..0.00 rows=1 width=4)
                                        Output: t2_1.a
                                        Filter: (t1_1.a = t2_1.a)
-                                       Shard: 1  Remote SQL: select a from regression_$$_public.prt1_p2 
+                                       Shard: 2  Remote SQL: select a from regression_$$_public.prt1_p2 
                            ->  Materialize  (cost=0.00..0.01 rows=1 width=8)
                                  Output: t3_1.a, t3_1.b
                                  ->  RemoteScan on public.prt2_p2 t3_1  (cost=0.00..0.00 rows=1 width=8)
                                        Output: t3_1.a, t3_1.b
-                                       Shard: 1  Remote SQL: select a, b from regression_$$_public.prt2_p2 
+                                       Shard: 2  Remote SQL: select a, b from regression_$$_public.prt2_p2 
          ->  Nested Loop Left Join  (cost=0.00..0.03 rows=1 width=56)
                Output: t1_2.a, t1_2.b, t1_2.c, t2_2.a, , (LEAST(t1_2.a, t2_2.a, )), t1_2.a
                ->  Materialize  (cost=0.00..0.01 rows=1 width=40)
@@ -1391,7 +1392,7 @@ SELECT * FROM prt1 t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t3.a AS t3a, least(
                                  ->  RemoteScan on public.prt2_p3 t3_2  (cost=0.00..0.00 rows=1 width=8)
                                        Output: t3_2.a, t3_2.b
                                        Shard: 1  Remote SQL: select a, b from regression_$$_public.prt2_p3 
-(72 rows)
+(74 rows)
 
 -- bug 67
 SET enable_partitionwise_join to true;
@@ -1426,42 +1427,43 @@ EXPLAIN (COSTS OFF) SELECT t1.a, t1.c, t2.b, t2.c FROM prt1_l t1, prt2_l t2 WHER
                ->  Materialize
                      ->  RemoteScan on prt1_l_p1 t1
                            Filter: (c = 0)
-                           Shard: 1      Remote SQL: select a, c from regression_$$_public.prt1_l_p1  where (b = 0)
+                           Shard: 2      Remote SQL: select a, c from regression_$$_public.prt1_l_p1  where (b = 0)
                ->  Materialize
                      ->  RemoteScan on prt2_l_p1 t2
-                           Shard: 2      Remote SQL: select b, c from regression_$$_public.prt2_l_p1 
+                           Shard: 1      Remote SQL: select b, c from regression_$$_public.prt2_l_p1 
          ->  Hash Join
                Hash Cond: (t1_1.a = t2_1.b)
                ->  Append
                      ->  Materialize
                            ->  RemoteScan on prt1_l_p2_p1 t1_1
                                  Filter: (c = 0)
-                                 Shard: 2        Remote SQL: select a, c from regression_$$_public.prt1_l_p2_p1  where (b = 0)
-                     ->  Materialize
-                           ->  RemoteScan on prt1_l_p2_p2 t1_2
-                                 Filter: (c = 0)
-                                 Shard: 1        Remote SQL: select a, c from regression_$$_public.prt1_l_p2_p2  where (b = 0)
+                                 Shard: 1        Remote SQL: select a, c from regression_$$_public.prt1_l_p2_p1  where (b = 0)
+                     ->  RemoteScan on prt1_l_p2_p2 t1_2
+                           Filter: (c = 0)
+                           Shard: 2      Remote SQL: select a, c from regression_$$_public.prt1_l_p2_p2  where (b = 0)
                ->  Hash
                      ->  Append
                            ->  Materialize
                                  ->  RemoteScan on prt2_l_p2_p1 t2_1
-                                       Shard: 2  Remote SQL: select b, c from regression_$$_public.prt2_l_p2_p1 
+                                       Shard: 1  Remote SQL: select b, c from regression_$$_public.prt2_l_p2_p1 
                            ->  Materialize
                                  ->  RemoteScan on prt2_l_p2_p2 t2_2
-                                       Shard: 2  Remote SQL: select b, c from regression_$$_public.prt2_l_p2_p2 
+                                       Shard: 1  Remote SQL: select b, c from regression_$$_public.prt2_l_p2_p2 
          ->  Nested Loop
                Join Filter: (t1_3.a = t2_3.b)
                ->  Append
-                     ->  RemoteScan on prt1_l_p3_p1 t1_3
-                           Filter: (c = 0)
-                           Shard: 2      Remote SQL: select a, c from regression_$$_public.prt1_l_p3_p1  where (b = 0)
-               ->  Append
                      ->  Materialize
+                           ->  RemoteScan on prt1_l_p3_p1 t1_3
+                                 Filter: (c = 0)
+                                 Shard: 1        Remote SQL: select a, c from regression_$$_public.prt1_l_p3_p1  where (b = 0)
+               ->  Materialize
+                     ->  Append
                            ->  RemoteScan on prt2_l_p3_p1 t2_3
-                                 Shard: 1        Remote SQL: select b, c from regression_$$_public.prt2_l_p3_p1 
-                     ->  RemoteScan on prt2_l_p3_p2 t2_4
-                           Shard: 1      Remote SQL: select b, c from regression_$$_public.prt2_l_p3_p2 
-(43 rows)
+                                 Shard: 2        Remote SQL: select b, c from regression_$$_public.prt2_l_p3_p1 
+                           ->  Materialize
+                                 ->  RemoteScan on prt2_l_p3_p2 t2_4
+                                       Shard: 1  Remote SQL: select b, c from regression_$$_public.prt2_l_p3_p2 
+(44 rows)
 
 SELECT t1.a, t1.c, t2.b, t2.c FROM prt1_l t1, prt2_l t2 WHERE t1.a = t2.b AND t1.b = 0 ORDER BY t1.a, t2.b;
   a  |  c   |  b  |  c   
@@ -1483,16 +1485,16 @@ EXPLAIN (COSTS OFF) SELECT t1.a, t1.c, t2.b, t2.c FROM prt1_l t1, prt2_l t2 WHER
          ->  Append
                ->  Materialize
                      ->  RemoteScan on prt2_l_p1 t2
-                           Shard: 2      Remote SQL: select b, c from regression_$$_public.prt2_l_p1 
+                           Shard: 1      Remote SQL: select b, c from regression_$$_public.prt2_l_p1 
                ->  Materialize
                      ->  RemoteScan on prt2_l_p2_p1 t2_1
-                           Shard: 2      Remote SQL: select b, c from regression_$$_public.prt2_l_p2_p1 
+                           Shard: 1      Remote SQL: select b, c from regression_$$_public.prt2_l_p2_p1 
                ->  Materialize
                      ->  RemoteScan on prt2_l_p2_p2 t2_2
-                           Shard: 2      Remote SQL: select b, c from regression_$$_public.prt2_l_p2_p2 
+                           Shard: 1      Remote SQL: select b, c from regression_$$_public.prt2_l_p2_p2 
                ->  Materialize
                      ->  RemoteScan on prt2_l_p3_p1 t2_3
-                           Shard: 1      Remote SQL: select b, c from regression_$$_public.prt2_l_p3_p1 
+                           Shard: 2      Remote SQL: select b, c from regression_$$_public.prt2_l_p3_p1 
                ->  Materialize
                      ->  RemoteScan on prt2_l_p3_p2 t2_4
                            Shard: 1      Remote SQL: select b, c from regression_$$_public.prt2_l_p3_p2 
@@ -1501,17 +1503,17 @@ EXPLAIN (COSTS OFF) SELECT t1.a, t1.c, t2.b, t2.c FROM prt1_l t1, prt2_l t2 WHER
                      ->  Materialize
                            ->  RemoteScan on prt1_l_p1 t1
                                  Filter: (c = 0)
-                                 Shard: 1        Remote SQL: select a, c from regression_$$_public.prt1_l_p1  where (b = 0)
+                                 Shard: 2        Remote SQL: select a, c from regression_$$_public.prt1_l_p1  where (b = 0)
                      ->  Materialize
                            ->  RemoteScan on prt1_l_p2_p1 t1_1
                                  Filter: (c = 0)
-                                 Shard: 2        Remote SQL: select a, c from regression_$$_public.prt1_l_p2_p1  where (b = 0)
+                                 Shard: 1        Remote SQL: select a, c from regression_$$_public.prt1_l_p2_p1  where (b = 0)
                      ->  RemoteScan on prt1_l_p2_p2 t1_2
                            Filter: (c = 0)
-                           Shard: 1      Remote SQL: select a, c from regression_$$_public.prt1_l_p2_p2  where (b = 0)
+                           Shard: 2      Remote SQL: select a, c from regression_$$_public.prt1_l_p2_p2  where (b = 0)
                      ->  RemoteScan on prt1_l_p3_p1 t1_3
                            Filter: (c = 0)
-                           Shard: 2      Remote SQL: select a, c from regression_$$_public.prt1_l_p3_p1  where (b = 0)
+                           Shard: 1      Remote SQL: select a, c from regression_$$_public.prt1_l_p3_p1  where (b = 0)
 (36 rows)
 
 SELECT t1.a, t1.c, t2.b, t2.c FROM prt1_l t1, prt2_l t2 WHERE t1.a = t2.b AND t1.b = 0 ORDER BY t1.a, t2.b;
@@ -1834,15 +1836,15 @@ ALTER TABLE T ADD COLUMN c1 TIMESTAMP DEFAULT now();
 select*from T;
  pk |            c1            
 ----+--------------------------
-  1 | Wed Nov 24 18:52:41 2021
+  1 | Tue Nov 30 18:59:53 2021
 (1 row)
 
 insert into T values(2);
 select*from T;
  pk |            c1            
 ----+--------------------------
-  1 | Wed Nov 24 18:52:41 2021
-  2 | Wed Nov 24 02:52:42 2021
+  1 | Tue Nov 30 18:59:53 2021
+  2 | Tue Nov 30 02:59:54 2021
 (2 rows)
 
  CREATE OR REPLACE FUNCTION foo(a INT) RETURNS TEXT AS $$
@@ -1874,7 +1876,7 @@ select*from t;
 (2 rows)
 
 ALTER TABLE T ADD COLUMN c_bpchar BPCHAR(50) DEFAULT foo(4), ALTER COLUMN c_int SET DEFAULT LENGTH(foo(8));
-ERROR:  Kunlun-db: MySQL storage node (2, 2) returned error: 1064, You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'foo(4)' at line 1.
+ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1064, You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'foo(4)' at line 1.
 select*from t;
  pk | c_int 
 ----+-------
@@ -2085,7 +2087,7 @@ drop table  if exists t2;
 NOTICE:  table "t2" does not exist, skipping
 create table t2(a int);
 create index on t2(a,a);
-ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1060, Duplicate column name 'a'.
+ERROR:  Kunlun-db: MySQL storage node (2, 2) returned error: 1060, Duplicate column name 'a'.
 -- bug 83
 drop table if exists revalidate_bug cascade;
 NOTICE:  table "revalidate_bug" does not exist, skipping
@@ -2296,17 +2298,16 @@ explain (costs off)
                                        ->  RemoteScan on tenk1 b
                                              Shard: 2    Remote SQL: select unique1, unique2, thousand, tenthous from regression_$$_public.tenk1 
                      ->  Hash
-                           ->  Materialize
-                                 ->  RemoteScan on tenk1 c
-                                       Shard: 2  Remote SQL: select thousand from regression_$$_public.tenk1 
+                           ->  RemoteScan on tenk1 c
+                                 Shard: 2        Remote SQL: select thousand from regression_$$_public.tenk1 
                ->  Hash
                      ->  Materialize
                            ->  RemoteScan on int4_tbl i1
-                                 Shard: 2        Remote SQL: select f1 from regression_$$_public.int4_tbl 
+                                 Shard: 1        Remote SQL: select f1 from regression_$$_public.int4_tbl 
          ->  Hash
                ->  RemoteScan on int4_tbl i2
-                     Shard: 2    Remote SQL: select f1 from regression_$$_public.int4_tbl 
-(29 rows)
+                     Shard: 1    Remote SQL: select f1 from regression_$$_public.int4_tbl 
+(28 rows)
 
 explain (costs off)
     select b.unique1 from
@@ -2328,17 +2329,16 @@ explain (costs off)
                            ->  RemoteScan on tenk1 a
                                  Shard: 2        Remote SQL: select id, unique1, unique2, two, four, ten, twenty, hundred, thousand, twothousand, fivethous, tenthous, odd, even, stringu1, stringu2, string4 from regression_$$_public.tenk1 
                      ->  Hash
-                           ->  Materialize
-                                 ->  RemoteScan on tenk1 b
-                                       Shard: 2  Remote SQL: select unique1, unique2, thousand, tenthous from regression_$$_public.tenk1 
+                           ->  RemoteScan on tenk1 b
+                                 Shard: 2        Remote SQL: select unique1, unique2, thousand, tenthous from regression_$$_public.tenk1 
                ->  Hash
                      ->  Materialize
                            ->  RemoteScan on int4_tbl i1
-                                 Shard: 2        Remote SQL: select f1 from regression_$$_public.int4_tbl 
+                                 Shard: 1        Remote SQL: select f1 from regression_$$_public.int4_tbl 
          ->  Hash
                ->  RemoteScan on int4_tbl i2
-                     Shard: 2    Remote SQL: select f1 from regression_$$_public.int4_tbl 
-(22 rows)
+                     Shard: 1    Remote SQL: select f1 from regression_$$_public.int4_tbl 
+(21 rows)
 
 set enable_nestloop=false;
     select b.unique1 from
@@ -2434,7 +2434,7 @@ select q1, float8(count(*)) / (select count(*) from int8_tbl) from int8_tbl grou
                  Output: int8_tbl_1.id, int8_tbl_1.q1, int8_tbl_1.q2
                  ->  RemoteScan on public.int8_tbl int8_tbl_1  (cost=0.00..0.00 rows=1 width=0)
                        Output: int8_tbl_1.id, int8_tbl_1.q1, int8_tbl_1.q2
-                       Shard: 1  Remote SQL: select id, q1, q2 from regression_$$_public.int8_tbl 
+                       Shard: 2  Remote SQL: select id, q1, q2 from regression_$$_public.int8_tbl 
    ->  Sort  (cost=0.01..0.02 rows=1 width=8)
          Output: int8_tbl.q1
          Sort Key: int8_tbl.q1
@@ -2442,7 +2442,7 @@ select q1, float8(count(*)) / (select count(*) from int8_tbl) from int8_tbl grou
                Output: int8_tbl.q1
                ->  RemoteScan on public.int8_tbl  (cost=0.00..0.00 rows=1 width=8)
                      Output: int8_tbl.q1
-                     Shard: 1    Remote SQL: select q1 from regression_$$_public.int8_tbl 
+                     Shard: 2    Remote SQL: select q1 from regression_$$_public.int8_tbl 
 (19 rows)
 
 -- bug 78
@@ -3049,7 +3049,7 @@ SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2
                            Output: t2.y
                            ->  RemoteScan on public.pagg_tab2_p1 t2
                                  Output: t2.y
-                                 Shard: 1        Remote SQL: select y from regression_$$_public.pagg_tab2_p1 
+                                 Shard: 2        Remote SQL: select y from regression_$$_public.pagg_tab2_p1 
                ->  Nested Loop
                      Output: t1_1.x, t1_1.y
                      Join Filter: (t1_1.x = t2_1.y)
@@ -3062,7 +3062,7 @@ SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2
                            Output: t2_1.y
                            ->  RemoteScan on public.pagg_tab2_p2 t2_1
                                  Output: t2_1.y
-                                 Shard: 1        Remote SQL: select y from regression_$$_public.pagg_tab2_p2 
+                                 Shard: 2        Remote SQL: select y from regression_$$_public.pagg_tab2_p2 
                ->  Nested Loop
                      Output: t1_2.x, t1_2.y
                      Join Filter: (t1_2.x = t2_2.y)
@@ -3109,7 +3109,7 @@ SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2
                            Output: t2.y
                            ->  RemoteScan on public.pagg_tab2_p1 t2
                                  Output: t2.y
-                                 Shard: 1        Remote SQL: select y from regression_$$_public.pagg_tab2_p1 
+                                 Shard: 2        Remote SQL: select y from regression_$$_public.pagg_tab2_p1 
                ->  Nested Loop
                      Output: t1_1.y, t1_1.x
                      Join Filter: (t1_1.x = t2_1.y)
@@ -3122,7 +3122,7 @@ SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2
                            Output: t2_1.y
                            ->  RemoteScan on public.pagg_tab2_p2 t2_1
                                  Output: t2_1.y
-                                 Shard: 1        Remote SQL: select y from regression_$$_public.pagg_tab2_p2 
+                                 Shard: 2        Remote SQL: select y from regression_$$_public.pagg_tab2_p2 
                ->  Nested Loop
                      Output: t1_2.y, t1_2.x
                      Join Filter: (t1_2.x = t2_2.y)
@@ -3168,7 +3168,7 @@ SELECT b.y, sum(a.y) FROM pagg_tab1 a LEFT JOIN pagg_tab2 b ON a.x = b.y GROUP B
                            Output: b.y
                            ->  RemoteScan on public.pagg_tab2_p1 b
                                  Output: b.y
-                                 Shard: 1        Remote SQL: select y from regression_$$_public.pagg_tab2_p1 
+                                 Shard: 2        Remote SQL: select y from regression_$$_public.pagg_tab2_p1 
                ->  Nested Loop Left Join
                      Output: b_1.y, a_1.y
                      Join Filter: (a_1.x = b_1.y)
@@ -3181,7 +3181,7 @@ SELECT b.y, sum(a.y) FROM pagg_tab1 a LEFT JOIN pagg_tab2 b ON a.x = b.y GROUP B
                            Output: b_1.y
                            ->  RemoteScan on public.pagg_tab2_p2 b_1
                                  Output: b_1.y
-                                 Shard: 1        Remote SQL: select y from regression_$$_public.pagg_tab2_p2 
+                                 Shard: 2        Remote SQL: select y from regression_$$_public.pagg_tab2_p2 
                ->  Nested Loop Left Join
                      Output: b_2.y, a_2.y
                      Join Filter: (a_2.x = b_2.y)
@@ -3226,7 +3226,7 @@ SELECT b.y, sum(a.y) FROM pagg_tab1 a RIGHT JOIN pagg_tab2 b ON a.x = b.y GROUP 
                            Output: b.y
                            ->  RemoteScan on public.pagg_tab2_p1 b
                                  Output: b.y
-                                 Shard: 1        Remote SQL: select y from regression_$$_public.pagg_tab2_p1 
+                                 Shard: 2        Remote SQL: select y from regression_$$_public.pagg_tab2_p1 
                      ->  Materialize
                            Output: a.y, a.x
                            ->  RemoteScan on public.pagg_tab1_p1 a
@@ -3239,7 +3239,7 @@ SELECT b.y, sum(a.y) FROM pagg_tab1 a RIGHT JOIN pagg_tab2 b ON a.x = b.y GROUP 
                            Output: b_1.y
                            ->  RemoteScan on public.pagg_tab2_p2 b_1
                                  Output: b_1.y
-                                 Shard: 1        Remote SQL: select y from regression_$$_public.pagg_tab2_p2 
+                                 Shard: 2        Remote SQL: select y from regression_$$_public.pagg_tab2_p2 
                      ->  Materialize
                            Output: a_1.y, a_1.x
                            ->  RemoteScan on public.pagg_tab1_p2 a_1
@@ -3299,7 +3299,7 @@ SELECT t1.a, t1.c, t2.b, t2.c FROM prt1 t1 RIGHT JOIN prt2 t2 ON t1.a = t2.b WHE
                      ->  RemoteScan on public.prt2_p2 t2_1
                            Output: t2_1.b, t2_1.c
                            Filter: (t2_1.b = 0)
-                           Shard: 1      Remote SQL: select b, c from regression_$$_public.prt2_p2  where (a = 0)
+                           Shard: 2      Remote SQL: select b, c from regression_$$_public.prt2_p2  where (a = 0)
                ->  Materialize
                      Output: t1_1.a, t1_1.c
                      ->  RemoteScan on public.prt1_p2 t1_1
@@ -3308,14 +3308,18 @@ SELECT t1.a, t1.c, t2.b, t2.c FROM prt1 t1 RIGHT JOIN prt2 t2 ON t1.a = t2.b WHE
          ->  Nested Loop Left Join
                Output: t1_2.a, t1_2.c, t2_2.b, t2_2.c
                Join Filter: (t1_2.a = t2_2.b)
-               ->  RemoteScan on public.prt2_p3 t2_2
+               ->  Materialize
                      Output: t2_2.b, t2_2.c
-                     Filter: (t2_2.b = 0)
-                     Shard: 1    Remote SQL: select b, c from regression_$$_public.prt2_p3  where (a = 0)
-               ->  RemoteScan on public.prt1_p3 t1_2
+                     ->  RemoteScan on public.prt2_p3 t2_2
+                           Output: t2_2.b, t2_2.c
+                           Filter: (t2_2.b = 0)
+                           Shard: 1      Remote SQL: select b, c from regression_$$_public.prt2_p3  where (a = 0)
+               ->  Materialize
                      Output: t1_2.a, t1_2.c
-                     Shard: 2    Remote SQL: select a, c from regression_$$_public.prt1_p3 
-(42 rows)
+                     ->  RemoteScan on public.prt1_p3 t1_2
+                           Output: t1_2.a, t1_2.c
+                           Shard: 1      Remote SQL: select a, c from regression_$$_public.prt1_p3 
+(46 rows)
 
 SELECT sum(t1.a), avg(t1.a), sum(t1.b), avg(t1.b) FROM prt1 t1 WHERE NOT EXISTS (SELECT 1 FROM prt2 t2 WHERE t1.a = t2.b);
   sum  |         avg          | sum  |         avg         
@@ -3355,17 +3359,21 @@ SELECT sum(t1.a), avg(t1.a), sum(t1.b), avg(t1.b) FROM prt1 t1 WHERE NOT EXISTS 
                      Output: t2_1.b
                      ->  RemoteScan on public.prt2_p2 t2_1
                            Output: t2_1.b
-                           Shard: 1      Remote SQL: select b from regression_$$_public.prt2_p2 
+                           Shard: 2      Remote SQL: select b from regression_$$_public.prt2_p2 
          ->  Nested Loop Anti Join
                Output: t1_2.a, t1_2.b
                Join Filter: (t1_2.a = t2_2.b)
-               ->  RemoteScan on public.prt1_p3 t1_2
+               ->  Materialize
                      Output: t1_2.a, t1_2.b
-                     Shard: 2    Remote SQL: select a, b from regression_$$_public.prt1_p3 
-               ->  RemoteScan on public.prt2_p3 t2_2
+                     ->  RemoteScan on public.prt1_p3 t1_2
+                           Output: t1_2.a, t1_2.b
+                           Shard: 1      Remote SQL: select a, b from regression_$$_public.prt1_p3 
+               ->  Materialize
                      Output: t2_2.b
-                     Shard: 1    Remote SQL: select b from regression_$$_public.prt2_p3 
-(38 rows)
+                     ->  RemoteScan on public.prt2_p3 t2_2
+                           Output: t2_2.b
+                           Shard: 1      Remote SQL: select b from regression_$$_public.prt2_p3 
+(42 rows)
 
 SELECT t1.a, t1.c, t2.b, t2.c FROM prt1_e t1, prt2_e t2 WHERE (t1.a + t1.b)/2 = (t2.b + t2.a)/2 AND t1.c = 0 ORDER BY t1.a, t2.b;
   a  | c |  b  | c 
@@ -3392,21 +3400,19 @@ SELECT t1.a, t1.c, t2.b, t2.c FROM prt1_e t1, prt2_e t2 WHERE (t1.a + t1.b)/2 = 
                      ->  RemoteScan on public.prt1_e_p1 t1
                            Output: t1.a, t1.c, t1.b
                            Filter: (t1.b = 0)
-                           Shard: 1      Remote SQL: select a, c, b from regression_$$_public.prt1_e_p1  where (c = 0)
+                           Shard: 2      Remote SQL: select a, c, b from regression_$$_public.prt1_e_p1  where (c = 0)
                ->  Materialize
                      Output: t2.b, t2.c, t2.a
                      ->  RemoteScan on public.prt2_e_p1 t2
                            Output: t2.b, t2.c, t2.a
-                           Shard: 1      Remote SQL: select b, c, a from regression_$$_public.prt2_e_p1 
+                           Shard: 2      Remote SQL: select b, c, a from regression_$$_public.prt2_e_p1 
          ->  Nested Loop
                Output: t1_1.a, t1_1.c, t2_1.b, t2_1.c
                Join Filter: (((t1_1.a + t1_1.b) / 2) = ((t2_1.b + t2_1.a) / 2))
-               ->  Materialize
+               ->  RemoteScan on public.prt1_e_p2 t1_1
                      Output: t1_1.a, t1_1.c, t1_1.b
-                     ->  RemoteScan on public.prt1_e_p2 t1_1
-                           Output: t1_1.a, t1_1.c, t1_1.b
-                           Filter: (t1_1.b = 0)
-                           Shard: 2      Remote SQL: select a, c, b from regression_$$_public.prt1_e_p2  where (c = 0)
+                     Filter: (t1_1.b = 0)
+                     Shard: 1    Remote SQL: select a, c, b from regression_$$_public.prt1_e_p2  where (c = 0)
                ->  Materialize
                      Output: t2_1.b, t2_1.c, t2_1.a
                      ->  RemoteScan on public.prt2_e_p2 t2_1
@@ -3420,13 +3426,13 @@ SELECT t1.a, t1.c, t2.b, t2.c FROM prt1_e t1, prt2_e t2 WHERE (t1.a + t1.b)/2 = 
                      ->  RemoteScan on public.prt1_e_p3 t1_2
                            Output: t1_2.a, t1_2.c, t1_2.b
                            Filter: (t1_2.b = 0)
-                           Shard: 1      Remote SQL: select a, c, b from regression_$$_public.prt1_e_p3  where (c = 0)
+                           Shard: 2      Remote SQL: select a, c, b from regression_$$_public.prt1_e_p3  where (c = 0)
                ->  Materialize
                      Output: t2_2.b, t2_2.c, t2_2.a
                      ->  RemoteScan on public.prt2_e_p3 t2_2
                            Output: t2_2.b, t2_2.c, t2_2.a
-                           Shard: 1      Remote SQL: select b, c, a from regression_$$_public.prt2_e_p3 
-(46 rows)
+                           Shard: 2      Remote SQL: select b, c, a from regression_$$_public.prt2_e_p3 
+(44 rows)
 
 SELECT t1.a, t1.c, t2.b, t2.c, t3.a + t3.b, t3.c FROM (prt1 t1 LEFT JOIN prt2 t2 ON t1.a = t2.b) LEFT JOIN prt1_e t3 ON (t1.a = (t3.a + t3.b)/2) WHERE t1.b = 0 ORDER BY t1.a, t2.b, t3.a + t3.b;
   a  |  c   |  b  |  c   | ?column? | c 
@@ -3474,7 +3480,7 @@ SELECT t1.a, t1.c, t2.b, t2.c, t3.a + t3.b, t3.c FROM (prt1 t1 LEFT JOIN prt2 t2
                      Output: t3.a, t3.b, t3.c
                      ->  RemoteScan on public.prt1_e_p1 t3
                            Output: t3.a, t3.b, t3.c
-                           Shard: 1      Remote SQL: select a, b, c from regression_$$_public.prt1_e_p1 
+                           Shard: 2      Remote SQL: select a, b, c from regression_$$_public.prt1_e_p1 
          ->  Nested Loop Left Join
                Output: t1_1.a, t1_1.c, t2_1.b, t2_1.c, (t3_1.a + t3_1.b), t3_1.c
                Join Filter: (t1_1.a = ((t3_1.a + t3_1.b) / 2))
@@ -3491,32 +3497,32 @@ SELECT t1.a, t1.c, t2.b, t2.c, t3.a + t3.b, t3.c FROM (prt1 t1 LEFT JOIN prt2 t2
                            Output: t2_1.b, t2_1.c
                            ->  RemoteScan on public.prt2_p2 t2_1
                                  Output: t2_1.b, t2_1.c
-                                 Shard: 1        Remote SQL: select b, c from regression_$$_public.prt2_p2 
+                                 Shard: 2        Remote SQL: select b, c from regression_$$_public.prt2_p2 
                ->  Materialize
                      Output: t3_1.a, t3_1.b, t3_1.c
                      ->  RemoteScan on public.prt1_e_p2 t3_1
                            Output: t3_1.a, t3_1.b, t3_1.c
-                           Shard: 2      Remote SQL: select a, b, c from regression_$$_public.prt1_e_p2 
+                           Shard: 1      Remote SQL: select a, b, c from regression_$$_public.prt1_e_p2 
          ->  Nested Loop Left Join
                Output: t1_2.a, t1_2.c, t2_2.b, t2_2.c, (t3_2.a + t3_2.b), t3_2.c
                Join Filter: (t1_2.a = ((t3_2.a + t3_2.b) / 2))
                ->  Nested Loop Left Join
                      Output: t1_2.a, t1_2.c, t2_2.b, t2_2.c
                      Join Filter: (t1_2.a = t2_2.b)
-                     ->  RemoteScan on public.prt1_p3 t1_2
+                     ->  Materialize
                            Output: t1_2.a, t1_2.c
-                           Filter: (t1_2.c = 0)
-                           Shard: 2      Remote SQL: select a, c from regression_$$_public.prt1_p3  where (b = 0)
+                           ->  RemoteScan on public.prt1_p3 t1_2
+                                 Output: t1_2.a, t1_2.c
+                                 Filter: (t1_2.c = 0)
+                                 Shard: 1        Remote SQL: select a, c from regression_$$_public.prt1_p3  where (b = 0)
                      ->  Materialize
                            Output: t2_2.b, t2_2.c
                            ->  RemoteScan on public.prt2_p3 t2_2
                                  Output: t2_2.b, t2_2.c
                                  Shard: 1        Remote SQL: select b, c from regression_$$_public.prt2_p3 
-               ->  Materialize
+               ->  RemoteScan on public.prt1_e_p3 t3_2
                      Output: t3_2.a, t3_2.b, t3_2.c
-                     ->  RemoteScan on public.prt1_e_p3 t3_2
-                           Output: t3_2.a, t3_2.b, t3_2.c
-                           Shard: 1      Remote SQL: select a, b, c from regression_$$_public.prt1_e_p3 
+                     Shard: 2    Remote SQL: select a, b, c from regression_$$_public.prt1_e_p3 
 (68 rows)
 
 SELECT t1.a, t1.c, t2.b, t2.c, t3.a + t3.b, t3.c FROM (prt1 t1 LEFT JOIN prt2 t2 ON t1.a = t2.b) RIGHT JOIN prt1_e t3 ON (t1.a = (t3.a + t3.b)/2) WHERE t3.c = 0 ORDER BY t1.a, t2.b, t3.a + t3.b;
@@ -3555,7 +3561,7 @@ SELECT t1.a, t1.c, t2.b, t2.c, t3.a + t3.b, t3.c FROM (prt1 t1 LEFT JOIN prt2 t2
                            ->  RemoteScan on public.prt1_e_p1 t3
                                  Output: t3.a, t3.b, t3.c
                                  Filter: (t3.c = 0)
-                                 Shard: 1        Remote SQL: select a, b, c from regression_$$_public.prt1_e_p1  where (c = 0)
+                                 Shard: 2        Remote SQL: select a, b, c from regression_$$_public.prt1_e_p1  where (c = 0)
                      ->  Materialize
                            Output: t1.a, t1.c
                            ->  RemoteScan on public.prt1_p1 t1
@@ -3577,7 +3583,7 @@ SELECT t1.a, t1.c, t2.b, t2.c, t3.a + t3.b, t3.c FROM (prt1 t1 LEFT JOIN prt2 t2
                            ->  RemoteScan on public.prt1_e_p2 t3_1
                                  Output: t3_1.a, t3_1.b, t3_1.c
                                  Filter: (t3_1.c = 0)
-                                 Shard: 2        Remote SQL: select a, b, c from regression_$$_public.prt1_e_p2  where (c = 0)
+                                 Shard: 1        Remote SQL: select a, b, c from regression_$$_public.prt1_e_p2  where (c = 0)
                      ->  Materialize
                            Output: t1_1.a, t1_1.c
                            ->  RemoteScan on public.prt1_p2 t1_1
@@ -3587,22 +3593,22 @@ SELECT t1.a, t1.c, t2.b, t2.c, t3.a + t3.b, t3.c FROM (prt1 t1 LEFT JOIN prt2 t2
                      Output: t2_1.b, t2_1.c
                      ->  RemoteScan on public.prt2_p2 t2_1
                            Output: t2_1.b, t2_1.c
-                           Shard: 1      Remote SQL: select b, c from regression_$$_public.prt2_p2 
+                           Shard: 2      Remote SQL: select b, c from regression_$$_public.prt2_p2 
          ->  Nested Loop Left Join
                Output: t1_2.a, t1_2.c, t2_2.b, t2_2.c, (t3_2.a + t3_2.b), t3_2.c
                Join Filter: (t1_2.a = t2_2.b)
                ->  Nested Loop Left Join
                      Output: t3_2.a, t3_2.b, t3_2.c, t1_2.a, t1_2.c
                      Join Filter: (t1_2.a = ((t3_2.a + t3_2.b) / 2))
-                     ->  Materialize
+                     ->  RemoteScan on public.prt1_e_p3 t3_2
                            Output: t3_2.a, t3_2.b, t3_2.c
-                           ->  RemoteScan on public.prt1_e_p3 t3_2
-                                 Output: t3_2.a, t3_2.b, t3_2.c
-                                 Filter: (t3_2.c = 0)
-                                 Shard: 1        Remote SQL: select a, b, c from regression_$$_public.prt1_e_p3  where (c = 0)
-                     ->  RemoteScan on public.prt1_p3 t1_2
+                           Filter: (t3_2.c = 0)
+                           Shard: 2      Remote SQL: select a, b, c from regression_$$_public.prt1_e_p3  where (c = 0)
+                     ->  Materialize
                            Output: t1_2.a, t1_2.c
-                           Shard: 2      Remote SQL: select a, c from regression_$$_public.prt1_p3 
+                           ->  RemoteScan on public.prt1_p3 t1_2
+                                 Output: t1_2.a, t1_2.c
+                                 Shard: 1        Remote SQL: select a, c from regression_$$_public.prt1_p3 
                ->  Materialize
                      Output: t2_2.b, t2_2.c
                      ->  RemoteScan on public.prt2_p3 t2_2
@@ -3641,15 +3647,17 @@ SELECT t1.* FROM prt1 t1 WHERE t1.a IN (SELECT t1.b FROM prt2 t1, prt1_e t2 WHER
                      ->  Nested Loop
                            Output: t1_3.b, t2.a, t2.b
                            Join Filter: (t1_3.b = ((t2.a + t2.b) / 2))
-                           ->  RemoteScan on public.prt2_p1 t1_3
+                           ->  Materialize
                                  Output: t1_3.b
-                                 Filter: (t1_3.b = 0)
-                                 Shard: 2        Remote SQL: select b from regression_$$_public.prt2_p1  where (a = 0)
+                                 ->  RemoteScan on public.prt2_p1 t1_3
+                                       Output: t1_3.b
+                                       Filter: (t1_3.b = 0)
+                                       Shard: 2  Remote SQL: select b from regression_$$_public.prt2_p1  where (a = 0)
                            ->  Materialize
                                  Output: t2.a, t2.b
                                  ->  RemoteScan on public.prt1_e_p1 t2
                                        Output: t2.a, t2.b
-                                       Shard: 1  Remote SQL: select a, b from regression_$$_public.prt1_e_p1 
+                                       Shard: 2  Remote SQL: select a, b from regression_$$_public.prt1_e_p1 
          ->  Nested Loop Semi Join
                Output: t1_1.a, t1_1.b, t1_1.c
                Join Filter: (t1_1.a = t1_4.b)
@@ -3667,34 +3675,36 @@ SELECT t1.* FROM prt1 t1 WHERE t1.a IN (SELECT t1.b FROM prt2 t1, prt1_e t2 WHER
                            ->  RemoteScan on public.prt2_p2 t1_4
                                  Output: t1_4.b
                                  Filter: (t1_4.b = 0)
-                                 Shard: 1        Remote SQL: select b from regression_$$_public.prt2_p2  where (a = 0)
+                                 Shard: 2        Remote SQL: select b from regression_$$_public.prt2_p2  where (a = 0)
                            ->  Materialize
                                  Output: t2_1.a, t2_1.b
                                  ->  RemoteScan on public.prt1_e_p2 t2_1
                                        Output: t2_1.a, t2_1.b
-                                       Shard: 2  Remote SQL: select a, b from regression_$$_public.prt1_e_p2 
+                                       Shard: 1  Remote SQL: select a, b from regression_$$_public.prt1_e_p2 
          ->  Nested Loop Semi Join
                Output: t1_2.a, t1_2.b, t1_2.c
                Join Filter: (t1_2.a = t1_5.b)
-               ->  RemoteScan on public.prt1_p3 t1_2
+               ->  Materialize
                      Output: t1_2.a, t1_2.b, t1_2.c
-                     Filter: (t1_2.b = 0)
-                     Shard: 2    Remote SQL: select a, b, c from regression_$$_public.prt1_p3  where (b = 0)
-               ->  Nested Loop
-                     Output: t1_5.b, t2_2.a, t2_2.b
-                     Join Filter: (t1_5.b = ((t2_2.a + t2_2.b) / 2))
-                     ->  Materialize
-                           Output: t1_5.b
+                     ->  RemoteScan on public.prt1_p3 t1_2
+                           Output: t1_2.a, t1_2.b, t1_2.c
+                           Filter: (t1_2.b = 0)
+                           Shard: 1      Remote SQL: select a, b, c from regression_$$_public.prt1_p3  where (b = 0)
+               ->  Materialize
+                     Output: t1_5.b, , 
+                     ->  Nested Loop
+                           Output: t1_5.b, t2_2.a, t2_2.b
+                           Join Filter: (t1_5.b = ((t2_2.a + t2_2.b) / 2))
                            ->  RemoteScan on public.prt2_p3 t1_5
                                  Output: t1_5.b
                                  Filter: (t1_5.b = 0)
                                  Shard: 1        Remote SQL: select b from regression_$$_public.prt2_p3  where (a = 0)
-                     ->  Materialize
-                           Output: t2_2.a, t2_2.b
-                           ->  RemoteScan on public.prt1_e_p3 t2_2
+                           ->  Materialize
                                  Output: t2_2.a, t2_2.b
-                                 Shard: 1        Remote SQL: select a, b from regression_$$_public.prt1_e_p3 
-(71 rows)
+                                 ->  RemoteScan on public.prt1_e_p3 t2_2
+                                       Output: t2_2.a, t2_2.b
+                                       Shard: 2  Remote SQL: select a, b from regression_$$_public.prt1_e_p3 
+(75 rows)
 
 set enable_hashjoin=true;
 set enable_mergejoin=false;
@@ -3734,7 +3744,7 @@ SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2
                                  Output: t2.y
                                  ->  RemoteScan on public.pagg_tab2_p1 t2
                                        Output: t2.y
-                                       Shard: 1  Remote SQL: select y from regression_$$_public.pagg_tab2_p1 
+                                       Shard: 2  Remote SQL: select y from regression_$$_public.pagg_tab2_p1 
                ->  Hash Join
                      Output: t1_1.x, t1_1.y
                      Hash Cond: (t1_1.x = t2_1.y)
@@ -3749,7 +3759,7 @@ SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2
                                  Output: t2_1.y
                                  ->  RemoteScan on public.pagg_tab2_p2 t2_1
                                        Output: t2_1.y
-                                       Shard: 1  Remote SQL: select y from regression_$$_public.pagg_tab2_p2 
+                                       Shard: 2  Remote SQL: select y from regression_$$_public.pagg_tab2_p2 
                ->  Hash Join
                      Output: t1_2.x, t1_2.y
                      Hash Cond: (t1_2.x = t2_2.y)
@@ -3800,7 +3810,7 @@ SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2
                                  Output: t2.y
                                  ->  RemoteScan on public.pagg_tab2_p1 t2
                                        Output: t2.y
-                                       Shard: 1  Remote SQL: select y from regression_$$_public.pagg_tab2_p1 
+                                       Shard: 2  Remote SQL: select y from regression_$$_public.pagg_tab2_p1 
                ->  Hash Join
                      Output: t1_1.y, t1_1.x
                      Hash Cond: (t1_1.x = t2_1.y)
@@ -3815,7 +3825,7 @@ SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2
                                  Output: t2_1.y
                                  ->  RemoteScan on public.pagg_tab2_p2 t2_1
                                        Output: t2_1.y
-                                       Shard: 1  Remote SQL: select y from regression_$$_public.pagg_tab2_p2 
+                                       Shard: 2  Remote SQL: select y from regression_$$_public.pagg_tab2_p2 
                ->  Hash Join
                      Output: t1_2.y, t1_2.x
                      Hash Cond: (t1_2.x = t2_2.y)
@@ -3865,7 +3875,7 @@ SELECT b.y, sum(a.y) FROM pagg_tab1 a LEFT JOIN pagg_tab2 b ON a.x = b.y GROUP B
                                  Output: b.y
                                  ->  RemoteScan on public.pagg_tab2_p1 b
                                        Output: b.y
-                                       Shard: 1  Remote SQL: select y from regression_$$_public.pagg_tab2_p1 
+                                       Shard: 2  Remote SQL: select y from regression_$$_public.pagg_tab2_p1 
                ->  Hash Left Join
                      Output: b_1.y, a_1.y
                      Hash Cond: (a_1.x = b_1.y)
@@ -3880,7 +3890,7 @@ SELECT b.y, sum(a.y) FROM pagg_tab1 a LEFT JOIN pagg_tab2 b ON a.x = b.y GROUP B
                                  Output: b_1.y
                                  ->  RemoteScan on public.pagg_tab2_p2 b_1
                                        Output: b_1.y
-                                       Shard: 1  Remote SQL: select y from regression_$$_public.pagg_tab2_p2 
+                                       Shard: 2  Remote SQL: select y from regression_$$_public.pagg_tab2_p2 
                ->  Hash Left Join
                      Output: b_2.y, a_2.y
                      Hash Cond: (a_2.x = b_2.y)
@@ -3927,7 +3937,7 @@ SELECT b.y, sum(a.y) FROM pagg_tab1 a RIGHT JOIN pagg_tab2 b ON a.x = b.y GROUP 
                            Output: b.y
                            ->  RemoteScan on public.pagg_tab2_p1 b
                                  Output: b.y
-                                 Shard: 1        Remote SQL: select y from regression_$$_public.pagg_tab2_p1 
+                                 Shard: 2        Remote SQL: select y from regression_$$_public.pagg_tab2_p1 
                      ->  Hash
                            Output: a.y, a.x
                            ->  Materialize
@@ -3942,7 +3952,7 @@ SELECT b.y, sum(a.y) FROM pagg_tab1 a RIGHT JOIN pagg_tab2 b ON a.x = b.y GROUP 
                            Output: b_1.y
                            ->  RemoteScan on public.pagg_tab2_p2 b_1
                                  Output: b_1.y
-                                 Shard: 1        Remote SQL: select y from regression_$$_public.pagg_tab2_p2 
+                                 Shard: 2        Remote SQL: select y from regression_$$_public.pagg_tab2_p2 
                      ->  Hash
                            Output: a_1.y, a_1.x
                            ->  Materialize
@@ -4008,26 +4018,26 @@ SELECT t1.a, t1.c, t2.b, t2.c FROM prt1 t1 RIGHT JOIN prt2 t2 ON t1.a = t2.b WHE
                      ->  RemoteScan on public.prt2_p2 t2_1
                            Output: t2_1.b, t2_1.c
                            Filter: (t2_1.b = 0)
-                           Shard: 1      Remote SQL: select b, c from regression_$$_public.prt2_p2  where (a = 0)
+                           Shard: 2      Remote SQL: select b, c from regression_$$_public.prt2_p2  where (a = 0)
                ->  Hash
                      Output: t1_1.a, t1_1.c
-                     ->  Materialize
+                     ->  RemoteScan on public.prt1_p2 t1_1
                            Output: t1_1.a, t1_1.c
-                           ->  RemoteScan on public.prt1_p2 t1_1
-                                 Output: t1_1.a, t1_1.c
-                                 Shard: 2        Remote SQL: select a, c from regression_$$_public.prt1_p2 
+                           Shard: 2      Remote SQL: select a, c from regression_$$_public.prt1_p2 
          ->  Hash Left Join
                Output: t1_2.a, t1_2.c, t2_2.b, t2_2.c
                Hash Cond: (t2_2.b = t1_2.a)
-               ->  RemoteScan on public.prt2_p3 t2_2
+               ->  Materialize
                      Output: t2_2.b, t2_2.c
-                     Filter: (t2_2.b = 0)
-                     Shard: 1    Remote SQL: select b, c from regression_$$_public.prt2_p3  where (a = 0)
+                     ->  RemoteScan on public.prt2_p3 t2_2
+                           Output: t2_2.b, t2_2.c
+                           Filter: (t2_2.b = 0)
+                           Shard: 1      Remote SQL: select b, c from regression_$$_public.prt2_p3  where (a = 0)
                ->  Hash
                      Output: t1_2.a, t1_2.c
                      ->  RemoteScan on public.prt1_p3 t1_2
                            Output: t1_2.a, t1_2.c
-                           Shard: 2      Remote SQL: select a, c from regression_$$_public.prt1_p3 
+                           Shard: 1      Remote SQL: select a, c from regression_$$_public.prt1_p3 
 (48 rows)
 
 SELECT sum(t1.a), avg(t1.a), sum(t1.b), avg(t1.b) FROM prt1 t1 WHERE NOT EXISTS (SELECT 1 FROM prt2 t2 WHERE t1.a = t2.b);
@@ -4068,17 +4078,17 @@ SELECT sum(t1.a), avg(t1.a), sum(t1.b), avg(t1.b) FROM prt1 t1 WHERE NOT EXISTS 
                            Shard: 2      Remote SQL: select a, b from regression_$$_public.prt1_p2 
                ->  Hash
                      Output: t2_1.b
-                     ->  Materialize
+                     ->  RemoteScan on public.prt2_p2 t2_1
                            Output: t2_1.b
-                           ->  RemoteScan on public.prt2_p2 t2_1
-                                 Output: t2_1.b
-                                 Shard: 1        Remote SQL: select b from regression_$$_public.prt2_p2 
+                           Shard: 2      Remote SQL: select b from regression_$$_public.prt2_p2 
          ->  Hash Anti Join
                Output: t1_2.a, t1_2.b
                Hash Cond: (t1_2.a = t2_2.b)
-               ->  RemoteScan on public.prt1_p3 t1_2
+               ->  Materialize
                      Output: t1_2.a, t1_2.b
-                     Shard: 2    Remote SQL: select a, b from regression_$$_public.prt1_p3 
+                     ->  RemoteScan on public.prt1_p3 t1_2
+                           Output: t1_2.a, t1_2.b
+                           Shard: 1      Remote SQL: select a, b from regression_$$_public.prt1_p3 
                ->  Hash
                      Output: t2_2.b
                      ->  RemoteScan on public.prt2_p3 t2_2
@@ -4111,28 +4121,28 @@ SELECT t1.a, t1.c, t2.b, t2.c FROM prt1_e t1, prt2_e t2 WHERE (t1.a + t1.b)/2 = 
                      ->  RemoteScan on public.prt1_e_p1 t1
                            Output: t1.a, t1.c, t1.b
                            Filter: (t1.b = 0)
-                           Shard: 1      Remote SQL: select a, c, b from regression_$$_public.prt1_e_p1  where (c = 0)
+                           Shard: 2      Remote SQL: select a, c, b from regression_$$_public.prt1_e_p1  where (c = 0)
                ->  Hash
                      Output: t2.b, t2.c, t2.a
                      ->  Materialize
                            Output: t2.b, t2.c, t2.a
                            ->  RemoteScan on public.prt2_e_p1 t2
                                  Output: t2.b, t2.c, t2.a
-                                 Shard: 1        Remote SQL: select b, c, a from regression_$$_public.prt2_e_p1 
+                                 Shard: 2        Remote SQL: select b, c, a from regression_$$_public.prt2_e_p1 
          ->  Hash Join
                Output: t1_1.a, t1_1.c, t2_1.b, t2_1.c
                Hash Cond: (((t1_1.a + t1_1.b) / 2) = ((t2_1.b + t2_1.a) / 2))
-               ->  Materialize
+               ->  RemoteScan on public.prt1_e_p2 t1_1
                      Output: t1_1.a, t1_1.c, t1_1.b
-                     ->  RemoteScan on public.prt1_e_p2 t1_1
-                           Output: t1_1.a, t1_1.c, t1_1.b
-                           Filter: (t1_1.b = 0)
-                           Shard: 2      Remote SQL: select a, c, b from regression_$$_public.prt1_e_p2  where (c = 0)
+                     Filter: (t1_1.b = 0)
+                     Shard: 1    Remote SQL: select a, c, b from regression_$$_public.prt1_e_p2  where (c = 0)
                ->  Hash
                      Output: t2_1.b, t2_1.c, t2_1.a
-                     ->  RemoteScan on public.prt2_e_p2 t2_1
+                     ->  Materialize
                            Output: t2_1.b, t2_1.c, t2_1.a
-                           Shard: 2      Remote SQL: select b, c, a from regression_$$_public.prt2_e_p2 
+                           ->  RemoteScan on public.prt2_e_p2 t2_1
+                                 Output: t2_1.b, t2_1.c, t2_1.a
+                                 Shard: 2        Remote SQL: select b, c, a from regression_$$_public.prt2_e_p2 
          ->  Hash Join
                Output: t1_2.a, t1_2.c, t2_2.b, t2_2.c
                Hash Cond: (((t1_2.a + t1_2.b) / 2) = ((t2_2.b + t2_2.a) / 2))
@@ -4141,12 +4151,12 @@ SELECT t1.a, t1.c, t2.b, t2.c FROM prt1_e t1, prt2_e t2 WHERE (t1.a + t1.b)/2 = 
                      ->  RemoteScan on public.prt1_e_p3 t1_2
                            Output: t1_2.a, t1_2.c, t1_2.b
                            Filter: (t1_2.b = 0)
-                           Shard: 1      Remote SQL: select a, c, b from regression_$$_public.prt1_e_p3  where (c = 0)
+                           Shard: 2      Remote SQL: select a, c, b from regression_$$_public.prt1_e_p3  where (c = 0)
                ->  Hash
                      Output: t2_2.b, t2_2.c, t2_2.a
                      ->  RemoteScan on public.prt2_e_p3 t2_2
                            Output: t2_2.b, t2_2.c, t2_2.a
-                           Shard: 1      Remote SQL: select b, c, a from regression_$$_public.prt2_e_p3 
+                           Shard: 2      Remote SQL: select b, c, a from regression_$$_public.prt2_e_p3 
 (48 rows)
 
 SELECT t1.a, t1.c, t2.b, t2.c, t3.a + t3.b, t3.c FROM (prt1 t1 LEFT JOIN prt2 t2 ON t1.a = t2.b) LEFT JOIN prt1_e t3 ON (t1.a = (t3.a + t3.b)/2) WHERE t1.b = 0 ORDER BY t1.a, t2.b, t3.a + t3.b;
@@ -4199,7 +4209,7 @@ SELECT t1.a, t1.c, t2.b, t2.c, t3.a + t3.b, t3.c FROM (prt1 t1 LEFT JOIN prt2 t2
                            Output: t3.a, t3.b, t3.c
                            ->  RemoteScan on public.prt1_e_p1 t3
                                  Output: t3.a, t3.b, t3.c
-                                 Shard: 1        Remote SQL: select a, b, c from regression_$$_public.prt1_e_p1 
+                                 Shard: 2        Remote SQL: select a, b, c from regression_$$_public.prt1_e_p1 
          ->  Hash Left Join
                Output: t1_1.a, t1_1.c, t2_1.b, t2_1.c, (t3_1.a + t3_1.b), t3_1.c
                Hash Cond: (t1_1.a = ((t3_1.a + t3_1.b) / 2))
@@ -4218,36 +4228,36 @@ SELECT t1.a, t1.c, t2.b, t2.c, t3.a + t3.b, t3.c FROM (prt1 t1 LEFT JOIN prt2 t2
                                  Output: t2_1.b, t2_1.c
                                  ->  RemoteScan on public.prt2_p2 t2_1
                                        Output: t2_1.b, t2_1.c
-                                       Shard: 1  Remote SQL: select b, c from regression_$$_public.prt2_p2 
+                                       Shard: 2  Remote SQL: select b, c from regression_$$_public.prt2_p2 
                ->  Hash
                      Output: t3_1.a, t3_1.b, t3_1.c
                      ->  Materialize
                            Output: t3_1.a, t3_1.b, t3_1.c
                            ->  RemoteScan on public.prt1_e_p2 t3_1
                                  Output: t3_1.a, t3_1.b, t3_1.c
-                                 Shard: 2        Remote SQL: select a, b, c from regression_$$_public.prt1_e_p2 
+                                 Shard: 1        Remote SQL: select a, b, c from regression_$$_public.prt1_e_p2 
          ->  Hash Left Join
                Output: t1_2.a, t1_2.c, t2_2.b, t2_2.c, (t3_2.a + t3_2.b), t3_2.c
                Hash Cond: (t1_2.a = ((t3_2.a + t3_2.b) / 2))
                ->  Hash Left Join
                      Output: t1_2.a, t1_2.c, t2_2.b, t2_2.c
                      Hash Cond: (t1_2.a = t2_2.b)
-                     ->  RemoteScan on public.prt1_p3 t1_2
+                     ->  Materialize
                            Output: t1_2.a, t1_2.c
-                           Filter: (t1_2.c = 0)
-                           Shard: 2      Remote SQL: select a, c from regression_$$_public.prt1_p3  where (b = 0)
+                           ->  RemoteScan on public.prt1_p3 t1_2
+                                 Output: t1_2.a, t1_2.c
+                                 Filter: (t1_2.c = 0)
+                                 Shard: 1        Remote SQL: select a, c from regression_$$_public.prt1_p3  where (b = 0)
                      ->  Hash
                            Output: t2_2.b, t2_2.c
-                           ->  Materialize
+                           ->  RemoteScan on public.prt2_p3 t2_2
                                  Output: t2_2.b, t2_2.c
-                                 ->  RemoteScan on public.prt2_p3 t2_2
-                                       Output: t2_2.b, t2_2.c
-                                       Shard: 1  Remote SQL: select b, c from regression_$$_public.prt2_p3 
+                                 Shard: 1        Remote SQL: select b, c from regression_$$_public.prt2_p3 
                ->  Hash
                      Output: t3_2.a, t3_2.b, t3_2.c
                      ->  RemoteScan on public.prt1_e_p3 t3_2
                            Output: t3_2.a, t3_2.b, t3_2.c
-                           Shard: 1      Remote SQL: select a, b, c from regression_$$_public.prt1_e_p3 
+                           Shard: 2      Remote SQL: select a, b, c from regression_$$_public.prt1_e_p3 
 (78 rows)
 
 SELECT t1.a, t1.c, t2.b, t2.c, t3.a + t3.b, t3.c FROM (prt1 t1 LEFT JOIN prt2 t2 ON t1.a = t2.b) RIGHT JOIN prt1_e t3 ON (t1.a = (t3.a + t3.b)/2) WHERE t3.c = 0 ORDER BY t1.a, t2.b, t3.a + t3.b;
@@ -4286,7 +4296,7 @@ SELECT t1.a, t1.c, t2.b, t2.c, t3.a + t3.b, t3.c FROM (prt1 t1 LEFT JOIN prt2 t2
                            ->  RemoteScan on public.prt1_e_p1 t3
                                  Output: t3.a, t3.b, t3.c
                                  Filter: (t3.c = 0)
-                                 Shard: 1        Remote SQL: select a, b, c from regression_$$_public.prt1_e_p1  where (c = 0)
+                                 Shard: 2        Remote SQL: select a, b, c from regression_$$_public.prt1_e_p1  where (c = 0)
                      ->  Hash
                            Output: t1.a, t1.c
                            ->  Materialize
@@ -4312,7 +4322,7 @@ SELECT t1.a, t1.c, t2.b, t2.c, t3.a + t3.b, t3.c FROM (prt1 t1 LEFT JOIN prt2 t2
                            ->  RemoteScan on public.prt1_e_p2 t3_1
                                  Output: t3_1.a, t3_1.b, t3_1.c
                                  Filter: (t3_1.c = 0)
-                                 Shard: 2        Remote SQL: select a, b, c from regression_$$_public.prt1_e_p2  where (c = 0)
+                                 Shard: 1        Remote SQL: select a, b, c from regression_$$_public.prt1_e_p2  where (c = 0)
                      ->  Hash
                            Output: t1_1.a, t1_1.c
                            ->  Materialize
@@ -4326,24 +4336,24 @@ SELECT t1.a, t1.c, t2.b, t2.c, t3.a + t3.b, t3.c FROM (prt1 t1 LEFT JOIN prt2 t2
                            Output: t2_1.b, t2_1.c
                            ->  RemoteScan on public.prt2_p2 t2_1
                                  Output: t2_1.b, t2_1.c
-                                 Shard: 1        Remote SQL: select b, c from regression_$$_public.prt2_p2 
+                                 Shard: 2        Remote SQL: select b, c from regression_$$_public.prt2_p2 
          ->  Hash Left Join
                Output: t1_2.a, t1_2.c, t2_2.b, t2_2.c, (t3_2.a + t3_2.b), t3_2.c
                Hash Cond: (t1_2.a = t2_2.b)
                ->  Hash Left Join
                      Output: t3_2.a, t3_2.b, t3_2.c, t1_2.a, t1_2.c
                      Hash Cond: (((t3_2.a + t3_2.b) / 2) = t1_2.a)
-                     ->  Materialize
+                     ->  RemoteScan on public.prt1_e_p3 t3_2
                            Output: t3_2.a, t3_2.b, t3_2.c
-                           ->  RemoteScan on public.prt1_e_p3 t3_2
-                                 Output: t3_2.a, t3_2.b, t3_2.c
-                                 Filter: (t3_2.c = 0)
-                                 Shard: 1        Remote SQL: select a, b, c from regression_$$_public.prt1_e_p3  where (c = 0)
+                           Filter: (t3_2.c = 0)
+                           Shard: 2      Remote SQL: select a, b, c from regression_$$_public.prt1_e_p3  where (c = 0)
                      ->  Hash
                            Output: t1_2.a, t1_2.c
-                           ->  RemoteScan on public.prt1_p3 t1_2
+                           ->  Materialize
                                  Output: t1_2.a, t1_2.c
-                                 Shard: 2        Remote SQL: select a, c from regression_$$_public.prt1_p3 
+                                 ->  RemoteScan on public.prt1_p3 t1_2
+                                       Output: t1_2.a, t1_2.c
+                                       Shard: 1  Remote SQL: select a, c from regression_$$_public.prt1_p3 
                ->  Hash
                      Output: t2_2.b, t2_2.c
                      ->  RemoteScan on public.prt2_p3 t2_2
@@ -4394,7 +4404,7 @@ SELECT t1.* FROM prt1 t1 WHERE t1.a IN (SELECT t1.b FROM prt2 t1, prt1_e t2 WHER
                                        Output: t2.a, t2.b
                                        ->  RemoteScan on public.prt1_e_p1 t2
                                              Output: t2.a, t2.b
-                                             Shard: 1    Remote SQL: select a, b from regression_$$_public.prt1_e_p1 
+                                             Shard: 2    Remote SQL: select a, b from regression_$$_public.prt1_e_p1 
          ->  Hash Semi Join
                Output: t1_1.a, t1_1.b, t1_1.c
                Hash Cond: (t1_1.a = t1_4.b)
@@ -4414,37 +4424,37 @@ SELECT t1.* FROM prt1 t1 WHERE t1.a IN (SELECT t1.b FROM prt2 t1, prt1_e t2 WHER
                                  ->  RemoteScan on public.prt2_p2 t1_4
                                        Output: t1_4.b
                                        Filter: (t1_4.b = 0)
-                                       Shard: 1  Remote SQL: select b from regression_$$_public.prt2_p2  where (a = 0)
+                                       Shard: 2  Remote SQL: select b from regression_$$_public.prt2_p2  where (a = 0)
                            ->  Hash
                                  Output: t2_1.a, t2_1.b
                                  ->  Materialize
                                        Output: t2_1.a, t2_1.b
                                        ->  RemoteScan on public.prt1_e_p2 t2_1
                                              Output: t2_1.a, t2_1.b
-                                             Shard: 2    Remote SQL: select a, b from regression_$$_public.prt1_e_p2 
+                                             Shard: 1    Remote SQL: select a, b from regression_$$_public.prt1_e_p2 
          ->  Hash Semi Join
                Output: t1_2.a, t1_2.b, t1_2.c
                Hash Cond: (t1_2.a = t1_5.b)
-               ->  RemoteScan on public.prt1_p3 t1_2
+               ->  Materialize
                      Output: t1_2.a, t1_2.b, t1_2.c
-                     Filter: (t1_2.b = 0)
-                     Shard: 2    Remote SQL: select a, b, c from regression_$$_public.prt1_p3  where (b = 0)
+                     ->  RemoteScan on public.prt1_p3 t1_2
+                           Output: t1_2.a, t1_2.b, t1_2.c
+                           Filter: (t1_2.b = 0)
+                           Shard: 1      Remote SQL: select a, b, c from regression_$$_public.prt1_p3  where (b = 0)
                ->  Hash
                      Output: t1_5.b, t2_2.a, t2_2.b
                      ->  Hash Join
                            Output: t1_5.b, t2_2.a, t2_2.b
                            Hash Cond: (t1_5.b = ((t2_2.a + t2_2.b) / 2))
-                           ->  Materialize
+                           ->  RemoteScan on public.prt2_p3 t1_5
                                  Output: t1_5.b
-                                 ->  RemoteScan on public.prt2_p3 t1_5
-                                       Output: t1_5.b
-                                       Filter: (t1_5.b = 0)
-                                       Shard: 1  Remote SQL: select b from regression_$$_public.prt2_p3  where (a = 0)
+                                 Filter: (t1_5.b = 0)
+                                 Shard: 1        Remote SQL: select b from regression_$$_public.prt2_p3  where (a = 0)
                            ->  Hash
                                  Output: t2_2.a, t2_2.b
                                  ->  RemoteScan on public.prt1_e_p3 t2_2
                                        Output: t2_2.a, t2_2.b
-                                       Shard: 1  Remote SQL: select a, b from regression_$$_public.prt1_e_p3 
+                                       Shard: 2  Remote SQL: select a, b from regression_$$_public.prt1_e_p3 
 (81 rows)
 
 set enable_hashjoin=false;
@@ -4489,7 +4499,7 @@ SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2
                                  Output: t2.y
                                  ->  RemoteScan on public.pagg_tab2_p1 t2
                                        Output: t2.y
-                                       Shard: 1  Remote SQL: select y from regression_$$_public.pagg_tab2_p1 
+                                       Shard: 2  Remote SQL: select y from regression_$$_public.pagg_tab2_p1 
                ->  Merge Join
                      Output: t1_1.x, t1_1.y
                      Merge Cond: (t1_1.x = t2_1.y)
@@ -4508,7 +4518,7 @@ SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2
                                  Output: t2_1.y
                                  ->  RemoteScan on public.pagg_tab2_p2 t2_1
                                        Output: t2_1.y
-                                       Shard: 1  Remote SQL: select y from regression_$$_public.pagg_tab2_p2 
+                                       Shard: 2  Remote SQL: select y from regression_$$_public.pagg_tab2_p2 
                ->  Merge Join
                      Output: t1_2.x, t1_2.y
                      Merge Cond: (t1_2.x = t2_2.y)
@@ -4567,7 +4577,7 @@ SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2
                                  Output: t2.y
                                  ->  RemoteScan on public.pagg_tab2_p1 t2
                                        Output: t2.y
-                                       Shard: 1  Remote SQL: select y from regression_$$_public.pagg_tab2_p1 
+                                       Shard: 2  Remote SQL: select y from regression_$$_public.pagg_tab2_p1 
                ->  Merge Join
                      Output: t1_1.y, t1_1.x
                      Merge Cond: (t1_1.x = t2_1.y)
@@ -4586,7 +4596,7 @@ SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2
                                  Output: t2_1.y
                                  ->  RemoteScan on public.pagg_tab2_p2 t2_1
                                        Output: t2_1.y
-                                       Shard: 1  Remote SQL: select y from regression_$$_public.pagg_tab2_p2 
+                                       Shard: 2  Remote SQL: select y from regression_$$_public.pagg_tab2_p2 
                ->  Merge Join
                      Output: t1_2.y, t1_2.x
                      Merge Cond: (t1_2.x = t2_2.y)
@@ -4644,7 +4654,7 @@ SELECT b.y, sum(a.y) FROM pagg_tab1 a LEFT JOIN pagg_tab2 b ON a.x = b.y GROUP B
                                  Output: b.y
                                  ->  RemoteScan on public.pagg_tab2_p1 b
                                        Output: b.y
-                                       Shard: 1  Remote SQL: select y from regression_$$_public.pagg_tab2_p1 
+                                       Shard: 2  Remote SQL: select y from regression_$$_public.pagg_tab2_p1 
                ->  Merge Left Join
                      Output: b_1.y, a_1.y
                      Merge Cond: (a_1.x = b_1.y)
@@ -4663,7 +4673,7 @@ SELECT b.y, sum(a.y) FROM pagg_tab1 a LEFT JOIN pagg_tab2 b ON a.x = b.y GROUP B
                                  Output: b_1.y
                                  ->  RemoteScan on public.pagg_tab2_p2 b_1
                                        Output: b_1.y
-                                       Shard: 1  Remote SQL: select y from regression_$$_public.pagg_tab2_p2 
+                                       Shard: 2  Remote SQL: select y from regression_$$_public.pagg_tab2_p2 
                ->  Merge Left Join
                      Output: b_2.y, a_2.y
                      Merge Cond: (a_2.x = b_2.y)
@@ -4717,7 +4727,7 @@ SELECT b.y, sum(a.y) FROM pagg_tab1 a RIGHT JOIN pagg_tab2 b ON a.x = b.y GROUP 
                                  Output: b.y
                                  ->  RemoteScan on public.pagg_tab2_p1 b
                                        Output: b.y
-                                       Shard: 1  Remote SQL: select y from regression_$$_public.pagg_tab2_p1 
+                                       Shard: 2  Remote SQL: select y from regression_$$_public.pagg_tab2_p1 
                      ->  Sort
                            Output: a.y, a.x
                            Sort Key: a.x
@@ -4736,7 +4746,7 @@ SELECT b.y, sum(a.y) FROM pagg_tab1 a RIGHT JOIN pagg_tab2 b ON a.x = b.y GROUP 
                                  Output: b_1.y
                                  ->  RemoteScan on public.pagg_tab2_p2 b_1
                                        Output: b_1.y
-                                       Shard: 1  Remote SQL: select y from regression_$$_public.pagg_tab2_p2 
+                                       Shard: 2  Remote SQL: select y from regression_$$_public.pagg_tab2_p2 
                      ->  Sort
                            Output: a_1.y, a_1.x
                            Sort Key: a_1.x
@@ -4814,31 +4824,31 @@ SELECT t1.a, t1.c, t2.b, t2.c FROM prt1 t1 RIGHT JOIN prt2 t2 ON t1.a = t2.b WHE
                            ->  RemoteScan on public.prt2_p2 t2_1
                                  Output: t2_1.b, t2_1.c
                                  Filter: (t2_1.b = 0)
-                                 Shard: 1        Remote SQL: select b, c from regression_$$_public.prt2_p2  where (a = 0)
+                                 Shard: 2        Remote SQL: select b, c from regression_$$_public.prt2_p2  where (a = 0)
                ->  Sort
                      Output: t1_1.a, t1_1.c
                      Sort Key: t1_1.a
-                     ->  Materialize
+                     ->  RemoteScan on public.prt1_p2 t1_1
                            Output: t1_1.a, t1_1.c
-                           ->  RemoteScan on public.prt1_p2 t1_1
-                                 Output: t1_1.a, t1_1.c
-                                 Shard: 2        Remote SQL: select a, c from regression_$$_public.prt1_p2 
+                           Shard: 2      Remote SQL: select a, c from regression_$$_public.prt1_p2 
          ->  Merge Left Join
                Output: t1_2.a, t1_2.c, t2_2.b, t2_2.c
                Merge Cond: (t2_2.b = t1_2.a)
                ->  Sort
                      Output: t2_2.b, t2_2.c
                      Sort Key: t2_2.b
-                     ->  RemoteScan on public.prt2_p3 t2_2
+                     ->  Materialize
                            Output: t2_2.b, t2_2.c
-                           Filter: (t2_2.b = 0)
-                           Shard: 1      Remote SQL: select b, c from regression_$$_public.prt2_p3  where (a = 0)
+                           ->  RemoteScan on public.prt2_p3 t2_2
+                                 Output: t2_2.b, t2_2.c
+                                 Filter: (t2_2.b = 0)
+                                 Shard: 1        Remote SQL: select b, c from regression_$$_public.prt2_p3  where (a = 0)
                ->  Sort
                      Output: t1_2.a, t1_2.c
                      Sort Key: t1_2.a
                      ->  RemoteScan on public.prt1_p3 t1_2
                            Output: t1_2.a, t1_2.c
-                           Shard: 2      Remote SQL: select a, c from regression_$$_public.prt1_p3 
+                           Shard: 1      Remote SQL: select a, c from regression_$$_public.prt1_p3 
 (60 rows)
 
 SELECT sum(t1.a), avg(t1.a), sum(t1.b), avg(t1.b) FROM prt1 t1 WHERE NOT EXISTS (SELECT 1 FROM prt2 t2 WHERE t1.a = t2.b);
@@ -4887,20 +4897,20 @@ SELECT sum(t1.a), avg(t1.a), sum(t1.b), avg(t1.b) FROM prt1 t1 WHERE NOT EXISTS 
                ->  Sort
                      Output: t2_1.b
                      Sort Key: t2_1.b
-                     ->  Materialize
+                     ->  RemoteScan on public.prt2_p2 t2_1
                            Output: t2_1.b
-                           ->  RemoteScan on public.prt2_p2 t2_1
-                                 Output: t2_1.b
-                                 Shard: 1        Remote SQL: select b from regression_$$_public.prt2_p2 
+                           Shard: 2      Remote SQL: select b from regression_$$_public.prt2_p2 
          ->  Merge Anti Join
                Output: t1_2.a, t1_2.b
                Merge Cond: (t1_2.a = t2_2.b)
                ->  Sort
                      Output: t1_2.a, t1_2.b
                      Sort Key: t1_2.a
-                     ->  RemoteScan on public.prt1_p3 t1_2
+                     ->  Materialize
                            Output: t1_2.a, t1_2.b
-                           Shard: 2      Remote SQL: select a, b from regression_$$_public.prt1_p3 
+                           ->  RemoteScan on public.prt1_p3 t1_2
+                                 Output: t1_2.a, t1_2.b
+                                 Shard: 1        Remote SQL: select a, b from regression_$$_public.prt1_p3 
                ->  Sort
                      Output: t2_2.b
                      Sort Key: t2_2.b
@@ -4937,7 +4947,7 @@ SELECT t1.a, t1.c, t2.b, t2.c FROM prt1_e t1, prt2_e t2 WHERE (t1.a + t1.b)/2 = 
                            ->  RemoteScan on public.prt1_e_p1 t1
                                  Output: t1.a, t1.c, t1.b, t1."((a + b) DIV 2)"
                                  Filter: (t1.b = 0)
-                                 Shard: 1        Remote SQL: select a, c, b, ((a + b) DIV 2) from regression_$$_public.prt1_e_p1  where (c = 0)
+                                 Shard: 2        Remote SQL: select a, c, b, ((a + b) DIV 2) from regression_$$_public.prt1_e_p1  where (c = 0)
                ->  Sort
                      Output: t2.b, t2.c, t2.a, t2."((b + a) DIV 2)"
                      Sort Key: t2."((b + a) DIV 2)"
@@ -4945,25 +4955,25 @@ SELECT t1.a, t1.c, t2.b, t2.c FROM prt1_e t1, prt2_e t2 WHERE (t1.a + t1.b)/2 = 
                            Output: t2.b, t2.c, t2.a, t2."((b + a) DIV 2)"
                            ->  RemoteScan on public.prt2_e_p1 t2
                                  Output: t2.b, t2.c, t2.a, t2."((b + a) DIV 2)"
-                                 Shard: 1        Remote SQL: select b, c, a, ((b + a) DIV 2) from regression_$$_public.prt2_e_p1 
+                                 Shard: 2        Remote SQL: select b, c, a, ((b + a) DIV 2) from regression_$$_public.prt2_e_p1 
          ->  Merge Join
                Output: t1_1.a, t1_1.c, t2_1.b, t2_1.c
                Merge Cond: (t1_1."((a + b) DIV 2)" = t2_1."((b + a) DIV 2)")
                ->  Sort
                      Output: t1_1.a, t1_1.c, t1_1.b, t1_1."((a + b) DIV 2)"
                      Sort Key: t1_1."((a + b) DIV 2)"
-                     ->  Materialize
+                     ->  RemoteScan on public.prt1_e_p2 t1_1
                            Output: t1_1.a, t1_1.c, t1_1.b, t1_1."((a + b) DIV 2)"
-                           ->  RemoteScan on public.prt1_e_p2 t1_1
-                                 Output: t1_1.a, t1_1.c, t1_1.b, t1_1."((a + b) DIV 2)"
-                                 Filter: (t1_1.b = 0)
-                                 Shard: 2        Remote SQL: select a, c, b, ((a + b) DIV 2) from regression_$$_public.prt1_e_p2  where (c = 0)
+                           Filter: (t1_1.b = 0)
+                           Shard: 1      Remote SQL: select a, c, b, ((a + b) DIV 2) from regression_$$_public.prt1_e_p2  where (c = 0)
                ->  Sort
                      Output: t2_1.b, t2_1.c, t2_1.a, t2_1."((b + a) DIV 2)"
                      Sort Key: t2_1."((b + a) DIV 2)"
-                     ->  RemoteScan on public.prt2_e_p2 t2_1
+                     ->  Materialize
                            Output: t2_1.b, t2_1.c, t2_1.a, t2_1."((b + a) DIV 2)"
-                           Shard: 2      Remote SQL: select b, c, a, ((b + a) DIV 2) from regression_$$_public.prt2_e_p2 
+                           ->  RemoteScan on public.prt2_e_p2 t2_1
+                                 Output: t2_1.b, t2_1.c, t2_1.a, t2_1."((b + a) DIV 2)"
+                                 Shard: 2        Remote SQL: select b, c, a, ((b + a) DIV 2) from regression_$$_public.prt2_e_p2 
          ->  Merge Join
                Output: t1_2.a, t1_2.c, t2_2.b, t2_2.c
                Merge Cond: (t1_2."((a + b) DIV 2)" = t2_2."((b + a) DIV 2)")
@@ -4975,13 +4985,13 @@ SELECT t1.a, t1.c, t2.b, t2.c FROM prt1_e t1, prt2_e t2 WHERE (t1.a + t1.b)/2 = 
                            ->  RemoteScan on public.prt1_e_p3 t1_2
                                  Output: t1_2.a, t1_2.c, t1_2.b, t1_2."((a + b) DIV 2)"
                                  Filter: (t1_2.b = 0)
-                                 Shard: 1        Remote SQL: select a, c, b, ((a + b) DIV 2) from regression_$$_public.prt1_e_p3  where (c = 0)
+                                 Shard: 2        Remote SQL: select a, c, b, ((a + b) DIV 2) from regression_$$_public.prt1_e_p3  where (c = 0)
                ->  Sort
                      Output: t2_2.b, t2_2.c, t2_2.a, t2_2."((b + a) DIV 2)"
                      Sort Key: t2_2."((b + a) DIV 2)"
                      ->  RemoteScan on public.prt2_e_p3 t2_2
                            Output: t2_2.b, t2_2.c, t2_2.a, t2_2."((b + a) DIV 2)"
-                           Shard: 1      Remote SQL: select b, c, a, ((b + a) DIV 2) from regression_$$_public.prt2_e_p3 
+                           Shard: 2      Remote SQL: select b, c, a, ((b + a) DIV 2) from regression_$$_public.prt2_e_p3 
 (60 rows)
 
 SELECT t1.a, t1.c, t2.b, t2.c, t3.a + t3.b, t3.c FROM (prt1 t1 LEFT JOIN prt2 t2 ON t1.a = t2.b) LEFT JOIN prt1_e t3 ON (t1.a = (t3.a + t3.b)/2) WHERE t1.b = 0 ORDER BY t1.a, t2.b, t3.a + t3.b;
@@ -5039,7 +5049,7 @@ SELECT t1.a, t1.c, t2.b, t2.c, t3.a + t3.b, t3.c FROM (prt1 t1 LEFT JOIN prt2 t2
                            Output: t3.a, t3.b, t3.c, t3."((a + b) DIV 2)"
                            ->  RemoteScan on public.prt1_e_p1 t3
                                  Output: t3.a, t3.b, t3.c, t3."((a + b) DIV 2)"
-                                 Shard: 1        Remote SQL: select a, b, c, ((a + b) DIV 2) from regression_$$_public.prt1_e_p1 
+                                 Shard: 2        Remote SQL: select a, b, c, ((a + b) DIV 2) from regression_$$_public.prt1_e_p1 
          ->  Merge Left Join
                Output: t1_1.a, t1_1.c, t2_1.b, t2_1.c, (t3_1.a + t3_1.b), t3_1.c
                Merge Cond: (t1_1.a = t3_1."((a + b) DIV 2)")
@@ -5062,7 +5072,7 @@ SELECT t1.a, t1.c, t2.b, t2.c, t3.a + t3.b, t3.c FROM (prt1 t1 LEFT JOIN prt2 t2
                                  Output: t2_1.b, t2_1.c
                                  ->  RemoteScan on public.prt2_p2 t2_1
                                        Output: t2_1.b, t2_1.c
-                                       Shard: 1  Remote SQL: select b, c from regression_$$_public.prt2_p2 
+                                       Shard: 2  Remote SQL: select b, c from regression_$$_public.prt2_p2 
                ->  Sort
                      Output: t3_1.a, t3_1.b, t3_1.c, t3_1."((a + b) DIV 2)"
                      Sort Key: t3_1."((a + b) DIV 2)"
@@ -5070,7 +5080,7 @@ SELECT t1.a, t1.c, t2.b, t2.c, t3.a + t3.b, t3.c FROM (prt1 t1 LEFT JOIN prt2 t2
                            Output: t3_1.a, t3_1.b, t3_1.c, t3_1."((a + b) DIV 2)"
                            ->  RemoteScan on public.prt1_e_p2 t3_1
                                  Output: t3_1.a, t3_1.b, t3_1.c, t3_1."((a + b) DIV 2)"
-                                 Shard: 2        Remote SQL: select a, b, c, ((a + b) DIV 2) from regression_$$_public.prt1_e_p2 
+                                 Shard: 1        Remote SQL: select a, b, c, ((a + b) DIV 2) from regression_$$_public.prt1_e_p2 
          ->  Merge Left Join
                Output: t1_2.a, t1_2.c, t2_2.b, t2_2.c, (t3_2.a + t3_2.b), t3_2.c
                Merge Cond: (t1_2.a = t3_2."((a + b) DIV 2)")
@@ -5080,24 +5090,24 @@ SELECT t1.a, t1.c, t2.b, t2.c, t3.a + t3.b, t3.c FROM (prt1 t1 LEFT JOIN prt2 t2
                      ->  Sort
                            Output: t1_2.a, t1_2.c
                            Sort Key: t1_2.a
-                           ->  RemoteScan on public.prt1_p3 t1_2
+                           ->  Materialize
                                  Output: t1_2.a, t1_2.c
-                                 Filter: (t1_2.c = 0)
-                                 Shard: 2        Remote SQL: select a, c from regression_$$_public.prt1_p3  where (b = 0)
+                                 ->  RemoteScan on public.prt1_p3 t1_2
+                                       Output: t1_2.a, t1_2.c
+                                       Filter: (t1_2.c = 0)
+                                       Shard: 1  Remote SQL: select a, c from regression_$$_public.prt1_p3  where (b = 0)
                      ->  Sort
                            Output: t2_2.b, t2_2.c
                            Sort Key: t2_2.b
-                           ->  Materialize
+                           ->  RemoteScan on public.prt2_p3 t2_2
                                  Output: t2_2.b, t2_2.c
-                                 ->  RemoteScan on public.prt2_p3 t2_2
-                                       Output: t2_2.b, t2_2.c
-                                       Shard: 1  Remote SQL: select b, c from regression_$$_public.prt2_p3 
+                                 Shard: 1        Remote SQL: select b, c from regression_$$_public.prt2_p3 
                ->  Sort
                      Output: t3_2.a, t3_2.b, t3_2.c, t3_2."((a + b) DIV 2)"
                      Sort Key: t3_2."((a + b) DIV 2)"
                      ->  RemoteScan on public.prt1_e_p3 t3_2
                            Output: t3_2.a, t3_2.b, t3_2.c, t3_2."((a + b) DIV 2)"
-                           Shard: 1      Remote SQL: select a, b, c, ((a + b) DIV 2) from regression_$$_public.prt1_e_p3 
+                           Shard: 2      Remote SQL: select a, b, c, ((a + b) DIV 2) from regression_$$_public.prt1_e_p3 
 (93 rows)
 
 SELECT t1.a, t1.c, t2.b, t2.c, t3.a + t3.b, t3.c FROM (prt1 t1 LEFT JOIN prt2 t2 ON t1.a = t2.b) RIGHT JOIN prt1_e t3 ON (t1.a = (t3.a + t3.b)/2) WHERE t3.c = 0 ORDER BY t1.a, t2.b, t3.a + t3.b;
@@ -5155,7 +5165,7 @@ SELECT t1.a, t1.c, t2.b, t2.c, t3.a + t3.b, t3.c FROM (prt1 t1 LEFT JOIN prt2 t2
                            ->  RemoteScan on public.prt1_e_p1 t3
                                  Output: t3.a, t3.b, t3.c, t3."((a + b) DIV 2)"
                                  Filter: (t3.c = 0)
-                                 Shard: 1        Remote SQL: select a, b, c, ((a + b) DIV 2) from regression_$$_public.prt1_e_p1  where (c = 0)
+                                 Shard: 2        Remote SQL: select a, b, c, ((a + b) DIV 2) from regression_$$_public.prt1_e_p1  where (c = 0)
          ->  Merge Right Join
                Output: t1_1.a, t1_1.c, t2_1.b, t2_1.c, (t3_1.a + t3_1.b), t3_1.c
                Merge Cond: (t1_1.a = t3_1."((a + b) DIV 2)")
@@ -5177,7 +5187,7 @@ SELECT t1.a, t1.c, t2.b, t2.c, t3.a + t3.b, t3.c FROM (prt1 t1 LEFT JOIN prt2 t2
                                  Output: t2_1.b, t2_1.c
                                  ->  RemoteScan on public.prt2_p2 t2_1
                                        Output: t2_1.b, t2_1.c
-                                       Shard: 1  Remote SQL: select b, c from regression_$$_public.prt2_p2 
+                                       Shard: 2  Remote SQL: select b, c from regression_$$_public.prt2_p2 
                ->  Sort
                      Output: t3_1.a, t3_1.b, t3_1.c, t3_1."((a + b) DIV 2)"
                      Sort Key: t3_1."((a + b) DIV 2)"
@@ -5186,7 +5196,7 @@ SELECT t1.a, t1.c, t2.b, t2.c, t3.a + t3.b, t3.c FROM (prt1 t1 LEFT JOIN prt2 t2
                            ->  RemoteScan on public.prt1_e_p2 t3_1
                                  Output: t3_1.a, t3_1.b, t3_1.c, t3_1."((a + b) DIV 2)"
                                  Filter: (t3_1.c = 0)
-                                 Shard: 2        Remote SQL: select a, b, c, ((a + b) DIV 2) from regression_$$_public.prt1_e_p2  where (c = 0)
+                                 Shard: 1        Remote SQL: select a, b, c, ((a + b) DIV 2) from regression_$$_public.prt1_e_p2  where (c = 0)
          ->  Merge Right Join
                Output: t1_2.a, t1_2.c, t2_2.b, t2_2.c, (t3_2.a + t3_2.b), t3_2.c
                Merge Cond: (t1_2.a = t3_2."((a + b) DIV 2)")
@@ -5196,24 +5206,24 @@ SELECT t1.a, t1.c, t2.b, t2.c, t3.a + t3.b, t3.c FROM (prt1 t1 LEFT JOIN prt2 t2
                      ->  Sort
                            Output: t1_2.a, t1_2.c
                            Sort Key: t1_2.a
-                           ->  RemoteScan on public.prt1_p3 t1_2
+                           ->  Materialize
                                  Output: t1_2.a, t1_2.c
-                                 Shard: 2        Remote SQL: select a, c from regression_$$_public.prt1_p3 
+                                 ->  RemoteScan on public.prt1_p3 t1_2
+                                       Output: t1_2.a, t1_2.c
+                                       Shard: 1  Remote SQL: select a, c from regression_$$_public.prt1_p3 
                      ->  Sort
                            Output: t2_2.b, t2_2.c
                            Sort Key: t2_2.b
-                           ->  Materialize
+                           ->  RemoteScan on public.prt2_p3 t2_2
                                  Output: t2_2.b, t2_2.c
-                                 ->  RemoteScan on public.prt2_p3 t2_2
-                                       Output: t2_2.b, t2_2.c
-                                       Shard: 1  Remote SQL: select b, c from regression_$$_public.prt2_p3 
+                                 Shard: 1        Remote SQL: select b, c from regression_$$_public.prt2_p3 
                ->  Sort
                      Output: t3_2.a, t3_2.b, t3_2.c, t3_2."((a + b) DIV 2)"
                      Sort Key: t3_2."((a + b) DIV 2)"
                      ->  RemoteScan on public.prt1_e_p3 t3_2
                            Output: t3_2.a, t3_2.b, t3_2.c, t3_2."((a + b) DIV 2)"
                            Filter: (t3_2.c = 0)
-                           Shard: 1      Remote SQL: select a, b, c, ((a + b) DIV 2) from regression_$$_public.prt1_e_p3  where (c = 0)
+                           Shard: 2      Remote SQL: select a, b, c, ((a + b) DIV 2) from regression_$$_public.prt1_e_p3  where (c = 0)
 (93 rows)
 
 SELECT t1.* FROM prt1 t1 WHERE t1.a IN (SELECT t1.b FROM prt2 t1, prt1_e t2 WHERE t1.a = 0 AND t1.b = (t2.a + t2.b)/2) AND t1.b = 0 ORDER BY t1.a;
@@ -5264,7 +5274,7 @@ SELECT t1.* FROM prt1 t1 WHERE t1.a IN (SELECT t1.b FROM prt2 t1, prt1_e t2 WHER
                                  Output: t2.a, t2.b, t2."((a + b) DIV 2)"
                                  ->  RemoteScan on public.prt1_e_p1 t2
                                        Output: t2.a, t2.b, t2."((a + b) DIV 2)"
-                                       Shard: 1  Remote SQL: select a, b, ((a + b) DIV 2) from regression_$$_public.prt1_e_p1 
+                                       Shard: 2  Remote SQL: select a, b, ((a + b) DIV 2) from regression_$$_public.prt1_e_p1 
          ->  Merge Semi Join
                Output: t1_1.a, t1_1.b, t1_1.c
                Merge Cond: (t1_1.a = t1_4.b)
@@ -5288,7 +5298,7 @@ SELECT t1.* FROM prt1 t1 WHERE t1.a IN (SELECT t1.b FROM prt2 t1, prt1_e t2 WHER
                                  ->  RemoteScan on public.prt2_p2 t1_4
                                        Output: t1_4.b
                                        Filter: (t1_4.b = 0)
-                                       Shard: 1  Remote SQL: select b from regression_$$_public.prt2_p2  where (a = 0)
+                                       Shard: 2  Remote SQL: select b from regression_$$_public.prt2_p2  where (a = 0)
                      ->  Sort
                            Output: t2_1.a, t2_1.b, t2_1."((a + b) DIV 2)"
                            Sort Key: t2_1."((a + b) DIV 2)"
@@ -5296,35 +5306,35 @@ SELECT t1.* FROM prt1 t1 WHERE t1.a IN (SELECT t1.b FROM prt2 t1, prt1_e t2 WHER
                                  Output: t2_1.a, t2_1.b, t2_1."((a + b) DIV 2)"
                                  ->  RemoteScan on public.prt1_e_p2 t2_1
                                        Output: t2_1.a, t2_1.b, t2_1."((a + b) DIV 2)"
-                                       Shard: 2  Remote SQL: select a, b, ((a + b) DIV 2) from regression_$$_public.prt1_e_p2 
+                                       Shard: 1  Remote SQL: select a, b, ((a + b) DIV 2) from regression_$$_public.prt1_e_p2 
          ->  Merge Semi Join
                Output: t1_2.a, t1_2.b, t1_2.c
                Merge Cond: (t1_2.a = t1_5.b)
                ->  Sort
                      Output: t1_2.a, t1_2.b, t1_2.c
                      Sort Key: t1_2.a
-                     ->  RemoteScan on public.prt1_p3 t1_2
+                     ->  Materialize
                            Output: t1_2.a, t1_2.b, t1_2.c
-                           Filter: (t1_2.b = 0)
-                           Shard: 2      Remote SQL: select a, b, c from regression_$$_public.prt1_p3  where (b = 0)
+                           ->  RemoteScan on public.prt1_p3 t1_2
+                                 Output: t1_2.a, t1_2.b, t1_2.c
+                                 Filter: (t1_2.b = 0)
+                                 Shard: 1        Remote SQL: select a, b, c from regression_$$_public.prt1_p3  where (b = 0)
                ->  Merge Join
                      Output: t1_5.b, t2_2.a, t2_2.b
                      Merge Cond: (t1_5.b = t2_2."((a + b) DIV 2)")
                      ->  Sort
                            Output: t1_5.b
                            Sort Key: t1_5.b
-                           ->  Materialize
+                           ->  RemoteScan on public.prt2_p3 t1_5
                                  Output: t1_5.b
-                                 ->  RemoteScan on public.prt2_p3 t1_5
-                                       Output: t1_5.b
-                                       Filter: (t1_5.b = 0)
-                                       Shard: 1  Remote SQL: select b from regression_$$_public.prt2_p3  where (a = 0)
+                                 Filter: (t1_5.b = 0)
+                                 Shard: 1        Remote SQL: select b from regression_$$_public.prt2_p3  where (a = 0)
                      ->  Sort
                            Output: t2_2.a, t2_2.b, t2_2."((a + b) DIV 2)"
                            Sort Key: t2_2."((a + b) DIV 2)"
                            ->  RemoteScan on public.prt1_e_p3 t2_2
                                  Output: t2_2.a, t2_2.b, t2_2."((a + b) DIV 2)"
-                                 Shard: 1        Remote SQL: select a, b, ((a + b) DIV 2) from regression_$$_public.prt1_e_p3 
+                                 Shard: 2        Remote SQL: select a, b, ((a + b) DIV 2) from regression_$$_public.prt1_e_p3 
 (96 rows)
 
 -- bug 226 Wrong Assert causing failure when an expression target is pushed down

@@ -121,7 +121,7 @@ if __name__ == '__main__':
     config_template_file = install_path + "/resources/postgresql.conf"
 
     mysql_conn_params = {}
-    mysql_conn_params = common.mysql_shard_check(meta_jscfg, True)
+    mysql_conn_params = common.mysql_shard_check(meta_jscfg, len(meta_jscfg) > 1)
     mysql_conn_params['database'] = 'Kunlun_Metadata_DB'
             
     add_comp_self(install_path, config_template_file, mysql_conn_params, "self.json", args)

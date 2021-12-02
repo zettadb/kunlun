@@ -177,7 +177,7 @@ if __name__ == '__main__':
     meta_jscfg = json.loads(meta_jstr)
 
     mysql_conn_params = {}
-    mysql_conn_params = common.mysql_shard_check(meta_jscfg, True)
+    mysql_conn_params = common.mysql_shard_check(meta_jscfg, len(meta_jscfg) > 1)
     mysql_conn_params['database'] = 'Kunlun_Metadata_DB'
             
     add_computing_nodes(mysql_conn_params, args, args.config, install_ids)

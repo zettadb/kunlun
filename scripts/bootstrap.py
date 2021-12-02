@@ -32,7 +32,8 @@ mysql_conn_params = {
 jsconf = open(args.config)
 jstr = jsconf.read()
 jscfg = json.loads(jstr)
-mysql_conn_params = common.mysql_shard_check(jscfg, True)
+usemgr = len(jscfg) > 1
+mysql_conn_params = common.mysql_shard_check(jscfg, usemgr)
 
 mysql_conn_params['database'] = 'mysql'
 fbootstrap_sql = open(args.bootstrap_sql)

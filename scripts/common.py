@@ -19,10 +19,7 @@ def connect_mysql(node):
 		mysql_conn = mysql.connector.connect(**mysql_conn_params)
 	except mysql.connector.errors.InterfaceError as err:
 		print "Unable to connect to {}, error: {}".format(str(mysql_conn_params), str(err))
-
 	return mysql_conn
-
-
 
 def mysql_version_check(conn, conn_params):
 	csr = conn.cursor()
@@ -34,6 +31,8 @@ def mysql_version_check(conn, conn_params):
 	csr.close()
 
 def mysql_node_check0(conn_params):
+    conn = connect_mysql(conn_params)
+    conn.close()
     return conn_params['ip'], conn_params['port']
 
 # check target mysql node has right version and is in its shard cluster.
@@ -80,19 +79,18 @@ def mysql_shard_check(shard_conn_params, do_check):
 	return prim_node
 
 
-
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='test functions in this file')
 	parser.add_argument('--config', help="shard config file path")
 	parser.add_argument('--meta_config', type=str, help="metadata cluster config file path")
-	parser.add_argument('--usemgr', type=bool, default=True); # used for internal testing, --usemgr=True|False
 
 	args = parser.parse_args()
 
 	meta_jsconf = open(args.meta_config)
 	meta_jstr = meta_jsconf.read()
 	meta_jscfg = json.loads(meta_jstr)
-	mysql_conn_params = mysql_shard_check(meta_jscfg, True)
+	usemgr = len(meta_jscfg) > 1
+	mysql_conn_params = mysql_shard_check(meta_jscfg, usemgr)
 	print "Meta shard primary node: {}".format(str(mysql_conn_params))
 
 	jsconf = open(args.config)
@@ -100,6 +98,6 @@ if __name__ == '__main__':
 	jscfg = json.loads(jstr)
 
 	for shardcfg in jscfg:
-		mysql_conn_params = mysql_shard_check(shardcfg['shard_nodes'], args.usemgr)
+		mysql_conn_params = mysql_shard_check(shardcfg['shard_nodes'], usemgr)
 		print "Shard {} primary node: {}".format(shardcfg['shard_name'], str(mysql_conn_params))
 

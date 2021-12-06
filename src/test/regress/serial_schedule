@@ -161,9 +161,9 @@ test: indirect_toast
 test: equivclass
 test: plancache
 test: limit
-test: plpgsql -- temporary skipped, will revisit after first round.
-test: copy2 -- temporary skipped, will revisit after copy command is ready.
-test: temp - need to re-visit after fixing the ticket-57
+test: plpgsql
+test: copy2
+test: temp
 # test: domain - domain is supported currently, so skip it.
 test: rangefuncs
 test: prepare
@@ -198,4 +198,3 @@ test: alter_table2
 test: alter_table3
 test: sequence_noalter
 test: vars
-

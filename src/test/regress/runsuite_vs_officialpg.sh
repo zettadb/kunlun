@@ -1,6 +1,6 @@
 #! /bin/bash
 
-cat serial_schedule | grep -v '^#'  | awk '{print $2}' | while read f; do
+cat serial_schedule | grep -v '^#' | sed '/^[ 	]*$/d' | awk '{print $2}' | while read f; do
 	if test -f "skips/$f.skip"; then
 		echo "Skipping sql/$f.sql currently ......"
 	else

@@ -17,6 +17,7 @@ test: numeric
 test: txid
 test: uuid
 test: enum
+test: enum2
 test: money
 test: rangetypes
 test: pg_lsn
@@ -36,6 +37,9 @@ test: timetz
 test: timestamp
 test: timestamptz
 test: interval
+# test: abstime
+# test: reltime
+# test: tinterval
 test: inet
 test: macaddr
 test: macaddr8
@@ -157,9 +161,9 @@ test: indirect_toast
 test: equivclass
 test: plancache
 test: limit
-# test: plpgsql -- temporary skipped, will revisit after first round.
-# test: copy2 -- temporary skipped, will revisit after copy command is ready.
-# test: temp - need to re-visit after fixing the ticket-57
+test: plpgsql -- temporary skipped, will revisit after first round.
+test: copy2 -- temporary skipped, will revisit after copy command is ready.
+test: temp - need to re-visit after fixing the ticket-57
 # test: domain - domain is supported currently, so skip it.
 test: rangefuncs
 test: prepare
@@ -184,3 +188,14 @@ test: partition_aggregate
 # test: event_trigger - not supported, so skip it.
 test: fast_default
 test: stats
+test: charset_zh_CN
+test: datatypes_simple
+test: remote
+test: remote_dml
+test: remote_dml2
+test: remote_opt
+test: alter_table2
+test: alter_table3
+test: sequence_noalter
+test: vars
+

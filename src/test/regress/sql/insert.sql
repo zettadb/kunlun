@@ -18,7 +18,6 @@ insert into inserttest (col1, col2, col3) values (DEFAULT, DEFAULT);
 insert into inserttest (col1, col2, col3) values (1, 2);
 insert into inserttest (col1) values (1, 2);
 insert into inserttest (col1) values (DEFAULT, DEFAULT);
-226
 select * from inserttest;
 
 --

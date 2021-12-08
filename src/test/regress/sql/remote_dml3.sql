@@ -37,7 +37,7 @@ having exists (select 1 from onek b where sum(distinct a.four) = b.four);
 SELECT SUM(COUNT(four)) OVER () FROM onek WHERE ten=5;
 SELECT SUM(COUNT(ten)) OVER () FROM onek WHERE four=3;
 -- create own table
-DROP table if exists INT4_TBL;
+DROP table if exists INT4_TBL cascade;
 CREATE TABLE INT4_TBL(f1 int4);
 INSERT INTO INT4_TBL(f1) VALUES (' 0 ');
 INSERT INTO INT4_TBL(f1) VALUES ('123456 ');
@@ -49,7 +49,7 @@ SELECT SUM(COUNT(f1)) OVER () FROM int4_tbl WHERE f1=0;
 
 
 -- bug 228 Column name may overflow if qualified with its owner table name 
-drop table if exists INT8_TBL;
+drop table if exists INT8_TBL cascade;
 CREATE TABLE INT8_TBL(q1 int8, q2 int8);
 
 INSERT INTO INT8_TBL VALUES(' 123 ',' 456');
@@ -70,14 +70,14 @@ select * from tt18v;
 
 
 -- bug #229 partition_join.sql,connection to server was lost 
-DROP TABLE if exists prt2;
+DROP TABLE if exists prt2 cascade;
 CREATE TABLE prt2 (a int, b int, c varchar) PARTITION BY RANGE(b);
 CREATE TABLE prt2_p1 PARTITION OF prt2 FOR VALUES FROM (0) TO (250);
 CREATE TABLE prt2_p2 PARTITION OF prt2 FOR VALUES FROM (250) TO (500);
 CREATE TABLE prt2_p3 PARTITION OF prt2 FOR VALUES FROM (500) TO (600);
 INSERT INTO prt2 SELECT i % 25, i, to_char(i, 'FM0000') FROM generate_series(0, 599) i WHERE i % 3 = 0;
 
-DROP TABLE if exists prt1;
+DROP TABLE if exists prt1 cascade;
 CREATE TABLE prt1 (a int, b int, c varchar) PARTITION BY RANGE(a);
 CREATE TABLE prt1_p1 PARTITION OF prt1 FOR VALUES FROM (0) TO (250);
 CREATE TABLE prt1_p3 PARTITION OF prt1 FOR VALUES FROM (500) TO (600);
@@ -95,7 +95,7 @@ SELECT 1 AS three UNION SELECT 3 UNION SELECT 2 UNION ALL SELECT 2 ORDER BY 1;
 EXPLAIN SELECT 1 AS three UNION SELECT 3 UNION SELECT 2 UNION ALL SELECT 2 ORDER BY 1;
 
 -- bug 245 Sort should not be pushed down if it uses a set returning funcs or exprs to sort
-drop table if exists few;
+drop table if exists few cascade;
 CREATE TABLE few(id int, dataa text, datab text);
 INSERT INTO few VALUES(1, 'a', 'foo'),(2, 'a', 'bar'),(3, 'b', 'bar');
 
@@ -124,7 +124,7 @@ FROM ctv_data GROUP BY v, h ORDER BY 1,3,2
     \crosstabview v h c r
 
 -- bug  #244 Agg not pushed down for count(1) 
-drop table if exists atest5;
+drop table if exists atest5 cascade;
 CREATE TABLE atest5 (one int, two int unique, three int, four int unique);
 INSERT INTO atest5 VALUES (1,2,3),(2,3,4),(3,4,5),(5,6,7);
 SELECT count(1) FROM atest5 a JOIN atest5 b USING (one);
@@ -138,7 +138,7 @@ EXPLAIN SELECT sum(2+3) FROM atest5;
 
 
 -- bug  #234 View derived conflicting RemoteScans not materialized 
-drop table if exists test1;
+drop table if exists test1 cascade;
 create table test1 (id serial, t text);
 insert into test1 (t) values ('a');
 insert into test1 (t) values ('b');
@@ -154,7 +154,7 @@ copy (select t from test1 where id = 1 UNION select * from v_test1 ORDER BY 1) t
 copy (select * from (select t from test1 where id = 1 UNION select * from v_test1 ORDER BY 1) t1) to stdout;
 
 -- bug  #257 subquery produces more content than expected 
-DROP TABLE if exists SUBSELECT_TBL;
+DROP TABLE if exists SUBSELECT_TBL cascade;
 CREATE TABLE SUBSELECT_TBL (
 
     f1 integer,
@@ -181,7 +181,7 @@ SELECT f1, f2
 
 
 -- bug  #230 value too long for type character 
-DROP TABLE if exists TEXT_TBL;
+DROP TABLE if exists TEXT_TBL cascade;
 CREATE TABLE TEXT_TBL (f1 text);
 INSERT INTO TEXT_TBL VALUES ('doh!');
 INSERT INTO TEXT_TBL VALUES ('hi de ho neighbor');

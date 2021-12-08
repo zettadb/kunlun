@@ -1138,15 +1138,16 @@ SELECT text 'text' || varchar ' and varchar' AS "Concat text to varchar";
 --
 -- test substr with toasted text values
 --
+DROP TABLE if exists toasttest;
+NOTICE:  table "toasttest" does not exist, skipping
 CREATE TABLE toasttest(f1 text);
 insert into toasttest values(repeat('1234567890',10000));
 insert into toasttest values(repeat('1234567890',10000));
 --
 -- Ensure that some values are uncompressed, to test the faster substring
 -- operation used in that case
---
-alter table toasttest alter column f1 set storage external;
-WARNING:  Alter Table command SET STORAGE not supported and skipped.
+-- set storage not supported in Kunlun
+-- alter table toasttest alter column f1 set storage external;
 insert into toasttest values(repeat('1234567890',10000));
 insert into toasttest values(repeat('1234567890',10000));
 -- If the starting position is zero or less, then return from the start of the string
@@ -1185,26 +1186,22 @@ SELECT substr(f1, 99995, 10) from toasttest;
  567890
 (4 rows)
 
-TRUNCATE TABLE toasttest;
-ERROR:  Statement 'TRUNCATE TABLE' is not supported in Kunlun.
+-- TRUNCATE is not supported by Kunlun
+-- TRUNCATE TABLE toasttest;
+DELETE FROM toasttest;
 INSERT INTO toasttest values (repeat('1234567890',300));
 INSERT INTO toasttest values (repeat('1234567890',300));
 INSERT INTO toasttest values (repeat('1234567890',300));
 INSERT INTO toasttest values (repeat('1234567890',300));
 -- expect >0 blocks
-select 0 = pg_relation_size('pg_toast.pg_toast_'||(select oid from pg_class where relname = 'toasttest'))/current_setting('block_size')::integer as blocks;
-ERROR:  relation "pg_toast.pg_toast_567385" does not exist
-TRUNCATE TABLE toasttest;
-ERROR:  Statement 'TRUNCATE TABLE' is not supported in Kunlun.
-ALTER TABLE toasttest set (toast_tuple_target = 4080);
-WARNING:  Alter Table command SET RELOPTIONS not supported and skipped.
+-- TRUNCATE TABLE toasttest;
+DELETE FROM toasttest;
+-- ALTER TABLE toasttest set (toast_tuple_target = 4080);
 INSERT INTO toasttest values (repeat('1234567890',300));
 INSERT INTO toasttest values (repeat('1234567890',300));
 INSERT INTO toasttest values (repeat('1234567890',300));
 INSERT INTO toasttest values (repeat('1234567890',300));
 -- expect 0 blocks
-select 0 = pg_relation_size('pg_toast.pg_toast_'||(select oid from pg_class where relname = 'toasttest'))/current_setting('block_size')::integer as blocks;
-ERROR:  relation "pg_toast.pg_toast_567385" does not exist
 DROP TABLE toasttest;
 --
 -- test substr with toasted bytea values
@@ -1215,9 +1212,8 @@ insert into toasttest values(decode(repeat('1234567890',10000),'escape'));
 --
 -- Ensure that some values are uncompressed, to test the faster substring
 -- operation used in that case
---
-alter table toasttest alter column f1 set storage external;
-WARNING:  Alter Table command SET STORAGE not supported and skipped.
+-- not supported in kunlun
+-- alter table toasttest alter column f1 set storage external;
 insert into toasttest values(decode(repeat('1234567890',10000),'escape'));
 insert into toasttest values(decode(repeat('1234567890',10000),'escape'));
 -- If the starting position is zero or less, then return from the start of the string
@@ -1262,7 +1258,8 @@ DROP TABLE toasttest;
 -- corner case in packed-varlena handling: even though small, the compressed
 -- datum must be given a 4-byte header because there are no bits to indicate
 -- compression in a 1-byte header
-CREATE TABLE toasttest (c varchar(4096));
+-- 
+CREATE TABLE toasttest (c char(200));
 INSERT INTO toasttest VALUES('x');
 SELECT length(c), c::text FROM toasttest;
  length | c 
@@ -1271,9 +1268,9 @@ SELECT length(c), c::text FROM toasttest;
 (1 row)
 
 SELECT c FROM toasttest;
- c 
----
- x
+                                                                                                    c                                                                                                     
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ x                                                                                                                                                                                                       
 (1 row)
 
 DROP TABLE toasttest;

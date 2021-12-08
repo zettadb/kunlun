@@ -121,6 +121,7 @@ SELECT q1 FROM int8_tbl EXCEPT ALL SELECT q1 FROM int8_tbl FOR NO KEY UPDATE;
 -- exercise both hashed and sorted implementations of INTERSECT/EXCEPT
 
 set enable_hashagg to on;
+COPY tenk1 FROM '/home/dzw/work/kunlun-enterprise/postgresql-11.5/src/test/regress/data/tenk.data';
 
 explain (costs off)
 select count(*) from

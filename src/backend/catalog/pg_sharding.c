@@ -573,6 +573,12 @@ bool FindCachedShardNode(Oid shardid, Oid nodeid, Shard_node_t*out)
 	if (shardid == Invalid_shard_id || nodeid == Invalid_shard_node_id)
 		return NULL;
 
+	bool end_txn = false;
+	if (!IsTransactionState())
+	{
+		StartTransactionCommand();
+		end_txn = true;
+	}
 	Shard_node_t *pnode = NULL;
 	Relation shardrel = heap_open(ShardNodeRelationId, RowExclusiveLock);
 	Shard_node_ref_t *shardnoderef = (Shard_node_ref_t *)
@@ -587,13 +593,7 @@ bool FindCachedShardNode(Oid shardid, Oid nodeid, Shard_node_t*out)
 	SysScanDesc scan;
 	HeapTuple	tup;
 	int nfound = 0;
-	bool end_txn = false;
 
-	if (!IsTransactionState())
-	{
-		StartTransactionCommand();
-		end_txn = true;
-	}
 	ScanKeyInit(&key,
 				/*ObjectIdAttributeNumber*/Anum_pg_shard_node_id,
 				BTEqualStrategyNumber,
@@ -622,15 +622,14 @@ bool FindCachedShardNode(Oid shardid, Oid nodeid, Shard_node_t*out)
 	}
 	Assert(nfound == 1);
 	systable_endscan(scan);
+end:
 	heap_close(shardrel, NoLock);
 	if (end_txn)
 		CommitTransactionCommand();
-end:
 	if (out) memcpy(out, pnode, sizeof(*out));
 	out->hostaddr = pstrdup(pnode->hostaddr);
 	out->passwd = pstrdup(pnode->passwd);
 
-	heap_close(shardrel, NoLock);
 	return pnode != NULL;
 }
 
@@ -1447,6 +1446,7 @@ void reapShardConnKillReqs()
 	MetaShardKillConnReqSection metareqs;
 	memset(&metareqs, 0, sizeof(metareqs));
 
+	ResetCommunicationHub();
 	LWLockAcquire(KillShardConnReqLock, LW_EXCLUSIVE);
 	PG_TRY();
 	{

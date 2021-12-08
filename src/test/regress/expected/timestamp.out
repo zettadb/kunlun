@@ -1,6 +1,8 @@
 --
 -- TIMESTAMP
 --
+drop table if exists TIMESTAMP_TBL;
+NOTICE:  table "timestamp_tbl" does not exist, skipping
 CREATE TABLE TIMESTAMP_TBL (d1 timestamp(2) without time zone);
 -- Test shorthand input values
 -- We can't just "select" the results since they aren't constants; test for
@@ -77,9 +79,9 @@ COMMIT;
 DELETE FROM TIMESTAMP_TBL;
 -- Special values
 INSERT INTO TIMESTAMP_TBL VALUES ('-infinity');
-ERROR:  Kunlun-db: MySQL storage node (4, 8) returned error: 1292, Incorrect datetime value: '-infinity' for column 'd1' at row 1.
+ERROR:  Kunlun-db: MySQL storage node (2, 2) returned error: 1292, Incorrect datetime value: '-infinity' for column 'd1' at row 1.
 INSERT INTO TIMESTAMP_TBL VALUES ('infinity');
-ERROR:  Kunlun-db: MySQL storage node (4, 8) returned error: 1292, Incorrect datetime value: 'infinity' for column 'd1' at row 1.
+ERROR:  Kunlun-db: MySQL storage node (2, 2) returned error: 1292, Incorrect datetime value: 'infinity' for column 'd1' at row 1.
 INSERT INTO TIMESTAMP_TBL VALUES ('epoch');
 -- Obsolete special values
 INSERT INTO TIMESTAMP_TBL VALUES ('invalid');
@@ -147,7 +149,7 @@ INSERT INTO TIMESTAMP_TBL VALUES ('Feb 14 17:32:01 1997');
 INSERT INTO TIMESTAMP_TBL VALUES ('Feb 15 17:32:01 1997');
 INSERT INTO TIMESTAMP_TBL VALUES ('Feb 16 17:32:01 1997');
 INSERT INTO TIMESTAMP_TBL VALUES ('Feb 16 17:32:01 0097 BC');
-ERROR:  Kunlun-db: MySQL storage node (4, 8) returned error: 1292, Incorrect datetime value: '0097-02-16 17:32:01 BC' for column 'd1' at row 1.
+ERROR:  Kunlun-db: MySQL storage node (2, 2) returned error: 1292, Incorrect datetime value: '0097-02-16 17:32:01 BC' for column 'd1' at row 1.
 INSERT INTO TIMESTAMP_TBL VALUES ('Feb 16 17:32:01 0097');
 INSERT INTO TIMESTAMP_TBL VALUES ('Feb 16 17:32:01 0597');
 INSERT INTO TIMESTAMP_TBL VALUES ('Feb 16 17:32:01 1097');
@@ -1562,3 +1564,4 @@ SELECT make_timestamp(2014,12,28,6,30,45.887);
  Sun Dec 28 06:30:45.887 2014
 (1 row)
 
+-- drop table TIMESTAMP_TBL;

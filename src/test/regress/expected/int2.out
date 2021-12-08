@@ -1,6 +1,8 @@
 --
 -- INT2
 --
+DROP TABLE if exists INT2_TBL;
+NOTICE:  table "int2_tbl" does not exist, skipping
 CREATE TABLE INT2_TBL(f1 int2);
 INSERT INTO INT2_TBL(f1) VALUES ('0   ');
 INSERT INTO INT2_TBL(f1) VALUES ('  1234 ');

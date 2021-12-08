@@ -1,6 +1,8 @@
 --
 -- OID
 --
+drop table if exists OID_TBL;
+NOTICE:  table "oid_tbl" does not exist, skipping
 CREATE TABLE OID_TBL(f1 oid);
 INSERT INTO OID_TBL(f1) VALUES ('1234');
 INSERT INTO OID_TBL(f1) VALUES ('1235');

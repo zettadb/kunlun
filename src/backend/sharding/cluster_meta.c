@@ -1834,19 +1834,24 @@ int FindCurrentMetaShardMasterNodeId(Oid *pmaster_nodeid, Oid *old_master_nodeid
 	while (cur_idx < MAX_META_SHARD_NODES && (tup = systable_getnext(scan)) != NULL)
 	{
 		Form_pg_cluster_meta_nodes cmn = ((Form_pg_cluster_meta_nodes) GETSTRUCT(tup));
+
 		CMNConnInfo *pci = cmnodes + cur_idx;
-		Datum hostaddr_dat = SysCacheGetAttr(CLUSTER_META_NODES, tup, Anum_pg_cluster_meta_nodes_hostaddr, &isNull);
+		Datum hostaddr_dat = SysCacheGetAttr(CLUSTER_META_NODES, tup,
+			Anum_pg_cluster_meta_nodes_hostaddr, &isNull);
 		Assert(!isNull);
-		char *hostaddr = TextDatumGetCString(hostaddr_dat);
-		pci->hostaddr = pstrdup(hostaddr);
+
 		pci->usr = cmn->user_name;
-		Datum pwd_value = heap_getattr(tup, Anum_pg_cluster_meta_nodes_passwd, RelationGetDescr(cmr), &isNull);
+		Datum pwd_value = heap_getattr(tup, Anum_pg_cluster_meta_nodes_passwd,
+			RelationGetDescr(cmr), &isNull);
+
 		MemoryContext old_memcxt = MemoryContextSwitchTo(CurTransactionContext);
+		pci->hostaddr = TextDatumGetCString(hostaddr_dat);
 		if (!isNull)
 			pci->pwd = TextDatumGetCString(pwd_value); // palloc's memory for the string
 		else
 			pci->pwd = NULL;
 		MemoryContextSwitchTo(old_memcxt);
+
 		pci->port = cmn->port;
 		pci->nodeid = cmn->server_id;
 		if (cmn->is_master)
@@ -2137,6 +2142,7 @@ void KillMetaShardConn(char type, uint32_t connid)
 		cnconn->ignore_err = 0;
 		close_metadata_cluster_conn(cnconn);
 		pfree(ci->pwd);
+		pfree(ci->hostaddr);
 
 		elog(INFO, "%s %sconnection %u on metadata cluster %s node (%s, %d) as requested.",
 			done ? "Killed" : "Failed to kill", type == 1 ? "" : "query on ",
@@ -2180,26 +2186,30 @@ static int FindMetaShardAllNodes(CMNConnInfo *cmnodes, size_t n)
 	{
 		Form_pg_cluster_meta_nodes cmn = ((Form_pg_cluster_meta_nodes) GETSTRUCT(tup));
 		CMNConnInfo *pci = cmnodes + cur_idx;
-		Datum hostaddr_dat = SysCacheGetAttr(CLUSTER_META_NODES, tup, Anum_pg_cluster_meta_nodes_hostaddr, &isNull);
+
+		Datum hostaddr_dat = SysCacheGetAttr(CLUSTER_META_NODES, tup,
+			Anum_pg_cluster_meta_nodes_hostaddr, &isNull);
 		Assert(!isNull);
-		char *hostaddr = TextDatumGetCString(hostaddr_dat);
-		pci->hostaddr = pstrdup(hostaddr);
+
 		pci->usr = cmn->user_name;
-		Datum pwd_value = heap_getattr(tup, Anum_pg_cluster_meta_nodes_passwd, RelationGetDescr(cmr), &isNull);
+
+		Datum pwd_value = heap_getattr(tup, Anum_pg_cluster_meta_nodes_passwd,
+			RelationGetDescr(cmr), &isNull);
+
 		MemoryContext old_memcxt = MemoryContextSwitchTo(CurTransactionContext);
+		pci->hostaddr = TextDatumGetCString(hostaddr_dat);
+		pci->hostaddr = MemoryContextStrdup(curctx, pci->hostaddr);
 		if (!isNull)
 		{
 			// pwd should be alloc'ed in curctx rather than the current txn ctx
 			// which will be destroyed at the end of this func.
 			pci->pwd = TextDatumGetCString(pwd_value); // palloc's memory for the string
-			size_t pwdlen = strlen(pci->pwd);
-			char *str = (char*)MemoryContextAlloc(curctx, pwdlen + 1);
-			strncpy(str, pci->pwd, pwdlen);
-			pci->pwd = str;
+			pci->pwd = MemoryContextStrdup(curctx, pci->pwd);
 		}
 		else
 			pci->pwd = NULL;
 		MemoryContextSwitchTo(old_memcxt);
+
 		pci->port = cmn->port;
 		pci->nodeid = cmn->server_id;
 		pci->is_primary = cmn->is_master;

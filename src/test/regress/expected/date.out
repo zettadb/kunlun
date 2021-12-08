@@ -1,6 +1,8 @@
 --
 -- DATE
 --
+drop table if exists DATE_TBL;
+NOTICE:  table "date_tbl" does not exist, skipping
 CREATE TABLE DATE_TBL (f1 date);
 INSERT INTO DATE_TBL VALUES ('1957-04-09');
 INSERT INTO DATE_TBL VALUES ('1957-06-13');
@@ -1477,3 +1479,4 @@ select make_time(10, 55, 100.1);
 ERROR:  time field value out of range: 10:55:100.1
 select make_time(24, 0, 2.1);
 ERROR:  time field value out of range: 24:00:2.1
+drop table DATE_TBL;

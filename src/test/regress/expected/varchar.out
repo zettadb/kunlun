@@ -1,6 +1,8 @@
 --
 -- VARCHAR
 --
+DROP TABLE if exists VARCHAR_TBL;
+NOTICE:  table "varchar_tbl" does not exist, skipping
 CREATE TABLE VARCHAR_TBL(f1 varchar(1));
 INSERT INTO VARCHAR_TBL (f1) VALUES ('a');
 INSERT INTO VARCHAR_TBL (f1) VALUES ('A');

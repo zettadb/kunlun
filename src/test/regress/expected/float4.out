@@ -1,6 +1,8 @@
 --
 -- FLOAT4
 --
+drop table if exists FLOAT4_TBL;
+NOTICE:  table "float4_tbl" does not exist, skipping
 CREATE TABLE FLOAT4_TBL (f1  float4);
 INSERT INTO FLOAT4_TBL(f1) VALUES ('    0.0');
 INSERT INTO FLOAT4_TBL(f1) VALUES ('1004.30   ');
@@ -139,34 +141,32 @@ SELECT '' AS four, f.* FROM FLOAT4_TBL f WHERE f.f1 <> '1004.3';
  four |     f1      
 ------+-------------
       |           0
-      |      1004.3
       |      -34.84
       | 1.23457e+20
       | 1.23457e-20
-(5 rows)
+(4 rows)
 
 SELECT '' AS one, f.* FROM FLOAT4_TBL f WHERE f.f1 = '1004.3';
- one | f1 
------+----
-(0 rows)
+ one |   f1   
+-----+--------
+     | 1004.3
+(1 row)
 
 SELECT '' AS three, f.* FROM FLOAT4_TBL f WHERE '1004.3' > f.f1;
  three |     f1      
 -------+-------------
        |           0
-       |      1004.3
        |      -34.84
        | 1.23457e-20
-(4 rows)
+(3 rows)
 
 SELECT '' AS three, f.* FROM FLOAT4_TBL f WHERE  f.f1 < '1004.3';
  three |     f1      
 -------+-------------
        |           0
-       |      1004.3
        |      -34.84
        | 1.23457e-20
-(4 rows)
+(3 rows)
 
 SELECT '' AS four, f.* FROM FLOAT4_TBL f WHERE '1004.3' >= f.f1;
  four |     f1      
@@ -316,3 +316,4 @@ SELECT '-9223372036854775808.5'::float4::int8;
 
 SELECT '-9223380000000000000'::float4::int8;
 ERROR:  bigint out of range
+drop table FLOAT4_TBL;

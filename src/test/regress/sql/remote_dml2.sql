@@ -1,14 +1,15 @@
 -- regression test cases from all bug reports in trac.
 
 -- bug 17 The command does not return the number of affected records 
+drop table if exists tx1 cascade;
 create table tx1(id int primary key, c char(50));
 insert into tx1 values(1,'1');
 insert into tx1 values(2, '2');
 insert into tx1 values(3, '3');
 delete from tx1;
-drop table tx1;
 
 -- bug 30
+drop table if exists uv_iocu_tab cascade;
 create table uv_iocu_tab (a serial primary key, b varchar(50));
 insert into uv_iocu_tab (b) values('abc'),('bcd'),('xyz');
 create view uv_iocu_view as select b as bb, a as aa, uv_iocu_tab::varchar(50) as cc from uv_iocu_tab;
@@ -16,10 +17,10 @@ select * from uv_iocu_view;
 drop view uv_iocu_view;
 create view uv_iocu_view as select a as aa, b as bb, uv_iocu_tab::varchar(50) as cc from uv_iocu_tab;
 select * from uv_iocu_view;
-drop table uv_iocu_tab cascade;
 
 
 -- bug 31
+drop table if exists base_tbl cascade;
 CREATE TABLE base_tbl(id serial primary key, a float);
 INSERT INTO base_tbl (a) SELECT i/10.0 FROM generate_series(1,10) g(i);
 CREATE VIEW rw_view1 AS SELECT ctid, sin(a) s, a, cos(a) c FROM base_tbl WHERE a != 0 ORDER BY abs(a);
@@ -29,9 +30,9 @@ CREATE VIEW rw_view1 AS SELECT sin(a) s, a, cos(a) c FROM base_tbl WHERE a != 0 
 select*from rw_view1;
 INSERT INTO rw_view1 (a) VALUES (1.1) RETURNING a, s, c;
 select*from rw_view1;
-drop table base_tbl cascade;
 
 -- bug 29
+drop table if exists base_tbl cascade;
 CREATE TABLE base_tbl (a int PRIMARY KEY, b varchar(50) DEFAULT 'Unspecified');
 INSERT INTO base_tbl SELECT i, 'Row ' i FROM generate_series(-2, 2) g(i);
 CREATE VIEW rw_view16 AS SELECT a, b, a AS aa FROM base_tbl;
@@ -42,22 +43,20 @@ delete from rw_view16 where aa=2;
 insert into rw_view16 values(4,'new row');
 UPDATE rw_view16 SET aa=-4 WHERE a=4;
 select*from rw_view16;
-drop table base_tbl cascade;
 
+drop table if exists base_tbl cascade;
 CREATE TABLE base_tbl(a int primary key, b varchar(50), c float);
 CREATE VIEW rw_view2 AS SELECT b AS bb, c AS cc, a AS aa FROM base_tbl;
 UPDATE base_tbl SET a=a, c=c;
 UPDATE rw_view2 SET bb=bb, cc=cc;
 select*from base_tbl;
 select*from rw_view2;
-drop table base_tbl cascade;
 
 -- bug 39
 drop table if exists SUBSELECT_TBL cascade;
 CREATE TABLE SUBSELECT_TBL ( id serial primary key, f1 integer, f2 integer, f3 float );
 INSERT INTO SUBSELECT_TBL (f1, f2, f3) VALUES (1, 2, 3), (2, 3, 4), (3, 4, 5), (1, 1, 1), (2, 2, 2), (3, 3, 3), (6, 7, 8), (8, 9, NULL);
 SELECT f1 AS "Correlated Field", f2 AS "Second Field" FROM SUBSELECT_TBL upper WHERE f1 IN (SELECT f2 FROM SUBSELECT_TBL WHERE f1 = upper.f1);
-drop table SUBSELECT_TBL;
 
 create temp table rngfunc(f1 int8, f2 int8);
 create function testrngfunc() returns record as $$
@@ -73,14 +72,16 @@ select * from testrngfunc() as t(f1 int8,f2 int8);
 create user userw;
 SELECT SESSION_USER, CURRENT_USER;
 SET SESSION AUTHORIZATION userw;
+drop table if exists testu1 cascade;
 create table testu1(id integer primary key, name varchar(50));
 insert into testu1 values(1, 'userx');
 insert into testu1 values(2, 'userw');
 SELECT SESSION_USER, CURRENT_USER;
-drop table testu1;
 SET SESSION AUTHORIZATION dzw;
 
 -- bug 51
+drop table if exists r1 cascade;
+drop table if exists r2 cascade;
 CREATE TABLE r1 (id serial primary key, a int);
 CREATE TABLE r2 (id serial primary key, a int);
 INSERT INTO r1 (a) VALUES (10), (20);
@@ -89,10 +90,9 @@ INSERT INTO r1 (a) SELECT a + 1 FROM r2;
 INSERT INTO r1 (a) SELECT a + 1 FROM r2 RETURNING *;
 select*from r1;
 select*from r2;
-drop table r1;
-drop table r2;
 
 -- bug 60
+drop table if exists at_base_table cascade;
 create table at_base_table(id int primary key, stuff text);
 insert into at_base_table values (23, 'skidoo');
 create view at_view_1 as select * from at_base_table bt;
@@ -101,10 +101,9 @@ explain (verbose, costs off) select * from at_view_2;
 explain (verbose, costs off) select * from at_view_1;
 select * from at_view_2;
 select * from at_view_1;
-drop table at_base_table cascade;
 
 -- bug 69
-drop table if exists pagg_tab_m;
+drop table if exists pagg_tab_m cascade;
 CREATE TABLE pagg_tab_m (id serial , a int, b int, c int, primary key(id, a,b)) PARTITION BY RANGE(a, b);
 CREATE TABLE pagg_tab_m_p1 PARTITION OF pagg_tab_m FOR VALUES FROM (0, 0) TO (10, 10);
 CREATE TABLE pagg_tab_m_p2 PARTITION OF pagg_tab_m FOR VALUES FROM (10, 10) TO (20, 20);
@@ -121,14 +120,14 @@ explain (verbose)
 SELECT a, sum(b), avg(c), count(*) FROM pagg_tab_m GROUP BY a,b HAVING sum(b) < 2000 and avg(c) > 27;
 
 -- bug 53
-drop table if exists trunc_stats_test1;
+drop table if exists trunc_stats_test1 cascade;
 CREATE TABLE trunc_stats_test1(id serial primary key, stuff text);
 insert into trunc_stats_test1 (stuff) values('abc'), ('xyz');
 select*from trunc_stats_test1;
 UPDATE trunc_stats_test1 SET id = id + 10 WHERE id IN (1, 2);
 select*from trunc_stats_test1;
 
-drop table if exists itest1;
+drop table if exists itest1 cascade;
 CREATE TABLE itest1 (a int generated by default as identity primary key, b text);
 INSERT INTO itest1 DEFAULT VALUES;
 insert into itest1 values(DEFAULT, 'bbb');
@@ -154,24 +153,26 @@ insert into itest1 values(DEFAULT, 'xxx', 333), (DEFAULT, 'yyy', 444);
 select*from itest1;
 
 -- bug 28
+DROP table if exists base_tbl cascade;
 CREATE TABLE base_tbl (a int PRIMARY KEY, b varchar(50) DEFAULT 'Unspecified');
 INSERT INTO base_tbl SELECT i, 'Row ' i FROM generate_series(-2, 2) g(i);
 CREATE VIEW rw_view1 AS SELECT * FROM base_tbl WHERE a>0;
 EXPLAIN (costs off) UPDATE rw_view1 SET a=6 WHERE a=5;
 EXPLAIN (costs off) DELETE FROM rw_view1 WHERE a=5;
 
-DROP table if exists T;
+DROP table if exists T cascade;
 CREATE TABLE T (pk INT NOT NULL PRIMARY KEY);
 INSERT INTO T SELECT * FROM generate_series(1, 10) a;
 EXPLAIN (VERBOSE TRUE, COSTS FALSE) DELETE FROM T WHERE pk BETWEEN 10 AND 20 RETURNING *;
 
-drop table if exists mvtest_t;
+drop table if exists mvtest_t cascade;
 CREATE TABLE mvtest_t (id int NOT NULL PRIMARY KEY, type varchar(50) NOT NULL, amt numeric NOT NULL);
 EXPLAIN (costs off)
 	CREATE MATERIALIZED VIEW mvtest_tm AS SELECT type, sum(amt) AS totamt FROM mvtest_t GROUP BY type WITH NO DATA;
 
 
 -- bug 36
+DROP table if exists parted_conflict cascade;
 create table parted_conflict (a int primary key, b text) partition by range (a);
 create table parted_conflict_1 partition of parted_conflict for values from (0) to (1000) partition by range (a);
 create table parted_conflict_1_1 partition of parted_conflict_1 for values from (0) to (500);
@@ -181,7 +182,6 @@ select*from parted_conflict;
 delete from parted_conflict where a = 30;
 update parted_conflict set c=c+10 where a=40;
 select*from parted_conflict;
-drop table parted_conflict;
 
 -- bug 43 
 drop table if exists int4_tbl cascade;
@@ -280,7 +280,7 @@ CREATE TABLE prt1_l_p3 PARTITION OF prt1_l FOR VALUES FROM (500) TO (600) PARTIT
 CREATE TABLE prt1_l_p3_p1 PARTITION OF prt1_l_p3 FOR VALUES FROM (0) TO (13);
 CREATE TABLE prt1_l_p3_p2 PARTITION OF prt1_l_p3 FOR VALUES FROM (13) TO (25);
 INSERT INTO prt1_l SELECT i, i % 25, to_char(i % 4, 'FM0000') FROM generate_series(0, 599, 2) i;
-DROP TABLE if exists prt2_l;
+DROP TABLE if exists prt2_l cascade;
 CREATE TABLE prt2_l (a int, b int , c varchar, primary key(b,c,a)) PARTITION BY RANGE(b);
 CREATE TABLE prt2_l_p1 PARTITION OF prt2_l FOR VALUES FROM (0) TO (250);
 CREATE TABLE prt2_l_p2 PARTITION OF prt2_l FOR VALUES FROM (250) TO (500) PARTITION BY LIST (c);
@@ -296,8 +296,8 @@ SELECT * FROM prt1_l t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t2.c AS t2c, t2.b
 
 
 -- bug 66 
-DROP TABLE if exists prt1;
-DROP TABLE if exists prt2;
+DROP TABLE if exists prt1 cascade;
+DROP TABLE if exists prt2 cascade;
 CREATE TABLE prt1 (a int primary key, b int, c varchar) PARTITION BY RANGE(a);
 CREATE TABLE prt1_p1 PARTITION OF prt1 FOR VALUES FROM (0) TO (250);
 CREATE TABLE prt1_p3 PARTITION OF prt1 FOR VALUES FROM (500) TO (600);
@@ -339,7 +339,7 @@ EXPLAIN(verbose)
 SELECT * FROM prt1 t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t3.a AS t3a, least(t1.a,t2.a,t3.b) FROM prt1 t2 JOIN prt2 t3 ON (t2.a = t3.b)) ss ON t1.a = ss.t2a WHERE t1.b = 0 ORDER BY t1.a;
 -- bug 67
 SET enable_partitionwise_join to true;
-DROP TABLE if exists prt1_l;
+DROP TABLE if exists prt1_l cascade;
 CREATE TABLE prt1_l (a int, b int, c varchar, primary key(a,b,c)) PARTITION BY RANGE(a);
 CREATE TABLE prt1_l_p1 PARTITION OF prt1_l FOR VALUES FROM (0) TO (250);
 CREATE TABLE prt1_l_p2 PARTITION OF prt1_l FOR VALUES FROM (250) TO (500) PARTITION BY LIST (c);
@@ -349,7 +349,7 @@ CREATE TABLE prt1_l_p3 PARTITION OF prt1_l FOR VALUES FROM (500) TO (600) PARTIT
 CREATE TABLE prt1_l_p3_p1 PARTITION OF prt1_l_p3 FOR VALUES FROM (0) TO (13);
 CREATE TABLE prt1_l_p3_p2 PARTITION OF prt1_l_p3 FOR VALUES FROM (13) TO (25);
 INSERT INTO prt1_l SELECT i, i % 25, to_char(i % 4, 'FM0000') FROM generate_series(0, 599, 2) i;
-DROP TABLE if exists prt2_l;
+DROP TABLE if exists prt2_l cascade;
 CREATE TABLE prt2_l (a int, b int, c varchar, primary key(a,b,c)) PARTITION BY RANGE(b);
 CREATE TABLE prt2_l_p1 PARTITION OF prt2_l FOR VALUES FROM (0) TO (250);
 CREATE TABLE prt2_l_p2 PARTITION OF prt2_l FOR VALUES FROM (250) TO (500) PARTITION BY LIST (c);
@@ -367,12 +367,13 @@ EXPLAIN (COSTS OFF) SELECT t1.a, t1.c, t2.b, t2.c FROM prt1_l t1, prt2_l t2 WHER
 SELECT t1.a, t1.c, t2.b, t2.c FROM prt1_l t1, prt2_l t2 WHERE t1.a = t2.b AND t1.b = 0 ORDER BY t1.a, t2.b;
 
 -- bug 16
+DROP TABLE if exists insertconflicttest1 cascade;
 create table insertconflicttest1(key1 int4, fruit text);
 create index idx1 on insertconflicttest1(fruit);
 
 
 -- bug 40 
-drop table SUBSELECT_TBL cascade;
+drop table if exists SUBSELECT_TBL cascade;
 CREATE TABLE SUBSELECT_TBL ( id serial primary key, f1 integer, f2 integer, f3 float );
 INSERT INTO SUBSELECT_TBL (f1, f2, f3) VALUES (1, 2, 3), (2, 3, 4), (3, 4, 5), (1, 1, 1), (2, 2, 2), (3, 3, 3), (6, 7, 8), (8, 9, NULL);
 SELECT f1 AS "Correlated Field", f3 AS "Second Field" FROM SUBSELECT_TBL upper WHERE f3 IN (SELECT upper.f1 + f2 FROM SUBSELECT_TBL WHERE f2 = CAST(f3 AS integer));
@@ -384,9 +385,9 @@ release savepoint sa;
 commit;
 
 -- bug 42
-drop table if exists tenk1;
-drop table if exists INT4_TBL;
-drop table if exists FLOAT8_TBL;
+drop table if exists tenk1 cascade;
+drop table if exists INT4_TBL cascade;
+drop table if exists FLOAT8_TBL cascade;
  CREATE TABLE tenk1 (
 
     unique1 int4,
@@ -407,8 +408,21 @@ drop table if exists FLOAT8_TBL;
     string4 name
 
 );
+COPY tenk1 FROM '/home/dzw/work/kunlun-enterprise/postgresql-11.5/src/test/regress/data/tenk.data';
 CREATE TABLE INT4_TBL(f1 int4);
+INSERT INTO INT4_TBL(f1) VALUES ('   0  ');
+
+INSERT INTO INT4_TBL(f1) VALUES ('123456     ');
+
+INSERT INTO INT4_TBL(f1) VALUES ('    -123456');
+
+INSERT INTO INT4_TBL(f1) VALUES ('34.5');
 CREATE TABLE FLOAT8_TBL(f1 float8);
+INSERT INTO FLOAT8_TBL(f1) VALUES ('    0.0   ');
+INSERT INTO FLOAT8_TBL(f1) VALUES ('1004.30  ');
+INSERT INTO FLOAT8_TBL(f1) VALUES ('   -34.84');
+INSERT INTO FLOAT8_TBL(f1) VALUES ('1.2345678901234e+200');
+INSERT INTO FLOAT8_TBL(f1) VALUES ('1.2345678901234e-200');
 
 begin;
 
@@ -420,7 +434,7 @@ rollback;
 
 
 -- bug 81
-drop table if exists INT8_TBL;
+drop table if exists INT8_TBL cascade;
 CREATE TABLE INT8_TBL(id serial primary key, q1 int8, q2 int8);
 INSERT INTO INT8_TBL(q1, q2)  VALUES(' 123 ',' 456');
 INSERT INTO INT8_TBL(q1, q2)  VALUES('123 ','4567890123456789');
@@ -490,8 +504,8 @@ select*from t;
 
 
 -- bug 21
-drop table if exists mlparted;
-drop table if exists mlparted1;
+drop table if exists mlparted cascade;
+drop table if exists mlparted1 cascade;
 create table mlparted(id integer primary key);
 create table mlparted1(id integer primary key);
 select attrelid::regclass, attname, attnum from pg_attribute where attname = 'a' and (attrelid = 'mlparted'::regclass or attrelid = 'mlparted1'::regclass);
@@ -501,7 +515,7 @@ select attrelid::regclass, attname, attnum from pg_attribute where attname = 'a'
 
 
 -- bug 32
-drop table if exists test_missing_target;
+drop table if exists test_missing_target cascade;
 CREATE TABLE test_missing_target (a int primary key, b int, c char(8), d char);
 INSERT INTO test_missing_target VALUES (0, 1, 'XXXX', 'A'), (1, 2, 'ABAB', 'b'), (2, 2, 'ABAB', 'c'), (3, 3, 'BBBB', 'D'), (4, 3, 'BBBB', 'e'), (5, 3, 'bbbb', 'F'), (6, 4, 'cccc', 'g'), (7, 4, 'cccc', 'h'), (8, 4, 'CCCC', 'I'), (9, 4, 'CCCC', 'j');
 SELECT x.b, count(*) FROM test_missing_target x, test_missing_target y WHERE x.a = y.a GROUP BY x.b ORDER BY x.b;
@@ -518,7 +532,7 @@ SELECT x.b/2, count(x.b) FROM test_missing_target x, test_missing_target y WHERE
 
 
 -- bug 64
-drop table if exists itest7;
+drop table if exists itest7 cascade;
 CREATE TABLE itest7 (id int primary key, a int GENERATED ALWAYS AS IDENTITY);
 insert into itest7 (id) values(1),(2),(3);
 insert into itest7 values(4, 40),(5, 50);
@@ -528,7 +542,7 @@ insert into itest7 values(6, 60),(7, 70);
 select*from itest7;
 
 -- bug 65
-drop table if exists itest13;
+drop table if exists itest13 cascade;
 CREATE TABLE itest13 (a int primary key);
 ALTER TABLE itest13 ADD COLUMN b int GENERATED BY DEFAULT AS IDENTITY;
 INSERT INTO itest13 VALUES (1), (2), (3);
@@ -536,7 +550,7 @@ SELECT * FROM itest13;
 ALTER TABLE itest13 ADD COLUMN c int GENERATED BY DEFAULT AS IDENTITY;
 SELECT * FROM itest13;
 
-drop table if exists itest6;
+drop table if exists itest6 cascade;
 CREATE TABLE itest6 (a int GENERATED ALWAYS AS IDENTITY primary key, b text);
 INSERT INTO itest6 DEFAULT VALUES;
 ALTER TABLE itest6 ALTER COLUMN a SET GENERATED BY DEFAULT SET INCREMENT BY 2 SET START WITH 100 RESTART;
@@ -546,12 +560,12 @@ INSERT INTO itest6 DEFAULT VALUES;
 SELECT * FROM itest6;
 
 -- bug 68
-drop table  if exists t2;
+drop table  if exists t2 cascade;
 create table t2(a int);
 create index on t2(a,a);
 
 -- bug 83
-drop table if exists revalidate_bug cascade;
+drop table if exists revalidate_bug cascade cascade;
 drop function if exists inverse(int);
 create function inverse(int) returns float8 as
 $$
@@ -577,7 +591,7 @@ alter table s1.t1 set schema s1;
 drop schema if exists s1 cascade;
 
 --bug 80
-drop table if exists SUBSELECT_TBL;
+drop table if exists SUBSELECT_TBL cascade;
 CREATE TABLE SUBSELECT_TBL ( id serial primary key, f1 integer, f2 integer, f3 float );
 INSERT INTO SUBSELECT_TBL (f1, f2, f3) VALUES (1, 2, 3), (2, 3, 4), (3, 4, 5), (1, 1, 1), (2, 2, 2), (3, 3, 3), (6, 7, 8), (8, 9, NULL);
 SELECT f1, f2 FROM SUBSELECT_TBL WHERE (f1, f2) NOT IN (SELECT f2, CAST(f3 AS int4) FROM SUBSELECT_TBL WHERE f3 IS NOT NULL);
@@ -607,8 +621,8 @@ select testschema.seq1.nextval, nextval('testschema.seq1');
 drop schema testschema cascade;
 
 -- bug 44 todo
-drop table if exists tenk1;
-drop table if exists INT4_TBL;
+drop table if exists tenk1 cascade;
+drop table if exists INT4_TBL cascade;
  CREATE TABLE tenk1 (
  	id serial primary key,
     unique1 int4,
@@ -695,9 +709,9 @@ set enable_nestloop=false;
         right join int4_tbl i2 on i2.f1 = b.tenthous
         order by 1;
 -- below portion is fixed, above portion not yet. TODO
- drop table if exists mlparted;
-drop table if exists mlparted1;
-drop table if exists mlparted11;
+ drop table if exists mlparted cascade;
+drop table if exists mlparted1 cascade;
+drop table if exists mlparted11 cascade;
 create table mlparted (a int, b int) partition by range (a, b);
 create table mlparted1 (b int not null, a int not null) partition by range ((b+0));
 create table mlparted11 (like mlparted1);
@@ -708,7 +722,7 @@ with ins (a, b, c) as (insert into mlparted (b, a) select s.a, 1 from generate_s
 
 
 -- bug 41
- drop table if exists INT8_TBL;
+ drop table if exists INT8_TBL cascade;
 CREATE TABLE INT8_TBL(id serial primary key, q1 int8, q2 int8);
 
 INSERT INTO INT8_TBL (q1, q2) VALUES(' 123 ',' 456');
@@ -730,7 +744,7 @@ create user user1;
 SET SESSION AUTHORIZATION user1;
 
 SET row_security = on;
-drop table if exists r1;
+drop table if exists r1 cascade;
 CREATE TABLE r1 (a int primary key);
 INSERT INTO r1 VALUES (10), (20);
 CREATE POLICY p1 ON r1 USING (false);
@@ -743,14 +757,14 @@ DELETE FROM r1;
 SET SESSION AUTHORIZATION dzw;
 
 -- bug 57
-drop table if exists temptest1;
+drop table if exists temptest1 cascade;
 begin;
 CREATE TEMP TABLE temptest1(col int PRIMARY KEY);
 insert into temptest1 values (1),(2);
 select*from temptest1;
 commit;
 
-drop table if exists temptest2;
+drop table if exists temptest2 cascade;
 begin;
 CREATE TEMP TABLE temptest2(col int PRIMARY KEY) ON COMMIT DELETE ROWS;
 insert into temptest2 values (1),(2);
@@ -758,7 +772,7 @@ select*from temptest2;
 commit;
 
 -- bug 84
-drop table if exists collate_test10;
+drop table if exists collate_test10 cascade;
  CREATE TABLE collate_test10 (
 
     a int primary key,
@@ -769,8 +783,8 @@ drop table if exists collate_test10;
 INSERT INTO collate_test10 VALUES (1, 'hij', 'hij'), (2, 'HIJ', 'HIJ');
 select x < y from collate_test10;
 
-drop table if exists collate_test1;
-drop table if exists collate_test2;
+drop table if exists collate_test1 cascade;
+drop table if exists collate_test2 cascade;
 CREATE TABLE collate_test1 (id serial primary key, a int, b varchar(50) COLLATE "C" NOT NULL);
 CREATE TABLE collate_test2 (id serial primary key,  a int, b varchar(50) COLLATE "POSIX" );
 INSERT INTO collate_test1 (a,b) VALUES (1, 'abc'), (2, 'Abc'), (3, 'bbc'), (4, 'ABD');
@@ -781,14 +795,14 @@ SELECT a, b FROM collate_test2 WHERE a < 4 INTERSECT SELECT a, b FROM collate_te
 -- bug 37
 CREATE TABLE moneyp (a money) PARTITION BY LIST (a);
 CREATE TABLE moneyp_10 PARTITION OF moneyp FOR VALUES IN (10);
-drop table if exists list_parted;
+drop table if exists list_parted cascade;
 CREATE TABLE list_parted (a int) PARTITION BY LIST (a);
 CREATE TABLE part_1 PARTITION OF list_parted FOR VALUES IN ('1');
 CREATE TABLE fail_part PARTITION OF list_parted FOR VALUES IN (int '1');
 CREATE TABLE fail_part PARTITION OF list_parted FOR VALUES IN ('1'::int);
 
 -- bug 72
-drop table if exists onek;
+drop table if exists onek cascade;
 CREATE TABLE onek (
     unique1 int4,
     unique2 int4,
@@ -888,7 +902,7 @@ create table pc_list_part_1 partition of pc_list_parted for values in (1);
 insert into pc_list_part_1 values(2);
 
 -- bug 25
-drop table if exists concur_heap;
+drop table if exists concur_heap cascade;
 CREATE TABLE concur_heap (id serial primary key, f1 int, f2 int);
 insert into concur_heap (f1, f2) values(2,3),(3,5),(5,7),(7,11);
 CREATE INDEX CONCURRENTLY concur_index1 ON concur_heap(f2,f1);
@@ -906,7 +920,7 @@ create view tt17v as select * from int8_tbl i where i in (values(i));
 select * from tt17v;
 
 -- bug 111
-drop table if exists persons;
+drop table if exists persons cascade;
 drop type if exists person_type cascade;
 CREATE TYPE person_type AS (id int, name varchar(50));
 CREATE TABLE persons OF person_type;
@@ -920,21 +934,21 @@ CREATE VIEW rw_view1 AS SELECT * FROM base_tbl WHERE a < b WITH LOCAL CHECK OPTI
 INSERT INTO rw_view1 values(3,2),(4,3), (3,4);
 
 -- bug 114
-drop table if exists update_test;
+drop table if exists update_test cascade;
 CREATE TABLE update_test (a INT DEFAULT 10, b INT, c TEXT);
 INSERT INTO update_test VALUES (5, 10, 'foo');
 INSERT INTO update_test(b, a) VALUES (15, 10);
 UPDATE update_test t SET (a, b) = (SELECT b, a FROM update_test s WHERE s.a = t.a) WHERE CURRENT_USER = SESSION_USER;
 
 -- bug 116
-drop table if exists t1;
+drop table if exists t1 cascade;
 create table t1(pk int not null primary key);
 ALTER TABLE t1 ADD COLUMN c_num NUMERIC DEFAULT 1.00000000001;
 insert into t1 values(1),(2),(3),(4),(5);
 select * from t1;
 
 -- bug 126
-drop table if exists t1;
+drop table if exists t1 cascade;
 create table t1(a int);
 insert into t1 values(1),(2),(3);
 update t1 set a=3 returning *;
@@ -945,7 +959,7 @@ delete from t1 returning *;
 DROP SCHEMA if exists testschema cascade;
 CREATE SCHEMA testschema;
 CREATE TABLE testschema.part0 (a int) PARTITION BY LIST (a);
-drop table testschema.part0;
+drop table testschema.part0 cascade;
 CREATE TABLE testschema.part1 (a serial primary key, b int, c varchar(32), unique (b,a)) PARTITION BY LIST (a);
 create index part1_b_c2 on testschema.part1(b,c);
 create table testschema.part1_0 partition of testschema.part1 for values in (1,2,3,4);
@@ -961,7 +975,7 @@ select*from testschema.part1 ;
 drop schema testschema cascade;
 
 -- bug 121
-drop table if exists indext1;
+drop table if exists indext1 cascade;
 create table indext1(id integer);
 ALTER TABLE indext1 ADD CONSTRAINT oindext1_id_constraint UNIQUE (id);
 ALTER TABLE indext1 DROP CONSTRAINT oindext1_id_constraint;
@@ -988,7 +1002,7 @@ ALTER TABLE part1 DROP CONSTRAINT opart1_c_constraint;
 ALTER TABLE part1 DROP CONSTRAINT opart1_d_constraint;
 ALTER TABLE part1 DROP CONSTRAINT opart1_b_constraint;
 drop index part1_b_c2;
-drop table part1;
+drop table part1 cascade;
 
 -- bug 135
 drop table if exists t1 cascade;
@@ -1044,12 +1058,12 @@ SELECT f.* FROM FLOAT4_TBL f WHERE f.f1 <> '1004.3';
 
 -- bug 118 Bad results for partition join query when SET enable_partitionwise_join to true
 SET enable_partitionwise_join TO true;
-drop table if exists pagg_tab1;
+drop table if exists pagg_tab1 cascade;
 CREATE TABLE pagg_tab1(x int, y int) PARTITION BY RANGE(x);
 CREATE TABLE pagg_tab1_p1 PARTITION OF pagg_tab1 FOR VALUES FROM (0) TO (10);
 CREATE TABLE pagg_tab1_p2 PARTITION OF pagg_tab1 FOR VALUES FROM (10) TO (20);
 CREATE TABLE pagg_tab1_p3 PARTITION OF pagg_tab1 FOR VALUES FROM (20) TO (30);
-drop table if exists pagg_tab2;
+drop table if exists pagg_tab2 cascade;
 CREATE TABLE pagg_tab2(x int, y int) PARTITION BY RANGE(y);
 CREATE TABLE pagg_tab2_p1 PARTITION OF pagg_tab2 FOR VALUES FROM (0) TO (10);
 CREATE TABLE pagg_tab2_p2 PARTITION OF pagg_tab2 FOR VALUES FROM (10) TO (20);
@@ -1070,13 +1084,13 @@ CREATE TABLE prt2_p2 PARTITION OF prt2 FOR VALUES FROM (250) TO (500);
 CREATE TABLE prt2_p3 PARTITION OF prt2 FOR VALUES FROM (500) TO (600);
 INSERT INTO prt2 SELECT i % 25, i, to_char(i, 'FM0000') FROM generate_series(0, 599) i WHERE i % 3 = 0;
 
-DROP TABLE if exists prt1_e;
+DROP TABLE if exists prt1_e cascade;
 CREATE TABLE prt1_e (a int, b int, c int) PARTITION BY RANGE(((a + b)/2));
 CREATE TABLE prt1_e_p1 PARTITION OF prt1_e FOR VALUES FROM (0) TO (250);
 CREATE TABLE prt1_e_p2 PARTITION OF prt1_e FOR VALUES FROM (250) TO (500);
 CREATE TABLE prt1_e_p3 PARTITION OF prt1_e FOR VALUES FROM (500) TO (600);
 INSERT INTO prt1_e SELECT i, i, i % 25 FROM generate_series(0, 599, 2) i;
-DROP TABLE if exists prt2_e;
+DROP TABLE if exists prt2_e cascade;
 CREATE TABLE prt2_e (a int, b int, c int) PARTITION BY RANGE(((b + a)/2));
 CREATE TABLE prt2_e_p1 PARTITION OF prt2_e FOR VALUES FROM (0) TO (250);
 CREATE TABLE prt2_e_p2 PARTITION OF prt2_e FOR VALUES FROM (250) TO (500);
@@ -1216,7 +1230,7 @@ EXPLAIN (verbose, COSTS OFF)
 SELECT t1.* FROM prt1 t1 WHERE t1.a IN (SELECT t1.b FROM prt2 t1, prt1_e t2 WHERE t1.a = 0 AND t1.b = (t2.a + t2.b)/2) AND t1.b = 0 ORDER BY t1.a;
 
 -- bug 226 Wrong Assert causing failure when an expression target is pushed down
-DROP TABLE if exists SUBSELECT_TBL;
+DROP TABLE if exists SUBSELECT_TBL cascade;
 CREATE TABLE SUBSELECT_TBL (
 
     f1 integer,

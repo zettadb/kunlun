@@ -1,6 +1,8 @@
 --
 -- TIME
 --
+DROP TABLE if exists TIME_TBL;
+NOTICE:  table "time_tbl" does not exist, skipping
 CREATE TABLE TIME_TBL (f1 time(2));
 INSERT INTO TIME_TBL VALUES ('00:00');
 INSERT INTO TIME_TBL VALUES ('01:00');
@@ -86,3 +88,4 @@ ERROR:  operator is not unique: time without time zone + time without time zone
 LINE 1: SELECT f1 + time '00:01' AS "Illegal" FROM TIME_TBL;
                   ^
 HINT:  Could not choose a best candidate operator. You might need to add explicit type casts.
+DROP TABLE TIME_TBL;

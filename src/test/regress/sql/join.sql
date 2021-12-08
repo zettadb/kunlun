@@ -2,7 +2,8 @@
 -- JOIN
 -- Test JOIN clauses
 --
-
+-- do this to produce pg style null field ordering to match expected results, at the expense of disabled ORDER BY push-down.
+set honor_nulls_dir =true;
 DROP TABLE if exists J1_TBL;
 CREATE TABLE J1_TBL (
   i integer,
@@ -27,7 +28,7 @@ INSERT INTO J1_TBL VALUES (6, 6, 'six');
 INSERT INTO J1_TBL VALUES (7, 7, 'seven');
 INSERT INTO J1_TBL VALUES (8, 8, 'eight');
 INSERT INTO J1_TBL VALUES (0, NULL, 'zero');
-INSERT INTO J1_TBL VALUES (NULL, NULL, 'null');J2_TBL
+INSERT INTO J1_TBL VALUES (NULL, NULL, 'null');
 INSERT INTO J1_TBL VALUES (NULL, 0, 'zero');
 
 INSERT INTO J2_TBL VALUES (1, -1);
@@ -58,9 +59,14 @@ SELECT '' AS "xxx", *
 SELECT '' AS "xxx", *
   FROM J1_TBL t1 (a, b, c);
 
+EXPLAIN (verbose) SELECT '' AS "xxx", *
+  FROM J1_TBL t1 (a, b, c), J2_TBL t2 (d, e) order by 2,3,4,5,6;
 SELECT '' AS "xxx", *
   FROM J1_TBL t1 (a, b, c), J2_TBL t2 (d, e) order by 2,3,4,5,6;
 
+EXPLAIN (verbose) SELECT '' AS "xxx", t1.a, t2.e
+  FROM J1_TBL t1 (a, b, c), J2_TBL t2 (d, e)
+  WHERE t1.a = t2.d order by 2,3;
 SELECT '' AS "xxx", t1.a, t2.e
   FROM J1_TBL t1 (a, b, c), J2_TBL t2 (d, e)
   WHERE t1.a = t2.d order by 2,3;
@@ -72,6 +78,8 @@ SELECT '' AS "xxx", t1.a, t2.e
 -- which degenerate into a standard unqualified inner join.
 --
 
+EXPLAIN (verbose) SELECT '' AS "xxx", *
+  FROM J1_TBL CROSS JOIN J2_TBL order by 2,3,4,5,6;
 SELECT '' AS "xxx", *
   FROM J1_TBL CROSS JOIN J2_TBL order by 2,3,4,5,6;
 
@@ -80,6 +88,8 @@ SELECT '' AS "xxx", i, k, t
   FROM J1_TBL CROSS JOIN J2_TBL;
 
 -- resolve previous ambiguity by specifying the table name
+EXPLAIN (verbose) SELECT '' AS "xxx", t1.i, k, t
+  FROM J1_TBL t1 CROSS JOIN J2_TBL t2 order by 2,3,4;
 SELECT '' AS "xxx", t1.i, k, t
   FROM J1_TBL t1 CROSS JOIN J2_TBL t2 order by 2,3,4;
 
@@ -325,6 +335,7 @@ select * from y;
 select * from x left join y on (x1 = y1 and x2 is not null);
 select * from x left join y on (x1 = y1 and y2 is not null);
 
+COPY tenk1 FROM '/home/dzw/work/kunlun-enterprise/postgresql-11.5/src/test/regress/data/tenk.data';
 --
 -- regression test: check for bug with propagation of implied equality
 -- to outside an IN
@@ -352,6 +363,22 @@ select count(*) from tenk1 x where
 ---  x.unique1 in (select aa.f1 from int4_tbl aa,float8_tbl bb where aa.f1=bb.f1);
 ---rollback;
 
+CREATE TABLE a (aa TEXT);
+CREATE TABLE b (aa text, bb TEXT);
+
+INSERT INTO a(aa) VALUES('aaa');
+INSERT INTO a(aa) VALUES('aaaa');
+INSERT INTO a(aa) VALUES('aaaaa');
+INSERT INTO a(aa) VALUES('aaaaaa');
+INSERT INTO a(aa) VALUES('aaaaaaa');
+INSERT INTO a(aa) VALUES('aaaaaaaa');
+insert into b select*from a;
+INSERT INTO b(aa) VALUES('bbb');
+INSERT INTO b(aa) VALUES('bbbb');
+INSERT INTO b(aa) VALUES('bbbbb');
+INSERT INTO b(aa) VALUES('bbbbbb');
+INSERT INTO b(aa) VALUES('bbbbbbb');
+INSERT INTO b(aa) VALUES('bbbbbbbb');
 --
 -- regression test: be sure we cope with proven-dummy append rels
 --
@@ -685,13 +712,13 @@ rollback;
 --
 -- test NULL behavior of whole-row Vars, per bug #5025
 --
-/*select t1.q2, count(t2.*)
+select t1.q2, count(t2.*)
 from int8_tbl t1 left join int8_tbl t2 on (t1.q2 = t2.q1)
 group by t1.q2 order by 1;
 
 select t1.q2, count(t2.*)
 from int8_tbl t1 left join (select * from int8_tbl) t2 on (t1.q2 = t2.q1)
-group by t1.q2 order by 1; */
+group by t1.q2 order by 1;
 
 select t1.q2, count(t2.*)
 from int8_tbl t1 left join (select * from int8_tbl offset 0) t2 on (t1.q2 = t2.q1)
@@ -1265,7 +1292,6 @@ where tt1.f1 = ss1.c0;
 -- check a case in which a PlaceHolderVar forces join order
 --
 
-/*
 explain (verbose, costs off)
 select ss2.* from
   int4_tbl i41
@@ -1286,7 +1312,6 @@ select ss2.* from
   on i41.f1 = ss1.c1,
   lateral (select i41.*, i8.*, ss1.* from text_tbl limit 1) ss2
 where ss1.c2 = 0; 
-*/
 
 --
 -- test successful handling of full join underneath left join (bug #14105)
@@ -1503,7 +1528,7 @@ from
   on t0.f1 = ss.case1
 where ss.stringu2 !~* ss.case1;
 
-/* select t0.*
+select t0.*
 from
  text_tbl t0
  left join
@@ -1513,7 +1538,7 @@ from
      join int4_tbl i4 ON i4.f1 = t1.unique2
      left join uniquetbl u1 ON u1.f1 = t1.string4) ss
   on t0.f1 = ss.case1
-where ss.stringu2 !~* ss.case1; */
+where ss.stringu2 !~* ss.case1;
 
 rollback;
 
@@ -1666,16 +1691,16 @@ explain (verbose, costs off)
 select * from
   int8_tbl a left join
   lateral (select *, a.q2 as x from int8_tbl b) ss on a.q2 = ss.q1;
-/* select * from
+select * from
   int8_tbl a left join
-  lateral (select *, a.q2 as x from int8_tbl b) ss on a.q2 = ss.q1; */
+  lateral (select *, a.q2 as x from int8_tbl b) ss on a.q2 = ss.q1;
 explain (verbose, costs off)
 select * from
   int8_tbl a left join
   lateral (select *, coalesce(a.q2, 42) as x from int8_tbl b) ss on a.q2 = ss.q1;
-/* select * from
+select * from
   int8_tbl a left join
-  lateral (select *, coalesce(a.q2, 42) as x from int8_tbl b) ss on a.q2 = ss.q1; */
+  lateral (select *, coalesce(a.q2, 42) as x from int8_tbl b) ss on a.q2 = ss.q1;
 
 -- lateral can result in join conditions appearing below their
 -- real semantic level
@@ -1700,7 +1725,7 @@ select * from int4_tbl a,
   ) ss;
 
 -- lateral reference in a PlaceHolderVar evaluated at join level
-/*explain (verbose, costs off)
+explain (verbose, costs off)
 select * from
   int8_tbl a left join lateral
   (select b.q1 as bq1, c.q1 as cq1, least(a.q1,b.q1,c.q1) from
@@ -1710,7 +1735,7 @@ select * from
   int8_tbl a left join lateral
   (select b.q1 as bq1, c.q1 as cq1, least(a.q1,b.q1,c.q1) from
    int8_tbl b cross join int8_tbl c) ss
-  on a.q2 = ss.bq1; */
+  on a.q2 = ss.bq1;
 
 -- case requiring nested PlaceHolderVars
 explain (verbose, costs off)
@@ -1769,11 +1794,11 @@ select * from
   lateral (select f1 from int4_tbl
            where f1 = any (select unique1 from tenk1
                            where unique2 = v.x offset 0)) ss;
-/*select * from
+select * from
   (values (0,9998), (1,1000)) v(id,x),
   lateral (select f1 from int4_tbl
            where f1 = any (select unique1 from tenk1
-                           where unique2 = v.x offset 0)) ss; */
+                           where unique2 = v.x offset 0)) ss;
 
 -- check proper extParam/allParam handling (this isn't exactly a LATERAL issue,
 -- but we can make the test case much more compact with LATERAL)
@@ -2336,9 +2361,10 @@ explain (costs off)
   select count(*) from join_foo
     left join (select b1.id, b1.t from join_bar b1 join join_bar b2 using (id)) ss
     on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1;
-/* (crash or timeout) select count(*) from join_foo
+-- (crash or timeout) 
+select count(*) from join_foo
   left join (select b1.id, b1.t from join_bar b1 join join_bar b2 using (id)) ss
-  on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1; */
+  on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1;
 select final > 1 as multibatch
   from hash_join_batches(
 $$
@@ -2363,9 +2389,9 @@ explain (costs off)
   select count(*) from join_foo
     left join (select b1.id, b1.t from join_bar b1 join join_bar b2 using (id)) ss
     on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1;
-/*(crash or timeout) select count(*) from join_foo
+select count(*) from join_foo
   left join (select b1.id, b1.t from join_bar b1 join join_bar b2 using (id)) ss
-  on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1; */
+  on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1;
 select final > 1 as multibatch
   from hash_join_batches(
 $$
@@ -2390,9 +2416,9 @@ explain (costs off)
   select count(*) from join_foo
     left join (select b1.id, b1.t from join_bar b1 join join_bar b2 using (id)) ss
     on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1;
-/*select count(*) from join_foo
+select count(*) from join_foo
   left join (select b1.id, b1.t from join_bar b1 join join_bar b2 using (id)) ss
-  on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1; */
+  on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1;
 select final > 1 as multibatch
   from hash_join_batches(
 $$
@@ -2405,7 +2431,7 @@ rollback to settings;
 -- A full outer join where every record is matched.
 
 -- non-parallel
-/* savepoint settings;
+savepoint settings;
 set local max_parallel_workers_per_gather = 0;
 explain (costs off)
      select  count(*) from simple r full outer join simple s using (id);
@@ -2436,7 +2462,7 @@ set local max_parallel_workers_per_gather = 2;
 explain (costs off)
      select  count(*) from simple r full outer join simple s on (r.id = 0 - s.id);
 select  count(*) from simple r full outer join simple s on (r.id = 0 - s.id);
-rollback to settings; */
+rollback to settings;
 
 -- exercise special code paths for huge tuples (note use of non-strict
 -- expression and left join required to get the detoasted tuple into

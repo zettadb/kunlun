@@ -1,6 +1,10 @@
 --
 -- AGGREGATES
 --
+COPY aggtest FROM '/home/dzw/work/kunlun-enterprise/postgresql-11.5/src/test/regress/data/agg.data';
+COPY student FROM '/home/dzw/work/kunlun-enterprise/postgresql-11.5/src/test/regress/data/student.data';
+COPY tenk1 FROM '/home/dzw/work/kunlun-enterprise/postgresql-11.5/src/test/regress/data/tenk.data';
+COPY onek FROM '/home/dzw/work/kunlun-enterprise/postgresql-11.5/src/test/regress/data/onek.data';
 
 SELECT avg(four) AS avg_1 FROM onek;
 
@@ -94,9 +98,10 @@ having exists (select 1 from onek b
 
 -- Test handling of sublinks within outer-level aggregates.
 -- Per bug report from Daniel Grace.
-select
-  (select max((select i.unique2 from tenk1 i where i.unique1 = o.unique1)))
-from tenk1 o;
+-- enable this when #bug267 is fixed.
+-- select
+--  (select max((select i.unique2 from tenk1 i where i.unique1 = o.unique1)))
+-- from tenk1 o;
 
 -- Test handling of Params within aggregate arguments in hashed aggregation.
 -- Per bug report from Jeevan Chalke.

@@ -17,7 +17,6 @@ SELECT 1 FROM atest5;
 
 -- bug #223 Crash when no column needed from a remote node 
 drop table if exists onek cascade;
-NOTICE:  table "onek" does not exist, skipping
 CREATE TABLE onek (
     unique1 int4,
     unique2 int4,
@@ -84,8 +83,7 @@ SELECT SUM(COUNT(ten)) OVER () FROM onek WHERE four=3;
 (1 row)
 
 -- create own table
-DROP table if exists INT4_TBL;
-NOTICE:  table "int4_tbl" does not exist, skipping
+DROP table if exists INT4_TBL cascade;
 CREATE TABLE INT4_TBL(f1 int4);
 INSERT INTO INT4_TBL(f1) VALUES (' 0 ');
 INSERT INTO INT4_TBL(f1) VALUES ('123456 ');
@@ -105,8 +103,7 @@ SELECT SUM(COUNT(f1)) OVER () FROM int4_tbl WHERE f1=0;
 (1 row)
 
 -- bug 228 Column name may overflow if qualified with its owner table name 
-drop table if exists INT8_TBL;
-NOTICE:  table "int8_tbl" does not exist, skipping
+drop table if exists INT8_TBL cascade;
 CREATE TABLE INT8_TBL(q1 int8, q2 int8);
 INSERT INTO INT8_TBL VALUES(' 123 ',' 456');
 INSERT INTO INT8_TBL VALUES('123 ','4567890123456789');
@@ -156,15 +153,13 @@ select * from tt18v;
 (10 rows)
 
 -- bug #229 partition_join.sql,connection to server was lost 
-DROP TABLE if exists prt2;
-NOTICE:  table "prt2" does not exist, skipping
+DROP TABLE if exists prt2 cascade;
 CREATE TABLE prt2 (a int, b int, c varchar) PARTITION BY RANGE(b);
 CREATE TABLE prt2_p1 PARTITION OF prt2 FOR VALUES FROM (0) TO (250);
 CREATE TABLE prt2_p2 PARTITION OF prt2 FOR VALUES FROM (250) TO (500);
 CREATE TABLE prt2_p3 PARTITION OF prt2 FOR VALUES FROM (500) TO (600);
 INSERT INTO prt2 SELECT i % 25, i, to_char(i, 'FM0000') FROM generate_series(0, 599) i WHERE i % 3 = 0;
-DROP TABLE if exists prt1;
-NOTICE:  table "prt1" does not exist, skipping
+DROP TABLE if exists prt1 cascade;
 CREATE TABLE prt1 (a int, b int, c varchar) PARTITION BY RANGE(a);
 CREATE TABLE prt1_p1 PARTITION OF prt1 FOR VALUES FROM (0) TO (250);
 CREATE TABLE prt1_p3 PARTITION OF prt1 FOR VALUES FROM (500) TO (600);
@@ -253,7 +248,7 @@ EXPLAIN SELECT 1 AS three UNION SELECT 3 UNION SELECT 2 UNION ALL SELECT 2 ORDER
 (10 rows)
 
 -- bug 245 Sort should not be pushed down if it uses a set returning funcs or exprs to sort
-drop table if exists few;
+drop table if exists few cascade;
 NOTICE:  table "few" does not exist, skipping
 CREATE TABLE few(id int, dataa text, datab text);
 INSERT INTO few VALUES(1, 'a', 'foo'),(2, 'a', 'bar'),(3, 'b', 'bar');
@@ -321,7 +316,7 @@ FROM ctv_data GROUP BY v, h ORDER BY 1,3,2
 (3 rows)
 
 -- bug  #244 Agg not pushed down for count(1) 
-drop table if exists atest5;
+drop table if exists atest5 cascade;
 CREATE TABLE atest5 (one int, two int unique, three int, four int unique);
 INSERT INTO atest5 VALUES (1,2,3),(2,3,4),(3,4,5),(5,6,7);
 SELECT count(1) FROM atest5 a JOIN atest5 b USING (one);
@@ -418,8 +413,7 @@ v_c
 v_d
 v_e
 -- bug  #257 subquery produces more content than expected 
-DROP TABLE if exists SUBSELECT_TBL;
-NOTICE:  table "subselect_tbl" does not exist, skipping
+DROP TABLE if exists SUBSELECT_TBL cascade;
 CREATE TABLE SUBSELECT_TBL (
     f1 integer,
     f2 integer,
@@ -445,8 +439,7 @@ SELECT f1, f2
 (3 rows)
 
 -- bug  #230 value too long for type character 
-DROP TABLE if exists TEXT_TBL;
-NOTICE:  table "text_tbl" does not exist, skipping
+DROP TABLE if exists TEXT_TBL cascade;
 CREATE TABLE TEXT_TBL (f1 text);
 INSERT INTO TEXT_TBL VALUES ('doh!');
 INSERT INTO TEXT_TBL VALUES ('hi de ho neighbor');
@@ -456,4 +449,34 @@ SELECT CAST(f1 AS char(10)) AS "char(text)" FROM TEXT_TBL;
  doh!      
  hi de ho n
 (2 rows)
+
+-- bug #
+DROP table if exists INT4_TBL cascade;
+CREATE TABLE INT4_TBL(f1 int4);
+INSERT INTO INT4_TBL(f1) VALUES (' 0 ');
+INSERT INTO INT4_TBL(f1) VALUES ('123456 ');
+INSERT INTO INT4_TBL(f1) VALUES (' -123456');
+INSERT INTO INT4_TBL(f1) VALUES ('2147483647');
+INSERT INTO INT4_TBL(f1) VALUES ('-2147483647');
+DROP table if exists FLOAT8_TBL cascade;
+CREATE TABLE FLOAT8_TBL(f1 float8);
+INSERT INTO FLOAT8_TBL(f1) VALUES ('    0.0   ');
+INSERT INTO FLOAT8_TBL(f1) VALUES ('1004.30  ');
+INSERT INTO FLOAT8_TBL(f1) VALUES ('   -34.84');
+INSERT INTO FLOAT8_TBL(f1) VALUES ('1.2345678901234e+200');
+INSERT INTO FLOAT8_TBL(f1) VALUES ('1.2345678901234e-200');
+SELECT f1 AS five FROM FLOAT8_TBL
+  WHERE f1 BETWEEN -1e6 AND 1e6
+UNION
+SELECT f1 FROM INT4_TBL
+  WHERE f1 BETWEEN 0 AND 1000000
+ORDER BY 1;
+         five         
+----------------------
+               -34.84
+                    0
+ 1.2345678901234e-200
+               1004.3
+               123456
+(5 rows)
 

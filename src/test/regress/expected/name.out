@@ -127,15 +127,14 @@ DROP TABLE NAME_TBL;
 DO $$
 DECLARE r text[];
 BEGIN
-  r := parse_ident('Schemax.Tabley');
+  r = parse_ident('Schemax.Tabley');
   RAISE NOTICE '%', format('%I.%I', r[1], r[2]);
-  r := parse_ident('"SchemaX"."TableY"');
+  r = parse_ident('"SchemaX"."TableY"');
   RAISE NOTICE '%', format('%I.%I', r[1], r[2]);
 END;
 $$;
-ERROR:  syntax error at or near ":="
-LINE 4:   r := parse_ident('Schemax.Tabley');
-            ^
+NOTICE:  schemax.tabley
+NOTICE:  "SchemaX"."TableY"
 SELECT parse_ident('foo.boo');
  parse_ident 
 -------------

@@ -100,8 +100,11 @@ typedef struct Shard_ref_t
 } Shard_ref_t;
 
 static size_t LoadAllShards(bool init);
-static Shard_node_t *find_node_by_ip_port(Shard_t *ps, const char *ip, uint16_t port);
-static bool FindCachedShardInternal(const Oid shardid, bool cache_nodes, Shard_t* out);
+static Shard_node_t *find_node_by_ip_port(Shard_t *ps, const char *ip,
+	uint16_t port);
+static bool FindCachedShardInternal(const Oid shardid, bool cache_nodes,
+	Shard_t* out, Shard_node_t **pshard_nodes);
+static void free_shard_nodes(Shard_node_t *snodes);
 
 /*
  * Copy shard meta info from px to py
@@ -352,6 +355,8 @@ void InvalidateCachedShard(Oid shardid, bool includingShardNodes)
 			{
 				Assert(ref->ptr);
 				hash_search(ShardNodeCache, &ref->id, HASH_REMOVE, &found);
+				pfree(ref->ptr->hostaddr);
+				pfree(ref->ptr->passwd);
 				pfree(ref->ptr);
 				ref->ptr = NULL;
 				ref->id = Invalid_shard_node_id;
@@ -363,7 +368,7 @@ void InvalidateCachedShard(Oid shardid, bool includingShardNodes)
 	pfree(shardref->ptr);
 	hash_search(ShardCache, &shardid, HASH_REMOVE, NULL);
 	ShardCacheInvalidated = true;
-	elog(DEBUG1, "Invalidated cached shard %u at %p", shardid, shardref->ptr);
+	elog(DEBUG1, "Invalidated cached shard %u.", shardid);
 }
 
 /*
@@ -413,30 +418,41 @@ next_step:
 		hash_search(ShardNodeCache, &nodeid, HASH_FIND, &found);
 	if (shardnoderef)
 	{
+		pfree(shardnoderef->ptr->hostaddr);
+		pfree(shardnoderef->ptr->passwd);
 		pfree(shardnoderef->ptr);
 		shardnoderef->ptr = NULL;
 	}
 
 	hash_search(ShardNodeCache, &nodeid, HASH_REMOVE, &found);
 	ShardCacheInvalidated = true;
-	elog(DEBUG1, "Invalidated cached shard node %u.%u at %p", shardid, nodeid, shardnoderef->ptr);
+	elog(DEBUG1, "Invalidated cached shard node %u.%u.", shardid, nodeid);
 }
 
 bool ShardExists(const Oid shardid)
 {
-	return FindCachedShardInternal(shardid, false, NULL);
+	return FindCachedShardInternal(shardid, false, NULL, NULL);
 }
 
 
 /*
  * Find from hash table the cached shard, if not found, scan tables to cache
- * it, and setup reference to its Shard_node_t objects.
+ * it. and if 'cache_nodes is true, setup reference to its Shard_node_t objects.
+ * Return the found shard by copying it to 'out', shallow copy all fields
+ * except 'shard_nodes[i].ptr' objects.
+ * Only deep copy shard_nodes[i].ptr objects into an
+ * array held by *pshard_nodes and only when requested
+ * to(i.e. pshard_nodes not NULL and cache_nodes is true).
+
  * @reval true if the cached Shard_t object is found, and it's copied to out;
  *        false if it's not found and *out is intact.
- *  Note that out->shard_nodes array can NOT be accessed because they ref
- *  cached shard nodes which could be invalidated too. This is so far OK.
+ *  Note that if not deep copied, out->shard_nodes[i].ptr field of any slots
+ * in the array can NOT be accessed because they ref
+ *  cached shard nodes which could be invalidated too.
  * */
-static bool FindCachedShardInternal(const Oid shardid, bool cache_nodes, Shard_t* out)
+static bool
+FindCachedShardInternal(const Oid shardid, bool cache_nodes,
+	Shard_t* out, Shard_node_t **pshard_nodes)
 {
 	bool found = false, found_shard = false;
 	Assert(shardid != Invalid_shard_id);
@@ -507,10 +523,6 @@ static bool FindCachedShardInternal(const Oid shardid, bool cache_nodes, Shard_t
 		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
 				 errmsg("Kunlun-db: Shard (%u) not found.", shardid)));
 fetch_nodes:
-	/*
-	  copy to out. all fields of out could be used by our caller.
-	*/
-	if (out) memcpy(out, pshard, sizeof(*out));
 
 	/*
 	 * Fetch all shard nodes belonging to this shard and cache those not
@@ -553,6 +565,31 @@ fetch_nodes:
 	Assert(nfound > 0);
 	systable_endscan(scan);
 
+	/*
+	  copy to out. all fields of out could be shallow copied and used by
+	  our caller except shard_nodes, deep copy the array and its Shard_node_t
+	  objects.
+	*/
+	if (out)
+	{
+		memcpy(out, pshard, sizeof(*out));
+		if (pshard_nodes)
+		{
+			Assert(pshard->num_nodes <= MAX_NODES_PER_SHARD);
+			*pshard_nodes = MemoryContextAlloc(CacheMemoryContext,
+				sizeof(Shard_node_t)*pshard->num_nodes);
+			for (int i = 0; i < MAX_NODES_PER_SHARD; i++)
+			{
+				Shard_node_t *psnode = (*pshard_nodes) + i;
+				if (!pshard->shard_nodes[i].ptr) continue;
+
+				memcpy(psnode, pshard->shard_nodes[i].ptr, sizeof(Shard_node_t));
+				out->shard_nodes[i].ptr = psnode;
+				psnode->hostaddr = MemoryContextStrdup(CacheMemoryContext, psnode->hostaddr);
+				psnode->passwd = MemoryContextStrdup(CacheMemoryContext, psnode->passwd);
+			}
+		}
+	}
 end:
 	heap_close(shardnoderel, NoLock);
 	heap_close(shardrel, NoLock);
@@ -623,12 +660,17 @@ bool FindCachedShardNode(Oid shardid, Oid nodeid, Shard_node_t*out)
 	Assert(nfound == 1);
 	systable_endscan(scan);
 end:
+	if (out)
+	{
+		memcpy(out, pnode, sizeof(*out));
+		// pnode->hostaddr/passwd alloced in Cachememcxt
+		out->hostaddr = pstrdup(pnode->hostaddr);
+		out->passwd = pstrdup(pnode->passwd);
+	}
+
 	heap_close(shardrel, NoLock);
 	if (end_txn)
 		CommitTransactionCommand();
-	if (out) memcpy(out, pnode, sizeof(*out));
-	out->hostaddr = pstrdup(pnode->hostaddr);
-	out->passwd = pstrdup(pnode->passwd);
 
 	return pnode != NULL;
 }
@@ -730,10 +772,12 @@ static int FindCurrentMasterNodeId(Oid shardid, Oid *pmaster_nodeid)
 	int num_conn_fails = 0;
 	Shard_t shard;
 	Shard_t *ps = NULL;
-	if (FindCachedShardInternal(shardid, true, &shard)) ps = &shard;
+	Shard_node_t *pshard_nodes = NULL;
+	if (FindCachedShardInternal(shardid, true, &shard, &pshard_nodes)) ps = &shard;
 	else
 	{
 		if (pmaster_nodeid) *pmaster_nodeid = 0;
+		if (pshard_nodes) free_shard_nodes(pshard_nodes);
 		elog(WARNING, "Shard %u not found while looking for its current master node.", shardid);
 		return -3;
 	}
@@ -743,6 +787,7 @@ static int FindCurrentMasterNodeId(Oid shardid, Oid *pmaster_nodeid)
 	{
 		Assert(ps->num_nodes == 1);
 		*pmaster_nodeid = pnoderef[0].ptr->id;
+		if (pshard_nodes) free_shard_nodes(pshard_nodes);
 		return 1;
 	}
 
@@ -880,6 +925,7 @@ static int FindCurrentMasterNodeId(Oid shardid, Oid *pmaster_nodeid)
 	{
 		elog(WARNING, "Found %d new primary nodes in shard %s(%u) which are not registered in pg_shard_node and can't be used by current computing node. Primary node is unknown in %d nodes, with %d unavailable nodes. Retry later.",
 			 num_new_masters, ps->name.data, shardid, num_unknowns, num_conn_fails);
+		if (pshard_nodes) free_shard_nodes(pshard_nodes);
 		return -1;
 	}
 
@@ -894,6 +940,7 @@ static int FindCurrentMasterNodeId(Oid shardid, Oid *pmaster_nodeid)
 			 master_ip, master_port, master_nodeid, ps->name.data, shardid, num_quorum, num_unknowns, num_conn_fails);
 
 	*pmaster_nodeid = master_nodeid;
+	if (pshard_nodes) free_shard_nodes(pshard_nodes);
 	return num_masters;
 }
 
@@ -1563,7 +1610,7 @@ Oid GetShardMasterNodeId(Oid shardid)
 {
 	Shard_t shard;
 	Oid ret = InvalidOid;
-	if (FindCachedShardInternal(shardid, false, &shard))
+	if (FindCachedShardInternal(shardid, false, &shard, NULL))
 		ret = shard.master_node_id;
 	return ret;
 }
@@ -1584,4 +1631,16 @@ List *GetAllShardIds()
 		l = lappend_oid(l, ptr->id);
 	}
 	return l;
+}
+
+static void free_shard_nodes(Shard_node_t *snodes)
+{
+	for (int i = 0; i < MAX_NODES_PER_SHARD; i++)
+	{
+		void *p = snodes[i].hostaddr;
+		if (p) pfree(p);
+		p = snodes[i].passwd;
+		if (p) pfree(p);
+	}
+	pfree(snodes);
 }

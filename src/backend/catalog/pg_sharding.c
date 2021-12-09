@@ -360,7 +360,7 @@ void InvalidateCachedShard(Oid shardid, bool includingShardNodes)
 				pfree(ref->ptr);
 				ref->ptr = NULL;
 				ref->id = Invalid_shard_node_id;
-				Assert(found);
+				//Assert(found); the node may have been evicted from the cache.
 			}
 		}
 	}
@@ -562,6 +562,10 @@ fetch_nodes:
 		nfound++;
 	}
 
+	if (nfound == 0)
+		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
+				 errmsg("Kunlun-db: No nodes found for shard (%u, %s).",
+				 		shardid, pshard->name.data)));
 	Assert(nfound > 0);
 	systable_endscan(scan);
 
@@ -657,6 +661,19 @@ bool FindCachedShardNode(Oid shardid, Oid nodeid, Shard_node_t*out)
 			AddShard_node_ref_t(pshard, noderef);
 		}
 	}
+
+	if (nfound == 0)
+		ereport(ERROR,
+				(errcode(ERRCODE_INTERNAL_ERROR),
+				 errmsg("Kunlun-db: Shard node (%u %u) not found.",
+				 shardid, nodeid)));
+
+	if (nfound > 1)
+		ereport(ERROR,
+				(errcode(ERRCODE_INTERNAL_ERROR),
+				 errmsg("Kunlun-db: Duplicate shard node (%u %u) found, found %u nodes.",
+				 shardid, nodeid, nfound)));
+
 	Assert(nfound == 1);
 	systable_endscan(scan);
 end:

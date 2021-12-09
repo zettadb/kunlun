@@ -2081,7 +2081,7 @@ bool UpdateCurrentMetaShardMasterNodeId()
 		Form_pg_cluster_meta_nodes cmn = ((Form_pg_cluster_meta_nodes) GETSTRUCT(tup));
 		if (cmn->server_id == master_nodeid)
 		{
-			Assert(cmn->is_master == false);
+			//Assert(cmn->is_master == false);
 			values1[Anum_pg_cluster_meta_nodes_is_master - 1] = BoolGetDatum(true);
 			HeapTuple newtuple1 =
 				heap_modify_tuple(tup, RelationGetDescr(cmnr),
@@ -2090,7 +2090,7 @@ bool UpdateCurrentMetaShardMasterNodeId()
 		}
 		else if (cmn->server_id == old_master_nodeid)
 		{
-			Assert(cmn->is_master == true);
+			//Assert(cmn->is_master == true);
 			values1[Anum_pg_cluster_meta_nodes_is_master - 1] = BoolGetDatum(false);
 			HeapTuple newtuple2 =
 				heap_modify_tuple(tup, RelationGetDescr(cmnr),

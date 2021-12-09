@@ -688,6 +688,7 @@ LocalExecuteInvalidationMessage(SharedInvalidationMessage *msg)
 			InvalidateCachedShard(msg->ss.shardId, true);
 		else
 			InvalidateCachedShardNode(msg->ss.shardId, msg->ss.shardNodeId);
+		InvalidateCatalogSnapshot();
 	}
 	else
 		elog(FATAL, "unrecognized SI message ID: %d", msg->id);

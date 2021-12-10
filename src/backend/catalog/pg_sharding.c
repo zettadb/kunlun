@@ -1574,7 +1574,15 @@ void reapShardConnKillReqs()
 	  no harm.
 	*/
 	if (geterrcode() == ERRCODE_CONNECTION_FAILURE)
+	{
 		RequestShardingTopoCheck(cur_shardid);
+		HOLD_INTERRUPTS();
+
+		downgrade_error();
+		errfinish(0);
+		FlushErrorState();
+		RESUME_INTERRUPTS();
+	}
 	else
 		PG_RE_THROW();
 	}
@@ -1592,7 +1600,7 @@ void reapShardConnKillReqs()
 	}
 	PG_CATCH();
 	{
-
+		PG_RE_THROW();
 	}
 	PG_END_TRY();
 

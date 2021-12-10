@@ -1163,7 +1163,9 @@ uint64_t log_ddl_op(MYSQL_CONN *conn, const char *xa_txnid, const char *db,
 		PG_END_TRY();
 
 		// if metadata shard server&connection is perfectly OK, we got some
-		// other types of error and it will be rethrown here.
+		// other types of error and it will be rethrown here. --- this will
+		// never be reached but let's leave it here just in case above code
+		// changes in future causing error stack filled.
 		PG_RE_THROW();
 	}
 	PG_END_TRY();

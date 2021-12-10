@@ -580,17 +580,18 @@ fetch_nodes:
 		if (pshard_nodes)
 		{
 			Assert(pshard->num_nodes <= MAX_NODES_PER_SHARD);
-			*pshard_nodes = MemoryContextAlloc(CacheMemoryContext,
-				sizeof(Shard_node_t)*pshard->num_nodes);
-			for (int i = 0; i < MAX_NODES_PER_SHARD; i++)
+			*pshard_nodes = MemoryContextAllocZero(CacheMemoryContext,
+				sizeof(Shard_node_t)*MAX_NODES_PER_SHARD);
+			for (int i = 0, j = 0; i < MAX_NODES_PER_SHARD; i++)
 			{
-				Shard_node_t *psnode = (*pshard_nodes) + i;
 				if (!pshard->shard_nodes[i].ptr) continue;
+				Shard_node_t *psnode = (*pshard_nodes) + j;
 
 				memcpy(psnode, pshard->shard_nodes[i].ptr, sizeof(Shard_node_t));
-				out->shard_nodes[i].ptr = psnode;
+				out->shard_nodes[j].ptr = psnode;
 				psnode->hostaddr = MemoryContextStrdup(CacheMemoryContext, psnode->hostaddr);
 				psnode->passwd = MemoryContextStrdup(CacheMemoryContext, psnode->passwd);
+				j++;
 			}
 		}
 	}
@@ -808,9 +809,10 @@ static int FindCurrentMasterNodeId(Oid shardid, Oid *pmaster_nodeid)
 		return 1;
 	}
 
-	for (int i = 0; i < ps->num_nodes; i++)
+	for (int i = 0; i < MAX_NODES_PER_SHARD; i++)
 	{
 		Shard_node_t *pnode = pnoderef[i].ptr;
+		if (!pnode) continue;
 
 		AsyncStmtInfo *asi = NULL;
 		PG_TRY(); {
@@ -1238,9 +1240,10 @@ void ProcessShardingTopoReqs()
 static Shard_node_t *find_node_by_ip_port(Shard_t *ps, const char *ip, uint16_t port)
 {
 	Shard_node_ref_t *pnoderef = ps->shard_nodes;
-	for (int i = 0; i < ps->num_nodes; i++)
+	for (int i = 0; i < MAX_NODES_PER_SHARD; i++)
 	{
 		Shard_node_t *sn = pnoderef[i].ptr;
+		if (!sn) continue;
 		if (strcmp(sn->hostaddr, ip) == 0 && port == sn->port)
 			return sn;
 	}

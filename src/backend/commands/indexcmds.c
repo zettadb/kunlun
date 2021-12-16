@@ -879,9 +879,14 @@ DefineIndex(Oid relationId,
 
 	/*
 	 * dzw: Track 'create index' info for remote op.
+	 * Do not track if this stmt is internally created for inherited tables
 	 * */
-	TrackRemoteCreateIndex(rel, indexRelationName, accessMethodId,
-			indexInfo->ii_Unique, false);
+	if (!stmt->inherit)
+	{
+		TrackRemoteCreateIndex(rel, indexRelationName, accessMethodId,
+				indexInfo->ii_Unique, partitioned);
+	}
+
 	indexRelationId =
 		index_create(rel, indexRelationName, indexRelationId, parentIndexId,
 					 parentConstraintId,
@@ -908,12 +913,6 @@ DefineIndex(Oid relationId,
 
 	if (partitioned)
 	{
-		/*
-		 * dzw: Track 'create index' info for remote op.
-		 * */
-		TrackRemoteCreateIndex(rel, indexRelationName, accessMethodId,
-			indexInfo->ii_Unique, true);
-
 		/*
 		 * Unless caller specified to skip this step (via ONLY), process each
 		 * partition to make sure they all contain a corresponding index.
@@ -1066,6 +1065,7 @@ DefineIndex(Oid relationId,
 					childStmt->relationId = childRelid;
 					childStmt->indexOid = InvalidOid;
 					childStmt->oldNode = InvalidOid;
+					childStmt->inherit = true;
 
 					/*
 					 * Adjust any Vars (both in expressions and in the index's

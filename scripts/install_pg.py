@@ -60,6 +60,7 @@ def install_pg(config_template_file, install_path, compcfg):
     replace_items = {}
     replace_items['port_placeholder'] = portstr
     replace_items['comp_node_id_placeholder'] = str(compcfg['id'])
+    replace_items['unix_socket_dir_place_holder'] = datadir
 
     conf_str = param_replace(config_template, replace_items)
     cnf_file = open(conf_path, 'w')

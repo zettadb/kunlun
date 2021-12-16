@@ -83,6 +83,8 @@ update_index_attrname(Relation attrelation, Relation targetrelation,
 	const char *oldattname, const char *newattname,
 	bool check_attname_uniquness);
 static void get_indexed_cols(Oid indexId, Datum **keys, int *nKeys);
+extern const char *current_authorization();
+extern const char *current_role();
 
 extern bool skip_tidsync;
 
@@ -789,6 +791,7 @@ void end_remote_ddl_stmt()
 	g_remote_ddl_ctx.metadata_xa_txnid = xa_txnid;
 	uint64_t logid = log_ddl_op(get_metadata_cluster_conn(false), xa_txnid,
 		g_remote_ddl_ctx.db_name.data, g_root_stmt->schema_name.data,
+		current_role(), current_authorization(),
 		g_root_stmt->obj_name.data, g_root_stmt->objtype,
 		g_root_stmt->optype, g_remote_ddl_ctx.ddl_sql_src.data,
 		sql_sn.data, target_shardid);
@@ -1277,7 +1280,7 @@ static void RemoteDatabaseDDL(const char *db, const char *schema, char *cmdbuf,
 	 */
 	DDL_ObjTypes objtype = schema == NULL ? DDL_ObjType_db : DDL_ObjType_schema;
 	uint64_t logid = log_ddl_op(get_metadata_cluster_conn(false), xa_txnid,
-		db, schema, db, objtype,
+		db, schema, current_role(), current_authorization(), db, objtype,
 		iscreate ? DDL_OP_Type_create : DDL_OP_Type_drop,
 		g_remote_ddl_ctx.orig_sql,
 		cmdbuf, 0);
@@ -1576,7 +1579,8 @@ void RemoteCreateSeqStmt(Relation rel, Form_pg_sequence seqform,
 
 
 	uint64_t logid = log_ddl_op(get_metadata_cluster_conn(false), xa_txnid,
-		dbname.data, schemaName.data, rel->rd_rel->relname.data, DDL_ObjType_seq,
+		dbname.data, schemaName.data, current_role(), current_authorization(),
+		rel->rd_rel->relname.data, DDL_ObjType_seq,
 		DDL_OP_Type_create, stmt1.data, stmt.data, rel->rd_rel->relshardid);
 
 	g_remote_ddl_ctx.ddl_log_op_id = logid;
@@ -1733,7 +1737,8 @@ void TrackAlterSeq(Relation rel, List *owned_by, RemoteAlterSeq*raseq, bool topl
 	g_remote_ddl_ctx.metadata_xa_txnid = xa_txnid;
 
 	uint64_t logid = log_ddl_op(get_metadata_cluster_conn(false), xa_txnid,
-		dbname.data, schemaName.data, rel->rd_rel->relname.data, DDL_ObjType_seq,
+		dbname.data, schemaName.data, current_role(), current_authorization(), 
+		rel->rd_rel->relname.data, DDL_ObjType_seq,
 		DDL_OP_Type_alter, stmt1.data, stmt.data, rel->rd_rel->relshardid);
 
 	g_remote_ddl_ctx.ddl_log_op_id = logid;
@@ -2118,7 +2123,7 @@ bool is_object_stored_in_shards(ObjectType objtype)
 	return false;
 }
 
-void accumulate_simple_ddl_sql(const char *sql, int start, int len)
+void accumulate_simple_ddl_sql(NodeTag tag, const char *sql, int start, int len)
 {
 	Assert(len >= 0);
 	char delim = g_remote_ddl_ctx.ddl_sql_src.len > 0 ? ';':' ';
@@ -2138,6 +2143,23 @@ void accumulate_simple_ddl_sql(const char *sql, int start, int len)
 		get_database_name3(MyDatabaseId, &g_remote_ddl_ctx.db_name);
 		g_root_stmt->optype = DDL_OP_Type_generic;
 		g_root_stmt->objtype = DDL_ObjType_generic;
+		/* Mark privilege related statement */
+		switch (tag) {
+			case T_GrantStmt:
+			case T_GrantRoleStmt:
+			case T_AlterDefaultPrivilegesStmt:
+			case T_CreateRoleStmt:
+			case T_AlterRoleStmt:
+			case T_DropRoleStmt:
+			case T_AlterRoleSetStmt:
+			case T_ReassignOwnedStmt:
+				{
+					g_root_stmt->objtype = DDL_ObjType_user;
+					break;
+				}
+			default: break;
+		}
+
 	}
 	/* other fields of g_remote_ddl_ctx are irrelevant. */
 }

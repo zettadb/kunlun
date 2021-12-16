@@ -1230,7 +1230,7 @@ PortalRunUtility(Portal portal, PlannedStmt *pstmt,
 		  !is_object_stored_in_shards(((DropStmt*)pstmt->utilityStmt)->removeType)) ||
 		 (nodeTag(pstmt->utilityStmt) == T_CreateTableAsStmt &&
 		  ((CreateTableAsStmt*)pstmt->utilityStmt)->relkind == OBJECT_MATVIEW)))
-		accumulate_simple_ddl_sql(portal->sourceText, pstmt->stmt_location, pstmt->stmt_len);
+		accumulate_simple_ddl_sql(nodeTag(pstmt->utilityStmt), portal->sourceText, pstmt->stmt_location, pstmt->stmt_len);
 }
 
 /*

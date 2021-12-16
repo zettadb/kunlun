@@ -82,7 +82,7 @@ static void update_max_ddl_op_id(Oid dbid, uint64_t opid);
 struct CMNConnInfo;
 static int FindMetaShardAllNodes(struct CMNConnInfo *cmnodes, size_t n);
 static int do_ddl_apply(log_apply_func_t apply, MYSQL_CONN *conn, uint64_t newpos,
-	const char *sqlstr, DDL_OP_Types optype, DDL_ObjTypes objtype,
+	const char *role, const char *user, const char *sqlstr, DDL_OP_Types optype, DDL_ObjTypes objtype,
 	const char *objname, bool*execed);
 
 inline static const char *GetClusterName()
@@ -811,6 +811,40 @@ static uint64_t FindDDLLogForDB(Oid dbid, uint64_t *local_max, bool del)
 
 
 /*
+  Find the min ddl log row of databases except 'dbid‘
+*/
+static uint64_t FindMinDDLLogExceptDB(Oid dbid)
+{
+	Relation ddloplog_rel = heap_open(DDLLogProgressRelationId, RowExclusiveLock);
+
+	uint64_t opid = 0, ntups = 0;
+	HeapTuple tup = NULL;
+	SysScanDesc scan;
+
+	ScanKeyData key;
+
+	ScanKeyInit(&key,
+				Anum_pg_ddl_log_progress_dbid,
+				BTGreaterEqualStrategyNumber,
+				F_OIDGE, (Oid)0);
+	scan = systable_beginscan(ddloplog_rel, DDLLogDbidIndexId, true, NULL, 1, &key);
+	
+	while ((tup = systable_getnext(scan)) != NULL)
+	{
+		Form_pg_ddl_log_progress prog = ((Form_pg_ddl_log_progress) GETSTRUCT(tup));
+		if (prog->dbid == dbid) continue;
+		if (opid < prog->ddl_op_id) {
+			opid = prog->ddl_op_id;
+		}
+		ntups ++;
+	}
+	systable_endscan(scan);
+	heap_close(ddloplog_rel, RowExclusiveLock);
+
+	return ntups > 0 ? opid : ULONG_MAX;
+}
+
+/*
   Insert row in pg_ddl_log_progress for new db.
 */
 void insert_ddl_log_progress(Oid dbid, uint64_t maxopid)
@@ -978,16 +1012,20 @@ bool check_ddl_op_conflicts_rough(MYSQL_CONN *conn, const char *db, DDL_ObjTypes
 	 * Finally, 'create/drop database' stmts are executed by main applier so we
 	 * must check against 'postgres' log progress id and if any op against a 'db'
 	 * object isn't done yet, we must wait for it to be executed first.
+	 * 
+	 * Create/drop user/role or grant/revoke conflict with everything because caller/applier
+	 * must run the sql using the right user and privalige
+	 *
 	 * */
 	if (obj_type != DDL_ObjType_db) {
 		cur_dll_opid = GetLatestDDLOperationId(NULL);
 		snprintf(stmt, sizeof(stmt),
-			"select exists(select id from " KUNLUN_METADATA_DBNAME ".ddl_ops_log_%s where (db_name='%s' or (objname = '%s' and objtype='db' )) and initiator != %u and id > %lu) as conflicts",
+			"select exists(select id from " KUNLUN_METADATA_DBNAME ".ddl_ops_log_%s where (db_name='%s' or (objname = '%s' and objtype='db') or objtype='user') and initiator != %u and id > %lu) as conflicts",
 			GetClusterName(), db, db, comp_node_id, cur_dll_opid);
 	} else {
 		cur_dll_opid = FindDDLLogForDB(get_database_oid("postgres", false), NULL, false);
 		snprintf(stmt, sizeof(stmt),
-			"select exists(select id from " KUNLUN_METADATA_DBNAME ".ddl_ops_log_%s where (db_name='%s' or objtype='db' ) and initiator != %u and id > %lu) as conflicts",
+			"select exists(select id from " KUNLUN_METADATA_DBNAME ".ddl_ops_log_%s where (db_name='%s' or objtype='db' or objtype='user') and initiator != %u and id > %lu) as conflicts",
 			GetClusterName(), db, comp_node_id, cur_dll_opid);
 	}
 
@@ -1030,7 +1068,7 @@ bool check_ddl_op_conflicts_rough(MYSQL_CONN *conn, const char *db, DDL_ObjTypes
  * @retval new logged entry's operation id(i.e. PK).
  * */
 uint64_t log_ddl_op(MYSQL_CONN *conn, const char *xa_txnid, const char *db,
-	const char *schema, const char *obj, DDL_ObjTypes obj_type,
+	const char *schema, const char *role, const char *user, const char *obj, DDL_ObjTypes obj_type,
 	DDL_OP_Types optype, const char *sql_src, const char *sql_src_storage_node,
 	Oid target_shardid)
 {
@@ -1073,8 +1111,10 @@ uint64_t log_ddl_op(MYSQL_CONN *conn, const char *xa_txnid, const char *db,
 	 * mysql client lib reports error: Commands out of sync.
 	 * */
 	int ret = appendStringInfo(&strsql,
-		"set transaction_isolation='repeatable-read'; XA START '%s'; set @my_opid = 0; CALL " KUNLUN_METADATA_DBNAME ".append_ddl_log_entry('ddl_ops_log_%s', '%s', '%s', '%s', '%s', '%s', %lu, \"%s\", \"%s\", %u, %u, @my_opid); XA END '%s'; XA PREPARE '%s'; select @my_opid",
-		xa_txnid, GetClusterName(), db, schema ? schema : "", obj, DDL_ObjTypeNames[obj_type],
+		"set transaction_isolation='repeatable-read'; XA START '%s'; set @my_opid = 0; "
+		"CALL " KUNLUN_METADATA_DBNAME ".append_ddl_log_entry('ddl_ops_log_%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %lu, \"%s\", \"%s\", %u, %u, @my_opid);"
+		" XA END '%s'; XA PREPARE '%s'; select @my_opid",
+		xa_txnid, GetClusterName(), db, schema ? schema : "", role, user, obj, DDL_ObjTypeNames[obj_type],
 		DDL_OP_TypeNames[optype], cur_dll_opid, sqlsrc_sid.data, sql_src_storage_node ? sql_src_storage_node : "",
 		target_shardid, comp_node_id, xa_txnid, xa_txnid);
 
@@ -1486,12 +1526,39 @@ static bool get_min_max_ddl_opid(uint64_t * pmax, uint64_t *pmin)
 	return res;
 }
 
+static bool check_conflict_ddl_done(bool is_master, uint64_t conflict_id)
+{
+	bool end_txn = false;
+	if (!IsTransactionState()) {
+		StartTransactionCommand();
+		end_txn = true;
+	}
+	PushActiveSnapshot(GetTransactionSnapshot());
+	pgstat_report_activity(STATE_RUNNING, "Applying ddl log check conflict");
+
+	bool ret;
+	if (!is_master) {
+		/* Make sure the master has applied the conflict id */
+		uint64_t cur_log_id = FindDDLLogForDB(get_database_oid("postgres", false), NULL, false);
+		ret = cur_log_id >= conflict_id;
+	}
+	else {
+		/* Make sure all the other applier has apply the conflict id */
+		uint64_t min_log_id = FindMinDDLLogExceptDB(get_database_oid("postgres", false));
+		ret = min_log_id >= conflict_id;
+	}
+	PopActiveSnapshot();
+	if (end_txn) CommitTransactionCommand();
+	pgstat_report_activity(STATE_IDLE, NULL);
+	
+	return ret;
+}
 
 static int do_ddl_apply(log_apply_func_t apply, MYSQL_CONN *conn, uint64_t newpos,
-	const char *sqlstr, DDL_OP_Types optype, DDL_ObjTypes objtype,
+	const char *role, const char *user, const char *sqlstr, DDL_OP_Types optype, DDL_ObjTypes objtype,
 	const char *objname, bool*execed)
 {
-	int ret = apply(newpos, sqlstr, optype, objtype, objname, execed);
+	int ret = apply(newpos, role, user, sqlstr, optype, objtype, objname, execed);
 	return ret;
 }
 
@@ -1523,8 +1590,10 @@ int fetch_apply_cluster_ddl_logs(Oid dbid, const char *dbname, uint64_t startpos
 		 * */
 		ret = snprintf(stmt, sizeof(stmt),
 				"begin; select max(id) as newstart, min(id) as oldest from " KUNLUN_METADATA_DBNAME ".ddl_ops_log_%s; "
-				"select id, objname, optype, objtype, sql_src from " KUNLUN_METADATA_DBNAME ".ddl_ops_log_%s where id > %lu and db_name='%s' and (not (objtype='db' and (optype='drop' or optype='create'))) and initiator %s %u order by id; commit",
-				GetClusterName(), GetClusterName(), startpos, dbname, is_recovery ? "=" : "!=", comp_node_id);
+				"select id, objname, optype, objtype, sql_src, user_name, role_name, "
+				" (select ifnull(max(id),0) from "KUNLUN_METADATA_DBNAME".ddl_ops_log_%s where id < outer_t.id and id > %lu and objtype='user') as max_conflict_id "
+				" from " KUNLUN_METADATA_DBNAME ".ddl_ops_log_%s as outer_t where id > %lu and db_name='%s' and (not (objtype='db' and (optype='drop' or optype='create') or objtype='user')) and initiator %s %u order by id; commit",
+				GetClusterName(), GetClusterName(), startpos, GetClusterName(), startpos,  dbname, is_recovery ? "=" : "!=", comp_node_id);
 	}
 	else
 	{
@@ -1532,8 +1601,11 @@ int fetch_apply_cluster_ddl_logs(Oid dbid, const char *dbname, uint64_t startpos
 		// can terminate other appliers.
 		ret = snprintf(stmt, sizeof(stmt),
 				"begin; select max(id) as newstart, min(id) as oldest from " KUNLUN_METADATA_DBNAME ".ddl_ops_log_%s; "
-				"select id, objname, optype, objtype, sql_src from " KUNLUN_METADATA_DBNAME ".ddl_ops_log_%s where id > %lu and (db_name='%s' or (objtype='db' and (optype='drop' or optype='create'))) and initiator %s %u order by id; commit",
-				GetClusterName(), GetClusterName(), startpos, dbname, is_recovery ? "=" : "!=", comp_node_id);
+				"select id, objname, optype, objtype, sql_src, user_name, role_name, " 
+				" if (objtype='user', (select ifnull(max(id), 0) from "KUNLUN_METADATA_DBNAME".ddl_ops_log_%s where id < outer_t.id and objtype!='user'), 0) as max_conflict_id "
+				" from " KUNLUN_METADATA_DBNAME ".ddl_ops_log_%s as outer_t"
+				" where id > %lu and (db_name='%s' or (objtype='db' and (optype='drop' or optype='create')) or objtype='user') and initiator %s %u order by id; commit",
+				GetClusterName(), GetClusterName(), GetClusterName(), startpos, dbname, is_recovery ? "=" : "!=", comp_node_id);
 	}
 
 
@@ -1566,7 +1638,9 @@ int fetch_apply_cluster_ddl_logs(Oid dbid, const char *dbname, uint64_t startpos
 	else
 	{
 		min_opid = strtoul(row[1], &endptr, 10);
-		newpos = newpos0 = strtoul(row[0], &endptr, 10);
+		newpos0 = strtoul(row[0], &endptr, 10);
+		/* Do not update log progress if no event applied in recovery phase */
+		newpos = (is_recovery ? newpos0 : startpos);
 		row = mysql_fetch_row(conn->result);
 		Assert(row == NULL);
 	}
@@ -1588,16 +1662,25 @@ int fetch_apply_cluster_ddl_logs(Oid dbid, const char *dbname, uint64_t startpos
 
 	while (row)
 	{
-		// above select stmt and table column order: id, objname, optype, objtype, sql_src
-		Assert(row[0] && row[1] && row[2] && row[3] && row[4]);
+		// above select stmt and table column order: id, objname, optype, objtype, sql_src, user, conflict_id
+		Assert(row[0] && row[1] && row[2] && row[3] && row[4] && row[5] && row[6]);
 		newpos = strtoul(row[0], &endptr, 10);
 		executed = false;
 		DDL_ObjTypes objtype = DDL_ObjTypeNames_to_enum(row[3]);
 		DDL_OP_Types optype = DDL_OP_TypeNames_to_enum(row[2]);
 
 		const char *sqlstr = row[4];
+		const char *user = row[5];
+		const char *role = row[6];
 		Assert(sqlstr != NULL);
 
+		/* Make sure the previous max conflict log has been done*/
+		uint64_t conflict_id = strtoul(row[7], &endptr, 10);
+		if (!check_conflict_ddl_done(is_master, conflict_id))
+		{
+			elog(WARNING, "Conflict log %lu has not done, try again last time", conflict_id);
+			return -1;
+		}
 		/*
 		 * apply each log rec, i.e. execute it. we must do the ddl and store
 		 * the new pos together in the same txn to get position and ddl consistent.
@@ -1605,12 +1688,12 @@ int fetch_apply_cluster_ddl_logs(Oid dbid, const char *dbname, uint64_t startpos
 		 * fails. the stmt may fail e.g. because of lock conflict, etc, if so
 		 * stay at this position, try to retry later.
 		 * */
-		ret = do_ddl_apply(apply, conn, newpos, sqlstr, optype, objtype, row[1]/*objname*/, &executed);
+		ret = do_ddl_apply(apply, conn, newpos, role, user, sqlstr, optype, objtype, row[1]/*objname*/, &executed);
 
 		if (executed && ret != SPI_OK_UTILITY)
 		{
-			elog(WARNING, "Failed to apply DDL statement (%s), error: %d.",
-				 sqlstr, ret);
+			elog(WARNING, "Failed to apply DDL statement (%s), user(%s), error: %d.",
+				 sqlstr, user, ret);
 			return -1;
 		}
 
@@ -1638,7 +1721,7 @@ int fetch_apply_cluster_ddl_logs(Oid dbid, const char *dbname, uint64_t startpos
 	 * we've executed all our log recs below max(newpos, newpos0).
 	 * */
 	if (newpos0 > newpos)
-		do_ddl_apply(apply, conn, newpos0, NULL, DDL_OP_Type_Invalid, DDL_ObjType_Invalid, NULL, &executed);
+		do_ddl_apply(apply, conn, newpos0, NULL, NULL, NULL, DDL_OP_Type_Invalid, DDL_ObjType_Invalid, NULL, &executed);
 
 	return num_exec;
 }

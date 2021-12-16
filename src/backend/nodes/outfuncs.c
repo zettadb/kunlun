@@ -2757,6 +2757,7 @@ _outIndexStmt(StringInfo str, const IndexStmt *node)
 	WRITE_BOOL_FIELD(concurrent);
 	WRITE_BOOL_FIELD(if_not_exists);
 	WRITE_BOOL_FIELD(skip_remote);
+	WRITE_BOOL_FIELD(inherit);
 }
 
 static void

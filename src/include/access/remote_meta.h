@@ -94,7 +94,7 @@ extern bool findSequenceByName(const char *seqname);
 extern Size RemoteSeqFetchShmemSize(void);
 extern void CreateRemoteSeqFetchShmem(void);
 extern void fetchSeqValues(void);
-extern void accumulate_simple_ddl_sql(const char *sql, int start, int len);
+extern void accumulate_simple_ddl_sql(NodeTag tag, const char *sql, int start, int len);
 extern bool is_supported_simple_ddl_stmt(NodeTag stmt);
 extern bool is_banned_ddl_stmt(NodeTag stmt);
 extern bool enable_remote_ddl(void);

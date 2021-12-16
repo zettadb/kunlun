@@ -112,6 +112,8 @@ CREATE TABLE `ddl_ops_log_template_table` (
   `objname` varchar(64) NOT NULL,
   `db_name` varchar(64) NOT NULL,
   `schema_name` varchar(64) NOT NULL,
+  `user_name` varchar(64) NOT NULL,
+  `role_name` varchar(64) NOT NULL,
   `optype` enum('create','drop','rename','alter','replace','others') NOT NULL,
   `objtype` enum('db','index','matview','partition','schema','seq','table','func','role_or_group','proc','stats','user','view', 'others') NOT NULL,
   `when_logged` timestamp NULL DEFAULT (now()),
@@ -198,14 +200,16 @@ CREATE TABLE `shards` (
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
-CREATE PROCEDURE `append_ddl_log_entry`(tblname varchar(256), dbname varchar(64), schema_name varchar(64), objname varchar(64), obj_type varchar(16), op_type varchar(16), cur_opid bigint unsigned, sql_src text, sql_src_sn text, target_shardid int unsigned, initiator_id int unsigned, OUT my_opid bigint unsigned)
+CREATE PROCEDURE `append_ddl_log_entry`(tblname varchar(256), dbname varchar(64), schema_name varchar(64), role_name varchar(64), user_name varchar(64), objname varchar(64), obj_type varchar(16), op_type varchar(16), cur_opid bigint unsigned, sql_src text, sql_src_sn text, target_shardid int unsigned, initiator_id int unsigned, OUT my_opid bigint unsigned)
     MODIFIES SQL DATA
     SQL SECURITY INVOKER
 BEGIN
     DECLARE conflicts INT DEFAULT 0;
 
-    set @dbname =dbname;
+    set @dbname = dbname;
     set @schema_name = schema_name;
+	set @role_name = role_name;
+	set @user_name = user_name;
     set @objname = objname;
     set @obj_type = obj_type;
     set @cur_opid = cur_opid;
@@ -217,9 +221,9 @@ BEGIN
     SET @sql1 = '';
 
     if @obj_type != 'db' then
-        SET @sql1 = CONCAT('select exists(select id from ', tblname, ' where (db_name=? or (objname=? and objtype=\'db\')) and initiator != ? and id > ? for update) into @conflicts');
+        SET @sql1 = CONCAT('select exists(select id from ', tblname, ' where (db_name=? or (objname=? and objtype=\'db\') or objtype=\'user\') and initiator != ? and id > ? for update) into @conflicts');
     else
-        SET @sql1 = CONCAT('select exists(select id from ', tblname, ' where (db_name=? or objtype=\'db\') and initiator != ? and id > ? for update) into @conflicts');
+        SET @sql1 = CONCAT('select exists(select id from ', tblname, ' where (db_name=? or objtype=\'db\' or objtype=\'user\') and initiator != ? and id > ? for update) into @conflicts');
     end if;
     
     PREPARE stmt1 FROM @sql1;
@@ -234,9 +238,9 @@ BEGIN
         DEALLOCATE PREPARE stmt1;
         set my_opid = 0;
     ELSE
-        SET @sql2 = CONCAT('INSERT INTO ', tblname, '(db_name, schema_name, objname, objtype, optype, sql_src, sql_storage_node, target_shard_id, initiator)values(?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        SET @sql2 = CONCAT('INSERT INTO ', tblname, '(db_name, schema_name, role_name, user_name, objname, objtype, optype, sql_src, sql_storage_node, target_shard_id, initiator)values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
         PREPARE stmt2 FROM @sql2;
-        EXECUTE stmt2 USING @dbname, @schema_name, @objname, @obj_type, @op_type, @sql_src, @sql_src_sn, @target_shardid, @initiator_id;
+        EXECUTE stmt2 USING @dbname, @schema_name, @role_name, @user_name, @objname, @obj_type, @op_type, @sql_src, @sql_src_sn, @target_shardid, @initiator_id;
         set my_opid = LAST_INSERT_ID();
         DEALLOCATE PREPARE stmt1;
         DEALLOCATE PREPARE stmt2;

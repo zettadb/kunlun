@@ -1558,7 +1558,7 @@ void perform_deadlock_detect()
 	PopActiveSnapshot();
 	CommitTransactionCommand();
 	if (!gdd_supported)
-		sleep(10000);
+		sleep(3);
 }
 
 static bool check_gdd_supported(AsyncStmtInfo *asi)

@@ -1203,7 +1203,9 @@ uint64_t log_ddl_op(MYSQL_CONN *conn, const char *xa_txnid, const char *db,
 		PG_END_TRY();
 
 		// if metadata shard server&connection is perfectly OK, we got some
-		// other types of error and it will be rethrown here.
+		// other types of error and it will be rethrown here. --- this will
+		// never be reached but let's leave it here just in case above code
+		// changes in future causing error stack filled.
 		PG_RE_THROW();
 	}
 	PG_END_TRY();
@@ -2164,7 +2166,7 @@ bool UpdateCurrentMetaShardMasterNodeId()
 		Form_pg_cluster_meta_nodes cmn = ((Form_pg_cluster_meta_nodes) GETSTRUCT(tup));
 		if (cmn->server_id == master_nodeid)
 		{
-			Assert(cmn->is_master == false);
+			//Assert(cmn->is_master == false);
 			values1[Anum_pg_cluster_meta_nodes_is_master - 1] = BoolGetDatum(true);
 			HeapTuple newtuple1 =
 				heap_modify_tuple(tup, RelationGetDescr(cmnr),
@@ -2173,7 +2175,7 @@ bool UpdateCurrentMetaShardMasterNodeId()
 		}
 		else if (cmn->server_id == old_master_nodeid)
 		{
-			Assert(cmn->is_master == true);
+			//Assert(cmn->is_master == true);
 			values1[Anum_pg_cluster_meta_nodes_is_master - 1] = BoolGetDatum(false);
 			HeapTuple newtuple2 =
 				heap_modify_tuple(tup, RelationGetDescr(cmnr),

@@ -360,7 +360,7 @@ void InvalidateCachedShard(Oid shardid, bool includingShardNodes)
 				pfree(ref->ptr);
 				ref->ptr = NULL;
 				ref->id = Invalid_shard_node_id;
-				Assert(found);
+				//Assert(found); the node may have been evicted from the cache.
 			}
 		}
 	}
@@ -562,6 +562,10 @@ fetch_nodes:
 		nfound++;
 	}
 
+	if (nfound == 0)
+		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
+				 errmsg("Kunlun-db: No nodes found for shard (%u, %s).",
+				 		shardid, pshard->name.data)));
 	Assert(nfound > 0);
 	systable_endscan(scan);
 
@@ -576,17 +580,18 @@ fetch_nodes:
 		if (pshard_nodes)
 		{
 			Assert(pshard->num_nodes <= MAX_NODES_PER_SHARD);
-			*pshard_nodes = MemoryContextAlloc(CacheMemoryContext,
-				sizeof(Shard_node_t)*pshard->num_nodes);
-			for (int i = 0; i < MAX_NODES_PER_SHARD; i++)
+			*pshard_nodes = MemoryContextAllocZero(CacheMemoryContext,
+				sizeof(Shard_node_t)*MAX_NODES_PER_SHARD);
+			for (int i = 0, j = 0; i < MAX_NODES_PER_SHARD; i++)
 			{
-				Shard_node_t *psnode = (*pshard_nodes) + i;
 				if (!pshard->shard_nodes[i].ptr) continue;
+				Shard_node_t *psnode = (*pshard_nodes) + j;
 
 				memcpy(psnode, pshard->shard_nodes[i].ptr, sizeof(Shard_node_t));
-				out->shard_nodes[i].ptr = psnode;
+				out->shard_nodes[j].ptr = psnode;
 				psnode->hostaddr = MemoryContextStrdup(CacheMemoryContext, psnode->hostaddr);
 				psnode->passwd = MemoryContextStrdup(CacheMemoryContext, psnode->passwd);
+				j++;
 			}
 		}
 	}
@@ -657,6 +662,19 @@ bool FindCachedShardNode(Oid shardid, Oid nodeid, Shard_node_t*out)
 			AddShard_node_ref_t(pshard, noderef);
 		}
 	}
+
+	if (nfound == 0)
+		ereport(ERROR,
+				(errcode(ERRCODE_INTERNAL_ERROR),
+				 errmsg("Kunlun-db: Shard node (%u %u) not found.",
+				 shardid, nodeid)));
+
+	if (nfound > 1)
+		ereport(ERROR,
+				(errcode(ERRCODE_INTERNAL_ERROR),
+				 errmsg("Kunlun-db: Duplicate shard node (%u %u) found, found %u nodes.",
+				 shardid, nodeid, nfound)));
+
 	Assert(nfound == 1);
 	systable_endscan(scan);
 end:
@@ -791,9 +809,10 @@ static int FindCurrentMasterNodeId(Oid shardid, Oid *pmaster_nodeid)
 		return 1;
 	}
 
-	for (int i = 0; i < ps->num_nodes; i++)
+	for (int i = 0; i < MAX_NODES_PER_SHARD; i++)
 	{
 		Shard_node_t *pnode = pnoderef[i].ptr;
+		if (!pnode) continue;
 
 		AsyncStmtInfo *asi = NULL;
 		PG_TRY(); {
@@ -1221,9 +1240,10 @@ void ProcessShardingTopoReqs()
 static Shard_node_t *find_node_by_ip_port(Shard_t *ps, const char *ip, uint16_t port)
 {
 	Shard_node_ref_t *pnoderef = ps->shard_nodes;
-	for (int i = 0; i < ps->num_nodes; i++)
+	for (int i = 0; i < MAX_NODES_PER_SHARD; i++)
 	{
 		Shard_node_t *sn = pnoderef[i].ptr;
+		if (!sn) continue;
 		if (strcmp(sn->hostaddr, ip) == 0 && port == sn->port)
 			return sn;
 	}
@@ -1554,7 +1574,15 @@ void reapShardConnKillReqs()
 	  no harm.
 	*/
 	if (geterrcode() == ERRCODE_CONNECTION_FAILURE)
+	{
 		RequestShardingTopoCheck(cur_shardid);
+		HOLD_INTERRUPTS();
+
+		downgrade_error();
+		errfinish(0);
+		FlushErrorState();
+		RESUME_INTERRUPTS();
+	}
 	else
 		PG_RE_THROW();
 	}
@@ -1572,7 +1600,7 @@ void reapShardConnKillReqs()
 	}
 	PG_CATCH();
 	{
-
+		PG_RE_THROW();
 	}
 	PG_END_TRY();
 

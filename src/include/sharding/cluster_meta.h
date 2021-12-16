@@ -105,14 +105,14 @@ extern MYSQL_CONN* get_metadata_cluster_conn(bool isbg);
 extern void close_metadata_cluster_conn(MYSQL_CONN* conn);
 extern bool check_ddl_op_conflicts_rough(MYSQL_CONN *conn, const char *db, DDL_ObjTypes objtype);
 extern uint64_t log_ddl_op(MYSQL_CONN *conn, const char *xa_txnid, const char *db,
-					const char *schema, const char *obj, DDL_ObjTypes obj_type,
+					const char *schema, const char *role, const char *user, const char *obj, DDL_ObjTypes obj_type,
 					DDL_OP_Types optype, const char *sql_src, const char *sql_src_storage_node,
 					Oid target_shardid);
 extern void update_my_max_ddl_op_id(uint64_t opid, bool is_db_ddl);
 extern Size ClusterMetaShmemSize(void);
 extern void MetadataClusterShmemInit(void);
 extern void NotifyNextDDLOp(uint64_t opid);
-typedef int (*log_apply_func_t)(uint64_t newpos, const char *sqlstr,
+typedef int (*log_apply_func_t)(uint64_t newpos, const char *role, const char *user, const char *sqlstr,
 	DDL_OP_Types optype, DDL_ObjTypes objtype, const char *objname, bool*execed);
 extern int fetch_apply_cluster_ddl_logs(Oid dbid, const char *dbname, uint64_t startpos,
 	log_apply_func_t apply, bool is_main_applier, bool is_recovery);

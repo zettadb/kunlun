@@ -50,6 +50,9 @@
 #include "access/remote_dml.h"
 #include "storage/ipc.h"
 #include "tcop/debug_injection.h"
+#include "utils/syscache.h"
+#include "catalog/pg_authid.h"
+#include "access/htup_details.h"
 
 PG_MODULE_MAGIC;
 
@@ -73,7 +76,7 @@ typedef struct ClusterLogApplierGlobal ClusterLogApplierGlobal;
 
 static BgwHandleStatus check_worker_exited(ClusterLogApplierState *clas);
 static void check_all_workers_exited(void);
-static int apply_cluster_ddl_log(uint64_t newpos, const char *sqlstr,
+static int apply_cluster_ddl_log(uint64_t newpos, const char *role, const char *user, const char *sqlstr,
 	DDL_OP_Types optype, DDL_ObjTypes objtype, const char *objname, bool*execed);
 static void cluster_log_applier_sigusr2_hdlr(SIGNAL_ARGS);
 static void cluster_log_applier_sigterm(SIGNAL_ARGS);
@@ -472,6 +475,93 @@ startup_cluster_log_appliers()
 	scan_all_dbs(create_bgworker_all_db, NULL);
 }
 
+static int switch_authorization(const char *user, const char *role)
+{
+	int ret = -2;
+	bool end_txn = false;
+
+	/* Start transaction */
+	if (!IsTransactionState()) {
+		StartTransactionCommand();
+		end_txn = true;
+	}
+
+	PushActiveSnapshot(GetTransactionSnapshot());
+	pgstat_report_activity(STATE_RUNNING, "Applying ddl log records.");
+
+	/* Look up the user */
+	HeapTuple roleTup = SearchSysCache1(AUTHNAME, PointerGetDatum(user));
+	if (!HeapTupleIsValid(roleTup))
+	{
+		elog(WARNING, "bgworker main ddl applier cannot find user '%s'", user);
+		goto end;
+	}
+
+	Oid userid = HeapTupleGetOid(roleTup);
+	bool is_superuser = ((Form_pg_authid) GETSTRUCT(roleTup))->rolsuper;
+
+	ReleaseSysCache(roleTup);
+
+	/* Lookup the role */
+	Oid roleid;
+	bool is_superrole;
+	if (!role || strcmp(role, "none") == 0) {
+		roleid = InvalidOid;
+		is_superrole = false;
+	}
+	else
+	{
+		/* Look up the username */
+		roleTup = SearchSysCache1(AUTHNAME, PointerGetDatum(role));
+		if (!HeapTupleIsValid(roleTup))
+		{
+			elog(ERROR, "bgworker ddl applier failed to find role \"%s\"", role);
+			goto end;
+		}
+
+		roleid = HeapTupleGetOid(roleTup);
+		is_superrole= ((Form_pg_authid) GETSTRUCT(roleTup))->rolsuper;
+
+		ReleaseSysCache(roleTup);
+
+		/* Check if the user is member of the role */
+		if (!is_member_of_role(userid, roleid)) {
+			/* 
+			 * Other sessions may have removed the current user from the role,
+			 * it doesn't matter, the applier has ignore the acl check, and the
+			 * user/role setting here is just to set the owner of table/view correctly,
+			 * so just print warning and continue.
+			 */
+			elog(WARNING, "bgworker ddl applier found user '%s' is not member of role '%s'", user, role);
+		}
+	}
+
+	/* Set session authorization to corresponding user */
+	PG_TRY();
+	{
+		SetSessionAuthorization(userid, is_superuser);
+		SetCurrentRoleId(roleid, is_superrole);
+	}
+	PG_CATCH();
+	{
+		elog(WARNING, "bgworker ddl applier failed to set session authorization '%s' and role '%s'", user, role);
+		goto end;
+	}
+	PG_END_TRY();
+
+	ret = 0;
+
+end:
+	/* Commit transaction */
+	PopActiveSnapshot();
+	if (end_txn) {
+		CommitTransactionCommand();
+	}
+	pgstat_report_activity(STATE_IDLE, NULL);
+	
+	return ret;
+}
+
 /*
  * dropped_dbname: NULL if not a 'drop database' stmt or not in main applier;
  * non-null if a main applier executing a drop db stmt.
@@ -482,7 +572,7 @@ startup_cluster_log_appliers()
  *          0: sqlstr is NULL, nothing to execute. only update newpos.
  * when *execed true: sql stmt SPI execution result or error code, e.g. SPI_OK_UTILITY.
  * */
-static int apply_cluster_ddl_log(uint64_t newpos, const char *sqlstr,
+static int apply_cluster_ddl_log(uint64_t newpos, const char *role, const char *user, const char *sqlstr,
 	DDL_OP_Types optype, DDL_ObjTypes objtype, const char *objname, bool*execed)
 {
 	int ret = 0;
@@ -490,6 +580,16 @@ static int apply_cluster_ddl_log(uint64_t newpos, const char *sqlstr,
 
 	ResetRemoteDDLStmt();
 	SetCurrentStatementStartTimestamp();
+	
+	/*
+	 * Set current session authorization to corresponding user/role, then the owner of the table/view
+	 * can be set correctly
+	 */
+	if (user && user[0])
+	{
+		switch_authorization(user, role);
+	}
+
 	/*
 	 * CREATE/DROP DATABASE can not be executed in a txn block.
 	 * */
@@ -785,6 +885,9 @@ static void cluster_log_applier_init_common(ClusterLogApplierState *clas)
 	InitShardingSession();
 	skip_top_level_check = true;// so we can execute CREATE/DROP DATABASE here.
 	GetClusterName2(); // fetch it to memory so that in fetch_apply_cluster_ddl_logs(), no need for txn context.
+	
+	// The permissions of the user/role may have been changed, so skip the acl check when applying the log.
+	set_ignore_acl_error();
 }
 
 static Oid cluster_log_applier_init()

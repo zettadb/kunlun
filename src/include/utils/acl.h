@@ -272,6 +272,8 @@ extern AclResult pg_foreign_data_wrapper_aclcheck(Oid fdw_oid, Oid roleid, AclMo
 extern AclResult pg_foreign_server_aclcheck(Oid srv_oid, Oid roleid, AclMode mode);
 extern AclResult pg_type_aclcheck(Oid type_oid, Oid roleid, AclMode mode);
 
+extern void set_ignore_acl_error();
+
 extern void aclcheck_error(AclResult aclerr, ObjectType objtype,
 			   const char *objectname);
 

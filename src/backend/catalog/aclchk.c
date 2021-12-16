@@ -3339,6 +3339,14 @@ privilege_to_string(AclMode privilege)
 	return NULL;				/* appease compiler */
 }
 
+/* Skip report acl error, E.g, apply ddl logs from meta server */
+static bool skip_acl_check = false;
+
+void set_ignore_acl_error()
+{
+	skip_acl_check = true;
+}
+
 /*
  * Standardized reporting of aclcheck permissions failures.
  *
@@ -3349,6 +3357,8 @@ void
 aclcheck_error(AclResult aclerr, ObjectType objtype,
 			   const char *objectname)
 {
+	if (skip_acl_check) return;
+
 	switch (aclerr)
 	{
 		case ACLCHECK_OK:

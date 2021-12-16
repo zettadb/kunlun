@@ -2802,6 +2802,8 @@ typedef struct IndexStmt
 	type change, no need to initiate remote index creation, it's done
 	automatically in MySQL. */
 	bool		skip_remote;
+
+	bool		inherit;		/* is an internally built index for inherited tables.*/
 } IndexStmt;
 
 /* ----------------------

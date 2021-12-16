@@ -11413,5 +11413,15 @@ show_data_directory_mode(void)
 	return buf;
 }
 
+const char *
+current_authorization()
+{
+	return session_authorization_string;
+}
 
+const char *
+current_role()
+{
+	return role_string;
+}
 #include "guc-file.c"

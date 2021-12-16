@@ -1613,6 +1613,7 @@ int fetch_apply_cluster_ddl_logs(Oid dbid, const char *dbname, uint64_t startpos
 		{
 			elog(WARNING, "Failed to apply DDL statement (%s), error: %d.",
 				 sqlstr, ret);
+			free_metadata_cluster_result(conn);
 			return -1;
 		}
 
@@ -1620,8 +1621,10 @@ int fetch_apply_cluster_ddl_logs(Oid dbid, const char *dbname, uint64_t startpos
 		 * postmaster down, exit ASAP.
 		 * */
 		if (!executed && ret == -2)
+		{
+			free_metadata_cluster_result(conn);
 			return ret;
-
+		}
 		if (executed)
 			num_exec++;
 		row = mysql_fetch_row(conn->result);

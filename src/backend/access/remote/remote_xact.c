@@ -149,6 +149,15 @@ again:
 		g_txn_cmd = repalloc(g_txn_cmd, g_txn_cmd_buflen *= 2);
 		goto again;
 	}
+
+	/*
+	  If conn already killed or broken, do not reconnect to send the txn
+	  command because the txn in both computing node and the storage shards
+	  is both already aborted, no need for such commands.
+	  The only exception is when aborting a prepared XA txn where it would be
+	  recovered after the connection was killed, and in this case the txn will
+	  be aborted by cluster_mgr later.
+	*/
 	send_stmt_to_all_inuse(g_txn_cmd, len, CMD_TXN_MGMT, false, esc, written_only);
 }
 

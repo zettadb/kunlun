@@ -211,3 +211,73 @@ UNION
 SELECT f1 FROM INT4_TBL
   WHERE f1 BETWEEN 0 AND 1000000
 ORDER BY 1;
+
+
+-- bug#  #318 Connection invalid after it's killed by timeout mechanism 
+drop table if exists join_foo;
+create table join_foo(id integer, t varchar(50));
+insert into join_foo select generate_series(1, 3) as id, 'xxxxx'::varchar(50) as t;
+--alter table join_foo set (parallel_workers = 0);
+drop table if exists join_bar;
+create table join_bar(id integer, t varchar(50));
+insert into join_bar select generate_series(1, 10000) as id, 'xxxxx'::varchar(50) as t;
+--alter table join_bar set (parallel_workers = 2);
+-- single-batch with rescan, parallel-oblivious
+begin;
+-- multi-batch with rescan, parallel-oblivious
+savepoint settings;
+set enable_parallel_hash = off;
+set parallel_leader_participation = off;
+set min_parallel_table_scan_size = 0;
+set parallel_setup_cost = 0;
+set parallel_tuple_cost = 0;
+set max_parallel_workers_per_gather = 2;
+set enable_material = off;
+set enable_mergejoin = off;
+set work_mem = '64kB';
+explain (costs off)
+  select count(*) from join_foo
+    left join (select b1.id, b1.t from join_bar b1 join join_bar b2 using (id)) ss
+    on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1;
+select count(*) from join_foo
+  left join (select b1.id, b1.t from join_bar b1 join join_bar b2 using (id)) ss
+  on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1;
+
+set statement_timeout=5000;
+set mysql_read_timeout=5;
+-- times out and connections to storage shards killed
+select final > 1 as multibatch
+  from hash_join_batches(
+$$
+  select count(*) from join_foo
+    left join (select b1.id, b1.t from join_bar b1 join join_bar b2 using (id)) ss
+    on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1;
+$$);
+-- rollback cmds fail because conns invalid and we do not reconnect in this case
+rollback to settings;
+-- local txn aborted
+commit;
+
+
+set statement_timeout=5000;
+set mysql_read_timeout=5;
+-- times out and connections to storage shards killed
+select final > 1 as multibatch
+  from hash_join_batches(
+$$
+  select count(*) from join_foo
+    left join (select b1.id, b1.t from join_bar b1 join join_bar b2 using (id)) ss
+    on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1;
+$$);
+-- automatically reconnects but query times out again
+select count(*) from join_foo
+  left join (select b1.id, b1.t from join_bar b1 join join_bar b2 using (id)) ss
+  on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1;
+
+set statement_timeout=50000;
+set mysql_read_timeout=50;
+-- automatically reconnects again and query succeeds
+select count(*) from join_foo
+  left join (select b1.id, b1.t from join_bar b1 join join_bar b2 using (id)) ss
+  on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1;
+

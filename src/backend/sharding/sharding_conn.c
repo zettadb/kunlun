@@ -245,6 +245,7 @@ AsyncStmtInfo *GetAsyncStmtInfoNode(Oid shardid, Oid shardNodeId, bool req_chk_o
 	}
 
 	bool want_master = false;
+	int newconn = 0;
 	Storage_HA_Mode ha_mode = storage_ha_mode();
 
 	if (shardNodeId == InvalidOid)
@@ -262,7 +263,12 @@ AsyncStmtInfo *GetAsyncStmtInfoNode(Oid shardid, Oid shardNodeId, bool req_chk_o
 	{
 		AsyncStmtInfo *pasi = cur_session.asis + i;
 		if (pasi->shard_id == shardid && pasi->node_id == shardNodeId)
-			return pasi;
+		{
+			if (pasi->conn != NULL)
+				return pasi;
+			else
+				goto make_conn;
+		}
 	}
 
 	if (cur_session.num_asis_used == cur_session.num_asis)
@@ -274,8 +280,7 @@ AsyncStmtInfo *GetAsyncStmtInfoNode(Oid shardid, Oid shardNodeId, bool req_chk_o
 
 	AsyncStmtInfo *asi = cur_session.asis + cur_session.num_asis_used++;
 	Assert(asi->conn == NULL && asi->shard_id == InvalidOid && asi->node_id == InvalidOid);
-
-	int newconn = 0;
+make_conn:
 	asi->conn = GetConnShardNode(shardid, shardNodeId, &newconn, req_chk_onfail);
 	asi->shard_id = shardid;
 	asi->node_id = shardNodeId;
@@ -1828,7 +1833,13 @@ StmtElem *append_async_stmt(AsyncStmtInfo *asi, char *stmt, size_t stmt_len,
 	  node. bg processes will catch the connection failure exception.
 	*/
 	if (!ASIConnected(asi))
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_INTERNAL_ERROR),
+				 errmsg("Kunlun-db: Can not append remote queries to a broken channel to shard %u node %u.",
+				 		asi ? asi->shard_id : 0, asi ? asi->node_id : 0)));
 		return NULL;
+	}
 
 	StmtQueue *q = &(asi->stmtq);
 	if (q->queue == NULL)

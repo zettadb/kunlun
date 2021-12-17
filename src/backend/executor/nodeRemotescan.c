@@ -161,6 +161,8 @@ ExecRemoteScan(PlanState *pstate)
 		{
 			send_stmt_to_multi_start(node->asi, 1);
 		}
+		else if (rc == 0)
+			return NULL; // no more results
 		else if (rc < 0)
 			ereport(ERROR,
 					(errcode(ERRCODE_INTERNAL_ERROR),

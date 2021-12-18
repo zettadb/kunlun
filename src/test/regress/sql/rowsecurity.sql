@@ -322,25 +322,29 @@ EXPLAIN (COSTS OFF) SELECT * FROM part_document WHERE f_leak(dtitle);
 -- database superuser does bypass RLS policy when enabled
 RESET SESSION AUTHORIZATION;
 SET row_security TO ON;
-SELECT * FROM part_document ORDER BY did;
+--SELECT * FROM part_document ORDER BY did;
+SELECT * FROM part_document ORDER BY did,cid,dlevel,dauthor,dtitle;
 SELECT * FROM part_document_satire ORDER by did;
 
 -- database non-superuser with bypass privilege can bypass RLS policy when disabled
 SET SESSION AUTHORIZATION regress_rls_exempt_user;
 SET row_security TO OFF;
-SELECT * FROM part_document ORDER BY did;
+--SELECT * FROM part_document ORDER BY did;
+SELECT * FROM part_document ORDER BY did,cid,dlevel,dauthor,dtitle;
 SELECT * FROM part_document_satire ORDER by did;
 
 -- RLS policy does not apply to table owner when RLS enabled.
 SET SESSION AUTHORIZATION regress_rls_alice;
 SET row_security TO ON;
-SELECT * FROM part_document ORDER by did;
+--SELECT * FROM part_document ORDER by did;
+SELECT * FROM part_document ORDER by did,cid,dlevel,dauthor,dtitle;
 SELECT * FROM part_document_satire ORDER by did;
 
 -- When RLS disabled, other users get ERROR.
 SET SESSION AUTHORIZATION regress_rls_dave;
 SET row_security TO OFF;
-SELECT * FROM part_document ORDER by did;
+--SELECT * FROM part_document ORDER by did;
+SELECT * FROM part_document ORDER by did,cid,dlevel,dauthor,dtitle;
 SELECT * FROM part_document_satire ORDER by did;
 
 -- Check behavior with a policy that uses a SubPlan not an InitPlan.
@@ -511,7 +515,9 @@ INSERT INTO b1 (SELECT x, md5(x::text) FROM generate_series(-10,10) x);
 GRANT ALL ON b1 TO regress_rls_bob;
 
 SET SESSION AUTHORIZATION regress_rls_bob;
-CREATE VIEW bv1 WITH (security_barrier) AS SELECT * FROM b1 WHERE a > 0 WITH CHECK OPTION;
+--CREATE VIEW bv1 WITH (security_barrier) AS SELECT * FROM b1 WHERE a > 0 WITH CHECK OPTION;
+--views with CHECK options are not supported
+CREATE VIEW bv1 WITH (security_barrier) AS SELECT * FROM b1 WHERE a > 0;
 GRANT ALL ON bv1 TO regress_rls_carol;
 
 SET SESSION AUTHORIZATION regress_rls_carol;
@@ -901,16 +907,19 @@ INSERT INTO comment VALUES
 
 SET SESSION AUTHORIZATION regress_rls_bob;
 -- Check RLS JOIN with Non-RLS.
-SELECT id, author, message FROM blog JOIN comment ON id = blog_id;
+--SELECT id, author, message FROM blog JOIN comment ON id = blog_id;
+SELECT id, author, message FROM blog JOIN comment ON id = blog_id order by id,author,message;
 -- Check Non-RLS JOIN with RLS.
-SELECT id, author, message FROM comment JOIN blog ON id = blog_id;
-
+--SELECT id, author, message FROM comment JOIN blog ON id = blog_id;
+SELECT id, author, message FROM comment JOIN blog ON id = blog_id order by id,author,message;
 SET SESSION AUTHORIZATION regress_rls_alice;
 
 SET SESSION AUTHORIZATION regress_rls_bob;
 -- Check RLS JOIN RLS
-SELECT id, author, message FROM blog JOIN comment ON id = blog_id;
-SELECT id, author, message FROM comment JOIN blog ON id = blog_id;
+--SELECT id, author, message FROM blog JOIN comment ON id = blog_id;
+SELECT id, author, message FROM blog JOIN comment ON id = blog_id order by id,author,message;
+--SELECT id, author, message FROM comment JOIN blog ON id = blog_id;
+SELECT id, author, message FROM comment JOIN blog ON id = blog_id order by id,author,message;
 
 SET SESSION AUTHORIZATION regress_rls_alice;
 DROP TABLE blog;
@@ -1128,6 +1137,7 @@ SELECT * FROM r2;
 
 -- r2 is read-only
 INSERT INTO r2 VALUES (2); -- Not allowed
+-- No error (unable to see any rows to update)
 UPDATE r2 SET a = 2 RETURNING *; -- Updates nothing
 DELETE FROM r2 RETURNING *; -- Deletes nothing
 

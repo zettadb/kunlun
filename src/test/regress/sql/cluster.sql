@@ -115,7 +115,7 @@ INSERT INTO clstr_3 VALUES (1);
 
 SELECT * FROM clstr_1 UNION ALL
   SELECT * FROM clstr_2 UNION ALL
-  SELECT * FROM clstr_3;
+  SELECT * FROM clstr_3 order by 1;
 
 -- revert to the original state
 DELETE FROM clstr_1;
@@ -139,7 +139,7 @@ SELECT * FROM clstr_1 UNION ALL
 DELETE FROM clstr_1;
 INSERT INTO clstr_1 VALUES (2);
 INSERT INTO clstr_1 VALUES (1);
-SELECT * FROM clstr_1;
+SELECT * FROM clstr_1 order by 1;
 
 -- Test MVCC-safety of cluster. There isn't much we can do to verify the
 -- results with a single backend...
@@ -165,12 +165,12 @@ UPDATE clustertest SET key1 = 60 WHERE key1 = 50;
 UPDATE clustertest SET key1 = 70 WHERE key1 = 60;
 UPDATE clustertest SET key1 = 80 WHERE key1 = 70;
 
-SELECT * FROM clustertest;
-SELECT * FROM clustertest;
+SELECT * FROM clustertest order by key1;
+SELECT * FROM clustertest order by key1;
 
 COMMIT;
 
-SELECT * FROM clustertest;
+SELECT * FROM clustertest order by key1;
 
 -- check that temp tables can be clustered
 create temp table clstr_temp (col1 int primary key, col2 text);

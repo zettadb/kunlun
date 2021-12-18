@@ -247,6 +247,7 @@ AsyncStmtInfo *GetAsyncStmtInfoNode(Oid shardid, Oid shardNodeId, bool req_chk_o
 	bool want_master = false;
 	int newconn = 0;
 	Storage_HA_Mode ha_mode = storage_ha_mode();
+	AsyncStmtInfo *asi = NULL;
 
 	if (shardNodeId == InvalidOid)
 	{
@@ -267,7 +268,10 @@ AsyncStmtInfo *GetAsyncStmtInfoNode(Oid shardid, Oid shardNodeId, bool req_chk_o
 			if (pasi->conn != NULL)
 				return pasi;
 			else
+			{
+				asi = pasi;
 				goto make_conn;
+			}
 		}
 	}
 
@@ -278,7 +282,7 @@ AsyncStmtInfo *GetAsyncStmtInfoNode(Oid shardid, Oid shardNodeId, bool req_chk_o
 		cur_session.num_asis *= 2;
 	}
 
-	AsyncStmtInfo *asi = cur_session.asis + cur_session.num_asis_used++;
+	asi = cur_session.asis + cur_session.num_asis_used++;
 	Assert(asi->conn == NULL && asi->shard_id == InvalidOid && asi->node_id == InvalidOid);
 make_conn:
 	asi->conn = GetConnShardNode(shardid, shardNodeId, &newconn, req_chk_onfail);
@@ -1888,7 +1892,12 @@ StmtElem *append_async_stmt(AsyncStmtInfo *asi, char *stmt, size_t stmt_len,
 	q->queue[q->end].owns_stmt_mem = owns_stmt_mem;
 	q->queue[q->end].cmd = cmd;
 	q->queue[q->end].sqlcom = sqlcom;
+	/*
+	  In DROP TYPE CASCADE, the type may have a dependent table  which is
+	  also dropped, but DROP TYPE doesn't go through the remote meta logic so
+	  the OP and OBJ types are both generic, mapping no valid sqlcom.
 	Assert(sqlcom != SQLCOM_END);
+	*/
 	return q->queue + q->end++;
 }
 

@@ -51,7 +51,7 @@ def add_shards_to_cluster(mysql_conn_params, cluster_name, config_path, install_
     num_nodes = 0
 
     add_shard_stmt = "insert into shards(name, when_created, num_nodes, db_cluster_id) values(%s, now(), 0, %s)"
-    add_shard_node_stmt = "insert into shard_nodes(hostaddr, port, user_name, passwd, shard_id, db_cluster_id, svr_node_id, master_priority) values(%s, %s, %s, %s, %s, %s, 0,0)"
+    add_shard_node_stmt = "insert into shard_nodes(hostaddr, port, user_name, passwd, shard_id, db_cluster_id, svr_node_id, master_priority) values(%s, %s, %s, %s, %s, %s, 1,0)"
 
     jscfg = []
     nshards = 0

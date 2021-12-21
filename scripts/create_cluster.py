@@ -50,7 +50,7 @@ meta_cursor0.execute("commit")
 print "Step 2. Creating DDL log for " + args.cluster_name
 meta_cursor0.execute("create table ddl_ops_log_" + args.cluster_name + " like ddl_ops_log_template_table")
 print "Step 3. Creating commit log for " + args.cluster_name
-meta_cursor0.execute("create table commit_log_" + args.cluster_name + " like commit_log")
+meta_cursor0.execute("create table commit_log_" + args.cluster_name + " like commit_log_template_table")
 meta_cursor.close()
 meta_cursor0.close()
 meta_conn.close()

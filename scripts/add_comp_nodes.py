@@ -70,7 +70,7 @@ def add_computing_nodes(mysql_conn_params, args, config_path, install_ids, intoS
     meta_cursor0 = meta_conn.cursor(buffered=True, dictionary=True)
 
     # insert computing nodes info into meta-tables.
-    stmt = "insert into comp_nodes(id, name, hostaddr, port, db_cluster_id,user_name,passwd) values(%s, %s, %s, %s, %s, %s, %s)"
+    stmt = "insert into comp_nodes(id, name, hostaddr, port, db_cluster_id,user_name,passwd, svr_node_id) values(%s, %s, %s, %s, %s, %s, %s, 1)"
     idstmt = "insert into comp_nodes_id_seq(id) values(%s)"
     meta_cursor0.execute("start transaction")
 

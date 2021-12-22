@@ -59,6 +59,7 @@ test: create_function_1
 test: create_type
 test: create_table
 test: create_function_2
+test: copy
 test: copyselect
 test: copydml
 test: create_operator

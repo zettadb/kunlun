@@ -109,7 +109,7 @@ copy copytest2 from '/home/kunlun/pgregressdata/results/copytest.csv' csv;
 
 select * from copytest except select * from copytest2;
 
-truncate copytest2;
+--truncate copytest2;
 
 --- same test but with an escape char different from quote char
 
@@ -142,15 +142,14 @@ create table parted_copytest (
 	c text
 ) partition by list (b);
 
-create table parted_copytest_a1 (c text, b int, a int);
-create table parted_copytest_a2 (a int, c text, b int);
-
-alter table parted_copytest attach partition parted_copytest_a1 for values in(1);
-alter table parted_copytest attach partition parted_copytest_a2 for values in(2);
+create table parted_copytest_a1 partition of parted_copytest for values in (1);
+create table parted_copytest_a2 partition of parted_copytest for values in (2);
+--alter table parted_copytest attach partition parted_copytest_a1 for values in(1);
+--alter table parted_copytest attach partition parted_copytest_a2 for values in(2);
 
 -- We must insert enough rows to trigger multi-inserts.  These are only
 -- enabled adaptively when there are few enough partition changes.
-insert into parted_copytest select x,1,'One' from generate_series(1,1000) x;
+insert into parted_copytest select x,1,'One' from generate_series(1,1000) x;	
 insert into parted_copytest select x,2,'Two' from generate_series(1001,1010) x;
 insert into parted_copytest select x,1,'One' from generate_series(1011,1020) x;
 
@@ -158,7 +157,7 @@ copy (select * from parted_copytest order by a) to '/home/kunlun/pgregressdata/r
 
 -- Ensure COPY FREEZE errors for partitioned tables.
 begin;
-truncate parted_copytest;
+--truncate parted_copytest;
 copy parted_copytest from '/home/kunlun/pgregressdata/results/parted_copytest.csv' (freeze);
 rollback;
 

@@ -380,6 +380,8 @@ create table cluster_backups (
 	start_ts timestamp(6) not null,
 	end_ts timestamp(6) not null,
 	name varchar(256), -- a human readable string to identify the backup
+	-- extra info for expanding 
+	memo text default null,
 	backup_addr varchar(1024), -- the root path and/or directory of the backup files.
     FOREIGN KEY (storage_id) references backup_storage(id),
  	FOREIGN KEY (cluster_id) references db_clusters(id)
@@ -399,6 +401,8 @@ create table cluster_shard_backup_restore_log (
 	-- by default NULL and app define place under cluster_backups.backup_addr
 	shard_backup_path varchar(8192) character set latin1,
 	status enum('not_started', 'ongoing', 'done', 'failed') not null default 'not_started',
+	-- extra info for expanding 
+	memo text default null,
 	when_started timestamp(6) not null default current_timestamp(6), -- when the operation was issued
 	when_ended timestamp(6), -- when the operation ended(either done or failed)
 
@@ -420,6 +424,8 @@ create table cluster_general_job_log (
 	cluster_id int unsigned not null,
 	-- an operation's status goes through the 3 phases: not_started -> ongoing -> done/failed
 	status enum ('not_started', 'ongoing', 'done', 'failed') not null default 'not_started',
+	-- extra info for expanding 
+	memo text default null,
 	when_started timestamp(6) not null default current_timestamp(6), -- when the operation was issued
 	when_ended timestamp(6), -- when the operation ended(either done or failed)
 	job_name varchar(256), -- optional, for human checks
@@ -451,6 +457,8 @@ create table table_move_jobs (
 	when_started timestamp(6) not null default current_timestamp(6),
 	when_ended timestamp(6),
 	status enum('not_started', 'dumped', 'transmitted', 'loaded', 'caught_up', 'renamed', 'rerouted', 'done', 'failed') not null default 'not_started',
+	-- extra info for expanding 
+	memo text default null,
  	FOREIGN KEY (src_shard)  references shards(id),
  	FOREIGN KEY (src_shard_node) references shard_nodes(id),
  	FOREIGN KEY (dest_shard)  references shards(id),

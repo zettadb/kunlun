@@ -119,6 +119,12 @@ CREATE TABLE `comp_nodes` (
   `passwd` varchar(16) NOT NULL,
   `status` enum('creating','inactive','active') DEFAULT 'creating',
   `svr_node_id` int unsigned NOT NULL,
+
+  -- resource limits, 0 means unlimited
+  cpu_cores smallint unsigned NOT NULL default 0,
+  max_mem_MB int unsigned NOT NULL default 0,
+  max_conns int unsigned NOT NULL DEFAULT 0,
+
   PRIMARY KEY (db_cluster_id, `id`),
   UNIQUE KEY `cluster_id_name` (db_cluster_id, `name`),
   FOREIGN KEY (db_cluster_id) references db_clusters(id),
@@ -264,6 +270,14 @@ CREATE TABLE `shard_nodes` (
   `when_created` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `master_priority` smallint NOT NULL,
   `status` enum('creating','inactive','active') DEFAULT 'creating',
+
+  -- resource limits, 0 means unlimited
+  cpu_cores smallint unsigned NOT NULL default 0,
+  initial_storage_GB int unsigned NOT NULL default 0,
+  max_storage_GB int unsigned NOT NULL default 0,
+  innodb_buffer_pool_MB int unsigned NOT NULL default 0,
+  rocksdb_buffer_pool_MB int unsigned NOT NULL default 0,
+
   PRIMARY KEY (`id`),
   UNIQUE KEY `hostaddr_port_svrnodeid_uniq` (`hostaddr`(512),`port`,`svr_node_id`),
   FOREIGN KEY (db_cluster_id) references db_clusters(id),

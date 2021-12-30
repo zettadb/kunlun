@@ -125,6 +125,8 @@ CREATE TABLE `comp_nodes` (
   max_mem_MB int unsigned NOT NULL default 0,
   max_conns int unsigned NOT NULL DEFAULT 0,
 
+  extra_props text,
+
   PRIMARY KEY (db_cluster_id, `id`),
   UNIQUE KEY `cluster_id_name` (db_cluster_id, `name`),
   FOREIGN KEY (db_cluster_id) references db_clusters(id),
@@ -200,12 +202,16 @@ CREATE TABLE `server_nodes` (
   `logdir` varchar(8192) character set latin1,
   -- full paths to store wal log dirs of all storage nodes
   `wal_log_dir` varchar(8192) character set latin1,
-  -- `total_storage` bigint unsigned NOT NULL, -- in MBs.
   -- there may be multiple storage devices, detailed stats in server_nodes_stats
+  -- `total_storage` bigint unsigned NOT NULL, -- in MBs.
   `total_mem` int unsigned NOT NULL, -- in MBs
   `total_cpu_cores` int unsigned NOT NULL,
   -- `network_bandwidth` int unsigned NOT NULL, -- in MBps this is often consistent in a DC
+  -- when the server started to be in use
   `svc_since` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  -- the port number the node_mgr on this server is listening on, if not using default one. NULL: using default app defined port.
+  nodemgr_port int,
+  extra_props text,
   PRIMARY KEY (`id`),
   UNIQUE KEY `hostaddr_dcid_uniq` (`hostaddr`(512),`dc_id`),
   FOREIGN KEY (dc_id) references data_centers(id)
@@ -216,7 +222,7 @@ insert into server_nodes(hostaddr, total_mem, total_cpu_cores) values('pseudo_se
 
 
 CREATE TABLE `server_nodes_stats` (
-  `id` int unsigned NOT NULL PRIMARY KEY,
+  `id` int unsigned NOT NULL PRIMARY KEY, -- server node id
    comp_datadir_used int not null default 0, -- in MBs
    comp_datadir_avail int not null, -- in MBs. available space for all storage devices of computing node data dirs
    datadir_used int not null default 0, -- in MBs
@@ -227,6 +233,16 @@ CREATE TABLE `server_nodes_stats` (
    log_dir_avail int not null, -- in MBs
    avg_network_usage_pct int not null default 0,
   FOREIGN KEY (id)  references server_nodes(id)
+)  ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- connectivity statistics between server nodes
+CREATE TABLE `server_nodes_conn_stats` (
+  `id1` int unsigned NOT NULL , -- server node id
+  `id2` int unsigned NOT NULL , -- server node id
+  rtt_us int unsigned NOT NULL , -- round trip time in microsecs
+  time_diff_us bigint unsigned NOT NULL , -- local time difference in microsecs
+  -- app guarantees no pair stored twice.
+  PRIMARY KEY(id1, id2)
 )  ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 --
@@ -244,6 +260,10 @@ CREATE TABLE `shards` (
   `space_volumn` bigint unsigned NOT NULL DEFAULT '0',
   `num_tablets` int unsigned NOT NULL DEFAULT '0',
   `db_cluster_id` int unsigned NOT NULL,
+  -- how many slave ACKs to wait for
+  `sync_num` smallint unsigned NOT NULL default 1,
+  -- extra properties
+  extra_props text,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (db_cluster_id, `name`),
   FOREIGN KEY (db_cluster_id)  references db_clusters(id)
@@ -268,7 +288,7 @@ CREATE TABLE `shard_nodes` (
   `db_cluster_id` int unsigned NOT NULL,
   `svr_node_id` int unsigned NOT NULL,
   `when_created` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `master_priority` smallint NOT NULL,
+  `master_priority` smallint NOT NULL default 1,
   `status` enum('creating','inactive','active') DEFAULT 'creating',
 
   -- resource limits, 0 means unlimited
@@ -278,6 +298,8 @@ CREATE TABLE `shard_nodes` (
   innodb_buffer_pool_MB int unsigned NOT NULL default 0,
   rocksdb_buffer_pool_MB int unsigned NOT NULL default 0,
 
+  -- channel properties, such as channel name, etc.
+  extra_props text,
   PRIMARY KEY (`id`),
   UNIQUE KEY `hostaddr_port_svrnodeid_uniq` (`hostaddr`(512),`port`,`svr_node_id`),
   FOREIGN KEY (db_cluster_id) references db_clusters(id),

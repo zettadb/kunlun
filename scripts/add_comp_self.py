@@ -75,7 +75,7 @@ def add_comp_self(install_path, config_template_file, mysql_conn_params, config_
             # install is not performed here currently, since the meta_config file needs to
             os.system("chmod a+rwx /kunlun/env.sh")
             os.system("chown -R postgres:postgres /pgdatadir")
-            os.system("su postgres -c 'cd /kunlun && . ./env.sh; cd postgresql-11.5-rel/scripts; python2 install_pg.py --config=./%s --install_ids=%d' " % (config_path, maxid))
+            os.system("su postgres -c 'cd /kunlun && . ./env.sh; cd $PG_DIR/scripts; python2 install_pg.py --config=./%s --install_ids=%d' " % (config_path, maxid))
         else:
             install_pg.install_pg(config_template_file, install_path, selfobj)
     conn = checkserver(selfip, args.port, args.user, args.password, 'postgres')
@@ -92,7 +92,7 @@ def add_comp_self(install_path, config_template_file, mysql_conn_params, config_
         if args.docker:
             os.system("sed -i 's/comp_node_id.*=.*/comp_node_id=%d/g' %s/postgresql.conf" % (maxid, args.datadir))
             os.system("su postgres -c 'cd /kunlun && . ./env.sh && pg_ctl -D %s stop -m immediate' " % args.datadir)
-            os.system("su postgres -c 'cd /kunlun && . ./env.sh && cd postgresql-11.5-rel/scripts && python2 start_pg.py port=%d' " % args.port)
+            os.system("su postgres -c 'cd /kunlun && . ./env.sh && cd $PG_DIR/scripts && python2 start_pg.py port=%d' " % args.port)
         else:
             os.system("sed -i 's/comp_node_id.*=.*/comp_node_id=%d/g' %s/postgresql.conf" % (maxid, args.datadir))
             os.system(cmd0 + cmd1 + "pg_ctl -D %s stop -m immediate " % args.datadir)

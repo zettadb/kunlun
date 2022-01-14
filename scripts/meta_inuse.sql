@@ -421,7 +421,7 @@ create table cluster_general_job_log (
 	-- operated on, or NULL of working on a cluster
 	instance_id int unsigned,
 	-- the cluster to work on
-	cluster_id int unsigned not null,
+	cluster_id int unsigned,
 	-- an operation's status goes through the 3 phases: not_started -> ongoing -> done/failed
 	status enum ('not_started', 'ongoing', 'done', 'failed') not null default 'not_started',
 	-- extra info for expanding 

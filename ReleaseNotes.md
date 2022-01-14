@@ -129,7 +129,7 @@ In this release we completed the following features:
 ## kunlun computing node
 ### 1. Sequences
 
-Made PostgreSQL native sequence feature work with Kunlun architecture. A sequence metadata is stored in storage shard meta tables(mysql.sequences), and no matter it's created in which computing nodes, all computing nodes will have the sequence locally and be able to use it efficiently.
+Made PostgreSQL native sequence feature work with Kunlun architecture. A sequence metadata is stored in storage shard meta tables(kunlun_sysdb.sequences), and no matter it's created in which computing nodes, all computing nodes will have the sequence locally and be able to use it efficiently.
 
 All PostgreSQL sequence features are supported including explicit create and use of sequences as well as implicit measures such as serial type, the 'generated as identity' option in 'create table' statement. Also implemented sequence grammar of Oracle and autoincrement grammar of MySQL.
 

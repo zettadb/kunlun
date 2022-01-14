@@ -766,7 +766,7 @@ void do_remote_setval(Relation seqrel, int64 next, bool is_called)
 	  dzw:
 	  if another session bump this seq first, it will always use 'next',
 	  and this could cause reuse of 'next' if is_called is true.
-	  In kunlun-percona's mysql.sequences table we always assume the 'currval'
+	  In kunlun-percona's kunlun_sysdb.sequences table we always assume the 'currval'
 	  is already used, and that's what the 'next' value in
 	  setval('next') and 'RESTART next' is assigned to. so we don't skip another
 	  number here otherwise next+2 is returned as 1st value after the setval() call.

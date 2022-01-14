@@ -1319,7 +1319,7 @@ static void RemoteDatabaseDDL(const char *db, const char *schema, char *cmdbuf,
 	can simply ignore them here because mysql always drops a database cascade
 	so all tables in it are dropped.
 	we only need to drop sequence rows of the target schema from
-	mysql.sequences.
+	kunlun_sysdb.sequences.
 
 	int num_appended = 0;
 	for (Remote_shard_ddl_context *psdc = &g_remote_ddl_ctx.shards; psdc; psdc = psdc->next)
@@ -1349,7 +1349,7 @@ static void RemoteDatabaseDDL(const char *db, const char *schema, char *cmdbuf,
 		*/
 		static char sqlbuf[256];
 		int slen = snprintf(sqlbuf, sizeof(sqlbuf),
-			"delete from mysql.sequences where db %s '%s_%s_%s'",
+			"delete from kunlun_sysdb.sequences where db %s '%s_%s_%s'",
 			(!schema) ? "like" : "=",
 			db, use_mysql_native_seq ? "@0024@0024" : "$$",
 			schema ? schema : "%");
@@ -1498,7 +1498,7 @@ void RemoteCreateSeqStmt(Relation rel, Form_pg_sequence seqform,
 	}
 	else
 	{
-		appendStringInfo(&stmt, "insert into mysql.sequences(db, name, curval, start, step, max_value, min_value, do_cycle, n_cache) values('%s_$$_%s', '%s', %ld, %ld, %ld, %ld, %ld, %d, %ld) ",
+		appendStringInfo(&stmt, "insert into kunlun_sysdb.sequences(db, name, curval, start, step, max_value, min_value, do_cycle, n_cache) values('%s_$$_%s', '%s', %ld, %ld, %ld, %ld, %ld, %d, %ld) ",
 			dbname.data, schemaName.data, rel->rd_rel->relname.data,
 			InvalidSeqVal, seqform->seqstart, seqform->seqincrement,
 			seqform->seqmax, seqform->seqmin, seqform->seqcycle ? 1 : 0,
@@ -1621,7 +1621,7 @@ static void TrackRemoteDropSequence(Relation rel)
 		static NameData dbname, nspname;
 		get_database_name3(MyDatabaseId, &dbname);
 		get_namespace_name3(rel->rd_rel->relnamespace, &nspname);
-		appendStringInfo(str, "%c delete from mysql.sequences where db='%s_$$_%s' and name='%s'", delim,
+		appendStringInfo(str, "%c delete from kunlun_sysdb.sequences where db='%s_$$_%s' and name='%s'", delim,
 			    dbname.data, nspname.data, rel->rd_rel->relname.data);
 	}
 }
@@ -1652,7 +1652,7 @@ void TrackAlterSeq(Relation rel, List *owned_by, RemoteAlterSeq*raseq, bool topl
 
 	if (raseq->update_stmt.len > 0)
 		appendStringInfo(&stmt,
-			"update mysql.sequences set %s where db='%s_%s_%s' and name='%s'",
+			"update kunlun_sysdb.sequences set %s where db='%s_%s_%s' and name='%s'",
 				raseq->update_stmt.data,
 				dbname.data, delim, schemaName.data,
 				rel->rd_rel->relname.data);
@@ -2823,12 +2823,12 @@ void TrackRelationRename(Relation rel, const char*objname, bool isrel)
 		SetRemoteDDLInfo(rel, DDL_OP_Type_rename, DDL_ObjType_seq);
 		if (strncmp(objname, my_name, NAMEDATALEN - 1) == 0) goto skip;
 		if (isrel)
-			appendStringInfo(&rsdc->remote_ddl, "%c update mysql.sequences set name= '%s' where db='%s_%s_%s' and name='%s'",
+			appendStringInfo(&rsdc->remote_ddl, "%c update kunlun_sysdb.sequences set name= '%s' where db='%s_%s_%s' and name='%s'",
 				rsdc->remote_ddl.len > 0 ? ';':' ', objname,dbname,
 				use_mysql_native_seq ? "@0024@0024" : "$$", schemaname,
 				rel->rd_rel->relname.data);
 		else
-			appendStringInfo(&rsdc->remote_ddl, "%c update mysql.sequences set db = '%s_%s_%s' where db='%s_%s_%s' and name='%s'",
+			appendStringInfo(&rsdc->remote_ddl, "%c update kunlun_sysdb.sequences set db = '%s_%s_%s' where db='%s_%s_%s' and name='%s'",
 				rsdc->remote_ddl.len > 0 ? ';':' ', dbname,
 				use_mysql_native_seq ? "@0024@0024" : "$$", objname, dbname,
 				use_mysql_native_seq ? "@0024@0024" : "$$",

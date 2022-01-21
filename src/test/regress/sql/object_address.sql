@@ -26,7 +26,7 @@ CREATE TABLE addr_nsp.parttable (
 	a int PRIMARY KEY
 ) PARTITION BY RANGE (a);
 CREATE VIEW addr_nsp.genview AS SELECT * from addr_nsp.gentable;
-CREATE MATERIALIZED VIEW addr_nsp.genmatview AS SELECT * FROM addr_nsp.gentable;
+--CREATE MATERIALIZED VIEW addr_nsp.genmatview AS SELECT * FROM addr_nsp.gentable;
 CREATE TYPE addr_nsp.gencomptype AS (a int);
 CREATE TYPE addr_nsp.genenum AS ENUM ('one', 'two');
 CREATE FOREIGN TABLE addr_nsp.genftable (a int) SERVER addr_fserv;
@@ -185,14 +185,14 @@ WITH objects (type, name, args) AS (VALUES
 				('subscription', '{addr_sub}', '{}'),
 				('statistics object', '{addr_nsp, gentable_stat}', '{}')
         )
-SELECT (pg_identify_object(addr1.classid, addr1.objid, addr1.objsubid)).*,
+--SELECT (pg_identify_object(addr1.classid, addr1.objid, --addr1.objsubid)).*,
 	-- test roundtrip through pg_identify_object_as_address
-	ROW(pg_identify_object(addr1.classid, addr1.objid, addr1.objsubid)) =
-	ROW(pg_identify_object(addr2.classid, addr2.objid, addr2.objsubid))
-	  FROM objects, pg_get_object_address(type, name, args) addr1,
-			pg_identify_object_as_address(classid, objid, objsubid) ioa(typ,nms,args),
-			pg_get_object_address(typ, nms, ioa.args) as addr2
-	ORDER BY addr1.classid, addr1.objid, addr1.objsubid;
+--	ROW(pg_identify_object(addr1.classid, addr1.objid, addr1.objsubid)) =
+--	ROW(pg_identify_object(addr2.classid, addr2.objid, addr2.objsubid))
+--	  FROM objects, pg_get_object_address(type, name, args) addr1,
+--			pg_identify_object_as_address(classid, objid, objsubid) ioa(typ,nms,args),
+--			pg_get_object_address(typ, nms, ioa.args) as addr2
+--	ORDER BY addr1.classid, addr1.objid, addr1.objsubid;
 
 ---
 --- Cleanup resources
@@ -201,7 +201,7 @@ SELECT (pg_identify_object(addr1.classid, addr1.objid, addr1.objsubid)).*,
 
 DROP FOREIGN DATA WRAPPER addr_fdw CASCADE;
 drop table addr_nsp.parttable cascade;
-drop table addr_nsp.gentable cascade;
+--drop table addr_nsp.gentable cascade;
 DROP SCHEMA addr_nsp CASCADE;
 
 ALTER DEFAULT PRIVILEGES FOR ROLE regress_addr_user IN SCHEMA public REVOKE ALL ON TABLES FROM regress_addr_user;

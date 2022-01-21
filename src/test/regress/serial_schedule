@@ -113,7 +113,7 @@ test: privileges
 test: init_privs
 test: security_label
 test: collate
-test: matview
+# test: matview
 test: lock
 test: replica_identity
 test: rowsecurity

@@ -452,20 +452,15 @@ create table cluster_shard_backup_restore_log (
 -- log them in order to recover from failures halfway.
 create table cluster_general_job_log (
 	id serial primary key,
-	job_type enum('cluster_create', 'cluster_drop', 'comp_node_create', 'comp_node_drop', 'shard_create', 'shard_drop', 'shard_node_create', 'shard_node_drop') not null,
-	-- the computing node id, shard_id or shard_node_id being
-	-- operated on, or NULL of working on a cluster
-	instance_id int unsigned,
-	-- the cluster to work on
-	cluster_id int unsigned,
+	job_id varchar(128) not null,
+	job_type varchar(128) not null,
 	-- an operation's status goes through the 3 phases: not_started -> ongoing -> done/failed
 	status enum ('not_started', 'ongoing', 'done', 'failed') not null default 'not_started',
 	-- extra info for expanding 
 	memo text default null,
 	when_started timestamp(6) not null default current_timestamp(6), -- when the operation was issued
 	when_ended timestamp(6), -- when the operation ended(either done or failed)
-	job_name varchar(256), -- optional, for human checks
- 	FOREIGN KEY (cluster_id) references db_clusters(id)
+	job_info varchar(256) -- optional, for human checks
 ) ENGINE=InnoDB DEFAULT charset=utf8;
 
 -- table move logs, used to recover from broken procedures of a table-move operation.

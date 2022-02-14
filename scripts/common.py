@@ -58,6 +58,7 @@ def mysql_shard_check(shard_conn_params, do_check):
 	prim_node = None
 
 	for node in shard_conn_params:
+		node['use_pure'] = True
 		if do_check:
 			node_mip, node_mport = mysql_node_check(node)
                 else:

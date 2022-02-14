@@ -389,6 +389,7 @@ END ;
 
 create table backup_storage(
 	id int unsigned primary key auto_increment,
+	status enum('inactive','active'),
 	name varchar(256),
 	stype enum('HDFS', 'S3', 'EBS','CEPH', 'OTHER'), -- type of storage service
 	-- connection info
@@ -461,6 +462,13 @@ create table cluster_general_job_log (
 	when_started timestamp(6) not null default current_timestamp(6), -- when the operation was issued
 	when_ended timestamp(6), -- when the operation ended(either done or failed)
 	job_info varchar(256) -- optional, for human checks
+) ENGINE=InnoDB DEFAULT charset=utf8;
+
+-- roll back record for install error
+create table cluster_roll_back_record (
+	id serial primary key,
+	job_id varchar(128) not null,
+	roll_info varchar(512) not null
 ) ENGINE=InnoDB DEFAULT charset=utf8;
 
 -- table move logs, used to recover from broken procedures of a table-move operation.

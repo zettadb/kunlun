@@ -162,8 +162,8 @@ test: indirect_toast
 test: equivclass
 test: plancache
 test: limit
-test: plpgsql
 test: copy2
+test: plpgsql
 test: temp
 # test: domain - domain is supported currently, so skip it.
 test: rangefuncs

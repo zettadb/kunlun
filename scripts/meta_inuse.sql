@@ -461,7 +461,8 @@ create table cluster_general_job_log (
 	memo text default null,
 	when_started timestamp(6) not null default current_timestamp(6), -- when the operation was issued
 	when_ended timestamp(6), -- when the operation ended(either done or failed)
-	job_info varchar(256) -- optional, for human checks
+	job_info varchar(256), -- optional
+	user_name varchar(128) 
 ) ENGINE=InnoDB DEFAULT charset=utf8;
 
 -- roll back record for install error

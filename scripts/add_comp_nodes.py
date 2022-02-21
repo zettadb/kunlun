@@ -64,8 +64,6 @@ def add_computing_nodes(mysql_conn_params, args, config_path, install_ids, intoS
         ha_mode = 0
     elif row[2] == 'mgr':
         ha_mode = 1
-    elif row[2] == 'rbr':
-        ha_mode = 2
 
     meta_cursor0 = meta_conn.cursor(buffered=True, dictionary=True)
 
@@ -161,6 +159,7 @@ if __name__ == '__main__':
     parser.add_argument('--meta_config', type=str, help="metadata cluster config file path")
     parser.add_argument('--cluster_name', type=str)
     parser.add_argument('--targets', type=str, help="target computing nodes to install. e.g. all, or 1,2,3")
+    parser.add_argument('--ha_mode', type=str, default='mgr', choices=['mgr','no_rep'])
 
     args = parser.parse_args()
     install_ids = []
@@ -177,7 +176,7 @@ if __name__ == '__main__':
     meta_jscfg = json.loads(meta_jstr)
 
     mysql_conn_params = {}
-    mysql_conn_params = common.mysql_shard_check(meta_jscfg, len(meta_jscfg) > 1)
+    mysql_conn_params = common.mysql_shard_check(meta_jscfg, args.ha_mode)
     mysql_conn_params['database'] = 'Kunlun_Metadata_DB'
             
     add_computing_nodes(mysql_conn_params, args, args.config, install_ids)

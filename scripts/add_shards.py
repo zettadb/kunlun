@@ -36,7 +36,7 @@ from distutils.util import strtobool
 # { more shard configs like above}
 # ]
 
-def add_shards_to_cluster(mysql_conn_params, cluster_name, config_path, install_names, usemgr):
+def add_shards_to_cluster(mysql_conn_params, cluster_name, config_path, install_names, ha_mode):
     meta_conn = mysql.connector.connect(**mysql_conn_params)
 
     jsconf = open(config_path)
@@ -78,7 +78,7 @@ def add_shards_to_cluster(mysql_conn_params, cluster_name, config_path, install_
     # check storage shard topology and version first.
     for shardcfg in jscfg:
 		# set to False to disable checking master of storage shards if MGR isn't used
-        shard_master = common.mysql_shard_check(shardcfg['shard_nodes'], usemgr)
+        shard_master = common.mysql_shard_check(shardcfg['shard_nodes'], ha_mode)
         masters.append(shard_master)
 
     # add shards info to metadata-cluster tables.
@@ -154,6 +154,7 @@ if __name__ == '__main__':
     parser.add_argument('--meta_config', type=str, help="metadata cluster config file path")
     parser.add_argument('--cluster_name', type=str)
     parser.add_argument('--targets', type=str, help="target shards to install, specified by shard names. If none, add all shards.")
+    parser.add_argument('--ha_mode', type=str, default='mgr', choices=['mgr','no_rep'])
 
     args = parser.parse_args()
     install_names = []
@@ -173,8 +174,7 @@ if __name__ == '__main__':
     meta_jscfg = json.loads(meta_jstr)
     mysql_conn_params = {}
 
-    usemgr = len(meta_jscfg) > 1
-    mysql_conn_params = common.mysql_shard_check(meta_jscfg, usemgr)
+    mysql_conn_params = common.mysql_shard_check(meta_jscfg, args.ha_mode)
     mysql_conn_params['database'] = 'Kunlun_Metadata_DB'
-    num_done = add_shards_to_cluster(mysql_conn_params, args.cluster_name, args.config, install_names, usemgr)
+    num_done = add_shards_to_cluster(mysql_conn_params, args.cluster_name, args.config, install_names, args.ha_mode)
     print "Shard nodes successfully added to cluster {} : {}".format(args.cluster_name, num_done)

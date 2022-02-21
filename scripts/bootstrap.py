@@ -12,6 +12,7 @@ import common
 parser = argparse.ArgumentParser(description='create meta tables and initialize them with meta data.')
 parser.add_argument('--config', type=str, help="meta-data shard config file path")
 parser.add_argument('--bootstrap_sql', type=str, help="path of sql file to create meta-data tables")
+parser.add_argument('--ha_mode', type=str, default='mgr', choices=['mgr','no_rep'])
 
 args = parser.parse_args()
 mysql_conn_params = {
@@ -32,8 +33,7 @@ mysql_conn_params = {
 jsconf = open(args.config)
 jstr = jsconf.read()
 jscfg = json.loads(jstr)
-usemgr = len(jscfg) > 1
-mysql_conn_params = common.mysql_shard_check(jscfg, usemgr)
+mysql_conn_params = common.mysql_shard_check(jscfg, args.ha_mode)
 
 mysql_conn_params['database'] = 'mysql'
 fbootstrap_sql = open(args.bootstrap_sql)

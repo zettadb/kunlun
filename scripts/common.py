@@ -30,14 +30,14 @@ def mysql_version_check(conn, conn_params):
 	print "Node {} version {} check passes.".format(str(conn_params), row[0])
 	csr.close()
 
-def mysql_node_check0(conn_params):
+def mysql_node_check_norep(conn_params):
     conn = connect_mysql(conn_params)
     conn.close()
     return conn_params['ip'], conn_params['port']
 
 # check target mysql node has right version and is in its shard cluster.
 # return its known master's ip&port
-def mysql_node_check(conn_params):
+def mysql_node_check_mgr(conn_params):
 	conn = connect_mysql(conn_params)
 	mysql_version_check(conn, conn_params)
 
@@ -52,17 +52,17 @@ def mysql_node_check(conn_params):
 
 # make sure all nodes are in the same shard and has the same master node
 # return the master node params suitable for mysql connection
-def mysql_shard_check(shard_conn_params, do_check):
+def mysql_shard_check(shard_conn_params, ha_mode):
 	cur_prim_ip = ''
 	cur_prim_port = 0
 	prim_node = None
 
 	for node in shard_conn_params:
 		node['use_pure'] = True
-		if do_check:
-			node_mip, node_mport = mysql_node_check(node)
+		if ha_mode == 'mgr':
+			node_mip, node_mport = mysql_node_check_mgr(node)
                 else:
-			node_mip, node_mport = mysql_node_check0(node)
+			node_mip, node_mport = mysql_node_check_norep(node)
 		if cur_prim_port == 0:
 			cur_prim_ip = node_mip
 			cur_prim_port = node_mport
@@ -79,19 +79,18 @@ def mysql_shard_check(shard_conn_params, do_check):
 	del prim_node['ip']
 	return prim_node
 
-
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='test functions in this file')
 	parser.add_argument('--config', help="shard config file path")
 	parser.add_argument('--meta_config', type=str, help="metadata cluster config file path")
+        parser.add_argument('--ha_mode', type=str, default='mgr', choices=['mgr','no_rep'])
 
 	args = parser.parse_args()
 
 	meta_jsconf = open(args.meta_config)
 	meta_jstr = meta_jsconf.read()
 	meta_jscfg = json.loads(meta_jstr)
-	usemgr = len(meta_jscfg) > 1
-	mysql_conn_params = mysql_shard_check(meta_jscfg, usemgr)
+	mysql_conn_params = mysql_shard_check(meta_jscfg, args.ha_mode)
 	print "Meta shard primary node: {}".format(str(mysql_conn_params))
 
 	jsconf = open(args.config)
@@ -99,6 +98,6 @@ if __name__ == '__main__':
 	jscfg = json.loads(jstr)
 
 	for shardcfg in jscfg:
-		mysql_conn_params = mysql_shard_check(shardcfg['shard_nodes'], usemgr)
+		mysql_conn_params = mysql_shard_check(shardcfg['shard_nodes'], args.ha_mode)
 		print "Shard {} primary node: {}".format(shardcfg['shard_name'], str(mysql_conn_params))
 

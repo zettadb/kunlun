@@ -12,12 +12,12 @@ insert into t1 values(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14
 select*from t1;
 select a from t1 where a between 3 and 11;
 select * from t1 where a in (3,7,11, 13);
-update t1 set a=a+1 where a > 1 and a < 5;
+--update t1 set a=a+1 where a > 1 and a < 5;
 delete from t1 where a %5=0;
 select * from t1 where a %5=0;
 select*from t1;
 
-start transaction;
+--start transaction;
 delete from t1 where a > 10;
 select*from t1;
 create table tfail(a int);
@@ -25,7 +25,7 @@ delete from t1;
 select*from t1;
 commit;
 
-start transaction;
+--start transaction;
 delete from t1;
 select*from t1;
 rollback;
@@ -33,7 +33,7 @@ select*from t1;
 
 drop table if exists t2;
 create table t2(a int primary key, b timestamptz default now(), c varchar(32) default 'xyz');
-start transaction;
+--start transaction;
 insert into t2 values(1) returning *;
 insert into t2 values(8, NULL, 'xxx'),(9, NULL, NULL) returning *;
 insert into t2 values(10, now(), 'abc'),(11, '2006-06-02 13:36:35+08', '你好');

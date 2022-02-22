@@ -314,6 +314,15 @@ SELECT x, sum(y), avg(y), count(*) FROM pagg_tab_para GROUP BY x HAVING avg(y) <
 
 
 --Crash when select count(*) from a partition table #439
+
+drop table if exists t1;
+create table t1(a int, b int) partition by list(a);
+create table t11 partition of t1 for values in (1,2,3,4);
+create table t12 partition of t1 for values in (5,6,7,8);
+select count(*) from t1;
+select count(*) from t11;
+select count(*) from t12;
+
 drop table if exists t1;
 create table t1(a int, b int) partition by list(a);
 create table t11 partition of t1 for values in (1,2,3,4);

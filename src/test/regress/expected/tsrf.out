@@ -43,7 +43,7 @@ SELECT generate_series(1, generate_series(1, 3));
 
 -- but we've traditionally rejected the same in FROM
 SELECT * FROM generate_series(1, generate_series(1, 3));
-ERROR:  set-returning functions must appear at top level of FROM
+psql:sql/tsrf.sql:18: ERROR:  set-returning functions must appear at top level of FROM
 LINE 1: SELECT * FROM generate_series(1, generate_series(1, 3));
                                          ^
 -- srf, with two SRF arguments
@@ -82,7 +82,9 @@ SELECT generate_series(1, generate_series(1, 3)), generate_series(2, 4);
 (6 rows)
 
 CREATE TABLE few(id int, dataa text, datab text);
+CREATE TABLE
 INSERT INTO few VALUES(1, 'a', 'foo'),(2, 'a', 'bar'),(3, 'b', 'bar');
+INSERT 0 3
 -- SRF with a provably-dummy relation
 explain (verbose, costs off)
 SELECT unnest(ARRAY[1, 2]) FROM few WHERE false;
@@ -177,6 +179,7 @@ SELECT few.id FROM few ORDER BY id, generate_series(1,3) DESC;
 
 -- SRFs are computed after aggregation
 SET enable_hashagg TO 0; -- stable output order
+SET
 SELECT few.dataa, count(*), min(id), max(id), unnest('{1,1,3}'::int[]) FROM few WHERE few.id = 1 GROUP BY few.dataa;
  dataa | count | min | max | unnest 
 -------+-------+-----+-----+--------
@@ -201,6 +204,7 @@ SELECT few.dataa, count(*), min(id), max(id), unnest('{1,1,3}'::int[]) FROM few 
 (2 rows)
 
 RESET enable_hashagg;
+RESET
 -- check HAVING works when GROUP BY does [not] reference SRF output
 SELECT dataa, generate_series(1,1), count(*) FROM few GROUP BY 1 HAVING count(*) > 1;
  dataa | generate_series | count 
@@ -230,18 +234,18 @@ SELECT few.dataa, count(*) FROM few WHERE dataa = 'a' GROUP BY few.dataa, unnest
 
 -- SRFs are not allowed if they'd need to be conditionally executed
 SELECT q1, case when q1 > 0 then generate_series(1,3) else 0 end FROM int8_tbl;
-ERROR:  set-returning functions are not allowed in CASE
+psql:sql/tsrf.sql:70: ERROR:  set-returning functions are not allowed in CASE
 LINE 1: SELECT q1, case when q1 > 0 then generate_series(1,3) else 0...
                                          ^
 HINT:  You might be able to move the set-returning function into a LATERAL FROM item.
 SELECT q1, coalesce(generate_series(1,3), 0) FROM int8_tbl;
-ERROR:  set-returning functions are not allowed in COALESCE
+psql:sql/tsrf.sql:71: ERROR:  set-returning functions are not allowed in COALESCE
 LINE 1: SELECT q1, coalesce(generate_series(1,3), 0) FROM int8_tbl;
                             ^
 HINT:  You might be able to move the set-returning function into a LATERAL FROM item.
 -- SRFs are not allowed in aggregate arguments
 SELECT min(generate_series(1, 3)) FROM few;
-ERROR:  aggregate function calls cannot contain set-returning function calls
+psql:sql/tsrf.sql:74: ERROR:  aggregate function calls cannot contain set-returning function calls
 LINE 1: SELECT min(generate_series(1, 3)) FROM few;
                    ^
 HINT:  You might be able to move the set-returning function into a LATERAL FROM item.
@@ -261,7 +265,7 @@ SELECT sum((3 = ANY(SELECT lag(x) over(order by x)
 
 -- SRFs are not allowed in window function arguments, either
 SELECT min(generate_series(1, 3)) OVER() FROM few;
-ERROR:  window function calls cannot contain set-returning function calls
+psql:sql/tsrf.sql:83: ERROR:  window function calls cannot contain set-returning function calls
 LINE 1: SELECT min(generate_series(1, 3)) OVER() FROM few;
                    ^
 HINT:  You might be able to move the set-returning function into a LATERAL FROM item.
@@ -303,6 +307,7 @@ SELECT few.dataa, count(*), min(id), max(id), generate_series(1,3) FROM few GROU
 
 -- grouping sets are a bit special, they produce NULLs in columns not actually NULL
 set enable_hashagg = false;
+SET
 SELECT dataa, datab b, generate_series(1,2) g, count(*) FROM few GROUP BY CUBE(dataa, datab);
  dataa |  b  | g | count 
 -------+-----+---+-------
@@ -454,16 +459,18 @@ SELECT dataa, datab b, generate_series(1,2) g, count(*) FROM few GROUP BY CUBE(d
 (24 rows)
 
 reset enable_hashagg;
+RESET
 -- case with degenerate ORDER BY
 explain (verbose, costs off)
 select 'foo' as f, generate_series(1,2) as g from few order by 1;
-                  QUERY PLAN                  
-----------------------------------------------
+                                               QUERY PLAN                                                
+---------------------------------------------------------------------------------------------------------
  ProjectSet
    Output: 'foo'::text, generate_series(1, 2)
-   ->  Seq Scan on public.few
+   ->  RemoteScan on public.few
          Output: id, dataa, datab
-(4 rows)
+         Shard: 1        Remote SQL: select  few.id, few.dataa, few.datab from regress_$$_public.few few
+(5 rows)
 
 select 'foo' as f, generate_series(1,2) as g from few order by 1;
   f  | g 
@@ -477,8 +484,15 @@ select 'foo' as f, generate_series(1,2) as g from few order by 1;
 (6 rows)
 
 -- data modification
-CREATE TABLE fewmore AS SELECT generate_series(1,3) AS data;
+DROP TABLE if exists fewmore;
+psql:sql/tsrf.sql:109: NOTICE:  table "fewmore" does not exist, skipping
+DROP TABLE
+CREATE TABLE fewmore(data int);
+CREATE TABLE
+INSERT INTO fewmore SELECT generate_series(1,3) AS data;
+INSERT 0 3
 INSERT INTO fewmore VALUES(generate_series(4,5));
+INSERT 0 2
 SELECT * FROM fewmore;
  data 
 ------
@@ -491,17 +505,17 @@ SELECT * FROM fewmore;
 
 -- SRFs are not allowed in UPDATE (they once were, but it was nonsense)
 UPDATE fewmore SET data = generate_series(4,9);
-ERROR:  set-returning functions are not allowed in UPDATE
+psql:sql/tsrf.sql:116: ERROR:  set-returning functions are not allowed in UPDATE
 LINE 1: UPDATE fewmore SET data = generate_series(4,9);
                                   ^
 -- SRFs are not allowed in RETURNING
 INSERT INTO fewmore VALUES(1) RETURNING generate_series(1,3);
-ERROR:  set-returning functions are not allowed in RETURNING
+psql:sql/tsrf.sql:119: ERROR:  set-returning functions are not allowed in RETURNING
 LINE 1: INSERT INTO fewmore VALUES(1) RETURNING generate_series(1,3)...
                                                 ^
 -- nor standalone VALUES (but surely this is a bug?)
 VALUES(1, generate_series(1,2));
-ERROR:  set-returning functions are not allowed in VALUES
+psql:sql/tsrf.sql:122: ERROR:  set-returning functions are not allowed in VALUES
 LINE 1: VALUES(1, generate_series(1,2));
                   ^
 -- We allow tSRFs that are not at top level
@@ -522,7 +536,7 @@ SELECT generate_series(1,3) IS DISTINCT FROM 2;
 
 -- but SRFs in function RTEs must be at top level (annoying restriction)
 SELECT * FROM int4mul(generate_series(1,2), 10);
-ERROR:  set-returning functions must appear at top level of FROM
+psql:sql/tsrf.sql:129: ERROR:  set-returning functions must appear at top level of FROM
 LINE 1: SELECT * FROM int4mul(generate_series(1,2), 10);
                               ^
 -- DISTINCT ON is evaluated before tSRF evaluation if SRF is not
@@ -612,7 +626,7 @@ SELECT a, generate_series(1,2) FROM (VALUES(1),(2),(3)) r(a) LIMIT 2 OFFSET 2;
 
 -- SRFs are not allowed in LIMIT.
 SELECT 1 LIMIT generate_series(1,3);
-ERROR:  set-returning functions are not allowed in LIMIT
+psql:sql/tsrf.sql:161: ERROR:  set-returning functions are not allowed in LIMIT
 LINE 1: SELECT 1 LIMIT generate_series(1,3);
                        ^
 -- tSRF in correlated subquery, referencing table outside
@@ -636,6 +650,7 @@ SELECT (SELECT generate_series(1,3) LIMIT 1 OFFSET g.i) FROM generate_series(0,3
 
 -- Operators can return sets too
 CREATE OPERATOR |@| (PROCEDURE = unnest, RIGHTARG = ANYARRAY);
+CREATE OPERATOR
 SELECT |@|ARRAY[1,2,3];
  ?column? 
 ----------
@@ -709,4 +724,6 @@ select generate_series(1,3) as x, generate_series(3,6) + 1 as y;
 
 -- Clean up
 DROP TABLE few;
+DROP TABLE
 DROP TABLE fewmore;
+DROP TABLE

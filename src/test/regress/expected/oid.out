@@ -2,56 +2,66 @@
 -- OID
 --
 drop table if exists OID_TBL;
-NOTICE:  table "oid_tbl" does not exist, skipping
+psql:sql/oid.sql:5: NOTICE:  table "oid_tbl" does not exist, skipping
+DROP TABLE
 CREATE TABLE OID_TBL(f1 oid);
+CREATE TABLE
 INSERT INTO OID_TBL(f1) VALUES ('1234');
+INSERT 0 1
 INSERT INTO OID_TBL(f1) VALUES ('1235');
+INSERT 0 1
 INSERT INTO OID_TBL(f1) VALUES ('987');
+INSERT 0 1
 INSERT INTO OID_TBL(f1) VALUES ('-1040');
+INSERT 0 1
 INSERT INTO OID_TBL(f1) VALUES ('99999999');
+INSERT 0 1
 INSERT INTO OID_TBL(f1) VALUES ('5     ');
+INSERT 0 1
 INSERT INTO OID_TBL(f1) VALUES ('   10  ');
+INSERT 0 1
 -- leading/trailing hard tab is also allowed
 INSERT INTO OID_TBL(f1) VALUES ('	  15 	  ');
+INSERT 0 1
 -- bad inputs
 INSERT INTO OID_TBL(f1) VALUES ('');
-ERROR:  invalid input syntax for type oid: ""
+psql:sql/oid.sql:19: ERROR:  invalid input syntax for type oid: ""
 LINE 1: INSERT INTO OID_TBL(f1) VALUES ('');
                                         ^
 INSERT INTO OID_TBL(f1) VALUES ('    ');
-ERROR:  invalid input syntax for type oid: "    "
+psql:sql/oid.sql:20: ERROR:  invalid input syntax for type oid: "    "
 LINE 1: INSERT INTO OID_TBL(f1) VALUES ('    ');
                                         ^
 INSERT INTO OID_TBL(f1) VALUES ('asdfasd');
-ERROR:  invalid input syntax for type oid: "asdfasd"
+psql:sql/oid.sql:21: ERROR:  invalid input syntax for type oid: "asdfasd"
 LINE 1: INSERT INTO OID_TBL(f1) VALUES ('asdfasd');
                                         ^
 INSERT INTO OID_TBL(f1) VALUES ('99asdfasd');
-ERROR:  invalid input syntax for type oid: "99asdfasd"
+psql:sql/oid.sql:22: ERROR:  invalid input syntax for type oid: "99asdfasd"
 LINE 1: INSERT INTO OID_TBL(f1) VALUES ('99asdfasd');
                                         ^
 INSERT INTO OID_TBL(f1) VALUES ('5    d');
-ERROR:  invalid input syntax for type oid: "5    d"
+psql:sql/oid.sql:23: ERROR:  invalid input syntax for type oid: "5    d"
 LINE 1: INSERT INTO OID_TBL(f1) VALUES ('5    d');
                                         ^
 INSERT INTO OID_TBL(f1) VALUES ('    5d');
-ERROR:  invalid input syntax for type oid: "    5d"
+psql:sql/oid.sql:24: ERROR:  invalid input syntax for type oid: "    5d"
 LINE 1: INSERT INTO OID_TBL(f1) VALUES ('    5d');
                                         ^
 INSERT INTO OID_TBL(f1) VALUES ('5    5');
-ERROR:  invalid input syntax for type oid: "5    5"
+psql:sql/oid.sql:25: ERROR:  invalid input syntax for type oid: "5    5"
 LINE 1: INSERT INTO OID_TBL(f1) VALUES ('5    5');
                                         ^
 INSERT INTO OID_TBL(f1) VALUES (' - 500');
-ERROR:  invalid input syntax for type oid: " - 500"
+psql:sql/oid.sql:26: ERROR:  invalid input syntax for type oid: " - 500"
 LINE 1: INSERT INTO OID_TBL(f1) VALUES (' - 500');
                                         ^
 INSERT INTO OID_TBL(f1) VALUES ('32958209582039852935');
-ERROR:  value "32958209582039852935" is out of range for type oid
+psql:sql/oid.sql:27: ERROR:  value "32958209582039852935" is out of range for type oid
 LINE 1: INSERT INTO OID_TBL(f1) VALUES ('32958209582039852935');
                                         ^
 INSERT INTO OID_TBL(f1) VALUES ('-23582358720398502385');
-ERROR:  value "-23582358720398502385" is out of range for type oid
+psql:sql/oid.sql:28: ERROR:  value "-23582358720398502385" is out of range for type oid
 LINE 1: INSERT INTO OID_TBL(f1) VALUES ('-23582358720398502385');
                                         ^
 SELECT '' AS six, * FROM OID_TBL;
@@ -122,3 +132,4 @@ SELECT '' AS three, o.* FROM OID_TBL o WHERE o.f1 > '1234';
 (3 rows)
 
 DROP TABLE OID_TBL;
+DROP TABLE

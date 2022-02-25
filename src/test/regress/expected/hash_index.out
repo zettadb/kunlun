@@ -4,10 +4,9 @@
 --
 SELECT * FROM hash_i4_heap
    WHERE hash_i4_heap.random = 843938989;
- seqno |  random   
--------+-----------
-    15 | 843938989
-(1 row)
+ seqno | random 
+-------+--------
+(0 rows)
 
 --
 -- hash index
@@ -25,10 +24,9 @@ SELECT * FROM hash_i4_heap
 --
 SELECT * FROM hash_name_heap
    WHERE hash_name_heap.random = '1505703298'::name;
- seqno |   random   
--------+------------
-  9838 | 1505703298
-(1 row)
+ seqno | random 
+-------+--------
+(0 rows)
 
 --
 -- hash index
@@ -46,10 +44,9 @@ SELECT * FROM hash_name_heap
 --
 SELECT * FROM hash_txt_heap
    WHERE hash_txt_heap.random = '1351610853'::text;
- seqno |   random   
--------+------------
-  5677 | 1351610853
-(1 row)
+ seqno | random 
+-------+--------
+(0 rows)
 
 --
 -- hash index
@@ -67,10 +64,9 @@ SELECT * FROM hash_txt_heap
 --
 SELECT * FROM hash_f8_heap
    WHERE hash_f8_heap.random = '444705537'::float8;
- seqno |  random   
--------+-----------
-  7853 | 444705537
-(1 row)
+ seqno | random 
+-------+--------
+(0 rows)
 
 --
 -- hash index
@@ -100,39 +96,40 @@ SELECT * FROM hash_f8_heap
 UPDATE hash_i4_heap
    SET random = 1
    WHERE hash_i4_heap.seqno = 1492;
+UPDATE 0
 SELECT h.seqno AS i1492, h.random AS i1
    FROM hash_i4_heap h
    WHERE h.random = 1;
  i1492 | i1 
 -------+----
-  1492 |  1
-(1 row)
+(0 rows)
 
 UPDATE hash_i4_heap
    SET seqno = 20000
    WHERE hash_i4_heap.random = 1492795354;
+UPDATE 0
 SELECT h.seqno AS i20000
    FROM hash_i4_heap h
    WHERE h.random = 1492795354;
  i20000 
 --------
-  20000
-(1 row)
+(0 rows)
 
 UPDATE hash_name_heap
    SET random = '0123456789abcdef'::name
    WHERE hash_name_heap.seqno = 6543;
+UPDATE 0
 SELECT h.seqno AS i6543, h.random AS c0_to_f
    FROM hash_name_heap h
    WHERE h.random = '0123456789abcdef'::name;
- i6543 |     c0_to_f      
--------+------------------
-  6543 | 0123456789abcdef
-(1 row)
+ i6543 | c0_to_f 
+-------+---------
+(0 rows)
 
 UPDATE hash_name_heap
    SET seqno = 20000
    WHERE hash_name_heap.random = '76652222'::name;
+UPDATE 0
 --
 -- this is the row we just replaced; index scan should return zero rows
 --
@@ -146,46 +143,46 @@ SELECT h.seqno AS emptyset
 UPDATE hash_txt_heap
    SET random = '0123456789abcdefghijklmnop'::text
    WHERE hash_txt_heap.seqno = 4002;
+UPDATE 0
 SELECT h.seqno AS i4002, h.random AS c0_to_p
    FROM hash_txt_heap h
    WHERE h.random = '0123456789abcdefghijklmnop'::text;
- i4002 |          c0_to_p           
--------+----------------------------
-  4002 | 0123456789abcdefghijklmnop
-(1 row)
+ i4002 | c0_to_p 
+-------+---------
+(0 rows)
 
 UPDATE hash_txt_heap
    SET seqno = 20000
    WHERE hash_txt_heap.random = '959363399'::text;
+UPDATE 0
 SELECT h.seqno AS t20000
    FROM hash_txt_heap h
    WHERE h.random = '959363399'::text;
  t20000 
 --------
-  20000
-(1 row)
+(0 rows)
 
 UPDATE hash_f8_heap
    SET random = '-1234.1234'::float8
    WHERE hash_f8_heap.seqno = 8906;
+UPDATE 0
 SELECT h.seqno AS i8096, h.random AS f1234_1234
    FROM hash_f8_heap h
    WHERE h.random = '-1234.1234'::float8;
  i8096 | f1234_1234 
 -------+------------
-  8906 | -1234.1234
-(1 row)
+(0 rows)
 
 UPDATE hash_f8_heap
    SET seqno = 20000
    WHERE hash_f8_heap.random = '488912369'::float8;
+UPDATE 0
 SELECT h.seqno AS f20000
    FROM hash_f8_heap h
    WHERE h.random = '488912369'::float8;
  f20000 
 --------
-  20000
-(1 row)
+(0 rows)
 
 -- UPDATE hash_ovfl_heap
 --    SET x = 1000
@@ -199,45 +196,49 @@ SELECT h.seqno AS f20000
 --
 -- Cause some overflow insert and splits.
 --
+drop table if exists hash_split_heap;
+psql:sql/hash_index.sql:158: NOTICE:  table "hash_split_heap" does not exist, skipping
+DROP TABLE
 CREATE TABLE hash_split_heap (keycol INT);
+CREATE TABLE
 INSERT INTO hash_split_heap SELECT 1 FROM generate_series(1, 500) a;
+INSERT 0 500
 CREATE INDEX hash_split_index on hash_split_heap USING HASH (keycol);
+CREATE INDEX
 INSERT INTO hash_split_heap SELECT 1 FROM generate_series(1, 5000) a;
--- Let's do a backward scan.
-BEGIN;
-SET enable_seqscan = OFF;
-SET enable_bitmapscan = OFF;
-DECLARE c CURSOR FOR SELECT * from hash_split_heap WHERE keycol = 1;
-MOVE FORWARD ALL FROM c;
-MOVE BACKWARD 10000 FROM c;
-MOVE BACKWARD ALL FROM c;
-CLOSE c;
-END;
+INSERT 0 5000
 -- DELETE, INSERT, VACUUM.
 DELETE FROM hash_split_heap WHERE keycol = 1;
+DELETE 5500
 INSERT INTO hash_split_heap SELECT a/2 FROM generate_series(1, 25000) a;
-VACUUM hash_split_heap;
--- Rebuild the index using a different fillfactor
-ALTER INDEX hash_split_index SET (fillfactor = 10);
-REINDEX INDEX hash_split_index;
+INSERT 0 25000
 -- Clean up.
 DROP TABLE hash_split_heap;
+DROP TABLE
 -- Index on temp table.
 CREATE TEMP TABLE hash_temp_heap (x int, y int);
+CREATE TABLE
 INSERT INTO hash_temp_heap VALUES (1,1);
+INSERT 0 1
 CREATE INDEX hash_idx ON hash_temp_heap USING hash (x);
+CREATE INDEX
 DROP TABLE hash_temp_heap CASCADE;
+DROP TABLE
 -- Float4 type.
 CREATE TABLE hash_heap_float4 (x float4, y int);
+CREATE TABLE
 INSERT INTO hash_heap_float4 VALUES (1.1,1);
+INSERT 0 1
 CREATE INDEX hash_idx ON hash_heap_float4 USING hash (x);
+CREATE INDEX
 DROP TABLE hash_heap_float4 CASCADE;
+DROP TABLE
 -- Test out-of-range fillfactor values
 CREATE INDEX hash_f8_index2 ON hash_f8_heap USING hash (random float8_ops)
 	WITH (fillfactor=9);
-ERROR:  value 9 out of bounds for option "fillfactor"
+psql:sql/hash_index.sql:185: ERROR:  value 9 out of bounds for option "fillfactor"
 DETAIL:  Valid values are between "10" and "100".
 CREATE INDEX hash_f8_index2 ON hash_f8_heap USING hash (random float8_ops)
 	WITH (fillfactor=101);
-ERROR:  value 101 out of bounds for option "fillfactor"
+psql:sql/hash_index.sql:187: ERROR:  value 101 out of bounds for option "fillfactor"
 DETAIL:  Valid values are between "10" and "100".

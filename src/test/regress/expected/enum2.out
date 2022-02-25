@@ -1,8 +1,12 @@
 create type vihicles as enum ('car', 'suv', 'truck', 'mpv', 'wagon', 'hatchback');
+CREATE TYPE
 drop table if exists tvehicles;
-NOTICE:  table "tvehicles" does not exist, skipping
+psql:sql/enum2.sql:2: NOTICE:  table "tvehicles" does not exist, skipping
+DROP TABLE
 create table tvehicles (a int, b vihicles);
+CREATE TABLE
 insert into tvehicles values(1, 'car'),(2, 'suv'),(3, 'truck'),(4, 'hatchback'),(5, 'mpv'), (6, 'wagon');
+INSERT 0 6
 select*from tvehicles;
  a |     b     
 ---+-----------
@@ -48,7 +52,8 @@ select*from tvehicles where b='suv';
 (1 row)
 
 update tvehicles set b='mpv' where b='truck';
-select*from tvehicles;
+UPDATE 1
+select*from tvehicles order by a;
  a |     b     
 ---+-----------
  1 | car
@@ -60,6 +65,7 @@ select*from tvehicles;
 (6 rows)
 
 delete from tvehicles where b='mpv';
+DELETE 2
 select*from tvehicles;
  a |     b     
 ---+-----------
@@ -70,6 +76,7 @@ select*from tvehicles;
 (4 rows)
 
 delete from tvehicles where b='suv';
+DELETE 1
 select*from tvehicles;
  a |     b     
 ---+-----------
@@ -79,6 +86,7 @@ select*from tvehicles;
 (3 rows)
 
 update tvehicles set b='mpv';
+UPDATE 3
 select*from tvehicles;
  a |  b  
 ---+-----

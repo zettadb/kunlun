@@ -103,44 +103,44 @@ SELECT size, pg_size_bytes(size) FROM
 
 -- invalid inputs
 SELECT pg_size_bytes('1 AB');
-ERROR:  invalid size: "1 AB"
+psql:sql/dbsize.sql:34: ERROR:  invalid size: "1 AB"
 DETAIL:  Invalid size unit: "AB".
 HINT:  Valid units are "bytes", "kB", "MB", "GB", and "TB".
 SELECT pg_size_bytes('1 AB A');
-ERROR:  invalid size: "1 AB A"
+psql:sql/dbsize.sql:35: ERROR:  invalid size: "1 AB A"
 DETAIL:  Invalid size unit: "AB A".
 HINT:  Valid units are "bytes", "kB", "MB", "GB", and "TB".
 SELECT pg_size_bytes('1 AB A    ');
-ERROR:  invalid size: "1 AB A    "
+psql:sql/dbsize.sql:36: ERROR:  invalid size: "1 AB A    "
 DETAIL:  Invalid size unit: "AB A".
 HINT:  Valid units are "bytes", "kB", "MB", "GB", and "TB".
 SELECT pg_size_bytes('9223372036854775807.9');
-ERROR:  bigint out of range
+psql:sql/dbsize.sql:37: ERROR:  bigint out of range
 SELECT pg_size_bytes('1e100');
-ERROR:  bigint out of range
+psql:sql/dbsize.sql:38: ERROR:  bigint out of range
 SELECT pg_size_bytes('1e1000000000000000000');
-ERROR:  value overflows numeric format
+psql:sql/dbsize.sql:39: ERROR:  value overflows numeric format
 SELECT pg_size_bytes('1 byte');  -- the singular "byte" is not supported
-ERROR:  invalid size: "1 byte"
+psql:sql/dbsize.sql:40: ERROR:  invalid size: "1 byte"
 DETAIL:  Invalid size unit: "byte".
 HINT:  Valid units are "bytes", "kB", "MB", "GB", and "TB".
 SELECT pg_size_bytes('');
-ERROR:  invalid size: ""
+psql:sql/dbsize.sql:41: ERROR:  invalid size: ""
 SELECT pg_size_bytes('kb');
-ERROR:  invalid size: "kb"
+psql:sql/dbsize.sql:43: ERROR:  invalid size: "kb"
 SELECT pg_size_bytes('..');
-ERROR:  invalid size: ".."
+psql:sql/dbsize.sql:44: ERROR:  invalid size: ".."
 SELECT pg_size_bytes('-.');
-ERROR:  invalid size: "-."
+psql:sql/dbsize.sql:45: ERROR:  invalid size: "-."
 SELECT pg_size_bytes('-.kb');
-ERROR:  invalid size: "-.kb"
+psql:sql/dbsize.sql:46: ERROR:  invalid size: "-.kb"
 SELECT pg_size_bytes('-. kb');
-ERROR:  invalid size: "-. kb"
+psql:sql/dbsize.sql:47: ERROR:  invalid size: "-. kb"
 SELECT pg_size_bytes('.+912');
-ERROR:  invalid size: ".+912"
+psql:sql/dbsize.sql:49: ERROR:  invalid size: ".+912"
 SELECT pg_size_bytes('+912+ kB');
-ERROR:  invalid size: "+912+ kB"
+psql:sql/dbsize.sql:50: ERROR:  invalid size: "+912+ kB"
 DETAIL:  Invalid size unit: "+ kB".
 HINT:  Valid units are "bytes", "kB", "MB", "GB", and "TB".
 SELECT pg_size_bytes('++123 kB');
-ERROR:  invalid size: "++123 kB"
+psql:sql/dbsize.sql:51: ERROR:  invalid size: "++123 kB"

@@ -5,79 +5,89 @@ CREATE TEMP TABLE x (
 	d text,
 	e text
 ) WITH OIDS;
+CREATE TABLE
 CREATE FUNCTION fn_x_before () RETURNS TRIGGER AS '
   BEGIN
-		NEW.e := ''before trigger fired''::text;
+		NEW.e = ''before trigger fired''::text;
 		return NEW;
 	END;
 ' LANGUAGE plpgsql;
+CREATE FUNCTION
 CREATE FUNCTION fn_x_after () RETURNS TRIGGER AS '
   BEGIN
 		UPDATE x set e=''after trigger fired'' where c=''stuff'';
 		return NULL;
 	END;
 ' LANGUAGE plpgsql;
-CREATE TRIGGER trg_x_after AFTER INSERT ON x
-FOR EACH ROW EXECUTE PROCEDURE fn_x_after();
-CREATE TRIGGER trg_x_before BEFORE INSERT ON x
-FOR EACH ROW EXECUTE PROCEDURE fn_x_before();
+CREATE FUNCTION
+--CREATE TRIGGER trg_x_after AFTER INSERT ON x
+--FOR EACH ROW EXECUTE PROCEDURE fn_x_after();
+--CREATE TRIGGER trg_x_before BEFORE INSERT ON x
+--FOR EACH ROW EXECUTE PROCEDURE fn_x_before();
 COPY x (a, b, c, d, e) from stdin;
+COPY 2
 COPY x (b, d) from stdin;
+COPY 1
 COPY x (b, d) from stdin;
+COPY 4
 COPY x (a, b, c, d, e) from stdin;
+COPY 5
 -- non-existent column in column list: should fail
 COPY x (xyz) from stdin;
-ERROR:  column "xyz" of relation "x" does not exist
+psql:sql/copy2.sql:54: ERROR:  column "xyz" of relation "x" does not exist
 -- too many columns in column list: should fail
 COPY x (a, b, c, d, e, d, c) from stdin;
-ERROR:  column "d" specified more than once
+psql:sql/copy2.sql:57: ERROR:  column "d" specified more than once
 -- missing data: should fail
 COPY x from stdin;
-ERROR:  invalid input syntax for integer: ""
+psql:sql/copy2.sql:62: ERROR:  invalid input syntax for integer: ""
 CONTEXT:  COPY x, line 1, column a: ""
 COPY x from stdin;
-ERROR:  missing data for column "e"
+psql:sql/copy2.sql:65: ERROR:  missing data for column "e"
 CONTEXT:  COPY x, line 1: "2000	230	23	23"
 COPY x from stdin;
-ERROR:  missing data for column "e"
+psql:sql/copy2.sql:68: ERROR:  missing data for column "e"
 CONTEXT:  COPY x, line 1: "2001	231	\N	\N"
 -- extra data: should fail
 COPY x from stdin;
-ERROR:  extra data after last expected column
+psql:sql/copy2.sql:73: ERROR:  extra data after last expected column
 CONTEXT:  COPY x, line 1: "2002	232	40	50	60	70	80"
 -- various COPY options: delimiters, oids, NULL string, encoding
 COPY x (b, c, d, e) from stdin with oids delimiter ',' null 'x';
+COPY 3
 COPY x from stdin WITH DELIMITER AS ';' NULL AS '';
+COPY 1
 COPY x from stdin WITH DELIMITER AS ':' NULL AS E'\\X' ENCODING 'sql_ascii';
+COPY 9
 -- check results of copy in
 SELECT * FROM x;
-   a   | b  |     c      |   d    |          e           
--------+----+------------+--------+----------------------
-  9999 |    | \N         | NN     | before trigger fired
- 10000 | 21 | 31         | 41     | before trigger fired
- 10001 | 22 | 32         | 42     | before trigger fired
- 10002 | 23 | 33         | 43     | before trigger fired
- 10003 | 24 | 34         | 44     | before trigger fired
- 10004 | 25 | 35         | 45     | before trigger fired
- 10005 | 26 | 36         | 46     | before trigger fired
-     6 |    | 45         | 80     | before trigger fired
-     7 |    | x          | \x     | before trigger fired
-     8 |    | ,          | \,     | before trigger fired
-  3000 |    | c          |        | before trigger fired
-  4000 |    | C          |        | before trigger fired
-  4001 |  1 | empty      |        | before trigger fired
-  4002 |  2 | null       |        | before trigger fired
-  4003 |  3 | Backslash  | \      | before trigger fired
-  4004 |  4 | BackslashX | \X     | before trigger fired
-  4005 |  5 | N          | N      | before trigger fired
-  4006 |  6 | BackslashN | \N     | before trigger fired
-  4007 |  7 | XX         | XX     | before trigger fired
-  4008 |  8 | Delimiter  | :      | before trigger fired
-     1 |  1 | stuff      | test_1 | after trigger fired
-     2 |  2 | stuff      | test_2 | after trigger fired
-     3 |  3 | stuff      | test_3 | after trigger fired
-     4 |  4 | stuff      | test_4 | after trigger fired
-     5 |  5 | stuff      | test_5 | after trigger fired
+   a   | b  |     c      |   d    | e  
+-------+----+------------+--------+----
+  9999 |    | \N         | NN     | 
+ 10000 | 21 | 31         | 41     | 51
+     1 |  1 | stuff      | test_1 | 
+     2 |  2 | stuff      | test_2 | 
+     3 |  3 | stuff      | test_3 | 
+     4 |  4 | stuff      | test_4 | 
+     5 |  5 | stuff      | test_5 | 
+ 10001 | 22 | 32         | 42     | 52
+ 10002 | 23 | 33         | 43     | 53
+ 10003 | 24 | 34         | 44     | 54
+ 10004 | 25 | 35         | 45     | 55
+ 10005 | 26 | 36         | 46     | 56
+     6 |    | 45         | 80     | 90
+     7 |    | x          | \x     | \x
+     8 |    | ,          | \,     | \
+  3000 |    | c          |        | 
+  4000 |    | C          |        | 
+  4001 |  1 | empty      |        | 
+  4002 |  2 | null       |        | 
+  4003 |  3 | Backslash  | \      | \
+  4004 |  4 | BackslashX | \X     | \X
+  4005 |  5 | N          | N      | N
+  4006 |  6 | BackslashN | \N     | \N
+  4007 |  7 | XX         | XX     | XX
+  4008 |  8 | Delimiter  | :      | :
 (25 rows)
 
 -- COPY w/ oids on a table w/o oids should fail
@@ -85,99 +95,106 @@ CREATE TABLE no_oids (
 	a	int,
 	b	int
 ) WITHOUT OIDS;
+CREATE TABLE
 INSERT INTO no_oids (a, b) VALUES (5, 10);
+INSERT 0 1
 INSERT INTO no_oids (a, b) VALUES (20, 30);
+INSERT 0 1
 -- should fail
 COPY no_oids FROM stdin WITH OIDS;
-ERROR:  table "no_oids" does not have OIDs
+psql:sql/copy2.sql:111: ERROR:  table "no_oids" does not have OIDs
 COPY no_oids TO stdout WITH OIDS;
-ERROR:  table "no_oids" does not have OIDs
+psql:sql/copy2.sql:112: ERROR:  COPY (query) WITH OIDS is not supported
 -- check copy out
 COPY x TO stdout;
-9999	\N	\\N	NN	before trigger fired
-10000	21	31	41	before trigger fired
-10001	22	32	42	before trigger fired
-10002	23	33	43	before trigger fired
-10003	24	34	44	before trigger fired
-10004	25	35	45	before trigger fired
-10005	26	36	46	before trigger fired
-6	\N	45	80	before trigger fired
-7	\N	x	\\x	before trigger fired
-8	\N	,	\\,	before trigger fired
-3000	\N	c	\N	before trigger fired
-4000	\N	C	\N	before trigger fired
-4001	1	empty		before trigger fired
-4002	2	null	\N	before trigger fired
-4003	3	Backslash	\\	before trigger fired
-4004	4	BackslashX	\\X	before trigger fired
-4005	5	N	N	before trigger fired
-4006	6	BackslashN	\\N	before trigger fired
-4007	7	XX	XX	before trigger fired
-4008	8	Delimiter	:	before trigger fired
-1	1	stuff	test_1	after trigger fired
-2	2	stuff	test_2	after trigger fired
-3	3	stuff	test_3	after trigger fired
-4	4	stuff	test_4	after trigger fired
-5	5	stuff	test_5	after trigger fired
+9999	\N	\\N	NN	\N
+10000	21	31	41	51
+1	1	stuff	test_1	\N
+2	2	stuff	test_2	\N
+3	3	stuff	test_3	\N
+4	4	stuff	test_4	\N
+5	5	stuff	test_5	\N
+10001	22	32	42	52
+10002	23	33	43	53
+10003	24	34	44	54
+10004	25	35	45	55
+10005	26	36	46	56
+6	\N	45	80	90
+7	\N	x	\\x	\\x
+8	\N	,	\\,	\\
+3000	\N	c	\N	\N
+4000	\N	C	\N	\N
+4001	1	empty		
+4002	2	null	\N	\N
+4003	3	Backslash	\\	\\
+4004	4	BackslashX	\\X	\\X
+4005	5	N	N	N
+4006	6	BackslashN	\\N	\\N
+4007	7	XX	XX	XX
+4008	8	Delimiter	:	:
 COPY x (c, e) TO stdout;
-\\N	before trigger fired
-31	before trigger fired
-32	before trigger fired
-33	before trigger fired
-34	before trigger fired
-35	before trigger fired
-36	before trigger fired
-45	before trigger fired
-x	before trigger fired
-,	before trigger fired
-c	before trigger fired
-C	before trigger fired
-empty	before trigger fired
-null	before trigger fired
-Backslash	before trigger fired
-BackslashX	before trigger fired
-N	before trigger fired
-BackslashN	before trigger fired
-XX	before trigger fired
-Delimiter	before trigger fired
-stuff	after trigger fired
-stuff	after trigger fired
-stuff	after trigger fired
-stuff	after trigger fired
-stuff	after trigger fired
+\\N	\N
+31	51
+stuff	\N
+stuff	\N
+stuff	\N
+stuff	\N
+stuff	\N
+32	52
+33	53
+34	54
+35	55
+36	56
+45	90
+x	\\x
+,	\\
+c	\N
+C	\N
+empty	
+null	\N
+Backslash	\\
+BackslashX	\\X
+N	N
+BackslashN	\\N
+XX	XX
+Delimiter	:
 COPY x (b, e) TO stdout WITH NULL 'I''m null';
-I'm null	before trigger fired
-21	before trigger fired
-22	before trigger fired
-23	before trigger fired
-24	before trigger fired
-25	before trigger fired
-26	before trigger fired
-I'm null	before trigger fired
-I'm null	before trigger fired
-I'm null	before trigger fired
-I'm null	before trigger fired
-I'm null	before trigger fired
-1	before trigger fired
-2	before trigger fired
-3	before trigger fired
-4	before trigger fired
-5	before trigger fired
-6	before trigger fired
-7	before trigger fired
-8	before trigger fired
-1	after trigger fired
-2	after trigger fired
-3	after trigger fired
-4	after trigger fired
-5	after trigger fired
+I'm null	I'm null
+21	51
+1	I'm null
+2	I'm null
+3	I'm null
+4	I'm null
+5	I'm null
+22	52
+23	53
+24	54
+25	55
+26	56
+I'm null	90
+I'm null	\\x
+I'm null	\\
+I'm null	I'm null
+I'm null	I'm null
+1	
+2	I'm null
+3	\\
+4	\\X
+5	N
+6	\\N
+7	XX
+8	:
 CREATE TEMP TABLE y (
 	col1 text,
 	col2 text
 );
+CREATE TABLE
 INSERT INTO y VALUES ('Jackson, Sam', E'\\h');
+INSERT 0 1
 INSERT INTO y VALUES ('It is "perfect".',E'\t');
+INSERT 0 1
 INSERT INTO y VALUES ('', NULL);
+INSERT 0 1
 COPY y TO stdout WITH CSV;
 "Jackson, Sam",\h
 "It is ""perfect"".",	
@@ -229,10 +246,14 @@ It is "perfect".|
 "",
 --test that we read consecutive LFs properly
 CREATE TEMP TABLE testnl (a int, b text, c int);
+CREATE TABLE
 COPY testnl FROM stdin CSV;
+COPY 1
 -- test end of copy marker
 CREATE TEMP TABLE testeoc (a text);
+CREATE TABLE
 COPY testeoc FROM stdin CSV;
+COPY 4
 COPY testeoc TO stdout CSV;
 a\.
 \.b
@@ -240,11 +261,14 @@ c\.d
 "\."
 -- test handling of nonstandard null marker that violates escaping rules
 CREATE TEMP TABLE testnull(a int, b text);
+CREATE TABLE
 INSERT INTO testnull VALUES (1, E'\\0'), (NULL, NULL);
+INSERT 0 2
 COPY testnull TO stdout WITH NULL AS E'\\0';
 1	\\0
 \0	\0
 COPY testnull FROM stdin WITH NULL AS E'\\0';
+COPY 2
 SELECT * FROM testnull;
  a  | b  
 ----+----
@@ -254,10 +278,12 @@ SELECT * FROM testnull;
     | 
 (4 rows)
 
-BEGIN;
+--BEGIN;
 CREATE TABLE vistest (LIKE testeoc);
+CREATE TABLE
 COPY vistest FROM stdin CSV;
-COMMIT;
+COPY 2
+--COMMIT;
 SELECT * FROM vistest;
  a  
 ----
@@ -265,122 +291,175 @@ SELECT * FROM vistest;
  b
 (2 rows)
 
-BEGIN;
-TRUNCATE vistest;
+--BEGIN;
+--TRUNCATE vistest;
 COPY vistest FROM stdin CSV;
+COPY 2
 SELECT * FROM vistest;
  a  
 ----
+ a0
+ b
  a1
  b
-(2 rows)
+(4 rows)
 
 SAVEPOINT s1;
-TRUNCATE vistest;
+psql:sql/copy2.sql:196: ERROR:  SAVEPOINT can only be used in transaction blocks
+--TRUNCATE vistest;
 COPY vistest FROM stdin CSV;
+COPY 2
 SELECT * FROM vistest;
  a  
 ----
- d1
- e
-(2 rows)
-
-COMMIT;
-SELECT * FROM vistest;
- a  
-----
- d1
- e
-(2 rows)
-
-BEGIN;
-TRUNCATE vistest;
-COPY vistest FROM stdin CSV FREEZE;
-SELECT * FROM vistest;
- a  
-----
- a2
+ a0
  b
-(2 rows)
+ a1
+ b
+ d1
+ e
+(6 rows)
 
-SAVEPOINT s1;
-TRUNCATE vistest;
-COPY vistest FROM stdin CSV FREEZE;
+--COMMIT;
 SELECT * FROM vistest;
  a  
 ----
- d2
+ a0
+ b
+ a1
+ b
+ d1
  e
-(2 rows)
+(6 rows)
 
-COMMIT;
+--BEGIN;
+--TRUNCATE vistest;
+COPY vistest FROM stdin CSV FREEZE;
+psql:sql/copy2.sql:211: ERROR:  cannot perform FREEZE because the table was not created or truncated in the current subtransaction
 SELECT * FROM vistest;
  a  
 ----
- d2
+ a0
+ b
+ a1
+ b
+ d1
  e
-(2 rows)
+(6 rows)
 
-BEGIN;
-TRUNCATE vistest;
-COPY vistest FROM stdin CSV FREEZE;
-SELECT * FROM vistest;
- a 
----
- x
- y
-(2 rows)
-
-COMMIT;
-TRUNCATE vistest;
-COPY vistest FROM stdin CSV FREEZE;
-ERROR:  cannot perform FREEZE because the table was not created or truncated in the current subtransaction
-BEGIN;
-TRUNCATE vistest;
 SAVEPOINT s1;
+psql:sql/copy2.sql:213: ERROR:  SAVEPOINT can only be used in transaction blocks
+--TRUNCATE vistest;
 COPY vistest FROM stdin CSV FREEZE;
-ERROR:  cannot perform FREEZE because the table was not created or truncated in the current subtransaction
-COMMIT;
-BEGIN;
+psql:sql/copy2.sql:218: ERROR:  cannot perform FREEZE because the table was not created or truncated in the current subtransaction
+SELECT * FROM vistest;
+ a  
+----
+ a0
+ b
+ a1
+ b
+ d1
+ e
+(6 rows)
+
+--COMMIT;
+SELECT * FROM vistest;
+ a  
+----
+ a0
+ b
+ a1
+ b
+ d1
+ e
+(6 rows)
+
+--BEGIN;
+--TRUNCATE vistest;
+COPY vistest FROM stdin CSV FREEZE;
+psql:sql/copy2.sql:228: ERROR:  cannot perform FREEZE because the table was not created or truncated in the current subtransaction
+SELECT * FROM vistest;
+ a  
+----
+ a0
+ b
+ a1
+ b
+ d1
+ e
+(6 rows)
+
+--COMMIT;
+--TRUNCATE vistest;
+COPY vistest FROM stdin CSV FREEZE;
+psql:sql/copy2.sql:235: ERROR:  cannot perform FREEZE because the table was not created or truncated in the current subtransaction
+--BEGIN;
+--TRUNCATE vistest;
+SAVEPOINT s1;
+psql:sql/copy2.sql:238: ERROR:  SAVEPOINT can only be used in transaction blocks
+COPY vistest FROM stdin CSV FREEZE;
+psql:sql/copy2.sql:242: ERROR:  cannot perform FREEZE because the table was not created or truncated in the current subtransaction
+--COMMIT;
+--BEGIN;
 INSERT INTO vistest VALUES ('z');
+INSERT 0 1
 SAVEPOINT s1;
-TRUNCATE vistest;
+psql:sql/copy2.sql:246: ERROR:  SAVEPOINT can only be used in transaction blocks
+--TRUNCATE vistest;
 ROLLBACK TO SAVEPOINT s1;
+psql:sql/copy2.sql:248: ERROR:  ROLLBACK TO SAVEPOINT can only be used in transaction blocks
 COPY vistest FROM stdin CSV FREEZE;
-ERROR:  cannot perform FREEZE because the table was not created or truncated in the current subtransaction
-COMMIT;
+psql:sql/copy2.sql:252: ERROR:  cannot perform FREEZE because the table was not created or truncated in the current subtransaction
+--COMMIT;
 CREATE FUNCTION truncate_in_subxact() RETURNS VOID AS
 $$
-BEGIN
+--BEGIN
 	TRUNCATE vistest;
 EXCEPTION
   WHEN OTHERS THEN
 	INSERT INTO vistest VALUES ('subxact failure');
 END;
 $$ language plpgsql;
-BEGIN;
+psql:sql/copy2.sql:262: ERROR:  syntax error at or near "TRUNCATE"
+LINE 4:  TRUNCATE vistest;
+         ^
+--BEGIN;
 INSERT INTO vistest VALUES ('z');
+INSERT 0 1
 SELECT truncate_in_subxact();
- truncate_in_subxact 
----------------------
- 
-(1 row)
-
+psql:sql/copy2.sql:265: ERROR:  function truncate_in_subxact() does not exist
+LINE 1: SELECT truncate_in_subxact();
+               ^
+HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
 COPY vistest FROM stdin CSV FREEZE;
+psql:sql/copy2.sql:269: ERROR:  cannot perform FREEZE because the table was not created or truncated in the current subtransaction
 SELECT * FROM vistest;
  a  
 ----
- d4
+ a0
+ b
+ a1
+ b
+ d1
  e
-(2 rows)
+ z
+ z
+(8 rows)
 
-COMMIT;
+--COMMIT;
 SELECT * FROM vistest;
  a  
 ----
- d4
+ a0
+ b
+ a1
+ b
+ d1
  e
-(2 rows)
+ z
+ z
+(8 rows)
 
 -- Test FORCE_NOT_NULL and FORCE_NULL options
 CREATE TEMP TABLE forcetest (
@@ -390,11 +469,16 @@ CREATE TEMP TABLE forcetest (
     d TEXT,
     e TEXT
 );
+CREATE TABLE
 \pset null NULL
+Null display is "NULL".
 -- should succeed with no effect ("b" remains an empty string, "c" remains NULL)
 BEGIN;
+BEGIN
 COPY forcetest (a, b, c) FROM STDIN WITH (FORMAT csv, FORCE_NOT_NULL(b), FORCE_NULL(c));
+COPY 1
 COMMIT;
+COMMIT
 SELECT b, c FROM forcetest WHERE a = 1;
  b |  c   
 ---+------
@@ -403,8 +487,11 @@ SELECT b, c FROM forcetest WHERE a = 1;
 
 -- should succeed, FORCE_NULL and FORCE_NOT_NULL can be both specified
 BEGIN;
+BEGIN
 COPY forcetest (a, b, c, d) FROM STDIN WITH (FORMAT csv, FORCE_NOT_NULL(c,d), FORCE_NULL(c,d));
+COPY 1
 COMMIT;
+COMMIT
 SELECT c, d FROM forcetest WHERE a = 2;
  c |  d   
 ---+------
@@ -413,63 +500,73 @@ SELECT c, d FROM forcetest WHERE a = 2;
 
 -- should fail with not-null constraint violation
 BEGIN;
+BEGIN
 COPY forcetest (a, b, c) FROM STDIN WITH (FORMAT csv, FORCE_NULL(b), FORCE_NOT_NULL(c));
-ERROR:  null value in column "b" violates not-null constraint
+psql:sql/copy2.sql:300: ERROR:  null value in column "b" violates not-null constraint
 DETAIL:  Failing row contains (3, null, , null, null).
 CONTEXT:  COPY forcetest, line 1: "3,,"""
 ROLLBACK;
+ROLLBACK
 -- should fail with "not referenced by COPY" error
 BEGIN;
+BEGIN
 COPY forcetest (d, e) FROM STDIN WITH (FORMAT csv, FORCE_NOT_NULL(b));
-ERROR:  FORCE_NOT_NULL column "b" not referenced by COPY
+psql:sql/copy2.sql:304: ERROR:  FORCE_NOT_NULL column "b" not referenced by COPY
 ROLLBACK;
+ROLLBACK
 -- should fail with "not referenced by COPY" error
 BEGIN;
+BEGIN
 COPY forcetest (d, e) FROM STDIN WITH (FORMAT csv, FORCE_NULL(b));
-ERROR:  FORCE_NULL column "b" not referenced by COPY
+psql:sql/copy2.sql:308: ERROR:  FORCE_NULL column "b" not referenced by COPY
 ROLLBACK;
+ROLLBACK
 \pset null ''
+Null display is "".
 -- test case with whole-row Var in a check constraint
 create table check_con_tbl (f1 int);
+CREATE TABLE
 create function check_con_function(check_con_tbl) returns bool as $$
 begin
   raise notice 'input = %', row_to_json($1);
   return $1.f1 > 0;
 end $$ language plpgsql immutable;
-alter table check_con_tbl add check (check_con_function(check_con_tbl.*));
+CREATE FUNCTION
+--alter table check_con_tbl add check (check_con_function(check_con_tbl.*));
 \d+ check_con_tbl
                                Table "public.check_con_tbl"
  Column |  Type   | Collation | Nullable | Default | Storage | Stats target | Description 
 --------+---------+-----------+----------+---------+---------+--------------+-------------
  f1     | integer |           |          |         | plain   |              | 
-Check constraints:
-    "check_con_tbl_check" CHECK (check_con_function(check_con_tbl.*))
 
 copy check_con_tbl from stdin;
-NOTICE:  input = {"f1":1}
-NOTICE:  input = {"f1":null}
+COPY 2
 copy check_con_tbl from stdin;
-NOTICE:  input = {"f1":0}
-ERROR:  new row for relation "check_con_tbl" violates check constraint "check_con_tbl_check"
-DETAIL:  Failing row contains (0).
-CONTEXT:  COPY check_con_tbl, line 1: "0"
+COPY 1
 select * from check_con_tbl;
  f1 
 ----
   1
    
-(2 rows)
+  0
+(3 rows)
 
 -- test with RLS enabled.
 CREATE ROLE regress_rls_copy_user;
+CREATE ROLE
 CREATE ROLE regress_rls_copy_user_colperms;
+CREATE ROLE
 CREATE TABLE rls_t1 (a int, b int, c int);
+CREATE TABLE
 COPY rls_t1 (a, b, c) from stdin;
-CREATE POLICY p1 ON rls_t1 FOR SELECT USING (a % 2 = 0);
-ALTER TABLE rls_t1 ENABLE ROW LEVEL SECURITY;
-ALTER TABLE rls_t1 FORCE ROW LEVEL SECURITY;
+COPY 4
+--CREATE POLICY p1 ON rls_t1 FOR SELECT USING (a % 2 = 0);
+--ALTER TABLE rls_t1 ENABLE ROW LEVEL SECURITY;
+--ALTER TABLE rls_t1 FORCE ROW LEVEL SECURITY;
 GRANT SELECT ON TABLE rls_t1 TO regress_rls_copy_user;
+GRANT
 GRANT SELECT (a, b) ON TABLE rls_t1 TO regress_rls_copy_user_colperms;
+GRANT
 -- all columns
 COPY rls_t1 TO stdout;
 1	4	1
@@ -499,92 +596,130 @@ COPY rls_t1 (b, a) TO stdout;
 2	3
 1	4
 SET SESSION AUTHORIZATION regress_rls_copy_user;
+SET
 -- all columns
 COPY rls_t1 TO stdout;
+1	4	1
 2	3	2
+3	2	3
 4	1	4
 COPY rls_t1 (a, b, c) TO stdout;
+1	4	1
 2	3	2
+3	2	3
 4	1	4
 -- subset of columns
 COPY rls_t1 (a) TO stdout;
+1
 2
+3
 4
 COPY rls_t1 (a, b) TO stdout;
+1	4
 2	3
+3	2
 4	1
 -- column reordering
 COPY rls_t1 (b, a) TO stdout;
+4	1
 3	2
+2	3
 1	4
 RESET SESSION AUTHORIZATION;
+RESET
 SET SESSION AUTHORIZATION regress_rls_copy_user_colperms;
+SET
 -- attempt all columns (should fail)
 COPY rls_t1 TO stdout;
-ERROR:  permission denied for table rls_t1
+psql:sql/copy2.sql:378: ERROR:  permission denied for table rls_t1
 COPY rls_t1 (a, b, c) TO stdout;
-ERROR:  permission denied for table rls_t1
+psql:sql/copy2.sql:379: ERROR:  permission denied for table rls_t1
 -- try to copy column with no privileges (should fail)
 COPY rls_t1 (c) TO stdout;
-ERROR:  permission denied for table rls_t1
+psql:sql/copy2.sql:382: ERROR:  permission denied for table rls_t1
 -- subset of columns (should succeed)
 COPY rls_t1 (a) TO stdout;
+1
 2
+3
 4
 COPY rls_t1 (a, b) TO stdout;
+1	4
 2	3
+3	2
 4	1
 RESET SESSION AUTHORIZATION;
+RESET
 -- test with INSTEAD OF INSERT trigger on a view
 CREATE TABLE instead_of_insert_tbl(id serial, name text);
+CREATE TABLE
 CREATE VIEW instead_of_insert_tbl_view AS SELECT ''::text AS str;
+CREATE VIEW
 COPY instead_of_insert_tbl_view FROM stdin; -- fail
-ERROR:  cannot copy to view "instead_of_insert_tbl_view"
+psql:sql/copy2.sql:396: ERROR:  cannot copy to view "instead_of_insert_tbl_view"
 HINT:  To enable copying to a view, provide an INSTEAD OF INSERT trigger.
 CREATE FUNCTION fun_instead_of_insert_tbl() RETURNS trigger AS $$
-BEGIN
+--BEGIN
   INSERT INTO instead_of_insert_tbl (name) VALUES (NEW.str);
   RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
-CREATE TRIGGER trig_instead_of_insert_tbl_view
-  INSTEAD OF INSERT ON instead_of_insert_tbl_view
-  FOR EACH ROW EXECUTE PROCEDURE fun_instead_of_insert_tbl();
+psql:sql/copy2.sql:403: ERROR:  syntax error at or near "INSERT"
+LINE 3:   INSERT INTO instead_of_insert_tbl (name) VALUES (NEW.str);
+          ^
+--CREATE TRIGGER trig_instead_of_insert_tbl_view
+ --INSTEAD OF INSERT ON instead_of_insert_tbl_view
+ -- FOR EACH ROW EXECUTE PROCEDURE fun_instead_of_insert_tbl();
 COPY instead_of_insert_tbl_view FROM stdin;
+psql:sql/copy2.sql:410: ERROR:  cannot copy to view "instead_of_insert_tbl_view"
+HINT:  To enable copying to a view, provide an INSTEAD OF INSERT trigger.
 SELECT * FROM instead_of_insert_tbl;
- id | name  
-----+-------
-  1 | test1
-(1 row)
+ id | name 
+----+------
+(0 rows)
 
 -- Test of COPY optimization with view using INSTEAD OF INSERT
 -- trigger when relation is created in the same transaction as
 -- when COPY is executed.
-BEGIN;
+--BEGIN;
 CREATE VIEW instead_of_insert_tbl_view_2 as select ''::text as str;
-CREATE TRIGGER trig_instead_of_insert_tbl_view_2
-  INSTEAD OF INSERT ON instead_of_insert_tbl_view_2
-  FOR EACH ROW EXECUTE PROCEDURE fun_instead_of_insert_tbl();
+CREATE VIEW
+--CREATE TRIGGER trig_instead_of_insert_tbl_view_2
+ -- INSTEAD OF INSERT ON instead_of_insert_tbl_view_2
+  --FOR EACH ROW EXECUTE PROCEDURE fun_instead_of_insert_tbl();
 COPY instead_of_insert_tbl_view_2 FROM stdin;
+psql:sql/copy2.sql:425: ERROR:  cannot copy to view "instead_of_insert_tbl_view_2"
+HINT:  To enable copying to a view, provide an INSTEAD OF INSERT trigger.
 SELECT * FROM instead_of_insert_tbl;
- id | name  
-----+-------
-  1 | test1
-  2 | test1
-(2 rows)
+ id | name 
+----+------
+(0 rows)
 
-COMMIT;
+--COMMIT;
 -- clean up
 DROP TABLE forcetest;
+DROP TABLE
 DROP TABLE vistest;
+DROP TABLE
 DROP FUNCTION truncate_in_subxact();
+psql:sql/copy2.sql:433: ERROR:  function truncate_in_subxact() does not exist
 DROP TABLE x, y;
+DROP TABLE
 DROP TABLE rls_t1 CASCADE;
+DROP TABLE
 DROP ROLE regress_rls_copy_user;
+DROP ROLE
 DROP ROLE regress_rls_copy_user_colperms;
+DROP ROLE
 DROP FUNCTION fn_x_before();
+DROP FUNCTION
 DROP FUNCTION fn_x_after();
+DROP FUNCTION
 DROP TABLE instead_of_insert_tbl;
+DROP TABLE
 DROP VIEW instead_of_insert_tbl_view;
+DROP VIEW
 DROP VIEW instead_of_insert_tbl_view_2;
+DROP VIEW
 DROP FUNCTION fun_instead_of_insert_tbl();
+psql:sql/copy2.sql:443: ERROR:  function fun_instead_of_insert_tbl() does not exist

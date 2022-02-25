@@ -39,6 +39,7 @@ begin
   return false;
 end
 $$ language plpgsql strict stable;
+CREATE FUNCTION
 -- This one ignores castcontext, so it considers only physical equivalence
 -- and not whether the coercion can be invoked implicitly.
 create function physically_coercible(oid, oid) returns bool as $$
@@ -61,6 +62,7 @@ begin
   return false;
 end
 $$ language plpgsql strict stable;
+CREATE FUNCTION
 -- **************** pg_proc ****************
 -- Look for illegal values in pg_proc fields.
 SELECT p1.oid, p1.proname
@@ -476,6 +478,8 @@ WHERE d.classoid IS NULL AND p1.oid <= 9999;
 -- leakproof function is. If unsure, don't mark it as such.
 -- temporarily disable fancy output, so catalog changes create less diff noise
 \a\t
+Output format is unaligned.
+Tuples only is on.
 SELECT p1.oid::regprocedure
 FROM pg_proc p1 JOIN pg_namespace pn
      ON pronamespace = pn.oid
@@ -727,6 +731,8 @@ macaddr8_ge(macaddr8,macaddr8)
 macaddr8_ne(macaddr8,macaddr8)
 -- restore normal output mode
 \a\t
+Output format is aligned.
+Tuples only is off.
 -- List of functions used by libpq's fe-lobj.c
 --
 -- If the output of this query changes, you probably broke libpq.

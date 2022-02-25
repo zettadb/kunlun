@@ -18,11 +18,12 @@ SELECT 'first line'
 ' - next line' /* this comment is not allowed here */
 ' - third line'
 	AS "Illegal comment within continuation";
-ERROR:  syntax error at or near "' - third line'"
+psql:sql/strings.sql:17: ERROR:  syntax error at or near "' - third line'"
 LINE 3: ' - third line'
         ^
 -- Unicode escapes
 SET standard_conforming_strings TO on;
+SET
 SELECT U&'d\0061t\+000061' AS U&"d\0061t\+000061";
  data 
 ------
@@ -48,30 +49,31 @@ SELECT 'tricky' AS U&"\" UESCAPE '!';
 (1 row)
 
 SELECT U&'wrong: \061';
-ERROR:  invalid Unicode escape value at or near "\061'"
+psql:sql/strings.sql:28: ERROR:  invalid Unicode escape value at or near "\061'"
 LINE 1: SELECT U&'wrong: \061';
                          ^
 SELECT U&'wrong: \+0061';
-ERROR:  invalid Unicode escape value at or near "\+0061'"
+psql:sql/strings.sql:29: ERROR:  invalid Unicode escape value at or near "\+0061'"
 LINE 1: SELECT U&'wrong: \+0061';
                          ^
 SELECT U&'wrong: +0061' UESCAPE '+';
-ERROR:  invalid Unicode escape character at or near "+'"
+psql:sql/strings.sql:30: ERROR:  invalid Unicode escape character at or near "+'"
 LINE 1: SELECT U&'wrong: +0061' UESCAPE '+';
                                          ^
 SET standard_conforming_strings TO off;
+SET
 SELECT U&'d\0061t\+000061' AS U&"d\0061t\+000061";
-ERROR:  unsafe use of string constant with Unicode escapes
+psql:sql/strings.sql:34: ERROR:  unsafe use of string constant with Unicode escapes
 LINE 1: SELECT U&'d\0061t\+000061' AS U&"d\0061t\+000061";
                ^
 DETAIL:  String constants with Unicode escapes cannot be used when standard_conforming_strings is off.
 SELECT U&'d!0061t\+000061' UESCAPE '!' AS U&"d*0061t\+000061" UESCAPE '*';
-ERROR:  unsafe use of string constant with Unicode escapes
+psql:sql/strings.sql:35: ERROR:  unsafe use of string constant with Unicode escapes
 LINE 1: SELECT U&'d!0061t\+000061' UESCAPE '!' AS U&"d*0061t\+000061...
                ^
 DETAIL:  String constants with Unicode escapes cannot be used when standard_conforming_strings is off.
 SELECT U&' \' UESCAPE '!' AS "tricky";
-ERROR:  unsafe use of string constant with Unicode escapes
+psql:sql/strings.sql:37: ERROR:  unsafe use of string constant with Unicode escapes
 LINE 1: SELECT U&' \' UESCAPE '!' AS "tricky";
                ^
 DETAIL:  String constants with Unicode escapes cannot be used when standard_conforming_strings is off.
@@ -82,23 +84,25 @@ SELECT 'tricky' AS U&"\" UESCAPE '!';
 (1 row)
 
 SELECT U&'wrong: \061';
-ERROR:  unsafe use of string constant with Unicode escapes
+psql:sql/strings.sql:40: ERROR:  unsafe use of string constant with Unicode escapes
 LINE 1: SELECT U&'wrong: \061';
                ^
 DETAIL:  String constants with Unicode escapes cannot be used when standard_conforming_strings is off.
 SELECT U&'wrong: \+0061';
-ERROR:  unsafe use of string constant with Unicode escapes
+psql:sql/strings.sql:41: ERROR:  unsafe use of string constant with Unicode escapes
 LINE 1: SELECT U&'wrong: \+0061';
                ^
 DETAIL:  String constants with Unicode escapes cannot be used when standard_conforming_strings is off.
 SELECT U&'wrong: +0061' UESCAPE '+';
-ERROR:  unsafe use of string constant with Unicode escapes
+psql:sql/strings.sql:42: ERROR:  unsafe use of string constant with Unicode escapes
 LINE 1: SELECT U&'wrong: +0061' UESCAPE '+';
                ^
 DETAIL:  String constants with Unicode escapes cannot be used when standard_conforming_strings is off.
 RESET standard_conforming_strings;
+RESET
 -- bytea
 SET bytea_output TO hex;
+SET
 SELECT E'\\xDeAdBeEf'::bytea;
    bytea    
 ------------
@@ -112,11 +116,11 @@ SELECT E'\\x De Ad Be Ef '::bytea;
 (1 row)
 
 SELECT E'\\xDeAdBeE'::bytea;
-ERROR:  invalid hexadecimal data: odd number of digits
+psql:sql/strings.sql:50: ERROR:  invalid hexadecimal data: odd number of digits
 LINE 1: SELECT E'\\xDeAdBeE'::bytea;
                ^
 SELECT E'\\xDeAdBeEx'::bytea;
-ERROR:  invalid hexadecimal digit: "x"
+psql:sql/strings.sql:51: ERROR:  invalid hexadecimal digit: "x"
 LINE 1: SELECT E'\\xDeAdBeEx'::bytea;
                ^
 SELECT E'\\xDe00BeEf'::bytea;
@@ -150,10 +154,11 @@ SELECT E'De\\123dBeEf'::bytea;
 (1 row)
 
 SELECT E'De\\678dBeEf'::bytea;
-ERROR:  invalid input syntax for type bytea
+psql:sql/strings.sql:57: ERROR:  invalid input syntax for type bytea
 LINE 1: SELECT E'De\\678dBeEf'::bytea;
                ^
 SET bytea_output TO escape;
+SET
 SELECT E'\\xDeAdBeEf'::bytea;
       bytea       
 ------------------
@@ -388,9 +393,10 @@ SELECT regexp_replace('AAA aaa', 'A+', 'Z', 'gi');
 
 -- invalid regexp option
 SELECT regexp_replace('AAA aaa', 'A+', 'Z', 'z');
-ERROR:  invalid regexp option: "z"
+psql:sql/strings.sql:137: ERROR:  invalid regexp option: "z"
 -- set so we can tell NULL from empty string
 \pset null '\\N'
+Null display is "\N".
 -- return all matches from regexp
 SELECT regexp_matches('foobarbequebaz', $re$(bar)(beque)$re$);
  regexp_matches 
@@ -500,11 +506,11 @@ SELECT regexp_matches(chr(10) || '1' || chr(10) || '2' || chr(10) || '3' || chr(
 
 -- give me errors
 SELECT regexp_matches('foobarbequebaz', $re$(bar)(beque)$re$, 'gz');
-ERROR:  invalid regexp option: "z"
+psql:sql/strings.sql:169: ERROR:  invalid regexp option: "z"
 SELECT regexp_matches('foobarbequebaz', $re$(barbeque$re$);
-ERROR:  invalid regular expression: parentheses () not balanced
+psql:sql/strings.sql:170: ERROR:  invalid regular expression: parentheses () not balanced
 SELECT regexp_matches('foobarbequebaz', $re$(bar)(beque){2,1}$re$);
-ERROR:  invalid regular expression: invalid repetition count(s)
+psql:sql/strings.sql:171: ERROR:  invalid regular expression: invalid repetition count(s)
 -- split string on regexp
 SELECT foo, length(foo) FROM regexp_split_to_table('the quick brown fox jumps over the lazy dog', $re$\s+$re$) AS foo;
   foo  | length 
@@ -694,16 +700,17 @@ SELECT regexp_split_to_array('1','');
 
 -- errors
 SELECT foo, length(foo) FROM regexp_split_to_table('thE QUick bROWn FOx jUMPs ovEr The lazy dOG', 'e', 'zippy') AS foo;
-ERROR:  invalid regexp option: "z"
+psql:sql/strings.sql:195: ERROR:  invalid regexp option: "z"
 SELECT regexp_split_to_array('thE QUick bROWn FOx jUMPs ovEr The lazy dOG', 'e', 'iz');
-ERROR:  invalid regexp option: "z"
+psql:sql/strings.sql:196: ERROR:  invalid regexp option: "z"
 -- global option meaningless for regexp_split
 SELECT foo, length(foo) FROM regexp_split_to_table('thE QUick bROWn FOx jUMPs ovEr The lazy dOG', 'e', 'g') AS foo;
-ERROR:  regexp_split_to_table does not support the global option
+psql:sql/strings.sql:198: ERROR:  regexp_split_to_table does not support the global option
 SELECT regexp_split_to_array('thE QUick bROWn FOx jUMPs ovEr The lazy dOG', 'e', 'g');
-ERROR:  regexp_split_to_array does not support the global option
+psql:sql/strings.sql:199: ERROR:  regexp_split_to_array does not support the global option
 -- change NULL-display back
 \pset null ''
+Null display is "".
 -- E021-11 position expression
 SELECT POSITION('4' IN '1234567890') = '4' AS "4";
  4 
@@ -1139,17 +1146,23 @@ SELECT text 'text' || varchar ' and varchar' AS "Concat text to varchar";
 -- test substr with toasted text values
 --
 DROP TABLE if exists toasttest;
-NOTICE:  table "toasttest" does not exist, skipping
+psql:sql/strings.sql:344: NOTICE:  table "toasttest" does not exist, skipping
+DROP TABLE
 CREATE TABLE toasttest(f1 text);
+CREATE TABLE
 insert into toasttest values(repeat('1234567890',10000));
+INSERT 0 1
 insert into toasttest values(repeat('1234567890',10000));
+INSERT 0 1
 --
 -- Ensure that some values are uncompressed, to test the faster substring
 -- operation used in that case
 -- set storage not supported in Kunlun
 -- alter table toasttest alter column f1 set storage external;
 insert into toasttest values(repeat('1234567890',10000));
+INSERT 0 1
 insert into toasttest values(repeat('1234567890',10000));
+INSERT 0 1
 -- If the starting position is zero or less, then return from the start of the string
 -- adjusting the length to be consistent with the "negative start" per SQL.
 SELECT substr(f1, -1, 5) from toasttest;
@@ -1163,7 +1176,7 @@ SELECT substr(f1, -1, 5) from toasttest;
 
 -- If the length is less than zero, an ERROR is thrown.
 SELECT substr(f1, 5, -1) from toasttest;
-ERROR:  negative substring length not allowed
+psql:sql/strings.sql:363: ERROR:  negative substring length not allowed
 -- If no third argument (length) is provided, the length to the end of the
 -- string is assumed.
 SELECT substr(f1, 99995) from toasttest;
@@ -1189,33 +1202,49 @@ SELECT substr(f1, 99995, 10) from toasttest;
 -- TRUNCATE is not supported by Kunlun
 -- TRUNCATE TABLE toasttest;
 DELETE FROM toasttest;
+DELETE 4
 INSERT INTO toasttest values (repeat('1234567890',300));
+INSERT 0 1
 INSERT INTO toasttest values (repeat('1234567890',300));
+INSERT 0 1
 INSERT INTO toasttest values (repeat('1234567890',300));
+INSERT 0 1
 INSERT INTO toasttest values (repeat('1234567890',300));
+INSERT 0 1
 -- expect >0 blocks
 -- TRUNCATE TABLE toasttest;
 DELETE FROM toasttest;
+DELETE 4
 -- ALTER TABLE toasttest set (toast_tuple_target = 4080);
 INSERT INTO toasttest values (repeat('1234567890',300));
+INSERT 0 1
 INSERT INTO toasttest values (repeat('1234567890',300));
+INSERT 0 1
 INSERT INTO toasttest values (repeat('1234567890',300));
+INSERT 0 1
 INSERT INTO toasttest values (repeat('1234567890',300));
+INSERT 0 1
 -- expect 0 blocks
 DROP TABLE toasttest;
+DROP TABLE
 --
 -- test substr with toasted bytea values
 --
 CREATE TABLE toasttest(f1 bytea);
+CREATE TABLE
 insert into toasttest values(decode(repeat('1234567890',10000),'escape'));
+INSERT 0 1
 insert into toasttest values(decode(repeat('1234567890',10000),'escape'));
+INSERT 0 1
 --
 -- Ensure that some values are uncompressed, to test the faster substring
 -- operation used in that case
 -- not supported in kunlun
 -- alter table toasttest alter column f1 set storage external;
 insert into toasttest values(decode(repeat('1234567890',10000),'escape'));
+INSERT 0 1
 insert into toasttest values(decode(repeat('1234567890',10000),'escape'));
+INSERT 0 1
 -- If the starting position is zero or less, then return from the start of the string
 -- adjusting the length to be consistent with the "negative start" per SQL.
 SELECT substr(f1, -1, 5) from toasttest;
@@ -1229,7 +1258,7 @@ SELECT substr(f1, -1, 5) from toasttest;
 
 -- If the length is less than zero, an ERROR is thrown.
 SELECT substr(f1, 5, -1) from toasttest;
-ERROR:  negative substring length not allowed
+psql:sql/strings.sql:414: ERROR:  negative substring length not allowed
 -- If no third argument (length) is provided, the length to the end of the
 -- string is assumed.
 SELECT substr(f1, 99995) from toasttest;
@@ -1253,6 +1282,7 @@ SELECT substr(f1, 99995, 10) from toasttest;
 (4 rows)
 
 DROP TABLE toasttest;
+DROP TABLE
 -- test internally compressing datums
 -- this tests compressing a datum to a very small size which exercises a
 -- corner case in packed-varlena handling: even though small, the compressed
@@ -1260,7 +1290,9 @@ DROP TABLE toasttest;
 -- compression in a 1-byte header
 -- 
 CREATE TABLE toasttest (c char(200));
+CREATE TABLE
 INSERT INTO toasttest VALUES('x');
+INSERT 0 1
 SELECT length(c), c::text FROM toasttest;
  length | c 
 --------+---
@@ -1274,6 +1306,7 @@ SELECT c FROM toasttest;
 (1 row)
 
 DROP TABLE toasttest;
+DROP TABLE
 --
 -- test length
 --
@@ -1323,7 +1356,7 @@ SELECT replace('yabadoo', 'bad', '') AS "yaoo";
 -- test split_part
 --
 select split_part('joeuser@mydatabase','@',0) AS "an error";
-ERROR:  field position must be greater than zero
+psql:sql/strings.sql:465: ERROR:  field position must be greater than zero
 select split_part('joeuser@mydatabase','@',1) AS "joeuser";
  joeuser 
 ---------
@@ -1455,6 +1488,7 @@ select md5('12345678901234567890123456789012345678901234567890123456789012345678
 -- SHA-2
 --
 SET bytea_output TO hex;
+SET
 SELECT sha224('');
                            sha224                           
 ------------------------------------------------------------
@@ -1507,7 +1541,9 @@ SELECT sha512('The quick brown fox jumps over the lazy dog.');
 -- test behavior of escape_string_warning and standard_conforming_strings options
 --
 set escape_string_warning = off;
+SET
 set standard_conforming_strings = off;
+SET
 show escape_string_warning;
  escape_string_warning 
 -----------------------
@@ -1521,7 +1557,9 @@ show standard_conforming_strings;
 (1 row)
 
 set escape_string_warning = on;
+SET
 set standard_conforming_strings = on;
+SET
 show escape_string_warning;
  escape_string_warning 
 -----------------------
@@ -1541,28 +1579,29 @@ select 'a\bcd' as f1, 'a\b''cd' as f2, 'a\b''''cd' as f3, 'abcd\'   as f4, 'ab\'
 (1 row)
 
 set standard_conforming_strings = off;
+SET
 select 'a\\bcd' as f1, 'a\\b\'cd' as f2, 'a\\b\'''cd' as f3, 'abcd\\'   as f4, 'ab\\\'cd' as f5, '\\\\' as f6;
-WARNING:  nonstandard use of \\ in a string literal
+psql:sql/strings.sql:550: WARNING:  nonstandard use of \\ in a string literal
 LINE 1: select 'a\\bcd' as f1, 'a\\b\'cd' as f2, 'a\\b\'''cd' as f3,...
                ^
 HINT:  Use the escape string syntax for backslashes, e.g., E'\\'.
-WARNING:  nonstandard use of \\ in a string literal
+psql:sql/strings.sql:550: WARNING:  nonstandard use of \\ in a string literal
 LINE 1: select 'a\\bcd' as f1, 'a\\b\'cd' as f2, 'a\\b\'''cd' as f3,...
                                ^
 HINT:  Use the escape string syntax for backslashes, e.g., E'\\'.
-WARNING:  nonstandard use of \\ in a string literal
+psql:sql/strings.sql:550: WARNING:  nonstandard use of \\ in a string literal
 LINE 1: select 'a\\bcd' as f1, 'a\\b\'cd' as f2, 'a\\b\'''cd' as f3,...
                                                  ^
 HINT:  Use the escape string syntax for backslashes, e.g., E'\\'.
-WARNING:  nonstandard use of \\ in a string literal
+psql:sql/strings.sql:550: WARNING:  nonstandard use of \\ in a string literal
 LINE 1: ...bcd' as f1, 'a\\b\'cd' as f2, 'a\\b\'''cd' as f3, 'abcd\\'  ...
                                                              ^
 HINT:  Use the escape string syntax for backslashes, e.g., E'\\'.
-WARNING:  nonstandard use of \\ in a string literal
+psql:sql/strings.sql:550: WARNING:  nonstandard use of \\ in a string literal
 LINE 1: ...'cd' as f2, 'a\\b\'''cd' as f3, 'abcd\\'   as f4, 'ab\\\'cd'...
                                                              ^
 HINT:  Use the escape string syntax for backslashes, e.g., E'\\'.
-WARNING:  nonstandard use of \\ in a string literal
+psql:sql/strings.sql:550: WARNING:  nonstandard use of \\ in a string literal
 LINE 1: ...'''cd' as f3, 'abcd\\'   as f4, 'ab\\\'cd' as f5, '\\\\' as ...
                                                              ^
 HINT:  Use the escape string syntax for backslashes, e.g., E'\\'.
@@ -1572,7 +1611,9 @@ HINT:  Use the escape string syntax for backslashes, e.g., E'\\'.
 (1 row)
 
 set escape_string_warning = off;
+SET
 set standard_conforming_strings = on;
+SET
 select 'a\bcd' as f1, 'a\b''cd' as f2, 'a\b''''cd' as f3, 'abcd\'   as f4, 'ab\''cd' as f5, '\\' as f6;
   f1   |   f2   |   f3    |  f4   |   f5   | f6 
 -------+--------+---------+-------+--------+----
@@ -1580,6 +1621,7 @@ select 'a\bcd' as f1, 'a\b''cd' as f2, 'a\b''''cd' as f3, 'abcd\'   as f4, 'ab\'
 (1 row)
 
 set standard_conforming_strings = off;
+SET
 select 'a\\bcd' as f1, 'a\\b\'cd' as f2, 'a\\b\'''cd' as f3, 'abcd\\'   as f4, 'ab\\\'cd' as f5, '\\\\' as f6;
   f1   |   f2   |   f3    |  f4   |   f5   | f6 
 -------+--------+---------+-------+--------+----
@@ -1590,6 +1632,7 @@ select 'a\\bcd' as f1, 'a\\b\'cd' as f2, 'a\\b\'''cd' as f3, 'abcd\\'   as f4, '
 -- Additional string functions
 --
 SET bytea_output TO escape;
+SET
 SELECT initcap('hi THOMAS');
   initcap  
 -----------
@@ -1693,7 +1736,7 @@ SELECT chr(65);
 (1 row)
 
 SELECT chr(0);
-ERROR:  null character not permitted
+psql:sql/strings.sql:590: ERROR:  null character not permitted
 SELECT repeat('Pg', 4);
   repeat  
 ----------

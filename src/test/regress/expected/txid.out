@@ -20,29 +20,34 @@ select '12:16:14,14'::txid_snapshot;
 
 -- errors
 select '31:12:'::txid_snapshot;
-ERROR:  invalid input syntax for type txid_snapshot: "31:12:"
+psql:sql/txid.sql:9: ERROR:  invalid input syntax for type txid_snapshot: "31:12:"
 LINE 1: select '31:12:'::txid_snapshot;
                ^
 select '0:1:'::txid_snapshot;
-ERROR:  invalid input syntax for type txid_snapshot: "0:1:"
+psql:sql/txid.sql:10: ERROR:  invalid input syntax for type txid_snapshot: "0:1:"
 LINE 1: select '0:1:'::txid_snapshot;
                ^
 select '12:13:0'::txid_snapshot;
-ERROR:  invalid input syntax for type txid_snapshot: "12:13:0"
+psql:sql/txid.sql:11: ERROR:  invalid input syntax for type txid_snapshot: "12:13:0"
 LINE 1: select '12:13:0'::txid_snapshot;
                ^
 select '12:16:14,13'::txid_snapshot;
-ERROR:  invalid input syntax for type txid_snapshot: "12:16:14,13"
+psql:sql/txid.sql:12: ERROR:  invalid input syntax for type txid_snapshot: "12:16:14,13"
 LINE 1: select '12:16:14,13'::txid_snapshot;
                ^
 create temp table snapshot_test (
 	nr	integer,
 	snap	txid_snapshot
 );
+CREATE TABLE
 insert into snapshot_test values (1, '12:13:');
+INSERT 0 1
 insert into snapshot_test values (2, '12:20:13,15,18');
+INSERT 0 1
 insert into snapshot_test values (3, '100001:100009:100005,100007,100008');
+INSERT 0 1
 insert into snapshot_test values (4, '100:150:101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131');
+INSERT 0 1
 select snap from snapshot_test order by nr;
                                                                 snap                                                                 
 -------------------------------------------------------------------------------------------------------------------------------------
@@ -235,11 +240,12 @@ SELECT txid_snapshot '1:9223372036854775807:3';
 (1 row)
 
 SELECT txid_snapshot '1:9223372036854775808:3';
-ERROR:  invalid input syntax for type txid_snapshot: "1:9223372036854775808:3"
+psql:sql/txid.sql:54: ERROR:  invalid input syntax for type txid_snapshot: "1:9223372036854775808:3"
 LINE 1: SELECT txid_snapshot '1:9223372036854775808:3';
                              ^
 -- test txid_current_if_assigned
 BEGIN;
+BEGIN
 SELECT txid_current_if_assigned() IS NULL;
  ?column? 
 ----------
@@ -254,14 +260,20 @@ SELECT txid_current_if_assigned() IS NOT DISTINCT FROM BIGINT :'txid_current';
 (1 row)
 
 COMMIT;
+COMMIT
 -- test xid status functions
 BEGIN;
+BEGIN
 SELECT txid_current() AS committed \gset
 COMMIT;
+COMMIT
 BEGIN;
+BEGIN
 SELECT txid_current() AS rolledback \gset
 ROLLBACK;
+ROLLBACK
 BEGIN;
+BEGIN
 SELECT txid_current() AS inprogress \gset
 SELECT txid_status(:committed) AS committed;
  committed 
@@ -300,7 +312,9 @@ SELECT txid_status(3); -- in regress testing FirstNormalTransactionId will alway
 (1 row)
 
 COMMIT;
+COMMIT
 BEGIN;
+BEGIN
 CREATE FUNCTION test_future_xid_status(bigint)
 RETURNS void
 LANGUAGE plpgsql
@@ -314,11 +328,15 @@ EXCEPTION
     RAISE NOTICE 'Got expected error for xid in the future';
 END;
 $$;
+CREATE FUNCTION
 SELECT test_future_xid_status(:inprogress + 10000);
-NOTICE:  Got expected error for xid in the future
+psql:sql/txid.sql:98: NOTICE:  Got expected error for xid in the future
  test_future_xid_status 
 ------------------------
  
 (1 row)
 
 ROLLBACK;
+ROLLBACK
+drop table snapshot_test;
+DROP TABLE

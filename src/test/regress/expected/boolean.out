@@ -43,7 +43,7 @@ SELECT bool 'true' AS true;
 (1 row)
 
 SELECT bool 'test' AS error;
-ERROR:  invalid input syntax for type boolean: "test"
+psql:sql/boolean.sql:25: ERROR:  invalid input syntax for type boolean: "test"
 LINE 1: SELECT bool 'test' AS error;
                     ^
 SELECT bool 'false' AS false;
@@ -53,7 +53,7 @@ SELECT bool 'false' AS false;
 (1 row)
 
 SELECT bool 'foo' AS error;
-ERROR:  invalid input syntax for type boolean: "foo"
+psql:sql/boolean.sql:29: ERROR:  invalid input syntax for type boolean: "foo"
 LINE 1: SELECT bool 'foo' AS error;
                     ^
 SELECT bool 'y' AS true;
@@ -69,7 +69,7 @@ SELECT bool 'yes' AS true;
 (1 row)
 
 SELECT bool 'yeah' AS error;
-ERROR:  invalid input syntax for type boolean: "yeah"
+psql:sql/boolean.sql:35: ERROR:  invalid input syntax for type boolean: "yeah"
 LINE 1: SELECT bool 'yeah' AS error;
                     ^
 SELECT bool 'n' AS false;
@@ -85,7 +85,7 @@ SELECT bool 'no' AS false;
 (1 row)
 
 SELECT bool 'nay' AS error;
-ERROR:  invalid input syntax for type boolean: "nay"
+psql:sql/boolean.sql:41: ERROR:  invalid input syntax for type boolean: "nay"
 LINE 1: SELECT bool 'nay' AS error;
                     ^
 SELECT bool 'on' AS true;
@@ -107,15 +107,15 @@ SELECT bool 'of' AS false;
 (1 row)
 
 SELECT bool 'o' AS error;
-ERROR:  invalid input syntax for type boolean: "o"
+psql:sql/boolean.sql:49: ERROR:  invalid input syntax for type boolean: "o"
 LINE 1: SELECT bool 'o' AS error;
                     ^
 SELECT bool 'on_' AS error;
-ERROR:  invalid input syntax for type boolean: "on_"
+psql:sql/boolean.sql:51: ERROR:  invalid input syntax for type boolean: "on_"
 LINE 1: SELECT bool 'on_' AS error;
                     ^
 SELECT bool 'off_' AS error;
-ERROR:  invalid input syntax for type boolean: "off_"
+psql:sql/boolean.sql:53: ERROR:  invalid input syntax for type boolean: "off_"
 LINE 1: SELECT bool 'off_' AS error;
                     ^
 SELECT bool '1' AS true;
@@ -125,7 +125,7 @@ SELECT bool '1' AS true;
 (1 row)
 
 SELECT bool '11' AS error;
-ERROR:  invalid input syntax for type boolean: "11"
+psql:sql/boolean.sql:57: ERROR:  invalid input syntax for type boolean: "11"
 LINE 1: SELECT bool '11' AS error;
                     ^
 SELECT bool '0' AS false;
@@ -135,11 +135,11 @@ SELECT bool '0' AS false;
 (1 row)
 
 SELECT bool '000' AS error;
-ERROR:  invalid input syntax for type boolean: "000"
+psql:sql/boolean.sql:61: ERROR:  invalid input syntax for type boolean: "000"
 LINE 1: SELECT bool '000' AS error;
                     ^
 SELECT bool '' AS error;
-ERROR:  invalid input syntax for type boolean: ""
+psql:sql/boolean.sql:63: ERROR:  invalid input syntax for type boolean: ""
 LINE 1: SELECT bool '' AS error;
                     ^
 -- and, or, not in qualifications
@@ -218,13 +218,17 @@ SELECT true::boolean::text AS true, false::boolean::text AS false;
 (1 row)
 
 SELECT '  tru e '::text::boolean AS invalid;    -- error
-ERROR:  invalid input syntax for type boolean: "  tru e "
+psql:sql/boolean.sql:91: ERROR:  invalid input syntax for type boolean: "  tru e "
 SELECT ''::text::boolean AS invalid;            -- error
-ERROR:  invalid input syntax for type boolean: ""
+psql:sql/boolean.sql:92: ERROR:  invalid input syntax for type boolean: ""
 CREATE TABLE BOOLTBL1 (f1 bool);
+CREATE TABLE
 INSERT INTO BOOLTBL1 (f1) VALUES (bool 't');
+INSERT 0 1
 INSERT INTO BOOLTBL1 (f1) VALUES (bool 'True');
+INSERT 0 1
 INSERT INTO BOOLTBL1 (f1) VALUES (bool 'true');
+INSERT 0 1
 -- BOOLTBL1 should be full of true's at this point
 SELECT '' AS t_3, BOOLTBL1.* FROM BOOLTBL1;
  t_3 | f1 
@@ -262,6 +266,7 @@ SELECT '' AS zero, BOOLTBL1.*
 (0 rows)
 
 INSERT INTO BOOLTBL1 (f1) VALUES (bool 'f');
+INSERT 0 1
 SELECT '' AS f_1, BOOLTBL1.*
    FROM BOOLTBL1
    WHERE f1 = bool 'false';
@@ -271,15 +276,20 @@ SELECT '' AS f_1, BOOLTBL1.*
 (1 row)
 
 CREATE TABLE BOOLTBL2 (f1 bool);
+CREATE TABLE
 INSERT INTO BOOLTBL2 (f1) VALUES (bool 'f');
+INSERT 0 1
 INSERT INTO BOOLTBL2 (f1) VALUES (bool 'false');
+INSERT 0 1
 INSERT INTO BOOLTBL2 (f1) VALUES (bool 'False');
+INSERT 0 1
 INSERT INTO BOOLTBL2 (f1) VALUES (bool 'FALSE');
+INSERT 0 1
 -- This is now an invalid expression
 -- For pre-v6.3 this evaluated to false - thomas 1997-10-23
 INSERT INTO BOOLTBL2 (f1)
    VALUES (bool 'XXX');
-ERROR:  invalid input syntax for type boolean: "XXX"
+psql:sql/boolean.sql:140: ERROR:  invalid input syntax for type boolean: "XXX"
 LINE 2:    VALUES (bool 'XXX');
                         ^
 -- BOOLTBL2 should be full of false's at this point
@@ -446,9 +456,13 @@ SELECT '' AS "Not True", f1
 -- Tests for BooleanTest
 --
 CREATE TABLE BOOLTBL3 (d text, b bool, o int);
+CREATE TABLE
 INSERT INTO BOOLTBL3 (d, b, o) VALUES ('true', true, 1);
+INSERT 0 1
 INSERT INTO BOOLTBL3 (d, b, o) VALUES ('false', false, 2);
+INSERT 0 1
 INSERT INTO BOOLTBL3 (d, b, o) VALUES ('null', null, 3);
+INSERT 0 1
 SELECT
     d,
     b IS TRUE AS istrue,
@@ -469,8 +483,11 @@ FROM booltbl3 ORDER BY o;
 -- correct. Use a table as source to prevent constant simplification
 -- to interfer.
 CREATE TABLE booltbl4(isfalse bool, istrue bool, isnul bool);
+CREATE TABLE
 INSERT INTO booltbl4 VALUES (false, true, null);
+INSERT 0 1
 \pset null '(null)'
+Null display is "(null)".
 -- AND expression need to return null if there's any nulls and not all
 -- of the value are true
 SELECT istrue AND isnul AND istrue FROM booltbl4;
@@ -554,6 +571,10 @@ SELECT isnul OR istrue OR isfalse FROM booltbl4;
 --  - thomas 1997-11-30
 --
 DROP TABLE  BOOLTBL1;
+DROP TABLE
 DROP TABLE  BOOLTBL2;
+DROP TABLE
 DROP TABLE  BOOLTBL3;
+DROP TABLE
 DROP TABLE  BOOLTBL4;
+DROP TABLE

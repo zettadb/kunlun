@@ -5,12 +5,12 @@
 -- \set
 -- fail: invalid name
 \set invalid/name foo
-invalid variable name: "invalid/name"
+psql:sql/psql.sql:9: error: invalid variable name: "invalid/name"
 -- fail: invalid value for special variable
 \set AUTOCOMMIT foo
-unrecognized value "foo" for "AUTOCOMMIT": Boolean expected
+psql:sql/psql.sql:11: error: unrecognized value "foo" for "AUTOCOMMIT": Boolean expected
 \set FETCH_COUNT foo
-invalid value "foo" for "FETCH_COUNT": integer expected
+psql:sql/psql.sql:12: error: invalid value "foo" for "FETCH_COUNT": integer expected
 -- check handling of built-in boolean variable
 \echo :ON_ERROR_ROLLBACK
 off
@@ -18,7 +18,7 @@ off
 \echo :ON_ERROR_ROLLBACK
 on
 \set ON_ERROR_ROLLBACK foo
-unrecognized value "foo" for "ON_ERROR_ROLLBACK"
+psql:sql/psql.sql:17: error: unrecognized value "foo" for "ON_ERROR_ROLLBACK"
 Available values are: on, off, interactive.
 \echo :ON_ERROR_ROLLBACK
 on
@@ -83,7 +83,7 @@ select 10 as test01, 20 as test02, 'Hello' as test03 \gset pref01_
 -- should fail: bad variable name
 select 10 as "bad name"
 \gset
-invalid variable name: "bad name"
+psql:sql/psql.sql:49: error: invalid variable name: "bad name"
 -- multiple backslash commands in one line
 select 1 as x, 2 as y \gset pref01_ \\ \echo :pref01_x
 1
@@ -111,9 +111,9 @@ select 1 as var1, NULL as var2, 3 as var3 \gset
 1 :var2 3
 -- \gset requires just one tuple
 select 10 as test01, 20 as test02 from generate_series(1,3) \gset
-more than one row returned for \gset
+psql:sql/psql.sql:63: error: more than one row returned for \gset
 select 10 as test01, 20 as test02 from generate_series(1,0) \gset
-no rows returned for \gset
+psql:sql/psql.sql:64: error: no rows returned for \gset
 -- \gset should work in FETCH_COUNT mode too
 \set FETCH_COUNT 1
 select 1 as x, 2 as y \gset pref01_ \\ \echo :pref01_x
@@ -122,9 +122,9 @@ select 3 as x, 4 as y \gset pref01_ \echo :pref01_x \echo :pref01_y
 3
 4
 select 10 as test01, 20 as test02 from generate_series(1,3) \gset
-more than one row returned for \gset
+psql:sql/psql.sql:71: error: more than one row returned for \gset
 select 10 as test01, 20 as test02 from generate_series(1,0) \gset
-no rows returned for \gset
+psql:sql/psql.sql:72: error: no rows returned for \gset
 \unset FETCH_COUNT
 -- \gdesc
 SELECT
@@ -151,6 +151,7 @@ SELECT
 
 -- should work with tuple-returning utilities, such as EXECUTE
 PREPARE test AS SELECT 1 AS first, 2 AS second;
+PREPARE
 EXECUTE test \gdesc
  Column |  Type   
 --------+---------
@@ -166,7 +167,7 @@ EXPLAIN EXECUTE test \gdesc
 
 -- should fail cleanly - syntax error
 SELECT 1 + \gdesc
-ERROR:  syntax error at end of input
+psql:sql/psql.sql:95: ERROR:  syntax error at end of input
 LINE 1: SELECT 1 + 
                    ^
 -- check behavior with empty results
@@ -176,7 +177,7 @@ CREATE TABLE bububu(a int) \gdesc
 The command has no result, or the result has no columns.
 -- subject command should not have executed
 TABLE bububu;  -- fail
-ERROR:  relation "bububu" does not exist
+psql:sql/psql.sql:102: ERROR:  relation "bububu" does not exist
 LINE 1: TABLE bububu;
               ^
 -- query buffer should remain unchanged
@@ -213,15 +214,20 @@ SELECT 3 AS x, 'Hello', 4 AS y, true AS "dirty\name" \gdesc \g
 
 -- \gexec
 create temporary table gexec_test(a int, b text, c date, d float);
+CREATE TABLE
 select format('create index on gexec_test(%I)', attname)
 from pg_attribute
 where attrelid = 'gexec_test'::regclass and attnum > 0
 order by attnum
 \gexec
 create index on gexec_test(a)
+CREATE INDEX
 create index on gexec_test(b)
+CREATE INDEX
 create index on gexec_test(c)
+CREATE INDEX
 create index on gexec_test(d)
+CREATE INDEX
 -- \gexec should work in FETCH_COUNT mode too
 -- (though the fetch limit applies to the executed queries not the meta query)
 \set FETCH_COUNT 1
@@ -247,12 +253,13 @@ select x.y, x.y*2 as double from generate_series(1,4) as x(y)
 (4 rows)
 
 drop table gexec_test
+DROP TABLE
 drop table gexec_test
-ERROR:  table "gexec_test" does not exist
+psql:sql/psql.sql:130: ERROR:  table "gexec_test" does not exist
 select '2000-01-01'::date as party_over
  party_over 
 ------------
- 01-01-2000
+ 2000-01-01
 (1 row)
 
 \unset FETCH_COUNT
@@ -260,6 +267,7 @@ select '2000-01-01'::date as party_over
 \pset
 border                   1
 columns                  0
+csv_fieldsep             ','
 expanded                 off
 fieldsep                 '|'
 fieldsep_zero            off
@@ -283,11 +291,17 @@ prepare q as select array_to_string(array_agg(repeat('x',2*n)),E'\n') as "ab
 
 c", array_to_string(array_agg(repeat('y',20-2*n)),E'\n') as "a
 bc" from generate_series(1,10) as n(n) group by n>1 order by n>1;
+PREPARE
 \pset linestyle ascii
+Line style is ascii.
 \pset expanded off
+Expanded display is off.
 \pset columns 40
+Target width is 40.
 \pset border 0
+Border style is 0.
 \pset format unaligned
+Output format is unaligned.
 execute q;
 ab
 
@@ -313,6 +327,7 @@ yy
 
 (2 rows)
 \pset format aligned
+Output format is aligned.
 execute q;
          ab         +        a         +
                     +        bc         
@@ -331,6 +346,7 @@ xxxxxxxxxxxxxxxxxxxx
 (2 rows)
 
 \pset format wrapped
+Output format is wrapped.
 execute q;
          ab         +        a         +
                     +        bc         
@@ -349,7 +365,9 @@ xxxxxxxxxxxxxxxxxxxx
 (2 rows)
 
 \pset border 1
+Border style is 1.
 \pset format unaligned
+Output format is unaligned.
 execute q;
 ab
 
@@ -375,6 +393,7 @@ yy
 
 (2 rows)
 \pset format aligned
+Output format is aligned.
 execute q;
           ab         +|         a         +
                      +|         bc         
@@ -393,6 +412,7 @@ execute q;
 (2 rows)
 
 \pset format wrapped
+Output format is wrapped.
 execute q;
         ab        +|         a         +
                   +|         bc         
@@ -413,7 +433,9 @@ execute q;
 (2 rows)
 
 \pset border 2
+Border style is 2.
 \pset format unaligned
+Output format is unaligned.
 execute q;
 ab
 
@@ -439,6 +461,7 @@ yy
 
 (2 rows)
 \pset format aligned
+Output format is aligned.
 execute q;
 +----------------------+--------------------+
 |          ab         +|         a         +|
@@ -459,6 +482,7 @@ execute q;
 (2 rows)
 
 \pset format wrapped
+Output format is wrapped.
 execute q;
 +-----------------+--------------------+
 |       ab       +|         a         +|
@@ -482,9 +506,13 @@ execute q;
 (2 rows)
 
 \pset expanded on
+Expanded display is on.
 \pset columns 20
+Target width is 20.
 \pset border 0
+Border style is 0.
 \pset format unaligned
+Output format is unaligned.
 execute q;
 ab
 
@@ -514,6 +542,7 @@ yyyy
 yy
 
 \pset format aligned
+Output format is aligned.
 execute q;
 * Record 1            
 ab+ xx
@@ -542,6 +571,7 @@ bc  yyyyyyyyyyyyyy      +
     
 
 \pset format wrapped
+Output format is wrapped.
 execute q;
 * Record 1       
 ab+ xx
@@ -574,7 +604,9 @@ bc .y              +
     
 
 \pset border 1
+Border style is 1.
 \pset format unaligned
+Output format is unaligned.
 execute q;
 ab
 
@@ -604,6 +636,7 @@ yyyy
 yy
 
 \pset format aligned
+Output format is aligned.
 execute q;
 -[ RECORD 1 ]------------
 ab+| xx
@@ -632,6 +665,7 @@ bc | yyyyyyyyyyyyyy      +
    | 
 
 \pset format wrapped
+Output format is wrapped.
 execute q;
 -[ RECORD 1 ]------
 ab+| xx
@@ -664,7 +698,9 @@ bc |.yy            +
    | 
 
 \pset border 2
+Border style is 2.
 \pset format unaligned
+Output format is unaligned.
 execute q;
 ab
 
@@ -694,6 +730,7 @@ yyyy
 yy
 
 \pset format aligned
+Output format is aligned.
 execute q;
 +-[ RECORD 1 ]--------------+
 | ab+| xx                   |
@@ -723,6 +760,7 @@ execute q;
 +----+----------------------+
 
 \pset format wrapped
+Output format is wrapped.
 execute q;
 +-[ RECORD 1 ]-----+
 | ab+| xx          |
@@ -760,10 +798,15 @@ execute q;
 +----+-------------+
 
 \pset linestyle old-ascii
+Line style is old-ascii.
 \pset expanded off
+Expanded display is off.
 \pset columns 40
+Target width is 40.
 \pset border 0
+Border style is 0.
 \pset format unaligned
+Output format is unaligned.
 execute q;
 ab
 
@@ -789,6 +832,7 @@ yy
 
 (2 rows)
 \pset format aligned
+Output format is aligned.
 execute q;
          ab                  a         
                     +        bc        
@@ -807,6 +851,7 @@ xxxxxxxxxxxxxxxxxxxx
 (2 rows)
 
 \pset format wrapped
+Output format is wrapped.
 execute q;
          ab                  a         
                     +        bc        
@@ -825,7 +870,9 @@ xxxxxxxxxxxxxxxxxxxx
 (2 rows)
 
 \pset border 1
+Border style is 1.
 \pset format unaligned
+Output format is unaligned.
 execute q;
 ab
 
@@ -851,6 +898,7 @@ yy
 
 (2 rows)
 \pset format aligned
+Output format is aligned.
 execute q;
           ab          |         a          
 +                     |+        bc         
@@ -869,6 +917,7 @@ execute q;
 (2 rows)
 
 \pset format wrapped
+Output format is wrapped.
 execute q;
         ab         |         a          
 +                  |+        bc         
@@ -889,7 +938,9 @@ execute q;
 (2 rows)
 
 \pset border 2
+Border style is 2.
 \pset format unaligned
+Output format is unaligned.
 execute q;
 ab
 
@@ -915,6 +966,7 @@ yy
 
 (2 rows)
 \pset format aligned
+Output format is aligned.
 execute q;
 +----------------------+--------------------+
 |          ab          |         a          |
@@ -935,6 +987,7 @@ execute q;
 (2 rows)
 
 \pset format wrapped
+Output format is wrapped.
 execute q;
 +-----------------+--------------------+
 |       ab        |         a          |
@@ -958,9 +1011,13 @@ execute q;
 (2 rows)
 
 \pset expanded on
+Expanded display is on.
 \pset columns 20
+Target width is 20.
 \pset border 0
+Border style is 0.
 \pset format unaligned
+Output format is unaligned.
 execute q;
 ab
 
@@ -990,6 +1047,7 @@ yyyy
 yy
 
 \pset format aligned
+Output format is aligned.
 execute q;
 * Record 1             
  ab xx
@@ -1018,6 +1076,7 @@ execute q;
     
 
 \pset format wrapped
+Output format is wrapped.
 execute q;
 * Record 1         
  ab xx
@@ -1048,7 +1107,9 @@ execute q;
     
 
 \pset border 1
+Border style is 1.
 \pset format unaligned
+Output format is unaligned.
 execute q;
 ab
 
@@ -1078,6 +1139,7 @@ yyyy
 yy
 
 \pset format aligned
+Output format is aligned.
 execute q;
 -[ RECORD 1 ]-------------
  ab | xx
@@ -1106,6 +1168,7 @@ execute q;
     : 
 
 \pset format wrapped
+Output format is wrapped.
 execute q;
 -[ RECORD 1 ]-------
  ab | xx
@@ -1138,7 +1201,9 @@ execute q;
     : 
 
 \pset border 2
+Border style is 2.
 \pset format unaligned
+Output format is unaligned.
 execute q;
 ab
 
@@ -1168,6 +1233,7 @@ yyyy
 yy
 
 \pset format aligned
+Output format is aligned.
 execute q;
 +-[ RECORD 1 ]--------------+
 | ab | xx                   |
@@ -1197,6 +1263,7 @@ execute q;
 +----+----------------------+
 
 \pset format wrapped
+Output format is wrapped.
 execute q;
 +-[ RECORD 1 ]-----+
 | ab | xx          |
@@ -1234,13 +1301,20 @@ execute q;
 +----+-------------+
 
 deallocate q;
+DEALLOCATE
 -- test single-line header and data
 prepare q as select repeat('x',2*n) as "0123456789abcdef", repeat('y',20-2*n) as "0123456789" from generate_series(1,10) as n;
+PREPARE
 \pset linestyle ascii
+Line style is ascii.
 \pset expanded off
+Expanded display is off.
 \pset columns 40
+Target width is 40.
 \pset border 0
+Border style is 0.
 \pset format unaligned
+Output format is unaligned.
 execute q;
 0123456789abcdef|0123456789
 xx|yyyyyyyyyyyyyyyyyy
@@ -1255,6 +1329,7 @@ xxxxxxxxxxxxxxxxxx|yy
 xxxxxxxxxxxxxxxxxxxx|
 (10 rows)
 \pset format aligned
+Output format is aligned.
 execute q;
   0123456789abcdef       0123456789     
 -------------------- ------------------
@@ -1271,6 +1346,7 @@ xxxxxxxxxxxxxxxxxxxx
 (10 rows)
 
 \pset format wrapped
+Output format is wrapped.
 execute q;
   0123456789abcdef       0123456789     
 -------------------- ------------------
@@ -1287,7 +1363,9 @@ xxxxxxxxxxxxxxxxxxxx
 (10 rows)
 
 \pset border 1
+Border style is 1.
 \pset format unaligned
+Output format is unaligned.
 execute q;
 0123456789abcdef|0123456789
 xx|yyyyyyyyyyyyyyyyyy
@@ -1302,6 +1380,7 @@ xxxxxxxxxxxxxxxxxx|yy
 xxxxxxxxxxxxxxxxxxxx|
 (10 rows)
 \pset format aligned
+Output format is aligned.
 execute q;
    0123456789abcdef   |     0123456789     
 ----------------------+--------------------
@@ -1318,6 +1397,7 @@ execute q;
 (10 rows)
 
 \pset format wrapped
+Output format is wrapped.
 execute q;
   0123456789abcdef   |    0123456789    
 ---------------------+------------------
@@ -1336,7 +1416,9 @@ execute q;
 (10 rows)
 
 \pset border 2
+Border style is 2.
 \pset format unaligned
+Output format is unaligned.
 execute q;
 0123456789abcdef|0123456789
 xx|yyyyyyyyyyyyyyyyyy
@@ -1351,6 +1433,7 @@ xxxxxxxxxxxxxxxxxx|yy
 xxxxxxxxxxxxxxxxxxxx|
 (10 rows)
 \pset format aligned
+Output format is aligned.
 execute q;
 +----------------------+--------------------+
 |   0123456789abcdef   |     0123456789     |
@@ -1369,6 +1452,7 @@ execute q;
 (10 rows)
 
 \pset format wrapped
+Output format is wrapped.
 execute q;
 +--------------------+-----------------+
 |  0123456789abcdef  |   0123456789    |
@@ -1390,9 +1474,13 @@ execute q;
 (10 rows)
 
 \pset expanded on
+Expanded display is on.
 \pset columns 30
+Target width is 30.
 \pset border 0
+Border style is 0.
 \pset format unaligned
+Output format is unaligned.
 execute q;
 0123456789abcdef|xx
 0123456789|yyyyyyyyyyyyyyyyyy
@@ -1424,6 +1512,7 @@ execute q;
 0123456789abcdef|xxxxxxxxxxxxxxxxxxxx
 0123456789|
 \pset format aligned
+Output format is aligned.
 execute q;
 * Record 1                          
 0123456789abcdef xx
@@ -1457,6 +1546,7 @@ execute q;
 0123456789       
 
 \pset format wrapped
+Output format is wrapped.
 execute q;
 * Record 1                  
 0123456789abcdef xx
@@ -1497,7 +1587,9 @@ execute q;
 0123456789       
 
 \pset border 1
+Border style is 1.
 \pset format unaligned
+Output format is unaligned.
 execute q;
 0123456789abcdef|xx
 0123456789|yyyyyyyyyyyyyyyyyy
@@ -1529,6 +1621,7 @@ execute q;
 0123456789abcdef|xxxxxxxxxxxxxxxxxxxx
 0123456789|
 \pset format aligned
+Output format is aligned.
 execute q;
 -[ RECORD 1 ]----+---------------------
 0123456789abcdef | xx
@@ -1562,6 +1655,7 @@ execute q;
 0123456789       | 
 
 \pset format wrapped
+Output format is wrapped.
 execute q;
 -[ RECORD 1 ]----+-----------
 0123456789abcdef | xx
@@ -1604,7 +1698,9 @@ execute q;
 0123456789       | 
 
 \pset border 2
+Border style is 2.
 \pset format unaligned
+Output format is unaligned.
 execute q;
 0123456789abcdef|xx
 0123456789|yyyyyyyyyyyyyyyyyy
@@ -1636,6 +1732,7 @@ execute q;
 0123456789abcdef|xxxxxxxxxxxxxxxxxxxx
 0123456789|
 \pset format aligned
+Output format is aligned.
 execute q;
 +-[ RECORD 1 ]-----+----------------------+
 | 0123456789abcdef | xx                   |
@@ -1670,6 +1767,7 @@ execute q;
 +------------------+----------------------+
 
 \pset format wrapped
+Output format is wrapped.
 execute q;
 +-[ RECORD 1 ]-----+---------+
 | 0123456789abcdef | xx      |
@@ -1722,9 +1820,13 @@ execute q;
 +------------------+---------+
 
 \pset expanded on
+Expanded display is on.
 \pset columns 20
+Target width is 20.
 \pset border 0
+Border style is 0.
 \pset format unaligned
+Output format is unaligned.
 execute q;
 0123456789abcdef|xx
 0123456789|yyyyyyyyyyyyyyyyyy
@@ -1756,6 +1858,7 @@ execute q;
 0123456789abcdef|xxxxxxxxxxxxxxxxxxxx
 0123456789|
 \pset format aligned
+Output format is aligned.
 execute q;
 * Record 1                          
 0123456789abcdef xx
@@ -1789,6 +1892,7 @@ execute q;
 0123456789       
 
 \pset format wrapped
+Output format is wrapped.
 execute q;
 * Record 1         
 0123456789abcdef xx
@@ -1876,7 +1980,9 @@ execute q;
 0123456789       
 
 \pset border 1
+Border style is 1.
 \pset format unaligned
+Output format is unaligned.
 execute q;
 0123456789abcdef|xx
 0123456789|yyyyyyyyyyyyyyyyyy
@@ -1908,6 +2014,7 @@ execute q;
 0123456789abcdef|xxxxxxxxxxxxxxxxxxxx
 0123456789|
 \pset format aligned
+Output format is aligned.
 execute q;
 -[ RECORD 1 ]----+---------------------
 0123456789abcdef | xx
@@ -1941,6 +2048,7 @@ execute q;
 0123456789       | 
 
 \pset format wrapped
+Output format is wrapped.
 execute q;
 -[ RECORD 1 ]----+----
 0123456789abcdef | xx
@@ -2028,7 +2136,9 @@ execute q;
 0123456789       | 
 
 \pset border 2
+Border style is 2.
 \pset format unaligned
+Output format is unaligned.
 execute q;
 0123456789abcdef|xx
 0123456789|yyyyyyyyyyyyyyyyyy
@@ -2060,6 +2170,7 @@ execute q;
 0123456789abcdef|xxxxxxxxxxxxxxxxxxxx
 0123456789|
 \pset format aligned
+Output format is aligned.
 execute q;
 +-[ RECORD 1 ]-----+----------------------+
 | 0123456789abcdef | xx                   |
@@ -2094,6 +2205,7 @@ execute q;
 +------------------+----------------------+
 
 \pset format wrapped
+Output format is wrapped.
 execute q;
 +-[ RECORD 1 ]-----+-----+
 | 0123456789abcdef | xx  |
@@ -2182,10 +2294,15 @@ execute q;
 +------------------+-----+
 
 \pset linestyle old-ascii
+Line style is old-ascii.
 \pset expanded off
+Expanded display is off.
 \pset columns 40
+Target width is 40.
 \pset border 0
+Border style is 0.
 \pset format unaligned
+Output format is unaligned.
 execute q;
 0123456789abcdef|0123456789
 xx|yyyyyyyyyyyyyyyyyy
@@ -2200,6 +2317,7 @@ xxxxxxxxxxxxxxxxxx|yy
 xxxxxxxxxxxxxxxxxxxx|
 (10 rows)
 \pset format aligned
+Output format is aligned.
 execute q;
   0123456789abcdef       0123456789    
 -------------------- ------------------
@@ -2216,6 +2334,7 @@ xxxxxxxxxxxxxxxxxxxx
 (10 rows)
 
 \pset format wrapped
+Output format is wrapped.
 execute q;
   0123456789abcdef       0123456789    
 -------------------- ------------------
@@ -2232,7 +2351,9 @@ xxxxxxxxxxxxxxxxxxxx
 (10 rows)
 
 \pset border 1
+Border style is 1.
 \pset format unaligned
+Output format is unaligned.
 execute q;
 0123456789abcdef|0123456789
 xx|yyyyyyyyyyyyyyyyyy
@@ -2247,6 +2368,7 @@ xxxxxxxxxxxxxxxxxx|yy
 xxxxxxxxxxxxxxxxxxxx|
 (10 rows)
 \pset format aligned
+Output format is aligned.
 execute q;
    0123456789abcdef   |     0123456789     
 ----------------------+--------------------
@@ -2263,6 +2385,7 @@ execute q;
 (10 rows)
 
 \pset format wrapped
+Output format is wrapped.
 execute q;
   0123456789abcdef   |    0123456789    
 ---------------------+------------------
@@ -2281,7 +2404,9 @@ execute q;
 (10 rows)
 
 \pset border 2
+Border style is 2.
 \pset format unaligned
+Output format is unaligned.
 execute q;
 0123456789abcdef|0123456789
 xx|yyyyyyyyyyyyyyyyyy
@@ -2296,6 +2421,7 @@ xxxxxxxxxxxxxxxxxx|yy
 xxxxxxxxxxxxxxxxxxxx|
 (10 rows)
 \pset format aligned
+Output format is aligned.
 execute q;
 +----------------------+--------------------+
 |   0123456789abcdef   |     0123456789     |
@@ -2314,6 +2440,7 @@ execute q;
 (10 rows)
 
 \pset format wrapped
+Output format is wrapped.
 execute q;
 +--------------------+-----------------+
 |  0123456789abcdef  |   0123456789    |
@@ -2335,8 +2462,11 @@ execute q;
 (10 rows)
 
 \pset expanded on
+Expanded display is on.
 \pset border 0
+Border style is 0.
 \pset format unaligned
+Output format is unaligned.
 execute q;
 0123456789abcdef|xx
 0123456789|yyyyyyyyyyyyyyyyyy
@@ -2368,6 +2498,7 @@ execute q;
 0123456789abcdef|xxxxxxxxxxxxxxxxxxxx
 0123456789|
 \pset format aligned
+Output format is aligned.
 execute q;
 * Record 1                          
 0123456789abcdef xx
@@ -2401,6 +2532,7 @@ execute q;
 0123456789       
 
 \pset format wrapped
+Output format is wrapped.
 execute q;
 * Record 1                          
 0123456789abcdef xx
@@ -2434,7 +2566,9 @@ execute q;
 0123456789       
 
 \pset border 1
+Border style is 1.
 \pset format unaligned
+Output format is unaligned.
 execute q;
 0123456789abcdef|xx
 0123456789|yyyyyyyyyyyyyyyyyy
@@ -2466,6 +2600,7 @@ execute q;
 0123456789abcdef|xxxxxxxxxxxxxxxxxxxx
 0123456789|
 \pset format aligned
+Output format is aligned.
 execute q;
 -[ RECORD 1 ]----+---------------------
 0123456789abcdef | xx
@@ -2499,6 +2634,7 @@ execute q;
 0123456789       | 
 
 \pset format wrapped
+Output format is wrapped.
 execute q;
 -[ RECORD 1 ]----+---------------------
 0123456789abcdef | xx
@@ -2532,7 +2668,9 @@ execute q;
 0123456789       | 
 
 \pset border 2
+Border style is 2.
 \pset format unaligned
+Output format is unaligned.
 execute q;
 0123456789abcdef|xx
 0123456789|yyyyyyyyyyyyyyyyyy
@@ -2564,6 +2702,7 @@ execute q;
 0123456789abcdef|xxxxxxxxxxxxxxxxxxxx
 0123456789|
 \pset format aligned
+Output format is aligned.
 execute q;
 +-[ RECORD 1 ]-----+----------------------+
 | 0123456789abcdef | xx                   |
@@ -2598,6 +2737,7 @@ execute q;
 +------------------+----------------------+
 
 \pset format wrapped
+Output format is wrapped.
 execute q;
 +-[ RECORD 1 ]-----+-------------------+
 | 0123456789abcdef | xx                |
@@ -2635,11 +2775,17 @@ execute q;
 +------------------+-------------------+
 
 deallocate q;
+DEALLOCATE
 \pset linestyle ascii
+Line style is ascii.
 prepare q as select ' | = | lkjsafi\\/ /oeu rio)(!@&*#)*(!&@*) \ (&' as " | -- | 012345678 9abc def!*@#&!@(*&*~~_+-=\ \", '11' as "0123456789", 11 as int from generate_series(1,10) as n;
+PREPARE
 \pset format asciidoc
+Output format is asciidoc.
 \pset expanded off
+Expanded display is off.
 \pset border 0
+Border style is 0.
 execute q;
 
 [options="header",cols="<l,<l,>l",frame="none",grid="none"]
@@ -2661,6 +2807,7 @@ execute q;
 (10 rows)
 ....
 \pset border 1
+Border style is 1.
 execute q;
 
 [options="header",cols="<l,<l,>l",frame="none"]
@@ -2682,6 +2829,7 @@ execute q;
 (10 rows)
 ....
 \pset border 2
+Border style is 2.
 execute q;
 
 [options="header",cols="<l,<l,>l",frame="all",grid="all"]
@@ -2703,7 +2851,9 @@ execute q;
 (10 rows)
 ....
 \pset expanded on
+Expanded display is on.
 \pset border 0
+Border style is 0.
 execute q;
 
 [cols="h,l",frame="none",grid="none"]
@@ -2750,6 +2900,7 @@ execute q;
 <l|int >l|11
 |====
 \pset border 1
+Border style is 1.
 execute q;
 
 [cols="h,l",frame="none"]
@@ -2796,6 +2947,7 @@ execute q;
 <l|int >l|11
 |====
 \pset border 2
+Border style is 2.
 execute q;
 
 [cols="h,l",frame="all",grid="all"]
@@ -2842,9 +2994,13 @@ execute q;
 <l|int >l|11
 |====
 deallocate q;
+DEALLOCATE
 \pset format aligned
+Output format is aligned.
 \pset expanded off
+Expanded display is off.
 \pset border 1
+Border style is 1.
 -- tests for \if ... \endif
 \if true
   select 'okay';
@@ -2939,7 +3095,7 @@ second thing true
 \endif
 -- invalid boolean expressions are false
 \if invalid boolean expression
-unrecognized value "invalid boolean expression" for "\if expression": Boolean expected
+psql:sql/psql.sql:504: error: unrecognized value "invalid boolean expression" for "\if expression": Boolean expected
 	\echo 'will not print #6-1'
 \else
 	\echo 'will print anyway #6-2'
@@ -2947,24 +3103,24 @@ will print anyway #6-2
 \endif
 -- test un-matched endif
 \endif
-\endif: no matching \if
+psql:sql/psql.sql:511: error: \endif: no matching \if
 -- test un-matched else
 \else
-\else: no matching \if
+psql:sql/psql.sql:514: error: \else: no matching \if
 -- test un-matched elif
 \elif
-\elif: no matching \if
+psql:sql/psql.sql:517: error: \elif: no matching \if
 -- test double-else error
 \if true
 \else
 \else
-\else: cannot occur after \else
+psql:sql/psql.sql:522: error: \else: cannot occur after \else
 \endif
 -- test elif out-of-order
 \if false
 \else
 \elif
-\elif: cannot occur after \else
+psql:sql/psql.sql:528: error: \elif: cannot occur after \else
 \endif
 -- test if-endif matching in a false branch
 \if false
@@ -2983,10 +3139,11 @@ should print #7-4
 \echo :foo :'foo' :"foo"
 bar 'bar' "bar"
 \pset fieldsep | `nosuchcommand` :foo :'foo' :"foo"
-\pset: extra argument "nosuchcommand" ignored
-\pset: extra argument ":foo" ignored
-\pset: extra argument ":'foo'" ignored
-\pset: extra argument ":"foo"" ignored
+Field separator is "|".
+psql:sql/psql.sql:546: warning: \pset: extra argument "nosuchcommand" ignored
+psql:sql/psql.sql:546: warning: \pset: extra argument ":foo" ignored
+psql:sql/psql.sql:546: warning: \pset: extra argument ":'foo'" ignored
+psql:sql/psql.sql:546: warning: \pset: extra argument ":"foo"" ignored
 -- show that vars and backticks are not expanded and commands are ignored
 -- when in a false if-branch
 \set try_to_quit '\\q'
@@ -3047,16 +3204,16 @@ begin
   raise notice 'foo';
   raise exception 'bar';
 end $$;
-NOTICE:  foo
-ERROR:  bar
+psql:sql/psql.sql:600: NOTICE:  foo
+psql:sql/psql.sql:600: ERROR:  bar
 \set SHOW_CONTEXT errors
 do $$
 begin
   raise notice 'foo';
   raise exception 'bar';
 end $$;
-NOTICE:  foo
-ERROR:  bar
+psql:sql/psql.sql:607: NOTICE:  foo
+psql:sql/psql.sql:607: ERROR:  bar
 CONTEXT:  PL/pgSQL function inline_code_block line 4 at RAISE
 \set SHOW_CONTEXT always
 do $$
@@ -3064,9 +3221,9 @@ begin
   raise notice 'foo';
   raise exception 'bar';
 end $$;
-NOTICE:  foo
+psql:sql/psql.sql:614: NOTICE:  foo
 CONTEXT:  PL/pgSQL function inline_code_block line 3 at RAISE
-ERROR:  bar
+psql:sql/psql.sql:614: ERROR:  bar
 CONTEXT:  PL/pgSQL function inline_code_block line 4 at RAISE
 -- test printing and clearing the query buffer
 SELECT 1;
@@ -3078,6 +3235,7 @@ SELECT 1;
 \p
 SELECT 1;
 SELECT 2 \r
+Query buffer reset (cleared).
 \p
 SELECT 1;
 SELECT 3 \p
@@ -3095,6 +3253,7 @@ ORDER BY 1;
 (3 rows)
 
 \r
+Query buffer reset (cleared).
 \p
 SELECT 3 
 UNION SELECT 4 
@@ -3117,7 +3276,7 @@ error code: 00000
 number of rows: 2
 -- syntax error
 SELECT 1 UNION;
-ERROR:  syntax error at or near ";"
+psql:sql/psql.sql:637: ERROR:  syntax error at or near ";"
 LINE 1: SELECT 1 UNION;
                       ^
 \echo 'error:' :ERROR
@@ -3145,7 +3304,7 @@ last error message: syntax error at or near ";"
 last error code: 42601
 -- other query error
 DROP TABLE this_table_does_not_exist;
-ERROR:  table "this_table_does_not_exist" does not exist
+psql:sql/psql.sql:654: ERROR:  table "this_table_does_not_exist" does not exist
 \echo 'error:' :ERROR
 error: true
 \echo 'error code:' :SQLSTATE
@@ -3172,7 +3331,7 @@ error code: 00000
 number of rows: 2
 -- \gdesc with an error
 SELECT 4 AS \gdesc
-ERROR:  syntax error at end of input
+psql:sql/psql.sql:668: ERROR:  syntax error at end of input
 LINE 1: SELECT 4 AS 
                     ^
 \echo 'error:' :ERROR
@@ -3190,56 +3349,28 @@ last error code: 42601
 select unique2 from tenk1 order by unique2 limit 19;
  unique2 
 ---------
-       0
-       1
-       2
-       3
-       4
-       5
-       6
-       7
-       8
-       9
-      10
-      11
-      12
-      13
-      14
-      15
-      16
-      17
-      18
-(19 rows)
+(0 rows)
 
 \echo 'error:' :ERROR
 error: false
 \echo 'error code:' :SQLSTATE
 error code: 00000
 \echo 'number of rows:' :ROW_COUNT
-number of rows: 19
+number of rows: 0
 -- cursor-fetched query with an error after the first group
 select 1/(15-unique2) from tenk1 order by unique2 limit 19;
  ?column? 
 ----------
-        0
-        0
-        0
-        0
-        0
-        0
-        0
-        0
-        0
-        0
-ERROR:  division by zero
+(0 rows)
+
 \echo 'error:' :ERROR
-error: true
+error: false
 \echo 'error code:' :SQLSTATE
-error code: 22012
+error code: 00000
 \echo 'number of rows:' :ROW_COUNT
 number of rows: 0
 \echo 'last error message:' :LAST_ERROR_MESSAGE
-last error message: division by zero
+last error message: syntax error at end of input
 \echo 'last error code:' :LAST_ERROR_SQLSTATE
-last error code: 22012
+last error code: 42601
 \unset FETCH_COUNT

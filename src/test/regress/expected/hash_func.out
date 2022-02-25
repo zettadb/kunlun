@@ -262,6 +262,7 @@ WHERE  pg_lsn_hash(v)::bit(32) != pg_lsn_hash_extended(v, 0)::bit(32)
 (0 rows)
 
 CREATE TYPE mood AS ENUM ('sad', 'ok', 'happy');
+CREATE TYPE
 SELECT v as value, hashenum(v)::bit(32) as standard,
 	   hashenumextended(v, 0)::bit(32) as extended0,
 	   hashenumextended(v, 1)::bit(32) as extended1
@@ -273,6 +274,7 @@ WHERE  hashenum(v)::bit(32) != hashenumextended(v, 0)::bit(32)
 (0 rows)
 
 DROP TYPE mood;
+DROP TYPE
 SELECT v as value, jsonb_hash(v)::bit(32) as standard,
 	   jsonb_hash_extended(v, 0)::bit(32) as extended0,
 	   jsonb_hash_extended(v, 1)::bit(32) as extended1

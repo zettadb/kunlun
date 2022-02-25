@@ -1,24 +1,31 @@
 --
 -- CIRCLE
 --
-CREATE TABLE CIRCLE_TBL (f1 circle);
+CREATE TEMP TABLE CIRCLE_TBL (f1 circle);
+CREATE TABLE
 INSERT INTO CIRCLE_TBL VALUES ('<(5,1),3>');
+INSERT 0 1
 INSERT INTO CIRCLE_TBL VALUES ('<(1,2),100>');
+INSERT 0 1
 INSERT INTO CIRCLE_TBL VALUES ('1,3,5');
+INSERT 0 1
 INSERT INTO CIRCLE_TBL VALUES ('((1,2),3)');
+INSERT 0 1
 INSERT INTO CIRCLE_TBL VALUES ('<(100,200),10>');
+INSERT 0 1
 INSERT INTO CIRCLE_TBL VALUES ('<(100,1),115>');
+INSERT 0 1
 -- bad values
 INSERT INTO CIRCLE_TBL VALUES ('<(-100,0),-100>');
-ERROR:  invalid input syntax for type circle: "<(-100,0),-100>"
+psql:sql/circle.sql:21: ERROR:  invalid input syntax for type circle: "<(-100,0),-100>"
 LINE 1: INSERT INTO CIRCLE_TBL VALUES ('<(-100,0),-100>');
                                        ^
 INSERT INTO CIRCLE_TBL VALUES ('1abc,3,5');
-ERROR:  invalid input syntax for type circle: "1abc,3,5"
+psql:sql/circle.sql:23: ERROR:  invalid input syntax for type circle: "1abc,3,5"
 LINE 1: INSERT INTO CIRCLE_TBL VALUES ('1abc,3,5');
                                        ^
 INSERT INTO CIRCLE_TBL VALUES ('(3,(1,2),3)');
-ERROR:  invalid input syntax for type circle: "(3,(1,2),3)"
+psql:sql/circle.sql:25: ERROR:  invalid input syntax for type circle: "(3,(1,2),3)"
 LINE 1: INSERT INTO CIRCLE_TBL VALUES ('(3,(1,2),3)');
                                        ^
 SELECT * FROM CIRCLE_TBL;

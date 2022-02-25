@@ -9,17 +9,24 @@
 -- That allows us to test all the different combinations of
 -- lossy and non-lossy pages with the minimum amount of data
 CREATE TABLE bmscantest (a int, b int, t text);
+CREATE TABLE
 INSERT INTO bmscantest
   SELECT (r%53), (r%59), 'foooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo'
   FROM generate_series(1,70000) r;
+INSERT 0 70000
 CREATE INDEX i_bmtest_a ON bmscantest(a);
+CREATE INDEX
 CREATE INDEX i_bmtest_b ON bmscantest(b);
+CREATE INDEX
 -- We want to use bitmapscans. With default settings, the planner currently
 -- chooses a bitmap scan for the queries below anyway, but let's make sure.
 set enable_indexscan=false;
+SET
 set enable_seqscan=false;
+SET
 -- Lower work_mem to trigger use of lossy bitmaps
 set work_mem = 64;
+SET
 -- Test bitmap-and.
 SELECT count(*) FROM bmscantest WHERE a = 1 AND b = 1;
  count 
@@ -36,3 +43,4 @@ SELECT count(*) FROM bmscantest WHERE a = 1 OR b = 1;
 
 -- clean up
 DROP TABLE bmscantest;
+DROP TABLE

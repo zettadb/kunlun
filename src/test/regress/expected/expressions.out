@@ -61,6 +61,7 @@ SELECT current_schema;
 (1 row)
 
 SET search_path = 'notme';
+SET
 SELECT current_schema;
  current_schema 
 ----------------
@@ -68,6 +69,7 @@ SELECT current_schema;
 (1 row)
 
 SET search_path = 'pg_catalog';
+SET
 SELECT current_schema;
  current_schema 
 ----------------
@@ -75,3 +77,4 @@ SELECT current_schema;
 (1 row)
 
 RESET search_path;
+RESET

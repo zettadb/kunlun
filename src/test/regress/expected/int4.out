@@ -1,44 +1,52 @@
 --
 -- INT4
 --
+DROP table if exists INT4_TBL;
+DROP TABLE
 CREATE TABLE INT4_TBL(f1 int4);
+CREATE TABLE
 INSERT INTO INT4_TBL(f1) VALUES ('   0  ');
+INSERT 0 1
 INSERT INTO INT4_TBL(f1) VALUES ('123456     ');
+INSERT 0 1
 INSERT INTO INT4_TBL(f1) VALUES ('    -123456');
+INSERT 0 1
 INSERT INTO INT4_TBL(f1) VALUES ('34.5');
-ERROR:  invalid input syntax for integer: "34.5"
+psql:sql/int4.sql:14: ERROR:  invalid input syntax for integer: "34.5"
 LINE 1: INSERT INTO INT4_TBL(f1) VALUES ('34.5');
                                          ^
 -- largest and smallest values
 INSERT INTO INT4_TBL(f1) VALUES ('2147483647');
+INSERT 0 1
 INSERT INTO INT4_TBL(f1) VALUES ('-2147483647');
+INSERT 0 1
 -- bad input values -- should give errors
 INSERT INTO INT4_TBL(f1) VALUES ('1000000000000');
-ERROR:  value "1000000000000" is out of range for type integer
+psql:sql/int4.sql:22: ERROR:  value "1000000000000" is out of range for type integer
 LINE 1: INSERT INTO INT4_TBL(f1) VALUES ('1000000000000');
                                          ^
 INSERT INTO INT4_TBL(f1) VALUES ('asdf');
-ERROR:  invalid input syntax for integer: "asdf"
+psql:sql/int4.sql:23: ERROR:  invalid input syntax for integer: "asdf"
 LINE 1: INSERT INTO INT4_TBL(f1) VALUES ('asdf');
                                          ^
 INSERT INTO INT4_TBL(f1) VALUES ('     ');
-ERROR:  invalid input syntax for integer: "     "
+psql:sql/int4.sql:24: ERROR:  invalid input syntax for integer: "     "
 LINE 1: INSERT INTO INT4_TBL(f1) VALUES ('     ');
                                          ^
 INSERT INTO INT4_TBL(f1) VALUES ('   asdf   ');
-ERROR:  invalid input syntax for integer: "   asdf   "
+psql:sql/int4.sql:25: ERROR:  invalid input syntax for integer: "   asdf   "
 LINE 1: INSERT INTO INT4_TBL(f1) VALUES ('   asdf   ');
                                          ^
 INSERT INTO INT4_TBL(f1) VALUES ('- 1234');
-ERROR:  invalid input syntax for integer: "- 1234"
+psql:sql/int4.sql:26: ERROR:  invalid input syntax for integer: "- 1234"
 LINE 1: INSERT INTO INT4_TBL(f1) VALUES ('- 1234');
                                          ^
 INSERT INTO INT4_TBL(f1) VALUES ('123       5');
-ERROR:  invalid input syntax for integer: "123       5"
+psql:sql/int4.sql:27: ERROR:  invalid input syntax for integer: "123       5"
 LINE 1: INSERT INTO INT4_TBL(f1) VALUES ('123       5');
                                          ^
 INSERT INTO INT4_TBL(f1) VALUES ('');
-ERROR:  invalid input syntax for integer: ""
+psql:sql/int4.sql:28: ERROR:  invalid input syntax for integer: ""
 LINE 1: INSERT INTO INT4_TBL(f1) VALUES ('');
                                          ^
 SELECT '' AS five, * FROM INT4_TBL;
@@ -158,7 +166,7 @@ SELECT '' AS three, i.* FROM INT4_TBL i WHERE (i.f1 % int4 '2') = int2 '0';
 (3 rows)
 
 SELECT '' AS five, i.f1, i.f1 * int2 '2' AS x FROM INT4_TBL i;
-ERROR:  value "4294967294" is out of range for type integer
+psql:sql/int4.sql:63: ERROR:  value "4294967294" is out of range for type integer
 SELECT '' AS five, i.f1, i.f1 * int2 '2' AS x FROM INT4_TBL i
 WHERE abs(f1) < 1073741824;
  five |   f1    |    x    
@@ -169,7 +177,7 @@ WHERE abs(f1) < 1073741824;
 (3 rows)
 
 SELECT '' AS five, i.f1, i.f1 * int4 '2' AS x FROM INT4_TBL i;
-ERROR:  value "4294967294" is out of range for type integer
+psql:sql/int4.sql:68: ERROR:  value "4294967294" is out of range for type integer
 SELECT '' AS five, i.f1, i.f1 * int4 '2' AS x FROM INT4_TBL i
 WHERE abs(f1) < 1073741824;
  five |   f1    |    x    
@@ -180,7 +188,7 @@ WHERE abs(f1) < 1073741824;
 (3 rows)
 
 SELECT '' AS five, i.f1, i.f1 + int2 '2' AS x FROM INT4_TBL i;
-ERROR:  value "2147483649" is out of range for type integer
+psql:sql/int4.sql:73: ERROR:  value "2147483649" is out of range for type integer
 SELECT '' AS five, i.f1, i.f1 + int2 '2' AS x FROM INT4_TBL i
 WHERE f1 < 2147483646;
  five |     f1      |      x      
@@ -192,7 +200,7 @@ WHERE f1 < 2147483646;
 (4 rows)
 
 SELECT '' AS five, i.f1, i.f1 + int4 '2' AS x FROM INT4_TBL i;
-ERROR:  value "2147483649" is out of range for type integer
+psql:sql/int4.sql:78: ERROR:  value "2147483649" is out of range for type integer
 SELECT '' AS five, i.f1, i.f1 + int4 '2' AS x FROM INT4_TBL i
 WHERE f1 < 2147483646;
  five |     f1      |      x      
@@ -204,7 +212,7 @@ WHERE f1 < 2147483646;
 (4 rows)
 
 SELECT '' AS five, i.f1, i.f1 - int2 '2' AS x FROM INT4_TBL i;
-ERROR:  value "-2147483649" is out of range for type integer
+psql:sql/int4.sql:83: ERROR:  value "-2147483649" is out of range for type integer
 SELECT '' AS five, i.f1, i.f1 - int2 '2' AS x FROM INT4_TBL i
 WHERE f1 > -2147483647;
  five |     f1     |     x      
@@ -216,7 +224,7 @@ WHERE f1 > -2147483647;
 (4 rows)
 
 SELECT '' AS five, i.f1, i.f1 - int4 '2' AS x FROM INT4_TBL i;
-ERROR:  value "-2147483649" is out of range for type integer
+psql:sql/int4.sql:88: ERROR:  value "-2147483649" is out of range for type integer
 SELECT '' AS five, i.f1, i.f1 - int4 '2' AS x FROM INT4_TBL i
 WHERE f1 > -2147483647;
  five |     f1     |     x      
@@ -344,9 +352,9 @@ SELECT ((-1::int4<<31)+1)::text;
 
 -- check sane handling of INT_MIN overflow cases
 SELECT (-2147483648)::int4 * (-1)::int4;
-ERROR:  integer out of range
+psql:sql/int4.sql:133: ERROR:  integer out of range
 SELECT (-2147483648)::int4 / (-1)::int4;
-ERROR:  integer out of range
+psql:sql/int4.sql:134: ERROR:  integer out of range
 SELECT (-2147483648)::int4 % (-1)::int4;
  ?column? 
 ----------
@@ -354,9 +362,9 @@ SELECT (-2147483648)::int4 % (-1)::int4;
 (1 row)
 
 SELECT (-2147483648)::int4 * (-1)::int2;
-ERROR:  integer out of range
+psql:sql/int4.sql:136: ERROR:  integer out of range
 SELECT (-2147483648)::int4 / (-1)::int2;
-ERROR:  integer out of range
+psql:sql/int4.sql:137: ERROR:  integer out of range
 SELECT (-2147483648)::int4 % (-1)::int2;
  ?column? 
 ----------

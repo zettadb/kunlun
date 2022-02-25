@@ -2,6 +2,7 @@
 -- ADVISORY LOCKS
 --
 BEGIN;
+BEGIN
 SELECT
 	pg_advisory_xact_lock(1), pg_advisory_xact_lock_shared(2),
 	pg_advisory_xact_lock(1, 1), pg_advisory_xact_lock_shared(2, 2);
@@ -38,10 +39,10 @@ SELECT count(*) FROM pg_locks WHERE locktype = 'advisory';
 SELECT
 	pg_advisory_unlock(1), pg_advisory_unlock_shared(2),
 	pg_advisory_unlock(1, 1), pg_advisory_unlock_shared(2, 2);
-WARNING:  you don't own a lock of type ExclusiveLock
-WARNING:  you don't own a lock of type ShareLock
-WARNING:  you don't own a lock of type ExclusiveLock
-WARNING:  you don't own a lock of type ShareLock
+psql:sql/advisory_lock.sql:25: WARNING:  you don't own a lock of type ExclusiveLock
+psql:sql/advisory_lock.sql:25: WARNING:  you don't own a lock of type ShareLock
+psql:sql/advisory_lock.sql:25: WARNING:  you don't own a lock of type ExclusiveLock
+psql:sql/advisory_lock.sql:25: WARNING:  you don't own a lock of type ShareLock
  pg_advisory_unlock | pg_advisory_unlock_shared | pg_advisory_unlock | pg_advisory_unlock_shared 
 --------------------+---------------------------+--------------------+---------------------------
  f                  | f                         | f                  | f
@@ -49,6 +50,7 @@ WARNING:  you don't own a lock of type ShareLock
 
 -- automatically release xact locks at commit
 COMMIT;
+COMMIT
 SELECT count(*) FROM pg_locks WHERE locktype = 'advisory';
  count 
 -------
@@ -56,6 +58,7 @@ SELECT count(*) FROM pg_locks WHERE locktype = 'advisory';
 (1 row)
 
 BEGIN;
+BEGIN
 -- holding both session and xact locks on the same objects, xact first
 SELECT
 	pg_advisory_xact_lock(1), pg_advisory_xact_lock_shared(2),
@@ -85,6 +88,7 @@ SELECT
 (1 row)
 
 ROLLBACK;
+ROLLBACK
 SELECT locktype, classid, objid, objsubid, mode, granted
 	FROM pg_locks WHERE locktype = 'advisory'
 	ORDER BY classid, objid, objsubid;
@@ -102,10 +106,10 @@ SELECT
 	pg_advisory_unlock_shared(2), pg_advisory_unlock_shared(2),
 	pg_advisory_unlock(1, 1), pg_advisory_unlock(1, 1),
 	pg_advisory_unlock_shared(2, 2), pg_advisory_unlock_shared(2, 2);
-WARNING:  you don't own a lock of type ExclusiveLock
-WARNING:  you don't own a lock of type ShareLock
-WARNING:  you don't own a lock of type ExclusiveLock
-WARNING:  you don't own a lock of type ShareLock
+psql:sql/advisory_lock.sql:61: WARNING:  you don't own a lock of type ExclusiveLock
+psql:sql/advisory_lock.sql:61: WARNING:  you don't own a lock of type ShareLock
+psql:sql/advisory_lock.sql:61: WARNING:  you don't own a lock of type ExclusiveLock
+psql:sql/advisory_lock.sql:61: WARNING:  you don't own a lock of type ShareLock
  pg_advisory_unlock | pg_advisory_unlock | pg_advisory_unlock_shared | pg_advisory_unlock_shared | pg_advisory_unlock | pg_advisory_unlock | pg_advisory_unlock_shared | pg_advisory_unlock_shared 
 --------------------+--------------------+---------------------------+---------------------------+--------------------+--------------------+---------------------------+---------------------------
  t                  | f                  | t                         | f                         | t                  | f                  | t                         | f
@@ -118,6 +122,7 @@ SELECT count(*) FROM pg_locks WHERE locktype = 'advisory';
 (1 row)
 
 BEGIN;
+BEGIN
 -- holding both session and xact locks on the same objects, session first
 SELECT
 	pg_advisory_lock(1), pg_advisory_lock_shared(2),
@@ -147,6 +152,7 @@ SELECT
 (1 row)
 
 ROLLBACK;
+ROLLBACK
 SELECT locktype, classid, objid, objsubid, mode, granted
 	FROM pg_locks WHERE locktype = 'advisory'
 	ORDER BY classid, objid, objsubid;
@@ -172,6 +178,7 @@ SELECT count(*) FROM pg_locks WHERE locktype = 'advisory';
 (1 row)
 
 BEGIN;
+BEGIN
 -- grabbing txn locks multiple times
 SELECT
 	pg_advisory_xact_lock(1), pg_advisory_xact_lock(1),
@@ -195,6 +202,7 @@ SELECT locktype, classid, objid, objsubid, mode, granted
 (4 rows)
 
 COMMIT;
+COMMIT
 SELECT count(*) FROM pg_locks WHERE locktype = 'advisory';
  count 
 -------

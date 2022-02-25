@@ -4,6 +4,7 @@ CREATE OPERATOR === (
         RIGHTARG = bigint,
         COMMUTATOR = ===
 );
+CREATE OPERATOR
 CREATE OPERATOR !== (
         PROCEDURE = int8ne,
         LEFTARG = bigint,
@@ -11,7 +12,9 @@ CREATE OPERATOR !== (
         NEGATOR = ===,
         COMMUTATOR = !==
 );
+CREATE OPERATOR
 DROP OPERATOR !==(bigint, bigint);
+DROP OPERATOR
 SELECT  ctid, oprcom
 FROM    pg_catalog.pg_operator fk
 WHERE   oprcom != 0 AND
@@ -29,11 +32,13 @@ WHERE   oprnegate != 0 AND
 (0 rows)
 
 DROP OPERATOR ===(bigint, bigint);
+DROP OPERATOR
 CREATE OPERATOR <| (
         PROCEDURE = int8lt,
         LEFTARG = bigint,
         RIGHTARG = bigint
 );
+CREATE OPERATOR
 CREATE OPERATOR |> (
         PROCEDURE = int8gt,
         LEFTARG = bigint,
@@ -41,7 +46,9 @@ CREATE OPERATOR |> (
         NEGATOR = <|,
         COMMUTATOR = <|
 );
+CREATE OPERATOR
 DROP OPERATOR |>(bigint, bigint);
+DROP OPERATOR
 SELECT  ctid, oprcom
 FROM    pg_catalog.pg_operator fk
 WHERE   oprcom != 0 AND
@@ -59,3 +66,4 @@ WHERE   oprnegate != 0 AND
 (0 rows)
 
 DROP OPERATOR <|(bigint, bigint);
+DROP OPERATOR

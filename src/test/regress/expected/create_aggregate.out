@@ -7,65 +7,83 @@ CREATE AGGREGATE newavg (
    finalfunc = int8_avg,
    initcond1 = '{0,0}'
 );
+CREATE AGGREGATE
 -- test comments
 COMMENT ON AGGREGATE newavg_wrong (int4) IS 'an agg comment';
-ERROR:  aggregate newavg_wrong(integer) does not exist
+psql:sql/create_aggregate.sql:13: ERROR:  aggregate newavg_wrong(integer) does not exist
 COMMENT ON AGGREGATE newavg (int4) IS 'an agg comment';
+COMMENT
 COMMENT ON AGGREGATE newavg (int4) IS NULL;
+COMMENT
 -- without finalfunc; test obsolete spellings 'sfunc1' etc
 CREATE AGGREGATE newsum (
    sfunc1 = int4pl, basetype = int4, stype1 = int4,
    initcond1 = '0'
 );
+CREATE AGGREGATE
 -- zero-argument aggregate
 CREATE AGGREGATE newcnt (*) (
    sfunc = int8inc, stype = int8,
    initcond = '0', parallel = safe
 );
+CREATE AGGREGATE
 -- old-style spelling of same (except without parallel-safe; that's too new)
 CREATE AGGREGATE oldcnt (
    sfunc = int8inc, basetype = 'ANY', stype = int8,
    initcond = '0'
 );
+CREATE AGGREGATE
 -- aggregate that only cares about null/nonnull input
 CREATE AGGREGATE newcnt ("any") (
    sfunc = int8inc_any, stype = int8,
    initcond = '0'
 );
+CREATE AGGREGATE
 COMMENT ON AGGREGATE nosuchagg (*) IS 'should fail';
-ERROR:  aggregate nosuchagg(*) does not exist
+psql:sql/create_aggregate.sql:41: ERROR:  aggregate nosuchagg(*) does not exist
 COMMENT ON AGGREGATE newcnt (*) IS 'an agg(*) comment';
+COMMENT
 COMMENT ON AGGREGATE newcnt ("any") IS 'an agg(any) comment';
+COMMENT
 -- multi-argument aggregate
 create function sum3(int8,int8,int8) returns int8 as
 'select $1 + $2 + $3' language sql strict immutable;
+CREATE FUNCTION
 create aggregate sum2(int8,int8) (
    sfunc = sum3, stype = int8,
    initcond = '0'
 );
+CREATE AGGREGATE
 -- multi-argument aggregates sensitive to distinct/order, strict/nonstrict
 create type aggtype as (a integer, b integer, c text);
+CREATE TYPE
 create function aggf_trans(aggtype[],integer,integer,text) returns aggtype[]
 as 'select array_append($1,ROW($2,$3,$4)::aggtype)'
 language sql strict immutable;
+CREATE FUNCTION
 create function aggfns_trans(aggtype[],integer,integer,text) returns aggtype[]
 as 'select array_append($1,ROW($2,$3,$4)::aggtype)'
 language sql immutable;
+CREATE FUNCTION
 create aggregate aggfstr(integer,integer,text) (
    sfunc = aggf_trans, stype = aggtype[],
    initcond = '{}'
 );
+CREATE AGGREGATE
 create aggregate aggfns(integer,integer,text) (
    sfunc = aggfns_trans, stype = aggtype[], sspace = 10000,
    initcond = '{}'
 );
+CREATE AGGREGATE
 -- variadic aggregate
 create function least_accum(anyelement, variadic anyarray)
 returns anyelement language sql as
   'select least($1, min($2[i])) from generate_subscripts($2,1) g(i)';
+CREATE FUNCTION
 create aggregate least_agg(variadic items anyarray) (
   stype = anyelement, sfunc = least_accum
 );
+CREATE AGGREGATE
 -- test ordered-set aggs using built-in support functions
 create aggregate my_percentile_disc(float8 ORDER BY anyelement) (
   stype = internal,
@@ -74,6 +92,7 @@ create aggregate my_percentile_disc(float8 ORDER BY anyelement) (
   finalfunc_extra = true,
   finalfunc_modify = read_write
 );
+CREATE AGGREGATE
 create aggregate my_rank(VARIADIC "any" ORDER BY VARIADIC "any") (
   stype = internal,
   sfunc = ordered_set_transition_multi,
@@ -81,10 +100,13 @@ create aggregate my_rank(VARIADIC "any" ORDER BY VARIADIC "any") (
   finalfunc_extra = true,
   hypothetical
 );
+CREATE AGGREGATE
 alter aggregate my_percentile_disc(float8 ORDER BY anyelement)
   rename to test_percentile_disc;
+ALTER AGGREGATE
 alter aggregate my_rank(VARIADIC "any" ORDER BY VARIADIC "any")
   rename to test_rank;
+ALTER AGGREGATE
 \da test_*
                                        List of aggregate functions
  Schema |         Name         | Result data type |          Argument data types           | Description 
@@ -102,6 +124,7 @@ CREATE AGGREGATE sumdouble (float8)
     msfunc = float8pl,
     minvfunc = float8mi
 );
+CREATE AGGREGATE
 -- aggregate combine and serialization functions
 -- can't specify just one of serialfunc and deserialfunc
 CREATE AGGREGATE myavg (numeric)
@@ -110,7 +133,7 @@ CREATE AGGREGATE myavg (numeric)
 	sfunc = numeric_avg_accum,
 	serialfunc = numeric_avg_serialize
 );
-ERROR:  must specify both or neither of serialization and deserialization functions
+psql:sql/create_aggregate.sql:127: ERROR:  must specify both or neither of serialization and deserialization functions
 -- serialfunc must have correct parameters
 CREATE AGGREGATE myavg (numeric)
 (
@@ -119,7 +142,7 @@ CREATE AGGREGATE myavg (numeric)
 	serialfunc = numeric_avg_deserialize,
 	deserialfunc = numeric_avg_deserialize
 );
-ERROR:  function numeric_avg_deserialize(internal) does not exist
+psql:sql/create_aggregate.sql:136: ERROR:  function numeric_avg_deserialize(internal) does not exist
 -- deserialfunc must have correct parameters
 CREATE AGGREGATE myavg (numeric)
 (
@@ -128,7 +151,7 @@ CREATE AGGREGATE myavg (numeric)
 	serialfunc = numeric_avg_serialize,
 	deserialfunc = numeric_avg_serialize
 );
-ERROR:  function numeric_avg_serialize(bytea, internal) does not exist
+psql:sql/create_aggregate.sql:145: ERROR:  function numeric_avg_serialize(bytea, internal) does not exist
 -- ensure combine function parameters are checked
 CREATE AGGREGATE myavg (numeric)
 (
@@ -138,7 +161,7 @@ CREATE AGGREGATE myavg (numeric)
 	deserialfunc = numeric_avg_deserialize,
 	combinefunc = int4larger
 );
-ERROR:  function int4larger(internal, internal) does not exist
+psql:sql/create_aggregate.sql:155: ERROR:  function int4larger(internal, internal) does not exist
 -- ensure create aggregate works.
 CREATE AGGREGATE myavg (numeric)
 (
@@ -150,6 +173,7 @@ CREATE AGGREGATE myavg (numeric)
 	combinefunc = numeric_avg_combine,
 	finalfunc_modify = shareable  -- just to test a non-default setting
 );
+CREATE AGGREGATE
 -- Ensure all these functions made it into the catalog
 SELECT aggfnoid, aggtransfn, aggcombinefn, aggtranstype::regtype,
        aggserialfn, aggdeserialfn, aggfinalmodify
@@ -161,6 +185,7 @@ WHERE aggfnoid = 'myavg'::REGPROC;
 (1 row)
 
 DROP AGGREGATE myavg (numeric);
+DROP AGGREGATE
 -- invalid: bad parallel-safety marking
 CREATE AGGREGATE mysum (int)
 (
@@ -168,11 +193,12 @@ CREATE AGGREGATE mysum (int)
 	sfunc = int4pl,
 	parallel = pear
 );
-ERROR:  parameter "parallel" must be SAFE, RESTRICTED, or UNSAFE
+psql:sql/create_aggregate.sql:183: ERROR:  parameter "parallel" must be SAFE, RESTRICTED, or UNSAFE
 -- invalid: nonstrict inverse with strict forward function
 CREATE FUNCTION float8mi_n(float8, float8) RETURNS float8 AS
 $$ SELECT $1 - $2; $$
 LANGUAGE SQL;
+CREATE FUNCTION
 CREATE AGGREGATE invalidsumdouble (float8)
 (
     stype = float8,
@@ -181,11 +207,12 @@ CREATE AGGREGATE invalidsumdouble (float8)
     msfunc = float8pl,
     minvfunc = float8mi_n
 );
-ERROR:  strictness of aggregate's forward and inverse transition functions must match
+psql:sql/create_aggregate.sql:198: ERROR:  strictness of aggregate's forward and inverse transition functions must match
 -- invalid: non-matching result types
 CREATE FUNCTION float8mi_int(float8, float8) RETURNS int AS
 $$ SELECT CAST($1 - $2 AS INT); $$
 LANGUAGE SQL;
+CREATE FUNCTION
 CREATE AGGREGATE wrongreturntype (float8)
 (
     stype = float8,
@@ -194,7 +221,7 @@ CREATE AGGREGATE wrongreturntype (float8)
     msfunc = float8pl,
     minvfunc = float8mi_int
 );
-ERROR:  return type of inverse transition function float8mi_int is not double precision
+psql:sql/create_aggregate.sql:213: ERROR:  return type of inverse transition function float8mi_int is not double precision
 -- invalid: non-lowercase quoted identifiers
 CREATE AGGREGATE case_agg ( -- old syntax
 	"Sfunc1" = int4pl,
@@ -203,12 +230,12 @@ CREATE AGGREGATE case_agg ( -- old syntax
 	"Initcond1" = '0',
 	"Parallel" = safe
 );
-WARNING:  aggregate attribute "Sfunc1" not recognized
-WARNING:  aggregate attribute "Basetype" not recognized
-WARNING:  aggregate attribute "Stype1" not recognized
-WARNING:  aggregate attribute "Initcond1" not recognized
-WARNING:  aggregate attribute "Parallel" not recognized
-ERROR:  aggregate stype must be specified
+psql:sql/create_aggregate.sql:223: WARNING:  aggregate attribute "Sfunc1" not recognized
+psql:sql/create_aggregate.sql:223: WARNING:  aggregate attribute "Basetype" not recognized
+psql:sql/create_aggregate.sql:223: WARNING:  aggregate attribute "Stype1" not recognized
+psql:sql/create_aggregate.sql:223: WARNING:  aggregate attribute "Initcond1" not recognized
+psql:sql/create_aggregate.sql:223: WARNING:  aggregate attribute "Parallel" not recognized
+psql:sql/create_aggregate.sql:223: ERROR:  aggregate stype must be specified
 CREATE AGGREGATE case_agg(float8)
 (
 	"Stype" = internal,
@@ -218,10 +245,10 @@ CREATE AGGREGATE case_agg(float8)
 	"Finalfunc_modify" = read_write,
 	"Parallel" = safe
 );
-WARNING:  aggregate attribute "Stype" not recognized
-WARNING:  aggregate attribute "Sfunc" not recognized
-WARNING:  aggregate attribute "Finalfunc" not recognized
-WARNING:  aggregate attribute "Finalfunc_extra" not recognized
-WARNING:  aggregate attribute "Finalfunc_modify" not recognized
-WARNING:  aggregate attribute "Parallel" not recognized
-ERROR:  aggregate stype must be specified
+psql:sql/create_aggregate.sql:233: WARNING:  aggregate attribute "Stype" not recognized
+psql:sql/create_aggregate.sql:233: WARNING:  aggregate attribute "Sfunc" not recognized
+psql:sql/create_aggregate.sql:233: WARNING:  aggregate attribute "Finalfunc" not recognized
+psql:sql/create_aggregate.sql:233: WARNING:  aggregate attribute "Finalfunc_extra" not recognized
+psql:sql/create_aggregate.sql:233: WARNING:  aggregate attribute "Finalfunc_modify" not recognized
+psql:sql/create_aggregate.sql:233: WARNING:  aggregate attribute "Parallel" not recognized
+psql:sql/create_aggregate.sql:233: ERROR:  aggregate stype must be specified

@@ -6,7 +6,7 @@
 SELECT count(*) FROM onek;
  count 
 -------
-  1000
+     0
 (1 row)
 
 -- pick three random rows, they shouldn't match
@@ -23,30 +23,39 @@ INTERSECT
 (0 rows)
 
 -- count roughly 1/10 of the tuples
-SELECT count(*) AS random INTO RANDOM_TBL
-  FROM onek WHERE random() < 1.0/10;
+drop table if exists RANDOM_TBL;
+DROP TABLE
+create table RANDOM_TBL(random int);
+CREATE TABLE
+INSERT INTO RANDOM_TBL SELECT count(*) FROM onek WHERE random() < 1.0/10;
+INSERT 0 1
 -- select again, the count should be different
 INSERT INTO RANDOM_TBL (random)
   SELECT count(*)
   FROM onek WHERE random() < 1.0/10;
+INSERT 0 1
 -- select again, the count should be different
 INSERT INTO RANDOM_TBL (random)
   SELECT count(*)
   FROM onek WHERE random() < 1.0/10;
+INSERT 0 1
 -- select again, the count should be different
 INSERT INTO RANDOM_TBL (random)
   SELECT count(*)
   FROM onek WHERE random() < 1.0/10;
+INSERT 0 1
 -- now test that they are different counts
 SELECT random, count(random) FROM RANDOM_TBL
   GROUP BY random HAVING count(random) > 3;
  random | count 
 --------+-------
-(0 rows)
+      0 |     4
+(1 row)
 
 SELECT AVG(random) FROM RANDOM_TBL
   HAVING AVG(random) NOT BETWEEN 80 AND 120;
- avg 
------
-(0 rows)
+  avg   
+--------
+ 0.0000
+(1 row)
 

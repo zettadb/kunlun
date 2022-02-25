@@ -3,528 +3,277 @@
 --
 create function sp_parallel_restricted(int) returns int as
   $$begin return $1; end$$ language plpgsql parallel restricted;
+CREATE FUNCTION
 -- Serializable isolation would disable parallel query, so explicitly use an
 -- arbitrary other level.
 begin isolation level repeatable read;
+BEGIN
 -- encourage use of parallel plans
 set parallel_setup_cost=0;
+SET
 set parallel_tuple_cost=0;
+SET
 set min_parallel_table_scan_size=0;
+SET
 set max_parallel_workers_per_gather=4;
+SET
 -- Parallel Append with partial-subplans
 explain (costs off)
   select round(avg(aa)), sum(aa) from a_star;
-                     QUERY PLAN                      
------------------------------------------------------
- Finalize Aggregate
-   ->  Gather
-         Workers Planned: 3
-         ->  Partial Aggregate
-               ->  Parallel Append
-                     ->  Parallel Seq Scan on d_star
-                     ->  Parallel Seq Scan on f_star
-                     ->  Parallel Seq Scan on e_star
-                     ->  Parallel Seq Scan on b_star
-                     ->  Parallel Seq Scan on c_star
-                     ->  Parallel Seq Scan on a_star
-(11 rows)
-
+psql:sql/select_parallel.sql:20: ERROR:  column "aa" does not exist
+LINE 2:   select round(avg(aa)), sum(aa) from a_star;
+                           ^
+HINT:  Perhaps you meant to reference the column "a_star.a".
 select round(avg(aa)), sum(aa) from a_star a1;
- round | sum 
--------+-----
-    14 | 355
-(1 row)
-
+psql:sql/select_parallel.sql:21: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- Parallel Append with both partial and non-partial subplans
 alter table c_star set (parallel_workers = 0);
+psql:sql/select_parallel.sql:24: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 alter table d_star set (parallel_workers = 0);
+psql:sql/select_parallel.sql:25: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 explain (costs off)
   select round(avg(aa)), sum(aa) from a_star;
-                     QUERY PLAN                      
------------------------------------------------------
- Finalize Aggregate
-   ->  Gather
-         Workers Planned: 3
-         ->  Partial Aggregate
-               ->  Parallel Append
-                     ->  Seq Scan on d_star
-                     ->  Seq Scan on c_star
-                     ->  Parallel Seq Scan on f_star
-                     ->  Parallel Seq Scan on e_star
-                     ->  Parallel Seq Scan on b_star
-                     ->  Parallel Seq Scan on a_star
-(11 rows)
-
+psql:sql/select_parallel.sql:27: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 select round(avg(aa)), sum(aa) from a_star a2;
- round | sum 
--------+-----
-    14 | 355
-(1 row)
-
+psql:sql/select_parallel.sql:28: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- Parallel Append with only non-partial subplans
 alter table a_star set (parallel_workers = 0);
+psql:sql/select_parallel.sql:31: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 alter table b_star set (parallel_workers = 0);
+psql:sql/select_parallel.sql:32: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 alter table e_star set (parallel_workers = 0);
+psql:sql/select_parallel.sql:33: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 alter table f_star set (parallel_workers = 0);
+psql:sql/select_parallel.sql:34: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 explain (costs off)
   select round(avg(aa)), sum(aa) from a_star;
-                 QUERY PLAN                 
---------------------------------------------
- Finalize Aggregate
-   ->  Gather
-         Workers Planned: 3
-         ->  Partial Aggregate
-               ->  Parallel Append
-                     ->  Seq Scan on d_star
-                     ->  Seq Scan on f_star
-                     ->  Seq Scan on e_star
-                     ->  Seq Scan on b_star
-                     ->  Seq Scan on c_star
-                     ->  Seq Scan on a_star
-(11 rows)
-
+psql:sql/select_parallel.sql:36: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 select round(avg(aa)), sum(aa) from a_star a3;
- round | sum 
--------+-----
-    14 | 355
-(1 row)
-
+psql:sql/select_parallel.sql:37: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- Disable Parallel Append
 alter table a_star reset (parallel_workers);
+psql:sql/select_parallel.sql:40: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 alter table b_star reset (parallel_workers);
+psql:sql/select_parallel.sql:41: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 alter table c_star reset (parallel_workers);
+psql:sql/select_parallel.sql:42: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 alter table d_star reset (parallel_workers);
+psql:sql/select_parallel.sql:43: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 alter table e_star reset (parallel_workers);
+psql:sql/select_parallel.sql:44: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 alter table f_star reset (parallel_workers);
+psql:sql/select_parallel.sql:45: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 set enable_parallel_append to off;
+psql:sql/select_parallel.sql:46: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 explain (costs off)
   select round(avg(aa)), sum(aa) from a_star;
-                     QUERY PLAN                      
------------------------------------------------------
- Finalize Aggregate
-   ->  Gather
-         Workers Planned: 1
-         ->  Partial Aggregate
-               ->  Append
-                     ->  Parallel Seq Scan on a_star
-                     ->  Parallel Seq Scan on b_star
-                     ->  Parallel Seq Scan on c_star
-                     ->  Parallel Seq Scan on d_star
-                     ->  Parallel Seq Scan on e_star
-                     ->  Parallel Seq Scan on f_star
-(11 rows)
-
+psql:sql/select_parallel.sql:48: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 select round(avg(aa)), sum(aa) from a_star a4;
- round | sum 
--------+-----
-    14 | 355
-(1 row)
-
+psql:sql/select_parallel.sql:49: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 reset enable_parallel_append;
+psql:sql/select_parallel.sql:50: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- Parallel Append that runs serially
 create function sp_test_func() returns setof text as
 $$ select 'foo'::varchar union all select 'bar'::varchar $$
 language sql stable;
+psql:sql/select_parallel.sql:55: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 select sp_test_func() order by 1;
- sp_test_func 
---------------
- bar
- foo
-(2 rows)
-
+psql:sql/select_parallel.sql:56: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- Parallel Append is not to be used when the subpath depends on the outer param
 create table part_pa_test(a int, b int) partition by range(a);
+psql:sql/select_parallel.sql:59: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 create table part_pa_test_p1 partition of part_pa_test for values from (minvalue) to (0);
+psql:sql/select_parallel.sql:60: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 create table part_pa_test_p2 partition of part_pa_test for values from (0) to (maxvalue);
+psql:sql/select_parallel.sql:61: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 explain (costs off)
 	select (select max((select pa1.b from part_pa_test pa1 where pa1.a = pa2.a)))
 	from part_pa_test pa2;
-                          QUERY PLAN                          
---------------------------------------------------------------
- Aggregate
-   ->  Gather
-         Workers Planned: 3
-         ->  Parallel Append
-               ->  Parallel Seq Scan on part_pa_test_p1 pa2
-               ->  Parallel Seq Scan on part_pa_test_p2 pa2_1
-   SubPlan 2
-     ->  Result
-   SubPlan 1
-     ->  Append
-           ->  Seq Scan on part_pa_test_p1 pa1
-                 Filter: (a = pa2.a)
-           ->  Seq Scan on part_pa_test_p2 pa1_1
-                 Filter: (a = pa2.a)
-(14 rows)
-
+psql:sql/select_parallel.sql:64: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 drop table part_pa_test;
+psql:sql/select_parallel.sql:65: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- test with leader participation disabled
 set parallel_leader_participation = off;
+psql:sql/select_parallel.sql:68: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 explain (costs off)
   select count(*) from tenk1 where stringu1 = 'GRAAAA';
-                       QUERY PLAN                        
----------------------------------------------------------
- Finalize Aggregate
-   ->  Gather
-         Workers Planned: 4
-         ->  Partial Aggregate
-               ->  Parallel Seq Scan on tenk1
-                     Filter: (stringu1 = 'GRAAAA'::name)
-(6 rows)
-
+psql:sql/select_parallel.sql:70: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 select count(*) from tenk1 where stringu1 = 'GRAAAA';
- count 
--------
-    15
-(1 row)
-
+psql:sql/select_parallel.sql:71: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- test with leader participation disabled, but no workers available (so
 -- the leader will have to run the plan despite the setting)
 set max_parallel_workers = 0;
+psql:sql/select_parallel.sql:75: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 explain (costs off)
   select count(*) from tenk1 where stringu1 = 'GRAAAA';
-                       QUERY PLAN                        
----------------------------------------------------------
- Finalize Aggregate
-   ->  Gather
-         Workers Planned: 4
-         ->  Partial Aggregate
-               ->  Parallel Seq Scan on tenk1
-                     Filter: (stringu1 = 'GRAAAA'::name)
-(6 rows)
-
+psql:sql/select_parallel.sql:77: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 select count(*) from tenk1 where stringu1 = 'GRAAAA';
- count 
--------
-    15
-(1 row)
-
+psql:sql/select_parallel.sql:78: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 reset max_parallel_workers;
+psql:sql/select_parallel.sql:80: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 reset parallel_leader_participation;
+psql:sql/select_parallel.sql:81: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- test that parallel_restricted function doesn't run in worker
 alter table tenk1 set (parallel_workers = 4);
+psql:sql/select_parallel.sql:84: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 explain (verbose, costs off)
 select sp_parallel_restricted(unique1) from tenk1
   where stringu1 = 'GRAAAA' order by 1;
-                       QUERY PLAN                        
----------------------------------------------------------
- Sort
-   Output: (sp_parallel_restricted(unique1))
-   Sort Key: (sp_parallel_restricted(tenk1.unique1))
-   ->  Gather
-         Output: sp_parallel_restricted(unique1)
-         Workers Planned: 4
-         ->  Parallel Seq Scan on public.tenk1
-               Output: unique1
-               Filter: (tenk1.stringu1 = 'GRAAAA'::name)
-(9 rows)
-
+psql:sql/select_parallel.sql:87: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- test parallel plan when group by expression is in target list.
 explain (costs off)
 	select length(stringu1) from tenk1 group by length(stringu1);
-                    QUERY PLAN                     
----------------------------------------------------
- Finalize HashAggregate
-   Group Key: (length((stringu1)::text))
-   ->  Gather
-         Workers Planned: 4
-         ->  Partial HashAggregate
-               Group Key: length((stringu1)::text)
-               ->  Parallel Seq Scan on tenk1
-(7 rows)
-
+psql:sql/select_parallel.sql:91: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 select length(stringu1) from tenk1 group by length(stringu1);
- length 
---------
-      6
-(1 row)
-
+psql:sql/select_parallel.sql:92: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 explain (costs off)
 	select stringu1, count(*) from tenk1 group by stringu1 order by stringu1;
-                     QUERY PLAN                     
-----------------------------------------------------
- Sort
-   Sort Key: stringu1
-   ->  Finalize HashAggregate
-         Group Key: stringu1
-         ->  Gather
-               Workers Planned: 4
-               ->  Partial HashAggregate
-                     Group Key: stringu1
-                     ->  Parallel Seq Scan on tenk1
-(9 rows)
-
+psql:sql/select_parallel.sql:95: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- test that parallel plan for aggregates is not selected when
 -- target list contains parallel restricted clause.
 explain (costs off)
 	select  sum(sp_parallel_restricted(unique1)) from tenk1
 	group by(sp_parallel_restricted(unique1));
-                            QUERY PLAN                             
--------------------------------------------------------------------
- HashAggregate
-   Group Key: sp_parallel_restricted(unique1)
-   ->  Gather
-         Workers Planned: 4
-         ->  Parallel Index Only Scan using tenk1_unique1 on tenk1
-(5 rows)
-
+psql:sql/select_parallel.sql:101: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- test prepared statement
 prepare tenk1_count(integer) As select  count((unique1)) from tenk1 where hundred > $1;
+psql:sql/select_parallel.sql:104: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 explain (costs off) execute tenk1_count(1);
-                  QUERY PLAN                  
-----------------------------------------------
- Finalize Aggregate
-   ->  Gather
-         Workers Planned: 4
-         ->  Partial Aggregate
-               ->  Parallel Seq Scan on tenk1
-                     Filter: (hundred > 1)
-(6 rows)
-
+psql:sql/select_parallel.sql:105: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 execute tenk1_count(1);
- count 
--------
-  9800
-(1 row)
-
+psql:sql/select_parallel.sql:106: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 deallocate tenk1_count;
+psql:sql/select_parallel.sql:107: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- test parallel plans for queries containing un-correlated subplans.
 alter table tenk2 set (parallel_workers = 0);
+psql:sql/select_parallel.sql:110: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 explain (costs off)
 	select count(*) from tenk1 where (two, four) not in
 	(select hundred, thousand from tenk2 where thousand > 100);
-                      QUERY PLAN                      
-------------------------------------------------------
- Finalize Aggregate
-   ->  Gather
-         Workers Planned: 4
-         ->  Partial Aggregate
-               ->  Parallel Seq Scan on tenk1
-                     Filter: (NOT (hashed SubPlan 1))
-                     SubPlan 1
-                       ->  Seq Scan on tenk2
-                             Filter: (thousand > 100)
-(9 rows)
-
+psql:sql/select_parallel.sql:113: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 select count(*) from tenk1 where (two, four) not in
 	(select hundred, thousand from tenk2 where thousand > 100);
- count 
--------
- 10000
-(1 row)
-
+psql:sql/select_parallel.sql:115: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- this is not parallel-safe due to use of random() within SubLink's testexpr:
 explain (costs off)
 	select * from tenk1 where (unique1 + random())::integer not in
 	(select ten from tenk2);
-             QUERY PLAN             
-------------------------------------
- Seq Scan on tenk1
-   Filter: (NOT (hashed SubPlan 1))
-   SubPlan 1
-     ->  Seq Scan on tenk2
-(4 rows)
-
+psql:sql/select_parallel.sql:119: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 alter table tenk2 reset (parallel_workers);
+psql:sql/select_parallel.sql:120: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- test parallel plan for a query containing initplan.
 set enable_indexscan = off;
+psql:sql/select_parallel.sql:123: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 set enable_indexonlyscan = off;
+psql:sql/select_parallel.sql:124: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 set enable_bitmapscan = off;
+psql:sql/select_parallel.sql:125: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 alter table tenk2 set (parallel_workers = 2);
+psql:sql/select_parallel.sql:126: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 explain (costs off)
 	select count(*) from tenk1
         where tenk1.unique1 = (Select max(tenk2.unique1) from tenk2);
-                      QUERY PLAN                      
-------------------------------------------------------
- Aggregate
-   InitPlan 1 (returns $2)
-     ->  Finalize Aggregate
-           ->  Gather
-                 Workers Planned: 2
-                 ->  Partial Aggregate
-                       ->  Parallel Seq Scan on tenk2
-   ->  Gather
-         Workers Planned: 4
-         Params Evaluated: $2
-         ->  Parallel Seq Scan on tenk1
-               Filter: (unique1 = $2)
-(12 rows)
-
+psql:sql/select_parallel.sql:130: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 select count(*) from tenk1
     where tenk1.unique1 = (Select max(tenk2.unique1) from tenk2);
- count 
--------
-     1
-(1 row)
-
+psql:sql/select_parallel.sql:132: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 reset enable_indexscan;
+psql:sql/select_parallel.sql:134: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 reset enable_indexonlyscan;
+psql:sql/select_parallel.sql:135: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 reset enable_bitmapscan;
+psql:sql/select_parallel.sql:136: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 alter table tenk2 reset (parallel_workers);
+psql:sql/select_parallel.sql:137: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- test parallel index scans.
 set enable_seqscan to off;
+psql:sql/select_parallel.sql:140: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 set enable_bitmapscan to off;
+psql:sql/select_parallel.sql:141: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 explain (costs off)
 	select  count((unique1)) from tenk1 where hundred > 1;
-                             QUERY PLAN                             
---------------------------------------------------------------------
- Finalize Aggregate
-   ->  Gather
-         Workers Planned: 4
-         ->  Partial Aggregate
-               ->  Parallel Index Scan using tenk1_hundred on tenk1
-                     Index Cond: (hundred > 1)
-(6 rows)
-
+psql:sql/select_parallel.sql:144: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 select  count((unique1)) from tenk1 where hundred > 1;
- count 
--------
-  9800
-(1 row)
-
+psql:sql/select_parallel.sql:145: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- test parallel index-only scans.
 explain (costs off)
 	select  count(*) from tenk1 where thousand > 95;
-                                   QUERY PLAN                                   
---------------------------------------------------------------------------------
- Finalize Aggregate
-   ->  Gather
-         Workers Planned: 4
-         ->  Partial Aggregate
-               ->  Parallel Index Only Scan using tenk1_thous_tenthous on tenk1
-                     Index Cond: (thousand > 95)
-(6 rows)
-
+psql:sql/select_parallel.sql:149: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 select  count(*) from tenk1 where thousand > 95;
- count 
--------
-  9040
-(1 row)
-
+psql:sql/select_parallel.sql:150: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- test rescan cases too
 set enable_material = false;
+psql:sql/select_parallel.sql:153: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 explain (costs off)
 select * from
   (select count(unique1) from tenk1 where hundred > 10) ss
   right join (values (1),(2),(3)) v(x) on true;
-                                QUERY PLAN                                
---------------------------------------------------------------------------
- Nested Loop Left Join
-   ->  Values Scan on "*VALUES*"
-   ->  Finalize Aggregate
-         ->  Gather
-               Workers Planned: 4
-               ->  Partial Aggregate
-                     ->  Parallel Index Scan using tenk1_hundred on tenk1
-                           Index Cond: (hundred > 10)
-(8 rows)
-
+psql:sql/select_parallel.sql:158: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 select * from
   (select count(unique1) from tenk1 where hundred > 10) ss
   right join (values (1),(2),(3)) v(x) on true;
- count | x 
--------+---
-  8900 | 1
-  8900 | 2
-  8900 | 3
-(3 rows)
-
+psql:sql/select_parallel.sql:161: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 explain (costs off)
 select * from
   (select count(*) from tenk1 where thousand > 99) ss
   right join (values (1),(2),(3)) v(x) on true;
-                                      QUERY PLAN                                      
---------------------------------------------------------------------------------------
- Nested Loop Left Join
-   ->  Values Scan on "*VALUES*"
-   ->  Finalize Aggregate
-         ->  Gather
-               Workers Planned: 4
-               ->  Partial Aggregate
-                     ->  Parallel Index Only Scan using tenk1_thous_tenthous on tenk1
-                           Index Cond: (thousand > 99)
-(8 rows)
-
+psql:sql/select_parallel.sql:166: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 select * from
   (select count(*) from tenk1 where thousand > 99) ss
   right join (values (1),(2),(3)) v(x) on true;
- count | x 
--------+---
-  9000 | 1
-  9000 | 2
-  9000 | 3
-(3 rows)
-
+psql:sql/select_parallel.sql:169: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 reset enable_material;
+psql:sql/select_parallel.sql:171: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 reset enable_seqscan;
+psql:sql/select_parallel.sql:172: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 reset enable_bitmapscan;
+psql:sql/select_parallel.sql:173: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- test parallel bitmap heap scan.
 set enable_seqscan to off;
+psql:sql/select_parallel.sql:176: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 set enable_indexscan to off;
+psql:sql/select_parallel.sql:177: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 set enable_hashjoin to off;
+psql:sql/select_parallel.sql:178: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 set enable_mergejoin to off;
+psql:sql/select_parallel.sql:179: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 set enable_material to off;
+psql:sql/select_parallel.sql:180: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- test prefetching, if the platform allows it
 DO $$
 BEGIN
  SET effective_io_concurrency = 50;
 EXCEPTION WHEN invalid_parameter_value THEN
 END $$;
+psql:sql/select_parallel.sql:186: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 set work_mem='64kB';  --set small work mem to force lossy pages
+psql:sql/select_parallel.sql:187: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 explain (costs off)
 	select count(*) from tenk1, tenk2 where tenk1.hundred > 1 and tenk2.thousand=0;
-                         QUERY PLAN                         
-------------------------------------------------------------
- Aggregate
-   ->  Nested Loop
-         ->  Seq Scan on tenk2
-               Filter: (thousand = 0)
-         ->  Gather
-               Workers Planned: 4
-               ->  Parallel Bitmap Heap Scan on tenk1
-                     Recheck Cond: (hundred > 1)
-                     ->  Bitmap Index Scan on tenk1_hundred
-                           Index Cond: (hundred > 1)
-(10 rows)
-
+psql:sql/select_parallel.sql:189: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 select count(*) from tenk1, tenk2 where tenk1.hundred > 1 and tenk2.thousand=0;
- count 
--------
- 98000
-(1 row)
-
+psql:sql/select_parallel.sql:190: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 create table bmscantest (a int, t text);
+psql:sql/select_parallel.sql:192: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 insert into bmscantest select r, 'fooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' FROM generate_series(1,100000) r;
+psql:sql/select_parallel.sql:193: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 create index i_bmtest ON bmscantest(a);
+psql:sql/select_parallel.sql:194: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 select count(*) from bmscantest where a>1;
- count 
--------
- 99999
-(1 row)
-
+psql:sql/select_parallel.sql:195: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- test accumulation of stats for parallel nodes
 reset enable_seqscan;
+psql:sql/select_parallel.sql:198: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 alter table tenk2 set (parallel_workers = 0);
+psql:sql/select_parallel.sql:199: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 explain (analyze, timing off, summary off, costs off)
    select count(*) from tenk1, tenk2 where tenk1.hundred > 1
         and tenk2.thousand=0;
-                                QUERY PLAN                                
---------------------------------------------------------------------------
- Aggregate (actual rows=1 loops=1)
-   ->  Nested Loop (actual rows=98000 loops=1)
-         ->  Seq Scan on tenk2 (actual rows=10 loops=1)
-               Filter: (thousand = 0)
-               Rows Removed by Filter: 9990
-         ->  Gather (actual rows=9800 loops=10)
-               Workers Planned: 4
-               Workers Launched: 4
-               ->  Parallel Seq Scan on tenk1 (actual rows=1960 loops=50)
-                     Filter: (hundred > 1)
-                     Rows Removed by Filter: 40
-(11 rows)
-
+psql:sql/select_parallel.sql:202: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 alter table tenk2 reset (parallel_workers);
+psql:sql/select_parallel.sql:203: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 reset work_mem;
+psql:sql/select_parallel.sql:205: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 create function explain_parallel_sort_stats() returns setof text
 language plpgsql as
 $$
@@ -536,104 +285,50 @@ begin
           (select ten from tenk1 where ten < 100 order by ten) ss
           right join (values (1),(2),(3)) v(x) on true
     loop
-        ln := regexp_replace(ln, 'Memory: \S*',  'Memory: xxx');
+        ln = regexp_replace(ln, 'Memory: \S*',  'Memory: xxx');
         return next ln;
     end loop;
 end;
 $$;
+psql:sql/select_parallel.sql:221: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 select * from explain_parallel_sort_stats();
-                       explain_parallel_sort_stats                        
---------------------------------------------------------------------------
- Nested Loop Left Join (actual rows=30000 loops=1)
-   ->  Values Scan on "*VALUES*" (actual rows=3 loops=1)
-   ->  Gather Merge (actual rows=10000 loops=3)
-         Workers Planned: 4
-         Workers Launched: 4
-         ->  Sort (actual rows=2000 loops=15)
-               Sort Key: tenk1.ten
-               Sort Method: quicksort  Memory: xxx
-               Worker 0:  Sort Method: quicksort  Memory: xxx
-               Worker 1:  Sort Method: quicksort  Memory: xxx
-               Worker 2:  Sort Method: quicksort  Memory: xxx
-               Worker 3:  Sort Method: quicksort  Memory: xxx
-               ->  Parallel Seq Scan on tenk1 (actual rows=2000 loops=15)
-                     Filter: (ten < 100)
-(14 rows)
-
+psql:sql/select_parallel.sql:222: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 reset enable_indexscan;
+psql:sql/select_parallel.sql:224: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 reset enable_hashjoin;
+psql:sql/select_parallel.sql:225: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 reset enable_mergejoin;
+psql:sql/select_parallel.sql:226: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 reset enable_material;
+psql:sql/select_parallel.sql:227: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 reset effective_io_concurrency;
+psql:sql/select_parallel.sql:228: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 drop table bmscantest;
+psql:sql/select_parallel.sql:229: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 drop function explain_parallel_sort_stats();
+psql:sql/select_parallel.sql:230: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- test parallel merge join path.
 set enable_hashjoin to off;
+psql:sql/select_parallel.sql:233: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 set enable_nestloop to off;
+psql:sql/select_parallel.sql:234: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 explain (costs off)
 	select  count(*) from tenk1, tenk2 where tenk1.unique1 = tenk2.unique1;
-                                  QUERY PLAN                                   
--------------------------------------------------------------------------------
- Finalize Aggregate
-   ->  Gather
-         Workers Planned: 4
-         ->  Partial Aggregate
-               ->  Merge Join
-                     Merge Cond: (tenk1.unique1 = tenk2.unique1)
-                     ->  Parallel Index Only Scan using tenk1_unique1 on tenk1
-                     ->  Index Only Scan using tenk2_unique1 on tenk2
-(8 rows)
-
+psql:sql/select_parallel.sql:237: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 select  count(*) from tenk1, tenk2 where tenk1.unique1 = tenk2.unique1;
- count 
--------
- 10000
-(1 row)
-
+psql:sql/select_parallel.sql:238: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 reset enable_hashjoin;
+psql:sql/select_parallel.sql:240: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 reset enable_nestloop;
+psql:sql/select_parallel.sql:241: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- test gather merge
 set enable_hashagg = false;
+psql:sql/select_parallel.sql:244: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 explain (costs off)
    select count(*) from tenk1 group by twenty;
-                     QUERY PLAN                     
-----------------------------------------------------
- Finalize GroupAggregate
-   Group Key: twenty
-   ->  Gather Merge
-         Workers Planned: 4
-         ->  Partial GroupAggregate
-               Group Key: twenty
-               ->  Sort
-                     Sort Key: twenty
-                     ->  Parallel Seq Scan on tenk1
-(9 rows)
-
+psql:sql/select_parallel.sql:247: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 select count(*) from tenk1 group by twenty;
- count 
--------
-   500
-   500
-   500
-   500
-   500
-   500
-   500
-   500
-   500
-   500
-   500
-   500
-   500
-   500
-   500
-   500
-   500
-   500
-   500
-   500
-(20 rows)
-
+psql:sql/select_parallel.sql:249: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 --test expressions in targetlist are pushed down for gather merge
 create function sp_simple_func(var1 integer) returns integer
 as $$
@@ -641,279 +336,89 @@ begin
         return var1 + 10;
 end;
 $$ language plpgsql PARALLEL SAFE;
+psql:sql/select_parallel.sql:257: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 explain (costs off, verbose)
     select ten, sp_simple_func(ten) from tenk1 where ten < 100 order by ten;
-                     QUERY PLAN                      
------------------------------------------------------
- Gather Merge
-   Output: ten, (sp_simple_func(ten))
-   Workers Planned: 4
-   ->  Result
-         Output: ten, sp_simple_func(ten)
-         ->  Sort
-               Output: ten
-               Sort Key: tenk1.ten
-               ->  Parallel Seq Scan on public.tenk1
-                     Output: ten
-                     Filter: (tenk1.ten < 100)
-(11 rows)
-
+psql:sql/select_parallel.sql:260: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 drop function sp_simple_func(integer);
+psql:sql/select_parallel.sql:262: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- test handling of SRFs in targetlist (bug in 10.0)
 explain (costs off)
    select count(*), generate_series(1,2) from tenk1 group by twenty;
-                        QUERY PLAN                        
-----------------------------------------------------------
- ProjectSet
-   ->  Finalize GroupAggregate
-         Group Key: twenty
-         ->  Gather Merge
-               Workers Planned: 4
-               ->  Partial GroupAggregate
-                     Group Key: twenty
-                     ->  Sort
-                           Sort Key: twenty
-                           ->  Parallel Seq Scan on tenk1
-(10 rows)
-
+psql:sql/select_parallel.sql:267: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 select count(*), generate_series(1,2) from tenk1 group by twenty;
- count | generate_series 
--------+-----------------
-   500 |               1
-   500 |               2
-   500 |               1
-   500 |               2
-   500 |               1
-   500 |               2
-   500 |               1
-   500 |               2
-   500 |               1
-   500 |               2
-   500 |               1
-   500 |               2
-   500 |               1
-   500 |               2
-   500 |               1
-   500 |               2
-   500 |               1
-   500 |               2
-   500 |               1
-   500 |               2
-   500 |               1
-   500 |               2
-   500 |               1
-   500 |               2
-   500 |               1
-   500 |               2
-   500 |               1
-   500 |               2
-   500 |               1
-   500 |               2
-   500 |               1
-   500 |               2
-   500 |               1
-   500 |               2
-   500 |               1
-   500 |               2
-   500 |               1
-   500 |               2
-   500 |               1
-   500 |               2
-(40 rows)
-
+psql:sql/select_parallel.sql:269: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- test gather merge with parallel leader participation disabled
 set parallel_leader_participation = off;
+psql:sql/select_parallel.sql:272: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 explain (costs off)
    select count(*) from tenk1 group by twenty;
-                     QUERY PLAN                     
-----------------------------------------------------
- Finalize GroupAggregate
-   Group Key: twenty
-   ->  Gather Merge
-         Workers Planned: 4
-         ->  Partial GroupAggregate
-               Group Key: twenty
-               ->  Sort
-                     Sort Key: twenty
-                     ->  Parallel Seq Scan on tenk1
-(9 rows)
-
+psql:sql/select_parallel.sql:275: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 select count(*) from tenk1 group by twenty;
- count 
--------
-   500
-   500
-   500
-   500
-   500
-   500
-   500
-   500
-   500
-   500
-   500
-   500
-   500
-   500
-   500
-   500
-   500
-   500
-   500
-   500
-(20 rows)
-
+psql:sql/select_parallel.sql:277: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 reset parallel_leader_participation;
+psql:sql/select_parallel.sql:279: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 --test rescan behavior of gather merge
 set enable_material = false;
+psql:sql/select_parallel.sql:282: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 explain (costs off)
 select * from
   (select string4, count(unique2)
    from tenk1 group by string4 order by string4) ss
   right join (values (1),(2),(3)) v(x) on true;
-                        QUERY PLAN                        
-----------------------------------------------------------
- Nested Loop Left Join
-   ->  Values Scan on "*VALUES*"
-   ->  Finalize GroupAggregate
-         Group Key: tenk1.string4
-         ->  Gather Merge
-               Workers Planned: 4
-               ->  Partial GroupAggregate
-                     Group Key: tenk1.string4
-                     ->  Sort
-                           Sort Key: tenk1.string4
-                           ->  Parallel Seq Scan on tenk1
-(11 rows)
-
+psql:sql/select_parallel.sql:288: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 select * from
   (select string4, count(unique2)
    from tenk1 group by string4 order by string4) ss
   right join (values (1),(2),(3)) v(x) on true;
- string4 | count | x 
----------+-------+---
- AAAAxx  |  2500 | 1
- HHHHxx  |  2500 | 1
- OOOOxx  |  2500 | 1
- VVVVxx  |  2500 | 1
- AAAAxx  |  2500 | 2
- HHHHxx  |  2500 | 2
- OOOOxx  |  2500 | 2
- VVVVxx  |  2500 | 2
- AAAAxx  |  2500 | 3
- HHHHxx  |  2500 | 3
- OOOOxx  |  2500 | 3
- VVVVxx  |  2500 | 3
-(12 rows)
-
+psql:sql/select_parallel.sql:293: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 reset enable_material;
+psql:sql/select_parallel.sql:295: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 reset enable_hashagg;
+psql:sql/select_parallel.sql:297: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- check parallelized int8 aggregate (bug #14897)
 explain (costs off)
 select avg(unique1::int8) from tenk1;
-                               QUERY PLAN                                
--------------------------------------------------------------------------
- Finalize Aggregate
-   ->  Gather
-         Workers Planned: 4
-         ->  Partial Aggregate
-               ->  Parallel Index Only Scan using tenk1_unique1 on tenk1
-(5 rows)
-
+psql:sql/select_parallel.sql:301: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 select avg(unique1::int8) from tenk1;
-          avg          
------------------------
- 4999.5000000000000000
-(1 row)
-
+psql:sql/select_parallel.sql:303: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- gather merge test with a LIMIT
 explain (costs off)
   select fivethous from tenk1 order by fivethous limit 4;
-                  QUERY PLAN                  
-----------------------------------------------
- Limit
-   ->  Gather Merge
-         Workers Planned: 4
-         ->  Sort
-               Sort Key: fivethous
-               ->  Parallel Seq Scan on tenk1
-(6 rows)
-
+psql:sql/select_parallel.sql:307: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 select fivethous from tenk1 order by fivethous limit 4;
- fivethous 
------------
-         0
-         0
-         1
-         1
-(4 rows)
-
+psql:sql/select_parallel.sql:309: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- gather merge test with 0 worker
 set max_parallel_workers = 0;
+psql:sql/select_parallel.sql:312: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 explain (costs off)
    select string4 from tenk1 order by string4 limit 5;
-                  QUERY PLAN                  
-----------------------------------------------
- Limit
-   ->  Gather Merge
-         Workers Planned: 4
-         ->  Sort
-               Sort Key: string4
-               ->  Parallel Seq Scan on tenk1
-(6 rows)
-
+psql:sql/select_parallel.sql:314: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 select string4 from tenk1 order by string4 limit 5;
- string4 
----------
- AAAAxx
- AAAAxx
- AAAAxx
- AAAAxx
- AAAAxx
-(5 rows)
-
+psql:sql/select_parallel.sql:315: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- gather merge test with 0 workers, with parallel leader
 -- participation disabled (the leader will have to run the plan
 -- despite the setting)
 set parallel_leader_participation = off;
+psql:sql/select_parallel.sql:320: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 explain (costs off)
    select string4 from tenk1 order by string4 limit 5;
-                  QUERY PLAN                  
-----------------------------------------------
- Limit
-   ->  Gather Merge
-         Workers Planned: 4
-         ->  Sort
-               Sort Key: string4
-               ->  Parallel Seq Scan on tenk1
-(6 rows)
-
+psql:sql/select_parallel.sql:322: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 select string4 from tenk1 order by string4 limit 5;
- string4 
----------
- AAAAxx
- AAAAxx
- AAAAxx
- AAAAxx
- AAAAxx
-(5 rows)
-
+psql:sql/select_parallel.sql:323: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 reset parallel_leader_participation;
+psql:sql/select_parallel.sql:325: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 reset max_parallel_workers;
+psql:sql/select_parallel.sql:326: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 SAVEPOINT settings;
+psql:sql/select_parallel.sql:328: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 SET LOCAL force_parallel_mode = 1;
+psql:sql/select_parallel.sql:329: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 explain (costs off)
   select stringu1::int2 from tenk1 where unique1 = 1;
-                  QUERY PLAN                   
------------------------------------------------
- Gather
-   Workers Planned: 1
-   Single Copy: true
-   ->  Index Scan using tenk1_unique1 on tenk1
-         Index Cond: (unique1 = 1)
-(5 rows)
-
+psql:sql/select_parallel.sql:331: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 ROLLBACK TO SAVEPOINT settings;
+psql:sql/select_parallel.sql:332: ERROR:  savepoint "settings" does not exist
 -- exercise record typmod remapping between backends
 CREATE FUNCTION make_record(n int)
   RETURNS RECORD LANGUAGE plpgsql PARALLEL SAFE AS
@@ -928,122 +433,78 @@ BEGIN
          END;
 END;
 $$;
+psql:sql/select_parallel.sql:347: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 SAVEPOINT settings;
+psql:sql/select_parallel.sql:348: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 SET LOCAL force_parallel_mode = 1;
+psql:sql/select_parallel.sql:349: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 SELECT make_record(x) FROM (SELECT generate_series(1, 5) x) ss ORDER BY x;
- make_record 
--------------
- (1)
- (1,2)
- (1,2,3)
- (1,2,3,4)
- (1,2,3,4,5)
-(5 rows)
-
+psql:sql/select_parallel.sql:350: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 ROLLBACK TO SAVEPOINT settings;
+psql:sql/select_parallel.sql:351: ERROR:  savepoint "settings" does not exist
 DROP function make_record(n int);
+psql:sql/select_parallel.sql:352: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- test the sanity of parallel query after the active role is dropped.
 drop role if exists regress_parallel_worker;
-NOTICE:  role "regress_parallel_worker" does not exist, skipping
+psql:sql/select_parallel.sql:355: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 create role regress_parallel_worker;
+psql:sql/select_parallel.sql:356: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 set role regress_parallel_worker;
+psql:sql/select_parallel.sql:357: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 reset session authorization;
+psql:sql/select_parallel.sql:358: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 drop role regress_parallel_worker;
+psql:sql/select_parallel.sql:359: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 set force_parallel_mode = 1;
+psql:sql/select_parallel.sql:360: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 select count(*) from tenk1;
- count 
--------
- 10000
-(1 row)
-
+psql:sql/select_parallel.sql:361: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 reset force_parallel_mode;
+psql:sql/select_parallel.sql:362: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 reset role;
+psql:sql/select_parallel.sql:363: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- Window function calculation can't be pushed to workers.
 explain (costs off, verbose)
   select count(*) from tenk1 a where (unique1, two) in
     (select unique1, row_number() over() from tenk1 b);
-                                          QUERY PLAN                                          
-----------------------------------------------------------------------------------------------
- Aggregate
-   Output: count(*)
-   ->  Hash Semi Join
-         Hash Cond: ((a.unique1 = b.unique1) AND (a.two = (row_number() OVER (?))))
-         ->  Gather
-               Output: a.unique1, a.two
-               Workers Planned: 4
-               ->  Parallel Seq Scan on public.tenk1 a
-                     Output: a.unique1, a.two
-         ->  Hash
-               Output: b.unique1, (row_number() OVER (?))
-               ->  WindowAgg
-                     Output: b.unique1, row_number() OVER (?)
-                     ->  Gather
-                           Output: b.unique1
-                           Workers Planned: 4
-                           ->  Parallel Index Only Scan using tenk1_unique1 on public.tenk1 b
-                                 Output: b.unique1
-(18 rows)
-
+psql:sql/select_parallel.sql:368: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- LIMIT/OFFSET within sub-selects can't be pushed to workers.
 explain (costs off)
   select * from tenk1 a where two in
     (select two from tenk1 b where stringu1 like '%AAAA' limit 3);
-                          QUERY PLAN                           
----------------------------------------------------------------
- Hash Semi Join
-   Hash Cond: (a.two = b.two)
-   ->  Gather
-         Workers Planned: 4
-         ->  Parallel Seq Scan on tenk1 a
-   ->  Hash
-         ->  Limit
-               ->  Gather
-                     Workers Planned: 4
-                     ->  Parallel Seq Scan on tenk1 b
-                           Filter: (stringu1 ~~ '%AAAA'::text)
-(11 rows)
-
+psql:sql/select_parallel.sql:374: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- to increase the parallel query test coverage
 SAVEPOINT settings;
+psql:sql/select_parallel.sql:377: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 SET LOCAL force_parallel_mode = 1;
+psql:sql/select_parallel.sql:378: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 EXPLAIN (analyze, timing off, summary off, costs off) SELECT * FROM tenk1;
-                         QUERY PLAN                          
--------------------------------------------------------------
- Gather (actual rows=10000 loops=1)
-   Workers Planned: 4
-   Workers Launched: 4
-   ->  Parallel Seq Scan on tenk1 (actual rows=2000 loops=5)
-(4 rows)
-
+psql:sql/select_parallel.sql:379: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 ROLLBACK TO SAVEPOINT settings;
+psql:sql/select_parallel.sql:380: ERROR:  savepoint "settings" does not exist
 -- provoke error in worker
 SAVEPOINT settings;
+psql:sql/select_parallel.sql:383: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 SET LOCAL force_parallel_mode = 1;
+psql:sql/select_parallel.sql:384: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 select stringu1::int2 from tenk1 where unique1 = 1;
-ERROR:  invalid input syntax for integer: "BAAAAA"
-CONTEXT:  parallel worker
+psql:sql/select_parallel.sql:385: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 ROLLBACK TO SAVEPOINT settings;
+psql:sql/select_parallel.sql:386: ERROR:  savepoint "settings" does not exist
 -- test interaction with set-returning functions
 SAVEPOINT settings;
+psql:sql/select_parallel.sql:389: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- multiple subqueries under a single Gather node
 -- must set parallel_setup_cost > 0 to discourage multiple Gather nodes
 SET LOCAL parallel_setup_cost = 10;
+psql:sql/select_parallel.sql:393: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 EXPLAIN (COSTS OFF)
 SELECT unique1 FROM tenk1 WHERE fivethous = tenthous + 1
 UNION ALL
 SELECT unique1 FROM tenk1 WHERE fivethous = tenthous + 1;
-                     QUERY PLAN                     
-----------------------------------------------------
- Gather
-   Workers Planned: 4
-   ->  Parallel Append
-         ->  Parallel Seq Scan on tenk1
-               Filter: (fivethous = (tenthous + 1))
-         ->  Parallel Seq Scan on tenk1 tenk1_1
-               Filter: (fivethous = (tenthous + 1))
-(7 rows)
-
+psql:sql/select_parallel.sql:397: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 ROLLBACK TO SAVEPOINT settings;
+psql:sql/select_parallel.sql:398: ERROR:  savepoint "settings" does not exist
 -- can't use multiple subqueries under a single Gather node due to initPlans
 EXPLAIN (COSTS OFF)
 SELECT unique1 FROM tenk1 WHERE fivethous =
@@ -1052,86 +513,39 @@ UNION ALL
 SELECT unique1 FROM tenk1 WHERE fivethous =
 	(SELECT unique2 FROM tenk1 WHERE fivethous = 1 LIMIT 1)
 ORDER BY 1;
-                             QUERY PLAN                             
---------------------------------------------------------------------
- Sort
-   Sort Key: tenk1.unique1
-   ->  Append
-         ->  Gather
-               Workers Planned: 4
-               Params Evaluated: $1
-               InitPlan 1 (returns $1)
-                 ->  Limit
-                       ->  Gather
-                             Workers Planned: 4
-                             ->  Parallel Seq Scan on tenk1 tenk1_2
-                                   Filter: (fivethous = 1)
-               ->  Parallel Seq Scan on tenk1
-                     Filter: (fivethous = $1)
-         ->  Gather
-               Workers Planned: 4
-               Params Evaluated: $3
-               InitPlan 2 (returns $3)
-                 ->  Limit
-                       ->  Gather
-                             Workers Planned: 4
-                             ->  Parallel Seq Scan on tenk1 tenk1_3
-                                   Filter: (fivethous = 1)
-               ->  Parallel Seq Scan on tenk1 tenk1_1
-                     Filter: (fivethous = $3)
-(25 rows)
-
+psql:sql/select_parallel.sql:407: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- test interaction with SRFs
 SELECT * FROM information_schema.foreign_data_wrapper_options
 ORDER BY 1, 2, 3;
- foreign_data_wrapper_catalog | foreign_data_wrapper_name | option_name | option_value 
-------------------------------+---------------------------+-------------+--------------
-(0 rows)
-
+psql:sql/select_parallel.sql:411: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- test passing expanded-value representations to workers
 CREATE FUNCTION make_some_array(int,int) returns int[] as
 $$declare x int[];
   begin
-    x[1] := $1;
-    x[2] := $2;
+    x[1] = $1;
+    x[2] = $2;
     return x;
   end$$ language plpgsql parallel safe;
+psql:sql/select_parallel.sql:420: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 CREATE TABLE fooarr(f1 text, f2 int[], f3 text);
+psql:sql/select_parallel.sql:421: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 INSERT INTO fooarr VALUES('1', ARRAY[1,2], 'one');
+psql:sql/select_parallel.sql:422: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 PREPARE pstmt(text, int[]) AS SELECT * FROM fooarr WHERE f1 = $1 AND f2 = $2;
+psql:sql/select_parallel.sql:424: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 EXPLAIN (COSTS OFF) EXECUTE pstmt('1', make_some_array(1,2));
-                            QUERY PLAN                            
-------------------------------------------------------------------
- Gather
-   Workers Planned: 3
-   ->  Parallel Seq Scan on fooarr
-         Filter: ((f1 = '1'::text) AND (f2 = '{1,2}'::integer[]))
-(4 rows)
-
+psql:sql/select_parallel.sql:425: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 EXECUTE pstmt('1', make_some_array(1,2));
- f1 |  f2   | f3  
-----+-------+-----
- 1  | {1,2} | one
-(1 row)
-
+psql:sql/select_parallel.sql:426: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 DEALLOCATE pstmt;
+psql:sql/select_parallel.sql:427: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 -- test interaction between subquery and partial_paths
 SET LOCAL min_parallel_table_scan_size TO 0;
+psql:sql/select_parallel.sql:430: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 CREATE VIEW tenk1_vw_sec WITH (security_barrier) AS SELECT * FROM tenk1;
+psql:sql/select_parallel.sql:431: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 EXPLAIN (COSTS OFF)
 SELECT 1 FROM tenk1_vw_sec WHERE EXISTS (SELECT 1 WHERE unique1 = 0);
-                            QUERY PLAN                             
--------------------------------------------------------------------
- Subquery Scan on tenk1_vw_sec
-   Filter: (alternatives: SubPlan 1 or hashed SubPlan 2)
-   ->  Gather
-         Workers Planned: 4
-         ->  Parallel Index Only Scan using tenk1_unique1 on tenk1
-   SubPlan 1
-     ->  Result
-           One-Time Filter: (tenk1_vw_sec.unique1 = 0)
-   SubPlan 2
-     ->  Result
-(10 rows)
-
+psql:sql/select_parallel.sql:433: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 rollback;
+ROLLBACK

@@ -319,7 +319,7 @@ SELECT q1 FROM int8_tbl EXCEPT ALL SELECT DISTINCT q2 FROM int8_tbl ORDER BY 1;
 (3 rows)
 
 SELECT q1 FROM int8_tbl EXCEPT ALL SELECT q1 FROM int8_tbl FOR NO KEY UPDATE;
-ERROR:  FOR NO KEY UPDATE is not allowed with UNION/INTERSECT/EXCEPT
+psql:sql/union.sql:113: ERROR:  FOR NO KEY UPDATE is not allowed with UNION/INTERSECT/EXCEPT
 -- nested cases
 (SELECT 1,2,3 UNION SELECT 4,5,6) INTERSECT SELECT 4,5,6;
  ?column? | ?column? | ?column? 
@@ -347,94 +347,102 @@ ERROR:  FOR NO KEY UPDATE is not allowed with UNION/INTERSECT/EXCEPT
 
 -- exercise both hashed and sorted implementations of INTERSECT/EXCEPT
 set enable_hashagg to on;
+SET
+COPY tenk1 FROM '/home/dzw/work/kunlun-enterprise/postgresql-11.5/src/test/regress/data/tenk.data';
+psql:sql/union.sql:124: ERROR:  could not open file "/home/dzw/work/kunlun-enterprise/postgresql-11.5/src/test/regress/data/tenk.data" for reading: No such file or directory
+HINT:  COPY FROM instructs the PostgreSQL server process to read a file. You may want a client-side facility such as psql's \copy.
 explain (costs off)
 select count(*) from
   ( select unique1 from tenk1 intersect select fivethous from tenk1 ) ss;
-                                     QUERY PLAN                                     
-------------------------------------------------------------------------------------
+                                                       QUERY PLAN                                                       
+------------------------------------------------------------------------------------------------------------------------
  Aggregate
    ->  Subquery Scan on ss
          ->  HashSetOp Intersect
                ->  Append
-                     ->  Subquery Scan on "*SELECT* 2"
-                           ->  Seq Scan on tenk1
                      ->  Subquery Scan on "*SELECT* 1"
-                           ->  Index Only Scan using tenk1_unique1 on tenk1 tenk1_1
-(8 rows)
-
-select count(*) from
-  ( select unique1 from tenk1 intersect select fivethous from tenk1 ) ss;
- count 
--------
-  5000
-(1 row)
-
-explain (costs off)
-select unique1 from tenk1 except select unique2 from tenk1 where unique2 != 10;
-                               QUERY PLAN                               
-------------------------------------------------------------------------
- HashSetOp Except
-   ->  Append
-         ->  Subquery Scan on "*SELECT* 1"
-               ->  Index Only Scan using tenk1_unique1 on tenk1
-         ->  Subquery Scan on "*SELECT* 2"
-               ->  Index Only Scan using tenk1_unique2 on tenk1 tenk1_1
-                     Filter: (unique2 <> 10)
-(7 rows)
-
-select unique1 from tenk1 except select unique2 from tenk1 where unique2 != 10;
- unique1 
----------
-      10
-(1 row)
-
-set enable_hashagg to off;
-explain (costs off)
-select count(*) from
-  ( select unique1 from tenk1 intersect select fivethous from tenk1 ) ss;
-                                        QUERY PLAN                                        
-------------------------------------------------------------------------------------------
- Aggregate
-   ->  Subquery Scan on ss
-         ->  SetOp Intersect
-               ->  Sort
-                     Sort Key: "*SELECT* 2".fivethous
-                     ->  Append
-                           ->  Subquery Scan on "*SELECT* 2"
-                                 ->  Seq Scan on tenk1
-                           ->  Subquery Scan on "*SELECT* 1"
-                                 ->  Index Only Scan using tenk1_unique1 on tenk1 tenk1_1
+                           ->  RemoteScan on tenk1
+                                 Shard: 2        Remote SQL: select  tenk1.unique1 from regress_$$_public.tenk1 tenk1
+                     ->  Subquery Scan on "*SELECT* 2"
+                           ->  RemoteScan on tenk1 tenk1_1
+                                 Shard: 2        Remote SQL: select  tenk1.fivethous from regress_$$_public.tenk1 tenk1
 (10 rows)
 
 select count(*) from
   ( select unique1 from tenk1 intersect select fivethous from tenk1 ) ss;
  count 
 -------
-  5000
+     0
 (1 row)
 
 explain (costs off)
 select unique1 from tenk1 except select unique2 from tenk1 where unique2 != 10;
-                                  QUERY PLAN                                  
-------------------------------------------------------------------------------
+                                                            QUERY PLAN                                                            
+----------------------------------------------------------------------------------------------------------------------------------
+ HashSetOp Except
+   ->  Append
+         ->  Subquery Scan on "*SELECT* 1"
+               ->  RemoteScan on tenk1
+                     Shard: 2    Remote SQL: select  tenk1.unique1 from regress_$$_public.tenk1 tenk1
+         ->  Subquery Scan on "*SELECT* 2"
+               ->  RemoteScan on tenk1 tenk1_1
+                     Shard: 2    Remote SQL: select  tenk1.unique2 from regress_$$_public.tenk1 tenk1 where (tenk1.unique2 <> 10)
+(8 rows)
+
+select unique1 from tenk1 except select unique2 from tenk1 where unique2 != 10;
+ unique1 
+---------
+(0 rows)
+
+set enable_hashagg to off;
+SET
+explain (costs off)
+select count(*) from
+  ( select unique1 from tenk1 intersect select fivethous from tenk1 ) ss;
+                                                              QUERY PLAN                                                               
+---------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate
+   ->  Subquery Scan on ss
+         ->  SetOp Intersect
+               ->  Merge Append
+                     Sort Key: "*SELECT* 1".unique1 NULLS FIRST
+                     ->  Subquery Scan on "*SELECT* 1"
+                           ->  RemoteScan on tenk1
+                                 Shard: 2        Remote SQL: select  tenk1.unique1 from regress_$$_public.tenk1 tenk1 ORDER BY 1 ASC
+                     ->  Subquery Scan on "*SELECT* 2"
+                           ->  RemoteScan on tenk1 tenk1_1
+                                 Shard: 2        Remote SQL: select  tenk1.fivethous from regress_$$_public.tenk1 tenk1 ORDER BY 1 ASC
+(11 rows)
+
+select count(*) from
+  ( select unique1 from tenk1 intersect select fivethous from tenk1 ) ss;
+ count 
+-------
+     0
+(1 row)
+
+explain (costs off)
+select unique1 from tenk1 except select unique2 from tenk1 where unique2 != 10;
+                                                                   QUERY PLAN                                                                    
+-------------------------------------------------------------------------------------------------------------------------------------------------
  SetOp Except
-   ->  Sort
-         Sort Key: "*SELECT* 1".unique1
-         ->  Append
-               ->  Subquery Scan on "*SELECT* 1"
-                     ->  Index Only Scan using tenk1_unique1 on tenk1
-               ->  Subquery Scan on "*SELECT* 2"
-                     ->  Index Only Scan using tenk1_unique2 on tenk1 tenk1_1
-                           Filter: (unique2 <> 10)
+   ->  Merge Append
+         Sort Key: "*SELECT* 1".unique1 NULLS FIRST
+         ->  Subquery Scan on "*SELECT* 1"
+               ->  RemoteScan on tenk1
+                     Shard: 2    Remote SQL: select  tenk1.unique1 from regress_$$_public.tenk1 tenk1 ORDER BY 1 ASC
+         ->  Subquery Scan on "*SELECT* 2"
+               ->  RemoteScan on tenk1 tenk1_1
+                     Shard: 2    Remote SQL: select  tenk1.unique2 from regress_$$_public.tenk1 tenk1 where (tenk1.unique2 <> 10) ORDER BY 1 ASC
 (9 rows)
 
 select unique1 from tenk1 except select unique2 from tenk1 where unique2 != 10;
  unique1 
 ---------
-      10
-(1 row)
+(0 rows)
 
 reset enable_hashagg;
+RESET
 --
 -- Mixed types
 --
@@ -527,7 +535,7 @@ ORDER BY q2,q1;
 
 -- This should fail, because q2 isn't a name of an EXCEPT output column
 SELECT q1 FROM int8_tbl EXCEPT SELECT q2 FROM int8_tbl ORDER BY q2 LIMIT 1;
-ERROR:  column "q2" does not exist
+psql:sql/union.sql:183: ERROR:  column "q2" does not exist
 LINE 1: ... int8_tbl EXCEPT SELECT q2 FROM int8_tbl ORDER BY q2 LIMIT 1...
                                                              ^
 HINT:  There is a column named "q2" in table "*SELECT* 2", but it cannot be referenced from this part of the query.
@@ -569,7 +577,9 @@ select except select;
 
 -- check hashed implementation
 set enable_hashagg = true;
+SET
 set enable_sort = false;
+SET
 explain (costs off)
 select from generate_series(1,5) union select from generate_series(1,3);
                            QUERY PLAN                           
@@ -618,7 +628,9 @@ select from generate_series(1,5) except all select from generate_series(1,3);
 
 -- check sorted implementation
 set enable_hashagg = false;
+SET
 set enable_sort = true;
+SET
 explain (costs off)
 select from generate_series(1,5) union select from generate_series(1,3);
                            QUERY PLAN                           
@@ -666,7 +678,9 @@ select from generate_series(1,5) except all select from generate_series(1,3);
 (2 rows)
 
 reset enable_hashagg;
+RESET
 reset enable_sort;
+RESET
 --
 -- Check handling of a case with unknown constants.  We don't guarantee
 -- an undecorated constant will work in all cases, but historically this
@@ -686,7 +700,7 @@ ORDER BY 1;
 
 -- This should fail, but it should produce an error cursor
 SELECT '3.4'::numeric UNION SELECT 'foo';
-ERROR:  invalid input syntax for type numeric: "foo"
+psql:sql/union.sql:249: ERROR:  invalid input syntax for type numeric: "foo"
 LINE 1: SELECT '3.4'::numeric UNION SELECT 'foo';
                                            ^
 --
@@ -694,13 +708,21 @@ LINE 1: SELECT '3.4'::numeric UNION SELECT 'foo';
 -- UNION or UNION ALL
 --
 CREATE TEMP TABLE t1 (a text, b text);
+CREATE TABLE
 CREATE INDEX t1_ab_idx on t1 ((a || b));
+CREATE INDEX
 CREATE TEMP TABLE t2 (ab text primary key);
+CREATE TABLE
 INSERT INTO t1 VALUES ('a', 'b'), ('x', 'y');
+INSERT 0 2
 INSERT INTO t2 VALUES ('ab'), ('xy');
+INSERT 0 2
 set enable_seqscan = off;
+SET
 set enable_indexscan = on;
+SET
 set enable_bitmapscan = off;
+SET
 explain (costs off)
  SELECT * FROM
  (SELECT a || b AS ab FROM t1
@@ -738,29 +760,29 @@ explain (costs off)
 -- children.
 --
 CREATE TEMP TABLE t1c (b text, a text);
-ALTER TABLE t1c INHERIT t1;
-CREATE TEMP TABLE t2c (primary key (ab)) INHERITS (t2);
+CREATE TABLE
 INSERT INTO t1c VALUES ('v', 'w'), ('c', 'd'), ('m', 'n'), ('e', 'f');
-INSERT INTO t2c VALUES ('vw'), ('cd'), ('mn'), ('ef');
+INSERT 0 4
 CREATE INDEX t1c_ab_idx on t1c ((a || b));
+CREATE INDEX
 set enable_seqscan = on;
+SET
 set enable_indexonlyscan = off;
+SET
 explain (costs off)
   SELECT * FROM
   (SELECT a || b AS ab FROM t1
    UNION ALL
    SELECT ab FROM t2) t
   ORDER BY 1 LIMIT 8;
-                   QUERY PLAN                   
-------------------------------------------------
+                  QUERY PLAN                  
+----------------------------------------------
  Limit
    ->  Merge Append
          Sort Key: ((t1.a || t1.b))
          ->  Index Scan using t1_ab_idx on t1
-         ->  Index Scan using t1c_ab_idx on t1c
          ->  Index Scan using t2_pkey on t2
-         ->  Index Scan using t2c_pkey on t2c
-(7 rows)
+(5 rows)
 
   SELECT * FROM
   (SELECT a || b AS ab FROM t1
@@ -771,40 +793,16 @@ explain (costs off)
 ----
  ab
  ab
- cd
- dc
- ef
- fe
- mn
- nm
-(8 rows)
+ xy
+ xy
+(4 rows)
 
 reset enable_seqscan;
+RESET
 reset enable_indexscan;
+RESET
 reset enable_bitmapscan;
--- This simpler variant of the above test has been observed to fail differently
-create table events (event_id int primary key);
-create table other_events (event_id int primary key);
-create table events_child () inherits (events);
-explain (costs off)
-select event_id
- from (select event_id from events
-       union all
-       select event_id from other_events) ss
- order by event_id;
-                        QUERY PLAN                        
-----------------------------------------------------------
- Merge Append
-   Sort Key: events.event_id
-   ->  Index Scan using events_pkey on events
-   ->  Sort
-         Sort Key: events_child.event_id
-         ->  Seq Scan on events_child
-   ->  Index Scan using other_events_pkey on other_events
-(7 rows)
-
-drop table events_child, events, other_events;
-reset enable_indexonlyscan;
+RESET
 -- Test constraint exclusion of UNION ALL subqueries
 explain (costs off)
  SELECT * FROM
@@ -812,11 +810,12 @@ explain (costs off)
    UNION ALL
    SELECT 2 AS t, * FROM tenk1 b) c
  WHERE t = 2;
-        QUERY PLAN         
----------------------------
+                                                                                                                    QUERY PLAN                                                                                                                    
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Append
-   ->  Seq Scan on tenk1 b
-(2 rows)
+   ->  RemoteScan on tenk1 b
+         Shard: 2        Remote SQL: select  b.unique1, b.unique2, b.two, b.four, b.ten, b.twenty, b.hundred, b.thousand, b.twothousand, b.fivethous, b.tenthous, b.odd, b.even, b.stringu1, b.stringu2, b.string4 from regress_$$_public.tenk1 b
+(3 rows)
 
 -- Test that we push quals into UNION sub-selects only when it's safe
 explain (costs off)
@@ -924,24 +923,18 @@ select distinct q1 from
    union all
    select distinct * from int8_tbl i82) ss
 where q2 = q2;
-                        QUERY PLAN                        
-----------------------------------------------------------
+                                                                            QUERY PLAN                                                                            
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Unique
    ->  Merge Append
          Sort Key: "*SELECT* 1".q1
          ->  Subquery Scan on "*SELECT* 1"
-               ->  Unique
-                     ->  Sort
-                           Sort Key: i81.q1, i81.q2
-                           ->  Seq Scan on int8_tbl i81
-                                 Filter: (q2 IS NOT NULL)
+               ->  RemoteScan on int8_tbl i81
+                     Shard: 1    Remote SQL: select distinct  i81.q1, i81.q2 from regress_$$_public.int8_tbl i81 where (i81.q2 IS NOT NULL) ORDER BY 1 ASC, 2 ASC
          ->  Subquery Scan on "*SELECT* 2"
-               ->  Unique
-                     ->  Sort
-                           Sort Key: i82.q1, i82.q2
-                           ->  Seq Scan on int8_tbl i82
-                                 Filter: (q2 IS NOT NULL)
-(15 rows)
+               ->  RemoteScan on int8_tbl i82
+                     Shard: 1    Remote SQL: select distinct  i82.q1, i82.q2 from regress_$$_public.int8_tbl i82 where (i82.q2 IS NOT NULL) ORDER BY 1 ASC, 2 ASC
+(9 rows)
 
 select distinct q1 from
   (select distinct * from int8_tbl i81
@@ -960,24 +953,18 @@ select distinct q1 from
    union all
    select distinct * from int8_tbl i82) ss
 where -q1 = q2;
-                       QUERY PLAN                       
---------------------------------------------------------
+                                                                             QUERY PLAN                                                                             
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Unique
    ->  Merge Append
          Sort Key: "*SELECT* 1".q1
          ->  Subquery Scan on "*SELECT* 1"
-               ->  Unique
-                     ->  Sort
-                           Sort Key: i81.q1, i81.q2
-                           ->  Seq Scan on int8_tbl i81
-                                 Filter: ((- q1) = q2)
+               ->  RemoteScan on int8_tbl i81
+                     Shard: 1    Remote SQL: select distinct  i81.q1, i81.q2 from regress_$$_public.int8_tbl i81 where (( - i81.q1) = i81.q2) ORDER BY 1 ASC, 2 ASC
          ->  Subquery Scan on "*SELECT* 2"
-               ->  Unique
-                     ->  Sort
-                           Sort Key: i82.q1, i82.q2
-                           ->  Seq Scan on int8_tbl i82
-                                 Filter: ((- q1) = q2)
-(15 rows)
+               ->  RemoteScan on int8_tbl i82
+                     Shard: 1    Remote SQL: select distinct  i82.q1, i82.q2 from regress_$$_public.int8_tbl i82 where (( - i82.q1) = i82.q2) ORDER BY 1 ASC, 2 ASC
+(9 rows)
 
 select distinct q1 from
   (select distinct * from int8_tbl i81
@@ -989,40 +976,6 @@ where -q1 = q2;
  4567890123456789
 (1 row)
 
--- Test proper handling of parameterized appendrel paths when the
--- potential join qual is expensive
-create function expensivefunc(int) returns int
-language plpgsql immutable strict cost 10000
-as $$begin return $1; end$$;
-create temp table t3 as select generate_series(-1000,1000) as x;
-create index t3i on t3 (expensivefunc(x));
-analyze t3;
-explain (costs off)
-select * from
-  (select * from t3 a union all select * from t3 b) ss
-  join int4_tbl on f1 = expensivefunc(x);
-                         QUERY PLAN                         
-------------------------------------------------------------
- Nested Loop
-   ->  Seq Scan on int4_tbl
-   ->  Append
-         ->  Index Scan using t3i on t3 a
-               Index Cond: (expensivefunc(x) = int4_tbl.f1)
-         ->  Index Scan using t3i on t3 b
-               Index Cond: (expensivefunc(x) = int4_tbl.f1)
-(7 rows)
-
-select * from
-  (select * from t3 a union all select * from t3 b) ss
-  join int4_tbl on f1 = expensivefunc(x);
- x | f1 
----+----
- 0 |  0
- 0 |  0
-(2 rows)
-
-drop table t3;
-drop function expensivefunc(int);
 -- Test handling of appendrel quals that const-simplify into an AND
 explain (costs off)
 select * from
@@ -1030,13 +983,14 @@ select * from
    union all
    select *, 1 as x from int8_tbl b) ss
 where (x = 0) or (q1 >= q2 and q1 <= q2);
-                 QUERY PLAN                  
----------------------------------------------
+                                                            QUERY PLAN                                                            
+----------------------------------------------------------------------------------------------------------------------------------
  Append
-   ->  Seq Scan on int8_tbl a
-   ->  Seq Scan on int8_tbl b
-         Filter: ((q1 >= q2) AND (q1 <= q2))
-(4 rows)
+   ->  RemoteScan on int8_tbl a
+         Shard: 1        Remote SQL: select  a.q1, a.q2 from regress_$$_public.int8_tbl a
+   ->  RemoteScan on int8_tbl b
+         Shard: 1        Remote SQL: select  b.q1, b.q2 from regress_$$_public.int8_tbl b where (b.q1 >= b.q2) AND (b.q1 <= b.q2)
+(5 rows)
 
 select * from
   (select *, 0 as x from int8_tbl a

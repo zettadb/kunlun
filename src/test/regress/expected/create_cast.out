@@ -3,34 +3,40 @@
 --
 -- Create some types to test with
 CREATE TYPE casttesttype;
+CREATE TYPE
 CREATE FUNCTION casttesttype_in(cstring)
    RETURNS casttesttype
    AS 'textin'
    LANGUAGE internal STRICT IMMUTABLE;
-NOTICE:  return type casttesttype is only a shell
+psql:sql/create_cast.sql:11: NOTICE:  return type casttesttype is only a shell
+CREATE FUNCTION
 CREATE FUNCTION casttesttype_out(casttesttype)
    RETURNS cstring
    AS 'textout'
    LANGUAGE internal STRICT IMMUTABLE;
-NOTICE:  argument type casttesttype is only a shell
+psql:sql/create_cast.sql:15: NOTICE:  argument type casttesttype is only a shell
+CREATE FUNCTION
 CREATE TYPE casttesttype (
    internallength = variable,
    input = casttesttype_in,
    output = casttesttype_out,
    alignment = int4
 );
+CREATE TYPE
 -- a dummy function to test with
 CREATE FUNCTION casttestfunc(casttesttype) RETURNS int4 LANGUAGE SQL AS
 $$ SELECT 1; $$;
+CREATE FUNCTION
 SELECT casttestfunc('foo'::text); -- fails, as there's no cast
-ERROR:  function casttestfunc(text) does not exist
+psql:sql/create_cast.sql:28: ERROR:  function casttestfunc(text) does not exist
 LINE 1: SELECT casttestfunc('foo'::text);
                ^
 HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
 -- Try binary coercion cast
 CREATE CAST (text AS casttesttype) WITHOUT FUNCTION;
+CREATE CAST
 SELECT casttestfunc('foo'::text); -- doesn't work, as the cast is explicit
-ERROR:  function casttestfunc(text) does not exist
+psql:sql/create_cast.sql:32: ERROR:  function casttestfunc(text) does not exist
 LINE 1: SELECT casttestfunc('foo'::text);
                ^
 HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
@@ -41,8 +47,10 @@ SELECT casttestfunc('foo'::text::casttesttype); -- should work
 (1 row)
 
 DROP CAST (text AS casttesttype); -- cleanup
+DROP CAST
 -- Try IMPLICIT binary coercion cast
 CREATE CAST (text AS casttesttype) WITHOUT FUNCTION AS IMPLICIT;
+CREATE CAST
 SELECT casttestfunc('foo'::text); -- Should work now
  casttestfunc 
 --------------
@@ -51,10 +59,11 @@ SELECT casttestfunc('foo'::text); -- Should work now
 
 -- Try I/O conversion cast.
 SELECT 1234::int4::casttesttype; -- No cast yet, should fail
-ERROR:  cannot cast type integer to casttesttype
+psql:sql/create_cast.sql:41: ERROR:  cannot cast type integer to casttesttype
 LINE 1: SELECT 1234::int4::casttesttype;
                          ^
 CREATE CAST (int4 AS casttesttype) WITH INOUT;
+CREATE CAST
 SELECT 1234::int4::casttesttype; -- Should work now
  casttesttype 
 --------------
@@ -62,10 +71,13 @@ SELECT 1234::int4::casttesttype; -- Should work now
 (1 row)
 
 DROP CAST (int4 AS casttesttype);
+DROP CAST
 -- Try cast with a function
 CREATE FUNCTION int4_casttesttype(int4) RETURNS casttesttype LANGUAGE SQL AS
 $$ SELECT ('foo'::text || $1::text)::casttesttype; $$;
+CREATE FUNCTION
 CREATE CAST (int4 AS casttesttype) WITH FUNCTION int4_casttesttype(int4) AS IMPLICIT;
+CREATE CAST
 SELECT 1234::int4::casttesttype; -- Should work now
  casttesttype 
 --------------

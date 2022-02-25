@@ -6,12 +6,14 @@ CREATE TEMP TABLE articles (
     body text UNIQUE,
     created date
 );
+CREATE TABLE
 CREATE TEMP TABLE articles_in_category (
     article_id int,
     category_id int,
     changed date,
     PRIMARY KEY (article_id, category_id)
 );
+CREATE TABLE
 -- test functional dependencies based on primary keys/unique constraints
 -- base tables
 -- group by primary key (OK)
@@ -26,21 +28,21 @@ GROUP BY id;
 SELECT id, keywords, title, body, created
 FROM articles
 GROUP BY title;
-ERROR:  column "articles.id" must appear in the GROUP BY clause or be used in an aggregate function
+psql:sql/functional_deps.sql:30: ERROR:  column "articles.id" must appear in the GROUP BY clause or be used in an aggregate function
 LINE 1: SELECT id, keywords, title, body, created
                ^
 -- group by unique nullable (fail)
 SELECT id, keywords, title, body, created
 FROM articles
 GROUP BY body;
-ERROR:  column "articles.id" must appear in the GROUP BY clause or be used in an aggregate function
+psql:sql/functional_deps.sql:35: ERROR:  column "articles.id" must appear in the GROUP BY clause or be used in an aggregate function
 LINE 1: SELECT id, keywords, title, body, created
                ^
 -- group by something else (fail)
 SELECT id, keywords, title, body, created
 FROM articles
 GROUP BY keywords;
-ERROR:  column "articles.id" must appear in the GROUP BY clause or be used in an aggregate function
+psql:sql/functional_deps.sql:40: ERROR:  column "articles.id" must appear in the GROUP BY clause or be used in an aggregate function
 LINE 1: SELECT id, keywords, title, body, created
                ^
 -- multiple tables
@@ -58,7 +60,7 @@ SELECT a.id, a.keywords, a.title, a.body, a.created
 FROM articles AS a, articles_in_category AS aic
 WHERE a.id = aic.article_id AND aic.category_id in (14,62,70,53,138)
 GROUP BY aic.article_id, aic.category_id;
-ERROR:  column "a.id" must appear in the GROUP BY clause or be used in an aggregate function
+psql:sql/functional_deps.sql:54: ERROR:  column "a.id" must appear in the GROUP BY clause or be used in an aggregate function
 LINE 1: SELECT a.id, a.keywords, a.title, a.body, a.created
                ^
 -- JOIN syntax
@@ -76,7 +78,7 @@ SELECT a.id, a.keywords, a.title, a.body, a.created
 FROM articles AS a JOIN articles_in_category AS aic ON a.id = aic.article_id
 WHERE aic.category_id in (14,62,70,53,138)
 GROUP BY aic.article_id, aic.category_id;
-ERROR:  column "a.id" must appear in the GROUP BY clause or be used in an aggregate function
+psql:sql/functional_deps.sql:68: ERROR:  column "a.id" must appear in the GROUP BY clause or be used in an aggregate function
 LINE 1: SELECT a.id, a.keywords, a.title, a.body, a.created
                ^
 -- group by right table's (composite) primary key (OK)
@@ -93,12 +95,14 @@ SELECT aic.changed
 FROM articles AS a JOIN articles_in_category AS aic ON a.id = aic.article_id
 WHERE aic.category_id in (14,62,70,53,138)
 GROUP BY aic.article_id;
-ERROR:  column "aic.changed" must appear in the GROUP BY clause or be used in an aggregate function
+psql:sql/functional_deps.sql:80: ERROR:  column "aic.changed" must appear in the GROUP BY clause or be used in an aggregate function
 LINE 1: SELECT aic.changed
                ^
 -- example from documentation
 CREATE TEMP TABLE products (product_id int, name text, price numeric);
+CREATE TABLE
 CREATE TEMP TABLE sales (product_id int, units int);
+CREATE TABLE
 -- OK
 SELECT product_id, p.name, (sum(s.units) * p.price) AS sales
     FROM products p LEFT JOIN sales s USING (product_id)
@@ -111,10 +115,11 @@ SELECT product_id, p.name, (sum(s.units) * p.price) AS sales
 SELECT product_id, p.name, (sum(s.units) * p.price) AS sales
     FROM products p LEFT JOIN sales s USING (product_id)
     GROUP BY product_id;
-ERROR:  column "p.name" must appear in the GROUP BY clause or be used in an aggregate function
+psql:sql/functional_deps.sql:96: ERROR:  column "p.name" must appear in the GROUP BY clause or be used in an aggregate function
 LINE 1: SELECT product_id, p.name, (sum(s.units) * p.price) AS sales
                            ^
 ALTER TABLE products ADD PRIMARY KEY (product_id);
+ALTER TABLE
 -- OK now
 SELECT product_id, p.name, (sum(s.units) * p.price) AS sales
     FROM products p LEFT JOIN sales s USING (product_id)
@@ -135,6 +140,7 @@ CREATE TEMP TABLE node (
     -- snip
     PRIMARY KEY (nid, vid)
 );
+CREATE TABLE
 CREATE TEMP TABLE users (
     uid integer NOT NULL default '0',
     name varchar(60) NOT NULL default '',
@@ -143,6 +149,7 @@ CREATE TEMP TABLE users (
     PRIMARY KEY (uid),
     UNIQUE (name)
 );
+CREATE TABLE
 -- OK
 SELECT u.uid, u.name FROM node n
 INNER JOIN users u ON u.uid = n.uid
@@ -167,7 +174,7 @@ CREATE TEMP VIEW fdv1 AS
 SELECT id, keywords, title, body, created
 FROM articles
 GROUP BY body;
-ERROR:  column "articles.id" must appear in the GROUP BY clause or be used in an aggregate function
+psql:sql/functional_deps.sql:148: ERROR:  column "articles.id" must appear in the GROUP BY clause or be used in an aggregate function
 LINE 2: SELECT id, keywords, title, body, created
                ^
 -- OK
@@ -175,27 +182,31 @@ CREATE TEMP VIEW fdv1 AS
 SELECT id, keywords, title, body, created
 FROM articles
 GROUP BY id;
+CREATE VIEW
 -- fail
 ALTER TABLE articles DROP CONSTRAINT articles_pkey RESTRICT;
-ERROR:  cannot drop constraint articles_pkey on table articles because other objects depend on it
+psql:sql/functional_deps.sql:157: ERROR:  cannot drop constraint articles_pkey on table articles because other objects depend on it
 DETAIL:  view fdv1 depends on constraint articles_pkey on table articles
 HINT:  Use DROP ... CASCADE to drop the dependent objects too.
 DROP VIEW fdv1;
+DROP VIEW
 -- multiple dependencies
 CREATE TEMP VIEW fdv2 AS
 SELECT a.id, a.keywords, a.title, aic.category_id, aic.changed
 FROM articles AS a JOIN articles_in_category AS aic ON a.id = aic.article_id
 WHERE aic.category_id in (14,62,70,53,138)
 GROUP BY a.id, aic.category_id, aic.article_id;
+CREATE VIEW
 ALTER TABLE articles DROP CONSTRAINT articles_pkey RESTRICT; -- fail
-ERROR:  cannot drop constraint articles_pkey on table articles because other objects depend on it
+psql:sql/functional_deps.sql:169: ERROR:  cannot drop constraint articles_pkey on table articles because other objects depend on it
 DETAIL:  view fdv2 depends on constraint articles_pkey on table articles
 HINT:  Use DROP ... CASCADE to drop the dependent objects too.
 ALTER TABLE articles_in_category DROP CONSTRAINT articles_in_category_pkey RESTRICT; --fail
-ERROR:  cannot drop constraint articles_in_category_pkey on table articles_in_category because other objects depend on it
+psql:sql/functional_deps.sql:170: ERROR:  cannot drop constraint articles_in_category_pkey on table articles_in_category because other objects depend on it
 DETAIL:  view fdv2 depends on constraint articles_in_category_pkey on table articles_in_category
 HINT:  Use DROP ... CASCADE to drop the dependent objects too.
 DROP VIEW fdv2;
+DROP VIEW
 -- nested queries
 CREATE TEMP VIEW fdv3 AS
 SELECT id, keywords, title, body, created
@@ -205,28 +216,34 @@ UNION
 SELECT id, keywords, title, body, created
 FROM articles
 GROUP BY id;
+CREATE VIEW
 ALTER TABLE articles DROP CONSTRAINT articles_pkey RESTRICT; -- fail
-ERROR:  cannot drop constraint articles_pkey on table articles because other objects depend on it
+psql:sql/functional_deps.sql:186: ERROR:  cannot drop constraint articles_pkey on table articles because other objects depend on it
 DETAIL:  view fdv3 depends on constraint articles_pkey on table articles
 HINT:  Use DROP ... CASCADE to drop the dependent objects too.
 DROP VIEW fdv3;
+DROP VIEW
 CREATE TEMP VIEW fdv4 AS
 SELECT * FROM articles WHERE title IN (SELECT title FROM articles GROUP BY id);
+CREATE VIEW
 ALTER TABLE articles DROP CONSTRAINT articles_pkey RESTRICT; -- fail
-ERROR:  cannot drop constraint articles_pkey on table articles because other objects depend on it
+psql:sql/functional_deps.sql:194: ERROR:  cannot drop constraint articles_pkey on table articles because other objects depend on it
 DETAIL:  view fdv4 depends on constraint articles_pkey on table articles
 HINT:  Use DROP ... CASCADE to drop the dependent objects too.
 DROP VIEW fdv4;
+DROP VIEW
 -- prepared query plans: this results in failure on reuse
 PREPARE foo AS
   SELECT id, keywords, title, body, created
   FROM articles
   GROUP BY id;
+PREPARE
 EXECUTE foo;
  id | keywords | title | body | created 
 ----+----------+-------+------+---------
 (0 rows)
 
 ALTER TABLE articles DROP CONSTRAINT articles_pkey RESTRICT;
+ALTER TABLE
 EXECUTE foo;  -- fail
-ERROR:  column "articles.keywords" must appear in the GROUP BY clause or be used in an aggregate function
+psql:sql/functional_deps.sql:210: ERROR:  column "articles.keywords" must appear in the GROUP BY clause or be used in an aggregate function

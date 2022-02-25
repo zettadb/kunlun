@@ -2,75 +2,94 @@
 -- DATE
 --
 drop table if exists DATE_TBL;
-NOTICE:  table "date_tbl" does not exist, skipping
+psql:sql/date.sql:5: NOTICE:  table "date_tbl" does not exist, skipping
+DROP TABLE
 CREATE TABLE DATE_TBL (f1 date);
+CREATE TABLE
 INSERT INTO DATE_TBL VALUES ('1957-04-09');
+INSERT 0 1
 INSERT INTO DATE_TBL VALUES ('1957-06-13');
+INSERT 0 1
 INSERT INTO DATE_TBL VALUES ('1996-02-28');
+INSERT 0 1
 INSERT INTO DATE_TBL VALUES ('1996-02-29');
+INSERT 0 1
 INSERT INTO DATE_TBL VALUES ('1996-03-01');
+INSERT 0 1
 INSERT INTO DATE_TBL VALUES ('1996-03-02');
+INSERT 0 1
 INSERT INTO DATE_TBL VALUES ('1997-02-28');
+INSERT 0 1
 INSERT INTO DATE_TBL VALUES ('1997-02-29');
-ERROR:  date/time field value out of range: "1997-02-29"
+psql:sql/date.sql:15: ERROR:  date/time field value out of range: "1997-02-29"
 LINE 1: INSERT INTO DATE_TBL VALUES ('1997-02-29');
                                      ^
 INSERT INTO DATE_TBL VALUES ('1997-03-01');
+INSERT 0 1
 INSERT INTO DATE_TBL VALUES ('1997-03-02');
+INSERT 0 1
 INSERT INTO DATE_TBL VALUES ('2000-04-01');
+INSERT 0 1
 INSERT INTO DATE_TBL VALUES ('2000-04-02');
+INSERT 0 1
 INSERT INTO DATE_TBL VALUES ('2000-04-03');
+INSERT 0 1
 INSERT INTO DATE_TBL VALUES ('2038-04-08');
+INSERT 0 1
 INSERT INTO DATE_TBL VALUES ('2039-04-09');
+INSERT 0 1
 INSERT INTO DATE_TBL VALUES ('2040-04-10');
+INSERT 0 1
 SELECT f1 AS "Fifteen" FROM DATE_TBL;
   Fifteen   
 ------------
- 04-09-1957
- 06-13-1957
- 02-28-1996
- 02-29-1996
- 03-01-1996
- 03-02-1996
- 02-28-1997
- 03-01-1997
- 03-02-1997
- 04-01-2000
- 04-02-2000
- 04-03-2000
- 04-08-2038
- 04-09-2039
- 04-10-2040
+ 1957-04-09
+ 1957-06-13
+ 1996-02-28
+ 1996-02-29
+ 1996-03-01
+ 1996-03-02
+ 1997-02-28
+ 1997-03-01
+ 1997-03-02
+ 2000-04-01
+ 2000-04-02
+ 2000-04-03
+ 2038-04-08
+ 2039-04-09
+ 2040-04-10
 (15 rows)
 
 SELECT f1 AS "Nine" FROM DATE_TBL WHERE f1 < '2000-01-01';
     Nine    
 ------------
- 04-09-1957
- 06-13-1957
- 02-28-1996
- 02-29-1996
- 03-01-1996
- 03-02-1996
- 02-28-1997
- 03-01-1997
- 03-02-1997
+ 1957-04-09
+ 1957-06-13
+ 1996-02-28
+ 1996-02-29
+ 1996-03-01
+ 1996-03-02
+ 1997-02-28
+ 1997-03-01
+ 1997-03-02
 (9 rows)
 
 SELECT f1 AS "Three" FROM DATE_TBL
   WHERE f1 BETWEEN '2000-01-01' AND '2001-01-01';
    Three    
 ------------
- 04-01-2000
- 04-02-2000
- 04-03-2000
+ 2000-04-01
+ 2000-04-02
+ 2000-04-03
 (3 rows)
 
 --
 -- Check all the documented input formats
 --
 SET datestyle TO iso;  -- display results in ISO
+SET
 SET datestyle TO ymd;
+SET
 SELECT date 'January 8, 1999';
     date    
 ------------
@@ -90,17 +109,17 @@ SELECT date '1999-01-18';
 (1 row)
 
 SELECT date '1/8/1999';
-ERROR:  date/time field value out of range: "1/8/1999"
+psql:sql/date.sql:42: ERROR:  date/time field value out of range: "1/8/1999"
 LINE 1: SELECT date '1/8/1999';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
 SELECT date '1/18/1999';
-ERROR:  date/time field value out of range: "1/18/1999"
+psql:sql/date.sql:43: ERROR:  date/time field value out of range: "1/18/1999"
 LINE 1: SELECT date '1/18/1999';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
 SELECT date '18/1/1999';
-ERROR:  date/time field value out of range: "18/1/1999"
+psql:sql/date.sql:44: ERROR:  date/time field value out of range: "18/1/1999"
 LINE 1: SELECT date '18/1/1999';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
@@ -135,7 +154,7 @@ SELECT date 'J2451187';
 (1 row)
 
 SELECT date 'January 8, 99 BC';
-ERROR:  date/time field value out of range: "January 8, 99 BC"
+psql:sql/date.sql:50: ERROR:  date/time field value out of range: "January 8, 99 BC"
 LINE 1: SELECT date 'January 8, 99 BC';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
@@ -152,7 +171,7 @@ SELECT date '1999-Jan-08';
 (1 row)
 
 SELECT date '08-Jan-99';
-ERROR:  date/time field value out of range: "08-Jan-99"
+psql:sql/date.sql:54: ERROR:  date/time field value out of range: "08-Jan-99"
 LINE 1: SELECT date '08-Jan-99';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
@@ -163,7 +182,7 @@ SELECT date '08-Jan-1999';
 (1 row)
 
 SELECT date 'Jan-08-99';
-ERROR:  date/time field value out of range: "Jan-08-99"
+psql:sql/date.sql:56: ERROR:  date/time field value out of range: "Jan-08-99"
 LINE 1: SELECT date 'Jan-08-99';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
@@ -174,11 +193,11 @@ SELECT date 'Jan-08-1999';
 (1 row)
 
 SELECT date '99-08-Jan';
-ERROR:  invalid input syntax for type date: "99-08-Jan"
+psql:sql/date.sql:58: ERROR:  invalid input syntax for type date: "99-08-Jan"
 LINE 1: SELECT date '99-08-Jan';
                     ^
 SELECT date '1999-08-Jan';
-ERROR:  invalid input syntax for type date: "1999-08-Jan"
+psql:sql/date.sql:59: ERROR:  invalid input syntax for type date: "1999-08-Jan"
 LINE 1: SELECT date '1999-08-Jan';
                     ^
 SELECT date '99 Jan 08';
@@ -194,7 +213,7 @@ SELECT date '1999 Jan 08';
 (1 row)
 
 SELECT date '08 Jan 99';
-ERROR:  date/time field value out of range: "08 Jan 99"
+psql:sql/date.sql:63: ERROR:  date/time field value out of range: "08 Jan 99"
 LINE 1: SELECT date '08 Jan 99';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
@@ -205,7 +224,7 @@ SELECT date '08 Jan 1999';
 (1 row)
 
 SELECT date 'Jan 08 99';
-ERROR:  date/time field value out of range: "Jan 08 99"
+psql:sql/date.sql:65: ERROR:  date/time field value out of range: "Jan 08 99"
 LINE 1: SELECT date 'Jan 08 99';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
@@ -240,22 +259,22 @@ SELECT date '1999-01-08';
 (1 row)
 
 SELECT date '08-01-99';
-ERROR:  date/time field value out of range: "08-01-99"
+psql:sql/date.sql:72: ERROR:  date/time field value out of range: "08-01-99"
 LINE 1: SELECT date '08-01-99';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
 SELECT date '08-01-1999';
-ERROR:  date/time field value out of range: "08-01-1999"
+psql:sql/date.sql:73: ERROR:  date/time field value out of range: "08-01-1999"
 LINE 1: SELECT date '08-01-1999';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
 SELECT date '01-08-99';
-ERROR:  date/time field value out of range: "01-08-99"
+psql:sql/date.sql:74: ERROR:  date/time field value out of range: "01-08-99"
 LINE 1: SELECT date '01-08-99';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
 SELECT date '01-08-1999';
-ERROR:  date/time field value out of range: "01-08-1999"
+psql:sql/date.sql:75: ERROR:  date/time field value out of range: "01-08-1999"
 LINE 1: SELECT date '01-08-1999';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
@@ -284,22 +303,22 @@ SELECT date '1999 01 08';
 (1 row)
 
 SELECT date '08 01 99';
-ERROR:  date/time field value out of range: "08 01 99"
+psql:sql/date.sql:81: ERROR:  date/time field value out of range: "08 01 99"
 LINE 1: SELECT date '08 01 99';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
 SELECT date '08 01 1999';
-ERROR:  date/time field value out of range: "08 01 1999"
+psql:sql/date.sql:82: ERROR:  date/time field value out of range: "08 01 1999"
 LINE 1: SELECT date '08 01 1999';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
 SELECT date '01 08 99';
-ERROR:  date/time field value out of range: "01 08 99"
+psql:sql/date.sql:83: ERROR:  date/time field value out of range: "01 08 99"
 LINE 1: SELECT date '01 08 99';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
 SELECT date '01 08 1999';
-ERROR:  date/time field value out of range: "01 08 1999"
+psql:sql/date.sql:84: ERROR:  date/time field value out of range: "01 08 1999"
 LINE 1: SELECT date '01 08 1999';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
@@ -316,6 +335,7 @@ SELECT date '1999 08 01';
 (1 row)
 
 SET datestyle TO dmy;
+SET
 SELECT date 'January 8, 1999';
     date    
 ------------
@@ -341,7 +361,7 @@ SELECT date '1/8/1999';
 (1 row)
 
 SELECT date '1/18/1999';
-ERROR:  date/time field value out of range: "1/18/1999"
+psql:sql/date.sql:94: ERROR:  date/time field value out of range: "1/18/1999"
 LINE 1: SELECT date '1/18/1999';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
@@ -388,7 +408,7 @@ SELECT date 'January 8, 99 BC';
 (1 row)
 
 SELECT date '99-Jan-08';
-ERROR:  date/time field value out of range: "99-Jan-08"
+psql:sql/date.sql:103: ERROR:  date/time field value out of range: "99-Jan-08"
 LINE 1: SELECT date '99-Jan-08';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
@@ -423,15 +443,15 @@ SELECT date 'Jan-08-1999';
 (1 row)
 
 SELECT date '99-08-Jan';
-ERROR:  invalid input syntax for type date: "99-08-Jan"
+psql:sql/date.sql:109: ERROR:  invalid input syntax for type date: "99-08-Jan"
 LINE 1: SELECT date '99-08-Jan';
                     ^
 SELECT date '1999-08-Jan';
-ERROR:  invalid input syntax for type date: "1999-08-Jan"
+psql:sql/date.sql:110: ERROR:  invalid input syntax for type date: "1999-08-Jan"
 LINE 1: SELECT date '1999-08-Jan';
                     ^
 SELECT date '99 Jan 08';
-ERROR:  date/time field value out of range: "99 Jan 08"
+psql:sql/date.sql:112: ERROR:  date/time field value out of range: "99 Jan 08"
 LINE 1: SELECT date '99 Jan 08';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
@@ -466,7 +486,7 @@ SELECT date 'Jan 08 1999';
 (1 row)
 
 SELECT date '99 08 Jan';
-ERROR:  invalid input syntax for type date: "99 08 Jan"
+psql:sql/date.sql:118: ERROR:  invalid input syntax for type date: "99 08 Jan"
 LINE 1: SELECT date '99 08 Jan';
                     ^
 SELECT date '1999 08 Jan';
@@ -476,7 +496,7 @@ SELECT date '1999 08 Jan';
 (1 row)
 
 SELECT date '99-01-08';
-ERROR:  date/time field value out of range: "99-01-08"
+psql:sql/date.sql:121: ERROR:  date/time field value out of range: "99-01-08"
 LINE 1: SELECT date '99-01-08';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
@@ -511,7 +531,7 @@ SELECT date '01-08-1999';
 (1 row)
 
 SELECT date '99-08-01';
-ERROR:  date/time field value out of range: "99-08-01"
+psql:sql/date.sql:127: ERROR:  date/time field value out of range: "99-08-01"
 LINE 1: SELECT date '99-08-01';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
@@ -522,7 +542,7 @@ SELECT date '1999-08-01';
 (1 row)
 
 SELECT date '99 01 08';
-ERROR:  date/time field value out of range: "99 01 08"
+psql:sql/date.sql:130: ERROR:  date/time field value out of range: "99 01 08"
 LINE 1: SELECT date '99 01 08';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
@@ -557,7 +577,7 @@ SELECT date '01 08 1999';
 (1 row)
 
 SELECT date '99 08 01';
-ERROR:  date/time field value out of range: "99 08 01"
+psql:sql/date.sql:136: ERROR:  date/time field value out of range: "99 08 01"
 LINE 1: SELECT date '99 08 01';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
@@ -568,6 +588,7 @@ SELECT date '1999 08 01';
 (1 row)
 
 SET datestyle TO mdy;
+SET
 SELECT date 'January 8, 1999';
     date    
 ------------
@@ -599,7 +620,7 @@ SELECT date '1/18/1999';
 (1 row)
 
 SELECT date '18/1/1999';
-ERROR:  date/time field value out of range: "18/1/1999"
+psql:sql/date.sql:146: ERROR:  date/time field value out of range: "18/1/1999"
 LINE 1: SELECT date '18/1/1999';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
@@ -640,7 +661,7 @@ SELECT date 'January 8, 99 BC';
 (1 row)
 
 SELECT date '99-Jan-08';
-ERROR:  date/time field value out of range: "99-Jan-08"
+psql:sql/date.sql:154: ERROR:  date/time field value out of range: "99-Jan-08"
 LINE 1: SELECT date '99-Jan-08';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
@@ -675,15 +696,15 @@ SELECT date 'Jan-08-1999';
 (1 row)
 
 SELECT date '99-08-Jan';
-ERROR:  invalid input syntax for type date: "99-08-Jan"
+psql:sql/date.sql:160: ERROR:  invalid input syntax for type date: "99-08-Jan"
 LINE 1: SELECT date '99-08-Jan';
                     ^
 SELECT date '1999-08-Jan';
-ERROR:  invalid input syntax for type date: "1999-08-Jan"
+psql:sql/date.sql:161: ERROR:  invalid input syntax for type date: "1999-08-Jan"
 LINE 1: SELECT date '1999-08-Jan';
                     ^
 SELECT date '99 Jan 08';
-ERROR:  invalid input syntax for type date: "99 Jan 08"
+psql:sql/date.sql:163: ERROR:  invalid input syntax for type date: "99 Jan 08"
 LINE 1: SELECT date '99 Jan 08';
                     ^
 SELECT date '1999 Jan 08';
@@ -717,7 +738,7 @@ SELECT date 'Jan 08 1999';
 (1 row)
 
 SELECT date '99 08 Jan';
-ERROR:  invalid input syntax for type date: "99 08 Jan"
+psql:sql/date.sql:169: ERROR:  invalid input syntax for type date: "99 08 Jan"
 LINE 1: SELECT date '99 08 Jan';
                     ^
 SELECT date '1999 08 Jan';
@@ -727,7 +748,7 @@ SELECT date '1999 08 Jan';
 (1 row)
 
 SELECT date '99-01-08';
-ERROR:  date/time field value out of range: "99-01-08"
+psql:sql/date.sql:172: ERROR:  date/time field value out of range: "99-01-08"
 LINE 1: SELECT date '99-01-08';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
@@ -762,7 +783,7 @@ SELECT date '01-08-1999';
 (1 row)
 
 SELECT date '99-08-01';
-ERROR:  date/time field value out of range: "99-08-01"
+psql:sql/date.sql:178: ERROR:  date/time field value out of range: "99-08-01"
 LINE 1: SELECT date '99-08-01';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
@@ -773,7 +794,7 @@ SELECT date '1999-08-01';
 (1 row)
 
 SELECT date '99 01 08';
-ERROR:  date/time field value out of range: "99 01 08"
+psql:sql/date.sql:181: ERROR:  date/time field value out of range: "99 01 08"
 LINE 1: SELECT date '99 01 08';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
@@ -808,7 +829,7 @@ SELECT date '01 08 1999';
 (1 row)
 
 SELECT date '99 08 01';
-ERROR:  date/time field value out of range: "99 08 01"
+psql:sql/date.sql:187: ERROR:  date/time field value out of range: "99 08 01"
 LINE 1: SELECT date '99 08 01';
                     ^
 HINT:  Perhaps you need a different "datestyle" setting.
@@ -826,7 +847,7 @@ SELECT date '4714-11-24 BC';
 (1 row)
 
 SELECT date '4714-11-23 BC';  -- out of range
-ERROR:  date out of range: "4714-11-23 BC"
+psql:sql/date.sql:192: ERROR:  date out of range: "4714-11-23 BC"
 LINE 1: SELECT date '4714-11-23 BC';
                     ^
 SELECT date '5874897-12-31';
@@ -836,10 +857,11 @@ SELECT date '5874897-12-31';
 (1 row)
 
 SELECT date '5874898-01-01';  -- out of range
-ERROR:  date out of range: "5874898-01-01"
+psql:sql/date.sql:194: ERROR:  date out of range: "5874898-01-01"
 LINE 1: SELECT date '5874898-01-01';
                     ^
 RESET datestyle;
+RESET
 --
 -- Simple math
 -- Leave most of it for the horology tests
@@ -1142,63 +1164,63 @@ SELECT EXTRACT(CENTURY FROM INTERVAL '-100 y'); -- -1
 -- test trunc function!
 --
 SELECT DATE_TRUNC('MILLENNIUM', TIMESTAMP '1970-03-20 04:30:00.00000'); -- 1001
-        date_trunc        
---------------------------
- Thu Jan 01 00:00:00 1001
+     date_trunc      
+---------------------
+ 1001-01-01 00:00:00
 (1 row)
 
 SELECT DATE_TRUNC('MILLENNIUM', DATE '1970-03-20'); -- 1001-01-01
           date_trunc          
 ------------------------------
- Thu Jan 01 00:00:00 1001 PST
+ 1001-01-01 00:00:00+08:05:43
 (1 row)
 
 SELECT DATE_TRUNC('CENTURY', TIMESTAMP '1970-03-20 04:30:00.00000'); -- 1901
-        date_trunc        
---------------------------
- Tue Jan 01 00:00:00 1901
+     date_trunc      
+---------------------
+ 1901-01-01 00:00:00
 (1 row)
 
 SELECT DATE_TRUNC('CENTURY', DATE '1970-03-20'); -- 1901
-          date_trunc          
-------------------------------
- Tue Jan 01 00:00:00 1901 PST
+       date_trunc       
+------------------------
+ 1901-01-01 00:00:00+08
 (1 row)
 
 SELECT DATE_TRUNC('CENTURY', DATE '2004-08-10'); -- 2001-01-01
-          date_trunc          
-------------------------------
- Mon Jan 01 00:00:00 2001 PST
+       date_trunc       
+------------------------
+ 2001-01-01 00:00:00+08
 (1 row)
 
 SELECT DATE_TRUNC('CENTURY', DATE '0002-02-04'); -- 0001-01-01
           date_trunc          
 ------------------------------
- Mon Jan 01 00:00:00 0001 PST
+ 0001-01-01 00:00:00+08:05:43
 (1 row)
 
 SELECT DATE_TRUNC('CENTURY', DATE '0055-08-10 BC'); -- 0100-01-01 BC
            date_trunc            
 ---------------------------------
- Tue Jan 01 00:00:00 0100 PST BC
+ 0100-01-01 00:00:00+08:05:43 BC
 (1 row)
 
 SELECT DATE_TRUNC('DECADE', DATE '1993-12-25'); -- 1990-01-01
-          date_trunc          
-------------------------------
- Mon Jan 01 00:00:00 1990 PST
+       date_trunc       
+------------------------
+ 1990-01-01 00:00:00+08
 (1 row)
 
 SELECT DATE_TRUNC('DECADE', DATE '0004-12-25'); -- 0001-01-01 BC
            date_trunc            
 ---------------------------------
- Sat Jan 01 00:00:00 0001 PST BC
+ 0001-01-01 00:00:00+08:05:43 BC
 (1 row)
 
 SELECT DATE_TRUNC('DECADE', DATE '0002-12-31 BC'); -- 0011-01-01 BC
            date_trunc            
 ---------------------------------
- Mon Jan 01 00:00:00 0011 PST BC
+ 0011-01-01 00:00:00+08:05:43 BC
 (1 row)
 
 --
@@ -1444,22 +1466,22 @@ SELECT EXTRACT(EPOCH      FROM DATE 'infinity');    --  Infinity
 -- wrong fields from non-finite date:
 --
 SELECT EXTRACT(MICROSEC  FROM DATE 'infinity');     -- ERROR:  timestamp units "microsec" not recognized
-ERROR:  timestamp units "microsec" not recognized
+psql:sql/date.sql:337: ERROR:  timestamp units "microsec" not recognized
 CONTEXT:  SQL function "date_part" statement 1
 SELECT EXTRACT(UNDEFINED FROM DATE 'infinity');     -- ERROR:  timestamp units "undefined" not supported
-ERROR:  timestamp units "undefined" not supported
+psql:sql/date.sql:338: ERROR:  timestamp units "undefined" not supported
 CONTEXT:  SQL function "date_part" statement 1
 -- test constructors
 select make_date(2013, 7, 15);
  make_date  
 ------------
- 07-15-2013
+ 2013-07-15
 (1 row)
 
 select make_date(-44, 3, 15);
    make_date   
 ---------------
- 03-15-0044 BC
+ 0044-03-15 BC
 (1 row)
 
 select make_time(8, 20, 0.0);
@@ -1470,13 +1492,14 @@ select make_time(8, 20, 0.0);
 
 -- should fail
 select make_date(2013, 2, 30);
-ERROR:  date field value out of range: 2013-02-30
+psql:sql/date.sql:345: ERROR:  date field value out of range: 2013-02-30
 select make_date(2013, 13, 1);
-ERROR:  date field value out of range: 2013-13-01
+psql:sql/date.sql:346: ERROR:  date field value out of range: 2013-13-01
 select make_date(2013, 11, -1);
-ERROR:  date field value out of range: 2013-11--1
+psql:sql/date.sql:347: ERROR:  date field value out of range: 2013-11--1
 select make_time(10, 55, 100.1);
-ERROR:  time field value out of range: 10:55:100.1
+psql:sql/date.sql:348: ERROR:  time field value out of range: 10:55:100.1
 select make_time(24, 0, 2.1);
-ERROR:  time field value out of range: 24:00:2.1
+psql:sql/date.sql:349: ERROR:  time field value out of range: 24:00:2.1
 drop table DATE_TBL;
+DROP TABLE

@@ -2,106 +2,150 @@
 -- DEPENDENCIES
 --
 CREATE USER regress_dep_user;
+CREATE ROLE
 CREATE USER regress_dep_user2;
+CREATE ROLE
 CREATE USER regress_dep_user3;
+CREATE ROLE
 CREATE GROUP regress_dep_group;
+CREATE ROLE
+drop table if exists deptest;
+psql:sql/dependency.sql:10: NOTICE:  table "deptest" does not exist, skipping
+DROP TABLE
 CREATE TABLE deptest (f1 serial primary key, f2 text);
+CREATE TABLE
 GRANT SELECT ON TABLE deptest TO GROUP regress_dep_group;
+GRANT
 GRANT ALL ON TABLE deptest TO regress_dep_user, regress_dep_user2;
+GRANT
 -- can't drop neither because they have privileges somewhere
 DROP USER regress_dep_user;
-ERROR:  role "regress_dep_user" cannot be dropped because some objects depend on it
+psql:sql/dependency.sql:17: ERROR:  role "regress_dep_user" cannot be dropped because some objects depend on it
 DETAIL:  privileges for table deptest
 DROP GROUP regress_dep_group;
-ERROR:  role "regress_dep_group" cannot be dropped because some objects depend on it
+psql:sql/dependency.sql:18: ERROR:  role "regress_dep_group" cannot be dropped because some objects depend on it
 DETAIL:  privileges for table deptest
 -- if we revoke the privileges we can drop the group
 REVOKE SELECT ON deptest FROM GROUP regress_dep_group;
+REVOKE
 DROP GROUP regress_dep_group;
+DROP ROLE
 -- can't drop the user if we revoke the privileges partially
 REVOKE SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES ON deptest FROM regress_dep_user;
+REVOKE
 DROP USER regress_dep_user;
-ERROR:  role "regress_dep_user" cannot be dropped because some objects depend on it
+psql:sql/dependency.sql:26: ERROR:  role "regress_dep_user" cannot be dropped because some objects depend on it
 DETAIL:  privileges for table deptest
 -- now we are OK to drop him
 REVOKE TRIGGER ON deptest FROM regress_dep_user;
+REVOKE
 DROP USER regress_dep_user;
+DROP ROLE
 -- we are OK too if we drop the privileges all at once
 REVOKE ALL ON deptest FROM regress_dep_user2;
+REVOKE
 DROP USER regress_dep_user2;
+DROP ROLE
 -- can't drop the owner of an object
 -- the error message detail here would include a pg_toast_nnn name that
 -- is not constant, so suppress it
 \set VERBOSITY terse
 ALTER TABLE deptest OWNER TO regress_dep_user3;
+ALTER TABLE
 DROP USER regress_dep_user3;
-ERROR:  role "regress_dep_user3" cannot be dropped because some objects depend on it
+psql:sql/dependency.sql:41: ERROR:  role "regress_dep_user3" cannot be dropped because some objects depend on it
 \set VERBOSITY default
 -- if we drop the object, we can drop the user too
 DROP TABLE deptest;
+DROP TABLE
 DROP USER regress_dep_user3;
--- Test DROP OWNED
+DROP ROLE
 CREATE USER regress_dep_user0;
+CREATE ROLE
 CREATE USER regress_dep_user1;
+CREATE ROLE
 CREATE USER regress_dep_user2;
-SET SESSION AUTHORIZATION regress_dep_user0;
--- permission denied
-DROP OWNED BY regress_dep_user1;
-ERROR:  permission denied to drop objects
-DROP OWNED BY regress_dep_user0, regress_dep_user2;
-ERROR:  permission denied to drop objects
-REASSIGN OWNED BY regress_dep_user0 TO regress_dep_user1;
-ERROR:  permission denied to reassign objects
-REASSIGN OWNED BY regress_dep_user1 TO regress_dep_user0;
-ERROR:  permission denied to reassign objects
--- this one is allowed
-DROP OWNED BY regress_dep_user0;
+CREATE ROLE
+drop table if exists deptest1;
+psql:sql/dependency.sql:52: NOTICE:  table "deptest1" does not exist, skipping
+DROP TABLE
 CREATE TABLE deptest1 (f1 int unique);
+CREATE TABLE
 GRANT ALL ON deptest1 TO regress_dep_user1 WITH GRANT OPTION;
+GRANT
 SET SESSION AUTHORIZATION regress_dep_user1;
+SET
 CREATE TABLE deptest (a serial primary key, b text);
+CREATE TABLE
 GRANT ALL ON deptest1 TO regress_dep_user2;
+GRANT
 RESET SESSION AUTHORIZATION;
+RESET
 \z deptest1
-                                               Access privileges
- Schema |   Name   | Type  |                 Access privileges                  | Column privileges | Policies 
---------+----------+-------+----------------------------------------------------+-------------------+----------
- public | deptest1 | table | regress_dep_user0=arwdDxt/regress_dep_user0       +|                   | 
-        |          |       | regress_dep_user1=a*r*w*d*D*x*t*/regress_dep_user0+|                   | 
-        |          |       | regress_dep_user2=arwdDxt/regress_dep_user1        |                   | 
+                                           Access privileges
+ Schema |   Name   | Type  |              Access privileges              | Column privileges | Policies 
+--------+----------+-------+---------------------------------------------+-------------------+----------
+ public | deptest1 | table | abc=arwdDxt/abc                            +|                   | 
+        |          |       | regress_dep_user1=a*r*w*d*D*x*t*/abc       +|                   | 
+        |          |       | regress_dep_user2=arwdDxt/regress_dep_user1 |                   | 
 (1 row)
 
-DROP OWNED BY regress_dep_user1;
 -- all grants revoked
 \z deptest1
                                            Access privileges
  Schema |   Name   | Type  |              Access privileges              | Column privileges | Policies 
 --------+----------+-------+---------------------------------------------+-------------------+----------
- public | deptest1 | table | regress_dep_user0=arwdDxt/regress_dep_user0 |                   | 
+ public | deptest1 | table | abc=arwdDxt/abc                            +|                   | 
+        |          |       | regress_dep_user1=a*r*w*d*D*x*t*/abc       +|                   | 
+        |          |       | regress_dep_user2=arwdDxt/regress_dep_user1 |                   | 
 (1 row)
 
 -- table was dropped
 \d deptest
+                             Table "public.deptest"
+ Column |  Type   | Collation | Nullable |               Default                
+--------+---------+-----------+----------+--------------------------------------
+ a      | integer |           | not null | "nextval"('deptest_a_seq'::regclass)
+ b      | text    |           |          | 
+Indexes:
+    "deptest_pkey" PRIMARY KEY, btree (a)
+
+drop table deptest;
+DROP TABLE
 -- Test REASSIGN OWNED
 GRANT ALL ON deptest1 TO regress_dep_user1;
-GRANT CREATE ON DATABASE regression TO regress_dep_user1;
+GRANT
+GRANT CREATE ON DATABASE postgres TO regress_dep_user1;
+GRANT
 SET SESSION AUTHORIZATION regress_dep_user1;
+SET
 CREATE SCHEMA deptest;
+psql:sql/dependency.sql:73: ERROR:  permission denied for database regress
 CREATE TABLE deptest (a serial primary key, b text);
+CREATE TABLE
 ALTER DEFAULT PRIVILEGES FOR ROLE regress_dep_user1 IN SCHEMA deptest
   GRANT ALL ON TABLES TO regress_dep_user2;
+psql:sql/dependency.sql:76: ERROR:  schema "deptest" does not exist
 CREATE FUNCTION deptest_func() RETURNS void LANGUAGE plpgsql
   AS $$ BEGIN END; $$;
+CREATE FUNCTION
 CREATE TYPE deptest_enum AS ENUM ('red');
+CREATE TYPE
 CREATE TYPE deptest_range AS RANGE (SUBTYPE = int4);
+CREATE TYPE
 CREATE TABLE deptest2 (f1 int);
+CREATE TABLE
 -- make a serial column the hard way
 CREATE SEQUENCE ss1;
+CREATE SEQUENCE
 ALTER TABLE deptest2 ALTER f1 SET DEFAULT nextval('ss1');
+ALTER TABLE
 ALTER SEQUENCE ss1 OWNED BY deptest2.f1;
+ALTER SEQUENCE
 -- When reassigning ownership of a composite type, its pg_class entry
 -- should match
 CREATE TYPE deptest_t AS (a int);
+CREATE TYPE
 SELECT typowner = relowner
 FROM pg_type JOIN pg_class c ON typrelid = c.oid WHERE typname = 'deptest_t';
  ?column? 
@@ -110,7 +154,9 @@ FROM pg_type JOIN pg_class c ON typrelid = c.oid WHERE typname = 'deptest_t';
 (1 row)
 
 RESET SESSION AUTHORIZATION;
+RESET
 REASSIGN OWNED BY regress_dep_user1 TO regress_dep_user2;
+REASSIGN OWNED
 \dt deptest
               List of relations
  Schema |  Name   | Type  |       Owner       
@@ -127,15 +173,40 @@ FROM pg_type JOIN pg_class c ON typrelid = c.oid WHERE typname = 'deptest_t';
 
 -- doesn't work: grant still exists
 DROP USER regress_dep_user1;
-ERROR:  role "regress_dep_user1" cannot be dropped because some objects depend on it
-DETAIL:  owner of default privileges on new relations belonging to role regress_dep_user1 in schema deptest
-privileges for database regression
+psql:sql/dependency.sql:102: ERROR:  role "regress_dep_user1" cannot be dropped because some objects depend on it
+DETAIL:  privileges for database postgres
 privileges for table deptest1
-DROP OWNED BY regress_dep_user1;
+ALTER DEFAULT PRIVILEGES FOR ROLE regress_dep_user1 IN SCHEMA deptest
+  REVOKE ALL ON TABLES FROM regress_dep_user2;
+psql:sql/dependency.sql:104: ERROR:  schema "deptest" does not exist
+REVOKE ALL ON deptest1 FROM regress_dep_user1 cascade;
+REVOKE
+REVOKE CREATE ON DATABASE postgres FROM regress_dep_user1;
+REVOKE
 DROP USER regress_dep_user1;
+DROP ROLE
+DROP FUNCTION deptest_func();
+DROP FUNCTION
+DROP TYPE deptest_enum;
+DROP TYPE
+DROP TYPE deptest_range;
+DROP TYPE
+DROP TABLE deptest2 cascade;
+DROP TABLE
+DROP SEQUENCE ss1 cascade;
+psql:sql/dependency.sql:113: ERROR:  sequence "ss1" does not exist
+DROP TYPE deptest_t;
+DROP TYPE
+DROP SCHEMA deptest;
+psql:sql/dependency.sql:116: ERROR:  schema "deptest" does not exist
 \set VERBOSITY terse
 DROP USER regress_dep_user2;
-ERROR:  role "regress_dep_user2" cannot be dropped because some objects depend on it
-DROP OWNED BY regress_dep_user2, regress_dep_user0;
+psql:sql/dependency.sql:119: ERROR:  role "regress_dep_user2" cannot be dropped because some objects depend on it
+drop sequence sequence deptest_a_seq cascade;
+psql:sql/dependency.sql:120: ERROR:  syntax error at or near "deptest_a_seq" at character 24
+drop table deptest cascade;
+DROP TABLE
 DROP USER regress_dep_user2;
+DROP ROLE
 DROP USER regress_dep_user0;
+DROP ROLE

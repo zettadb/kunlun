@@ -1,14 +1,16 @@
 -- pg_regress should ensure that this default value applies; however
 -- we can't rely on any specific default value of vacuum_cost_delay
 SHOW datestyle;
-   DateStyle   
----------------
- Postgres, MDY
+ DateStyle 
+-----------
+ ISO, YMD
 (1 row)
 
 -- SET to some nondefault value
 SET vacuum_cost_delay TO 40;
+SET
 SET datestyle = 'ISO, YMD';
+SET
 SHOW vacuum_cost_delay;
  vacuum_cost_delay 
 -------------------
@@ -24,12 +26,13 @@ SHOW datestyle;
 SELECT '2006-08-13 12:34:56'::timestamptz;
       timestamptz       
 ------------------------
- 2006-08-13 12:34:56-07
+ 2006-08-13 12:34:56+08
 (1 row)
 
 -- SET LOCAL has no effect outside of a transaction
 SET LOCAL vacuum_cost_delay TO 50;
-WARNING:  SET LOCAL can only be used in transaction blocks
+psql:sql/guc.sql:13: WARNING:  SET LOCAL can only be used in transaction blocks
+SET
 SHOW vacuum_cost_delay;
  vacuum_cost_delay 
 -------------------
@@ -37,7 +40,8 @@ SHOW vacuum_cost_delay;
 (1 row)
 
 SET LOCAL datestyle = 'SQL';
-WARNING:  SET LOCAL can only be used in transaction blocks
+psql:sql/guc.sql:15: WARNING:  SET LOCAL can only be used in transaction blocks
+SET
 SHOW datestyle;
  DateStyle 
 -----------
@@ -47,12 +51,14 @@ SHOW datestyle;
 SELECT '2006-08-13 12:34:56'::timestamptz;
       timestamptz       
 ------------------------
- 2006-08-13 12:34:56-07
+ 2006-08-13 12:34:56+08
 (1 row)
 
 -- SET LOCAL within a transaction that commits
 BEGIN;
+BEGIN
 SET LOCAL vacuum_cost_delay TO 50;
+SET
 SHOW vacuum_cost_delay;
  vacuum_cost_delay 
 -------------------
@@ -60,6 +66,7 @@ SHOW vacuum_cost_delay;
 (1 row)
 
 SET LOCAL datestyle = 'SQL';
+SET
 SHOW datestyle;
  DateStyle 
 -----------
@@ -69,10 +76,11 @@ SHOW datestyle;
 SELECT '2006-08-13 12:34:56'::timestamptz;
        timestamptz       
 -------------------------
- 08/13/2006 12:34:56 PDT
+ 08/13/2006 12:34:56 CST
 (1 row)
 
 COMMIT;
+COMMIT
 SHOW vacuum_cost_delay;
  vacuum_cost_delay 
 -------------------
@@ -88,12 +96,14 @@ SHOW datestyle;
 SELECT '2006-08-13 12:34:56'::timestamptz;
       timestamptz       
 ------------------------
- 2006-08-13 12:34:56-07
+ 2006-08-13 12:34:56+08
 (1 row)
 
 -- SET should be reverted after ROLLBACK
 BEGIN;
+BEGIN
 SET vacuum_cost_delay TO 60;
+SET
 SHOW vacuum_cost_delay;
  vacuum_cost_delay 
 -------------------
@@ -101,6 +111,7 @@ SHOW vacuum_cost_delay;
 (1 row)
 
 SET datestyle = 'German';
+SET
 SHOW datestyle;
   DateStyle  
 -------------
@@ -110,10 +121,11 @@ SHOW datestyle;
 SELECT '2006-08-13 12:34:56'::timestamptz;
        timestamptz       
 -------------------------
- 13.08.2006 12:34:56 PDT
+ 13.08.2006 12:34:56 CST
 (1 row)
 
 ROLLBACK;
+ROLLBACK
 SHOW vacuum_cost_delay;
  vacuum_cost_delay 
 -------------------
@@ -129,13 +141,16 @@ SHOW datestyle;
 SELECT '2006-08-13 12:34:56'::timestamptz;
       timestamptz       
 ------------------------
- 2006-08-13 12:34:56-07
+ 2006-08-13 12:34:56+08
 (1 row)
 
 -- Some tests with subtransactions
 BEGIN;
+BEGIN
 SET vacuum_cost_delay TO 70;
+SET
 SET datestyle = 'MDY';
+SET
 SHOW datestyle;
  DateStyle 
 -----------
@@ -145,11 +160,13 @@ SHOW datestyle;
 SELECT '2006-08-13 12:34:56'::timestamptz;
       timestamptz       
 ------------------------
- 2006-08-13 12:34:56-07
+ 2006-08-13 12:34:56+08
 (1 row)
 
 SAVEPOINT first_sp;
+SAVEPOINT
 SET vacuum_cost_delay TO 80;
+SET
 SHOW vacuum_cost_delay;
  vacuum_cost_delay 
 -------------------
@@ -157,6 +174,7 @@ SHOW vacuum_cost_delay;
 (1 row)
 
 SET datestyle = 'German, DMY';
+SET
 SHOW datestyle;
   DateStyle  
 -------------
@@ -166,10 +184,11 @@ SHOW datestyle;
 SELECT '2006-08-13 12:34:56'::timestamptz;
        timestamptz       
 -------------------------
- 13.08.2006 12:34:56 PDT
+ 13.08.2006 12:34:56 CST
 (1 row)
 
 ROLLBACK TO first_sp;
+ROLLBACK
 SHOW datestyle;
  DateStyle 
 -----------
@@ -179,12 +198,15 @@ SHOW datestyle;
 SELECT '2006-08-13 12:34:56'::timestamptz;
       timestamptz       
 ------------------------
- 2006-08-13 12:34:56-07
+ 2006-08-13 12:34:56+08
 (1 row)
 
 SAVEPOINT second_sp;
+SAVEPOINT
 SET vacuum_cost_delay TO 90;
+SET
 SET datestyle = 'SQL, YMD';
+SET
 SHOW datestyle;
  DateStyle 
 -----------
@@ -194,11 +216,13 @@ SHOW datestyle;
 SELECT '2006-08-13 12:34:56'::timestamptz;
        timestamptz       
 -------------------------
- 08/13/2006 12:34:56 PDT
+ 08/13/2006 12:34:56 CST
 (1 row)
 
 SAVEPOINT third_sp;
+SAVEPOINT
 SET vacuum_cost_delay TO 100;
+SET
 SHOW vacuum_cost_delay;
  vacuum_cost_delay 
 -------------------
@@ -206,6 +230,7 @@ SHOW vacuum_cost_delay;
 (1 row)
 
 SET datestyle = 'Postgres, MDY';
+SET
 SHOW datestyle;
    DateStyle   
 ---------------
@@ -215,10 +240,11 @@ SHOW datestyle;
 SELECT '2006-08-13 12:34:56'::timestamptz;
          timestamptz          
 ------------------------------
- Sun Aug 13 12:34:56 2006 PDT
+ Sun Aug 13 12:34:56 2006 CST
 (1 row)
 
 ROLLBACK TO third_sp;
+ROLLBACK
 SHOW vacuum_cost_delay;
  vacuum_cost_delay 
 -------------------
@@ -234,10 +260,11 @@ SHOW datestyle;
 SELECT '2006-08-13 12:34:56'::timestamptz;
        timestamptz       
 -------------------------
- 08/13/2006 12:34:56 PDT
+ 08/13/2006 12:34:56 CST
 (1 row)
 
 ROLLBACK TO second_sp;
+ROLLBACK
 SHOW vacuum_cost_delay;
  vacuum_cost_delay 
 -------------------
@@ -253,10 +280,11 @@ SHOW datestyle;
 SELECT '2006-08-13 12:34:56'::timestamptz;
       timestamptz       
 ------------------------
- 2006-08-13 12:34:56-07
+ 2006-08-13 12:34:56+08
 (1 row)
 
 ROLLBACK;
+ROLLBACK
 SHOW vacuum_cost_delay;
  vacuum_cost_delay 
 -------------------
@@ -272,11 +300,12 @@ SHOW datestyle;
 SELECT '2006-08-13 12:34:56'::timestamptz;
       timestamptz       
 ------------------------
- 2006-08-13 12:34:56-07
+ 2006-08-13 12:34:56+08
 (1 row)
 
 -- SET LOCAL with Savepoints
 BEGIN;
+BEGIN
 SHOW vacuum_cost_delay;
  vacuum_cost_delay 
 -------------------
@@ -292,11 +321,13 @@ SHOW datestyle;
 SELECT '2006-08-13 12:34:56'::timestamptz;
       timestamptz       
 ------------------------
- 2006-08-13 12:34:56-07
+ 2006-08-13 12:34:56+08
 (1 row)
 
 SAVEPOINT sp;
+SAVEPOINT
 SET LOCAL vacuum_cost_delay TO 30;
+SET
 SHOW vacuum_cost_delay;
  vacuum_cost_delay 
 -------------------
@@ -304,6 +335,7 @@ SHOW vacuum_cost_delay;
 (1 row)
 
 SET LOCAL datestyle = 'Postgres, MDY';
+SET
 SHOW datestyle;
    DateStyle   
 ---------------
@@ -313,10 +345,11 @@ SHOW datestyle;
 SELECT '2006-08-13 12:34:56'::timestamptz;
          timestamptz          
 ------------------------------
- Sun Aug 13 12:34:56 2006 PDT
+ Sun Aug 13 12:34:56 2006 CST
 (1 row)
 
 ROLLBACK TO sp;
+ROLLBACK
 SHOW vacuum_cost_delay;
  vacuum_cost_delay 
 -------------------
@@ -332,10 +365,11 @@ SHOW datestyle;
 SELECT '2006-08-13 12:34:56'::timestamptz;
       timestamptz       
 ------------------------
- 2006-08-13 12:34:56-07
+ 2006-08-13 12:34:56+08
 (1 row)
 
 ROLLBACK;
+ROLLBACK
 SHOW vacuum_cost_delay;
  vacuum_cost_delay 
 -------------------
@@ -351,11 +385,12 @@ SHOW datestyle;
 SELECT '2006-08-13 12:34:56'::timestamptz;
       timestamptz       
 ------------------------
- 2006-08-13 12:34:56-07
+ 2006-08-13 12:34:56+08
 (1 row)
 
 -- SET LOCAL persists through RELEASE (which was not true in 8.0-8.2)
 BEGIN;
+BEGIN
 SHOW vacuum_cost_delay;
  vacuum_cost_delay 
 -------------------
@@ -371,11 +406,13 @@ SHOW datestyle;
 SELECT '2006-08-13 12:34:56'::timestamptz;
       timestamptz       
 ------------------------
- 2006-08-13 12:34:56-07
+ 2006-08-13 12:34:56+08
 (1 row)
 
 SAVEPOINT sp;
+SAVEPOINT
 SET LOCAL vacuum_cost_delay TO 30;
+SET
 SHOW vacuum_cost_delay;
  vacuum_cost_delay 
 -------------------
@@ -383,6 +420,7 @@ SHOW vacuum_cost_delay;
 (1 row)
 
 SET LOCAL datestyle = 'Postgres, MDY';
+SET
 SHOW datestyle;
    DateStyle   
 ---------------
@@ -392,10 +430,9 @@ SHOW datestyle;
 SELECT '2006-08-13 12:34:56'::timestamptz;
          timestamptz          
 ------------------------------
- Sun Aug 13 12:34:56 2006 PDT
+ Sun Aug 13 12:34:56 2006 CST
 (1 row)
 
-RELEASE SAVEPOINT sp;
 SHOW vacuum_cost_delay;
  vacuum_cost_delay 
 -------------------
@@ -411,10 +448,11 @@ SHOW datestyle;
 SELECT '2006-08-13 12:34:56'::timestamptz;
          timestamptz          
 ------------------------------
- Sun Aug 13 12:34:56 2006 PDT
+ Sun Aug 13 12:34:56 2006 CST
 (1 row)
 
 ROLLBACK;
+ROLLBACK
 SHOW vacuum_cost_delay;
  vacuum_cost_delay 
 -------------------
@@ -430,13 +468,16 @@ SHOW datestyle;
 SELECT '2006-08-13 12:34:56'::timestamptz;
       timestamptz       
 ------------------------
- 2006-08-13 12:34:56-07
+ 2006-08-13 12:34:56+08
 (1 row)
 
 -- SET followed by SET LOCAL
 BEGIN;
+BEGIN
 SET vacuum_cost_delay TO 40;
+SET
 SET LOCAL vacuum_cost_delay TO 50;
+SET
 SHOW vacuum_cost_delay;
  vacuum_cost_delay 
 -------------------
@@ -444,7 +485,9 @@ SHOW vacuum_cost_delay;
 (1 row)
 
 SET datestyle = 'ISO, DMY';
+SET
 SET LOCAL datestyle = 'Postgres, MDY';
+SET
 SHOW datestyle;
    DateStyle   
 ---------------
@@ -454,10 +497,11 @@ SHOW datestyle;
 SELECT '2006-08-13 12:34:56'::timestamptz;
          timestamptz          
 ------------------------------
- Sun Aug 13 12:34:56 2006 PDT
+ Sun Aug 13 12:34:56 2006 CST
 (1 row)
 
 COMMIT;
+COMMIT
 SHOW vacuum_cost_delay;
  vacuum_cost_delay 
 -------------------
@@ -473,7 +517,7 @@ SHOW datestyle;
 SELECT '2006-08-13 12:34:56'::timestamptz;
       timestamptz       
 ------------------------
- 2006-08-13 12:34:56-07
+ 2006-08-13 12:34:56+08
 (1 row)
 
 --
@@ -481,6 +525,7 @@ SELECT '2006-08-13 12:34:56'::timestamptz;
 -- pg_regress, so it doesn't depend on the installation's configuration.
 --
 SET datestyle = iso, ymd;
+SET
 SHOW datestyle;
  DateStyle 
 -----------
@@ -490,31 +535,33 @@ SHOW datestyle;
 SELECT '2006-08-13 12:34:56'::timestamptz;
       timestamptz       
 ------------------------
- 2006-08-13 12:34:56-07
+ 2006-08-13 12:34:56+08
 (1 row)
 
 RESET datestyle;
+RESET
 SHOW datestyle;
-   DateStyle   
----------------
- Postgres, MDY
+ DateStyle 
+-----------
+ ISO, YMD
 (1 row)
 
 SELECT '2006-08-13 12:34:56'::timestamptz;
-         timestamptz          
-------------------------------
- Sun Aug 13 12:34:56 2006 PDT
+      timestamptz       
+------------------------
+ 2006-08-13 12:34:56+08
 (1 row)
 
 -- Test some simple error cases
 SET seq_page_cost TO 'NaN';
-ERROR:  parameter "seq_page_cost" requires a numeric value
+psql:sql/guc.sql:147: ERROR:  parameter "seq_page_cost" requires a numeric value
 SET vacuum_cost_delay TO '10s';
-ERROR:  10000 is outside the valid range for parameter "vacuum_cost_delay" (0 .. 100)
+psql:sql/guc.sql:148: ERROR:  10000 is outside the valid range for parameter "vacuum_cost_delay" (0 .. 100)
 --
 -- Test DISCARD TEMP
 --
 CREATE TEMP TABLE reset_test ( data text ) ON COMMIT DELETE ROWS;
+CREATE TABLE
 SELECT relname FROM pg_class WHERE relname = 'reset_test';
   relname   
 ------------
@@ -522,6 +569,7 @@ SELECT relname FROM pg_class WHERE relname = 'reset_test';
 (1 row)
 
 DISCARD TEMP;
+DISCARD TEMP
 SELECT relname FROM pg_class WHERE relname = 'reset_test';
  relname 
 ---------
@@ -532,12 +580,19 @@ SELECT relname FROM pg_class WHERE relname = 'reset_test';
 --
 -- do changes
 DECLARE foo CURSOR WITH HOLD FOR SELECT 1;
+DECLARE CURSOR
 PREPARE foo AS SELECT 1;
+PREPARE
 LISTEN foo_event;
+LISTEN
 SET vacuum_cost_delay = 13;
+SET
 CREATE TEMP TABLE tmp_foo (data text) ON COMMIT DELETE ROWS;
+CREATE TABLE
 CREATE ROLE regress_guc_user;
+CREATE ROLE
 SET SESSION AUTHORIZATION regress_guc_user;
+SET
 -- look changes
 SELECT pg_listening_channels();
  pg_listening_channels 
@@ -577,6 +632,7 @@ SELECT current_user = 'regress_guc_user';
 
 -- discard everything
 DISCARD ALL;
+DISCARD ALL
 -- look again
 SELECT pg_listening_channels();
  pg_listening_channels 
@@ -611,10 +667,12 @@ SELECT current_user = 'regress_guc_user';
 (1 row)
 
 DROP ROLE regress_guc_user;
+DROP ROLE
 --
 -- search_path should react to changes in pg_namespace
 --
 set search_path = foo, public, not_there_initially;
+SET
 select current_schemas(false);
  current_schemas 
 -----------------
@@ -622,6 +680,7 @@ select current_schemas(false);
 (1 row)
 
 create schema not_there_initially;
+CREATE SCHEMA
 select current_schemas(false);
        current_schemas        
 ------------------------------
@@ -629,6 +688,7 @@ select current_schemas(false);
 (1 row)
 
 drop schema not_there_initially;
+DROP SCHEMA
 select current_schemas(false);
  current_schemas 
 -----------------
@@ -636,13 +696,16 @@ select current_schemas(false);
 (1 row)
 
 reset search_path;
+RESET
 --
 -- Tests for function-local GUC settings
 --
 set work_mem = '3MB';
+SET
 create function report_guc(text) returns text as
 $$ select current_setting($1) $$ language sql
 set work_mem = '1MB';
+CREATE FUNCTION
 select report_guc('work_mem'), current_setting('work_mem');
  report_guc | current_setting 
 ------------+-----------------
@@ -650,6 +713,7 @@ select report_guc('work_mem'), current_setting('work_mem');
 (1 row)
 
 alter function report_guc(text) set work_mem = '2MB';
+ALTER FUNCTION
 select report_guc('work_mem'), current_setting('work_mem');
  report_guc | current_setting 
 ------------+-----------------
@@ -657,6 +721,7 @@ select report_guc('work_mem'), current_setting('work_mem');
 (1 row)
 
 alter function report_guc(text) reset all;
+ALTER FUNCTION
 select report_guc('work_mem'), current_setting('work_mem');
  report_guc | current_setting 
 ------------+-----------------
@@ -671,6 +736,7 @@ begin
 end $$
 language plpgsql
 set work_mem = '1MB';
+CREATE FUNCTION
 select myfunc(0), current_setting('work_mem');
  myfunc | current_setting 
 --------+-----------------
@@ -678,6 +744,7 @@ select myfunc(0), current_setting('work_mem');
 (1 row)
 
 alter function myfunc(int) reset all;
+ALTER FUNCTION
 select myfunc(0), current_setting('work_mem');
  myfunc | current_setting 
 --------+-----------------
@@ -685,6 +752,7 @@ select myfunc(0), current_setting('work_mem');
 (1 row)
 
 set work_mem = '3MB';
+SET
 -- but SET isn't
 create or replace function myfunc(int) returns text as $$
 begin
@@ -693,6 +761,7 @@ begin
 end $$
 language plpgsql
 set work_mem = '1MB';
+CREATE FUNCTION
 select myfunc(0), current_setting('work_mem');
  myfunc | current_setting 
 --------+-----------------
@@ -700,6 +769,7 @@ select myfunc(0), current_setting('work_mem');
 (1 row)
 
 set work_mem = '3MB';
+SET
 -- it should roll back on error, though
 create or replace function myfunc(int) returns text as $$
 begin
@@ -709,8 +779,9 @@ begin
 end $$
 language plpgsql
 set work_mem = '1MB';
+CREATE FUNCTION
 select myfunc(0);
-ERROR:  division by zero
+psql:sql/guc.sql:260: ERROR:  division by zero
 CONTEXT:  SQL statement "SELECT 1/$1"
 PL/pgSQL function myfunc(integer) line 4 at PERFORM
 select current_setting('work_mem');
@@ -727,9 +798,9 @@ select myfunc(1), current_setting('work_mem');
 
 -- check current_setting()'s behavior with invalid setting name
 select current_setting('nosuch.setting');  -- FAIL
-ERROR:  unrecognized configuration parameter "nosuch.setting"
+psql:sql/guc.sql:266: ERROR:  unrecognized configuration parameter "nosuch.setting"
 select current_setting('nosuch.setting', false);  -- FAIL
-ERROR:  unrecognized configuration parameter "nosuch.setting"
+psql:sql/guc.sql:267: ERROR:  unrecognized configuration parameter "nosuch.setting"
 select current_setting('nosuch.setting', true) is null;
  ?column? 
 ----------
@@ -738,6 +809,7 @@ select current_setting('nosuch.setting', true) is null;
 
 -- after this, all three cases should yield 'nada'
 set nosuch.setting = 'nada';
+SET
 select current_setting('nosuch.setting');
  current_setting 
 -----------------
@@ -762,13 +834,16 @@ select current_setting('nosuch.setting', true);
 create function func_with_bad_set() returns int as $$ select 1 $$
 language sql
 set default_text_search_config = no_such_config;
-NOTICE:  text search configuration "no_such_config" does not exist
-ERROR:  invalid value for parameter "default_text_search_config": "no_such_config"
+psql:sql/guc.sql:283: NOTICE:  text search configuration "no_such_config" does not exist
+psql:sql/guc.sql:283: ERROR:  invalid value for parameter "default_text_search_config": "no_such_config"
 set check_function_bodies = off;
+SET
 create function func_with_bad_set() returns int as $$ select 1 $$
 language sql
 set default_text_search_config = no_such_config;
-NOTICE:  text search configuration "no_such_config" does not exist
+psql:sql/guc.sql:289: NOTICE:  text search configuration "no_such_config" does not exist
+CREATE FUNCTION
 select func_with_bad_set();
-ERROR:  invalid value for parameter "default_text_search_config": "no_such_config"
+psql:sql/guc.sql:291: ERROR:  invalid value for parameter "default_text_search_config": "no_such_config"
 reset check_function_bodies;
+RESET

@@ -57,11 +57,11 @@ loop
   execute 'select min(oid) from ' || relnm into lowoid;
   continue when lowoid is null or lowoid >= 16384;
   if shared then
-    pinned := exists(select 1 from pg_shdepend
+    pinned = exists(select 1 from pg_shdepend
                      where refclassid = reloid and refobjid = lowoid
                      and deptype = 'p');
   else
-    pinned := exists(select 1 from pg_depend
+    pinned = exists(select 1 from pg_depend
                      where refclassid = reloid and refobjid = lowoid
                      and deptype = 'p');
   end if;
@@ -70,9 +70,10 @@ loop
   end if;
 end loop;
 end$$;
-NOTICE:  pg_constraint contains unpinned initdb-created object(s)
-NOTICE:  pg_conversion contains unpinned initdb-created object(s)
-NOTICE:  pg_database contains unpinned initdb-created object(s)
-NOTICE:  pg_extension contains unpinned initdb-created object(s)
-NOTICE:  pg_rewrite contains unpinned initdb-created object(s)
-NOTICE:  pg_tablespace contains unpinned initdb-created object(s)
+psql:sql/misc_sanity.sql:74: NOTICE:  pg_constraint contains unpinned initdb-created object(s)
+psql:sql/misc_sanity.sql:74: NOTICE:  pg_conversion contains unpinned initdb-created object(s)
+psql:sql/misc_sanity.sql:74: NOTICE:  pg_database contains unpinned initdb-created object(s)
+psql:sql/misc_sanity.sql:74: NOTICE:  pg_extension contains unpinned initdb-created object(s)
+psql:sql/misc_sanity.sql:74: NOTICE:  pg_rewrite contains unpinned initdb-created object(s)
+psql:sql/misc_sanity.sql:74: NOTICE:  pg_tablespace contains unpinned initdb-created object(s)
+DO

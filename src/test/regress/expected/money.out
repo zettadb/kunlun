@@ -4,9 +4,12 @@
 -- Note that we assume lc_monetary has been set to C.
 --
 DROP TABLE if exists money_data;
-NOTICE:  table "money_data" does not exist, skipping
+psql:sql/money.sql:7: NOTICE:  table "money_data" does not exist, skipping
+DROP TABLE
 CREATE TABLE money_data (m money);
+CREATE TABLE
 INSERT INTO money_data VALUES ('123');
+INSERT 0 1
 SELECT * FROM money_data;
     m    
 ---------
@@ -226,7 +229,9 @@ SELECT cash_words(m + '1.23') FROM money_data;
 (1 row)
 
 DELETE FROM money_data;
+DELETE 1
 INSERT INTO money_data VALUES ('$123.45');
+INSERT 0 1
 SELECT * FROM money_data;
     m    
 ---------
@@ -234,7 +239,9 @@ SELECT * FROM money_data;
 (1 row)
 
 DELETE FROM money_data;
+DELETE 1
 INSERT INTO money_data VALUES ('$123.451');
+INSERT 0 1
 SELECT * FROM money_data;
     m    
 ---------
@@ -242,7 +249,9 @@ SELECT * FROM money_data;
 (1 row)
 
 DELETE FROM money_data;
+DELETE 1
 INSERT INTO money_data VALUES ('$123.454');
+INSERT 0 1
 SELECT * FROM money_data;
     m    
 ---------
@@ -250,7 +259,9 @@ SELECT * FROM money_data;
 (1 row)
 
 DELETE FROM money_data;
+DELETE 1
 INSERT INTO money_data VALUES ('$123.455');
+INSERT 0 1
 SELECT * FROM money_data;
     m    
 ---------
@@ -258,7 +269,9 @@ SELECT * FROM money_data;
 (1 row)
 
 DELETE FROM money_data;
+DELETE 1
 INSERT INTO money_data VALUES ('$123.456');
+INSERT 0 1
 SELECT * FROM money_data;
     m    
 ---------
@@ -266,7 +279,9 @@ SELECT * FROM money_data;
 (1 row)
 
 DELETE FROM money_data;
+DELETE 1
 INSERT INTO money_data VALUES ('$123.459');
+INSERT 0 1
 SELECT * FROM money_data;
     m    
 ---------
@@ -287,11 +302,11 @@ SELECT '12345678901234567'::money;
 (1 row)
 
 SELECT '123456789012345678'::money;
-ERROR:  value "123456789012345678" is out of range for type money
+psql:sql/money.sql:80: ERROR:  value "123456789012345678" is out of range for type money
 LINE 1: SELECT '123456789012345678'::money;
                ^
 SELECT '9223372036854775807'::money;
-ERROR:  value "9223372036854775807" is out of range for type money
+psql:sql/money.sql:81: ERROR:  value "9223372036854775807" is out of range for type money
 LINE 1: SELECT '9223372036854775807'::money;
                ^
 SELECT '-12345'::money;
@@ -313,11 +328,11 @@ SELECT '-12345678901234567'::money;
 (1 row)
 
 SELECT '-123456789012345678'::money;
-ERROR:  value "-123456789012345678" is out of range for type money
+psql:sql/money.sql:85: ERROR:  value "-123456789012345678" is out of range for type money
 LINE 1: SELECT '-123456789012345678'::money;
                ^
 SELECT '-9223372036854775808'::money;
-ERROR:  value "-9223372036854775808" is out of range for type money
+psql:sql/money.sql:86: ERROR:  value "-9223372036854775808" is out of range for type money
 LINE 1: SELECT '-9223372036854775808'::money;
                ^
 -- special characters
@@ -347,20 +362,20 @@ SELECT '92233720368547758.07'::money;
 (1 row)
 
 SELECT '-92233720368547758.09'::money;
-ERROR:  value "-92233720368547758.09" is out of range for type money
+psql:sql/money.sql:96: ERROR:  value "-92233720368547758.09" is out of range for type money
 LINE 1: SELECT '-92233720368547758.09'::money;
                ^
 SELECT '92233720368547758.08'::money;
-ERROR:  value "92233720368547758.08" is out of range for type money
+psql:sql/money.sql:97: ERROR:  value "92233720368547758.08" is out of range for type money
 LINE 1: SELECT '92233720368547758.08'::money;
                ^
 -- rounding
 SELECT '-92233720368547758.085'::money;
-ERROR:  value "-92233720368547758.085" is out of range for type money
+psql:sql/money.sql:100: ERROR:  value "-92233720368547758.085" is out of range for type money
 LINE 1: SELECT '-92233720368547758.085'::money;
                ^
 SELECT '92233720368547758.075'::money;
-ERROR:  value "92233720368547758.075" is out of range for type money
+psql:sql/money.sql:101: ERROR:  value "92233720368547758.075" is out of range for type money
 LINE 1: SELECT '92233720368547758.075'::money;
                ^
 -- rounding vs. truncation in division
@@ -506,3 +521,4 @@ SELECT '-92233720368547758.08'::money::numeric;
 (1 row)
 
 DROP TABLE if exists money_data;
+DROP TABLE

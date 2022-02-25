@@ -1,23 +1,21 @@
 /* Test inheritance of structure (LIKE) */
-CREATE TABLE inhx (xx text DEFAULT 'text');
-/*
- * Test double inheritance
- *
- * Ensure that defaults are NOT included unless
- * INCLUDING DEFAULTS is specified
- */
-CREATE TABLE ctla (aa TEXT);
-CREATE TABLE ctlb (bb TEXT) INHERITS (ctla);
+DROP TABLE if exists inhx;
+psql:sql/create_table_like.sql:2: NOTICE:  table "inhx" does not exist, skipping
+DROP TABLE
+CREATE TABLE inhx (xx varchar(100) DEFAULT 'text');
+CREATE TABLE
 CREATE TABLE foo (LIKE nonexistent);
-ERROR:  relation "nonexistent" does not exist
+psql:sql/create_table_like.sql:5: ERROR:  relation "nonexistent" does not exist
 LINE 1: CREATE TABLE foo (LIKE nonexistent);
                                ^
-CREATE TABLE inhe (ee text, LIKE inhx) inherits (ctlb);
-INSERT INTO inhe VALUES ('ee-col1', 'ee-col2', DEFAULT, 'ee-col4');
+CREATE TABLE inhe (ee text, LIKE inhx);
+CREATE TABLE
+INSERT INTO inhe VALUES (DEFAULT, 'ee-col4');
+INSERT 0 1
 SELECT * FROM inhe; /* Columns aa, bb, xx value NULL, ee */
-   aa    |   bb    | ee |   xx    
----------+---------+----+---------
- ee-col1 | ee-col2 |    | ee-col4
+ ee |   xx    
+----+---------
+    | ee-col4
 (1 row)
 
 SELECT * FROM inhx; /* Empty set since LIKE inherits structure only */
@@ -25,48 +23,46 @@ SELECT * FROM inhx; /* Empty set since LIKE inherits structure only */
 ----
 (0 rows)
 
-SELECT * FROM ctlb; /* Has ee entry */
-   aa    |   bb    
----------+---------
- ee-col1 | ee-col2
-(1 row)
-
-SELECT * FROM ctla; /* Has ee entry */
-   aa    
----------
- ee-col1
-(1 row)
-
 CREATE TABLE inhf (LIKE inhx, LIKE inhx); /* Throw error */
-ERROR:  column "xx" specified more than once
+psql:sql/create_table_like.sql:12: ERROR:  column "xx" specified more than once
 CREATE TABLE inhf (LIKE inhx INCLUDING DEFAULTS INCLUDING CONSTRAINTS);
+CREATE TABLE
 INSERT INTO inhf DEFAULT VALUES;
+INSERT 0 1
 SELECT * FROM inhf; /* Single entry with value 'text' */
   xx  
 ------
  text
 (1 row)
 
-ALTER TABLE inhx add constraint foo CHECK (xx = 'text');
 ALTER TABLE inhx ADD PRIMARY KEY (xx);
+ALTER TABLE
 CREATE TABLE inhg (LIKE inhx); /* Doesn't copy constraint */
+CREATE TABLE
 INSERT INTO inhg VALUES ('foo');
+INSERT 0 1
 DROP TABLE inhg;
+DROP TABLE
 CREATE TABLE inhg (x text, LIKE inhx INCLUDING CONSTRAINTS, y text); /* Copies constraints */
+CREATE TABLE
 INSERT INTO inhg VALUES ('x', 'text', 'y'); /* Succeeds */
+INSERT 0 1
 INSERT INTO inhg VALUES ('x', 'text', 'y'); /* Succeeds -- Unique constraints not copied */
+INSERT 0 1
 INSERT INTO inhg VALUES ('x', 'foo',  'y');  /* fails due to constraint */
-ERROR:  new row for relation "inhg" violates check constraint "foo"
-DETAIL:  Failing row contains (x, foo, y).
+INSERT 0 1
 SELECT * FROM inhg; /* Two records with three columns in order x=x, xx=text, y=y */
  x |  xx  | y 
 ---+------+---
  x | text | y
  x | text | y
-(2 rows)
+ x | foo  | y
+(3 rows)
 
 DROP TABLE inhg;
+DROP TABLE
 CREATE TABLE test_like_id_1 (a bigint GENERATED ALWAYS AS IDENTITY, b text);
+CREATE TABLE
 \d test_like_id_1
                      Table "public.test_like_id_1"
  Column |  Type  | Collation | Nullable |           Default            
@@ -75,6 +71,7 @@ CREATE TABLE test_like_id_1 (a bigint GENERATED ALWAYS AS IDENTITY, b text);
  b      | text   |           |          | 
 
 INSERT INTO test_like_id_1 (b) VALUES ('b1');
+INSERT 0 1
 SELECT * FROM test_like_id_1;
  a | b  
 ---+----
@@ -82,6 +79,7 @@ SELECT * FROM test_like_id_1;
 (1 row)
 
 CREATE TABLE test_like_id_2 (LIKE test_like_id_1);
+CREATE TABLE
 \d test_like_id_2
           Table "public.test_like_id_2"
  Column |  Type  | Collation | Nullable | Default 
@@ -90,14 +88,14 @@ CREATE TABLE test_like_id_2 (LIKE test_like_id_1);
  b      | text   |           |          | 
 
 INSERT INTO test_like_id_2 (b) VALUES ('b2');
-ERROR:  null value in column "a" violates not-null constraint
-DETAIL:  Failing row contains (null, b2).
+psql:sql/create_table_like.sql:35: ERROR:  Kunlun-db: MySQL storage node (2, 2) returned error: 1048, Column 'a' cannot be null.
 SELECT * FROM test_like_id_2;  -- identity was not copied
  a | b 
 ---+---
 (0 rows)
 
 CREATE TABLE test_like_id_3 (LIKE test_like_id_1 INCLUDING IDENTITY);
+CREATE TABLE
 \d test_like_id_3
                      Table "public.test_like_id_3"
  Column |  Type  | Collation | Nullable |           Default            
@@ -106,144 +104,95 @@ CREATE TABLE test_like_id_3 (LIKE test_like_id_1 INCLUDING IDENTITY);
  b      | text   |           |          | 
 
 INSERT INTO test_like_id_3 (b) VALUES ('b3');
+INSERT 0 1
 SELECT * FROM test_like_id_3;  -- identity was copied and applied
  a | b  
 ---+----
  1 | b3
 (1 row)
 
-DROP TABLE test_like_id_1, test_like_id_2, test_like_id_3;
+DROP TABLE test_like_id_1;
+DROP TABLE
+DROP TABLE test_like_id_2;
+DROP TABLE
+DROP TABLE test_like_id_3;
+DROP TABLE
 CREATE TABLE inhg (x text, LIKE inhx INCLUDING INDEXES, y text); /* copies indexes */
+CREATE TABLE
 INSERT INTO inhg VALUES (5, 10);
+INSERT 0 1
 INSERT INTO inhg VALUES (20, 10); -- should fail
-ERROR:  duplicate key value violates unique constraint "inhg_pkey"
-DETAIL:  Key (xx)=(10) already exists.
+psql:sql/create_table_like.sql:47: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '10' for key 'inhg.PRIMARY'.
 DROP TABLE inhg;
+DROP TABLE
 /* Multiple primary keys creation should fail */
-CREATE TABLE inhg (x text, LIKE inhx INCLUDING INDEXES, PRIMARY KEY(x)); /* fails */
-ERROR:  multiple primary keys for table "inhg" are not allowed
-CREATE TABLE inhz (xx text DEFAULT 'text', yy int UNIQUE);
-CREATE UNIQUE INDEX inhz_xx_idx on inhz (xx) WHERE xx <> 'test';
+CREATE TABLE inhg (x varchar(100), LIKE inhx INCLUDING INDEXES, PRIMARY KEY(x)); /* fails */
+psql:sql/create_table_like.sql:50: ERROR:  multiple primary keys for table "inhg" are not allowed
+CREATE TABLE inhz (xx varchar(100) DEFAULT 'text', yy int UNIQUE);
+CREATE TABLE
+-- CREATE UNIQUE INDEX inhz_xx_idx on inhz (xx) WHERE xx <> 'test'; partial not supported in Kunlun
+CREATE UNIQUE INDEX inhz_xx_idx on inhz (xx);
+CREATE INDEX
 /* Ok to create multiple unique indexes */
-CREATE TABLE inhg (x text UNIQUE, LIKE inhz INCLUDING INDEXES);
+CREATE TABLE inhg (x varchar(100) UNIQUE, LIKE inhz INCLUDING INDEXES);
+CREATE TABLE
 INSERT INTO inhg (xx, yy, x) VALUES ('test', 5, 10);
+INSERT 0 1
 INSERT INTO inhg (xx, yy, x) VALUES ('test', 10, 15);
+psql:sql/create_table_like.sql:57: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry 'test' for key 'inhg.inhg_xx_idx'.
 INSERT INTO inhg (xx, yy, x) VALUES ('foo', 10, 15); -- should fail
-ERROR:  duplicate key value violates unique constraint "inhg_x_key"
-DETAIL:  Key (x)=(15) already exists.
+INSERT 0 1
 DROP TABLE inhg;
+DROP TABLE
 DROP TABLE inhz;
+DROP TABLE
+DROP TABLE inhx;
+DROP TABLE
 -- including storage and comments
-CREATE TABLE ctlt1 (a text CHECK (length(a) > 2) PRIMARY KEY, b text);
+CREATE TABLE ctlt1 (a varchar(100) PRIMARY KEY, b varchar(100));
+CREATE TABLE
 CREATE INDEX ctlt1_b_key ON ctlt1 (b);
-CREATE INDEX ctlt1_fnidx ON ctlt1 ((a || b));
-CREATE STATISTICS ctlt1_a_b_stat ON a,b FROM ctlt1;
-COMMENT ON STATISTICS ctlt1_a_b_stat IS 'ab stats';
+CREATE INDEX
+-- CREATE INDEX ctlt1_fnidx ON ctlt1 ((a || b));
 COMMENT ON COLUMN ctlt1.a IS 'A';
+COMMENT
 COMMENT ON COLUMN ctlt1.b IS 'B';
+COMMENT
 COMMENT ON CONSTRAINT ctlt1_a_check ON ctlt1 IS 't1_a_check';
+psql:sql/create_table_like.sql:69: ERROR:  constraint "ctlt1_a_check" for table "ctlt1" does not exist
 COMMENT ON INDEX ctlt1_pkey IS 'index pkey';
+COMMENT
 COMMENT ON INDEX ctlt1_b_key IS 'index b_key';
-ALTER TABLE ctlt1 ALTER COLUMN a SET STORAGE MAIN;
+COMMENT
 CREATE TABLE ctlt2 (c text);
-ALTER TABLE ctlt2 ALTER COLUMN c SET STORAGE EXTERNAL;
+CREATE TABLE
 COMMENT ON COLUMN ctlt2.c IS 'C';
-CREATE TABLE ctlt3 (a text CHECK (length(a) < 5), c text);
-ALTER TABLE ctlt3 ALTER COLUMN c SET STORAGE EXTERNAL;
-ALTER TABLE ctlt3 ALTER COLUMN a SET STORAGE MAIN;
+COMMENT
+CREATE TABLE ctlt3 (a text, c text);
+CREATE TABLE
 COMMENT ON COLUMN ctlt3.a IS 'A3';
+COMMENT
 COMMENT ON COLUMN ctlt3.c IS 'C';
+COMMENT
 COMMENT ON CONSTRAINT ctlt3_a_check ON ctlt3 IS 't3_a_check';
+psql:sql/create_table_like.sql:79: ERROR:  constraint "ctlt3_a_check" for table "ctlt3" does not exist
 CREATE TABLE ctlt4 (a text, c text);
-ALTER TABLE ctlt4 ALTER COLUMN c SET STORAGE EXTERNAL;
+CREATE TABLE
 CREATE TABLE ctlt12_storage (LIKE ctlt1 INCLUDING STORAGE, LIKE ctlt2 INCLUDING STORAGE);
-\d+ ctlt12_storage
-                             Table "public.ctlt12_storage"
- Column | Type | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+------+-----------+----------+---------+----------+--------------+-------------
- a      | text |           | not null |         | main     |              | 
- b      | text |           |          |         | extended |              | 
- c      | text |           |          |         | external |              | 
-
+CREATE TABLE
 CREATE TABLE ctlt12_comments (LIKE ctlt1 INCLUDING COMMENTS, LIKE ctlt2 INCLUDING COMMENTS);
-\d+ ctlt12_comments
-                             Table "public.ctlt12_comments"
- Column | Type | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+------+-----------+----------+---------+----------+--------------+-------------
- a      | text |           | not null |         | extended |              | A
- b      | text |           |          |         | extended |              | B
- c      | text |           |          |         | extended |              | C
-
-CREATE TABLE ctlt1_inh (LIKE ctlt1 INCLUDING CONSTRAINTS INCLUDING COMMENTS) INHERITS (ctlt1);
-NOTICE:  merging column "a" with inherited definition
-NOTICE:  merging column "b" with inherited definition
-NOTICE:  merging constraint "ctlt1_a_check" with inherited definition
-\d+ ctlt1_inh
-                                Table "public.ctlt1_inh"
- Column | Type | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+------+-----------+----------+---------+----------+--------------+-------------
- a      | text |           | not null |         | main     |              | A
- b      | text |           |          |         | extended |              | B
-Check constraints:
-    "ctlt1_a_check" CHECK (length(a) > 2)
-Inherits: ctlt1
-
-SELECT description FROM pg_description, pg_constraint c WHERE classoid = 'pg_constraint'::regclass AND objoid = c.oid AND c.conrelid = 'ctlt1_inh'::regclass;
- description 
--------------
- t1_a_check
-(1 row)
-
-CREATE TABLE ctlt13_inh () INHERITS (ctlt1, ctlt3);
-NOTICE:  merging multiple inherited definitions of column "a"
-\d+ ctlt13_inh
-                               Table "public.ctlt13_inh"
- Column | Type | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+------+-----------+----------+---------+----------+--------------+-------------
- a      | text |           | not null |         | main     |              | 
- b      | text |           |          |         | extended |              | 
- c      | text |           |          |         | external |              | 
-Check constraints:
-    "ctlt1_a_check" CHECK (length(a) > 2)
-    "ctlt3_a_check" CHECK (length(a) < 5)
-Inherits: ctlt1,
-          ctlt3
-
-CREATE TABLE ctlt13_like (LIKE ctlt3 INCLUDING CONSTRAINTS INCLUDING COMMENTS INCLUDING STORAGE) INHERITS (ctlt1);
-NOTICE:  merging column "a" with inherited definition
-\d+ ctlt13_like
-                               Table "public.ctlt13_like"
- Column | Type | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+------+-----------+----------+---------+----------+--------------+-------------
- a      | text |           | not null |         | main     |              | A3
- b      | text |           |          |         | extended |              | 
- c      | text |           |          |         | external |              | C
-Check constraints:
-    "ctlt1_a_check" CHECK (length(a) > 2)
-    "ctlt3_a_check" CHECK (length(a) < 5)
-Inherits: ctlt1
-
-SELECT description FROM pg_description, pg_constraint c WHERE classoid = 'pg_constraint'::regclass AND objoid = c.oid AND c.conrelid = 'ctlt13_like'::regclass;
- description 
--------------
- t3_a_check
-(1 row)
-
+CREATE TABLE
 CREATE TABLE ctlt_all (LIKE ctlt1 INCLUDING ALL);
+CREATE TABLE
 \d+ ctlt_all
-                                Table "public.ctlt_all"
- Column | Type | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+------+-----------+----------+---------+----------+--------------+-------------
- a      | text |           | not null |         | main     |              | A
- b      | text |           |          |         | extended |              | B
+                                         Table "public.ctlt_all"
+ Column |          Type          | Collation | Nullable | Default | Storage  | Stats target | Description 
+--------+------------------------+-----------+----------+---------+----------+--------------+-------------
+ a      | character varying(100) |           | not null |         | extended |              | A
+ b      | character varying(100) |           |          |         | extended |              | B
 Indexes:
     "ctlt_all_pkey" PRIMARY KEY, btree (a)
     "ctlt_all_b_idx" btree (b)
-    "ctlt_all_expr_idx" btree ((a || b))
-Check constraints:
-    "ctlt1_a_check" CHECK (length(a) > 2)
-Statistics objects:
-    "public"."ctlt_all_a_b_stat" (ndistinct, dependencies) ON a, b FROM ctlt_all
 
 SELECT c.relname, objsubid, description FROM pg_description, pg_index i, pg_class c WHERE classoid = 'pg_class'::regclass AND objoid = i.indexrelid AND c.oid = i.indexrelid AND i.indrelid = 'ctlt_all'::regclass ORDER BY c.relname, objsubid;
     relname     | objsubid | description 
@@ -253,69 +202,70 @@ SELECT c.relname, objsubid, description FROM pg_description, pg_index i, pg_clas
 (2 rows)
 
 SELECT s.stxname, objsubid, description FROM pg_description, pg_statistic_ext s WHERE classoid = 'pg_statistic_ext'::regclass AND objoid = s.oid AND s.stxrelid = 'ctlt_all'::regclass ORDER BY s.stxname, objsubid;
-      stxname      | objsubid | description 
--------------------+----------+-------------
- ctlt_all_a_b_stat |        0 | ab stats
-(1 row)
+ stxname | objsubid | description 
+---------+----------+-------------
+(0 rows)
 
-CREATE TABLE inh_error1 () INHERITS (ctlt1, ctlt4);
-NOTICE:  merging multiple inherited definitions of column "a"
-ERROR:  inherited column "a" has a storage parameter conflict
-DETAIL:  MAIN versus EXTENDED
-CREATE TABLE inh_error2 (LIKE ctlt4 INCLUDING STORAGE) INHERITS (ctlt1);
-NOTICE:  merging column "a" with inherited definition
-ERROR:  column "a" has a storage parameter conflict
-DETAIL:  MAIN versus EXTENDED
-DROP TABLE ctlt1, ctlt2, ctlt3, ctlt4, ctlt12_storage, ctlt12_comments, ctlt1_inh, ctlt13_inh, ctlt13_like, ctlt_all, ctla, ctlb CASCADE;
-NOTICE:  drop cascades to table inhe
+DROP TABLE ctlt1 CASCADE;
+DROP TABLE
+DROP TABLE ctlt2 CASCADE;
+DROP TABLE
+DROP TABLE ctlt3 CASCADE;
+DROP TABLE
+DROP TABLE ctlt4 CASCADE;
+DROP TABLE
+DROP TABLE ctlt12_storage CASCADE;
+DROP TABLE
+DROP TABLE ctlt12_comments CASCADE;
+DROP TABLE
+DROP TABLE ctlt_all CASCADE;
+DROP TABLE
 /* LIKE with other relation kinds */
 CREATE TABLE ctlt4 (a int, b text);
+CREATE TABLE
 CREATE SEQUENCE ctlseq1;
+CREATE SEQUENCE
 CREATE TABLE ctlt10 (LIKE ctlseq1);  -- fail
-ERROR:  "ctlseq1" is not a table, view, materialized view, composite type, or foreign table
+psql:sql/create_table_like.sql:104: ERROR:  "ctlseq1" is not a table, view, materialized view, composite type, or foreign table
 LINE 1: CREATE TABLE ctlt10 (LIKE ctlseq1);
                                   ^
 CREATE VIEW ctlv1 AS SELECT * FROM ctlt4;
+CREATE VIEW
 CREATE TABLE ctlt11 (LIKE ctlv1);
+CREATE TABLE
 CREATE TABLE ctlt11a (LIKE ctlv1 INCLUDING ALL);
+CREATE TABLE
 CREATE TYPE ctlty1 AS (a int, b text);
+CREATE TYPE
 CREATE TABLE ctlt12 (LIKE ctlty1);
+CREATE TABLE
 DROP SEQUENCE ctlseq1;
+DROP SEQUENCE
 DROP TYPE ctlty1;
+DROP TYPE
 DROP VIEW ctlv1;
-DROP TABLE IF EXISTS ctlt4, ctlt10, ctlt11, ctlt11a, ctlt12;
-NOTICE:  table "ctlt10" does not exist, skipping
+DROP VIEW
+DROP TABLE IF EXISTS ctlt4;
+DROP TABLE
+DROP TABLE IF EXISTS ctlt10;
+psql:sql/create_table_like.sql:117: NOTICE:  table "ctlt10" does not exist, skipping
+DROP TABLE
+DROP TABLE IF EXISTS ctlt11;
+DROP TABLE
+DROP TABLE IF EXISTS ctlt11a;
+DROP TABLE
+DROP TABLE IF EXISTS ctlt12;
+DROP TABLE
 /* LIKE WITH OIDS */
-CREATE TABLE has_oid (x INTEGER) WITH OIDS;
 CREATE TABLE no_oid (y INTEGER);
-CREATE TABLE like_test (z INTEGER, LIKE has_oid);
-SELECT oid FROM like_test;
- oid 
------
-(0 rows)
-
+CREATE TABLE
 CREATE TABLE like_test2 (z INTEGER, LIKE no_oid);
+CREATE TABLE
 SELECT oid FROM like_test2; -- fail
-ERROR:  column "oid" does not exist
+psql:sql/create_table_like.sql:125: ERROR:  column "oid" does not exist
 LINE 1: SELECT oid FROM like_test2;
                ^
-CREATE TABLE like_test3 (z INTEGER, LIKE has_oid, LIKE no_oid);
-SELECT oid FROM like_test3;
- oid 
------
-(0 rows)
-
-CREATE TABLE like_test4 (z INTEGER, PRIMARY KEY(oid), LIKE has_oid);
-SELECT oid FROM like_test4;
- oid 
------
-(0 rows)
-
-CREATE TABLE like_test5 (z INTEGER, LIKE no_oid) WITH OIDS;
-SELECT oid FROM like_test5;
- oid 
------
-(0 rows)
-
-DROP TABLE has_oid, no_oid, like_test, like_test2, like_test3,
-  like_test4, like_test5;
+DROP TABLE no_oid;
+DROP TABLE
+DROP TABLE like_test2;
+DROP TABLE

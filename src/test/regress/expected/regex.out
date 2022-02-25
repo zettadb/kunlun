@@ -3,6 +3,7 @@
 --
 -- Don't want to have to double backslashes in regexes
 set standard_conforming_strings = on;
+SET
 -- Test simple quantified backrefs
 select 'bbbbb' ~ '^([bc])\1*$' as t;
  t 
@@ -116,7 +117,7 @@ select regexp_match('abc', '(B)(c)', 'i');
 (1 row)
 
 select regexp_match('abc', 'Bd', 'ig'); -- error
-ERROR:  regexp_match does not support the global option
+psql:sql/regex.sql:33: ERROR:  regexp_match does not support the global option
 HINT:  Use the regexp_matches function instead.
 -- Test lookahead constraints
 select regexp_matches('ab', 'a(?=b)b*');
@@ -468,7 +469,7 @@ select 'x' ~ 'x|(?:\M)+';
 -- This generates O(N) states but O(N^2) arcs, so it causes problems
 -- if arc count is not constrained
 select 'x' ~ repeat('x*y*z*', 1000);
-ERROR:  invalid regular expression: regular expression is too complex
+psql:sql/regex.sql:110: ERROR:  invalid regular expression: regular expression is too complex
 -- Test backref in combination with non-greedy quantifier
 -- https://core.tcl.tk/tcl/tktview/6585b21ca8fa6f3678d442b97241fdd43dba2ec0
 select 'Programmer' ~ '(\w).*?\1' as t;
@@ -569,8 +570,8 @@ select 'a' ~ '()+\1';
 
 -- Error conditions
 select 'xyz' ~ 'x(\w)(?=\1)';  -- no backrefs in LACONs
-ERROR:  invalid regular expression: invalid backreference number
+psql:sql/regex.sql:139: ERROR:  invalid regular expression: invalid backreference number
 select 'xyz' ~ 'x(\w)(?=(\1))';
-ERROR:  invalid regular expression: invalid backreference number
+psql:sql/regex.sql:140: ERROR:  invalid regular expression: invalid backreference number
 select 'a' ~ '\x7fffffff';  -- invalid chr code
-ERROR:  invalid regular expression: invalid escape \ sequence
+psql:sql/regex.sql:141: ERROR:  invalid regular expression: invalid escape \ sequence

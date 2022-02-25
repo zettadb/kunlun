@@ -13,9 +13,14 @@ SELECT text 'this is a text string' = text 'this is a text strin' AS false;
  f
 (1 row)
 
+DROP TABLE if exists TEXT_TBL;
+DROP TABLE
 CREATE TABLE TEXT_TBL (f1 text);
+CREATE TABLE
 INSERT INTO TEXT_TBL VALUES ('doh!');
+INSERT 0 1
 INSERT INTO TEXT_TBL VALUES ('hi de ho neighbor');
+INSERT 0 1
 SELECT '' AS two, * FROM TEXT_TBL;
  two |        f1         
 -----+-------------------
@@ -26,7 +31,7 @@ SELECT '' AS two, * FROM TEXT_TBL;
 -- As of 8.3 we have removed most implicit casts to text, so that for example
 -- this no longer works:
 select length(42);
-ERROR:  function length(integer) does not exist
+psql:sql/text.sql:20: ERROR:  function length(integer) does not exist
 LINE 1: select length(42);
                ^
 HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
@@ -47,7 +52,7 @@ select 'four: ' || 2+2;
 
 -- but not this:
 select 3 || 4.0;
-ERROR:  operator does not exist: integer || numeric
+psql:sql/text.sql:31: ERROR:  operator does not exist: integer || numeric
 LINE 1: select 3 || 4.0;
                  ^
 HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.
@@ -63,7 +68,7 @@ select concat('one');
 select concat(1,2,3,'hello',true, false, to_date('20100309','YYYYMMDD'));
         concat        
 ----------------------
- 123hellotf03-09-2010
+ 123hellotf2010-03-09
 (1 row)
 
 select concat_ws('#','one');
@@ -75,7 +80,7 @@ select concat_ws('#','one');
 select concat_ws('#',1,2,3,'hello',true, false, to_date('20100309','YYYYMMDD'));
          concat_ws          
 ----------------------------
- 1#2#3#hello#t#f#03-09-2010
+ 1#2#3#hello#t#f#2010-03-09
 (1 row)
 
 select concat_ws(',',10,20,null,30);
@@ -169,7 +174,7 @@ select concat(variadic '{}'::int[]) = '';
 
 --should fail
 select concat_ws(',', variadic 10);
-ERROR:  VARIADIC argument must be an array
+psql:sql/text.sql:55: ERROR:  VARIADIC argument must be an array
 LINE 1: select concat_ws(',', variadic 10);
                                        ^
 /*
@@ -207,11 +212,11 @@ select format('Hello %%%%');
 
 -- should fail
 select format('Hello %s %s', 'World');
-ERROR:  too few arguments for format()
+psql:sql/text.sql:66: ERROR:  too few arguments for format()
 select format('Hello %s');
-ERROR:  too few arguments for format()
+psql:sql/text.sql:67: ERROR:  too few arguments for format()
 select format('Hello %x', 20);
-ERROR:  unrecognized format() type specifier "x"
+psql:sql/text.sql:68: ERROR:  unrecognized format() type specifier "x"
 HINT:  For a single "%" use "%%".
 -- check literal and sql identifiers
 select format('INSERT INTO %I VALUES(%L,%L)', 'mytab', 10, 'Hello');
@@ -240,7 +245,7 @@ select format('INSERT INTO %I VALUES(%L,%L)', 'mytab', NULL, 'Hello');
 
 -- should fail, sql identifier cannot be NULL
 select format('INSERT INTO %I VALUES(%L,%L)', NULL, 10, 'Hello');
-ERROR:  null values cannot be formatted as an SQL identifier
+psql:sql/text.sql:75: ERROR:  null values cannot be formatted as an SQL identifier
 -- check positional placeholders
 select format('%1$s %3$s', 1, 2, 3);
  format 
@@ -256,18 +261,18 @@ select format('%1$s %12$s', 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
 
 -- should fail
 select format('%1$s %4$s', 1, 2, 3);
-ERROR:  too few arguments for format()
+psql:sql/text.sql:80: ERROR:  too few arguments for format()
 select format('%1$s %13$s', 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
-ERROR:  too few arguments for format()
+psql:sql/text.sql:81: ERROR:  too few arguments for format()
 select format('%0$s', 'Hello');
-ERROR:  format specifies argument 0, but arguments are numbered from 1
+psql:sql/text.sql:82: ERROR:  format specifies argument 0, but arguments are numbered from 1
 select format('%*0$s', 'Hello');
-ERROR:  format specifies argument 0, but arguments are numbered from 1
+psql:sql/text.sql:83: ERROR:  format specifies argument 0, but arguments are numbered from 1
 select format('%1$', 1);
-ERROR:  unterminated format() type specifier
+psql:sql/text.sql:84: ERROR:  unterminated format() type specifier
 HINT:  For a single "%" use "%%".
 select format('%1$1', 1);
-ERROR:  unterminated format() type specifier
+psql:sql/text.sql:85: ERROR:  unterminated format() type specifier
 HINT:  For a single "%" use "%%".
 -- check mix of positional and ordered placeholders
 select format('Hello %s %1$s %s', 'World', 'Hello again');

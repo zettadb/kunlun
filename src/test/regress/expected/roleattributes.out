@@ -1,5 +1,6 @@
 -- default for superuser is false
 CREATE ROLE regress_test_def_superuser;
+CREATE ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_def_superuser';
           rolname           | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 ----------------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -7,6 +8,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_def_superuser';
 (1 row)
 
 CREATE ROLE regress_test_superuser WITH SUPERUSER;
+CREATE ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_superuser';
         rolname         | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 ------------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -14,6 +16,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_superuser';
 (1 row)
 
 ALTER ROLE regress_test_superuser WITH NOSUPERUSER;
+ALTER ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_superuser';
         rolname         | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 ------------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -21,6 +24,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_superuser';
 (1 row)
 
 ALTER ROLE regress_test_superuser WITH SUPERUSER;
+ALTER ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_superuser';
         rolname         | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 ------------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -29,6 +33,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_superuser';
 
 -- default for inherit is true
 CREATE ROLE regress_test_def_inherit;
+CREATE ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_def_inherit';
          rolname          | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 --------------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -36,6 +41,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_def_inherit';
 (1 row)
 
 CREATE ROLE regress_test_inherit WITH NOINHERIT;
+CREATE ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_inherit';
        rolname        | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 ----------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -43,6 +49,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_inherit';
 (1 row)
 
 ALTER ROLE regress_test_inherit WITH INHERIT;
+ALTER ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_inherit';
        rolname        | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 ----------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -50,6 +57,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_inherit';
 (1 row)
 
 ALTER ROLE regress_test_inherit WITH NOINHERIT;
+ALTER ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_inherit';
        rolname        | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 ----------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -58,6 +66,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_inherit';
 
 -- default for create role is false
 CREATE ROLE regress_test_def_createrole;
+CREATE ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_def_createrole';
            rolname           | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 -----------------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -65,6 +74,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_def_createrole';
 (1 row)
 
 CREATE ROLE regress_test_createrole WITH CREATEROLE;
+CREATE ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_createrole';
          rolname         | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 -------------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -72,6 +82,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_createrole';
 (1 row)
 
 ALTER ROLE regress_test_createrole WITH NOCREATEROLE;
+ALTER ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_createrole';
          rolname         | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 -------------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -79,6 +90,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_createrole';
 (1 row)
 
 ALTER ROLE regress_test_createrole WITH CREATEROLE;
+ALTER ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_createrole';
          rolname         | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 -------------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -87,6 +99,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_createrole';
 
 -- default for create database is false
 CREATE ROLE regress_test_def_createdb;
+CREATE ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_def_createdb';
           rolname          | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 ---------------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -94,6 +107,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_def_createdb';
 (1 row)
 
 CREATE ROLE regress_test_createdb WITH CREATEDB;
+CREATE ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_createdb';
         rolname        | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 -----------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -101,6 +115,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_createdb';
 (1 row)
 
 ALTER ROLE regress_test_createdb WITH NOCREATEDB;
+ALTER ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_createdb';
         rolname        | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 -----------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -108,6 +123,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_createdb';
 (1 row)
 
 ALTER ROLE regress_test_createdb WITH CREATEDB;
+ALTER ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_createdb';
         rolname        | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 -----------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -116,6 +132,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_createdb';
 
 -- default for can login is false for role
 CREATE ROLE regress_test_def_role_canlogin;
+CREATE ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_def_role_canlogin';
             rolname             | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 --------------------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -123,6 +140,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_def_role_canlogin';
 (1 row)
 
 CREATE ROLE regress_test_role_canlogin WITH LOGIN;
+CREATE ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_role_canlogin';
           rolname           | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 ----------------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -130,6 +148,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_role_canlogin';
 (1 row)
 
 ALTER ROLE regress_test_role_canlogin WITH NOLOGIN;
+ALTER ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_role_canlogin';
           rolname           | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 ----------------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -137,6 +156,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_role_canlogin';
 (1 row)
 
 ALTER ROLE regress_test_role_canlogin WITH LOGIN;
+ALTER ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_role_canlogin';
           rolname           | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 ----------------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -145,6 +165,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_role_canlogin';
 
 -- default for can login is true for user
 CREATE USER regress_test_def_user_canlogin;
+CREATE ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_def_user_canlogin';
             rolname             | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 --------------------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -152,6 +173,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_def_user_canlogin';
 (1 row)
 
 CREATE USER regress_test_user_canlogin WITH NOLOGIN;
+CREATE ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_user_canlogin';
           rolname           | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 ----------------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -159,6 +181,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_user_canlogin';
 (1 row)
 
 ALTER USER regress_test_user_canlogin WITH LOGIN;
+ALTER ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_user_canlogin';
           rolname           | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 ----------------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -166,6 +189,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_user_canlogin';
 (1 row)
 
 ALTER USER regress_test_user_canlogin WITH NOLOGIN;
+ALTER ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_user_canlogin';
           rolname           | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 ----------------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -174,6 +198,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_user_canlogin';
 
 -- default for replication is false
 CREATE ROLE regress_test_def_replication;
+CREATE ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_def_replication';
            rolname            | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 ------------------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -181,6 +206,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_def_replication';
 (1 row)
 
 CREATE ROLE regress_test_replication WITH REPLICATION;
+CREATE ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_replication';
          rolname          | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 --------------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -188,6 +214,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_replication';
 (1 row)
 
 ALTER ROLE regress_test_replication WITH NOREPLICATION;
+ALTER ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_replication';
          rolname          | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 --------------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -195,6 +222,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_replication';
 (1 row)
 
 ALTER ROLE regress_test_replication WITH REPLICATION;
+ALTER ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_replication';
          rolname          | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 --------------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -203,6 +231,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_replication';
 
 -- default for bypassrls is false
 CREATE ROLE regress_test_def_bypassrls;
+CREATE ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_def_bypassrls';
           rolname           | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 ----------------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -210,6 +239,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_def_bypassrls';
 (1 row)
 
 CREATE ROLE regress_test_bypassrls WITH BYPASSRLS;
+CREATE ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_bypassrls';
         rolname         | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 ------------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -217,6 +247,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_bypassrls';
 (1 row)
 
 ALTER ROLE regress_test_bypassrls WITH NOBYPASSRLS;
+ALTER ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_bypassrls';
         rolname         | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 ------------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -224,6 +255,7 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_bypassrls';
 (1 row)
 
 ALTER ROLE regress_test_bypassrls WITH BYPASSRLS;
+ALTER ROLE
 SELECT * FROM pg_authid WHERE rolname = 'regress_test_bypassrls';
         rolname         | rolsuper | rolinherit | rolcreaterole | rolcreatedb | rolcanlogin | rolreplication | rolbypassrls | rolconnlimit | rolpassword | rolvaliduntil 
 ------------------------+----------+------------+---------------+-------------+-------------+----------------+--------------+--------------+-------------+---------------
@@ -232,18 +264,34 @@ SELECT * FROM pg_authid WHERE rolname = 'regress_test_bypassrls';
 
 -- clean up roles
 DROP ROLE regress_test_def_superuser;
+DROP ROLE
 DROP ROLE regress_test_superuser;
+DROP ROLE
 DROP ROLE regress_test_def_inherit;
+DROP ROLE
 DROP ROLE regress_test_inherit;
+DROP ROLE
 DROP ROLE regress_test_def_createrole;
+DROP ROLE
 DROP ROLE regress_test_createrole;
+DROP ROLE
 DROP ROLE regress_test_def_createdb;
+DROP ROLE
 DROP ROLE regress_test_createdb;
+DROP ROLE
 DROP ROLE regress_test_def_role_canlogin;
+DROP ROLE
 DROP ROLE regress_test_role_canlogin;
+DROP ROLE
 DROP USER regress_test_def_user_canlogin;
+DROP ROLE
 DROP USER regress_test_user_canlogin;
+DROP ROLE
 DROP ROLE regress_test_def_replication;
+DROP ROLE
 DROP ROLE regress_test_replication;
+DROP ROLE
 DROP ROLE regress_test_def_bypassrls;
+DROP ROLE
 DROP ROLE regress_test_bypassrls;
+DROP ROLE

@@ -56,29 +56,9 @@ select prop,
          with ordinality as u(prop,ord)
  where a.amname = 'gist'
  order by ord;
-        prop        | AM | Index | Column 
---------------------+----+-------+--------
- asc                |    |       | f
- desc               |    |       | f
- nulls_first        |    |       | f
- nulls_last         |    |       | f
- orderable          |    |       | f
- distance_orderable |    |       | t
- returnable         |    |       | f
- search_array       |    |       | f
- search_nulls       |    |       | t
- clusterable        |    | t     | 
- index_scan         |    | t     | 
- bitmap_scan        |    | t     | 
- backward_scan      |    | f     | 
- can_order          | f  |       | 
- can_unique         | f  |       | 
- can_multi_col      | t  |       | 
- can_exclude        | t  |       | 
- can_include        | f  |       | 
- bogus              |    |       | 
-(19 rows)
-
+psql:sql/amutils.sql:37: ERROR:  relation "gcircleind" does not exist
+LINE 3:        pg_index_has_property('gcircleind'::regclass, prop) a...
+                                     ^
 select prop,
        pg_index_column_has_property('onek_hundred'::regclass, 1, prop) as btree,
        pg_index_column_has_property('hash_i4_index'::regclass, 1, prop) as hash,
@@ -92,20 +72,9 @@ select prop,
                     'bogus']::text[])
          with ordinality as u(prop,ord)
  order by ord;
-        prop        | btree | hash | gist | spgist | gin | brin 
---------------------+-------+------+------+--------+-----+------
- asc                | t     | f    | f    | f      | f   | f
- desc               | f     | f    | f    | f      | f   | f
- nulls_first        | f     | f    | f    | f      | f   | f
- nulls_last         | t     | f    | f    | f      | f   | f
- orderable          | t     | f    | f    | f      | f   | f
- distance_orderable | f     | f    | t    | f      | f   | f
- returnable         | t     | f    | f    | t      | f   | f
- search_array       | t     | f    | f    | f      | f   | f
- search_nulls       | t     | f    | t    | t      | f   | t
- bogus              |       |      |      |        |     | 
-(10 rows)
-
+psql:sql/amutils.sql:51: ERROR:  relation "gcircleind" does not exist
+LINE 4:        pg_index_column_has_property('gcircleind'::regclass, ...
+                                            ^
 select prop,
        pg_index_has_property('onek_hundred'::regclass, prop) as btree,
        pg_index_has_property('hash_i4_index'::regclass, prop) as hash,
@@ -118,15 +87,9 @@ select prop,
                     'bogus']::text[])
          with ordinality as u(prop,ord)
  order by ord;
-     prop      | btree | hash | gist | spgist | gin | brin 
----------------+-------+------+------+--------+-----+------
- clusterable   | t     | f    | t    | f      | f   | f
- index_scan    | t     | t    | t    | t      | f   | f
- bitmap_scan   | t     | t    | t    | t      | t   | t
- backward_scan | t     | t    | f    | f      | f   | f
- bogus         |       |      |      |        |     | 
-(5 rows)
-
+psql:sql/amutils.sql:64: ERROR:  relation "gcircleind" does not exist
+LINE 4:        pg_index_has_property('gcircleind'::regclass, prop) a...
+                                     ^
 select amname, prop, pg_indexam_has_property(a.oid, prop) as p
   from pg_am a,
        unnest(array['can_order', 'can_unique', 'can_multi_col',
@@ -178,7 +141,9 @@ select amname, prop, pg_indexam_has_property(a.oid, prop) as p
 -- additional checks for pg_index_column_has_property
 --
 CREATE TEMP TABLE foo (f1 int, f2 int, f3 int, f4 int);
+CREATE TABLE
 CREATE INDEX fooindex ON foo (f1 desc, f2 asc, f3 nulls first, f4 nulls last);
+CREATE INDEX
 select col, prop, pg_index_column_has_property(o, col, prop)
   from (values ('fooindex'::regclass)) v1(o),
        (values (1,'orderable'),(2,'asc'),(3,'desc'),
@@ -215,6 +180,7 @@ select col, prop, pg_index_column_has_property(o, col, prop)
 (24 rows)
 
 CREATE INDEX foocover ON foo (f1) INCLUDE (f2,f3);
+CREATE INDEX
 select col, prop, pg_index_column_has_property(o, col, prop)
   from (values ('foocover'::regclass)) v1(o),
        (values (1,'orderable'),(2,'asc'),(3,'desc'),

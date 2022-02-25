@@ -124,12 +124,12 @@ SELECT num_nulls(VARIADIC '{}'::int[]);
 
 -- should fail, one or more arguments is required
 SELECT num_nonnulls();
-ERROR:  function num_nonnulls() does not exist
+psql:sql/misc_functions.sql:30: ERROR:  function num_nonnulls() does not exist
 LINE 1: SELECT num_nonnulls();
                ^
 HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
 SELECT num_nulls();
-ERROR:  function num_nulls() does not exist
+psql:sql/misc_functions.sql:31: ERROR:  function num_nulls() does not exist
 LINE 1: SELECT num_nulls();
                ^
 HINT:  No function matches the given name and argument types. You might need to add explicit type casts.

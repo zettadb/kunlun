@@ -1,0 +1,172 @@
+357,358c357,358
+<                                                        QUERY PLAN                                                       
+< ------------------------------------------------------------------------------------------------------------------------
+---
+>                        QUERY PLAN                        
+> ---------------------------------------------------------
+364,365c364
+<                            ->  RemoteScan on tenk1
+<                                  Shard: 2        Remote SQL: select  tenk1.unique1 from regress_$$_public.tenk1 tenk1
+---
+>                            ->  Seq Scan on tenk1
+367,369c366,367
+<                            ->  RemoteScan on tenk1 tenk1_1
+<                                  Shard: 2        Remote SQL: select  tenk1.fivethous from regress_$$_public.tenk1 tenk1
+< (10 rows)
+---
+>                            ->  Seq Scan on tenk1 tenk1_1
+> (8 rows)
+380,381c378,379
+<                                                             QUERY PLAN                                                            
+< ----------------------------------------------------------------------------------------------------------------------------------
+---
+>                  QUERY PLAN                  
+> ---------------------------------------------
+385,386c383
+<                ->  RemoteScan on tenk1
+<                      Shard: 2    Remote SQL: select  tenk1.unique1 from regress_$$_public.tenk1 tenk1
+---
+>                ->  Seq Scan on tenk1
+388,390c385,387
+<                ->  RemoteScan on tenk1 tenk1_1
+<                      Shard: 2    Remote SQL: select  tenk1.unique2 from regress_$$_public.tenk1 tenk1 where (tenk1.unique2 <> 10)
+< (8 rows)
+---
+>                ->  Seq Scan on tenk1 tenk1_1
+>                      Filter: (unique2 <> 10)
+> (7 rows)
+402,403c399,400
+<                                                               QUERY PLAN                                                               
+< ---------------------------------------------------------------------------------------------------------------------------------------
+---
+>                           QUERY PLAN                           
+> ---------------------------------------------------------------
+407,415c404,411
+<                ->  Merge Append
+<                      Sort Key: "*SELECT* 1".unique1 NULLS FIRST
+<                      ->  Subquery Scan on "*SELECT* 1"
+<                            ->  RemoteScan on tenk1
+<                                  Shard: 2        Remote SQL: select  tenk1.unique1 from regress_$$_public.tenk1 tenk1 ORDER BY 1 ASC
+<                      ->  Subquery Scan on "*SELECT* 2"
+<                            ->  RemoteScan on tenk1 tenk1_1
+<                                  Shard: 2        Remote SQL: select  tenk1.fivethous from regress_$$_public.tenk1 tenk1 ORDER BY 1 ASC
+< (11 rows)
+---
+>                ->  Sort
+>                      Sort Key: "*SELECT* 1".unique1
+>                      ->  Append
+>                            ->  Subquery Scan on "*SELECT* 1"
+>                                  ->  Seq Scan on tenk1
+>                            ->  Subquery Scan on "*SELECT* 2"
+>                                  ->  Seq Scan on tenk1 tenk1_1
+> (10 rows)
+426,427c422,423
+<                                                                    QUERY PLAN                                                                    
+< -------------------------------------------------------------------------------------------------------------------------------------------------
+---
+>                     QUERY PLAN                     
+> ---------------------------------------------------
+429,436c425,432
+<    ->  Merge Append
+<          Sort Key: "*SELECT* 1".unique1 NULLS FIRST
+<          ->  Subquery Scan on "*SELECT* 1"
+<                ->  RemoteScan on tenk1
+<                      Shard: 2    Remote SQL: select  tenk1.unique1 from regress_$$_public.tenk1 tenk1 ORDER BY 1 ASC
+<          ->  Subquery Scan on "*SELECT* 2"
+<                ->  RemoteScan on tenk1 tenk1_1
+<                      Shard: 2    Remote SQL: select  tenk1.unique2 from regress_$$_public.tenk1 tenk1 where (tenk1.unique2 <> 10) ORDER BY 1 ASC
+---
+>    ->  Sort
+>          Sort Key: "*SELECT* 1".unique1
+>          ->  Append
+>                ->  Subquery Scan on "*SELECT* 1"
+>                      ->  Seq Scan on tenk1
+>                ->  Subquery Scan on "*SELECT* 2"
+>                      ->  Seq Scan on tenk1 tenk1_1
+>                            Filter: (unique2 <> 10)
+813,814c809,810
+<                                                                                                                     QUERY PLAN                                                                                                                    
+< --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---
+>         QUERY PLAN         
+> ---------------------------
+816,818c812,813
+<    ->  RemoteScan on tenk1 b
+<          Shard: 2        Remote SQL: select  b.unique1, b.unique2, b.two, b.four, b.ten, b.twenty, b.hundred, b.thousand, b.twothousand, b.fivethous, b.tenthous, b.odd, b.even, b.stringu1, b.stringu2, b.string4 from regress_$$_public.tenk1 b
+< (3 rows)
+---
+>    ->  Seq Scan on tenk1 b
+> (2 rows)
+926,930c921,925
+<                                                                             QUERY PLAN                                                                            
+< ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+<  Unique
+<    ->  Merge Append
+<          Sort Key: "*SELECT* 1".q1
+---
+>                      QUERY PLAN                     
+> ----------------------------------------------------
+>  HashAggregate
+>    Group Key: "*SELECT* 1".q1
+>    ->  Append
+932,933c927,930
+<                ->  RemoteScan on int8_tbl i81
+<                      Shard: 1    Remote SQL: select distinct  i81.q1, i81.q2 from regress_$$_public.int8_tbl i81 where (i81.q2 IS NOT NULL) ORDER BY 1 ASC, 2 ASC
+---
+>                ->  HashAggregate
+>                      Group Key: i81.q1, i81.q2
+>                      ->  Seq Scan on int8_tbl i81
+>                            Filter: (q2 IS NOT NULL)
+935,937c932,936
+<                ->  RemoteScan on int8_tbl i82
+<                      Shard: 1    Remote SQL: select distinct  i82.q1, i82.q2 from regress_$$_public.int8_tbl i82 where (i82.q2 IS NOT NULL) ORDER BY 1 ASC, 2 ASC
+< (9 rows)
+---
+>                ->  HashAggregate
+>                      Group Key: i82.q1, i82.q2
+>                      ->  Seq Scan on int8_tbl i82
+>                            Filter: (q2 IS NOT NULL)
+> (13 rows)
+956,957c955,956
+<                                                                              QUERY PLAN                                                                             
+< --------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---
+>                        QUERY PLAN                       
+> --------------------------------------------------------
+962,963c961,965
+<                ->  RemoteScan on int8_tbl i81
+<                      Shard: 1    Remote SQL: select distinct  i81.q1, i81.q2 from regress_$$_public.int8_tbl i81 where (( - i81.q1) = i81.q2) ORDER BY 1 ASC, 2 ASC
+---
+>                ->  Unique
+>                      ->  Sort
+>                            Sort Key: i81.q1, i81.q2
+>                            ->  Seq Scan on int8_tbl i81
+>                                  Filter: ((- q1) = q2)
+965,967c967,972
+<                ->  RemoteScan on int8_tbl i82
+<                      Shard: 1    Remote SQL: select distinct  i82.q1, i82.q2 from regress_$$_public.int8_tbl i82 where (( - i82.q1) = i82.q2) ORDER BY 1 ASC, 2 ASC
+< (9 rows)
+---
+>                ->  Unique
+>                      ->  Sort
+>                            Sort Key: i82.q1, i82.q2
+>                            ->  Seq Scan on int8_tbl i82
+>                                  Filter: ((- q1) = q2)
+> (15 rows)
+986,987c991,992
+<                                                             QUERY PLAN                                                            
+< ----------------------------------------------------------------------------------------------------------------------------------
+---
+>                  QUERY PLAN                  
+> ---------------------------------------------
+989,993c994,997
+<    ->  RemoteScan on int8_tbl a
+<          Shard: 1        Remote SQL: select  a.q1, a.q2 from regress_$$_public.int8_tbl a
+<    ->  RemoteScan on int8_tbl b
+<          Shard: 1        Remote SQL: select  b.q1, b.q2 from regress_$$_public.int8_tbl b where (b.q1 >= b.q2) AND (b.q1 <= b.q2)
+< (5 rows)
+---
+>    ->  Seq Scan on int8_tbl a
+>    ->  Seq Scan on int8_tbl b
+>          Filter: ((q1 >= q2) AND (q1 <= q2))
+> (4 rows)

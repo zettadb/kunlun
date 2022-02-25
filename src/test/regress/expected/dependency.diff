@@ -1,0 +1,10 @@
+105,108c105,108
+<                              Table "public.deptest"
+<  Column |  Type   | Collation | Nullable |               Default                
+< --------+---------+-----------+----------+--------------------------------------
+<  a      | integer |           | not null | "nextval"('deptest_a_seq'::regclass)
+---
+>                             Table "public.deptest"
+>  Column |  Type   | Collation | Nullable |              Default               
+> --------+---------+-----------+----------+------------------------------------
+>  a      | integer |           | not null | nextval('deptest_a_seq'::regclass)

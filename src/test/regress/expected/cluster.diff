@@ -1,0 +1,12 @@
+308c308
+<  clstr_tst            | r       | f
+---
+>  clstr_tst            | r       | t
+314c314
+<  clstr_tst_inh        | r       | f
+---
+>  clstr_tst_inh        | r       | t
+419d418
+<  1
+424a424
+>  1

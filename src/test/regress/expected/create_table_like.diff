@@ -1,0 +1,15 @@
+91c91,92
+< psql:sql/create_table_like.sql:35: ERROR:  Kunlun-db: MySQL storage node (2, 2) returned error: 1048, Column 'a' cannot be null.
+---
+> psql:sql/create_table_like.sql:35: ERROR:  null value in column "a" violates not-null constraint
+> DETAIL:  Failing row contains (null, b2).
+125c126,127
+< psql:sql/create_table_like.sql:47: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '10' for key 'inhg.PRIMARY'.
+---
+> psql:sql/create_table_like.sql:47: ERROR:  duplicate key value violates unique constraint "inhg_pkey"
+> DETAIL:  Key (xx)=(10) already exists.
+142c144,145
+< psql:sql/create_table_like.sql:57: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry 'test' for key 'inhg.inhg_xx_idx'.
+---
+> psql:sql/create_table_like.sql:57: ERROR:  duplicate key value violates unique constraint "inhg_xx_idx"
+> DETAIL:  Key (xx)=(test) already exists.

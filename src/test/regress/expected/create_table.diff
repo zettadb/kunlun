@@ -1,0 +1,5 @@
+804c804,805
+< psql:sql/create_table.sql:582: ERROR:  Kunlun-db: MySQL storage node (2, 2) returned error: 1048, Column 'b' cannot be null.
+---
+> psql:sql/create_table.sql:582: ERROR:  null value in column "b" violates not-null constraint
+> DETAIL:  Failing row contains (1, null).

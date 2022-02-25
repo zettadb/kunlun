@@ -1,0 +1,5 @@
+995c995,996
+< psql:sql/indexing.sql:427: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '1' for key 'fastpath.fpindex1'.
+---
+> psql:sql/indexing.sql:427: ERROR:  duplicate key value violates unique constraint "fpindex1"
+> DETAIL:  Key (a)=(1) already exists.

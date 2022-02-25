@@ -1,0 +1,161 @@
+101a102,103
+> psql:sql/select_views.sql:84: NOTICE:  f_leak => beafsteak
+> psql:sql/select_views.sql:84: NOTICE:  f_leak => hamburger
+108,113c110,114
+<                                                                                    QUERY PLAN                                                                                    
+< ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+<  RemoteScan on customer
+<    Filter: f_leak(passwd)
+<    Shard: 2      Remote SQL: select  customer.cid, customer.name, customer.tel, customer.passwd from regress_$$_public.customer customer where (customer.name = 'regress_alice')
+< (3 rows)
+---
+>                           QUERY PLAN                          
+> --------------------------------------------------------------
+>  Seq Scan on customer
+>    Filter: (f_leak(passwd) AND (name = (CURRENT_USER)::text))
+> (2 rows)
+123,124c124,125
+<                                                                                        QUERY PLAN                                                                                        
+< -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---
+>                   QUERY PLAN                   
+> -----------------------------------------------
+127,128c128,129
+<    ->  RemoteScan on customer
+<          Shard: 2        Remote SQL: select  customer.cid, customer.name, customer.tel, customer.passwd from regress_$$_public.customer customer where (customer.name = 'regress_alice')
+---
+>    ->  Seq Scan on customer
+>          Filter: (name = (CURRENT_USER)::text)
+138a140,143
+> psql:sql/select_views.sql:95: NOTICE:  f_leak => passwd
+> psql:sql/select_views.sql:95: NOTICE:  f_leak => beafsteak
+> psql:sql/select_views.sql:95: NOTICE:  f_leak => passwd
+> psql:sql/select_views.sql:95: NOTICE:  f_leak => hamburger
+146,151c151,155
+<                                                                                    QUERY PLAN                                                                                    
+< ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+<  RemoteScan on customer
+<    Filter: (f_leak('passwd'::text) AND f_leak(passwd))
+<    Shard: 2      Remote SQL: select  customer.cid, customer.name, customer.tel, customer.passwd from regress_$$_public.customer customer where (customer.name = 'regress_alice')
+< (3 rows)
+---
+>                                        QUERY PLAN                                        
+> -----------------------------------------------------------------------------------------
+>  Seq Scan on customer
+>    Filter: (f_leak('passwd'::text) AND f_leak(passwd) AND (name = (CURRENT_USER)::text))
+> (2 rows)
+156a161,162
+> psql:sql/select_views.sql:100: NOTICE:  f_leak => passwd
+> psql:sql/select_views.sql:100: NOTICE:  f_leak => passwd
+164,165c170,171
+<                                                                                        QUERY PLAN                                                                                        
+< -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---
+>                                  QUERY PLAN                                 
+> ----------------------------------------------------------------------------
+168,171c174,176
+<    ->  RemoteScan on customer
+<          Filter: f_leak('passwd'::text)
+<          Shard: 2        Remote SQL: select  customer.cid, customer.name, customer.tel, customer.passwd from regress_$$_public.customer customer where (customer.name = 'regress_alice')
+< (5 rows)
+---
+>    ->  Seq Scan on customer
+>          Filter: (f_leak('passwd'::text) AND (name = (CURRENT_USER)::text))
+> (4 rows)
+188,194c193,197
+<                                                                   QUERY PLAN                                                                   
+< -----------------------------------------------------------------------------------------------------------------------------------------------
+<  Nested Loop
+<    Join Filter: (l.cid = r.cid)
+<    ->  RemoteScan on customer l
+<          Shard: 2        Remote SQL: select  l.cid, l.name, l.tel, l.passwd from regress_$$_public.customer l where (l.name = 'regress_alice')
+<    ->  RemoteScan on credit_card r
+---
+>                      QUERY PLAN                      
+> -----------------------------------------------------
+>  Hash Join
+>    Hash Cond: (r.cid = l.cid)
+>    ->  Seq Scan on credit_card r
+196c199,201
+<          Shard: 2        Remote SQL: select  r.cid, r.cnum, r.climit from regress_$$_public.credit_card r
+---
+>    ->  Hash
+>          ->  Seq Scan on customer l
+>                Filter: (name = (CURRENT_USER)::text)
+207,208c212,213
+<                                                                                                            QUERY PLAN                                                                                                            
+< ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---
+>                         QUERY PLAN                         
+> -----------------------------------------------------------
+211,214c216,222
+<    ->  RemoteJoin Join
+<          Join Filter: ((l.cid = r.cid) AND (l.name = (CURRENT_USER)::text))
+<          Shard: 2        Remote SQL: select  l.cid, l.name, l.tel, l.passwd, r.cnum, r.climit from  (  regress_$$_public.customer l  JOIN  regress_$$_public.credit_card r   ON (l.cid = r.cid) AND (l.name = 'regress_alice') )
+< (5 rows)
+---
+>    ->  Hash Join
+>          Hash Cond: (r.cid = l.cid)
+>          ->  Seq Scan on credit_card r
+>          ->  Hash
+>                ->  Seq Scan on customer l
+>                      Filter: (name = (CURRENT_USER)::text)
+> (8 rows)
+233,234c241,242
+<                                                                                                            QUERY PLAN                                                                                                            
+< ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---
+>                                   QUERY PLAN                                  
+> ------------------------------------------------------------------------------
+237,244c245,256
+<    ->  Subquery Scan on l
+<          Filter: f_leak(l.cnum)
+<          ->  RemoteJoin Join
+<                Join Filter: ((l_1.cid = r_1.cid) AND (l_1.name = (CURRENT_USER)::text))
+<                Shard: 2  Remote SQL: select  l.cid, l.name, l.tel, l.passwd, r.cnum, r.climit from  (  regress_$$_public.customer l  JOIN  regress_$$_public.credit_card r   ON (l.cid = r.cid) AND (l.name = 'regress_alice') )
+<    ->  RemoteScan on credit_usage r
+<          Shard: 1        Remote SQL: select  r.cid, r.ymd, r.usage1 from regress_$$_public.credit_usage r where (r.ymd >= '2011-10-01') AND (r.ymd < '2011-11-01')
+< (9 rows)
+---
+>    ->  Seq Scan on credit_usage r
+>          Filter: ((ymd >= '2011-10-01'::date) AND (ymd < '2011-11-01'::date))
+>    ->  Materialize
+>          ->  Subquery Scan on l
+>                Filter: f_leak(l.cnum)
+>                ->  Hash Join
+>                      Hash Cond: (r_1.cid = l_1.cid)
+>                      ->  Seq Scan on credit_card r_1
+>                      ->  Hash
+>                            ->  Seq Scan on customer l_1
+>                                  Filter: (name = (CURRENT_USER)::text)
+> (13 rows)
+260,261c272,273
+<                                                                                                            QUERY PLAN                                                                                                            
+< ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---
+>                                      QUERY PLAN                                     
+> ------------------------------------------------------------------------------------
+266,271c278,287
+<          ->  RemoteJoin Join
+<                Join Filter: ((l.cid = r_1.cid) AND (l.name = (CURRENT_USER)::text))
+<                Shard: 2  Remote SQL: select  l.cid, l.name, l.tel, l.passwd, r.cnum, r.climit from  (  regress_$$_public.customer l  JOIN  regress_$$_public.credit_card r   ON (l.cid = r.cid) AND (l.name = 'regress_alice') )
+<          ->  RemoteScan on credit_usage r
+<                Shard: 1  Remote SQL: select  r.cid, r.ymd, r.usage1 from regress_$$_public.credit_usage r where (r.ymd >= '2011-10-01') AND (r.ymd < '2011-11-01')
+< (9 rows)
+---
+>          ->  Seq Scan on credit_usage r
+>                Filter: ((ymd >= '2011-10-01'::date) AND (ymd < '2011-11-01'::date))
+>          ->  Materialize
+>                ->  Hash Join
+>                      Hash Cond: (r_1.cid = l.cid)
+>                      ->  Seq Scan on credit_card r_1
+>                      ->  Hash
+>                            ->  Seq Scan on customer l
+>                                  Filter: (name = (CURRENT_USER)::text)
+> (13 rows)
+282a299,300
+> psql:sql/select_views.sql:136: NOTICE:  f_leak => beafsteak
+> psql:sql/select_views.sql:136: NOTICE:  f_leak => hamburger
+302a321,322
+> psql:sql/select_views.sql:142: NOTICE:  f_leak => beafsteak
+> psql:sql/select_views.sql:142: NOTICE:  f_leak => hamburger

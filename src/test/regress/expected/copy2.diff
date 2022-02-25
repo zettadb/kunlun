@@ -1,0 +1,4 @@
+107c107
+< psql:sql/copy2.sql:112: ERROR:  COPY (query) WITH OIDS is not supported
+---
+> psql:sql/copy2.sql:112: ERROR:  table "no_oids" does not have OIDs

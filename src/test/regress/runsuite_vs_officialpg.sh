@@ -1,5 +1,7 @@
 #! /bin/bash
 
+seconds="${1:-10}"
+
 cat serial_schedule | grep -v '^#' | sed '/^[ 	]*$/d' | awk '{print $2}' | while read f; do
 	if test -f "skips/$f.skip"; then
 		echo "Skipping sql/$f.sql currently ......"
@@ -14,5 +16,6 @@ cat serial_schedule | grep -v '^#' | sed '/^[ 	]*$/d' | awk '{print $2}' | while
 		mv 2.out.p $f.out2.p
 		echo "======= diff content for $f.diff =========="
 		cat $f.diff
+		sleep $seconds
 	fi
 done

@@ -4,10 +4,9 @@
 
 import sys
 import os
+import argparse
 #arg: port
 if __name__ == "__main__":
-    #args = dict([arg.split('=') for arg in sys.argv[1:]])
-    #port = args["port"]
     parser = argparse.ArgumentParser(description='install the computing node')
     parser.add_argument('--port', type=str, help="Port of the Computing node", required=True)
     args = parser.parse_args()

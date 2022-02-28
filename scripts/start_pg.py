@@ -6,9 +6,10 @@ import sys
 import os
 #arg: port
 if __name__ == "__main__":
-    args = dict([arg.split('=') for arg in sys.argv[1:]])
-    port = args["port"]
-
+    parser = argparse.ArgumentParser(description='install the computing node')
+    parser.add_argument('--port', type=str, help="Port of the Computing node", required=True)
+    args = parser.parse_args()
+    port = args.port
     install_path = os.getcwd()[:-8] # cut off the /scripts tail
 
     # open the instances_list to look for target instance's datadir

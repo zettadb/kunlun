@@ -255,15 +255,6 @@ ExecCreateTableAs(CreateTableAsStmt *stmt, const char *queryString,
 	}
 
 	/*
-	  dzw:
-	  Allow CREATE MATERIALIZED VIEW, but forbid CREATE TABLE AS and
-	  SELECT...INTO stmts.
-	*/
-	if (stmt->relkind != OBJECT_MATVIEW && enable_remote_ddl())
-		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-				errmsg("Statement '%s' is not supported in Kunlun.", CreateCommandTag((Node*)stmt))));
-
-	/*
 	 * Create the tuple receiver object and insert info it will need
 	 */
 	dest = CreateIntoRelDestReceiver(into);

@@ -103,31 +103,16 @@ extern bool check_mysql_instance_status(MYSQL_CONN*conn,
 extern TransactionId get_max_txnid_cluster_meta(MYSQL_CONN*conn, bool *done);
 extern MYSQL_CONN* get_metadata_cluster_conn(bool isbg);
 extern void close_metadata_cluster_conn(MYSQL_CONN* conn);
-extern bool check_ddl_op_conflicts_rough(MYSQL_CONN *conn, const char *db, DDL_ObjTypes objtype);
-extern uint64_t log_ddl_op(MYSQL_CONN *conn, const char *xa_txnid, const char *db,
-					const char *schema, const char *role, const char *user, const char *obj, DDL_ObjTypes obj_type,
-					DDL_OP_Types optype, const char *sql_src, const char *sql_src_storage_node,
-					Oid target_shardid);
-extern void update_my_max_ddl_op_id(uint64_t opid, bool is_db_ddl);
-extern Size ClusterMetaShmemSize(void);
-extern void MetadataClusterShmemInit(void);
-extern void NotifyNextDDLOp(uint64_t opid);
-typedef int (*log_apply_func_t)(uint64_t newpos, const char *role, const char *user, const char *sqlstr,
-	DDL_OP_Types optype, DDL_ObjTypes objtype, const char *objname, bool*execed);
-extern int fetch_apply_cluster_ddl_logs(Oid dbid, const char *dbname, uint64_t startpos,
-	log_apply_func_t apply, bool is_main_applier, bool is_recovery);
 /*
  * the handler returns true to go on with next db, false stops the scan.
  * */
 typedef bool (*db_handler_t)(Oid dbid, const char *db, void*param);
-extern void scan_all_dbs(db_handler_t dbhdlr, void *param);
-extern bool SetLatestDDLOperationId(uint64_t opid);
-extern uint64_t GetLatestDDLOperationId(uint64_t *local_max);
 extern const char *GetClusterName2(void);
-extern void delete_ddl_log_progress(Oid dbid);
-extern void insert_ddl_log_progress(Oid dbid, uint64_t maxopid);
 extern bool UpdateCurrentMetaShardMasterNodeId(void);
 extern int FindCurrentMetaShardMasterNodeId(Oid *pmaster_nodeid, Oid *old_master_nodeid);
 extern void disconnect_metadata_shard(void);
 extern void KillMetaShardConn(char type, uint32_t connid);
+extern void free_metadata_cluster_result(MYSQL_CONN *conn);
+extern bool handle_metadata_cluster_result(MYSQL_CONN *conn, bool isbg);
+extern int  handle_metadata_cluster_error(MYSQL_CONN *conn, bool throw_error);
 #endif // !CLUSTER_META_H

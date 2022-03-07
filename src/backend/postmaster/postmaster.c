@@ -5420,6 +5420,10 @@ StartChildProcess(AuxProcType type)
 				ereport(LOG,
 						(errmsg("could not fork WAL receiver process: %m")));
 				break;
+			case ClusterTopoProcess:
+				ereport(LOG,
+						(errmsg("could not fork Cluster topo serivce: %m")));
+				break;
 			default:
 				ereport(LOG,
 						(errmsg("could not fork process: %m")));

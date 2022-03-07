@@ -140,7 +140,6 @@ extern bool enable_coredump;
 extern int global_txn_commit_log_wait_max_secs;
 extern bool use_mysql_native_seq;
 extern int max_remote_insert_blocks;
-extern int str_key_part_len;
 extern int sharding_policy;
 extern int check_primary_interval_secs;
 #ifdef TRACE_SYNCSCAN
@@ -1872,15 +1871,6 @@ static struct config_bool ConfigureNamesBool[] =
 		false,
 		NULL, NULL, NULL
 	},
-
-	{
-		{"replaying_ddl_log", PGC_USERSET, DEVELOPER_OPTIONS,
-			gettext_noop("Do not generate or send remote DDL statements, to be enabled when replaying a DDL statement fetched from ddl-log."),
-		},
-		&replaying_ddl_log,
-		false,
-		NULL, NULL, NULL
-	},
 	{
 		{"skip_tidsync", PGC_USERSET, DEVELOPER_OPTIONS,
 			gettext_noop("Skip synchronizing transaction ID. This can only be true during computing node installation phases."),
@@ -3292,15 +3282,6 @@ static struct config_int ConfigureNamesInt[] =
 		1024, 8, 1024*1024,
 		NULL, NULL, NULL
 	},
-
-	{
-		{"str_key_part_len", PGC_USERSET, DEVELOPER_OPTIONS,
-			gettext_noop("String key-part length suffix used in DDL statements sent to storage shard."),
-		},
-		&str_key_part_len,
-		64, 1, 1024*64,
-		NULL, NULL, NULL
-	},
 	{
 		{"check_primary_interval_secs", PGC_USERSET, DEVELOPER_OPTIONS,
 			gettext_noop("check current primary nodes of all stoarge shards and the metadata shard, if no such actions performed since last such actions for this many seconds."),
@@ -4145,16 +4126,6 @@ static struct config_string ConfigureNamesString[] =
 		NULL, NULL, NULL
 	},
 
-	{
-		{"last_remote_sql", PGC_INTERNAL, DEVELOPER_OPTIONS,
-			gettext_noop("The last remote sql statement generated for storage nodes."),
-			gettext_noop("It's generated for the last sql statement that could produce a remote sql, not necessarily for the immediate last sql statement."),
-			GUC_NO_RESET_ALL | GUC_NOT_IN_SAMPLE | GUC_DISALLOW_IN_FILE | GUC_DISALLOW_IN_AUTO_FILE
-		},
-		&remote_stmt_ptr,
-		"",
-		NULL, NULL, show_remote_sql
-	},
 #ifdef ENABLE_DEBUG
 	{
 		{"session_debug", PGC_USERSET, DEVELOPER_OPTIONS,
@@ -11424,4 +11395,19 @@ current_role()
 {
 	return role_string;
 }
+
+const char *
+current_search_path()
+{
+	return namespace_search_path;
+}
+
+const char* set_search_path(const char *path)
+{
+	const char *orig = namespace_search_path;
+	namespace_search_path = path;
+	assign_search_path(NULL, NULL);
+	return orig;
+}
+
 #include "guc-file.c"

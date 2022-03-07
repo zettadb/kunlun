@@ -503,7 +503,6 @@ GetNewRelFileNode(Oid reltablespace, Relation pg_class, char relpersistence)
 
 
 extern bool enable_remote_relations;
-extern int CurrentCommand(void);
 
 inline bool IsRemoteRelation(Relation rel)
 {
@@ -523,8 +522,7 @@ inline bool IsRemoteRelation(Relation rel)
 			 (rdrel->relpersistence == RELPERSISTENCE_TEMP)) &&
 		   (relkind == RELKIND_RELATION ||
 			relkind == RELKIND_INDEX ||
-			relkind == RELKIND_SEQUENCE) &&
-			CurrentCommand() != T_RefreshMatViewStmt) ||
+			relkind == RELKIND_SEQUENCE)) ||
 		   (rel->rd_rel && rel->rd_rel->relshardid != InvalidOid);
 }
 

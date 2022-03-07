@@ -145,4 +145,13 @@ extern ShardConnKillReq *makeShardConnKillReq(char type);
 extern void inform_cluster_log_applier_main(void);
 
 extern List *GetAllShardIds(void);
+
+/* Get the pid of the topo service */
+extern pid_t get_topo_service_pid(void);
+
+/**
+ * The main loop of the topology service, responsible for updating the
+ * cluster topology, and handling requests to kill shard connection
+ */
+extern void TopoServiceMain(void);
 #endif /* !SHARDING_H */

@@ -210,7 +210,6 @@ CreateSchemaCommand(CreateSchemaStmt *stmt, const char *queryString,
 	/* Reset current user and security context */
 	SetUserIdAndSecContext(saved_uid, save_sec_context);
 
-	RemoteCreateSchema(schemaName);
 	return namespaceId;
 }
 
@@ -236,7 +235,6 @@ RemoveSchemaById(Oid schemaOid)
 	ReleaseSysCache(tup);
 
 	heap_close(relation, RowExclusiveLock);
-	RemoteDropSchema(nsname.data);
 }
 
 
@@ -251,14 +249,6 @@ RenameSchema(const char *oldname, const char *newname)
 	Relation	rel;
 	AclResult	aclresult;
 	ObjectAddress address;
-
-	/*
-	 * dzw: this can't be supported because the schema name is part of the
-	 * storage shards' db names, and in mysql a db can't be renamed.
-	 * */
-	if (enable_remote_ddl())
-		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-			    errmsg("Schemas can't be renamed because storage shard DBs can't be renamed.")));
 
 	rel = heap_open(NamespaceRelationId, RowExclusiveLock);
 

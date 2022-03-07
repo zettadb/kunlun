@@ -1325,7 +1325,6 @@ AlterEnum(AlterEnumStmt *stmt, bool isTopLevel)
 		AddEnumLabel(enum_type_oid, stmt->newVal,
 					 stmt->newValNeighbor, stmt->newValIsAfter,
 					 stmt->skipIfNewValExists);
-		AlterDependentTables(enum_type_oid);
 	}
 
 	InvokeObjectPostAlterHook(TypeRelationId, enum_type_oid, 0);

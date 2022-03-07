@@ -4,6 +4,6 @@ subdir = src/modules
 top_builddir = ../..
 include $(top_builddir)/src/Makefile.global
 
-SUBDIRS = gdd cluster_log_applier
+SUBDIRS = gdd remote_rel
 
 $(recurse)

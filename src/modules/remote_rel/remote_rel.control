@@ -1,0 +1,4 @@
+comment = 'Kunlun cluster ddl hook && applier'
+default_version = '1.0'
+module_pathname = '$libdir/remote_ddl'
+relocatable = true

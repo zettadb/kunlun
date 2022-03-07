@@ -333,38 +333,22 @@ BEGIN
 	set @user_name = user_name;
     set @objname = objname;
     set @obj_type = obj_type;
-    set @cur_opid = cur_opid;
     set @op_type = op_type;
     set @sql_src = sql_src;
     set @sql_src_sn = sql_src_sn;
     set @target_shardid = target_shardid;
     set @initiator_id = initiator_id;
-    SET @sql1 = '';
-
-    if @obj_type != 'db' then
-        SET @sql1 = CONCAT('select exists(select id from ', tblname, ' where (db_name=? or (objname=? and objtype=\'db\') or objtype=\'user\') and initiator != ? and id > ? for update) into @conflicts');
-    else
-        SET @sql1 = CONCAT('select exists(select id from ', tblname, ' where (db_name=? or objtype=\'db\' or objtype=\'user\') and initiator != ? and id > ? for update) into @conflicts');
+	
+	if COALESCE(IS_USED_LOCK('DDL'), 0) != CONNECTION_ID() then
+		SIGNAL SQLSTATE '45000'
+		SET MESSAGE_TEXT = 'DDL lock is hold by current session';
     end if;
-    
-    PREPARE stmt1 FROM @sql1;
 
-    if @obj_type != 'db' then
-        EXECUTE stmt1 USING @dbname, @dbname, @initiator_id, @cur_opid;
-    else
-        EXECUTE stmt1 USING @dbname, @initiator_id, @cur_opid;
-    end if;
-    
-    IF  @conflicts = 1 THEN
-        DEALLOCATE PREPARE stmt1;
-        set my_opid = 0;
-    ELSE
-        SET @sql2 = CONCAT('INSERT INTO ', tblname, '(db_name, schema_name, role_name, user_name, objname, objtype, optype, sql_src, sql_storage_node, target_shard_id, initiator)values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-        PREPARE stmt2 FROM @sql2;
-        EXECUTE stmt2 USING @dbname, @schema_name, @role_name, @user_name, @objname, @obj_type, @op_type, @sql_src, @sql_src_sn, @target_shardid, @initiator_id;
-        set my_opid = LAST_INSERT_ID();
-        DEALLOCATE PREPARE stmt1;
-        DEALLOCATE PREPARE stmt2;
+    SET @sql = CONCAT('INSERT INTO ', tblname, '(db_name, schema_name, role_name, user_name, objname, objtype, optype, sql_src, sql_storage_node, target_shard_id, initiator)values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    PREPARE stmt FROM @sql;
+    EXECUTE stmt USING @dbname, @schema_name, @role_name, @user_name, @objname, @obj_type, @op_type, @sql_src, @sql_src_sn, @target_shardid, @initiator_id;
+    set my_opid = LAST_INSERT_ID();
+    DEALLOCATE PREPARE stmt;
     END IF; 
 END ;
 -- ;;

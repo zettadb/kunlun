@@ -104,6 +104,7 @@ static volatile bool got_SIGHUP = false;
 static volatile bool got_SIGUSR2 = false;
 static volatile bool got_SIGTERM = false;
 
+extern int get_topo_service_pid(void);
 extern void BackgroundWorkerInitializeConnection(const char *dbname, const char *username, uint32 flags);
 static MYSQL_CONN* connect_to_metadata_cluster(bool recover_txnid, bool isbg);
 extern const char *GetClusterName2();
@@ -139,7 +140,7 @@ MYSQL_CONN* get_metadata_cluster_conn(bool isbg)
 		connect_to_metadata_cluster(false, isbg);
 		if (!cluster_conn.connected)
 		{
-			if (!IsCurrentProcMainApplier())
+			if (get_topo_service_pid() != MyProcPid)
 				pg_usleep(1000000);
 			else
 			{
@@ -165,7 +166,6 @@ static MYSQL_CONN* connect_to_metadata_cluster(bool recover_txnid, bool isbg)
 	if (!IsTransactionState())
 	{
 		need_txn = true;
-		//Assert(isbg); doesn't hold in AbortCurrentTransaction()->AbortTransaction()->end_metadata_txn()
 	}
 
 retry:

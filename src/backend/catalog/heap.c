@@ -376,7 +376,7 @@ heap_create(const char *relname,
 	 * We only create the main fork here, other forks will be created on
 	 * demand.
 	 */
-	if (create_storage && !IsRemoteRelation(rel))
+	if (create_storage)
 	{
 		RelationOpenSmgr(rel);
 		RelationCreateStorage(rel->rd_node, relpersistence);
@@ -816,7 +816,7 @@ InsertPgClassTuple(Relation pg_class_desc,
 			 * */
 			Oid relshardid = InvalidOid;
 			bytea *relopts = heap_reloptions(new_rel_desc->rd_rel->relkind, reloptions, false);
-			Oid target_shard_id = GetRemoteContextShardId();
+			Oid target_shard_id = InvalidOid;
 			bool found_shard = false;
 
 			if (relopts)
@@ -843,7 +843,6 @@ InsertPgClassTuple(Relation pg_class_desc,
 
 			if (!found_shard && target_shard_id == InvalidOid)
 			{
-				Assert(GetRemoteContextShardId() == InvalidOid);
 				target_shard_id = FindBestShardForTable(sharding_policy, new_rel_desc);
 				if (target_shard_id == InvalidOid)
 					ereport(ERROR,
@@ -852,7 +851,6 @@ InsertPgClassTuple(Relation pg_class_desc,
 							 	    new_rel_desc->rd_id, rd_rel->relname.data)));
 			}
 
-			SetRemoteContextShardId(target_shard_id);
 			rd_rel->relshardid = target_shard_id;
 		}
 		else
@@ -1944,13 +1942,6 @@ heap_drop_with_catalog(Oid relid)
 	 */
 	if (rel->rd_rel->relkind == RELKIND_PARTITIONED_TABLE)
 	{
-		/*
-		 * we need to record the partitioned table before dropping any leaf
-		 * relation, so it's too late to do this here, so we instead do so in
-		 * PreparePartitionedTableDrop().
-		set_dropping_tree(true);
-		AddToRemoteCreateDropPartitionedTable(rel, true);
-		*/
 		RemovePartitionKeyByRelId(relid);
 	}
 
@@ -1970,10 +1961,6 @@ heap_drop_with_catalog(Oid relid)
 		rel->rd_rel->relkind != RELKIND_PARTITIONED_TABLE)
 	{
 		RelationDropStorage(rel);
-		if (IsRemoteRelation(rel))
-		{
-			TrackRemoteDropTableStorage(rel);
-		}
 	}
 
 	/*

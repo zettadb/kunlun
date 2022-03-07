@@ -22,36 +22,40 @@
  *-------------------------------------------------------------------------
  */
 #include "postgres.h"
+
+#include "access/genam.h"
+#include "access/heapam.h"
+#include "access/htup.h"
+#include "access/htup_details.h"
+#include "access/remote_meta.h"
+#include "access/sysattr.h"
+#include "access/xact.h"
+#include "catalog/indexing.h"
+#include "catalog/indexing.h"
 #include "catalog/pg_shard.h"
 #include "catalog/pg_shard_node.h"
+#include "executor/spi.h"
+#include "miscadmin.h"
+#include "pgstat.h"
+#include "postmaster/xidsender.h"
+#include "sharding/cluster_meta.h"
 #include "sharding/sharding.h"
+#include "sharding/sharding_conn.h"
+#include "storage/bufmgr.h"
+#include "storage/lockdefs.h"
+#include "storage/lwlock.h"
+#include "storage/lwlock.h"
+#include "storage/smgr.h"
+#include "utils/builtins.h"
+#include "utils/catcache.h"
+#include "utils/fmgroids.h"
+#include "utils/guc.h"
 #include "utils/hsearch.h"
 #include "utils/memutils.h"
 #include "utils/rel.h"
 #include "utils/relcache.h"
-#include "access/genam.h"
-#include "access/htup.h"
-#include "access/heapam.h"
-#include "access/xact.h"
-#include "storage/lockdefs.h"
-#include "access/sysattr.h"
-#include "utils/fmgroids.h"
-#include "catalog/indexing.h"
-#include "access/htup_details.h"
-#include "utils/builtins.h"
-#include "utils/catcache.h"
-#include "sharding/sharding_conn.h"
-#include "storage/lwlock.h"
-#include "pgstat.h"
-#include "catalog/indexing.h"
-#include "miscadmin.h"
 #include "utils/snapmgr.h"
-#include "executor/spi.h"
-#include "access/remote_meta.h"
-#include "sharding/cluster_meta.h"
-#include "storage/lwlock.h"
-#include "storage/bufmgr.h"
-#include "storage/smgr.h"
+
 #include <sys/types.h>
 #include <unistd.h>
 #include "sharding/mysql/mysqld_error.h"
@@ -1118,6 +1122,7 @@ bool RequestShardingTopoCheck(Oid shardid)
 	Storage_HA_Mode ha_mode = storage_ha_mode();
 	if (ha_mode == HA_NO_REP) return false;
 
+	int pid;
 	bool done = false;
 	LWLockAcquire(ShardingTopoCheckLock, LW_EXCLUSIVE);
 	if (ShardingTopoChkReqs->endidx >= MAX_SHARDS)
@@ -1130,10 +1135,10 @@ bool RequestShardingTopoCheck(Oid shardid)
 done:
 	done = true;
 end:
-	LWLockRelease(ShardingTopoCheckLock);
-	if (done && g_remote_meta_sync->main_applier_pid != 0 &&
-		getpid() != g_remote_meta_sync->main_applier_pid)
-		kill(g_remote_meta_sync->main_applier_pid, SIGUSR2);
+	pid = get_topo_service_pid();
+	if (done && pid != 0 && pid != MyProcPid)
+		kill(pid, SIGUSR2);
+
 	return done;
 }
 
@@ -1412,38 +1417,37 @@ void appendShardConnKillReq(ShardConnKillReq*req)
 	// if not enough space to write the request, wait.
 	int cntr = 0;
 	/*
-	  This function could be called by reapShardConnKillReqs()->GetAsyncStmtInfoNode()
-	  when connection to storage shards broken. In that case we should not lock
-	  the lwlock again otherwise the process will self-lock.
-	*/
+	   This function could be called by reapShardConnKillReqs()->GetAsyncStmtInfoNode()
+	   when connection to storage shards broken. In that case we should not lock
+	   the lwlock again otherwise the process will self-lock.
+	   */
 	const bool locked = LWLockHeldByMe(KillShardConnReqLock);
-	const bool curproc_is_main_applier = (g_remote_meta_sync->main_applier_pid != 0 &&
-		getpid() == g_remote_meta_sync->main_applier_pid);
+	const bool curproc_is_topo_service = get_topo_service_pid() == MyProcPid;
+	int topo_service_pid = get_topo_service_pid();
 
 	if (!locked) LWLockAcquire(KillShardConnReqLock, LW_EXCLUSIVE);
 	while (shard_conn_kill_reqs->write_pos + req->next_req_off >
-		   shard_conn_kill_reqs->total_sz + sizeof(ShardConnKillReqQ))
+			shard_conn_kill_reqs->total_sz + sizeof(ShardConnKillReqQ))
 	{
 		if (!locked) LWLockRelease(KillShardConnReqLock);
 		/*
-		  In both cases should not waste time enqueuing a low priority request.
-		  When locked, can't release the lock because we don't know here
-		  whether that's the right thing to do.
-		*/
-		if (locked || curproc_is_main_applier) return;
+		   In both cases should not waste time enqueuing a low priority request.
+		   When locked, can't release the lock because we don't know here
+		   whether that's the right thing to do.
+		   */
+		if (locked || curproc_is_topo_service) return;
 
 		/*
-		  no big deal to drop such a req, don't wait here infinitely.
-		  statement timeout mechanism can't work here since enable_timeout()
-		  not called explicitly and not in a txn.
-		*/
+		   no big deal to drop such a req, don't wait here infinitely.
+		   statement timeout mechanism can't work here since enable_timeout()
+		   not called explicitly and not in a txn.
+		   */
 		if (cntr++ > 7)
 			return;
 		elog(WARNING, "shard conn kill req queue is full, waiting to enq a req.");
 
-		if (!curproc_is_main_applier && g_remote_meta_sync &&
-			g_remote_meta_sync->main_applier_pid != 0)
-			kill(g_remote_meta_sync->main_applier_pid, SIGUSR2);
+		if (!curproc_is_topo_service && topo_service_pid != 0)
+			kill(topo_service_pid, SIGUSR2);
 
 		usleep(10000);
 		if (!locked) LWLockAcquire(KillShardConnReqLock, LW_EXCLUSIVE);
@@ -1453,13 +1457,13 @@ void appendShardConnKillReq(ShardConnKillReq*req)
 	const uint32_t reqlen = req->next_req_off;
 	req->next_req_off += shard_conn_kill_reqs->write_pos;
 	memcpy((char*)shard_conn_kill_reqs + shard_conn_kill_reqs->write_pos,
-		req, reqlen);
+			req, reqlen);
 	shard_conn_kill_reqs->write_pos += reqlen;
 	shard_conn_kill_reqs->nreqs++;
 	if (!locked) LWLockRelease(KillShardConnReqLock);
 
-	if (!curproc_is_main_applier && g_remote_meta_sync->main_applier_pid != 0)
-		kill(g_remote_meta_sync->main_applier_pid, SIGUSR2);
+	if (!curproc_is_topo_service && topo_service_pid != 0)
+		kill(topo_service_pid, SIGUSR2);
 }
 
 typedef struct MetaShardKillConnReq {
@@ -1629,11 +1633,6 @@ do_meta:
 	freeMetaShardKillConnReqSection(&metareqs);
 }
 
-void inform_cluster_log_applier_main()
-{
-	kill(g_remote_meta_sync->main_applier_pid, SIGUSR2);
-}
-
 Oid GetShardMasterNodeId(Oid shardid)
 {
 	Shard_t shard;
@@ -1672,3 +1671,96 @@ static void free_shard_nodes(Shard_node_t *snodes)
 	}
 	pfree(snodes);
 }
+
+
+static bool got_sigterm = false;
+static void
+topo_service_sigterm(SIGNAL_ARGS)
+{
+	int save_errno = errno;
+
+	got_sigterm = true;
+	SetLatch(MyLatch);
+
+	errno = save_errno;
+}
+
+static void
+topo_service_siguser2(SIGNAL_ARGS)
+{
+	int save_errno = errno;
+	SetLatch(MyLatch);
+	errno = save_errno;
+}
+
+/* The proc id of the topo service */
+static int *ptopo_service_pid = NULL;
+
+int get_topo_service_pid()
+{
+	bool found = false;
+	if (ptopo_service_pid)
+		return *ptopo_service_pid;
+	ptopo_service_pid = (int *)ShmemInitStruct("topo_service_pid", sizeof(pid_t), &found);
+	if (!found)
+		*ptopo_service_pid = 0;
+	return *ptopo_service_pid;
+}
+
+
+/**
+ * The main loop of the topology service, responsible for updating the
+ * cluster topology, and handling requests to kill shard connection
+ */
+void TopoServiceMain(void)
+{
+	pqsignal(SIGTERM, topo_service_sigterm);
+	pqsignal(SIGUSR2, topo_service_siguser2);
+
+	/* We're now ready to receive signals */
+	BackgroundWorkerUnblockSignals();
+
+	/* Connect to our database */
+	BackgroundWorkerInitializeConnection("postgres", NULL, 0);
+	ShardCacheInit();
+
+	/* Set the topo service pid */
+	(void) get_topo_service_pid();
+	Assert (ptopo_service_pid);
+	*ptopo_service_pid = MyProcPid;
+
+	bool got_sighup = true;
+	while (!got_sigterm)
+	{
+		/*
+		 * In case of a SIGHUP, just reload the configuration.
+		 */
+		if (got_sighup)
+		{
+			got_sighup = false;
+			ProcessConfigFile(PGC_SIGHUP);
+		}
+
+		PG_TRY();
+		{
+			// task 1: handle topology update requests.
+			enable_remote_timeout();
+			ProcessShardingTopoReqs();
+			disable_remote_timeout();
+
+			// task 2: kill connections/queries
+			reapShardConnKillReqs();
+
+			wait_latch(5000);
+		}
+		PG_CATCH();
+		{
+			EmitErrorReport();
+			FlushErrorState();
+		}
+		PG_END_TRY();
+	}
+
+	proc_exit(1);
+}
+

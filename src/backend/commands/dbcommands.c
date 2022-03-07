@@ -725,7 +725,6 @@ createdb(ParseState *pstate, const CreatedbStmt *stmt)
 	}
 	PG_END_ENSURE_ERROR_CLEANUP(createdb_failure_callback,
 								PointerGetDatum(&fparms));
-	RemoteCreateDatabase(dbname);
 	return dboid;
 }
 
@@ -900,12 +899,6 @@ dropdb(const char *dbname, bool missing_ok)
 	}
 
 	/*
-	  dzw: notify&wait for the remote ddl log applier for the target db to exit,
-	  so that below CountOtherDBBackends() check can succeed.
-	*/
-	WaitForDBApplierExit(db_id);
-
-	/*
 	 * Check for other backends in the target database.  (Because we hold the
 	 * database lock, no new ones can start after this.)
 	 *
@@ -994,18 +987,6 @@ dropdb(const char *dbname, bool missing_ok)
 	RequestCheckpoint(CHECKPOINT_IMMEDIATE | CHECKPOINT_FORCE | CHECKPOINT_WAIT);
 
 	/*
-	 * dzw: this is the right time to do remote drop because:
-	 * 1. below remove_dbtablespaces() removes db dir tree unrevokably, so we
-	 * must RemoteDropDatabase() before remove_dbtablespaces() otherwise if
-	 * RemoteDropDatabase() aborts we would not be able to get the db dirs back.
-	 *
-	 * 2. we must RemoteDropDatabase() after above work so that if they throw
-	 * out error our remote work would leave storage nodes without any dbs,
-	 * and such effects can't be undone.
-	 * */
-	RemoteDropDatabase(dbname);
-
-	/*
 	 * Remove all tablespace subdirs belonging to the database.
 	 */
 	remove_dbtablespaces(db_id);
@@ -1037,13 +1018,6 @@ RenameDatabase(const char *oldname, const char *newname)
 	int			notherbackends;
 	int			npreparedxacts;
 	ObjectAddress address;
-
-	if (enable_remote_ddl())
-	{
-		ereport(ERROR,
-				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-				 errmsg("Can not rename database in Kunlun database cluster, storage shards don't support it.")));
-	}
 
 	/*
 	 * Look up the target database's OID, and get exclusive lock on it. We
@@ -1539,11 +1513,6 @@ AlterDatabase(ParseState *pstate, AlterDatabaseStmt *stmt, bool isTopLevel)
 					 parser_errposition(pstate, dtablespace->location)));
 		/* this case isn't allowed within a transaction block */
 		PreventInTransactionBlock(isTopLevel, "ALTER DATABASE SET TABLESPACE");
-
-		if (enable_remote_ddl())
-			ereport(WARNING,
-					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-					 errmsg("cannot alter tablespace to DBs stored in storage shards, this action is skipped and ignored.")));
 
 		movedb(stmt->dbname, defGetString(dtablespace));
 		return InvalidOid;

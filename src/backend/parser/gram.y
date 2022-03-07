@@ -187,6 +187,8 @@ static void processCASbits(int cas_bits, int location, const char *constrType,
 			   bool *deferrable, bool *initdeferred, bool *not_valid,
 			   bool *no_inherit, core_yyscan_t yyscanner);
 static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
+static int firstPositive2(int arg1, int arg2);
+static int firstPositive3(int arg1, int arg2, int arg3);
 
 %}
 
@@ -3380,6 +3382,7 @@ CreateStmt:	CREATE OptTemp TABLE qualified_name '(' OptTableElementList ')'
 					n->oncommit = $11;
 					n->tablespacename = $12;
 					n->if_not_exists = false;
+					n->opts_location = firstPositive2(@10, @11);
 					$$ = (Node *)n;
 				}
 		| CREATE OptTemp TABLE IF_P NOT EXISTS qualified_name '('
@@ -3398,6 +3401,7 @@ CreateStmt:	CREATE OptTemp TABLE qualified_name '(' OptTableElementList ')'
 					n->oncommit = $14;
 					n->tablespacename = $15;
 					n->if_not_exists = true;
+					n->opts_location = firstPositive3(@13, @14, @15);
 					$$ = (Node *)n;
 				}
 		| CREATE OptTemp TABLE qualified_name OF any_name
@@ -3417,6 +3421,7 @@ CreateStmt:	CREATE OptTemp TABLE qualified_name '(' OptTableElementList ')'
 					n->oncommit = $10;
 					n->tablespacename = $11;
 					n->if_not_exists = false;
+					n->opts_location = firstPositive3(@9, @10, @11);
 					$$ = (Node *)n;
 				}
 		| CREATE OptTemp TABLE IF_P NOT EXISTS qualified_name OF any_name
@@ -3436,6 +3441,7 @@ CreateStmt:	CREATE OptTemp TABLE qualified_name '(' OptTableElementList ')'
 					n->oncommit = $13;
 					n->tablespacename = $14;
 					n->if_not_exists = true;
+					n->opts_location = firstPositive3(@12, @13, @14);
 					$$ = (Node *)n;
 				}
 		| CREATE OptTemp TABLE qualified_name PARTITION OF qualified_name
@@ -3455,6 +3461,7 @@ CreateStmt:	CREATE OptTemp TABLE qualified_name '(' OptTableElementList ')'
 					n->oncommit = $12;
 					n->tablespacename = $13;
 					n->if_not_exists = false;
+					n->opts_location = firstPositive3(@11, @12, @13);
 					$$ = (Node *)n;
 				}
 		| CREATE OptTemp TABLE IF_P NOT EXISTS qualified_name PARTITION OF
@@ -3474,6 +3481,7 @@ CreateStmt:	CREATE OptTemp TABLE qualified_name '(' OptTableElementList ')'
 					n->oncommit = $15;
 					n->tablespacename = $16;
 					n->if_not_exists = true;
+					n->opts_location = firstPositive3(@14, @15, @16);
 					$$ = (Node *)n;
 				}
 		;
@@ -16177,6 +16185,19 @@ makeSetOp(SetOperation op, bool all, Node *larg, Node *rarg)
 	n->larg = (SelectStmt *) larg;
 	n->rarg = (SelectStmt *) rarg;
 	return (Node *) n;
+}
+
+
+static int firstPositive2(int arg1, int arg2)
+{
+    return arg1 >= 0 ? arg1 : arg2;
+}
+
+static int firstPositive3(int arg1, int arg2, int arg3)
+{
+    if (arg1 >= 0) return arg1;
+    if (arg2 >= 0) return arg2;
+    return arg3;
 }
 
 /* SystemFuncName()

@@ -21,6 +21,16 @@
 #include "parser/parse_node.h"
 #include "storage/relfilenode.h"
 
+/* Hook for plugins to get control in nextval */
+typedef int64_t (*Nextval_hook_type)(Relation seqrel, bool *finished);
+typedef void (*Setval_hook_type)(Relation seqrel,
+								 int64_t val,
+								 bool called,
+								 bool *finished);
+
+extern PGDLLIMPORT Nextval_hook_type Nextval_hook;
+extern PGDLLIMPORT Setval_hook_type Setval_hook;
+
 
 typedef struct FormData_pg_sequence_data
 {

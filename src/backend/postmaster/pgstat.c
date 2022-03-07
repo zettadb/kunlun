@@ -2874,9 +2874,11 @@ pgstat_bestart(void)
 			case WalReceiverProcess:
 				lbeentry.st_backendType = B_WAL_RECEIVER;
 				break;
+			case ClusterTopoProcess:
+				lbeentry.st_backendType = B_TOPO_SERVICE;
 			default:
 				elog(FATAL, "unrecognized process type: %d",
-					 (int) MyAuxProcType);
+						(int) MyAuxProcType);
 		}
 	}
 
@@ -4182,6 +4184,9 @@ pgstat_get_backend_desc(BackendType backendType)
 			break;
 		case B_WAL_WRITER:
 			backendDesc = "walwriter";
+			break;
+		case B_TOPO_SERVICE:
+			backendDesc = "topo service";
 			break;
 	}
 

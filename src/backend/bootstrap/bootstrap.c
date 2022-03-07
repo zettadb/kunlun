@@ -46,6 +46,7 @@
 #include "utils/rel.h"
 #include "utils/relmapper.h"
 #include "utils/tqual.h"
+#include "sharding/sharding.h"
 
 uint32		bootstrap_data_checksum_version = 0;	/* No checksum */
 
@@ -335,6 +336,9 @@ AuxiliaryProcessMain(int argc, char *argv[])
 			case WalReceiverProcess:
 				statmsg = pgstat_get_backend_desc(B_WAL_RECEIVER);
 				break;
+			case ClusterTopoProcess:
+				statmsg = pgstat_get_backend_desc(B_TOPO_SERVICE);
+				break;
 			default:
 				statmsg = "??? process";
 				break;
@@ -461,6 +465,10 @@ AuxiliaryProcessMain(int argc, char *argv[])
 			/* don't set signals, walreceiver has its own agenda */
 			WalReceiverMain();
 			proc_exit(1);		/* should never return */
+
+		case ClusterTopoProcess:
+			TopoServiceMain();
+			break;
 
 		default:
 			elog(PANIC, "unrecognized process type: %d", (int) MyAuxProcType);

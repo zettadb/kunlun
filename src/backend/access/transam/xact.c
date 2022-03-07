@@ -2110,9 +2110,6 @@ CommitTransaction(void)
 	 * */
 	if (s == &TopTransactionStateData)
 	{
-		end_remote_ddl_stmt();
-		end_metadata_txn(true);
-
 		int tc_phase = 1;
 		bool doing_2pc_commit = false;
 		NameData txnname;
@@ -2272,15 +2269,6 @@ CommitTransaction(void)
 	 * RecordTransactionCommit.
 	 */
 	ProcArrayEndTransaction(MyProc, latestXid);
-
-	/*
-	 * dzw: afer current DDL txn is committed, notify next DDL txn to resume.
-	 * */
-	uint64_t ddl_opid = 0;
-	if (is_metadata_txn(&ddl_opid))
-	{
-		NotifyNextDDLOp(ddl_opid);
-	}
 
 	/*
 	 * This is all post-commit cleanup.  Note that if an error is raised here,
@@ -2806,15 +2794,6 @@ AbortTransaction(void)
 	 */
 	ProcArrayEndTransaction(MyProc, latestXid);
 
-	/*   
-	 * dzw: afer current DDL txn is committed, notify next DDL txn to resume.
-	 * */
-	uint64_t ddl_opid = 0; 
-	if (is_metadata_txn(&ddl_opid))
-	{
-		NotifyNextDDLOp(ddl_opid);
-	} 
-
 	/*
 	 * Post-abort cleanup.  See notes in CommitTransaction() concerning
 	 * ordering.  We can skip all of it if the transaction failed before
@@ -2873,9 +2852,6 @@ AbortTransaction(void)
 		 * */
 		ResetTopTxnState(s);
 	}
-
-	end_metadata_txn(false);
-	ResetRemoteDDLStmt();
 }
 
 /*
@@ -2893,7 +2869,6 @@ CleanupTransaction(void)
 		elog(FATAL, "CleanupTransaction: unexpected state %s",
 			 TransStateAsString(s->state));
 
-	ResetRemoteDDLStmt();
 	/*
 	 * do abort cleanup processing
 	 */
@@ -2944,7 +2919,6 @@ StartTransactionCommand(void)
 			 */
 		case TBLOCK_DEFAULT:
 			StartTransaction();
-			set_curtxn_started_curcmd(1);
 			s->blockState = TBLOCK_STARTED;
 			break;
 
@@ -2958,7 +2932,6 @@ StartTransactionCommand(void)
 		case TBLOCK_INPROGRESS:
 		case TBLOCK_IMPLICIT_INPROGRESS:
 		case TBLOCK_SUBINPROGRESS:
-			set_curtxn_started_curcmd(0);
 			break;
 
 			/*
@@ -2971,7 +2944,6 @@ StartTransactionCommand(void)
 			 */
 		case TBLOCK_ABORT:
 		case TBLOCK_SUBABORT:
-			set_curtxn_started_curcmd(0);
 			break;
 
 			/* These cases are invalid. */
@@ -2989,7 +2961,6 @@ StartTransactionCommand(void)
 		case TBLOCK_SUBRESTART:
 		case TBLOCK_SUBABORT_RESTART:
 		case TBLOCK_PREPARE:
-			set_curtxn_started_curcmd(0);
 			elog(ERROR, "StartTransactionCommand: unexpected state %s",
 				 BlockStateAsString(s->blockState));
 			break;

@@ -127,28 +127,17 @@ inline static bool MarkConnValid(AsyncStmtInfo *asi, bool valid)
  * */
 const char *make_qualified_name(Oid nspid, const char *objname, int *plen)
 {
-	static StringInfoData qname;
-	static bool qname_inited = false;
+	StringInfoData qname;
 
-	if (!qname_inited)
-	{
-		initStringInfo2(&qname, 512, TopMemoryContext);
-		qname_inited = true;
-	}
-
-	resetStringInfo(&qname);
+	initStringInfo(&qname);
 
 	get_database_name2(MyDatabaseId, &qname);
 	appendStringInfoString(&qname, "_$$_");
 
 	get_namespace_name2(nspid, &qname);
-	if (!objname)
-	{
-		goto end;
-	}
+	if (objname)
+		appendStringInfo(&qname, ".%s", objname);
 
-	appendStringInfo(&qname, ".%s", objname);
-end:
 	if (plen)
 		*plen = lengthStringInfo(&qname);
 

@@ -1221,17 +1221,6 @@ index_create(Relation heapRelation,
 					true);
 	}
 
-	if (!(flags & INDEX_CREATE_SKIP_REMOTE) && IsRemoteRelation(heapRelation))
-	{
-		/*
-		 * dzw : DefineIndex() could be called by 'create table'
-		 * stmt or 'create index' stmt.
-		 * */
-		make_remote_create_table_stmt2(
-			indexRelation, heapRelation, indexTupDesc, flags & INDEX_CREATE_IS_PRIMARY,
-			indexInfo->ii_Unique, coloptions);
-	}
-
 	/*
 	 * Close the index; but we keep the lock that we acquired above until end
 	 * of transaction.  Closing the heap is caller's responsibility.
@@ -1697,7 +1686,6 @@ index_drop(Oid indexId, bool concurrent)
 	if (userIndexRelation->rd_rel->relkind != RELKIND_PARTITIONED_INDEX)
 	{
 		RelationDropStorage(userIndexRelation);
-		TrackRemoteDropIndexStorage(userIndexRelation);
 	}
 
 	/*

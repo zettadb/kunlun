@@ -158,18 +158,15 @@ CreateSharedMemoryAndSemaphores(int port)
 		size = add_size(size, ShmemBackendArraySize());
 #endif
 		size = add_size(size, BackendXidSenderShmemSize());
-		size = add_size(size, ClusterMetaShmemSize());
 #ifdef ENABLE_DEBUG
 		size = add_size(size, DbugShmemSize());
 #endif	
 #ifdef ENABLE_DEBUG_SYNC
 		size = add_size(size, DebugSyncShmemSize());
 #endif	
-		size = add_size(size, MetaSyncShmemSize());
 		size = add_size(size, GDDShmemSize());
 		size = add_size(size, ShardingTopoCheckSize());
 		size = add_size(size, ShardConnKillReqQSize());
-		size = add_size(size, RemoteSeqFetchShmemSize());
 		/* freeze the addin request size and include it */
 		addin_request_allowed = false;
 		size = add_size(size, total_addin_request);
@@ -275,18 +272,15 @@ CreateSharedMemoryAndSemaphores(int port)
 	WalRcvShmemInit();
 	ApplyLauncherShmemInit();
 	CreateSharedBackendXidSlots();
-	MetadataClusterShmemInit();
 #ifdef ENABLE_DEBUG
 	CreateDbugShmem();
 #endif
 #ifdef ENABLE_DEBUG_SYNC
 	CreateDebugSyncShmem();
 #endif
-	CreateMetaSyncShmem();
 	CreateGDDShmem();
 	ShardingTopoCheckShmemInit();
 	ShardConnKillReqQShmemInit();
-	CreateRemoteSeqFetchShmem();
 
 	/*
 	 * Set up other modules that need some shared memory space

@@ -877,16 +877,6 @@ DefineIndex(Oid relationId,
 	if (stmt->initdeferred)
 		constr_flags |= INDEX_CONSTR_CREATE_INIT_DEFERRED;
 
-	/*
-	 * dzw: Track 'create index' info for remote op.
-	 * Do not track if this stmt is internally created for inherited tables
-	 * */
-	if (!stmt->inherit)
-	{
-		TrackRemoteCreateIndex(rel, indexRelationName, accessMethodId,
-				indexInfo->ii_Unique, partitioned);
-	}
-
 	indexRelationId =
 		index_create(rel, indexRelationName, indexRelationId, parentIndexId,
 					 parentConstraintId,
@@ -1133,11 +1123,7 @@ DefineIndex(Oid relationId,
 				heap_freetuple(newtup);
 			}
 		}
-		else
-		{
-			RemoteDDLSetSkipStorageIndexing(true);
-		}
-
+		
 		/*
 		 * Indexes on partitioned tables are not themselves built, so we're
 		 * done here.

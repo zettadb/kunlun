@@ -400,11 +400,6 @@ standard_ProcessUtility(PlannedStmt *pstmt,
 	pstate = make_parsestate(NULL);
 	pstate->p_sourcetext = queryString;
 
-	if (enable_remote_ddl() && is_banned_ddl_stmt(nodeTag(parsetree)))
-		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
- 				errmsg("Statement '%s' is not supported in Kunlun.", CreateCommandTag(parsetree))));
-	RemoteDDLCxtStartStmt(nodeTag(parsetree), queryString);
-
 	switch (nodeTag(parsetree))
 	{
 			/*

@@ -936,11 +936,6 @@ exec_simple_query(const char *query_string)
 	DEBUG_SYNC("start_of_simple_query");
 
 	/*
-	  dzw: init txn state for every statement as early as possible.
-	*/
-	init_curtxn_started_curcmd();
-
-	/*
 	 * Report query to various monitoring facilities.
 	 */
 	debug_query_string = query_string;
@@ -1225,8 +1220,6 @@ exec_simple_query(const char *query_string)
 	 */
 	finish_xact_command();
 
-	ResetRemoteDDLStmt();
-
 	/*
 	 * If there were no parsetrees, return EmptyQueryResponse message.
 	 */
@@ -1299,17 +1292,6 @@ exec_parse_message(const char *query_string,	/* string to execute */
 			(errmsg("parse %s: %s",
 					*stmt_name ? stmt_name : "<unnamed>",
 					query_string)));
-
-	/*
-	  dzw: init txn state for every statement as early as possible and reset
-	  remote ddl context. this can only be done in parse stage of extended
-	  query protocol, because such states are only used by DDLs which can't
-	  do real prepared stmt execution, so the bind&exec stages must be following
-	  with no other stmts in between.
-	  For non DDLs such states don't matter.
-	*/
-	init_curtxn_started_curcmd();
-
 	/*
 	 * Start up a transaction command so we can run parse analysis etc. (Note
 	 * that this will normally change current memory context.) Nothing happens
@@ -1532,8 +1514,6 @@ exec_parse_message(const char *query_string,	/* string to execute */
 		ShowUsage("PARSE MESSAGE STATISTICS");
 
 	debug_query_string = NULL;
-
-	ResetRemoteDDLStmt();
 }
 
 /*
@@ -3954,10 +3934,6 @@ PostgresMain(int argc, char *argv[],
 	if (!IsUnderPostmaster)
 		PgStartTime = GetCurrentTimestamp();
 
-	/*
-	 * dzw: Session init for Kunlun specific features.
-	 * */
-	InitRemoteDDLContext();
 	InitRemoteTypeInfo();
 	ShardCacheInit();
 	InitShardingSession();

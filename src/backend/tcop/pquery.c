@@ -1218,19 +1218,6 @@ PortalRunUtility(Portal portal, PlannedStmt *pstmt,
 	if (snapshot != NULL && ActiveSnapshotSet() &&
 		snapshot == GetActiveSnapshot())
 		PopActiveSnapshot();
-
-	/*
-	  dzw:
-	  Note down the DDL stmt text if it can be supported by simply replicating
-	  to other computing nodes and involve no storage shard actions.
-	*/
-	if (isTopLevel && enable_remote_ddl() && pstmt && pstmt->utilityStmt &&
-		(is_supported_simple_ddl_stmt(nodeTag(pstmt->utilityStmt)) ||
-		 (nodeTag(pstmt->utilityStmt) == T_DropStmt &&
-		  !is_object_stored_in_shards(((DropStmt*)pstmt->utilityStmt)->removeType)) ||
-		 (nodeTag(pstmt->utilityStmt) == T_CreateTableAsStmt &&
-		  ((CreateTableAsStmt*)pstmt->utilityStmt)->relkind == OBJECT_MATVIEW)))
-		accumulate_simple_ddl_sql(nodeTag(pstmt->utilityStmt), portal->sourceText, pstmt->stmt_location, pstmt->stmt_len);
 }
 
 /*

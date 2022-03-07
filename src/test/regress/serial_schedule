@@ -55,11 +55,8 @@ test: comments
 test: expressions
 test: insert
 test: insert_conflict
-test: create_function_1
 test: create_type
 test: create_table
-test: create_function_2
-test: copy
 test: copyselect
 test: copydml
 test: create_operator
@@ -69,7 +66,6 @@ test: create_view
 test: create_aggregate
 test: create_function_3
 test: create_cast
-test: constraints
 #test: triggers
 #test: inherit
 test: create_table_like
@@ -124,7 +120,6 @@ test: drop_operator
 test: password
 test: alter_generic
 test: alter_operator
-test: misc
 test: psql
 test: async
 test: dbsize
@@ -176,7 +171,6 @@ test: sequence
 test: polymorphism
 test: rowtypes
 test: returning
-# test: largeobject - oid is not supported, so skip it currently.
 test: with
 # test: xml - libxml is not built, so skip it currently.
 test: identity

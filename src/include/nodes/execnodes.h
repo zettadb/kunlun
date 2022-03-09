@@ -1306,6 +1306,17 @@ typedef struct RemoteScanState
 	Tuplestorestate *tuplestorestate;
 	bool refill_tuplestore;
 
+	/* Generated vars of scantuple, and the coresponding exprs */
+	List *scanvars;
+	List *scanexprs;
+
+	/* Origial plan->qual */
+	List *orignal_qual;
+
+	/* Quals pushdown to the storage */
+	List *quals_pushdown;
+	List *having_pushdown;
+
 } RemoteScanState;
 
 /* ----------------

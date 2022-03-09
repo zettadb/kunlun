@@ -513,7 +513,7 @@ tlist_matches_tupdesc(PlanState *ps, List *tlist, Index varno, TupleDesc tupdesc
 		if (!var || !IsA(var, Var))
 			return false;		/* tlist item not a Var */
 		/* if these Asserts fail, planner messed up */
-		Assert(var->varno == varno);
+		Assert(var->varno == varno || var->varno == REMOTE_VAR);
 		Assert(var->varlevelsup == 0);
 		if (var->varattno != attrno)
 			return false;		/* out of order */

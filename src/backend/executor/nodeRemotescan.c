@@ -50,7 +50,6 @@ static void generate_remote_sql(RemoteScanState *rss);
 static void add_qual_cols_to_src(RemoteScanState *rss, Relation rel,
 	Expr* expr, StringInfo str);
 
-
 /* ----------------------------------------------------------------
  *						Scan Support
  * ----------------------------------------------------------------
@@ -224,8 +223,7 @@ void MaterializeOtherRemoteScan(RemoteScanState *node)
 		{
 			lengths = mysql_fetch_lengths(res) ;
 			/* Extract tuple from mysql result */
-			ExecStoreRemoteTuple(node->typeInputInfo, mysql_row,
-					lengths, slot, ((RemoteScan *)(node->ss.ps.plan))->numPushdownCols);
+			ExecStoreRemoteTuple(node->typeInputInfo, mysql_row, lengths, slot);
 
 			/* Store tuple into tuplestore */
 			tuplestore_puttupleslot(node->tuplestorestate, slot);
@@ -411,7 +409,7 @@ bool var_picker(Node *node, VarPickerCtx*ctx)
 	}
 
 	Var *var = (Var *)node;
-	if (var->varno != ctx->scanrelid)
+	if (ctx->check_alien_vars && var->varno != ctx->scanrelid)
 	{
 		ctx->has_alien_cols = true;
 		return true;
@@ -460,6 +458,8 @@ void reset_var_picker_ctx(VarPickerCtx *vpc)
 	vpc->has_alien_cols = false;
 	vpc->local_evaluables = 0;
 	vpc->local_unevaluables = 0;
+	vpc->scanrelid = 0;
+	vpc->check_alien_vars = false;
 }
 
 void validate_column_reference(Var *colvar, Relation rel)
@@ -483,6 +483,175 @@ void validate_column_reference(Var *colvar, Relation rel)
 						rel->rd_att->natts)));
 }
 
+typedef struct ScanTupleGenContext
+{
+	List *exprs;
+	List *vars;
+	EState *estate;
+	TupleDesc tupledesc;
+
+	VarPickerCtx vpc;
+	RemotePrintExprContext rpec;
+}
+ScanTupleGenContext;
+
+Var* lookup_scanvar_for_expr(ScanTupleGenContext *context, Expr *expr)
+{
+	ListCell *lc1, *lc2;
+	forboth(lc1, context->exprs, lc2, context->vars)
+	{
+		if (equal(lfirst(lc1), expr))
+			return (Var*) lfirst(lc2);
+	}
+	return NULL;
+}
+
+static
+void alloc_scanvar_impl(ScanTupleGenContext *context, Expr *expr)
+{
+	char buff[12];
+	int cur_resno = list_length(context->vars) + 1;
+	snprintf(buff, sizeof(buff), "var$%d", cur_resno);
+
+	Var *var = makeVar(REMOTE_VAR,
+			cur_resno,
+			exprType((Node *)expr),
+			exprTypmod((Node *)expr),
+			exprCollation((Node *)expr),
+			0);
+
+	if (cur_resno > context->tupledesc->natts)
+		context->tupledesc = expandTupleDesc2(context->tupledesc);
+
+	TupleDescInitEntry(context->tupledesc,
+			cur_resno,
+			buff,
+			exprType((Node *)expr),
+			exprTypmod((Node *)expr),
+			0);
+
+	TupleDescInitEntryCollation(context->tupledesc,
+			cur_resno,
+			exprCollation((Node *)expr));
+
+	context->exprs = lappend(context->exprs, expr);
+	context->vars = lappend(context->vars, var);
+}
+
+/* Return true if seperate it into multi vars */
+static
+bool alloc_scanvar_for_expr(ScanTupleGenContext *context, Expr *expr)
+{
+	bool split = false;
+	if (IsA(expr, Var))
+	{
+		Var *var = (Var*)expr;
+		List *fields = NULL;
+		if (var->varattno == 0)
+		{
+			/* expand whole row var */
+			List *rtables = context->estate->es_plannedstmt->rtable;
+			RangeTblEntry *rte = list_nth(rtables, var->varno - 1);
+			expandRTE(rte, var->varno, var->varlevelsup,
+					var->location, false, NULL, &fields);
+			split = true;
+		}
+		else
+		{
+			fields = lappend(fields, var);
+		}
+
+		/* add it to scantuple */
+		ListCell *it;
+		foreach(it, fields)
+		{
+			Var *var = (Var*)lfirst(it);
+			if (!lookup_scanvar_for_expr(context, (Expr*)var))
+			{
+				alloc_scanvar_impl(context, (Expr*)var);
+			}
+		}
+
+		return split;
+	}
+	VarPickerCtx *vpc = &context->vpc;
+	reset_var_picker_ctx(vpc);
+	if (!IsA(expr, Const))
+	{
+		expression_tree_walker((Node *)expr, var_picker, vpc);
+
+		if (vpc->has_alien_cols)
+		{
+			ereport(ERROR,
+					(errcode(ERRCODE_INTERNAL_ERROR),
+					 errmsg("Kunlun-db: Columns of other tables can't be in a base table scan.")));
+		}
+	}
+
+	if (vpc->nvars == 0)
+		return split;
+
+	// convert_aggrefs_to_funcexprs(vpc->aggref_pptr_list, 0/*scanrelid*/);
+
+	bool pushable = false;
+	{
+		StringInfoData buff;
+		initStringInfo2(&buff, 256, context->estate->es_query_cxt);
+		pushable = (snprint_expr(&buff, expr, &context->rpec) >= 0);
+		pfree(buff.data);
+	}
+	/*
+	 * If the expr can be pushed down as a whole to storage node,
+	 * alloc a scantuple for it
+	 */
+	if (pushable && context->rpec.num_vals == 1)
+	{
+		if (!lookup_scanvar_for_expr(context, expr))
+		{
+			alloc_scanvar_impl(context, expr);
+		}
+	}
+	else
+	{
+		split = true;
+		/*
+		   The expr has to be computed in computing node, the columns
+		   involved has already been extracted, request their field
+		   values instead.
+		   */
+		for (int i = 0; i < vpc->nvars; i++)
+		{
+			Var *origvar = vpc->target_cols[i];
+			if (!lookup_scanvar_for_expr(context, (Expr*)origvar))
+			{
+				alloc_scanvar_for_expr(context, (Expr*)origvar);
+			}
+		} // FOR vars
+	}
+
+	return split;
+}
+
+
+static
+Node* replace_expr_with_scanvar_mutator(Node *node, ScanTupleGenContext *context)
+{
+	if (!node)
+		return node;
+
+	ListCell *lc1, *lc2;
+	forboth(lc1, context->exprs, lc2, context->vars)
+	{
+		Expr *expr = (Expr*)lfirst(lc1);
+		if (node == (Node*)expr || equal(node, expr))
+		{
+			return copyObject(lfirst(lc2));
+		}
+	}
+
+	return expression_tree_mutator(node, replace_expr_with_scanvar_mutator, context);
+}
+
 /*
  * TargetEntries with expr of T_SQLValueFunction and T_Const can be processed,
  * they don't need to be sent to remote and they can be evaluated.
@@ -493,167 +662,67 @@ ExecScanTypeFromTL(EState *estate, RemoteScanState *rss,
 {
 	Plan *plan = rss->ss.ps.plan;
 	List *targetList = plan->targetlist;
-	TupleDesc	typeInfo;
 	ListCell   *l;
 	int			len;
-	int			cur_resno = 1;
-	char *colname = NULL;
 	RemoteScan *rs = (RemoteScan *)plan;
 
 	if (skipjunk)
-	   len = ExecCleanTargetListLength(targetList);
+		len = ExecCleanTargetListLength(targetList);
 	else
 		len = ExecTargetListLength(targetList);
-	if (len < 3)
-	{
-		// Alloc enough; will append a column at the end of the func.
-		len = 3;
-	}
 
-	typeInfo = CreateTemplateTupleDesc(len, false /*hasoid*/);
+	len = (len > 3 ? len : 3);
 
-	StringInfoData colexpr_str;
-	RemotePrintExprContext rpec;
-	InitRemotePrintExprContext(&rpec, estate->es_plannedstmt->rtable);
-	rpec.ignore_param_quals = !rss->param_driven;
-	rpec.rpec_param_exec_vals = (rss->ss.ps.ps_ExprContext ?
-		rss->ss.ps.ps_ExprContext->ecxt_param_exec_vals : NULL);
-	rpec.rpec_param_list_info = estate->es_param_list_info;
+	ScanTupleGenContext context;
+	context.vars = NIL;
+	context.exprs = NIL;
+	context.estate = estate;
+	context.tupledesc = CreateTemplateTupleDesc(len, false);
+	// vpc
+	memset(&context.vpc, 0, sizeof(VarPickerCtx));
+	context.vpc.mctx = estate->es_query_cxt;
+	// rpec
+	InitRemotePrintExprContext(&context.rpec, estate->es_plannedstmt->rtable);
+	context.rpec.ignore_param_quals = !rss->param_driven;
+	context.rpec.rpec_param_exec_vals = (rss->ss.ps.ps_ExprContext ?
+			rss->ss.ps.ps_ExprContext->ecxt_param_exec_vals : NULL);
+	context.rpec.rpec_param_list_info = estate->es_param_list_info;
 
-	VarPickerCtx vpc;
-	memset(&vpc, 0, sizeof(vpc));
-	vpc.scanrelid = rs->scanrelid;
-	vpc.mctx = estate->es_query_cxt;
+	/*
+	 * Alloc scantuples for the target list.
+	 * If the target item can be pushed down as a whole, a scanvar is assigned to it;
+	 * Otherwise, split the target entry into multiple sub-expressions/columns that
+	 * can be pushed down, and assign scanvar to them.
+	 */
+	int tgtidx = 0;
 
 	foreach(l, targetList)
 	{
-		if (cur_resno > typeInfo->natts)
-			typeInfo = expandTupleDesc2(typeInfo);
-
-		Node *pnode = lfirst(l);
-		Assert(IsA(pnode, TargetEntry));
-		TargetEntry *tle = (TargetEntry *)pnode;
-
+		tgtidx++;
+		TargetEntry *tle = lfirst_node(TargetEntry, l);
 		if ((skipjunk && tle->resjunk) || !tle->expr)
 			continue;
-		/*
-		 * Try to make a column name in order to build the result's tupledesc.
-		 * */
-		if (IsA(tle->expr, Var))
+		(void) alloc_scanvar_for_expr(&context, tle->expr);
+	}
+
+	/*
+	 * Alloc scantuples for quals which cannot be pushed down
+	 */
+	StringInfoData buff;
+	initStringInfo2(&buff, 256, estate->es_query_cxt);
+	List *qual = rss->ss.ps.plan->qual;
+	List *local_quals = NIL;
+	foreach (l, qual)
+	{
+		Expr *expr = (Expr*)lfirst(l);
+		if (snprint_expr(&buff, expr, &context.rpec) >= 0)
 		{
-			/*
-			 * Fast path for most common case.
-			 * */
-			Var *colvar = (Var*)(tle->expr);
-			validate_column_reference(colvar, rel);
-
-			if (colvar->varattno == 0)
-			{
-				cur_resno = append_cols_for_whole_var(rel, &typeInfo, cur_resno);
-				continue; // whole-row var processed.
-			}
-
-			cur_resno = add_unique_col_var(rel, typeInfo, cur_resno, tle, colvar, true);
+			rss->quals_pushdown = lappend(rss->quals_pushdown, expr);
+			continue;
 		}
-		else
-		{
-			reset_var_picker_ctx(&vpc);
-
-			if (IsA(tle->expr, Const))
-				vpc.local_evaluables++;
-			else
-			{
-				expression_tree_walker((Node *)tle->expr, var_picker, &vpc);
-			}
-
-			if (vpc.has_alien_cols)
-			{
-				ereport(ERROR,
-						(errcode(ERRCODE_INTERNAL_ERROR),
-						 errmsg("Kunlun-db: Columns of other tables can't be in a base table scan.")));
-			}
-
-			if (vpc.nvars == 0)
-			{
-				continue;// no target column to add to the remote SELECT stmt.
-			}
-
-			Assert(vpc.nvars > 0);
-			/*
-			 * There can be other types of nodes, OpExpr, FuncExpr, etc, for
-			 * them we simply send the expr string to remote. So non-SQL-standard
-			 * exprs will return error from remote node.
-			 * */
-
-			/* Whether column def added to typeInfo. */
-			initStringInfo2(&colexpr_str, 256, estate->es_query_cxt);
-			int seret = snprint_expr(&colexpr_str, tle->expr, &rpec);
-
-			if (seret >= 0 && rpec.num_vals == 1)
-			{
-				/*
-				  The expression can be computed by storage shard, so simply
-				  use returned field value, i.e. replace the expr with a Var
-				  to refer to the source column.
-				  The expr can be serialized to one value, and this value has
-				  exact same type as the expr itself. Otherwise we can't do this.
-				*/
-				Var *var_expr = makeVar(rs->scanrelid, cur_resno,
-					exprType((Node *)tle->expr), exprTypmod((Node *)tle->expr),
-					exprCollation((Node *)tle->expr), 0);
-				tle->expr = (Expr*)var_expr;
-
-				if (lengthStringInfo(&colexpr_str) >= sizeof(NameData))
-				{
-					rss->long_exprs_bmp = bms_add_member(rss->long_exprs_bmp, cur_resno);
-					rss->long_exprs = lappend(rss->long_exprs, pstrdup(colexpr_str.data));
-					colexpr_str.data[sizeof(NameData) - 1] = '\0';
-				}
-				colname = donateStringInfo(&colexpr_str);
-				var_expr->varattno = cur_resno;
-				/*
-				 * Hold the target var name or expr string to generate remote sql.
-				 * */
-				if (!tle->resname)
-					tle->resname = colname;
-				TupleDescInitEntry(typeInfo,
-								   cur_resno,
-								   colname,
-								   exprType((Node *) tle->expr),
-								   exprTypmod((Node *) tle->expr),
-								   0);
-				TupleDescInitEntryCollation(typeInfo,
-											cur_resno,
-											exprCollation((Node *) tle->expr));
-				cur_resno++;
-			}
-			else
-			{
-				/*
-				  The expr has to be computed in computing node, the columns
-				  involved has already been extracted, request their field
-				  values instead.
-				*/
-				resetStringInfo(&colexpr_str);
-				for (int i = 0; i < vpc.nvars; i++)
-				{
-					if (cur_resno > typeInfo->natts)
-						typeInfo = expandTupleDesc2(typeInfo);
-					Var *origvar = vpc.target_cols[i];
-					validate_column_reference(origvar, rel);
-
-					if (unlikely(origvar->varattno == 0))
-					{
-						cur_resno = append_cols_for_whole_var(rel,
-							&typeInfo, cur_resno);
-						continue; // whole-row var processed.
-					}
-
-					cur_resno = add_unique_col_var(rel, typeInfo, cur_resno, tle,
-						origvar, false);
-				} // FOR vars
-			} // ELSE (expr can not be pushed down)
-		} // ELSE(not a simple var)
+		alloc_scanvar_for_expr(&context, expr);
+		local_quals = lappend(local_quals, copyObject(expr));
+		resetStringInfo(&buff);
 	}
 
 	/*
@@ -661,8 +730,7 @@ ExecScanTypeFromTL(EState *estate, RemoteScanState *rss,
 	 * number valid attrs. The original design of TupleDesc facility didn't
 	 * expect dynamically growth of attrs, hence the complexity.
 	 * */
-	rss->scandesc_natts_cap = typeInfo->natts;
-	if (cur_resno > 1) typeInfo->natts = cur_resno - 1;
+	rss->scandesc_natts_cap = context.tupledesc->natts;
 
 	/*
 	 * There is no target in targetlist, this can happen in this particular case:
@@ -677,38 +745,46 @@ ExecScanTypeFromTL(EState *estate, RemoteScanState *rss,
 	 * then the targetlist won't be NIL. In this case we can find the shortest
 	 * column from the target relation as target.
 	 * */
-	if (cur_resno == 1)
+	if (list_length(context.vars) == 0)
 	{
-		TupleDesc tdrel = rel->rd_att;
-		int target_attidx = -1, target_attw = 0x7fffffff;
-		Form_pg_attribute atts = tdrel->attrs;
-
-		for (int i = 0; i < tdrel->natts; i++)
-		{
-			int attw = atts[i].attlen;
-			if (attw < 0)
-				attw = atts[i].atttypmod;
-			if (attw < target_attw)
-			{
-				target_attw = attw;
-				target_attidx = i;
-			}
-		}
-
-		/* 
-		 * Append column to the target TupleDesc. All we need is one column
-		 * name, do not append to targetlist in case other parts don't expect
-		 * it to exist in this particular case.
-		 */
-		colname = atts[target_attidx].attname.data;
-		TupleDescInitEntry(typeInfo,
-						   cur_resno, // 1
-						   colname,
-						   atts[target_attidx].atttypid,
-						   atts[target_attidx].atttypmod,
-						   0);
-		typeInfo->natts = 1;
+		TupleDescInitEntry(context.tupledesc,
+				1, // 1
+				"3", // 3 produces everything!
+				23, // int4
+				-1, // N/A
+				0);
+		context.tupledesc->natts = 1;
 	}
+	else
+	{
+		context.tupledesc->natts = list_length(context.vars);
+	}
+
+
+	/*
+	 * Replace target entries and quals that cannot be pushed down with the
+	 * new scantuple var
+	 */
+	foreach(l, targetList)
+	{
+		TargetEntry *tle = lfirst_node(TargetEntry, l);
+		tle->expr = (Expr*)replace_expr_with_scanvar_mutator((Node*)tle->expr, &context);
+	}
+
+	List *local_quals_new = NIL;
+	foreach(l, local_quals)
+	{
+		Expr *expr = (Expr*)lfirst(l);
+		local_quals_new = lappend(local_quals_new,
+				replace_expr_with_scanvar_mutator((Node*)expr, &context));
+	}
+
+	/* Initalize the ExprState with rewrited quals */
+	rss->ss.ps.qual = ExecInitQual(local_quals_new, (PlanState *) &rss->ss.ps);
+
+	/* Save the remaining quals for explain */
+	rss->orignal_qual = rss->ss.ps.plan->qual;
+	rss->ss.ps.plan->qual = local_quals;
 
 	/*
 	 * generate_remote_sql() must be called before the remote result's
@@ -718,12 +794,14 @@ ExecScanTypeFromTL(EState *estate, RemoteScanState *rss,
 	 But if param driven, right here we have no param yet so can't generate a
 	 remote query string.
 	 * */
-	rss->ss.ps.scandesc = typeInfo;
+	rss->scanvars = context.vars;
+	rss->scanexprs = context.exprs;
+	rss->ss.ps.scandesc = context.tupledesc;
+
 	initStringInfo2(&rss->remote_sql, 512, estate->es_query_cxt);
 	if (!rss->param_driven) generate_remote_sql(rss);
-	typeInfo = rss->ss.ps.scandesc;
 
-	return typeInfo;
+	return rss->ss.ps.scandesc;
 }
 
 /*
@@ -1105,7 +1183,7 @@ ExecReScanRemoteScan(RemoteScanState *node)
 			if (pcc.params_changed)
 				break;
 		}
-		reuse_previous = !pcc.params_changed
+		reuse_previous = !pcc.params_changed;
 	}
 
 	/*
@@ -1236,110 +1314,57 @@ static void generate_remote_sql(RemoteScanState *rss)
 	RemoteScan *rs = (RemoteScan *)rss->ss.ps.plan;
 	List *qual = rs->plan.qual;
 	ListCell *lc;
+	
+	RemotePrintExprContext rpec;
+	InitRemotePrintExprContext(&rpec, rss->ss.ps.state->es_plannedstmt->rtable);
+	rpec.ignore_param_quals = !rss->param_driven;
+	rpec.rpec_param_exec_vals = rss->ss.ps.ps_ExprContext->ecxt_param_exec_vals;
+
 	/*
 	 * SELECT target index.
 	 * */
 	int ntgts = 0;
-	int slen = 0;
-	TupleDesc tupdesc = rss->ss.ps.scandesc;
-	ListCell *next_long_expr = NULL;
-
-	for (int i = 0; i < tupdesc->natts; i++)
+	/* SELECT scan exprs */
+	List *scanexprs = rss->scanexprs;
+	foreach (lc, scanexprs)
 	{
-		Form_pg_attribute attr = tupdesc->attrs+i;
-
-		/*
-		 * The remote target column expression to append to the remote SELECT
-		 * stmt. Normally it's a column name, but may also be an expression
-		 * containing one or more column names.
-		 * */
-		const char *colname = attr->attname.data;
-
-		if (!colname || !colname[0])
+		Expr *expr = (Expr*)lfirst(lc);
+		if (ntgts == 0)
+			appendStringInfo(str, "select ");
+		else
+			appendStringInfo(str, ", ");
+		if (snprint_expr(str, expr, &rpec) <= 0)
+		{
 			ereport(ERROR,
 					(errcode(ERRCODE_INTERNAL_ERROR),
-					 errmsg("Kunlun-db: Invalid target column name(NULL).")));
-
-		if (bms_is_member(i+1, rss->long_exprs_bmp))
-		{
-			next_long_expr = (next_long_expr ? lnext(next_long_expr) : list_head(rss->long_exprs));
-			if (next_long_expr == NULL)
-			{
-				ereport(ERROR,
-						(errcode(ERRCODE_INTERNAL_ERROR),
-						 errmsg("Kunlun-db: Invalid target column long name(NULL).")));
-			}
-
-			colname = lfirst(next_long_expr);
+					 errmsg("Kunlun-db: The generated scan expression cannot be pushed down")));
 		}
-
-		if (i == 0)
-			appendStringInfo(str, "select %s", colname);
-		else
-			appendStringInfo(str, ", %s", colname);
+		++ ntgts;
+	}
+	if (list_length(scanexprs) == 0)
+	{
+		appendStringInfo(str, "select 3 ");
 	}
 
 	const char* table_qname =
 		make_qualified_name(rel->rd_rel->relnamespace,
 			rel->rd_rel->relname.data, NULL);
 
-	StringInfoData str_qual;
-	initStringInfo(&str_qual);
-	appendStringInfo(&str_qual, " from %s ", table_qname);
+	appendStringInfo(str, " from %s ", table_qname);
 	
 	ntgts = 0;
-	List *rtable = rss->ss.ps.state->es_plannedstmt->rtable;
-	List *local_quals = NULL;
-	RemotePrintExprContext rpec;
-	InitRemotePrintExprContext(&rpec, rtable);
-	rpec.ignore_param_quals = !rss->param_driven;
-	rpec.rpec_param_exec_vals = rss->ss.ps.ps_ExprContext->ecxt_param_exec_vals;
-
-	foreach(lc, qual)
+	foreach(lc, rss->quals_pushdown)
 	{
-		slen = str_qual.len;
-		/*
-		 * These qual items are implicitly AND'ed.
-		 * */
 		if (ntgts > 0)
-			appendStringInfoString(&str_qual, " AND ");
+			appendStringInfoString(str, " AND ");
 		else
-			appendStringInfoString(&str_qual, " where ");
-		int seret = snprint_expr(&str_qual, (Expr*)lfirst(lc), &rpec);
-		if (seret >= 0)
-		{
-			ntgts++;
-		}
-		else
-		{
-			/*
-			 * If we can't serialize the qual item, leave it to computing node
-			 * and do the filtering locally. And we also need to associate the
-			 * vars used in quals to the remote SELECT result, i.e. target-list
-			 * and quals use different Var objects to refer to the same column.
-			 * */
-			Expr *expr_copied = copyObject(lfirst(lc));
-			truncateStringInfo(&str_qual, slen);
-			add_qual_cols_to_src(rss, rel, scanrelid, expr_copied, str);
-			local_quals = lappend(local_quals, expr_copied);
-		}
+			appendStringInfoString(str, " where ");
+		snprint_expr(str, (Expr*)lfirst(lc), &rpec);
+		++ ntgts;
 	}
-
-	appendBinaryStringInfo(str, str_qual.data, str_qual.len);
-	pfree(str_qual.data);
 
 	if (rss->check_exists)
 		appendStringInfoString(str, " limit 1");
-
-	/*
-	 * The qual is added to the remote sql in so we will only get rows matching
-	 * the qual from remote node, no extra checks needed for ExecScan().
-	 * Except there may be qual items that can't be serialized, which can't be
-	 * sent to remote storage node, they have to be used to filter remote
-	 * returned rows.
-	 * */
-	rss->ss.ps.qual =
-		ExecInitQual(local_quals, (PlanState *) &rss->ss.ps);
 }
 
 /*

@@ -156,6 +156,7 @@ typedef struct Expr
 #define    INNER_VAR		65000	/* reference to inner subplan */
 #define    OUTER_VAR		65001	/* reference to outer subplan */
 #define    INDEX_VAR		65002	/* reference to index column */
+#define    REMOTE_VAR       65003   /* reference to remote scan tuple */
 
 #define IS_SPECIAL_VARNO(varno)		((varno) >= INNER_VAR)
 

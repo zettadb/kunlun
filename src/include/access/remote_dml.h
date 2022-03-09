@@ -58,6 +58,8 @@ typedef struct VarPickerCtx
 	 * Range table index of target relation to scan.
 	 * */
 	int scanrelid;
+
+	bool check_alien_vars;
 } VarPickerCtx;
 
 extern int remote_param_fetch_threshold;

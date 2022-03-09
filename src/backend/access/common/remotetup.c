@@ -309,6 +309,12 @@ bool end_remote_insert_stmt(struct RemotetupCacheState *s, bool end_of_stmt)
 	if (lengthStringInfo(self) == 0)
 		return false;
 
+	if (s->pasi->rss_owner)
+	{
+		MaterializeOtherRemoteScan(s->pasi->rss_owner);
+		Assert(s->pasi->rss_owner == NULL);
+	}
+
 	// Each tuple ends with 2 chars ',' and ' ', which is not needed for the
 	// last tuple of an insert stmt.
 	shrinkStringInfo(self, 2);

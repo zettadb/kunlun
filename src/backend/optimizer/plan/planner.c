@@ -264,10 +264,6 @@ planner(Query *parse, int cursorOptions, ParamListInfo boundParams)
 	else
 		result = standard_planner(parse, cursorOptions, boundParams);
 
-	/*
-	  dzw: 
-	*/
-	materialize_conflicting_remotescans(result);
 	return result;
 }
 

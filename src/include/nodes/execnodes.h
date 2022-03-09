@@ -1279,24 +1279,32 @@ typedef struct RemoteScanState
 	bool fetches_remote_data;
 
 	/* when this is in a correlated subquery, do we use dependent outer param
-	values to fetch each portion of qualified rows on each rescan, or do we fetch
-	all rows that match quals containing no dependent params all at once.
-	It's generally faster and less costly to do it the 2nd way, unless there
-	are too many qualified rows.
-	*/
+	   values to fetch each portion of qualified rows on each rescan, or do we fetch
+	   all rows that match quals containing no dependent params all at once.
+	   It's generally faster and less costly to do it the 2nd way, unless there
+	   are too many qualified rows.
+	   */
 	bool		param_driven;
 
 	/*
-	  results of this remote scan is used for EXISTS() checks thus only 1 row
-	  needs to be returned.
-	*/
+	   results of this remote scan is used for EXISTS() checks thus only 1 row
+	   needs to be returned.
+	   */
 	bool		check_exists;
 
 	/*
-	  need to rewind, most likely its resultset is used as inner node result
-	  of a join. If so store result rather than use result.
-	*/
+	   need to rewind, most likely its resultset is used as inner node result
+	   of a join. If so store result rather than use result.
+	   */
 	bool will_rewind;
+
+	/*
+	 * When multiple RemoteScan compete for the same mysql connection, the tuples of
+	 * the RemoteJoin that has occupied the connection is automatically materialized
+	 * in this tuple store.
+	 */
+	Tuplestorestate *tuplestorestate;
+	bool refill_tuplestore;
 
 } RemoteScanState;
 

@@ -43,6 +43,7 @@
 #include "catalog/pg_type.h"
 #include "catalog/heap.h"
 #include "parser/parsetree.h"
+#include "miscadmin.h"
 
 static TupleTableSlot *RemoteNext(RemoteScanState *node);
 static void generate_remote_sql(RemoteScanState *rss);
@@ -70,31 +71,81 @@ RemoteNext(RemoteScanState *node)
 	 * get information from the estate and scan state
 	 */
 	slot = node->ss.ss_ScanTupleSlot;
-	
+
+	/* Prepare tuplestore if rescan will be called */
+	if (node->will_rewind && !node->tuplestorestate)
+	{
+		node->tuplestorestate = tuplestore_begin_heap(true, false, work_mem);
+		tuplestore_set_eflags(node->tuplestorestate, EXEC_FLAG_REWIND | EXEC_FLAG_MARK);
+		/*
+		 * Allocate a second read pointer to serve as the mark.
+		 * MaterializeOtherRemoteScan() need this to set the right position
+		 */
+		int         ptrno PG_USED_FOR_ASSERTS_ONLY;
+		ptrno = tuplestore_alloc_read_pointer(node->tuplestorestate, EXEC_FLAG_REWIND | EXEC_FLAG_MARK);
+		Assert(ptrno == 1);
+	}
+
+	/*
+	 * fetch from the tuplestore, this happens when:
+	 * (1) The used connection is taken away be other remote scan, and the tuples
+	 *  that has not been read from the connection was materialized into the tuplestore
+	 *  by other remote scan.
+	 * (2) Current remote scan will be re-scanned by upper node, so materialize the
+	 *  tuple into tuplestore to reduce network access
+	 */
+	if (node->tuplestorestate &&
+			!tuplestore_ateof(node->tuplestorestate))
+	{
+		if (tuplestore_gettupleslot(node->tuplestorestate, true, false, slot))
+			return slot;
+	}
+
+	/*
+	 * The connection is already occupied by other remote scans, all tuples must be
+	 * stored in the tuplestore, and we have reached the EOF
+	 */
+	if (node->asi->rss_owner != node)
+	{
+		ExecClearTuple(slot);
+		return slot;
+	}
+
 	if (!node->asi->mysql_res && node->asi->result_pending)
 	{
 		/*
-		  This happens after a ReScan which really regenerated&resent queries
-		  because of param changes.
-		*/
-		node->asi->rss_owner = node;
+		   This happens after a ReScan which really regenerated&resent queries
+		   because of param changes.
+		   */
 		send_multi_stmts_to_multi();
 	}
 
-	Assert(node->asi->mysql_res);
-
-	if (node->asi->rss_owner != NULL && node->asi->rss_owner != node)
-		ereport(ERROR,
-				(errcode(ERRCODE_INTERNAL_ERROR),
-				 errmsg("Kunlun-db: Internal error: communication channel in use.")));
+	/* Reach the EOF of tuples from connection */
+	if (!node->asi->mysql_res)
+	{
+		ExecClearTuple(slot);
+		return slot;
+	}
 
 	MYSQL_ROW mysql_row = mysql_fetch_row(node->asi->mysql_res);
 	unsigned long *lengths = ((mysql_row && node->asi->mysql_res) ?
-		mysql_fetch_lengths(node->asi->mysql_res) : NULL);
+			mysql_fetch_lengths(node->asi->mysql_res) : NULL);
 
 	if (mysql_row)
+	{
 		ExecStoreRemoteTuple(node->typeInputInfo, mysql_row,	/* tuple to store */
-					         lengths, slot);	/* slot to store in */
+				lengths, slot);	/* slot to store in */
+		/*
+		 * Append a copy of the returned tuple to tuplestore.  NOTE: because
+		 * the tuplestore is certainly in EOF state, its read position will
+		 * move forward over the added tuple.  This is what we want.
+		 */
+		if (node->will_rewind)
+		{
+			Assert (node->tuplestorestate);
+			tuplestore_puttupleslot(node->tuplestorestate, slot);
+		}
+	}
 	else
 	{
 		check_mysql_fetch_row_status(node->asi);
@@ -107,10 +158,104 @@ RemoteNext(RemoteScanState *node)
 		 * can't work on next stmt to fetch data from next table of the same
 		 * shard.
 		 * */
-		if (!node->will_rewind)
-			free_mysql_result(node->asi);
+		free_mysql_result(node->asi);
+		node->asi->rss_owner = NULL;
 	}
 	return slot;
+}
+
+static
+void DiscardPreviouseScan(RemoteScanState *node)
+{
+	Assert(node->asi->rss_owner == node);
+	if (!node->asi->mysql_res && node->asi->result_pending)
+		send_multi_stmts_to_multi();
+
+	if (node->asi->mysql_res)
+		free_mysql_result(node->asi);
+	if (node->tuplestorestate)
+		tuplestore_end(node->tuplestorestate);
+	node->asi->rss_owner = NULL;
+}
+
+void MaterializeOtherRemoteScan(RemoteScanState *node)
+{
+	Assert(node->asi->rss_owner == node);
+	MemoryContext saved = MemoryContextSwitchTo(node->ss.ps.state->es_query_cxt);
+	bool reset_position = false;
+	if (!node->tuplestorestate)
+	{
+		node->tuplestorestate = tuplestore_begin_heap(true, false, work_mem);
+		tuplestore_set_eflags(node->tuplestorestate, EXEC_FLAG_REWIND | EXEC_FLAG_MARK);
+		/* Allocate a second read pointer to serve as the mark in case need it */
+		int         ptrno PG_USED_FOR_ASSERTS_ONLY;
+		ptrno = tuplestore_alloc_read_pointer(node->tuplestorestate, EXEC_FLAG_REWIND | EXEC_FLAG_MARK);
+		Assert(ptrno == 1);
+	}
+	else
+	{
+		/*
+		 * Remember current position:
+		 *  copy the active read pointer to the mark.
+		 */
+		reset_position = true;
+		tuplestore_copy_read_pointer(node->tuplestorestate, 0, 1);
+	}
+
+	// TupleTableSlot *slot = node->ss.ss_ScanTupleSlot;
+
+	/* Make new slot for materialize, maybe save it for reuse */
+	TupleTableSlot *slot =  ExecAllocTableSlot(&node->ss.ps.state->es_tupleTable,
+			node->ss.ps.scandesc);
+
+	if (!node->asi->mysql_res && node->asi->result_pending)
+	{
+		send_multi_stmts_to_multi();
+	}
+	Assert(node->asi->mysql_res);
+
+	MYSQL_RES *res = node->asi->mysql_res;
+	MYSQL_ROW mysql_row;
+	unsigned long *lengths;
+	while (res)
+	{
+		mysql_row = mysql_fetch_row(res);
+		if (mysql_row)
+		{
+			lengths = mysql_fetch_lengths(res) ;
+			/* Extract tuple from mysql result */
+			ExecStoreRemoteTuple(node->typeInputInfo, mysql_row,
+					lengths, slot, ((RemoteScan *)(node->ss.ps.plan))->numPushdownCols);
+
+			/* Store tuple into tuplestore */
+			tuplestore_puttupleslot(node->tuplestorestate, slot);
+		}
+		else
+		{
+			check_mysql_fetch_row_status(node->asi);
+			free_mysql_result(node->asi);
+			ExecClearTuple(slot);
+			break;
+		}
+	}
+
+	/* Give up the occupation of the connection. */
+	node->asi->rss_owner = NULL;
+
+	/* Set to the right position in the tuplestore */
+	if (reset_position)
+	{
+		/* copy the mark to the active read pointer.*/
+		tuplestore_copy_read_pointer(node->tuplestorestate, 1, 0);
+	}
+	else
+	{
+		/* set read pointer to the begining */
+		tuplestore_rescan(node->tuplestorestate);
+	}
+
+	/* restore saved memory context */
+	MemoryContextSwitchTo(saved);
 }
 
 /*
@@ -148,26 +293,48 @@ ExecRemoteScan(PlanState *pstate)
 				 errmsg("Kunlun-db: Internal error: Communication channel has been released.")));
 	}
 
-	if (!node->asi->mysql_res && !node->asi->result_pending)
+	if (!node->refill_tuplestore && node->tuplestorestate)
+	{
+		/* We have materielized the tuple into tuplestore. */
+	}
+	else
 	{
 		/*
-		  1st row is to be returned from this remote table.
-		*/
-		size_t stmtlen = lengthStringInfo(&node->remote_sql);
-	    append_async_stmt(node->asi, pstrdup(node->remote_sql.data),
-	        stmtlen, CMD_SELECT, true, SQLCOM_SELECT);
-		int rc = work_on_next_stmt(node->asi);
-	    if (rc == 1)
+		 * If another RemoteScan has occupied the connection,
+		 * we need to materialize its tuple for him before we use this connection.
+		 */
+		if (node->asi->rss_owner && node->asi->rss_owner != pstate)
 		{
-			send_stmt_to_multi_start(node->asi, 1);
+			MaterializeOtherRemoteScan(node->asi->rss_owner);
+			Assert(node->asi->rss_owner == NULL);
 		}
-		else if (rc == 0)
-			return NULL; // no more results
-		else if (rc < 0)
-			ereport(ERROR,
-					(errcode(ERRCODE_INTERNAL_ERROR),
-					 errmsg("Kunlun-db: Internal error: mysql result has not been consumed yet.")));
+
+		node->refill_tuplestore = false;
+
+		if (!node->asi->mysql_res && !node->asi->result_pending)
+		{
+			/*
+			   1st row is to be returned from this remote table.
+			   */
+			size_t stmtlen = lengthStringInfo(&node->remote_sql);
+			append_async_stmt(node->asi, pstrdup(node->remote_sql.data),
+					stmtlen, CMD_SELECT, true, SQLCOM_SELECT);
+			int rc = work_on_next_stmt(node->asi);
+			if (rc == 1)
+			{
+				send_stmt_to_multi_start(node->asi, 1);
+				/* Mark that we we have occupied that connection */
+				node->asi->rss_owner = node;
+			}
+			else if (rc == 0)
+				return NULL; // no more results
+			else if (rc < 0)
+				ereport(ERROR,
+						(errcode(ERRCODE_INTERNAL_ERROR),
+						 errmsg("Kunlun-db: Internal error: mysql result has not been consumed yet.")));
+		}
 	}
+
 	return ExecScan(&node->ss,
 					(ExecScanAccessMtd) RemoteNext,
 					(ExecScanRecheckMtd) RemoteRecheck);
@@ -808,17 +975,20 @@ ExecInitRemoteScan(RemoteScan *node, EState *estate, int eflags)
 
 	scanstate->asi = GetAsyncStmtInfo(rel->rd_rel->relshardid);
 
+end:
 	/*
 	  build_subplan() doesn't add EXEC_FLAG_REWIND for subplans having params,
 	  don't modify the generic logic there. for remote scans as long as the
 	  node is not top level, assume rewinding possible.
 	*/
-	if (eflags & EXEC_FLAG_REWIND)
+	if (eflags & EXEC_FLAG_REWIND || ((Plan*)node)->extParam)	
 		scanstate->will_rewind = true;
 	else
 		scanstate->will_rewind = false;
 
-end:
+	scanstate->refill_tuplestore = false;
+	scanstate->tuplestorestate = NULL;
+
 	return scanstate;
 }
 
@@ -867,6 +1037,13 @@ ExecEndRemoteScan(RemoteScanState *node)
 	ExecClearTuple(node->ss.ps.ps_ResultTupleSlot);
 	ExecClearTuple(node->ss.ss_ScanTupleSlot);
 end:
+
+	if (node->tuplestorestate)
+	{
+		tuplestore_end(node->tuplestorestate);
+		node->tuplestorestate = NULL;
+	}
+
 	/*
 	 * close the heap relation.
 	 */
@@ -881,10 +1058,12 @@ void release_shard_conn(RemoteScanState *node)
 		return;
 	}
 
-	free_mysql_result(node->asi);
-	cleanup_asi_work_queue(node->asi);
-	if (node->asi->rss_owner == node)
+	if (node->asi->rss_owner == node || node->asi->rss_owner == NULL)
 	{
+		if (!node->asi->mysql_res && node->asi->result_pending)
+			send_multi_stmts_to_multi();
+		free_mysql_result(node->asi);
+		cleanup_asi_work_queue(node->asi);
 		node->asi->rss_owner = NULL;
 		// must hold asi, it can be used in a rescan.
 		//node->asi = NULL;
@@ -906,90 +1085,89 @@ void
 ExecReScanRemoteScan(RemoteScanState *node)
 {
 	/*
-	  This node is inner rel of a join, it's rescanned multiple times,
-	  once for each row in outer node's result set.
+	   This node is inner rel of a join, it's rescanned multiple times,
+	   once for each row in outer node's result set.
 
-	  If no changes for dependent params or no dependent params at all, simply
-	  rewind by seeking to start of result set.
-	*/
+	   If no changes for dependent params or no dependent params at all, simply
+	   rewind by seeking to start of result set.
+	   */
 
-	if (!node->asi->mysql_res)
+	bool reuse_previous = bms_is_empty(node->ss.ps.chgParam) || !node->param_driven;
+	if (!reuse_previous)
 	{
-		if (node->asi->result_pending)
+		FindParamChangeContext pcc;
+		pcc.chgParams = node->ss.ps.chgParam;
+		pcc.params_changed = false;
+		ListCell *lc;
+		foreach(lc, node->ss.ps.plan->qual)
 		{
-			Assert(bms_is_empty(node->ss.ps.chgParam));
-			//send_multi_stmts_to_multi(); done in RemoteNext().
+			expression_tree_walker((Node*)lfirst(lc), dependent_params_changed, &pcc);
+			if (pcc.params_changed)
+				break;
+		}
+		reuse_previous = !pcc.params_changed
+	}
+
+	/*
+	 * We need regenerate the tuples when:
+	 * (1) parameters changed
+	 * (2) some tuples are missing
+	 * (3) tuplestore not initialized
+	 */
+	bool regenerate = !reuse_previous || !node->will_rewind || !node->tuplestorestate;
+
+	/*
+	 * Still occupy the connection.
+	 * if the tuple cannot be reused, or some tuples are missing, we need to regenerate it
+	 */
+	if (node->asi->rss_owner == node)
+	{
+		/* Do not miss anything */
+		if (reuse_previous &&
+				(!node->asi->mysql_res && node->asi->result_pending))
+		{
+			regenerate = false;
+		}
+
+		if (regenerate)
+		{
+			/* Discard the unread tuples which still in the connection if we need regenerate it. */
+			DiscardPreviouseScan(node);
 		}
 		else
 		{
-			/*
-			  Can't generate remote sql or send to remote for param-driven
-			  nodes, hence no mysql result to use here. Simply generate&send
-			  result. This happens at 1st rescan call after this node is
-			  created.
-			*/
-			if (node->param_driven) goto genres;
-			else goto end;
+			/* there is no need to materialize all the unread data now, we do this lazily.
+			 * see RemoteScanNext for details
+			 */
 		}
 	}
 
-	/*
-	  It's expensive to rescan remotely, try best to avoid unneeded rescans.
-	  node->ss.ps.chgParam here is already well set by executor in
-	  UpdateChangedParamSet() to indicate
-	  changed params dependent by this node.
-	*/
-	if (bms_is_empty(node->ss.ps.chgParam) || !node->param_driven)
+	/* Check if the intial value of will_rewind is correct */
+	if (!node->will_rewind)
 	{
-		mysql_data_seek(node->asi->mysql_res, 0);
-		goto end;
+		node->will_rewind = true;
+		elog(WARNING, "Rescan is called unexpectedly, so reset node->will_rewind to TRUE");
 	}
 
-	/*
-	  Check whether the param driven RemoteScanState node's qual really has
-	  some changed params, only refresh result set if so.
-	*/
-	FindParamChangeContext pcc;
-	pcc.chgParams = node->ss.ps.chgParam;
-	pcc.params_changed = false;
-	ListCell *lc;
-	foreach(lc, node->ss.ps.plan->qual)
+	if (!regenerate)
 	{
-		expression_tree_walker((Node*)lfirst(lc), dependent_params_changed, &pcc);
-		if (pcc.params_changed)
-			break;
+		/* Use the tuplestore to rescan */
+		if (node->tuplestorestate)
+			tuplestore_rescan(node->tuplestorestate);
 	}
-	if (!pcc.params_changed)
+	else
 	{
-		mysql_data_seek(node->asi->mysql_res, 0);
-		goto end;
+		if (node->tuplestorestate)
+		{
+			node->refill_tuplestore = true;
+			tuplestore_end(node->tuplestorestate);
+		}
+
+		initStringInfo2(&node->remote_sql, 512, node->ss.ps.state->es_query_cxt);
+		generate_remote_sql(node);
+
 	}
 
-	// dependent params have changed, need to regenerate & resend new query
-	// string and get new inner result.
-
-	if (node->asi->mysql_res)
-		free_mysql_result(node->asi);
-	Assert(node->asi->mysql_res == NULL);
-genres:
-	initStringInfo2(&node->remote_sql, 512, node->ss.ps.state->es_query_cxt);
-
-	generate_remote_sql(node);
-	size_t stmtlen = lengthStringInfo(&node->remote_sql);
-	append_async_stmt(node->asi, pstrdup(node->remote_sql.data),
-					  stmtlen, CMD_SELECT, true, SQLCOM_SELECT);
-
-	int rc = work_on_next_stmt(node->asi);
-	if (rc == 1)
-	{
-		send_stmt_to_multi_start(node->asi, 1);
-	}
-	else if (rc < 0)
-		ereport(ERROR,
-				(errcode(ERRCODE_INTERNAL_ERROR),
-				 errmsg("Kunlun-db: Internal error: mysql result has not been consumed yet.")));
-
-end:
 	ExecScanReScan((ScanState *) node);
 }
 
@@ -1140,9 +1318,10 @@ static void generate_remote_sql(RemoteScanState *rss)
 			 * vars used in quals to the remote SELECT result, i.e. target-list
 			 * and quals use different Var objects to refer to the same column.
 			 * */
+			Expr *expr_copied = copyObject(lfirst(lc));
 			truncateStringInfo(&str_qual, slen);
-			add_qual_cols_to_src(rss, rel, (Expr*)lfirst(lc), str);
-			local_quals = lappend(local_quals, lfirst(lc));
+			add_qual_cols_to_src(rss, rel, scanrelid, expr_copied, str);
+			local_quals = lappend(local_quals, expr_copied);
 		}
 	}
 

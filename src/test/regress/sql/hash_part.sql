@@ -5,13 +5,17 @@
 -- Use hand-rolled hash functions and operator classes to get predictable
 -- result on different matchines.  See the definitions of
 -- part_part_test_int4_ops and part_test_text_ops in insert.sql.
-
+--DDL_STATEMENT_BEGIN--
 drop table if exists mchash;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE mchash (a int, b text, c jsonb)
   PARTITION BY HASH (a part_test_int4_ops, b part_test_text_ops);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE mchash1
   PARTITION OF mchash FOR VALUES WITH (MODULUS 4, REMAINDER 0);
-
+--DDL_STATEMENT_END--
 -- invalid OID, no such table
 SELECT satisfies_hash_partition(0, 4, 0, NULL);
 
@@ -57,10 +61,13 @@ SELECT satisfies_hash_partition('mchash'::regclass, 2, 1,
 								variadic array[1,2]::int[]);
 
 -- multiple partitioning columns of the same type
+--DDL_STATEMENT_BEGIN--
 drop table if exists mcinthash;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE mcinthash (a int, b int, c jsonb)
   PARTITION BY HASH (a part_test_int4_ops, b part_test_int4_ops);
-
+--DDL_STATEMENT_END--
 -- now variadic should work, should be false
 SELECT satisfies_hash_partition('mcinthash'::regclass, 4, 0,
 								variadic array[0, 0]);
@@ -78,5 +85,9 @@ SELECT satisfies_hash_partition('mcinthash'::regclass, 4, 0,
 								variadic array[now(), now()]);
 
 -- cleanup
+--DDL_STATEMENT_BEGIN--
 DROP TABLE mchash;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TABLE mcinthash;
+--DDL_STATEMENT_END--

@@ -8,9 +8,12 @@
 
 
 -- create a simple table that we'll use in the tests
+--DDL_STATEMENT_BEGIN--
 drop table if not exists pxtest1;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE pxtest1 (foobar VARCHAR(10));
-
+--DDL_STATEMENT_END--
 INSERT INTO pxtest1 VALUES ('aaa');
 
 
@@ -87,11 +90,18 @@ ROLLBACK PREPARED 'foo4';
 SELECT gid FROM pg_prepared_xacts;
 
 -- Clean up
+--DDL_STATEMENT_BEGIN--
 DROP TABLE pxtest1;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE pxtest2 (a int);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE pxtest3(fff int);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE pxtest4 (a int);
-
+--DDL_STATEMENT_END--
 -- Test subtransactions
 BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;
   INSERT INTO pxtest2 VALUES (1);
@@ -146,6 +156,12 @@ SELECT * FROM pxtest3;
 SELECT gid FROM pg_prepared_xacts;
 
 -- Clean up
+--DDL_STATEMENT_BEGIN--
 DROP TABLE pxtest2;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TABLE pxtest3;  -- will still be there if prepared xacts are disabled
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TABLE pxtest4;
+--DDL_STATEMENT_END--

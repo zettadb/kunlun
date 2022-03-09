@@ -4,20 +4,25 @@
 --
 -- do this to produce pg style null field ordering to match expected results, at the expense of disabled ORDER BY push-down.
 set honor_nulls_dir =true;
+--DDL_STATEMENT_BEGIN--
 DROP TABLE if exists J1_TBL;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE J1_TBL (
   i integer,
   j integer,
   t varchar(50)
 );
-
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TABLE if exists J2_TBL;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE J2_TBL (
   i integer,
   k integer
 );
-
+--DDL_STATEMENT_END--
 
 INSERT INTO J1_TBL VALUES (1, 4, 'one');
 INSERT INTO J1_TBL VALUES (2, 3, 'two');
@@ -223,14 +228,24 @@ where exists(select * from tenk1 b
 --
 -- Multiway full join
 --
-
+--DDL_STATEMENT_BEGIN--
 DROP TABLE if exists t1;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TABLE if exists t2;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TABLE if exists t3;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE t1 (name varchar(50), n INTEGER);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE t2 (name varchar(50), n INTEGER);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE t3 (name varchar(50), n INTEGER);
-
+--DDL_STATEMENT_END--
 INSERT INTO t1 VALUES ( 'bb', 11 );
 INSERT INTO t2 VALUES ( 'bb', 12 );
 INSERT INTO t2 VALUES ( 'cc', 22 );
@@ -315,15 +330,17 @@ NATURAL FULL JOIN
 
 
 -- Test for propagation of nullability constraints into sub-joins
-
+--DDL_STATEMENT_BEGIN--
 create temp table x (x1 int, x2 int);
+--DDL_STATEMENT_END--
 insert into x values (1,11);
 insert into x values (2,22);
 insert into x values (3,null);
 insert into x values (4,44);
 insert into x values (5,null);
-
+--DDL_STATEMENT_BEGIN--
 create temp table y (y1 int, y2 int);
+--DDL_STATEMENT_END--
 insert into y values (1,111);
 insert into y values (2,222);
 insert into y values (3,333);
@@ -362,9 +379,12 @@ select count(*) from tenk1 x where
 ---  x.unique1 = 0 and
 ---  x.unique1 in (select aa.f1 from int4_tbl aa,float8_tbl bb where aa.f1=bb.f1);
 ---rollback;
-
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE a (aa TEXT);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE b (aa text, bb TEXT);
+--DDL_STATEMENT_END--
 
 INSERT INTO a(aa) VALUES('aaa');
 INSERT INTO a(aa) VALUES('aaaa');
@@ -469,20 +489,33 @@ select count(*) from
 --
 -- Clean up
 --
-
+--DDL_STATEMENT_BEGIN--
 DROP TABLE t1;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TABLE t2;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TABLE t3;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TABLE J1_TBL;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TABLE J2_TBL;
+--DDL_STATEMENT_END--
 
 -- Both DELETE and UPDATE allow the specification of additional tables
 -- to "join" against to determine which rows should be modified.
-
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE t1 (a int, b int);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE t2 (a int, b int);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE t3 (x int, y int);
+--DDL_STATEMENT_END--
 
 INSERT INTO t1 VALUES (5, 10);
 INSERT INTO t1 VALUES (15, 20);
@@ -502,9 +535,9 @@ DELETE FROM t3 USING t3 t3_other WHERE t3.x = t3_other.x AND t3.y = t3_other.y;
 SELECT * FROM t3;
 
 -- Test join against inheritance tree
-
+--DDL_STATEMENT_BEGIN--
 create temp table t2a () inherits (t2);
-
+--DDL_STATEMENT_END--
 insert into t2a values (200, 2001);
 
 select * from t1 left join t2 on (t1.a = t2.a);
@@ -516,12 +549,14 @@ select t1.x from t1 join t3 on (t1.a = t3.x);
 --
 -- regression test for 8.1 merge right join bug
 --
-
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE tt1 ( tt1_id int4, joincol int4 );
+--DDL_STATEMENT_END--
 INSERT INTO tt1 VALUES (1, 11);
 INSERT INTO tt1 VALUES (2, NULL);
-
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE tt2 ( tt2_id int4, joincol int4 );
+--DDL_STATEMENT_END--
 INSERT INTO tt2 VALUES (21, 11);
 INSERT INTO tt2 VALUES (22, 11);
 
@@ -556,12 +591,16 @@ reset enable_mergejoin;
 --
 -- regression test for 8.2 bug with improper re-ordering of left joins
 --
-
+--DDL_STATEMENT_BEGIN--
 create temp table tt3(f1 int, f2 varchar(50));
+--DDL_STATEMENT_END--
 insert into tt3 select x, repeat('xyzzy', 100) from generate_series(1,10000) x;
+--DDL_STATEMENT_BEGIN--
 create index tt3i on tt3(f1);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table tt4(f1 int);
+--DDL_STATEMENT_END--
 insert into tt4 values (0),(1),(9999);
 
 SELECT a.f1
@@ -576,9 +615,9 @@ WHERE d.f1 IS NULL;
 --
 -- regression test for proper handling of outer joins within antijoins
 --
-
+--DDL_STATEMENT_BEGIN--
 create temp table tt4x(c1 int, c2 int, c3 int);
-
+--DDL_STATEMENT_END--
 explain (costs off)
 select * from tt4x t1
 where not exists (
@@ -593,10 +632,12 @@ where not exists (
 --
 -- regression test for problems of the sort depicted in bug #3494
 --
-
+--DDL_STATEMENT_BEGIN--
 create temp table tt5(f1 int, f2 int);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table tt6(f1 int, f2 int);
-
+--DDL_STATEMENT_END--
 insert into tt5 values(1, 10);
 insert into tt5 values(1, 11);
 
@@ -609,10 +650,12 @@ select * from tt5,tt6 where tt5.f1 = tt6.f1 and tt5.f1 = tt5.f2 - tt6.f2;
 --
 -- regression test for problems of the sort depicted in bug #3588
 --
-
+--DDL_STATEMENT_BEGIN--
 create temp table xx (pkxx int);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table yy (pkyy int, pkxx int);
-
+--DDL_STATEMENT_END--
 insert into xx values (1);
 insert into xx values (2);
 insert into xx values (3);
@@ -632,10 +675,15 @@ from yy
 -- regression test for improper pushing of constants across outer-join clauses
 -- (as seen in early 8.2.x releases)
 --
-
+--DDL_STATEMENT_BEGIN--
 create temp table zt1 (f1 int primary key);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table zt2 (f2 int primary key);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table zt3 (f3 int primary key);
+--DDL_STATEMENT_END--
 insert into zt1 values(53);
 insert into zt2 values(53);
 
@@ -643,9 +691,9 @@ select * from
   zt2 left join zt3 on (f2 = f3)
       left join zt1 on (f3 = f1)
 where f2 = 53;
-
+--DDL_STATEMENT_BEGIN--
 create temp view zv1 as select *,'dummy'::varchar(50) AS junk from zt1;
-
+--DDL_STATEMENT_END--
 select * from
   zt2 left join zt3 on (f2 = f3)
       left join zv1 on (f3 = f1)
@@ -674,9 +722,12 @@ execute foo(false);
 --
 -- test for sane behavior with noncanonical merge clauses, per bug #4926
 --
+--DDL_STATEMENT_BEGIN--
 create temp table a (i integer);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table b (x integer, y integer);
-
+--DDL_STATEMENT_END--
 begin;
 
 set enable_mergejoin = 1;
@@ -733,24 +784,35 @@ group by t1.q2 order by 1;
 --
 -- test incorrect failure to NULL pulled-up subexpressions
 --
+--DDL_STATEMENT_BEGIN--
 drop table a;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table a (
      code char not null,
      constraint a_pk primary key (code)
 );
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table b;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table b (
      a char not null,
      num integer not null,
      constraint b_pk primary key (a, num)
 );
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table c;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table c (
      name char not null,
      a char,
      constraint c_pk primary key (name)
 );
-
+--DDL_STATEMENT_END--
 begin;
 insert into a (code) values ('p');
 insert into a (code) values ('q');
@@ -833,24 +895,28 @@ SELECT qq, unique1
 --
 -- nested nestloops can require nested PlaceHolderVars
 --
-
+--DDL_STATEMENT_BEGIN--
 create temp table nt1 (
   id int primary key,
   a1 boolean,
   a2 boolean
 );
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table nt2 (
   id int primary key,
   nt1_id int,
   b1 boolean,
   b2 boolean
 );
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table nt3 (
   id int primary key,
   nt2_id int,
   c1 boolean
 );
-
+--DDL_STATEMENT_END--
 insert into nt1 values (1,true,true);
 insert into nt1 values (2,true,false);
 insert into nt1 values (3,false,false);
@@ -1363,14 +1429,30 @@ reset enable_nestloop;
 --
 -- test join removal
 --
+--DDL_STATEMENT_BEGIN--
 drop table if exists a;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE a (id int PRIMARY KEY, b_id int);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists b;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE b (id int PRIMARY KEY, c_id int);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists c;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE c (id int PRIMARY KEY);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists d;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE d (a int, b int);
+--DDL_STATEMENT_END--
 
 begin;
 INSERT INTO a VALUES (0, 0), (1, NULL);
@@ -1432,9 +1514,12 @@ select 1 from (select a.id FROM a left join b on a.b_id = b.id) q,
 			  lateral generate_series(1, q.id) gs(i) where q.id = gs.i;
 
 rollback;
-
+--DDL_STATEMENT_BEGIN--
 create temp table parent (k int primary key, pd int);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table child (k int unique, cd int);
+--DDL_STATEMENT_END--
 insert into parent values (1, 10), (2, 20), (3, 30);
 insert into child values (1, 100), (4, 400);
 
@@ -1470,11 +1555,18 @@ select p.* from
   where p.k = 1 and p.k = 2;
 
 -- bug 5255: this is not optimizable by join removal
+--DDL_STATEMENT_BEGIN--
 drop table if exists a;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE a (id int PRIMARY KEY);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists b;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE b (id int PRIMARY KEY, a_id int);
-
+--DDL_STATEMENT_END--
 begin;
 
 INSERT INTO a VALUES (0), (1);
@@ -1486,8 +1578,9 @@ SELECT b.* FROM b LEFT JOIN a ON (b.a_id = a.id) WHERE (a.id IS NULL OR a.id > 0
 rollback;
 
 -- another join removal bug: this is not optimizable, either
+--DDL_STATEMENT_BEGIN--
 create temp table innertab (id int8 primary key, dat1 int8);
-
+--DDL_STATEMENT_END--
 begin;
 
 insert into innertab values(123, 42);
@@ -1502,9 +1595,9 @@ SELECT * FROM
 rollback;
 
 -- another join removal bug: we must clean up correctly when removing a PHV
-
+--DDL_STATEMENT_BEGIN--
 create temp table uniquetbl (f1 varchar(50) unique);
-
+--DDL_STATEMENT_END--
 begin;
 
 explain (costs off)
@@ -1679,8 +1772,10 @@ select v.* from
 select v.* from
   (int8_tbl x left join (select q1,(select coalesce(q2,0)) q2 from int8_tbl) y on x.q2 = y.q1)
   left join int4_tbl z on z.f1 = x.q2,
-  lateral (select x.q1,y.q1 union all select x.q2,y.q2) v(vx,vy) order by 1,2;
+  lateral (select x.q1,y.q1 union all select x.q2,y.q2) v(vx,vy) order by 1,2;\
+--DDL_STATEMENT_BEGIN--
 create temp table dual();
+--DDL_STATEMENT_END--
 insert into dual default values;
 select v.* from
   (int8_tbl x left join (select q1,(select coalesce(q2,0)) q2 from int8_tbl) y on x.q2 = y.q1)
@@ -1840,12 +1935,22 @@ select 1 from tenk1 a, lateral (select max(a.unique1) from int4_tbl b) ss;
 -- test LATERAL reference propagation down a multi-level inheritance hierarchy
 -- produced for a multi-level partitioned table hierarchy.
 --
+--DDL_STATEMENT_BEGIN--
 create table join_pt1 (a int, b int, c varchar) partition by range(a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table join_pt1p1 partition of join_pt1 for values from (0) to (100) partition by range(b);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table join_pt1p2 partition of join_pt1 for values from (100) to (200);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table join_pt1p1p1 partition of join_pt1p1 for values from (0) to (100);
+--DDL_STATEMENT_END--
 insert into join_pt1 values (1, 1, 'x'), (101, 101, 'y');
+--DDL_STATEMENT_BEGIN--
 create table join_ut1 (a int, b int, c varchar);
+--DDL_STATEMENT_END--
 insert into join_ut1 values (101, 101, 'y'), (2, 2, 'z');
 explain (verbose, costs off)
 select t1.b, ss.phv from join_ut1 t1 left join lateral
@@ -1856,15 +1961,21 @@ select t1.b, ss.phv from join_ut1 t1 left join lateral
               (select t2.a as t2a, t3.a t3a, least(t1.a, t2.a, t3.a) phv
 					  from join_pt1 t2 join join_ut1 t3 on t2.a = t3.b) ss
               on t1.a = ss.t2a order by t1.a;
-
+--DDL_STATEMENT_BEGIN--
 drop table join_pt1;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table join_ut1;
+--DDL_STATEMENT_END--
 --
 -- test that foreign key join estimation performs sanely for outer joins
 --
-
+--DDL_STATEMENT_BEGIN--
 create temp table fkest (a int, b int, c int unique, primary key(a,b));
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table fkest1 (a int, b int, primary key(a,b));
+--DDL_STATEMENT_END--
 
 begin;
 
@@ -1887,10 +1998,15 @@ rollback;
 --
 -- test planner's ability to mark joins as unique
 --
-
+--DDL_STATEMENT_BEGIN--
 create table j1 (id int primary key);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table j2 (id int primary key);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table j3 (id int);
+--DDL_STATEMENT_END--
 
 insert into j1 values(1),(2),(3);
 insert into j2 values(1),(2),(3);
@@ -1938,16 +2054,26 @@ inner join (select distinct id from j3) j3 on j1.id = j3.id;
 explain (verbose, costs off)
 select * from j1
 inner join (select id from j3 group by id) j3 on j1.id = j3.id;
-
+--DDL_STATEMENT_BEGIN--
 drop table j1;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table j2;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table j3;
+--DDL_STATEMENT_END--
 
 -- test more complex permutations of unique joins
-
+--DDL_STATEMENT_BEGIN--
 create table j1 (id1 int, id2 int, primary key(id1,id2));
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table j2 (id1 int, id2 int, primary key(id1,id2));
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table j3 (id1 int, id2 int, primary key(id1,id2));
+--DDL_STATEMENT_END--
 
 insert into j1 values(1,1),(1,2);
 insert into j2 values(1,1);
@@ -1996,10 +2122,15 @@ where j1.id1 % 1000 = 1 and j2.id1 % 1000 = 1;
 reset enable_nestloop;
 reset enable_hashjoin;
 reset enable_sort;
-
+--DDL_STATEMENT_BEGIN--
 drop table j1;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table j2;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table j3;
+--DDL_STATEMENT_END--
 
 -- check that semijoin inner is not seen as unique for a portion of the outerrel
 explain (verbose, costs off)
@@ -2015,15 +2146,23 @@ where exists (select 1 from tenk1 t3
 -- Make a simple relation with well distributed keys and correctly
 -- estimated size.
 set enable_nestloop to 0; -- this must be set, otherwise, it will be very very slow.
+--DDL_STATEMENT_BEGIN--
 drop table if exists simple;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table simple(id integer, info varchar(100));
+--DDL_STATEMENT_END--
 insert into simple select generate_series(1, 20000) AS id, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 --alter table simple set (parallel_workers = 2);
 
 -- Make a relation whose size we will under-estimate.  We want stats
 -- to say 1000 rows, but actually there are 20,000 rows.
+--DDL_STATEMENT_BEGIN--
 drop table if exists bigger_than_it_looks;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table bigger_than_it_looks(id integer, info varchar(100));
+--DDL_STATEMENT_END--
 insert into bigger_than_it_looks select generate_series(1, 20000) as id, 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 --alter table bigger_than_it_looks set (autovacuum_enabled = 'false');
 --alter table bigger_than_it_looks set (parallel_workers = 2);
@@ -2032,8 +2171,12 @@ update pg_class set reltuples = 1000 where relname = 'bigger_than_it_looks';
 -- Make a relation whose size we underestimate and that also has a
 -- kind of skew that breaks our batching scheme.  We want stats to say
 -- 2 rows, but actually there are 20,000 rows with the same key.
+--DDL_STATEMENT_BEGIN--
 drop table if exists extremely_skewed;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table extremely_skewed (id int, t varchar(50));
+--DDL_STATEMENT_END--
 --alter table extremely_skewed set (autovacuum_enabled = 'false');
 -- alter table extremely_skewed set (parallel_workers = 2);
 insert into extremely_skewed
@@ -2044,8 +2187,12 @@ update pg_class
   where relname = 'extremely_skewed';
 
 -- Make a relation with a couple of enormous tuples.
+--DDL_STATEMENT_BEGIN--
 drop table if exists wide;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table wide (id integer, t text);
+--DDL_STATEMENT_END--
 insert into wide select generate_series(1, 2) as id, rpad('', 320000, 'x') as t;
 --alter table wide set (parallel_workers = 2);
 
@@ -2059,6 +2206,7 @@ set local enable_hashjoin = on;
 -- general we can't make assertions about how many batches (or
 -- buckets) will be required because it can vary, but we can in some
 -- special cases and we can check for growth.
+--DDL_STATEMENT_BEGIN--
 create or replace function find_hash(node json)
 returns json language plpgsql
 as
@@ -2081,6 +2229,8 @@ begin
   end if;
 end;
 $$;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create or replace function hash_join_batches(query varchar(50))
 returns table (original int, final int) language plpgsql
 as
@@ -2099,6 +2249,7 @@ begin
   end loop;
 end;
 $$;
+--DDL_STATEMENT_END--
 
 -- The "optimal" case: the hash table fits in memory; we plan for 1
 -- batch, we stick to that number, and peak memory usage stays within
@@ -2309,12 +2460,21 @@ rollback to settings;
 -- that we can check that instrumentation comes back correctly.
 commit;
 
+--DDL_STATEMENT_BEGIN--
 drop table if exists join_foo;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table join_foo(id integer, t varchar(50));
+--DDL_STATEMENT_END--
 insert into join_foo select generate_series(1, 3) as id, 'xxxxx'::varchar(50) as t;
 --alter table join_foo set (parallel_workers = 0);
+
+--DDL_STATEMENT_BEGIN--
 drop table if exists join_bar;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table join_bar(id integer, t varchar(50));
+--DDL_STATEMENT_END--
 insert into join_bar select generate_series(1, 10000) as id, 'xxxxx'::varchar(50) as t;
 --alter table join_bar set (parallel_workers = 2);
 

@@ -112,9 +112,9 @@ TABLE int8_tbl;
 --
 -- Test ORDER BY options
 --
-
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE foo (f1 int);
-
+--DDL_STATEMENT_END--
 INSERT INTO foo VALUES (42),(3),(10),(7),(null),(null),(1);
 
 SELECT * FROM foo ORDER BY f1;
@@ -124,24 +124,31 @@ SELECT * FROM foo ORDER BY f1 DESC;
 SELECT * FROM foo ORDER BY f1 DESC NULLS LAST;
 
 -- check if indexscans do the right things
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX fooi ON foo (f1);
+--DDL_STATEMENT_END--
 SET enable_sort = false;
 
 SELECT * FROM foo ORDER BY f1;
 SELECT * FROM foo ORDER BY f1 NULLS FIRST;
 SELECT * FROM foo ORDER BY f1 DESC;
 SELECT * FROM foo ORDER BY f1 DESC NULLS LAST;
-
+--DDL_STATEMENT_BEGIN--
 DROP INDEX fooi;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX fooi ON foo (f1 DESC);
-
+--DDL_STATEMENT_END--
 SELECT * FROM foo ORDER BY f1;
 SELECT * FROM foo ORDER BY f1 NULLS FIRST;
 SELECT * FROM foo ORDER BY f1 DESC;
 SELECT * FROM foo ORDER BY f1 DESC NULLS LAST;
-
+--DDL_STATEMENT_BEGIN--
 DROP INDEX fooi;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX fooi ON foo (f1 DESC NULLS LAST);
+--DDL_STATEMENT_END--
 
 SELECT * FROM foo ORDER BY f1;
 SELECT * FROM foo ORDER BY f1 NULLS FIRST;
@@ -156,14 +163,17 @@ SELECT * FROM foo ORDER BY f1 DESC NULLS LAST;
 SELECT 1 AS x ORDER BY x;
 
 -- But ORDER BY on a set-valued expression does
+
+--DDL_STATEMENT_BEGIN--
 create function sillysrf(int) returns setof int as
   'values (1),(10),(2),($1)' language sql immutable;
+--DDL_STATEMENT_END--
 
 select sillysrf(42);
 select sillysrf(-1) order by 1;
-
+--DDL_STATEMENT_BEGIN--
 drop function sillysrf(int);
-
+--DDL_STATEMENT_END--
 -- X = X isn't a no-op, it's effectively X IS NOT NULL assuming = is strict
 -- (see bug #5084)
 select * from (values (2),(null),(1)) v(k) where k = k order by k;
@@ -171,8 +181,14 @@ select * from (values (2),(null),(1)) v(k) where k = k;
 
 -- Test partitioned tables with no partitions, which should be handled the
 -- same as the non-inheritance case when expanding its RTE.
+--DDL_STATEMENT_BEGIN--
 create table list_parted_tbl (a int,b int) partition by list (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table list_parted_tbl1 partition of list_parted_tbl
   for values in (1) partition by list(b);
+--DDL_STATEMENT_END--
 explain (costs off) select * from list_parted_tbl;
+--DDL_STATEMENT_BEGIN--
 drop table list_parted_tbl;
+--DDL_STATEMENT_END--

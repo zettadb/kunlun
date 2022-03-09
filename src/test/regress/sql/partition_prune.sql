@@ -1,14 +1,30 @@
 --
 -- Test partitioning planner code
 --
+--DDL_STATEMENT_BEGIN--
 drop table if exists lp;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table lp (a char) partition by list (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table lp_default partition of lp default;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table lp_ef partition of lp for values in ('e', 'f');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table lp_ad partition of lp for values in ('a', 'd');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table lp_bc partition of lp for values in ('b', 'c');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table lp_g partition of lp for values in ('g');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table lp_null partition of lp for values in (null);
+--DDL_STATEMENT_END--
 explain (costs off) select * from lp;
 explain (costs off) select * from lp where a > 'a' and a < 'd';
 explain (costs off) select * from lp where a > 'a' and a <= 'd';
@@ -23,42 +39,93 @@ explain (costs off) select * from lp where a <> 'a' and a <> 'd';
 explain (costs off) select * from lp where a not in ('a', 'd');
 
 -- collation matches the partitioning collation, pruning works
+--DDL_STATEMENT_BEGIN--
 drop table if exists coll_pruning;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table coll_pruning (a text collate "C") partition by list (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table coll_pruning_a partition of coll_pruning for values in ('a');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table coll_pruning_b partition of coll_pruning for values in ('b');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table coll_pruning_def partition of coll_pruning default;
+--DDL_STATEMENT_END--
 explain (costs off) select * from coll_pruning where a collate "C" = 'a' collate "C";
 -- collation doesn't match the partitioning collation, no pruning occurs
 explain (costs off) select * from coll_pruning where a collate "POSIX" = 'a' collate "POSIX";
-
+--DDL_STATEMENT_BEGIN--
 drop table if exists rlp;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table rlp (a int, b varchar) partition by range (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table rlp_default partition of rlp default partition by list (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table rlp_default_default partition of rlp_default default;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table rlp_default_10 partition of rlp_default for values in (10);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table rlp_default_30 partition of rlp_default for values in (30);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table rlp_default_null partition of rlp_default for values in (null);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table rlp1 partition of rlp for values from (minvalue) to (1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table rlp2 partition of rlp for values from (1) to (10);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists rlp3;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table rlp3 (b varchar, a int) partition by list (b varchar_ops);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table rlp3_default partition of rlp3 default;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table rlp3abcd partition of rlp3 for values in ('ab', 'cd');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table rlp3efgh partition of rlp3 for values in ('ef', 'gh');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table rlp3nullxy partition of rlp3 for values in (null, 'xy');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 alter table rlp attach partition rlp3 for values from (15) to (20);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table rlp4 partition of rlp for values from (20) to (30) partition by range (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table rlp4_default partition of rlp4 default;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table rlp4_1 partition of rlp4 for values from (20) to (25);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table rlp4_2 partition of rlp4 for values from (25) to (29);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table rlp5 partition of rlp for values from (31) to (maxvalue) partition by range (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table rlp5_default partition of rlp5 default;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table rlp5_1 partition of rlp5 for values from (31) to (40);
-
+--DDL_STATEMENT_END--
 explain (costs off) select * from rlp where a < 1;
 explain (costs off) select * from rlp where 1 > a;	/* commuted */
 explain (costs off) select * from rlp where a <= 1;
@@ -96,17 +163,39 @@ explain (costs off) select * from rlp where a = 1 and a = 3;	/* empty */
 explain (costs off) select * from rlp where (a = 1 and a = 3) or (a > 1 and a = 15);
 
 -- multi-column keys
+--DDL_STATEMENT_BEGIN--
 drop table if exists mc3p;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table mc3p (a int, b int, c int) partition by range (a, abs(b), c);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table mc3p_default partition of mc3p default;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table mc3p0 partition of mc3p for values from (minvalue, minvalue, minvalue) to (1, 1, 1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table mc3p1 partition of mc3p for values from (1, 1, 1) to (10, 5, 10);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table mc3p2 partition of mc3p for values from (10, 5, 10) to (10, 10, 10);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table mc3p3 partition of mc3p for values from (10, 10, 10) to (10, 10, 20);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table mc3p4 partition of mc3p for values from (10, 10, 20) to (10, maxvalue, maxvalue);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table mc3p5 partition of mc3p for values from (11, 1, 1) to (20, 10, 10);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table mc3p6 partition of mc3p for values from (20, 10, 10) to (20, 20, 20);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table mc3p7 partition of mc3p for values from (20, 20, 20) to (maxvalue, maxvalue, maxvalue);
+--DDL_STATEMENT_END--
 
 explain (costs off) select * from mc3p where a = 1;
 explain (costs off) select * from mc3p where a = 1 and abs(b) < 1;
@@ -129,16 +218,33 @@ explain (costs off) select * from mc3p where (a = 1 and abs(b) = 1) or (a = 10 a
 explain (costs off) select * from mc3p where (a = 1 and abs(b) = 1) or (a = 10 and abs(b) = 9);
 
 -- a simpler multi-column keys case
+--DDL_STATEMENT_BEGIN--
 drop table if exists mc2p;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table mc2p (a int, b int) partition by range (a, b);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table mc2p_default partition of mc2p default;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table mc2p0 partition of mc2p for values from (minvalue, minvalue) to (1, minvalue);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table mc2p1 partition of mc2p for values from (1, minvalue) to (1, 1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table mc2p2 partition of mc2p for values from (1, 1) to (2, minvalue);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table mc2p3 partition of mc2p for values from (2, minvalue) to (2, 1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table mc2p4 partition of mc2p for values from (2, 1) to (2, maxvalue);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table mc2p5 partition of mc2p for values from (2, maxvalue) to (maxvalue, maxvalue);
-
+--DDL_STATEMENT_END--
 explain (costs off) select * from mc2p where a < 2;
 explain (costs off) select * from mc2p where a = 2 and b < 1;
 explain (costs off) select * from mc2p where a > 1;
@@ -152,12 +258,21 @@ explain (costs off) select * from mc2p where a is null;
 explain (costs off) select * from mc2p where b is null;
 
 -- boolean partitioning
+--DDL_STATEMENT_BEGIN--
 drop table if exists boolpart;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table boolpart (a bool) partition by list (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table boolpart_default partition of boolpart default;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table boolpart_t partition of boolpart for values in ('true');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table boolpart_f partition of boolpart for values in ('false');
-
+--DDL_STATEMENT_END--
 explain (costs off) select * from boolpart where a in (true, false);
 explain (costs off) select * from boolpart where a = false;
 explain (costs off) select * from boolpart where not a = false;
@@ -167,36 +282,67 @@ explain (costs off) select * from boolpart where a is not true and a is not fals
 explain (costs off) select * from boolpart where a is unknown;
 explain (costs off) select * from boolpart where a is not unknown;
 
+--DDL_STATEMENT_BEGIN--
 drop table if exists boolrangep;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table boolrangep (a bool, b bool, c int) partition by range (a,b,c);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table boolrangep_tf partition of boolrangep for values from ('true', 'false', 0) to ('true', 'false', 100);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table boolrangep_ft partition of boolrangep for values from ('false', 'true', 0) to ('false', 'true', 100);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table boolrangep_ff1 partition of boolrangep for values from ('false', 'false', 0) to ('false', 'false', 50);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table boolrangep_ff2 partition of boolrangep for values from ('false', 'false', 50) to ('false', 'false', 100);
+--DDL_STATEMENT_END--
 
 -- try a more complex case that's been known to trip up pruning in the past
 explain (costs off)  select * from boolrangep where not a and not b and c = 25;
 
 -- test scalar-to-array operators
+--DDL_STATEMENT_BEGIN--
 drop table if exists coercepart;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table coercepart (a varchar) partition by list (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table coercepart_ab partition of coercepart for values in ('ab');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table coercepart_bc partition of coercepart for values in ('bc');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table coercepart_cd partition of coercepart for values in ('cd');
-
+--DDL_STATEMENT_END--
 explain (costs off) select * from coercepart where a in ('ab', to_char(125, '999'));
 explain (costs off) select * from coercepart where a ~ any ('{ab}');
 explain (costs off) select * from coercepart where a !~ all ('{ab}');
 explain (costs off) select * from coercepart where a ~ any ('{ab,bc}');
 explain (costs off) select * from coercepart where a !~ all ('{ab,bc}');
-
+--DDL_STATEMENT_BEGIN--
 drop table coercepart;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TABLE if exists part;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE part (a INT, b INT) PARTITION BY LIST (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE part_p1 PARTITION OF part FOR VALUES IN (-2,-1,0,1,2);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE part_p2 PARTITION OF part DEFAULT PARTITION BY RANGE(a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE part_p2_p1 PARTITION OF part_p2 DEFAULT;
+--DDL_STATEMENT_END--
 INSERT INTO part VALUES (-1,-1), (1,1), (2,NULL), (NULL,-2),(NULL,NULL);
 EXPLAIN (COSTS OFF) SELECT tableoid::regclass as part, a, b FROM part WHERE a IS NULL ORDER BY 1, 2, 3;
 
@@ -222,12 +368,21 @@ explain (costs off) select * from mc2p t1, lateral (select count(*) from mc3p t2
 --
 
 -- doesn't prune range partitions
+--DDL_STATEMENT_BEGIN--
 drop table if exists rp;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table rp (a int) partition by range (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table rp0 partition of rp for values from (minvalue) to (1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table rp1 partition of rp for values from (1) to (2);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table rp2 partition of rp for values from (2) to (maxvalue);
-
+--DDL_STATEMENT_END--
 explain (costs off) select * from rp where a <> 1;
 explain (costs off) select * from rp where a <> 1 and a <> 2;
 
@@ -246,12 +401,21 @@ explain (costs off) select * from rlp where a = 15 and b <> 'ab' and b <> 'cd' a
 --
 -- different collations for different keys with same expression
 --
+--DDL_STATEMENT_BEGIN--
 drop table if exists coll_pruning_multi;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table coll_pruning_multi (a text) partition by range (substr(a, 1) collate "POSIX", substr(a, 1) collate "C");
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table coll_pruning_multi1 partition of coll_pruning_multi for values from ('a', 'a') to ('a', 'e');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table coll_pruning_multi2 partition of coll_pruning_multi for values from ('a', 'e') to ('a', 'z');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table coll_pruning_multi3 partition of coll_pruning_multi for values from ('b', 'a') to ('b', 'e');
-
+--DDL_STATEMENT_END--
 -- no pruning, because no value for the leading key
 explain (costs off) select * from coll_pruning_multi where substr(a, 1) = 'e' collate "C";
 
@@ -264,44 +428,91 @@ explain (costs off) select * from coll_pruning_multi where substr(a, 1) = 'e' co
 --
 -- LIKE operators don't prune
 --
+--DDL_STATEMENT_BEGIN--
 drop table if exists like_op_noprune;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table like_op_noprune (a text) partition by list (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table like_op_noprune1 partition of like_op_noprune for values in ('ABC');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table like_op_noprune2 partition of like_op_noprune for values in ('BCD');
+--DDL_STATEMENT_END--
 explain (costs off) select * from like_op_noprune where a like '%BC';
 
 --
 -- tests wherein clause value requires a cross-type comparison function
 --
+--DDL_STATEMENT_BEGIN--
 drop table if exists lparted_by_int2;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table lparted_by_int2 (a smallint) partition by list (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table lparted_by_int2_1 partition of lparted_by_int2 for values in (1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table lparted_by_int2_16384 partition of lparted_by_int2 for values in (16384);
+--DDL_STATEMENT_END--
 explain (costs off) select * from lparted_by_int2 where a = 100000000000000;
-
+--DDL_STATEMENT_BEGIN--
 drop table if exists rparted_by_int2;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table rparted_by_int2 (a smallint) partition by range (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table rparted_by_int2_1 partition of rparted_by_int2 for values from (1) to (10);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table rparted_by_int2_16384 partition of rparted_by_int2 for values from (10) to (16384);
+--DDL_STATEMENT_END--
 -- all partitions pruned
 explain (costs off) select * from rparted_by_int2 where a > 100000000000000;
+--DDL_STATEMENT_BEGIN--
 create table rparted_by_int2_maxvalue partition of rparted_by_int2 for values from (16384) to (maxvalue);
+--DDL_STATEMENT_END--
 -- all partitions but rparted_by_int2_maxvalue pruned
 explain (costs off) select * from rparted_by_int2 where a > 100000000000000;
-
+--DDL_STATEMENT_BEGIN--
 drop table lp;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table coll_pruning;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table rlp;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table mc3p;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table mc2p;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table boolpart;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table boolrangep;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table rp;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table coll_pruning_multi;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop tabne like_op_noprune;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table lparted_by_int2;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table rparted_by_int2;
-
+--DDL_STATEMENT_END--
 --
 -- Test Partition pruning for HASH partitioning
 --
@@ -310,13 +521,24 @@ drop table rparted_by_int2;
 -- part_part_test_int4_ops and part_test_text_ops in insert.sql.
 --
 
+--DDL_STATEMENT_BEGIN--
 drop table if exists hp;
-create table hp (a int, b text) partition by hash (a part_test_int4_ops, b part_test_text_ops);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
+create table hp (a int,b text) partition by hash (a part_test_int4_ops, b part_test_text_ops);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table hp0 partition of hp for values with (modulus 4, remainder 0);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table hp3 partition of hp for values with (modulus 4, remainder 3);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table hp1 partition of hp for values with (modulus 4, remainder 1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table hp2 partition of hp for values with (modulus 4, remainder 2);
-
+--DDL_STATEMENT_END--
 insert into hp values (null, null);
 insert into hp values (1, null);
 insert into hp values (1, 'xxx');
@@ -343,27 +565,54 @@ explain (costs off) select * from hp where a is null and b = 'xxx';
 explain (costs off) select * from hp where a = 2 and b = 'xxx';
 explain (costs off) select * from hp where a = 1 and b = 'abcde';
 explain (costs off) select * from hp where (a = 1 and b = 'abcde') or (a = 2 and b = 'xxx') or (a is null and b is null);
-
+--DDL_STATEMENT_BEGIN--
 drop table hp;
-
+--DDL_STATEMENT_END--
 --
 -- Test runtime partition pruning
 --
+--DDL_STATEMENT_BEGIN--
 drop table if exists ab;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table ab (a int not null, b int not null) partition by list (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table ab_a2 partition of ab for values in(2) partition by list (b);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table ab_a2_b1 partition of ab_a2 for values in (1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table ab_a2_b2 partition of ab_a2 for values in (2);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table ab_a2_b3 partition of ab_a2 for values in (3);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table ab_a1 partition of ab for values in(1) partition by list (b);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table ab_a1_b1 partition of ab_a1 for values in (1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table ab_a1_b2 partition of ab_a1 for values in (2);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table ab_a1_b3 partition of ab_a1 for values in (3);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table ab_a3 partition of ab for values in(3) partition by list (b);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table ab_a3_b1 partition of ab_a3 for values in (1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table ab_a3_b2 partition of ab_a3 for values in (2);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table ab_a3_b3 partition of ab_a3 for values in (3);
-
+--DDL_STATEMENT_END--
 -- Disallow index only scans as concurrent transactions may stop visibility
 -- bits being set causing "Heap Fetches" to be unstable in the EXPLAIN ANALYZE
 -- output.
@@ -426,22 +675,34 @@ execute ab_q3 (1, 8);
 explain (costs off, summary off, timing off) execute ab_q3 (2, 2);
 
 -- Test a backwards Append scan
+--DDL_STATEMENT_BEGIN--
 drop table if exists list_part;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table list_part (a int) partition by list (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table list_part1 partition of list_part for values in (1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table list_part2 partition of list_part for values in (2);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table list_part3 partition of list_part for values in (3);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table list_part4 partition of list_part for values in (4);
-
+--DDL_STATEMENT_END--
 insert into list_part select generate_series(1,4);
-
+--DDL_STATEMENT_BEGIN--
 drop table list_part;
-
+--DDL_STATEMENT_END--
 -- Parallel append
 
 -- Suppress the number of loops each parallel node runs for.  This is because
 -- more than one worker may run the same parallel node if timing conditions
 -- are just right, which destabilizes the test.
+--DDL_STATEMENT_BEGIN--
 create function explain_parallel_append(text) returns setof text
 language plpgsql as
 $$
@@ -459,7 +720,7 @@ begin
     end loop;
 end;
 $$;
-
+--DDL_STATEMENT_END--
 prepare ab_q4 (int, int) as
 select avg(a) from ab where a between $1 and $2 and b < 4;
 
@@ -501,24 +762,44 @@ select explain_parallel_append('execute ab_q5 (33, 44, 55)');
 select explain_parallel_append('select count(*) from ab where (a = (select 1) or a = (select 3)) and b = 2');
 
 -- Test pruning during parallel nested loop query
+--DDL_STATEMENT_BEGIN--
 drop table if exists rparted_by_int2;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table lprt_a (a int not null);
+--DDL_STATEMENT_END--
 -- Insert some values we won't find in ab
 insert into lprt_a select 0 from generate_series(1,100);
 
 -- and insert some values that we should find.
 insert into lprt_a values(1),(1);
-
+--DDL_STATEMENT_BEGIN--
 create index ab_a2_b1_a_idx on ab_a2_b1 (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create index ab_a2_b2_a_idx on ab_a2_b2 (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create index ab_a2_b3_a_idx on ab_a2_b3 (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create index ab_a1_b1_a_idx on ab_a1_b1 (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create index ab_a1_b2_a_idx on ab_a1_b2 (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create index ab_a1_b3_a_idx on ab_a1_b3 (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create index ab_a3_b1_a_idx on ab_a3_b1 (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create index ab_a3_b2_a_idx on ab_a3_b2 (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create index ab_a3_b3_a_idx on ab_a3_b3 (a);
-
+--DDL_STATEMENT_END--
 set enable_hashjoin = 0;
 set enable_mergejoin = 0;
 
@@ -567,32 +848,64 @@ insert into ab values (1,2);
 explain (costs off, summary off, timing off)
 update ab_a1 set b = 3 from ab where ab.a = 1 and ab.a = ab_a1.a;
 table ab;
-
+--DDL_STATEMENT_BEGIN--
 drop table ab;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table lprt_a;
-
+--DDL_STATEMENT_END--
 -- Join
+--DDL_STATEMENT_BEGIN--
 drop table if exists tbl1;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table tbl1(col1 int);
+--DDL_STATEMENT_END--
 insert into tbl1 values (501), (505);
 
 -- Basic table
+--DDL_STATEMENT_BEGIN--
 drop table if exists tprt;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table tprt (col1 int) partition by range (col1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table tprt_1 partition of tprt for values from (1) to (501);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table tprt_2 partition of tprt for values from (501) to (1001);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table tprt_3 partition of tprt for values from (1001) to (2001);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table tprt_4 partition of tprt for values from (2001) to (3001);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table tprt_5 partition of tprt for values from (3001) to (4001);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table tprt_6 partition of tprt for values from (4001) to (5001);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create index tprt1_idx on tprt_1 (col1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create index tprt2_idx on tprt_2 (col1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create index tprt3_idx on tprt_3 (col1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create index tprt4_idx on tprt_4 (col1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create index tprt5_idx on tprt_5 (col1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create index tprt6_idx on tprt_6 (col1);
-
+--DDL_STATEMENT_END--
 insert into tprt values (10), (20), (501), (502), (505), (1001), (4500);
 
 set enable_hashjoin = off;
@@ -647,24 +960,46 @@ select * from tbl1 join tprt on tbl1.col1 = tprt.col1;
 select tbl1.col1, tprt.col1 from tbl1
 inner join tprt on tbl1.col1 = tprt.col1
 order by tbl1.col1, tprt.col1;
-
+--DDL_STATEMENT_BEGIN--
 drop table tbl1;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table tprt;
-
+--DDL_STATEMENT_END--
 -- Test with columns defined in varying orders between each level
+--DDL_STATEMENT_BEGIN--
 drop table if exists part_abc;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists part_bac;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists part_cab;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists part_abc_p1;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table part_abc (a int not null, b int not null, c int not null) partition by list (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table part_bac (b int not null, a int not null, c int not null) partition by list (b);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table part_cab (c int not null, a int not null, b int not null) partition by list (c);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table part_abc_p1 (a int not null, b int not null, c int not null);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 alter table part_abc attach partition part_bac for values in(1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 alter table part_bac attach partition part_cab for values in(2);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 alter table part_cab attach partition part_abc_p1 for values in(3);
-
+--DDL_STATEMENT_END--
 prepare part_abc_q1 (int, int, int) as
 select * from part_abc where a = $1 and b = $2 and c = $3;
 
@@ -680,17 +1015,29 @@ execute part_abc_q1 (1, 2, 3);
 explain (costs off, summary off, timing off) execute part_abc_q1 (1, 2, 3);
 
 deallocate part_abc_q1;
-
+--DDL_STATEMENT_BEGIN--
 drop table part_abc;
-
+--DDL_STATEMENT_END--
 -- Ensure that an Append node properly handles a sub-partitioned table
 -- matching without any of its leaf partitions matching the clause.
+--DDL_STATEMENT_BEGIN--
 drop table if exists listp;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table listp (a int, b int) partition by list (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table listp_1 partition of listp for values in(1) partition by list (b);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table listp_1_1 partition of listp_1 for values in(1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table listp_2 partition of listp for values in(2) partition by list (b);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table listp_2_1 partition of listp_2 for values in(2);
+--DDL_STATEMENT_END--
 select * from listp where b = 1;
 
 -- Ensure that an Append node properly can handle selection of all first level
@@ -733,21 +1080,30 @@ explain (costs off, summary off, timing off)  execute q1 (1,2,2,1);
 -- Ensure Params that evaluate to NULL properly prune away all partitions
 explain (costs off, summary off, timing off)
 select * from listp where a = (select null::int);
-
+--DDL_STATEMENT_BEGIN--
 drop table listp;
-
+--DDL_STATEMENT_END--
 --
 -- check that stable query clauses are only used in run-time pruning
 --
+--DDL_STATEMENT_BEGIN--
 drop table if exists stable_qual_pruning;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table stable_qual_pruning (a timestamp) partition by range (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table stable_qual_pruning1 partition of stable_qual_pruning
   for values from ('2000-01-01') to ('2000-02-01');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table stable_qual_pruning2 partition of stable_qual_pruning
   for values from ('2000-02-01') to ('2000-03-01');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table stable_qual_pruning3 partition of stable_qual_pruning
   for values from ('3000-02-01') to ('3000-03-01');
-
+--DDL_STATEMENT_END--
 -- comparison against a stable value requires run-time pruning
 explain (costs off, summary off, timing off)
 select * from stable_qual_pruning where a < localtimestamp;
@@ -772,22 +1128,32 @@ select * from stable_qual_pruning
 explain (costs off, summary off, timing off)
 select * from stable_qual_pruning
   where a = any(array['2000-02-01', '2010-01-01']::timestamptz[]);
-
+--DDL_STATEMENT_BEGIN--
 drop table stable_qual_pruning;
-
+--DDL_STATEMENT_END--
 --
 -- Check that pruning with composite range partitioning works correctly when
 -- it must ignore clauses for trailing keys once it has seen a clause with
 -- non-inclusive operator for an earlier key
 --
+--DDL_STATEMENT_BEGIN--
 drop table if exists mc3p;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table mc3p (a int, b int, c int) partition by range (a, abs(b), c);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table mc3p0 partition of mc3p
   for values from (0, 0, 0) to (0, maxvalue, maxvalue);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table mc3p1 partition of mc3p
   for values from (1, 1, 1) to (2, minvalue, minvalue);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table mc3p2 partition of mc3p
   for values from (2, minvalue, minvalue) to (3, maxvalue, maxvalue);
+--DDL_STATEMENT_END--
 insert into mc3p values (0, 1, 1), (1, 1, 1), (2, 1, 1);
 
 explain (costs off, summary off, timing off)
@@ -811,27 +1177,37 @@ prepare ps2 as
 explain (costs off, summary off, timing off)
 execute ps2(1);
 deallocate ps2;
-
+--DDL_STATEMENT_BEGIN--
 drop table mc3p;
-
+--DDL_STATEMENT_END--
 -- Ensure runtime pruning works with initplans params with boolean types
+--DDL_STATEMENT_BEGIN--
 drop table if exists boolvalues;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table boolvalues (value bool not null);
+--DDL_STATEMENT_END--
 insert into boolvalues values('t'),('f');
-
+--DDL_STATEMENT_BEGIN--
 drop table if exists boolp;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table boolp (a bool) partition by list (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table boolp_t partition of boolp for values in('t');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table boolp_f partition of boolp for values in('f');
-
+--DDL_STATEMENT_END--
 explain (costs off, summary off, timing off)
 select * from boolp where a = (select value from boolvalues where value);
 
 explain (costs off, summary off, timing off)
 select * from boolp where a = (select value from boolvalues where not value);
-
+--DDL_STATEMENT_BEGIN--
 drop table boolp;
-
+--DDL_STATEMENT_END--
 reset enable_indexonlyscan;
 
 --
@@ -840,24 +1216,44 @@ reset enable_indexonlyscan;
 --
 
 -- enum type list partition key
+--DDL_STATEMENT_BEGIN--
 drop table if exists pp_colors;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create type pp_colors as enum ('green', 'blue', 'black');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table pp_enumpart (a pp_colors) partition by list (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table pp_enumpart_green partition of pp_enumpart for values in ('green');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table pp_enumpart_blue partition of pp_enumpart for values in ('blue');
+--DDL_STATEMENT_END--
 explain (costs off) select * from pp_enumpart where a = 'blue';
 explain (costs off) select * from pp_enumpart where a = 'black';
+--DDL_STATEMENT_BEGIN--
 drop table pp_enumpart;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop type pp_colors;
-
+--DDL_STATEMENT_END--
 --
 -- Ensure the enable_partition_prune GUC properly disables partition pruning.
 --
+--DDL_STATEMENT_BEGIN--
 drop table if exists pp_lp;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table pp_lp (a int, value int) partition by list (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table pp_lp1 partition of pp_lp for values in(1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table pp_lp2 partition of pp_lp for values in(2);
-
+--DDL_STATEMENT_END--
 explain (costs off) select * from pp_lp where a = 1;
 explain (costs off) update pp_lp set value = 10 where a = 1;
 explain (costs off) delete from pp_lp where a = 1;
@@ -875,16 +1271,22 @@ set constraint_exclusion = 'off'; -- this should not affect the result.
 explain (costs off) select * from pp_lp where a = 1;
 explain (costs off) update pp_lp set value = 10 where a = 1;
 explain (costs off) delete from pp_lp where a = 1;
-
+--DDL_STATEMENT_BEGIN--
 drop table pp_lp;
-
+--DDL_STATEMENT_END--
 -- Ensure enable_partition_prune does not affect non-partitioned tables.
-
+--DDL_STATEMENT_BEGIN--
 drop table if exists inh_lp;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table inh_lp (a int, value int);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table inh_lp1 (a int, value int, check(a = 1)) inherits (inh_lp);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table inh_lp2 (a int, value int, check(a = 2)) inherits (inh_lp);
-
+--DDL_STATEMENT_END--
 set constraint_exclusion = 'partition';
 
 -- inh_lp2 should be removed in the following 3 cases.
@@ -897,31 +1299,60 @@ explain (costs off) delete from inh_lp where a = 1;
 explain (costs off) update inh_lp1 set value = 10 where a = 2;
 
 \set VERBOSITY terse	\\ -- suppress cascade details
+--DDL_STATEMENT_BEGIN--
 drop table inh_lp cascade;
+--DDL_STATEMENT_END--
 \set VERBOSITY default
 
 reset enable_partition_pruning;
 reset constraint_exclusion;
 
 -- Check pruning for a partition tree containing only temporary relations
+--DDL_STATEMENT_BEGIN--
 create temp table pp_temp_parent (a int) partition by list (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table pp_temp_part_1 partition of pp_temp_parent for values in (1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table pp_temp_part_def partition of pp_temp_parent default;
+--DDL_STATEMENT_END--
 explain (costs off) select * from pp_temp_parent where true;
 explain (costs off) select * from pp_temp_parent where a = 2;
+--DDL_STATEMENT_BEGIN--
 drop table pp_temp_parent;
-
+--DDL_STATEMENT_END--
 -- Stress run-time partition pruning a bit more, per bug reports
+--DDL_STATEMENT_BEGIN--
 create temp table p (a int, b int, c int) partition by list (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table p1 partition of p for values in (1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table p2 partition of p for values in (2);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table q (a int, b int, c int) partition by list (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table q1 partition of q for values in (1) partition by list (b);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table q11 partition of q1 for values in (1) partition by list (c);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table q111 partition of q11 for values in (1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table q2 partition of q for values in (2) partition by list (b);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table q21 partition of q2 for values in (1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table q22 partition of q2 for values in (2);
+--DDL_STATEMENT_END--
 
 insert into q22 values (2, 2, 3);
 
@@ -945,18 +1376,29 @@ from (
       select 1, 1, 1
      ) s(a, b, c)
 where s.a = 1 and s.b = 1 and s.c = (select 1);
-
+--DDL_STATEMENT_BEGIN--
 drop table p;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table q;
-
+--DDL_STATEMENT_END--
 -- Ensure run-time pruning works correctly when we match a partitioned table
 -- on the first level but find no matching partitions on the second level.
+--DDL_STATEMENT_BEGIN--
 drop table if exists listp;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table listp (a int, b int) partition by list (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table listp1 partition of listp for values in(1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table listp2 partition of listp for values in(2) partition by list(b);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table listp2_10 partition of listp2 for values in (10);
-
+--DDL_STATEMENT_END--
 explain (costs off, summary off, timing off)
 select * from listp where a = (select 2) and b <> 10;
 
@@ -979,5 +1421,6 @@ explain (costs off) update listp1 set a = 1 where a = 2;
 
 reset constraint_exclusion;
 reset enable_partition_pruning;
-
+--DDL_STATEMENT_BEGIN--
 drop table listp;
+--DDL_STATEMENT_END--

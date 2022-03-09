@@ -300,10 +300,15 @@ select (select max(min(unique1)) from int8_tbl) from tenk1;
 --
 -- Test removal of redundant GROUP BY columns
 --
-
+--DDL_STATEMENT_BEGIN--
 create temp table t1 (a int, b int, c int, d int, primary key (a, b));
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table t2 (x int, y int, z int, primary key (x, y));
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table t3 (a int, b int, c int, primary key(a, b) deferrable);
+--DDL_STATEMENT_END--
 
 -- Non-primary-key columns can be removed from GROUP BY
 explain (costs off) select * from t1 group by a,b,c,d;
@@ -329,7 +334,7 @@ explain (costs off) select * from t1 group by a,b,c,d;
 
 -- Okay to remove columns if we're only querying the parent.
 explain (costs off) select * from only t1 group by a,b,c,d;
-
+--DDL_STATEMENT_BEGIN--
 create temp table p_t1 (
   a int,
   b int,
@@ -337,16 +342,28 @@ create temp table p_t1 (
   d int,
   primary key(a,b)
 ) partition by list(a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table p_t1_1 partition of p_t1 for values in(1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table p_t1_2 partition of p_t1 for values in(2);
+--DDL_STATEMENT_END--
 
 -- Ensure we can remove non-PK columns for partitioned tables.
 explain (costs off) select * from p_t1 group by a,b,c,d;
-
+--DDL_STATEMENT_BEGIN--
 drop table t1 cascade;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table t2;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table t3;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table p_t1;
+--DDL_STATEMENT_END--
 
 --
 -- Test combinations of DISTINCT and/or ORDER BY
@@ -407,61 +424,61 @@ select aggfns(distinct a,b,c order by a,c using ~<~,b)
        generate_series(1,2) i;
 
 -- check node I/O via view creation and usage, also deparsing logic
-
+--DDL_STATEMENT_BEGIN--
 create view agg_view1 as
   select aggfns(a,b,c)
     from (values (1,3,'foo'),(0,null,null),(2,2,'bar'),(3,1,'baz')) v(a,b,c);
-
+--DDL_STATEMENT_END--
 select * from agg_view1;
 select pg_get_viewdef('agg_view1'::regclass);
-
+--DDL_STATEMENT_BEGIN--
 create or replace view agg_view1 as
   select aggfns(distinct a,b,c)
     from (values (1,3,'foo'),(0,null,null),(2,2,'bar'),(3,1,'baz')) v(a,b,c),
          generate_series(1,3) i;
-
+--DDL_STATEMENT_END--
 select * from agg_view1;
 select pg_get_viewdef('agg_view1'::regclass);
-
+--DDL_STATEMENT_BEGIN--
 create or replace view agg_view1 as
   select aggfns(distinct a,b,c order by b)
     from (values (1,3,'foo'),(0,null,null),(2,2,'bar'),(3,1,'baz')) v(a,b,c),
          generate_series(1,3) i;
-
+--DDL_STATEMENT_END--
 select * from agg_view1;
 select pg_get_viewdef('agg_view1'::regclass);
-
+--DDL_STATEMENT_BEGIN--
 create or replace view agg_view1 as
   select aggfns(a,b,c order by b+1)
     from (values (1,3,'foo'),(0,null,null),(2,2,'bar'),(3,1,'baz')) v(a,b,c);
-
+--DDL_STATEMENT_END--
 select * from agg_view1;
 select pg_get_viewdef('agg_view1'::regclass);
-
+--DDL_STATEMENT_BEGIN--
 create or replace view agg_view1 as
   select aggfns(a,a,c order by b)
     from (values (1,3,'foo'),(0,null,null),(2,2,'bar'),(3,1,'baz')) v(a,b,c);
-
+--DDL_STATEMENT_END--
 select * from agg_view1;
 select pg_get_viewdef('agg_view1'::regclass);
-
+--DDL_STATEMENT_BEGIN--
 create or replace view agg_view1 as
   select aggfns(a,b,c order by c using ~<~)
     from (values (1,3,'foo'),(0,null,null),(2,2,'bar'),(3,1,'baz')) v(a,b,c);
-
+--DDL_STATEMENT_END--
 select * from agg_view1;
 select pg_get_viewdef('agg_view1'::regclass);
-
+--DDL_STATEMENT_BEGIN--
 create or replace view agg_view1 as
   select aggfns(distinct a,b,c order by a,c using ~<~,b)
     from (values (1,3,'foo'),(0,null,null),(2,2,'bar'),(3,1,'baz')) v(a,b,c),
          generate_series(1,2) i;
-
+--DDL_STATEMENT_END--
 select * from agg_view1;
 select pg_get_viewdef('agg_view1'::regclass);
-
+--DDL_STATEMENT_BEGIN--
 drop view agg_view1;
-
+--DDL_STATEMENT_END--
 -- incorrect DISTINCT usage errors
 
 select aggfns(distinct a,b,c order by i)
@@ -486,8 +503,9 @@ select string_agg(distinct f1, ',' order by f1::text) from varchar_tbl;  -- not 
 select string_agg(distinct f1::text, ',' order by f1::text) from varchar_tbl;  -- ok
 
 -- string_agg bytea tests
+--DDL_STATEMENT_BEGIN--
 create table bytea_test_table(v bytea);
-
+--DDL_STATEMENT_END--
 select string_agg(v, '') from bytea_test_table;
 
 insert into bytea_test_table values(decode('ff','hex'));
@@ -499,9 +517,9 @@ insert into bytea_test_table values(decode('aa','hex'));
 select string_agg(v, '') from bytea_test_table;
 select string_agg(v, NULL) from bytea_test_table;
 select string_agg(v, decode('ee', 'hex')) from bytea_test_table;
-
+--DDL_STATEMENT_BEGIN--
 drop table bytea_test_table;
-
+--DDL_STATEMENT_END--
 -- FILTER tests
 
 select min(unique1) filter (where unique1 > 100) from tenk1;
@@ -625,6 +643,7 @@ select rank('3') within group (order by x) from generate_series(1,5) x;
 select percent_rank(0) within group (order by x) from generate_series(1,0) x;
 
 -- deparse and multiple features:
+--DDL_STATEMENT_BEGIN--
 create view aggordview1 as
 select ten,
        percentile_disc(0.5) within group (order by thousand) as p50,
@@ -632,11 +651,12 @@ select ten,
        rank(5,'AZZZZ',50) within group (order by hundred, string4 desc, hundred)
   from tenk1
  group by ten order by ten;
-
+--DDL_STATEMENT_END--
 select pg_get_viewdef('aggordview1');
 select * from aggordview1 order by ten;
+--DDL_STATEMENT_BEGIN--
 drop view aggordview1;
-
+--DDL_STATEMENT_END--
 -- variadic aggregates
 select least_agg(q1,q2) from int8_tbl;
 select least_agg(variadic array[q1,q2]) from int8_tbl;
@@ -644,9 +664,10 @@ select least_agg(variadic array[q1,q2]) from int8_tbl;
 
 -- test aggregates with common transition functions share the same states
 begin work;
-
+--DDL_STATEMENT_BEGIN--
 create type avg_state as (total bigint, count bigint);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create or replace function avg_transfn(state avg_state, n int) returns avg_state as
 $$
 declare new_state avg_state;
@@ -668,7 +689,8 @@ begin
 	return null;
 end
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function avg_finalfn(state avg_state) returns int4 as
 $$
 begin
@@ -679,7 +701,8 @@ begin
 	end if;
 end
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function sum_finalfn(state avg_state) returns int4 as
 $$
 begin
@@ -690,21 +713,24 @@ begin
 	end if;
 end
 $$ language plpgsql;
+--DDL_STATEMENT_END--
 
+--DDL_STATEMENT_BEGIN--
 create aggregate my_avg(int4)
 (
    stype = avg_state,
    sfunc = avg_transfn,
    finalfunc = avg_finalfn
 );
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create aggregate my_sum(int4)
 (
    stype = avg_state,
    sfunc = avg_transfn,
    finalfunc = sum_finalfn
 );
-
+--DDL_STATEMENT_END--
 -- aggregate state should be shared as aggs are the same.
 select my_avg(one),my_avg(one) from (values(1),(3)) t(one);
 
@@ -741,6 +767,7 @@ select
 from (values(1),(3),(5),(7)) t(a);
 
 -- test that aggs with the same sfunc and initcond share the same agg state
+--DDL_STATEMENT_BEGIN--
 create aggregate my_sum_init(int4)
 (
    stype = avg_state,
@@ -748,7 +775,8 @@ create aggregate my_sum_init(int4)
    finalfunc = sum_finalfn,
    initcond = '(10,0)'
 );
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create aggregate my_avg_init(int4)
 (
    stype = avg_state,
@@ -756,7 +784,8 @@ create aggregate my_avg_init(int4)
    finalfunc = avg_finalfn,
    initcond = '(10,0)'
 );
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create aggregate my_avg_init2(int4)
 (
    stype = avg_state,
@@ -764,7 +793,7 @@ create aggregate my_avg_init2(int4)
    finalfunc = avg_finalfn,
    initcond = '(4,0)'
 );
-
+--DDL_STATEMENT_END--
 -- state should be shared if INITCONDs are matching
 select my_sum_init(one),my_avg_init(one) from (values(1),(3)) t(one);
 
@@ -776,7 +805,7 @@ rollback;
 -- test aggregate state sharing to ensure it works if one aggregate has a
 -- finalfn and the other one has none.
 begin work;
-
+--DDL_STATEMENT_BEGIN--
 create or replace function sum_transfn(state int4, n int4) returns int4 as
 $$
 declare new_state int4;
@@ -796,7 +825,9 @@ begin
 	return null;
 end
 $$ language plpgsql;
+--DDL_STATEMENT_END--
 
+--DDL_STATEMENT_BEGIN--
 create function halfsum_finalfn(state int4) returns int4 as
 $$
 begin
@@ -807,20 +838,23 @@ begin
 	end if;
 end
 $$ language plpgsql;
+--DDL_STATEMENT_END--
 
+--DDL_STATEMENT_BEGIN--
 create aggregate my_sum(int4)
 (
    stype = int4,
    sfunc = sum_transfn
 );
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create aggregate my_half_sum(int4)
 (
    stype = int4,
    sfunc = sum_transfn,
    finalfunc = halfsum_finalfn
 );
-
+--DDL_STATEMENT_END--
 -- Agg state should be shared even though my_sum has no finalfn
 select my_sum(one),my_half_sum(one) from (values(1),(2),(3),(4)) t(one);
 
@@ -832,6 +866,7 @@ rollback;
 
 -- First test the case of a normal transition function returning NULL
 BEGIN;
+--DDL_STATEMENT_BEGIN--
 CREATE FUNCTION balkifnull(int8, int4)
 RETURNS int8
 STRICT
@@ -842,7 +877,8 @@ BEGIN
     END IF;
     RETURN NULL;
 END$$;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE balk(int4)
 (
     SFUNC = balkifnull(int8, int4),
@@ -850,7 +886,7 @@ CREATE AGGREGATE balk(int4)
     PARALLEL = SAFE,
     INITCOND = '0'
 );
-
+--DDL_STATEMENT_END--
 SELECT balk(hundred) FROM tenk1;
 
 ROLLBACK;
@@ -859,6 +895,7 @@ ROLLBACK;
 -- returning NULL. For that use normal transition function, but a
 -- combiner function returning NULL.
 BEGIN ISOLATION LEVEL REPEATABLE READ;
+--DDL_STATEMENT_BEGIN--
 CREATE FUNCTION balkifnull(int8, int8)
 RETURNS int8
 PARALLEL SAFE
@@ -870,7 +907,8 @@ BEGIN
     END IF;
     RETURN NULL;
 END$$;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE balk(int4)
 (
     SFUNC = int4_sum(int8, int4),
@@ -879,7 +917,7 @@ CREATE AGGREGATE balk(int4)
     PARALLEL = SAFE,
     INITCOND = '0'
 );
-
+--DDL_STATEMENT_END--
 -- force use of parallelism
 --ALTER TABLE tenk1 set (parallel_workers = 4);
 SET LOCAL parallel_setup_cost=0;

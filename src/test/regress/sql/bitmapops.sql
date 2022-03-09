@@ -11,16 +11,18 @@
 -- there's a maximum number of a,b combinations in the table.
 -- That allows us to test all the different combinations of
 -- lossy and non-lossy pages with the minimum amount of data
-
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE bmscantest (a int, b int, t text);
-
+--DDL_STATEMENT_END--
 INSERT INTO bmscantest
   SELECT (r%53), (r%59), 'foooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo'
   FROM generate_series(1,70000) r;
-
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX i_bmtest_a ON bmscantest(a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX i_bmtest_b ON bmscantest(b);
-
+--DDL_STATEMENT_END--
 -- We want to use bitmapscans. With default settings, the planner currently
 -- chooses a bitmap scan for the queries below anyway, but let's make sure.
 set enable_indexscan=false;
@@ -38,4 +40,6 @@ SELECT count(*) FROM bmscantest WHERE a = 1 OR b = 1;
 
 
 -- clean up
+--DDL_STATEMENT_BEGIN--
 DROP TABLE bmscantest;
+--DDL_STATEMENT_END--

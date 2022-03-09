@@ -150,7 +150,9 @@ SET vacuum_cost_delay TO '10s';
 --
 -- Test DISCARD TEMP
 --
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE reset_test ( data text ) ON COMMIT DELETE ROWS;
+--DDL_STATEMENT_END--
 SELECT relname FROM pg_class WHERE relname = 'reset_test';
 DISCARD TEMP;
 SELECT relname FROM pg_class WHERE relname = 'reset_test';
@@ -164,8 +166,12 @@ DECLARE foo CURSOR WITH HOLD FOR SELECT 1;
 PREPARE foo AS SELECT 1;
 LISTEN foo_event;
 SET vacuum_cost_delay = 13;
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE tmp_foo (data text) ON COMMIT DELETE ROWS;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE ROLE regress_guc_user;
+--DDL_STATEMENT_END--
 SET SESSION AUTHORIZATION regress_guc_user;
 -- look changes
 SELECT pg_listening_channels();
@@ -183,17 +189,22 @@ SELECT name FROM pg_cursors;
 SHOW vacuum_cost_delay;
 SELECT relname from pg_class where relname = 'tmp_foo';
 SELECT current_user = 'regress_guc_user';
+--DDL_STATEMENT_BEGIN--
 DROP ROLE regress_guc_user;
-
+--DDL_STATEMENT_END--
 --
 -- search_path should react to changes in pg_namespace
 --
 
 set search_path = foo, public, not_there_initially;
 select current_schemas(false);
+--DDL_STATEMENT_BEGIN--
 create schema not_there_initially;
+--DDL_STATEMENT_END--
 select current_schemas(false);
+--DDL_STATEMENT_BEGIN--
 drop schema not_there_initially;
+--DDL_STATEMENT_END--
 select current_schemas(false);
 reset search_path;
 
@@ -202,22 +213,23 @@ reset search_path;
 --
 
 set work_mem = '3MB';
-
+--DDL_STATEMENT_BEGIN--
 create function report_guc(text) returns text as
 $$ select current_setting($1) $$ language sql
 set work_mem = '1MB';
-
+--DDL_STATEMENT_END--
 select report_guc('work_mem'), current_setting('work_mem');
-
+--DDL_STATEMENT_BEGIN--
 alter function report_guc(text) set work_mem = '2MB';
-
+--DDL_STATEMENT_END--
 select report_guc('work_mem'), current_setting('work_mem');
-
+--DDL_STATEMENT_BEGIN--
 alter function report_guc(text) reset all;
-
+--DDL_STATEMENT_END--
 select report_guc('work_mem'), current_setting('work_mem');
 
 -- SET LOCAL is restricted by a function SET option
+--DDL_STATEMENT_BEGIN--
 create or replace function myfunc(int) returns text as $$
 begin
   set local work_mem = '2MB';
@@ -225,16 +237,17 @@ begin
 end $$
 language plpgsql
 set work_mem = '1MB';
-
+--DDL_STATEMENT_END--
 select myfunc(0), current_setting('work_mem');
-
+--DDL_STATEMENT_BEGIN--
 alter function myfunc(int) reset all;
-
+--DDL_STATEMENT_END--
 select myfunc(0), current_setting('work_mem');
 
 set work_mem = '3MB';
 
 -- but SET isn't
+--DDL_STATEMENT_BEGIN--
 create or replace function myfunc(int) returns text as $$
 begin
   set work_mem = '2MB';
@@ -242,12 +255,13 @@ begin
 end $$
 language plpgsql
 set work_mem = '1MB';
-
+--DDL_STATEMENT_END--
 select myfunc(0), current_setting('work_mem');
 
 set work_mem = '3MB';
 
 -- it should roll back on error, though
+--DDL_STATEMENT_BEGIN--
 create or replace function myfunc(int) returns text as $$
 begin
   set work_mem = '2MB';
@@ -256,7 +270,7 @@ begin
 end $$
 language plpgsql
 set work_mem = '1MB';
-
+--DDL_STATEMENT_END--
 select myfunc(0);
 select current_setting('work_mem');
 select myfunc(1), current_setting('work_mem');
@@ -277,16 +291,18 @@ select current_setting('nosuch.setting', true);
 -- Normally, CREATE FUNCTION should complain about invalid values in
 -- function SET options; but not if check_function_bodies is off,
 -- because that creates ordering hazards for pg_dump
-
+--DDL_STATEMENT_BEGIN--
 create function func_with_bad_set() returns int as $$ select 1 $$
 language sql
 set default_text_search_config = no_such_config;
+--DDL_STATEMENT_END--
 
 set check_function_bodies = off;
-
+--DDL_STATEMENT_BEGIN--
 create function func_with_bad_set() returns int as $$ select 1 $$
 language sql
 set default_text_search_config = no_such_config;
+--DDL_STATEMENT_END--
 
 select func_with_bad_set();
 

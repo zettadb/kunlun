@@ -1,7 +1,9 @@
 --
 -- Test cases for COPY (INSERT/UPDATE/DELETE) TO
 --
+--DDL_STATEMENT_BEGIN--
 create table copydml_test (id serial, t text);
+--DDL_STATEMENT_END--
 insert into copydml_test (t) values ('a');
 insert into copydml_test (t) values ('b');
 insert into copydml_test (t) values ('c');
@@ -46,4 +48,6 @@ copy (insert into copydml_test (t) values ('f') returning id) to stdout;
 copy (update copydml_test set t = 'g' where t = 'f' returning id) to stdout;
 copy (delete from copydml_test where t = 'g' returning id) to stdout;
 
+--DDL_STATEMENT_BEGIN--
 drop table copydml_test;
+--DDL_STATEMENT_END--

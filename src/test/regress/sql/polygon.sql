@@ -3,9 +3,9 @@
 --
 -- polygon logic
 --
-
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE POLYGON_TBL(f1 polygon);
-
+--DDL_STATEMENT_END--
 
 INSERT INTO POLYGON_TBL(f1) VALUES ('(2.0,0.0),(2.0,4.0),(0.0,0.0)');
 
@@ -120,9 +120,9 @@ SELECT	'(0,0)'::point <-> '((0,0),(1,2),(2,1))'::polygon as on_corner,
 --
 -- Test the SP-GiST index
 --
-
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE quad_poly_tbl (id int, p polygon);
-
+--DDL_STATEMENT_END--
 INSERT INTO quad_poly_tbl
 	SELECT (x - 1) * 100 + y, polygon(circle(point(x * 10, y * 10), 1 + (x + y) % 10))
 	FROM generate_series(1, 100) x,
@@ -137,9 +137,9 @@ INSERT INTO quad_poly_tbl
 		(11001, NULL),
 		(11002, NULL),
 		(11003, NULL);
-
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX quad_poly_tbl_idx ON quad_poly_tbl USING spgist(p);
-
+--DDL_STATEMENT_END--
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM quad_poly_tbl WHERE p << polygon '((300,300),(400,600),(600,500),(700,200))';
 SELECT count(*) FROM quad_poly_tbl WHERE p << polygon '((300,300),(400,600),(600,500),(700,200))';

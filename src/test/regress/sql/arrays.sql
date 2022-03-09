@@ -1,6 +1,7 @@
 --
 -- ARRAYS
 --
+--DDL_STATEMENT_BEGIN--
 CREATE temp TABLE arrtest (
 	a 			int2[],
 	b 			int4[][][],
@@ -10,7 +11,7 @@ CREATE temp TABLE arrtest (
 	f			char(5)[],
 	g			varchar(5)[]
 );
-
+--DDL_STATEMENT_END--
 --
 -- only the 'e' array is 0-based, the others are 1-based.
 --
@@ -123,10 +124,12 @@ UPDATE arrtest
   WHERE array_dims(c) is not null;
 
 -- test slices with empty lower and/or upper index
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE arrtest_s (
   a       int2[],
   b       int2[][]
 );
+--DDL_STATEMENT_END--
 INSERT INTO arrtest_s VALUES ('{1,2,3,4,5}', '{{1,2,3}, {4,5,6}, {7,8,9}}');
 INSERT INTO arrtest_s VALUES ('[0:4]={1,2,3,4,5}', '[0:2][0:2]={{1,2,3}, {4,5,6}, {7,8,9}}');
 
@@ -166,7 +169,9 @@ UPDATE point_tbl SET f1[3] = 10 WHERE f1::text = '(-10,-10)'::point::text RETURN
 --
 -- test array extension
 --
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE arrtest1 (i int[], t text[]);
+--DDL_STATEMENT_END--
 insert into arrtest1 values(array[1,2,null,4], array['one','two',null,'four']);
 select * from arrtest1;
 update arrtest1 set i[2] = 22, t[2] = 'twenty-two';
@@ -204,7 +209,9 @@ select * from arrtest1;
 --
 
 -- table creation and INSERTs
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE arrtest2 (i integer ARRAY[4], f float8[], n numeric[], t text[], d timestamp[]);
+--DDL_STATEMENT_END--
 INSERT INTO arrtest2 VALUES(
   ARRAY[[[113,142],[1,147]]],
   ARRAY[1.1,1.2,1.3]::float8[],
@@ -214,7 +221,9 @@ INSERT INTO arrtest2 VALUES(
 );
 
 -- some more test data
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE arrtest_f (f0 int, f1 text, f2 float8);
+--DDL_STATEMENT_END--
 insert into arrtest_f values(1,'cat1',1.21);
 insert into arrtest_f values(2,'cat1',1.24);
 insert into arrtest_f values(3,'cat1',1.18);
@@ -224,8 +233,9 @@ insert into arrtest_f values(6,'cat2',1.15);
 insert into arrtest_f values(7,'cat2',1.26);
 insert into arrtest_f values(8,'cat2',1.32);
 insert into arrtest_f values(9,'cat2',1.30);
-
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE arrtest_i (f0 int, f1 text, f2 int);
+--DDL_STATEMENT_END--
 insert into arrtest_i values(1,'cat1',21);
 insert into arrtest_i values(2,'cat1',24);
 insert into arrtest_i values(3,'cat1',18);
@@ -375,7 +385,9 @@ select 33 = all ('{33,null,33}');
 SELECT -1 != ALL(ARRAY(SELECT NULLIF(g.i, 900) FROM generate_series(1,1000) g(i)));
 
 -- test indexes on arrays
+--DDL_STATEMENT_BEGIN--
 create temp table arr_tbl (f1 int[] unique);
+--DDL_STATEMENT_END--
 insert into arr_tbl values ('{1,2,3}');
 insert into arr_tbl values ('{1,2}');
 -- failure expected:
@@ -390,7 +402,9 @@ select * from arr_tbl where f1 > '{1,2,3}' and f1 <= '{1,5,3}';
 select * from arr_tbl where f1 >= '{1,2,3}' and f1 < '{1,5,3}';
 
 -- test ON CONFLICT DO UPDATE with arrays
+--DDL_STATEMENT_BEGIN--
 create temp table arr_pk_tbl (pk int4 primary key, f1 int[]);
+--DDL_STATEMENT_END--
 insert into arr_pk_tbl values (1, '{1,2,3}');
 insert into arr_pk_tbl values (1, '{3,4,5}') on conflict (pk)
   do update set f1[1] = excluded.f1[1], f1[3] = excluded.f1[3]
@@ -445,8 +459,9 @@ select '[0:1]={1.1,2.2}'::float8[];
 -- all of the above should be accepted
 
 -- tests for array aggregates
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE arraggtest ( f1 INT[], f2 TEXT[][], f3 FLOAT[]);
-
+--DDL_STATEMENT_END--
 INSERT INTO arraggtest (f1, f2, f3) VALUES
 ('{1,2,3,4}','{{grey,red},{blue,blue}}','{1.6, 0.0}');
 INSERT INTO arraggtest (f1, f2, f3) VALUES
@@ -470,42 +485,52 @@ INSERT INTO arraggtest (f1, f2, f3) VALUES
 SELECT max(f1), min(f1), max(f2), min(f2), max(f3), min(f3) FROM arraggtest;
 
 -- A few simple tests for arrays of composite types
-
+--DDL_STATEMENT_BEGIN--
 create type comptype as (f1 int, f2 text);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table comptable (c1 comptype, c2 comptype[]);
-
+--DDL_STATEMENT_END--
 -- XXX would like to not have to specify row() construct types here ...
 insert into comptable
   values (row(1,'foo'), array[row(2,'bar')::comptype, row(3,'baz')::comptype]);
 
 -- check that implicitly named array type _comptype isn't a problem
+--DDL_STATEMENT_BEGIN--
 create type _comptype as enum('fooey');
-
+--DDL_STATEMENT_END--
 select * from comptable;
 select c2[2].f2 from comptable;
-
+--DDL_STATEMENT_BEGIN--
 drop type _comptype;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table comptable;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop type comptype;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create or replace function unnest1(anyarray)
 returns setof anyelement as $$
 select $1[s] from generate_subscripts($1,1) g(s);
 $$ language sql immutable;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create or replace function unnest2(anyarray)
 returns setof anyelement as $$
 select $1[s1][s2] from generate_subscripts($1,1) g1(s1),
                    generate_subscripts($1,2) g2(s2);
 $$ language sql immutable;
-
+--DDL_STATEMENT_END--
 select * from unnest1(array[1,2,3]);
 select * from unnest2(array[[1,2,3],[4,5,6]]);
-
+--DDL_STATEMENT_BEGIN--
 drop function unnest1(anyarray);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop function unnest2(anyarray);
-
+--DDL_STATEMENT_END--
 select array_fill(null::integer, array[3,3],array[2,2]);
 select array_fill(null::integer, array[3,3]);
 select array_fill(null::text, array[3,3],array[2,2]);
@@ -614,30 +639,41 @@ select array(select array[i,i/2] from generate_series(1,5) i);
 select array(select array['Hello', i::text] from generate_series(9,11) i);
 
 -- Insert/update on a column that is array of composite
-
+--DDL_STATEMENT_BEGIN--
 create temp table t1 (f1 int8_tbl[]);
+--DDL_STATEMENT_END--
 insert into t1 (f1[5].q1) values(42);
 select * from t1;
 update t1 set f1[5].q2 = 43;
 select * from t1;
 
 -- Check that arrays of composites are safely detoasted when needed
-
+--DDL_STATEMENT_BEGIN--
 create temp table src (f1 text);
+--DDL_STATEMENT_END--
 insert into src
   select string_agg(random()::text,'') from generate_series(1,10000);
+--DDL_STATEMENT_BEGIN--
 create type textandtext as (c1 text, c2 text);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table dest (f1 textandtext[]);
+--DDL_STATEMENT_END--
 insert into dest select array[row(f1,f1)::textandtext] from src;
 select length(md5((f1[1]).c2)) from dest;
 delete from src;
 select length(md5((f1[1]).c2)) from dest;
 delete from src;
+--DDL_STATEMENT_BEGIN--
 drop table src;
+--DDL_STATEMENT_END--
 select length(md5((f1[1]).c2)) from dest;
+--DDL_STATEMENT_BEGIN--
 drop table dest;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop type textandtext;
-
+--DDL_STATEMENT_END--
 -- Tests for polymorphic-array form of width_bucket()
 
 -- this exercises the varwidth and float8 code paths

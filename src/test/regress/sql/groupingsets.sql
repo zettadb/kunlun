@@ -3,15 +3,17 @@
 --
 
 -- test data sources
-
+--DDL_STATEMENT_BEGIN--
 create temp view gstest1(a,b,v)
   as values (1,1,10),(1,1,11),(1,2,12),(1,2,13),(1,3,14),
             (2,3,15),
             (3,3,16),(3,4,17),
             (4,1,18),(4,1,19);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table gstest2 (a integer, b integer, c integer, d integer,
                            e integer, f integer, g integer, h integer);
+--DDL_STATEMENT_END--						   
 copy gstest2 from stdin;
 1	1	1	1	1	1	1	1
 1	1	1	1	1	1	1	2
@@ -23,24 +25,29 @@ copy gstest2 from stdin;
 1	2	2	2	2	2	2	2
 2	2	2	2	2	2	2	2
 \.
-
+--DDL_STATEMENT_BEGIN--
 create temp table gstest3 (a integer, b integer, c integer, d integer);
+--DDL_STATEMENT_END--
 copy gstest3 from stdin;
 1	1	1	1
 2	2	2	2
 \.
+--DDL_STATEMENT_BEGIN--
 alter table gstest3 add primary key (a);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table gstest4(id integer, v integer,
                           unhashable_col bit(4), unsortable_col xid);
+--DDL_STATEMENT_END--						  
 insert into gstest4
 values (1,1,b'0000','1'), (2,2,b'0001','1'),
        (3,4,b'0010','2'), (4,8,b'0011','2'),
        (5,16,b'0000','2'), (6,32,b'0001','2'),
        (7,64,b'0010','1'), (8,128,b'0011','1');
-
+--DDL_STATEMENT_BEGIN--
 create temp table gstest_empty (a integer, b integer, v integer);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function gstest_data(v integer, out a integer, out b integer)
   returns setof record
   as $f$
@@ -48,7 +55,7 @@ create function gstest_data(v integer, out a integer, out b integer)
       return query select v, i from generate_series(1,3) i;
     end;
   $f$ language plpgsql;
-
+--DDL_STATEMENT_END--
 -- basic functionality
 
 set enable_hashagg = false;  -- test hashing explicitly later
@@ -187,10 +194,11 @@ explain (costs off)
   select min(unique1) from tenk1 GROUP BY ();
 
 -- Views with GROUPING SET queries
+--DDL_STATEMENT_BEGIN--
 CREATE VIEW gstest_view AS select a, b, grouping(a,b), sum(c), count(*), max(c)
   from gstest2 group by rollup ((a,b,c),(c,d));
-
-select pg_get_viewdef('gstest_view'::regclass, true);
+--DDL_STATEMENT_END--
+select pg_get_viewdef(' gstest_view'::regclass, true);
 
 -- Nested queries with 3 or more levels of nesting
 select(select (select grouping(a,b) from (values (1)) v2(c)) from (values (1,2)) v1(a,b) group by (a,b)) from (values(6,7)) v3(e,f) GROUP BY ROLLUP(e,f);

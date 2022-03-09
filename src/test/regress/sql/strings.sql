@@ -93,7 +93,7 @@ SELECT CAST(name 'namefield' AS varchar) AS "varchar(name)";
 
 --
 -- test SQL string functions
--- E### and T### are feature reference numbers from SQL99
+-- E--DDL_STATEMENT_END--# and T--DDL_STATEMENT_END--# are feature reference numbers from SQL99
 --
 
 -- E021-09 trim function
@@ -341,8 +341,12 @@ SELECT text 'text' || varchar ' and varchar' AS "Concat text to varchar";
 --
 -- test substr with toasted text values
 --
+--DDL_STATEMENT_BEGIN--
 DROP TABLE if exists toasttest;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE toasttest(f1 text);
+--DDL_STATEMENT_END--
 
 insert into toasttest values(repeat('1234567890',10000));
 insert into toasttest values(repeat('1234567890',10000));
@@ -387,14 +391,15 @@ INSERT INTO toasttest values (repeat('1234567890',300));
 INSERT INTO toasttest values (repeat('1234567890',300));
 INSERT INTO toasttest values (repeat('1234567890',300));
 -- expect 0 blocks
-
+--DDL_STATEMENT_BEGIN--
 DROP TABLE toasttest;
-
+--DDL_STATEMENT_END--
 --
 -- test substr with toasted bytea values
 --
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE toasttest(f1 bytea);
-
+--DDL_STATEMENT_END--
 insert into toasttest values(decode(repeat('1234567890',10000),'escape'));
 insert into toasttest values(decode(repeat('1234567890',10000),'escape'));
 
@@ -420,9 +425,9 @@ SELECT substr(f1, 99995) from toasttest;
 -- If start plus length is > string length, the result is truncated to
 -- string length
 SELECT substr(f1, 99995, 10) from toasttest;
-
+--DDL_STATEMENT_BEGIN--
 DROP TABLE toasttest;
-
+--DDL_STATEMENT_END--
 -- test internally compressing datums
 
 -- this tests compressing a datum to a very small size which exercises a
@@ -430,12 +435,15 @@ DROP TABLE toasttest;
 -- datum must be given a 4-byte header because there are no bits to indicate
 -- compression in a 1-byte header
 -- 
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE toasttest (c char(200));
+--DDL_STATEMENT_END--
 INSERT INTO toasttest VALUES('x');
 SELECT length(c), c::text FROM toasttest;
 SELECT c FROM toasttest;
+--DDL_STATEMENT_BEGIN--
 DROP TABLE toasttest;
-
+--DDL_STATEMENT_END--
 --
 -- test length
 --

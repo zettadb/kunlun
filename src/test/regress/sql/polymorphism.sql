@@ -38,37 +38,51 @@
 -- functions, i.e. tf arg1 and tf return type must match
 
 -- polymorphic single arg transfn
+--DDL_STATEMENT_BEGIN--
 CREATE FUNCTION stfp(anyarray) RETURNS anyarray AS
 'select $1' LANGUAGE SQL;
+--DDL_STATEMENT_END--
 -- non-polymorphic single arg transfn
+--DDL_STATEMENT_BEGIN--
 CREATE FUNCTION stfnp(int[]) RETURNS int[] AS
 'select $1' LANGUAGE SQL;
-
+--DDL_STATEMENT_END--
 -- dual polymorphic transfn
+--DDL_STATEMENT_BEGIN--
 CREATE FUNCTION tfp(anyarray,anyelement) RETURNS anyarray AS
 'select $1 || $2' LANGUAGE SQL;
+--DDL_STATEMENT_END--
 -- dual non-polymorphic transfn
+--DDL_STATEMENT_BEGIN--
 CREATE FUNCTION tfnp(int[],int) RETURNS int[] AS
 'select $1 || $2' LANGUAGE SQL;
-
+--DDL_STATEMENT_END--
 -- arg1 only polymorphic transfn
+--DDL_STATEMENT_BEGIN--
 CREATE FUNCTION tf1p(anyarray,int) RETURNS anyarray AS
 'select $1' LANGUAGE SQL;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 -- arg2 only polymorphic transfn
 CREATE FUNCTION tf2p(int[],anyelement) RETURNS int[] AS
 'select $1' LANGUAGE SQL;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 -- multi-arg polymorphic
 CREATE FUNCTION sum3(anyelement,anyelement,anyelement) returns anyelement AS
 'select $1+$2+$3' language sql strict;
+--DDL_STATEMENT_END--
 
+--DDL_STATEMENT_BEGIN--
 -- finalfn polymorphic
 CREATE FUNCTION ffp(anyarray) RETURNS anyarray AS
 'select $1' LANGUAGE SQL;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 -- finalfn non-polymorphic
 CREATE FUNCTION ffnp(int[]) returns int[] as
 'select $1' LANGUAGE SQL;
-
+--DDL_STATEMENT_END--
 -- Try to cover all the possible states:
 --
 -- Note: in Cases 1 & 2, we are trying to return P. Therefore, if the transfn
@@ -83,28 +97,36 @@ CREATE FUNCTION ffnp(int[]) returns int[] as
 --     -------
 --     N    N
 -- should CREATE
+--DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE myaggp01a(*) (SFUNC = stfnp, STYPE = int4[],
   FINALFUNC = ffp, INITCOND = '{}');
-
+--DDL_STATEMENT_END--
 --     P    N
 -- should ERROR: stfnp(anyarray) not matched by stfnp(int[])
+--DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE myaggp02a(*) (SFUNC = stfnp, STYPE = anyarray,
   FINALFUNC = ffp, INITCOND = '{}');
-
+--DDL_STATEMENT_END--
 --     N    P
 -- should CREATE
+--DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE myaggp03a(*) (SFUNC = stfp, STYPE = int4[],
   FINALFUNC = ffp, INITCOND = '{}');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE myaggp03b(*) (SFUNC = stfp, STYPE = int4[],
   INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --     P    P
 -- should ERROR: we have no way to resolve S
 CREATE AGGREGATE myaggp04a(*) (SFUNC = stfp, STYPE = anyarray,
   FINALFUNC = ffp, INITCOND = '{}');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE myaggp04b(*) (SFUNC = stfp, STYPE = anyarray,
   INITCOND = '{}');
-
+--DDL_STATEMENT_END--
 
 --    Case2 (R = P) && ((B = P) || (B = N))
 --    -------------------------------------
@@ -112,100 +134,133 @@ CREATE AGGREGATE myaggp04b(*) (SFUNC = stfp, STYPE = anyarray,
 --    -----------------------
 --    N    N        N    N
 -- should CREATE
+--DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE myaggp05a(BASETYPE = int, SFUNC = tfnp, STYPE = int[],
   FINALFUNC = ffp, INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    N    N        N    P
 -- should CREATE
 CREATE AGGREGATE myaggp06a(BASETYPE = int, SFUNC = tf2p, STYPE = int[],
   FINALFUNC = ffp, INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    N    N        P    N
 -- should ERROR: tfnp(int[], anyelement) not matched by tfnp(int[], int)
 CREATE AGGREGATE myaggp07a(BASETYPE = anyelement, SFUNC = tfnp, STYPE = int[],
   FINALFUNC = ffp, INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    N    N        P    P
 -- should CREATE
 CREATE AGGREGATE myaggp08a(BASETYPE = anyelement, SFUNC = tf2p, STYPE = int[],
   FINALFUNC = ffp, INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    N    P        N    N
 -- should CREATE
 CREATE AGGREGATE myaggp09a(BASETYPE = int, SFUNC = tf1p, STYPE = int[],
   FINALFUNC = ffp, INITCOND = '{}');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE myaggp09b(BASETYPE = int, SFUNC = tf1p, STYPE = int[],
   INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    N    P        N    P
 -- should CREATE
 CREATE AGGREGATE myaggp10a(BASETYPE = int, SFUNC = tfp, STYPE = int[],
   FINALFUNC = ffp, INITCOND = '{}');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE myaggp10b(BASETYPE = int, SFUNC = tfp, STYPE = int[],
   INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    N    P        P    N
 -- should ERROR: tf1p(int[],anyelement) not matched by tf1p(anyarray,int)
 CREATE AGGREGATE myaggp11a(BASETYPE = anyelement, SFUNC = tf1p, STYPE = int[],
   FINALFUNC = ffp, INITCOND = '{}');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE myaggp11b(BASETYPE = anyelement, SFUNC = tf1p, STYPE = int[],
   INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    N    P        P    P
 -- should ERROR: tfp(int[],anyelement) not matched by tfp(anyarray,anyelement)
 CREATE AGGREGATE myaggp12a(BASETYPE = anyelement, SFUNC = tfp, STYPE = int[],
   FINALFUNC = ffp, INITCOND = '{}');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE myaggp12b(BASETYPE = anyelement, SFUNC = tfp, STYPE = int[],
   INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    P    N        N    N
 -- should ERROR: tfnp(anyarray, int) not matched by tfnp(int[],int)
 CREATE AGGREGATE myaggp13a(BASETYPE = int, SFUNC = tfnp, STYPE = anyarray,
   FINALFUNC = ffp, INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    P    N        N    P
 -- should ERROR: tf2p(anyarray, int) not matched by tf2p(int[],anyelement)
 CREATE AGGREGATE myaggp14a(BASETYPE = int, SFUNC = tf2p, STYPE = anyarray,
   FINALFUNC = ffp, INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    P    N        P    N
 -- should ERROR: tfnp(anyarray, anyelement) not matched by tfnp(int[],int)
 CREATE AGGREGATE myaggp15a(BASETYPE = anyelement, SFUNC = tfnp,
   STYPE = anyarray, FINALFUNC = ffp, INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    P    N        P    P
 -- should ERROR: tf2p(anyarray, anyelement) not matched by tf2p(int[],anyelement)
 CREATE AGGREGATE myaggp16a(BASETYPE = anyelement, SFUNC = tf2p,
   STYPE = anyarray, FINALFUNC = ffp, INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    P    P        N    N
 -- should ERROR: we have no way to resolve S
 CREATE AGGREGATE myaggp17a(BASETYPE = int, SFUNC = tf1p, STYPE = anyarray,
   FINALFUNC = ffp, INITCOND = '{}');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE myaggp17b(BASETYPE = int, SFUNC = tf1p, STYPE = anyarray,
   INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    P    P        N    P
 -- should ERROR: tfp(anyarray, int) not matched by tfp(anyarray, anyelement)
 CREATE AGGREGATE myaggp18a(BASETYPE = int, SFUNC = tfp, STYPE = anyarray,
   FINALFUNC = ffp, INITCOND = '{}');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE myaggp18b(BASETYPE = int, SFUNC = tfp, STYPE = anyarray,
   INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    P    P        P    N
 -- should ERROR: tf1p(anyarray, anyelement) not matched by tf1p(anyarray, int)
 CREATE AGGREGATE myaggp19a(BASETYPE = anyelement, SFUNC = tf1p,
   STYPE = anyarray, FINALFUNC = ffp, INITCOND = '{}');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE myaggp19b(BASETYPE = anyelement, SFUNC = tf1p,
   STYPE = anyarray, INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    P    P        P    P
 -- should CREATE
 CREATE AGGREGATE myaggp20a(BASETYPE = anyelement, SFUNC = tfp,
   STYPE = anyarray, FINALFUNC = ffp, INITCOND = '{}');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE myaggp20b(BASETYPE = anyelement, SFUNC = tfp,
   STYPE = anyarray, INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --     Case3 (R = N) && (B = A)
 --     ------------------------
 --     S    tf1
@@ -214,26 +269,33 @@ CREATE AGGREGATE myaggp20b(BASETYPE = anyelement, SFUNC = tfp,
 -- should CREATE
 CREATE AGGREGATE myaggn01a(*) (SFUNC = stfnp, STYPE = int4[],
   FINALFUNC = ffnp, INITCOND = '{}');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE myaggn01b(*) (SFUNC = stfnp, STYPE = int4[],
   INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --     P    N
 -- should ERROR: stfnp(anyarray) not matched by stfnp(int[])
 CREATE AGGREGATE myaggn02a(*) (SFUNC = stfnp, STYPE = anyarray,
   FINALFUNC = ffnp, INITCOND = '{}');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE myaggn02b(*) (SFUNC = stfnp, STYPE = anyarray,
   INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --     N    P
 -- should CREATE
 CREATE AGGREGATE myaggn03a(*) (SFUNC = stfp, STYPE = int4[],
   FINALFUNC = ffnp, INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --     P    P
 -- should ERROR: ffnp(anyarray) not matched by ffnp(int[])
 CREATE AGGREGATE myaggn04a(*) (SFUNC = stfp, STYPE = anyarray,
   FINALFUNC = ffnp, INITCOND = '{}');
-
+--DDL_STATEMENT_END--
 
 --    Case4 (R = N) && ((B = P) || (B = N))
 --    -------------------------------------
@@ -241,106 +303,141 @@ CREATE AGGREGATE myaggn04a(*) (SFUNC = stfp, STYPE = anyarray,
 --    -----------------------
 --    N    N        N    N
 -- should CREATE
+--DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE myaggn05a(BASETYPE = int, SFUNC = tfnp, STYPE = int[],
   FINALFUNC = ffnp, INITCOND = '{}');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE myaggn05b(BASETYPE = int, SFUNC = tfnp, STYPE = int[],
   INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    N    N        N    P
 -- should CREATE
 CREATE AGGREGATE myaggn06a(BASETYPE = int, SFUNC = tf2p, STYPE = int[],
   FINALFUNC = ffnp, INITCOND = '{}');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE myaggn06b(BASETYPE = int, SFUNC = tf2p, STYPE = int[],
   INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    N    N        P    N
 -- should ERROR: tfnp(int[], anyelement) not matched by tfnp(int[], int)
 CREATE AGGREGATE myaggn07a(BASETYPE = anyelement, SFUNC = tfnp, STYPE = int[],
   FINALFUNC = ffnp, INITCOND = '{}');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE myaggn07b(BASETYPE = anyelement, SFUNC = tfnp, STYPE = int[],
   INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    N    N        P    P
 -- should CREATE
 CREATE AGGREGATE myaggn08a(BASETYPE = anyelement, SFUNC = tf2p, STYPE = int[],
   FINALFUNC = ffnp, INITCOND = '{}');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE myaggn08b(BASETYPE = anyelement, SFUNC = tf2p, STYPE = int[],
   INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    N    P        N    N
 -- should CREATE
 CREATE AGGREGATE myaggn09a(BASETYPE = int, SFUNC = tf1p, STYPE = int[],
   FINALFUNC = ffnp, INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    N    P        N    P
 -- should CREATE
 CREATE AGGREGATE myaggn10a(BASETYPE = int, SFUNC = tfp, STYPE = int[],
   FINALFUNC = ffnp, INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    N    P        P    N
 -- should ERROR: tf1p(int[],anyelement) not matched by tf1p(anyarray,int)
 CREATE AGGREGATE myaggn11a(BASETYPE = anyelement, SFUNC = tf1p, STYPE = int[],
   FINALFUNC = ffnp, INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    N    P        P    P
 -- should ERROR: tfp(int[],anyelement) not matched by tfp(anyarray,anyelement)
 CREATE AGGREGATE myaggn12a(BASETYPE = anyelement, SFUNC = tfp, STYPE = int[],
   FINALFUNC = ffnp, INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    P    N        N    N
 -- should ERROR: tfnp(anyarray, int) not matched by tfnp(int[],int)
 CREATE AGGREGATE myaggn13a(BASETYPE = int, SFUNC = tfnp, STYPE = anyarray,
   FINALFUNC = ffnp, INITCOND = '{}');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE myaggn13b(BASETYPE = int, SFUNC = tfnp, STYPE = anyarray,
   INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    P    N        N    P
 -- should ERROR: tf2p(anyarray, int) not matched by tf2p(int[],anyelement)
 CREATE AGGREGATE myaggn14a(BASETYPE = int, SFUNC = tf2p, STYPE = anyarray,
   FINALFUNC = ffnp, INITCOND = '{}');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE myaggn14b(BASETYPE = int, SFUNC = tf2p, STYPE = anyarray,
   INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    P    N        P    N
 -- should ERROR: tfnp(anyarray, anyelement) not matched by tfnp(int[],int)
 CREATE AGGREGATE myaggn15a(BASETYPE = anyelement, SFUNC = tfnp,
   STYPE = anyarray, FINALFUNC = ffnp, INITCOND = '{}');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE myaggn15b(BASETYPE = anyelement, SFUNC = tfnp,
   STYPE = anyarray, INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    P    N        P    P
 -- should ERROR: tf2p(anyarray, anyelement) not matched by tf2p(int[],anyelement)
 CREATE AGGREGATE myaggn16a(BASETYPE = anyelement, SFUNC = tf2p,
   STYPE = anyarray, FINALFUNC = ffnp, INITCOND = '{}');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE myaggn16b(BASETYPE = anyelement, SFUNC = tf2p,
   STYPE = anyarray, INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    P    P        N    N
 -- should ERROR: ffnp(anyarray) not matched by ffnp(int[])
 CREATE AGGREGATE myaggn17a(BASETYPE = int, SFUNC = tf1p, STYPE = anyarray,
   FINALFUNC = ffnp, INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    P    P        N    P
 -- should ERROR: tfp(anyarray, int) not matched by tfp(anyarray, anyelement)
 CREATE AGGREGATE myaggn18a(BASETYPE = int, SFUNC = tfp, STYPE = anyarray,
   FINALFUNC = ffnp, INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    P    P        P    N
 -- should ERROR: tf1p(anyarray, anyelement) not matched by tf1p(anyarray, int)
 CREATE AGGREGATE myaggn19a(BASETYPE = anyelement, SFUNC = tf1p,
   STYPE = anyarray, FINALFUNC = ffnp, INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 --    P    P        P    P
 -- should ERROR: ffnp(anyarray) not matched by ffnp(int[])
 CREATE AGGREGATE myaggn20a(BASETYPE = anyelement, SFUNC = tfp,
   STYPE = anyarray, FINALFUNC = ffnp, INITCOND = '{}');
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 -- multi-arg polymorphic
 CREATE AGGREGATE mysum2(anyelement,anyelement) (SFUNC = sum3,
   STYPE = anyelement, INITCOND = '0');
-
+--DDL_STATEMENT_END--
 -- create test data for polymorphic aggregates
+--DDL_STATEMENT_BEGIN--
 create temp table t(f1 int, f2 int[], f3 text);
+--DDL_STATEMENT_END--
 insert into t values(1,array[1],'a');
 insert into t values(1,array[11],'b');
 insert into t values(1,array[111],'c');
@@ -377,15 +474,17 @@ select f3, myaggn10a(f1) from t group by f3 order by f3;
 select mysum2(f1, f1 + 1) from t;
 
 -- test inlining of polymorphic SQL functions
+--DDL_STATEMENT_BEGIN--
 create function bleat(int) returns int as $$
 begin
   raise notice 'bleat %', $1;
   return $1;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function sql_if(bool, anyelement, anyelement) returns anyelement as $$
 select case when $1 then $2 else $3 end $$ language sql;
-
+--DDL_STATEMENT_END--
 -- Note this would fail with integer overflow, never mind wrong bleat() output,
 -- if the CASE expression were not successfully inlined
 select f1, sql_if(f1 > 0, bleat(f1), bleat(f1 + 1)) from int4_tbl;
@@ -393,14 +492,14 @@ select f1, sql_if(f1 > 0, bleat(f1), bleat(f1 + 1)) from int4_tbl;
 select q2, sql_if(q2 > 0, q2, q2 + 1) from int8_tbl;
 
 -- another sort of polymorphic aggregate
-
+--DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE array_cat_accum (anyarray)
 (
     sfunc = array_cat,
     stype = anyarray,
     initcond = '{}'
 );
-
+--DDL_STATEMENT_END--
 SELECT array_cat_accum(i)
 FROM (VALUES (ARRAY[1,2]), (ARRAY[3,4])) as t(i);
 
@@ -408,12 +507,11 @@ SELECT array_cat_accum(i)
 FROM (VALUES (ARRAY[row(1,2),row(3,4)]), (ARRAY[row(5,6),row(7,8)])) as t(i);
 
 -- another kind of polymorphic aggregate
-
+--DDL_STATEMENT_BEGIN--
 create function add_group(grp anyarray, ad anyelement, size integer)
   returns anyarray
   as $$
-begin
-  if grp is null then
+begin                                                                                                             is null then
     return array[ad];
   end if;
   if array_upper(grp, 1) < size then
@@ -423,43 +521,48 @@ begin
 end;
 $$
   language plpgsql immutable;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create aggregate build_group(anyelement, integer) (
   SFUNC = add_group,
   STYPE = anyarray
 );
-
+--DDL_STATEMENT_END--
 select build_group(q1,3) from int8_tbl;
 
 -- this should fail because stype isn't compatible with arg
+--DDL_STATEMENT_BEGIN--
 create aggregate build_group(int8, integer) (
   SFUNC = add_group,
   STYPE = int2[]
 );
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 -- but we can make a non-poly agg from a poly sfunc if types are OK
 create aggregate build_group(int8, integer) (
   SFUNC = add_group,
   STYPE = int8[]
 );
-
+--DDL_STATEMENT_END--
 -- check proper resolution of data types for polymorphic transfn/finalfn
-
+--DDL_STATEMENT_BEGIN--
 create function first_el(anyarray) returns anyelement as
 'select $1[1]' language sql strict immutable;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create aggregate first_el_agg_f8(float8) (
   SFUNC = array_append,
   STYPE = float8[],
   FINALFUNC = first_el
 );
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create aggregate first_el_agg_any(anyelement) (
   SFUNC = array_append,
   STYPE = anyarray,
   FINALFUNC = first_el
 );
-
+--DDL_STATEMENT_END--
 select first_el_agg_f8(x::float8) from generate_series(1,10) x;
 select first_el_agg_any(x) from generate_series(1,10) x;
 select first_el_agg_f8(x::float8) over(order by x) from generate_series(1,10) x;
@@ -474,11 +577,11 @@ where histogram_bounds is not null;
 select max(histogram_bounds) from pg_stats where tablename = 'pg_am';
 
 -- test variadic polymorphic functions
-
+--DDL_STATEMENT_BEGIN--
 create function myleast(variadic anyarray) returns anyelement as $$
   select min($1[i]) from generate_subscripts($1,1) g(i)
 $$ language sql immutable strict;
-
+--DDL_STATEMENT_END--
 select myleast(10, 1, 20, 33);
 select myleast(1.1, 0.22, 0.55);
 select myleast('z'::text);
@@ -492,30 +595,32 @@ select myleast(variadic array[1.1, -5.5]);
 select myleast(variadic array[]::int[]);
 
 -- an example with some ordinary arguments too
+--DDL_STATEMENT_BEGIN--
 create function concat(text, variadic anyarray) returns text as $$
   select array_to_string($2, $1);
 $$ language sql immutable strict;
-
+--DDL_STATEMENT_END--
 select concat('%', 1, 2, 3, 4, 5);
 select concat('|', 'a'::text, 'b', 'c');
 select concat('|', variadic array[1,2,33]);
 select concat('|', variadic array[]::int[]);
-
+--DDL_STATEMENT_BEGIN--
 drop function concat(text, anyarray);
-
+--DDL_STATEMENT_END--
 -- mix variadic with anyelement
+--DDL_STATEMENT_BEGIN--
 create function formarray(anyelement, variadic anyarray) returns anyarray as $$
   select array_prepend($1, $2);
 $$ language sql immutable strict;
-
+--DDL_STATEMENT_END--
 select formarray(1,2,3,4,5);
 select formarray(1.1, variadic array[1.2,55.5]);
 select formarray(1.1, array[1.2,55.5]); -- fail without variadic
 select formarray(1, 'x'::text); -- fail, type mismatch
 select formarray(1, variadic array['x'::text]); -- fail, type mismatch
-
+--DDL_STATEMENT_BEGIN--
 drop function formarray(anyelement, variadic anyarray);
-
+--DDL_STATEMENT_END--
 -- test pg_typeof() function
 select pg_typeof(null);           -- unknown
 select pg_typeof(0);              -- integer
@@ -530,63 +635,76 @@ select pg_typeof(myleast(10, 1, 20, 33));  -- polymorphic input
 -- test functions with default parameters
 
 -- test basic functionality
+--DDL_STATEMENT_BEGIN--
 create function dfunc(a int = 1, int = 2) returns int as $$
   select $1 + $2;
 $$ language sql;
-
+--DDL_STATEMENT_END--
 select dfunc();
 select dfunc(10);
 select dfunc(10, 20);
 select dfunc(10, 20, 30);  -- fail
-
+--DDL_STATEMENT_BEGIN--
 drop function dfunc();  -- fail
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop function dfunc(int);  -- fail
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop function dfunc(int, int);  -- ok
-
+--DDL_STATEMENT_END--
 -- fail: defaults must be at end of argument list
+--DDL_STATEMENT_BEGIN--
 create function dfunc(a int = 1, b int) returns int as $$
   select $1 + $2;
 $$ language sql;
-
+--DDL_STATEMENT_END--
 -- however, this should work:
+--DDL_STATEMENT_BEGIN--
 create function dfunc(a int = 1, out sum int, b int = 2) as $$
   select $1 + $2;
 $$ language sql;
-
+--DDL_STATEMENT_END--
 select dfunc();
 
 -- verify it lists properly
 \df dfunc
-
+--DDL_STATEMENT_BEGIN--
 drop function dfunc(int, int);
-
+--DDL_STATEMENT_END--
 -- check implicit coercion
+--DDL_STATEMENT_BEGIN--
 create function dfunc(a int DEFAULT 1.0, int DEFAULT '-1') returns int as $$
   select $1 + $2;
 $$ language sql;
 select dfunc();
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function dfunc(a text DEFAULT 'Hello', b text DEFAULT 'World') returns text as $$
   select $1 || ', ' || $2;
 $$ language sql;
-
+--DDL_STATEMENT_END--
 select dfunc();  -- fail: which dfunc should be called? int or text
 select dfunc('Hi');  -- ok
 select dfunc('Hi', 'City');  -- ok
 select dfunc(0);  -- ok
 select dfunc(10, 20);  -- ok
-
+--DDL_STATEMENT_BEGIN--
 drop function dfunc(int, int);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop function dfunc(text, text);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function dfunc(int = 1, int = 2) returns int as $$
   select 2;
 $$ language sql;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function dfunc(int = 1, int = 2, int = 3, int = 4) returns int as $$
   select 4;
 $$ language sql;
-
+--DDL_STATEMENT_END--
 -- Now, dfunc(nargs = 2) and dfunc(nargs = 4) are ambiguous when called
 -- with 0 to 2 arguments.
 
@@ -595,84 +713,95 @@ select dfunc(1);  -- fail
 select dfunc(1, 2);  -- fail
 select dfunc(1, 2, 3);  -- ok
 select dfunc(1, 2, 3, 4);  -- ok
-
+--DDL_STATEMENT_BEGIN--
 drop function dfunc(int, int);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop function dfunc(int, int, int, int);
-
+--DDL_STATEMENT_END--
 -- default values are not allowed for output parameters
+--DDL_STATEMENT_BEGIN--
 create function dfunc(out int = 20) returns int as $$
   select 1;
 $$ language sql;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 -- polymorphic parameter test
 create function dfunc(anyelement = 'World'::text) returns text as $$
   select 'Hello, ' || $1::text;
 $$ language sql;
-
+--DDL_STATEMENT_END--
 select dfunc();
 select dfunc(0);
 select dfunc(to_date('20081215','YYYYMMDD'));
 select dfunc('City'::text);
-
+--DDL_STATEMENT_BEGIN--
 drop function dfunc(anyelement);
-
+--DDL_STATEMENT_END--
 -- check defaults for variadics
-
+--DDL_STATEMENT_BEGIN--
 create function dfunc(a variadic int[]) returns int as
 $$ select array_upper($1, 1) $$ language sql;
-
+--DDL_STATEMENT_END--
 select dfunc();  -- fail
 select dfunc(10);
 select dfunc(10,20);
-
+--DDL_STATEMENT_BEGIN--
 create or replace function dfunc(a variadic int[] default array[]::int[]) returns int as
 $$ select array_upper($1, 1) $$ language sql;
-
+--DDL_STATEMENT_END--
 select dfunc();  -- now ok
 select dfunc(10);
 select dfunc(10,20);
 
+--DDL_STATEMENT_BEGIN--
 -- can't remove the default once it exists
 create or replace function dfunc(a variadic int[]) returns int as
 $$ select array_upper($1, 1) $$ language sql;
-
+--DDL_STATEMENT_END--
 \df dfunc
-
+--DDL_STATEMENT_BEGIN--
 drop function dfunc(a variadic int[]);
-
+--DDL_STATEMENT_END--
 -- Ambiguity should be reported only if there's not a better match available
-
+--DDL_STATEMENT_BEGIN--
 create function dfunc(int = 1, int = 2, int = 3) returns int as $$
   select 3;
 $$ language sql;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function dfunc(int = 1, int = 2) returns int as $$
   select 2;
 $$ language sql;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function dfunc(text) returns text as $$
   select $1;
 $$ language sql;
-
+--DDL_STATEMENT_END--
 -- dfunc(narg=2) and dfunc(narg=3) are ambiguous
 select dfunc(1);  -- fail
 
 -- but this works since the ambiguous functions aren't preferred anyway
 select dfunc('Hi');
-
+--DDL_STATEMENT_BEGIN--
 drop function dfunc(int, int, int);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop function dfunc(int, int);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop function dfunc(text);
-
+--DDL_STATEMENT_END--
 --
 -- Tests for named- and mixed-notation function calling
 --
-
+--DDL_STATEMENT_BEGIN--
 create function dfunc(a int, b int, c int = 0, d int = 0)
   returns table (a int, b int, c int, d int) as $$
   select $1, $2, $3, $4;
 $$ language sql;
-
+--DDL_STATEMENT_END--
 select (dfunc(10,20,30)).*;
 select (dfunc(a = 10, b = 20, c = 30)).*;
 select * from dfunc(a = 10, b = 20);
@@ -687,30 +816,32 @@ select * from dfunc(10, b = 20, 30);  -- fail, named args must be last
 select * from dfunc(x = 10, b = 20, c = 30);  -- fail, unknown param
 select * from dfunc(10, 10, a = 20);  -- fail, a overlaps positional parameter
 select * from dfunc(1,c = 2,d = 3); -- fail, no value for b
-
+--DDL_STATEMENT_BEGIN--
 drop function dfunc(int, int, int, int);
-
+--DDL_STATEMENT_END--
 -- test with different parameter types
+--DDL_STATEMENT_BEGIN--
 create function dfunc(a varchar, b numeric, c date = current_date)
   returns table (a varchar, b numeric, c date) as $$
   select $1, $2, $3;
 $$ language sql;
-
+--DDL_STATEMENT_END--
 select (dfunc('Hello World', 20, '2009-07-25'::date)).*;
 select * from dfunc('Hello World', 20, '2009-07-25'::date);
 select * from dfunc(c = '2009-07-25'::date, a = 'Hello World', b = 20);
 select * from dfunc('Hello World', b = 20, c = '2009-07-25'::date);
 select * from dfunc('Hello World', c = '2009-07-25'::date, b = 20);
 select * from dfunc('Hello World', c = 20, b = '2009-07-25'::date);  -- fail
-
+--DDL_STATEMENT_BEGIN--
 drop function dfunc(varchar, numeric, date);
-
+--DDL_STATEMENT_END--
 -- test out parameters with named params
+--DDL_STATEMENT_BEGIN--
 create function dfunc(a varchar = 'def a', out _a varchar, c numeric = NULL, out _c numeric)
 returns record as $$
   select $1, $2;
 $$ language sql;
-
+--DDL_STATEMENT_END--
 select (dfunc()).*;
 select * from dfunc();
 select * from dfunc('Hello', 100);
@@ -721,38 +852,56 @@ select * from dfunc('Hello', c = 100);
 select * from dfunc(c = 100);
 
 -- fail, can no longer change an input parameter's name
+--DDL_STATEMENT_BEGIN--
 create or replace function dfunc(a varchar = 'def a', out _a varchar, x numeric = NULL, out _c numeric)
 returns record as $$
   select $1, $2;
 $$ language sql;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create or replace function dfunc(a varchar = 'def a', out _a varchar, numeric = NULL, out _c numeric)
 returns record as $$
   select $1, $2;
 $$ language sql;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop function dfunc(varchar, numeric);
-
+--DDL_STATEMENT_END--
 --fail, named parameters are not unique
+--DDL_STATEMENT_BEGIN--
 create function testpolym(a int, a int) returns int as $$ select 1;$$ language sql;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function testpolym(int, out a int, out a int) returns int as $$ select 1;$$ language sql;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function testpolym(out a int, inout a int) returns int as $$ select 1;$$ language sql;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function testpolym(a int, inout a int) returns int as $$ select 1;$$ language sql;
-
+--DDL_STATEMENT_END--
 -- valid
+--DDL_STATEMENT_BEGIN--
 create function testpolym(a int, out a int) returns int as $$ select $1;$$ language sql;
+--DDL_STATEMENT_END--
 select testpolym(37);
+--DDL_STATEMENT_BEGIN--
 drop function testpolym(int);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function testpolym(a int) returns table(a int) as $$ select $1;$$ language sql;
+--DDL_STATEMENT_END--
 select * from testpolym(37);
+--DDL_STATEMENT_BEGIN--
 drop function testpolym(int);
-
+--DDL_STATEMENT_END--
 -- test polymorphic params and defaults
+--DDL_STATEMENT_BEGIN--
 create function dfunc(a anyelement, b anyelement = null, flag bool = true)
 returns anyelement as $$
   select case when $3 then $1 else $2 end;
 $$ language sql;
-
+--DDL_STATEMENT_END--
 select dfunc(1,2);
 select dfunc('a'::text, 'b'); -- positional notation with default
 
@@ -802,15 +951,19 @@ do $$
 $$;
 
 -- check reverse-listing of named-arg calls
+--DDL_STATEMENT_BEGIN--
 CREATE VIEW dfview AS
    SELECT q1, q2,
      dfunc(q1,q2, flag = q1>q2) as c3,
      dfunc(q1, flag = q1<q2, b = q2) as c4
      FROM int8_tbl;
-
+--DDL_STATEMENT_END--	 
 select * from dfview;
 
 \d+ dfview
-
+--DDL_STATEMENT_BEGIN--
 drop view dfview;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop function dfunc(anyelement, anyelement, bool);
+--DDL_STATEMENT_END--

@@ -1,9 +1,9 @@
 --
 -- TINTERVAL
 --
-
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE TINTERVAL_TBL (f1  tinterval);
-
+--DDL_STATEMENT_END--
 -- Should accept any abstime,
 -- so do not bother with extensive testing of values
 

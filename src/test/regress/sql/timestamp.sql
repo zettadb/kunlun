@@ -1,9 +1,12 @@
 --
 -- TIMESTAMP
 --
-
+--DDL_STATEMENT_BEGIN--
 drop table if exists TIMESTAMP_TBL;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE TIMESTAMP_TBL (d1 timestamp(2) without time zone);
+--DDL_STATEMENT_END--
 
 -- Test shorthand input values
 -- We can't just "select" the results since they aren't constants; test for

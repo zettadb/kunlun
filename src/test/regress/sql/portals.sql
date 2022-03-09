@@ -235,12 +235,12 @@ FETCH FROM foo26;
 --
 
 BEGIN;
-
+--DDL_STATEMENT_BEGIN--
 CREATE FUNCTION declares_cursor(text)
    RETURNS void
    AS 'DECLARE c CURSOR FOR SELECT stringu1 FROM tenk1 WHERE stringu1 LIKE $1;'
    LANGUAGE SQL;
-
+--DDL_STATEMENT_END--
 SELECT declares_cursor('AB%');
 
 FETCH ALL FROM c;
@@ -252,15 +252,17 @@ ROLLBACK;
 -- in particular we want to see what happens during commit of a holdable
 -- cursor
 --
-
+--DDL_STATEMENT_BEGIN--
 create temp table tt1(f1 int);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function count_tt1_v() returns int8 as
 'select count(*) from tt1' language sql volatile;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function count_tt1_s() returns int8 as
 'select count(*) from tt1' language sql stable;
-
+--DDL_STATEMENT_END--
 begin;
 
 insert into tt1 values(1);
@@ -286,10 +288,12 @@ commit;
 delete from tt1;
 
 fetch all from c2;
-
+--DDL_STATEMENT_BEGIN--
 drop function count_tt1_v();
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop function count_tt1_s();
-
+--DDL_STATEMENT_END--
 
 -- Create a cursor with the BINARY option and check the pg_cursors view
 BEGIN;
@@ -319,8 +323,9 @@ COMMIT;
 --
 -- Tests for updatable cursors
 --
-
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE uctest(f1 int, f2 text);
+--DDL_STATEMENT_END--
 INSERT INTO uctest VALUES (1, 'one'), (2, 'two'), (3, 'three');
 SELECT * FROM uctest;
 
@@ -388,7 +393,9 @@ ROLLBACK;
 SELECT * FROM uctest;
 
 -- Check inheritance cases
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE ucchild () inherits (uctest);
+--DDL_STATEMENT_END--
 INSERT INTO ucchild values(100, 'hundred');
 SELECT * FROM uctest;
 
@@ -453,9 +460,13 @@ ROLLBACK;
 
 -- WHERE CURRENT OF may someday work with views, but today is not that day.
 -- For now, just make sure it errors out cleanly.
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP VIEW ucview AS SELECT * FROM uctest;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE RULE ucrule AS ON DELETE TO ucview DO INSTEAD
   DELETE FROM uctest WHERE f1 = OLD.f1;
+--DDL_STATEMENT_END--
 BEGIN;
 DECLARE c1 CURSOR FOR SELECT * FROM ucview;
 FETCH FROM c1;
@@ -475,9 +486,15 @@ ROLLBACK;
 -- Check behavior with rewinding to a previous child scan node,
 -- as per bug #15395
 BEGIN;
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE current_check (currentid int, payload text);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE current_check_1 () INHERITS (current_check);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE current_check_2 () INHERITS (current_check);
+--DDL_STATEMENT_END--
 INSERT INTO current_check_1 SELECT i, 'p' || i FROM generate_series(1,9) i;
 INSERT INTO current_check_2 SELECT i, 'P' || i FROM generate_series(10,19) i;
 
@@ -500,19 +517,24 @@ ROLLBACK;
 -- 235395b90909301035v7228ce63q392931f15aa74b31@mail.gmail.com
 BEGIN;
 SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE cursor (a int);
+--DDL_STATEMENT_END--
 INSERT INTO cursor VALUES (1);
 DECLARE c1 NO SCROLL CURSOR FOR SELECT * FROM cursor FOR UPDATE;
 UPDATE cursor SET a = 2;
 FETCH ALL FROM c1;
 COMMIT;
+--DDL_STATEMENT_BEGIN--
 DROP TABLE cursor;
-
+--DDL_STATEMENT_END--
 -- Check rewinding a cursor containing a stable function in LIMIT,
 -- per bug report in 8336843.9833.1399385291498.JavaMail.root@quick
 begin;
+--DDL_STATEMENT_BEGIN--
 create function nochange(int) returns int
   as 'select $1 limit 1' language sql stable;
+--DDL_STATEMENT_END--
 declare c cursor for select * from int8_tbl limit nochange(3);
 fetch all from c;
 move backward all in c;

@@ -155,10 +155,16 @@ SELECT h.seqno AS f20000
 --
 -- Cause some overflow insert and splits.
 --
+--DDL_STATEMENT_BEGIN--
 drop table if exists hash_split_heap;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE hash_split_heap (keycol INT);
+--DDL_STATEMENT_END--
 INSERT INTO hash_split_heap SELECT 1 FROM generate_series(1, 500) a;
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX hash_split_index on hash_split_heap USING HASH (keycol);
+--DDL_STATEMENT_END--
 INSERT INTO hash_split_heap SELECT 1 FROM generate_series(1, 5000) a;
 
 -- DELETE, INSERT, VACUUM.
@@ -166,22 +172,39 @@ DELETE FROM hash_split_heap WHERE keycol = 1;
 INSERT INTO hash_split_heap SELECT a/2 FROM generate_series(1, 25000) a;
 
 -- Clean up.
+--DDL_STATEMENT_BEGIN--
 DROP TABLE hash_split_heap;
-
+--DDL_STATEMENT_END--
 -- Index on temp table.
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE hash_temp_heap (x int, y int);
+--DDL_STATEMENT_END--
 INSERT INTO hash_temp_heap VALUES (1,1);
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX hash_idx ON hash_temp_heap USING hash (x);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TABLE hash_temp_heap CASCADE;
+--DDL_STATEMENT_END--
 
 -- Float4 type.
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE hash_heap_float4 (x float4, y int);
+--DDL_STATEMENT_END--
 INSERT INTO hash_heap_float4 VALUES (1.1,1);
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX hash_idx ON hash_heap_float4 USING hash (x);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TABLE hash_heap_float4 CASCADE;
+--DDL_STATEMENT_END--
 
 -- Test out-of-range fillfactor values
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX hash_f8_index2 ON hash_f8_heap USING hash (random float8_ops)
 	WITH (fillfactor=9);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX hash_f8_index2 ON hash_f8_heap USING hash (random float8_ops)
 	WITH (fillfactor=101);
+--DDL_STATEMENT_END--

@@ -3,7 +3,9 @@
 --
 
 -- load test data
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE test_having (a int, b int, c char(8), d char);
+--DDL_STATEMENT_END--
 INSERT INTO test_having VALUES (0, 1, 'XXXX', 'A');
 INSERT INTO test_having VALUES (1, 2, 'AAAA', 'b');
 INSERT INTO test_having VALUES (2, 2, 'AAAA', 'c');
@@ -46,5 +48,6 @@ SELECT 1 AS one FROM test_having HAVING 1 < 2;
 
 -- and just to prove that we aren't scanning the table:
 SELECT 1 AS one FROM test_having WHERE 1/a = 1 HAVING 1 < 2;
-
+--DDL_STATEMENT_BEGIN--
 DROP TABLE test_having;
+--DDL_STATEMENT_END--

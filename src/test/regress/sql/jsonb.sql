@@ -89,8 +89,9 @@ select to_jsonb(timestamptz 'Infinity');
 select to_jsonb(timestamptz '-Infinity');
 
 --jsonb_agg
-
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE rows(x int, y text);
+--DDL_STATEMENT_END--
 insert into rows SELECT x, 'txt' || x as y FROM generate_series(1,3) AS x;
 
 SELECT jsonb_agg(q)
@@ -109,11 +110,12 @@ SELECT jsonb_agg(q ORDER BY x NULLS FIRST, y)
   FROM rows q;
 
 -- jsonb extraction functions
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE test_jsonb (
        json_type text,
        test_json jsonb
 );
-
+--DDL_STATEMENT_END--
 INSERT INTO test_jsonb VALUES
 ('scalar','"a scalar"'),
 ('array','["zero", "one","two",null,"four","five", [1,2,3],{"f1":9}]'),
@@ -361,8 +363,9 @@ SELECT jsonb_build_object('{1,2,3}'::int[], 3);
 -- handling of NULL values
 SELECT jsonb_object_agg(1, NULL::jsonb);
 SELECT jsonb_object_agg(NULL, '{"a":1}');
-
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE foo (serial_num int, name text, type text);
+--DDL_STATEMENT_END--
 INSERT INTO foo VALUES (847001,'t15','GE1043');
 INSERT INTO foo VALUES (847002,'t16','GE1043');
 INSERT INTO foo VALUES (847003,'sub-alpha','GESS90');
@@ -501,10 +504,13 @@ SELECT jsonb_array_elements_text('[1,true,[1,[2,3]],null,{"f1":1,"f2":[7,8,9]},f
 SELECT * FROM jsonb_array_elements_text('[1,true,[1,[2,3]],null,{"f1":1,"f2":[7,8,9]},false,"stringy"]') q;
 
 -- populate_record
+--DDL_STATEMENT_BEGIN--
 CREATE TYPE jbpop AS (a text, b int, c timestamp);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create type jb_unordered_pair as (x int, y int);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TYPE jsbrec AS (
 	i	int,
 	ia	_int4,
@@ -524,11 +530,12 @@ CREATE TYPE jsbrec AS (
 	rec	jbpop,
 	reca	jbpop[]
 );
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TYPE jsbrec_i_not_null AS (
 	i	jsb_int_not_null
 );
-
+--DDL_STATEMENT_END--
 SELECT * FROM jsonb_populate_record(NULL::jbpop,'{"a":"blurfl","x":43.2}') q;
 SELECT * FROM jsonb_populate_record(row('x',3,'2012-12-31 15:30:56')::jbpop,'{"a":"blurfl","x":43.2}') q;
 
@@ -711,8 +718,9 @@ select * from jsonb_to_record('{"out": [{"key": 1}]}') as x(out jsonb);
 select * from jsonb_to_record('{"out": "{\"key\": 1}"}') as x(out jsonb);
 
 -- test type info caching in jsonb_populate_record()
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE jsbpoptest (js jsonb);
-
+--DDL_STATEMENT_END--
 INSERT INTO jsbpoptest
 SELECT '{
 	"jsa": [1, "2", null, 4],
@@ -722,11 +730,15 @@ SELECT '{
 FROM generate_series(1, 3);
 
 SELECT (jsonb_populate_record(NULL::jsbrec, js)).* FROM jsbpoptest;
-
+--DDL_STATEMENT_BEGIN--
 DROP TYPE jsbrec;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TYPE jsbrec_i_not_null;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TYPE jb_unordered_pair;
-
+--DDL_STATEMENT_END--
 -- indexing
 SELECT count(*) FROM testjsonb WHERE j @> '{"wait":null}';
 SELECT count(*) FROM testjsonb WHERE j @> '{"wait":"CC"}';
@@ -777,19 +789,25 @@ SET enable_sort = on;
 
 RESET enable_hashagg;
 RESET enable_sort;
-
+--DDL_STATEMENT_BEGIN--
 DROP INDEX jidx;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP INDEX jidx_array;
+--DDL_STATEMENT_END--
 -- btree
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX jidx ON testjsonb USING btree (j);
+--DDL_STATEMENT_END--
 SET enable_seqscan = off;
 
 SELECT count(*) FROM testjsonb WHERE j > '{"p":1}';
 SELECT count(*) FROM testjsonb WHERE j = '{"pos":98, "line":371, "node":"CBA", "indexed":true}';
 
 --gin path opclass
+--DDL_STATEMENT_BEGIN--
 DROP INDEX jidx;
-
+--DDL_STATEMENT_END--
 -- nested tests
 SELECT '{"ff":{"a":12,"b":16}}'::jsonb;
 SELECT '{"ff":{"a":12,"b":16},"qq":123}'::jsonb;
@@ -827,7 +845,9 @@ SELECT '{"a":[1,2,{"c":3,"x":4}],"c":"b"}'::jsonb @> '{"a":[{"x":4},3]}';
 SELECT '{"a":[1,2,{"c":3,"x":4}],"c":"b"}'::jsonb @> '{"a":[{"x":4},1]}';
 
 -- check some corner cases for indexed nested containment (bug #13756)
+--DDL_STATEMENT_BEGIN--
 create temp table nestjsonb (j jsonb);
+--DDL_STATEMENT_END--
 insert into nestjsonb (j) values ('{"a":[["b",{"x":1}],["b",{"x":2}]],"c":3}');
 insert into nestjsonb (j) values ('[[14,2,3]]');
 insert into nestjsonb (j) values ('[1,[14,2,3]]');

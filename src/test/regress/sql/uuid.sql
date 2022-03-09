@@ -1,18 +1,25 @@
 -- regression test for the uuid datatype
 -- creating test tables
+--DDL_STATEMENT_BEGIN--
 drop table if exists guid1;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE guid1
 (
 	guid_field UUID,
 	text_field TEXT DEFAULT(now())
 );
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists guid2;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE guid2
 (
 	guid_field UUID,
 	text_field TEXT DEFAULT(now())
 );
-
+--DDL_STATEMENT_END--
 -- inserting invalid data tests
 -- too long
 INSERT INTO guid1(guid_field) VALUES('11111111-1111-1111-1111-111111111111F');
@@ -56,11 +63,17 @@ SELECT COUNT(*) FROM guid1 WHERE guid_field > '22222222-2222-2222-2222-222222222
 SELECT COUNT(*) FROM guid1 WHERE guid_field >= '22222222-2222-2222-2222-222222222222';
 
 -- btree and hash index creation test
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX guid1_btree ON guid1 USING BTREE (guid_field);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX guid1_hash  ON guid1 USING HASH  (guid_field);
+--DDL_STATEMENT_END--
 
 -- unique index test
+--DDL_STATEMENT_BEGIN--
 CREATE UNIQUE INDEX guid1_unique_BTREE ON guid1 USING BTREE (guid_field);
+--DDL_STATEMENT_END--
 -- should fail
 INSERT INTO guid1(guid_field) VALUES('11111111-1111-1111-1111-111111111111');
 
@@ -78,5 +91,9 @@ SELECT COUNT(*) FROM guid1 g1 INNER JOIN guid2 g2 ON g1.guid_field = g2.guid_fie
 SELECT COUNT(*) FROM guid1 g1 LEFT JOIN guid2 g2 ON g1.guid_field = g2.guid_field WHERE g2.guid_field IS NULL;
 
 -- clean up
+--DDL_STATEMENT_BEGIN--
 DROP TABLE guid1;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TABLE guid2 CASCADE;
+--DDL_STATEMENT_END--

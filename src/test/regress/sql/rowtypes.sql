@@ -3,15 +3,16 @@
 --
 
 -- Make both a standalone composite type and a table rowtype
-
+--DDL_STATEMENT_BEGIN--
 create type complex as (r float8, i float8);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table fullname (first text, last text);
-
+--DDL_STATEMENT_END--
 -- Nested composite
-
+--DDL_STATEMENT_BEGIN--
 create type quad as (c1 complex, c2 complex);
-
+--DDL_STATEMENT_END--
 -- Some simple tests of I/O conversions and row construction
 
 select (1.1,2.2)::complex, row((3.3,4.4),(5.5,null))::quad;
@@ -30,9 +31,9 @@ select '(Joe,,)'::fullname;	-- bad
 select '[]'::fullname;          -- bad
 select ' (Joe,Blow)  '::fullname;  -- ok, extra whitespace
 select '(Joe,Blow) /'::fullname;  -- bad
-
+--DDL_STATEMENT_BEGIN--
 create temp table quadtable(f1 int, q quad);
-
+--DDL_STATEMENT_END--
 insert into quadtable values (1, ((3.3,4.4),(5.5,6.6)));
 insert into quadtable values (2, ((null,4.4),(5.5,6.6)));
 
@@ -41,19 +42,21 @@ select * from quadtable;
 select f1, q.c1 from quadtable;		-- fails, q is a table reference
 
 select f1, (q).c1, (qq.q).c1.i from quadtable qq;
-
+--DDL_STATEMENT_BEGIN--
 create temp table people (fn fullname, bd date);
-
+--DDL_STATEMENT_END--
 insert into people values ('(Joe,Blow)', '1984-01-10');
 
 select * from people;
 
 -- at the moment this will not work due to ALTER TABLE inadequacy:
+--DDL_STATEMENT_BEGIN--
 alter table fullname add column suffix text default '';
-
+--DDL_STATEMENT_END--
 -- but this should work:
+--DDL_STATEMENT_BEGIN--
 alter table fullname add column suffix text default null;
-
+--DDL_STATEMENT_END--
 select * from people;
 
 -- test insertion/updating of subfields
@@ -68,8 +71,9 @@ select * from quadtable;
 -- The object here is to ensure that toasted references inside
 -- composite values don't cause problems.  The large f1 value will
 -- be toasted inside pp, it must still work after being copied to people.
-
+--DDL_STATEMENT_BEGIN--
 create temp table pp (f1 text);
+--DDL_STATEMENT_END--
 insert into pp values (repeat('abcdefghijkl', 100000));
 
 insert into people select ('Jim', f1, null)::fullname, current_date from pp;
@@ -120,11 +124,15 @@ where (thousand, tenthous) >= (997, 5000)
 order by thousand, tenthous;
 
 -- Test case for bug #14010: indexed row comparisons fail with nulls
+--DDL_STATEMENT_BEGIN--
 create temp table test_table (a text, b text);
+--DDL_STATEMENT_END--
 insert into test_table values ('a', 'b');
 insert into test_table select 'a', null from generate_series(1,1000);
 insert into test_table values ('b', 'a');
+--DDL_STATEMENT_BEGIN--
 create index on test_table (a,b);
+--DDL_STATEMENT_END--
 set enable_sort = off;
 
 explain (costs off)
@@ -157,8 +165,12 @@ select row(1,1.1) = any (array[ row(7,7.7), row(1,1.1), row(0,0.0) ]);
 select row(1,1.1) = any (array[ row(7,7.7), row(1,1.0), row(0,0.0) ]);
 
 -- Check behavior with a non-comparable rowtype
+--DDL_STATEMENT_BEGIN--
 create type cantcompare as (p point, r float8);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create temp table cc (f1 cantcompare);
+--DDL_STATEMENT_END--
 insert into cc values('("(1,2)",3)');
 insert into cc values('("(4,5)",6)');
 select * from cc order by f1; -- fail, but should complain about cantcompare
@@ -166,9 +178,9 @@ select * from cc order by f1; -- fail, but should complain about cantcompare
 --
 -- Tests for record_{eq,cmp}
 --
-
+--DDL_STATEMENT_BEGIN--
 create type testtype1 as (a int, b int);
-
+--DDL_STATEMENT_END--
 -- all true
 select row(1, 2)::testtype1 < row(1, 3)::testtype1;
 select row(1, 2)::testtype1 <= row(1, 3)::testtype1;
@@ -189,26 +201,32 @@ select row(1, -3)::testtype1 > row(1, -2)::testtype1;
 select row(1, -2)::testtype1 < row(1, 3)::testtype1;
 
 -- mismatches
+--DDL_STATEMENT_BEGIN--
 create type testtype3 as (a int, b text);
+--DDL_STATEMENT_END--
 select row(1, 2)::testtype1 < row(1, 'abc')::testtype3;
 select row(1, 2)::testtype1 <> row(1, 'abc')::testtype3;
+--DDL_STATEMENT_BEGIN--
 create type testtype5 as (a int);
+--DDL_STATEMENT_END--
 select row(1, 2)::testtype1 < row(1)::testtype5;
 select row(1, 2)::testtype1 <> row(1)::testtype5;
 
 -- non-comparable types
+--DDL_STATEMENT_BEGIN--
 create type testtype6 as (a int, b point);
+--DDL_STATEMENT_END--
 select row(1, '(1,2)')::testtype6 < row(1, '(1,3)')::testtype6;
 select row(1, '(1,2)')::testtype6 <> row(1, '(1,3)')::testtype6;
-
+--DDL_STATEMENT_BEGIN--
 drop type testtype1, testtype3, testtype5, testtype6;
-
+--DDL_STATEMENT_END--
 --
 -- Tests for record_image_{eq,cmp}
 --
-
+--DDL_STATEMENT_BEGIN--
 create type testtype1 as (a int, b int);
-
+--DDL_STATEMENT_END--
 -- all true
 select row(1, 2)::testtype1 *< row(1, 3)::testtype1;
 select row(1, 2)::testtype1 *<= row(1, 3)::testtype1;
@@ -230,66 +248,79 @@ select row(1, -3)::testtype1 *> row(1, -2)::testtype1;
 select row(1, -2)::testtype1 *< row(1, 3)::testtype1;
 
 -- other types
+--DDL_STATEMENT_BEGIN--
 create type testtype2 as (a smallint, b bool);  -- byval different sizes
+--DDL_STATEMENT_END--
 select row(1, true)::testtype2 *< row(2, true)::testtype2;
 select row(-2, true)::testtype2 *< row(-1, true)::testtype2;
 select row(0, false)::testtype2 *< row(0, true)::testtype2;
 select row(0, false)::testtype2 *<> row(0, true)::testtype2;
-
+--DDL_STATEMENT_BEGIN--
 create type testtype3 as (a int, b text);  -- variable length
+--DDL_STATEMENT_END--
 select row(1, 'abc')::testtype3 *< row(1, 'abd')::testtype3;
 select row(1, 'abc')::testtype3 *< row(1, 'abcd')::testtype3;
 select row(1, 'abc')::testtype3 *> row(1, 'abd')::testtype3;
 select row(1, 'abc')::testtype3 *<> row(1, 'abd')::testtype3;
-
+--DDL_STATEMENT_BEGIN--
 create type testtype4 as (a int, b point);  -- by ref, fixed length
+--DDL_STATEMENT_END--
 select row(1, '(1,2)')::testtype4 *< row(1, '(1,3)')::testtype4;
 select row(1, '(1,2)')::testtype4 *<> row(1, '(1,3)')::testtype4;
 
 -- mismatches
 select row(1, 2)::testtype1 *< row(1, 'abc')::testtype3;
 select row(1, 2)::testtype1 *<> row(1, 'abc')::testtype3;
+--DDL_STATEMENT_BEGIN--
 create type testtype5 as (a int);
+--DDL_STATEMENT_END--
 select row(1, 2)::testtype1 *< row(1)::testtype5;
 select row(1, 2)::testtype1 *<> row(1)::testtype5;
 
 -- non-comparable types
+--DDL_STATEMENT_BEGIN--
 create type testtype6 as (a int, b point);
+--DDL_STATEMENT_END--
 select row(1, '(1,2)')::testtype6 *< row(1, '(1,3)')::testtype6;
 select row(1, '(1,2)')::testtype6 *>= row(1, '(1,3)')::testtype6;
 select row(1, '(1,2)')::testtype6 *<> row(1, '(1,3)')::testtype6;
-
+--DDL_STATEMENT_BEGIN--
 drop type testtype1, testtype2, testtype3, testtype4, testtype5, testtype6;
-
+--DDL_STATEMENT_END--
 
 --
 -- Test case derived from bug #5716: check multiple uses of a rowtype result
 --
-
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE price (
     id SERIAL PRIMARY KEY,
     active BOOLEAN NOT NULL,
     price NUMERIC
 );
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TYPE price_input AS (
     id INTEGER,
     price NUMERIC
 );
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TYPE price_key AS (
     id INTEGER
 );
+--DDL_STATEMENT_END--
 
 BEGIN;
+--DDL_STATEMENT_BEGIN--
 CREATE FUNCTION price_key_from_table(price) RETURNS price_key AS $$
     SELECT $1.id
 $$ LANGUAGE SQL;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE FUNCTION price_key_from_input(price_input) RETURNS price_key AS $$
     SELECT $1.id
 $$ LANGUAGE SQL;
-
+--DDL_STATEMENT_END--
 insert into price values (1,false,42), (10,false,100), (11,true,17.99);
 
 -- kunlun does not support this: UPDATE price
@@ -300,34 +331,42 @@ insert into price values (1,false,42), (10,false,100), (11,true,17.99);
 select * from price;
 
 rollback;
-
+--DDL_STATEMENT_BEGIN--
 DROP TABLE price;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TYPE price_input;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TYPE price_key;
-
+--DDL_STATEMENT_END--
 --
 -- Test case derived from bug #9085: check * qualification of composite
 -- parameters for SQL functions
 --
-
+--DDL_STATEMENT_BEGIN--
 create temp table compos (f1 int, f2 text);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function fcompos1(v compos) returns void as $$
 insert into compos values (v);  -- fail
 $$ language sql;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function fcompos1(v compos) returns void as $$
 insert into compos values (v.*);
 $$ language sql;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function fcompos2(v compos) returns void as $$
 select fcompos1(v);
 $$ language sql;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function fcompos3(v compos) returns void as $$
 select fcompos1(fcompos3.v.*);
 $$ language sql;
-
+--DDL_STATEMENT_END--
 select fcompos1(row(1,'one'));
 select fcompos2(row(2,'two'));
 select fcompos3(row(3,'three'));
@@ -355,16 +394,17 @@ insert into fullname values ('Joe', 'Blow');
 
 select f.last from fullname f;
 select last(f) from fullname f;
-
+--DDL_STATEMENT_BEGIN--
 create function longname(fullname) returns text language sql
 as $$select $1.first || ' ' || $1.last$$;
-
+--DDL_STATEMENT_END--
 select f.longname from fullname f;
 select longname(f) from fullname f;
 
 -- Starting in v11, the notational form does matter if there's ambiguity
+--DDL_STATEMENT_BEGIN--
 alter table fullname add column longname text;
-
+--DDL_STATEMENT_END--
 select f.longname from fullname f;
 select longname(f) from fullname f;
 
@@ -375,8 +415,9 @@ select longname(f) from fullname f;
 
 select row_to_json(i) from int8_tbl i;
 select row_to_json(i) from int8_tbl i(x,y);
-
+--DDL_STATEMENT_BEGIN--
 create temp view vv1 as select * from int8_tbl;
+--DDL_STATEMENT_END--
 select row_to_json(i) from vv1 i;
 select row_to_json(i) from vv1 i(x,y);
 
@@ -435,8 +476,12 @@ select r, r is null as isnull, r is not null as isnotnull from r;
 --
 -- Tests for component access / FieldSelect
 --
+--DDL_STATEMENT_BEGIN--
 DROP TABLE if exists compositetable;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE compositetable(a text, b text) 
+--DDL_STATEMENT_END--
 INSERT INTO compositetable(a, b) VALUES('fa', 'fb');
 
 -- composite type columns can't directly be accessed (error)
@@ -452,5 +497,6 @@ SELECT (NULL::compositetable).nonexistant;
 SELECT (NULL::compositetable).a;
 -- oids can't be accessed in composite types (error)
 SELECT (NULL::compositetable).oid;
-
+--DDL_STATEMENT_BEGIN--
 DROP TABLE compositetable;
+--DDL_STATEMENT_END--

@@ -12,12 +12,16 @@
 
 
 --Numeric Types--
+--DDL_STATEMENT_BEGIN--
 drop table if exists t1;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table t1 (
 id serial,
 a integer, 
 b smallint, 
 c bigint);
+--DDL_STATEMENT_END--
 --Testing of boundary values 
 insert into t1 values(DEFAULT,88,99,100);
 insert into t1 (a,b,c) values (2147483647,32767,9223372036854775807);
@@ -49,17 +53,21 @@ delete  from  t1 where c=56;
 UPDATE t1 set id='99' where c=100;
 select * from t1 order by id ;	
 delete  from  t1 where id=99;
-
+--DDL_STATEMENT_BEGIN--
 drop table t1;
-
+--DDL_STATEMENT_END--
 --Arbitrary Precision Numbers 任意精度数字
+--DDL_STATEMENT_BEGIN--
 drop table if exists t2;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table t2 (
 id smallserial,
 a decimal,
 b decimal(4,2),
 c numeric(2)
 );
+--DDL_STATEMENT_END--
 insert into t2 values (DEFAULT,DEFAULT,88.88,77);
 insert into t2 values (DEFAULT,DEFAULT,88.888,77.7);
 --smallserial
@@ -75,15 +83,19 @@ delete  from  t2 where id=1;
 UPDATE t2 set c='33' where id=2;
 select * from t2 order by id;
 delete  from  t2 where c=33;
+--DDL_STATEMENT_BEGIN--
 drop table t2;
-
+--DDL_STATEMENT_END--
 --Floating-Point Types and Serial Types -- 浮点和序数
-
+--DDL_STATEMENT_BEGIN--
 drop table if exists t3;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table t3(
 id bigserial,
 a real,  
 b double precision); 
+--DDL_STATEMENT_END--
 insert into t3 values(default,333.333,44.12233);
 insert into t3(a,b) values(44556,123456);
 insert into t3(a,b) values(1.2345678901234e+20,1.2345678901234e+200);
@@ -106,14 +118,19 @@ select * from t3 order by id ;
 UPDATE t3 set b='666' where id=2;
 select * from t3 order by id ;
 delete  from  t3 where b=666;
+--DDL_STATEMENT_BEGIN--
 drop table t3;
-
+--DDL_STATEMENT_END--
 
 --Monetary Types--
+--DDL_STATEMENT_BEGIN--
 drop table if exists t4;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table t4(
 id int2,
 a money);
+--DDL_STATEMENT_END--
 insert into t4 values (1,1);
 insert into t4 values (2,3.141);
 insert into t4 values (3,3.145);
@@ -123,16 +140,19 @@ UPDATE t4 set a='666' where id=1;
 select * from t4 order by id;
 delete  from  t4 where id=1;
 select sum(a) from t4;
+--DDL_STATEMENT_BEGIN--
 drop table t4;
-
+--DDL_STATEMENT_END--
 --Character Types 字符类型
-
+--DDL_STATEMENT_BEGIN--
 drop table if exists char_test;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table char_test(
 id int2,
 a char(4),
 b varchar(4));
-
+--DDL_STATEMENT_END--
 insert into char_test values(1,'abcd', 'qwer');
 insert into char_test values(2,'a', 'b');
 insert into char_test values(3,'1234', '5678');
@@ -149,25 +169,31 @@ delete  from  char_test  where id=4;
 select  * from char_test ORDER by id;
 
 SELECT a, char_length(a),b,char_length(b) FROM char_test;
-
+--DDL_STATEMENT_BEGIN--
 drop table char_test;
-
+--DDL_STATEMENT_END--
 --Binary Data Types 
+--DDL_STATEMENT_BEGIN--
 drop table if exists tab_bytea;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE tab_bytea(a bytea,b bytea);
-
+--DDL_STATEMENT_END--
 INSERT INTO tab_bytea VALUES('\047',E'\xF');
 UPDATE tab_bytea set a='\134' where a='\047';
 delete  from  tab_bytea  where a='\134';
 
 --SELECT * FROM tab_bytea;
-
+--DDL_STATEMENT_BEGIN--
 drop table tab_bytea;
-
+--DDL_STATEMENT_END--
 --Date/Time Types 日期/时间类型
-
+--DDL_STATEMENT_BEGIN--
 drop table if exists tab_date;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE tab_date(id smallserial,a date);
+--DDL_STATEMENT_END--
 show datestyle;
 INSERT INTO tab_date VALUES(DEFAULT,'2020-10-26');
 UPDATE tab_date set a='2021-10-26' where id=1;
@@ -183,25 +209,34 @@ UPDATE tab_date set a='2021-10-27' where id=4;
 SELECT * FROM tab_date;
 delete from tab_date where a='2021-10-27';
 delete from tab_date where id=3;
+--DDL_STATEMENT_BEGIN--
 drop table tab_date;
-
-
+--DDL_STATEMENT_END--
 
 --timestamp
+--DDL_STATEMENT_BEGIN--
 drop table if exists tab_timestamp;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE tab_timestamp(a timestamptz,b timestamp);
+--DDL_STATEMENT_END--
 INSERT INTO tab_timestamp VALUES('2020-04-26 13:20:34 CST','2020-04-08 14:40:12+08');
 INSERT INTO tab_timestamp VALUES('2020-04-25 14:56:34','2020-04-09 18:54:12 CST');
 update tab_timestamp set a='2021-10-26 13:20:34 CST' where b = '2020-04-08 14:40:12+08';
 update tab_timestamp set b='2021-10-08 14:40:12' where a='2021-10-27 03:20:34+08';
 SELECT * FROM tab_timestamp ORDER by a;
 delete from tab_timestamp where a='2021-10-27 03:20:34+08';
+--DDL_STATEMENT_BEGIN--
 drop table tab_timestamp;
-
+--DDL_STATEMENT_END--
 
 --Boolean Type-- 布尔类型
+--DDL_STATEMENT_BEGIN--
 drop table if exists tab_boolean;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE tab_boolean(a boolean,b boolean);
+--DDL_STATEMENT_END--
 INSERT INTO tab_boolean VALUES('true','false');
 INSERT INTO tab_boolean VALUES('1','0');
 INSERT INTO tab_boolean VALUES('on','off');
@@ -216,13 +251,19 @@ UPDATE tab_boolean set a='no' where b='false';
 UPDATE tab_boolean set b='true' where a='no';
 SELECT * FROM tab_boolean;
 delete from tab_boolean where a='no';
+--DDL_STATEMENT_BEGIN--
 drop table tab_boolean;
-
+--DDL_STATEMENT_END--
 --Enumerated Types--  枚举类型
-
+--DDL_STATEMENT_BEGIN--
 CREATE TYPE mood AS ENUM ('sad', 'ok', 'happy');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists person;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE person (id int2,a text,b mood);
+--DDL_STATEMENT_END--
 INSERT INTO person VALUES (1,'Moe', 'happy');
 INSERT INTO person VALUES (2,'Larry', 'sad');
 INSERT INTO person VALUES (3,DEFAULT, DEFAULT);
@@ -233,15 +274,21 @@ select * from person;
 SELECT * FROM person WHERE b > 'sad';
 SELECT * FROM person WHERE b > 'sad' ORDER BY b;
 delete from person where b='ok';
-
+--DDL_STATEMENT_BEGIN--
 drop table person;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TYPE mood; 
-
+--DDL_STATEMENT_END--
 
 
 --Network Address Types-- 网络地址类型
+--DDL_STATEMENT_BEGIN--
 drop table if exists tab_icm;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE tab_icm(a cidr,b inet,c macaddr);
+--DDL_STATEMENT_END--
 INSERT INTO tab_icm VALUES(DEFAULT,'10.10.20.10','00-50-56-C0-00-07');
 INSERT INTO tab_icm VALUES('10.10/16',DEFAULT,'00-50-56-C0-00-08');
 INSERT INTO tab_icm VALUES('10/8','fe80::81a7:c17c:788c:7723','00-50-56-C0-00-01');
@@ -251,13 +298,17 @@ UPDATE tab_icm set b='::10.2.3.4' where a='10.10/16';
 UPDATE tab_icm set c='00-50-56-C0-00-09' where a='10/8';
 SELECT * FROM tab_icm;
 delete from tab_icm where a='10/8';
+--DDL_STATEMENT_BEGIN--
 drop table tab_icm;
-
+--DDL_STATEMENT_END--
 
 -- Bit String Types--位串类型
+--DDL_STATEMENT_BEGIN--
 drop table if exists tab_bit_string;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE tab_bit_string (id int2,a BIT(3), b BIT VARYING(5));
-
+--DDL_STATEMENT_END--
 INSERT INTO tab_bit_string VALUES (1,B'101', B'00');
 INSERT INTO tab_bit_string VALUES (2,B'10'::bit(3), B'101');
 select * from tab_bit_string;
@@ -267,14 +318,19 @@ select * from tab_bit_string order by id;
 delete from tab_bit_string where id =2;
 
 SELECT * FROM tab_bit_string;
+--DDL_STATEMENT_BEGIN--
 drop table tab_bit_string;
-
+--DDL_STATEMENT_END--
 
 
 
 --JSON Types
+--DDL_STATEMENT_BEGIN--
 drop table if exists tab_json;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE tab_json(id int2,a json);
+--DDL_STATEMENT_END--
 INSERT INTO tab_json VALUES(1,'{"广东省": "深圳市", "江苏省": "南京市", "甘肃省": "兰州市"}');
  
 INSERT INTO tab_json VALUES(2,'{"四川省": "成都市", "湖北省": "武汉市", "陕西省": "西安市"}');
@@ -283,23 +339,33 @@ SELECT * FROM tab_json;
 UPDATE tab_json set a='{"广东省": "广州市", "江苏省": "南京市", "甘肃省": "兰州市"}' where id=1;
 SELECT * FROM tab_json order by id;
 delete from tab_json where id =2;
+--DDL_STATEMENT_BEGIN--
 drop table tab_json;
 
-
+--DDL_STATEMENT_END--
  
 --pg_lsn Type pg_lsn 类型
+--DDL_STATEMENT_BEGIN--
 drop table if exists tab_pg_lsn;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table tab_pg_lsn (id int2, a pg_lsn);
+--DDL_STATEMENT_END--
 insert into tab_pg_lsn values (1,'0/0');
 insert into tab_pg_lsn values (2,'0/12345678');
 UPDATE tab_pg_lsn set a='1/1' where id=1;
 delete from tab_pg_lsn where id =2;
+--DDL_STATEMENT_BEGIN--
 drop table tab_pg_lsn;
-
+--DDL_STATEMENT_END--
  
 --Object Identifier Types 对象标识符类型
+--DDL_STATEMENT_BEGIN--
 drop table if exists tab_oid;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE tab_oid(id int, a oid);
+--DDL_STATEMENT_END--
 INSERT INTO tab_oid VALUES (1,'1234');
 INSERT INTO tab_oid VALUES (2,'987');
 INSERT INTO tab_oid VALUES (3,'   10  ');
@@ -308,12 +374,17 @@ UPDATE tab_oid set a='9999999' where id=1;
 UPDATE tab_oid set a='-1040' where id=2;
 delete from tab_oid where id =3;
 select * from tab_oid order by id;
+--DDL_STATEMENT_BEGIN--
 drop table tab_oid;
-
+--DDL_STATEMENT_END--
 
 --UUID Type-- UUID类型
+--DDL_STATEMENT_BEGIN--
 drop table if exists tab_uuid;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table tab_uuid(id int2, a uuid);
+--DDL_STATEMENT_END--
 insert into tab_uuid values(1,'11111111-1111-1111-1111-111111111111');
 insert into tab_uuid values(2,'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
 select * from tab_uuid;
@@ -321,8 +392,9 @@ select * from tab_uuid;
 UPDATE tab_uuid set a='22222222-2222-2222-2222-222222222222' where id=1;
 delete from tab_uuid where id =2;
 select * from tab_uuid;
+--DDL_STATEMENT_BEGIN--
 drop table tab_uuid;
-
+--DDL_STATEMENT_END--
 
 -- XML Type--XML类型
 --drop table if exists tab_xml;

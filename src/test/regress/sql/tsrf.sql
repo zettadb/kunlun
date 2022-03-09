@@ -24,8 +24,9 @@ SELECT generate_series(generate_series(1,3), generate_series(2, 4));
 explain (verbose, costs off)
 SELECT generate_series(1, generate_series(1, 3)), generate_series(2, 4);
 SELECT generate_series(1, generate_series(1, 3)), generate_series(2, 4);
-
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE few(id int, dataa text, datab text);
+--DDL_STATEMENT_END--
 INSERT INTO few VALUES(1, 'a', 'foo'),(2, 'a', 'bar'),(3, 'b', 'bar');
 
 -- SRF with a provably-dummy relation
@@ -106,8 +107,12 @@ select 'foo' as f, generate_series(1,2) as g from few order by 1;
 select 'foo' as f, generate_series(1,2) as g from few order by 1;
 
 -- data modification
+--DDL_STATEMENT_BEGIN--
 DROP TABLE if exists fewmore;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE fewmore(data int);
+--DDL_STATEMENT_END--
 INSERT INTO fewmore SELECT generate_series(1,3) AS data;
 INSERT INTO fewmore VALUES(generate_series(4,5));
 SELECT * FROM fewmore;
@@ -166,7 +171,9 @@ SELECT (SELECT generate_series(1,3) LIMIT 1 OFFSET few.id) FROM few;
 SELECT (SELECT generate_series(1,3) LIMIT 1 OFFSET g.i) FROM generate_series(0,3) g(i);
 
 -- Operators can return sets too
+--DDL_STATEMENT_BEGIN--
 CREATE OPERATOR |@| (PROCEDURE = unnest, RIGHTARG = ANYARRAY);
+--DDL_STATEMENT_END--
 SELECT |@|ARRAY[1,2,3];
 
 -- Some fun cases involving duplicate SRF calls
@@ -183,5 +190,9 @@ select generate_series(1,3) as x, generate_series(3,6) + 1 as y;
 select generate_series(1,3) as x, generate_series(3,6) + 1 as y;
 
 -- Clean up
+--DDL_STATEMENT_BEGIN--
 DROP TABLE few;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TABLE fewmore;
+--DDL_STATEMENT_END--

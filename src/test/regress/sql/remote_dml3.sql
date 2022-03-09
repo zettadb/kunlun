@@ -1,12 +1,19 @@
 -- bug 215 Crash when no column needed from a RemoteJoin node 
+--DDL_STATEMENT_BEGIN--
 drop table if exists atest5 cascade;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE atest5 (one int, two int unique, three int, four int unique);
+--DDL_STATEMENT_END--
 INSERT INTO atest5 VALUES (1,2,3);
 SELECT 1 FROM atest5 a JOIN atest5 b USING (one);
 SELECT 1 FROM atest5;
 
 -- bug #223 Crash when no column needed from a remote node 
+--DDL_STATEMENT_BEGIN--
 drop table if exists onek cascade;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE onek (
 
     unique1 int4,
@@ -27,6 +34,7 @@ CREATE TABLE onek (
     string4 name
 
 );
+--DDL_STATEMENT_END--
 insert into onek(unique1, unique2,two,four,ten) select i,i,i%2, i%4,i%10 from generate_series(1,1000) i;
 select ten, sum(distinct four) from onek a
 group by grouping sets((ten,four),(ten))
@@ -37,8 +45,12 @@ having exists (select 1 from onek b where sum(distinct a.four) = b.four);
 SELECT SUM(COUNT(four)) OVER () FROM onek WHERE ten=5;
 SELECT SUM(COUNT(ten)) OVER () FROM onek WHERE four=3;
 -- create own table
+--DDL_STATEMENT_BEGIN--
 DROP table if exists INT4_TBL cascade;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE INT4_TBL(f1 int4);
+--DDL_STATEMENT_END--
 INSERT INTO INT4_TBL(f1) VALUES (' 0 ');
 INSERT INTO INT4_TBL(f1) VALUES ('123456 ');
 INSERT INTO INT4_TBL(f1) VALUES (' -123456');
@@ -49,8 +61,12 @@ SELECT SUM(COUNT(f1)) OVER () FROM int4_tbl WHERE f1=0;
 
 
 -- bug 228 Column name may overflow if qualified with its owner table name 
+--DDL_STATEMENT_BEGIN--
 drop table if exists INT8_TBL cascade;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE INT8_TBL(q1 int8, q2 int8);
+--DDL_STATEMENT_END--
 
 INSERT INTO INT8_TBL VALUES(' 123 ',' 456');
 INSERT INTO INT8_TBL VALUES('123 ','4567890123456789');
@@ -58,30 +74,50 @@ INSERT INTO INT8_TBL VALUES('4567890123456789','123');
 INSERT INTO INT8_TBL VALUES(+4567890123456789,'4567890123456789');
 INSERT INTO INT8_TBL VALUES('+4567890123456789','-4567890123456789');
 SELECT * FROM INT8_TBL;
-
+--DDL_STATEMENT_BEGIN--
 create view tt18v as
 
     select * from int8_tbl xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxy
     union all
     select * from int8_tbl xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz;
-
+--DDL_STATEMENT_END--
 explain (costs off) select * from tt18v;
 select * from tt18v;
 
 
--- bug #229 partition_join.sql,connection to server was lost 
+-- bug #229 partition_join.sql,connection to server was lost
+--DDL_STATEMENT_BEGIN--
 DROP TABLE if exists prt2 cascade;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE prt2 (a int, b int, c varchar) PARTITION BY RANGE(b);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE prt2_p1 PARTITION OF prt2 FOR VALUES FROM (0) TO (250);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE prt2_p2 PARTITION OF prt2 FOR VALUES FROM (250) TO (500);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE prt2_p3 PARTITION OF prt2 FOR VALUES FROM (500) TO (600);
+--DDL_STATEMENT_END--
 INSERT INTO prt2 SELECT i % 25, i, to_char(i, 'FM0000') FROM generate_series(0, 599) i WHERE i % 3 = 0;
 
+--DDL_STATEMENT_BEGIN--
 DROP TABLE if exists prt1 cascade;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE prt1 (a int, b int, c varchar) PARTITION BY RANGE(a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE prt1_p1 PARTITION OF prt1 FOR VALUES FROM (0) TO (250);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE prt1_p3 PARTITION OF prt1 FOR VALUES FROM (500) TO (600);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE prt1_p2 PARTITION OF prt1 FOR VALUES FROM (250) TO (500);
+--DDL_STATEMENT_END--
 INSERT INTO prt1 SELECT i, i % 25, to_char(i, 'FM0000') FROM generate_series(0, 599) i WHERE i % 2 = 0;
 
 EXPLAIN (COSTS OFF)
@@ -95,8 +131,12 @@ SELECT 1 AS three UNION SELECT 3 UNION SELECT 2 UNION ALL SELECT 2 ORDER BY 1;
 EXPLAIN SELECT 1 AS three UNION SELECT 3 UNION SELECT 2 UNION ALL SELECT 2 ORDER BY 1;
 
 -- bug 245 Sort should not be pushed down if it uses a set returning funcs or exprs to sort
+--DDL_STATEMENT_BEGIN--
 drop table if exists few cascade;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE few(id int, dataa text, datab text);
+--DDL_STATEMENT_END--
 INSERT INTO few VALUES(1, 'a', 'foo'),(2, 'a', 'bar'),(3, 'b', 'bar');
 
 SELECT few.id, generate_series(1,3) g FROM few ORDER BY id, g DESC;
@@ -105,7 +145,9 @@ SELECT few.id  FROM few ORDER BY id, random() DESC;
 EXPLAIN SELECT few.id  FROM few ORDER BY id, random() DESC;
 
 -- bug #221 string_agg omitted from agg pushdown 
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE ctv_data (v varchar(30), h varchar(30), c varchar(30), i int, d date);
+--DDL_STATEMENT_END--
 insert into ctv_data VALUES
 
     ('v1','h2','foo', 3, '2015-04-01'::date),
@@ -124,8 +166,12 @@ FROM ctv_data GROUP BY v, h ORDER BY 1,3,2
     \crosstabview v h c r
 
 -- bug  #244 Agg not pushed down for count(1) 
+--DDL_STATEMENT_BEGIN--
 drop table if exists atest5 cascade;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE atest5 (one int, two int unique, three int, four int unique);
+--DDL_STATEMENT_END--
 INSERT INTO atest5 VALUES (1,2,3),(2,3,4),(3,4,5),(5,6,7);
 SELECT count(1) FROM atest5 a JOIN atest5 b USING (one);
 EXPLAIN SELECT count(1) FROM atest5 a JOIN atest5 b USING (one);
@@ -138,23 +184,30 @@ EXPLAIN SELECT sum(2+3) FROM atest5;
 
 
 -- bug  #234 View derived conflicting RemoteScans not materialized 
+--DDL_STATEMENT_BEGIN--
 drop table if exists test1 cascade;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table test1 (id serial, t text);
+--DDL_STATEMENT_END--
 insert into test1 (t) values ('a');
 insert into test1 (t) values ('b');
 insert into test1 (t) values ('c');
 insert into test1 (t) values ('d');
 insert into test1 (t) values ('e');
-
+--DDL_STATEMENT_BEGIN--
 create view v_test1
 as select 'v_' || t from test1;
-
+--DDL_STATEMENT_END--
 copy (select t from test1 where id = 1 UNION select * from v_test1 ORDER BY 1) to stdout;
 
 copy (select * from (select t from test1 where id = 1 UNION select * from v_test1 ORDER BY 1) t1) to stdout;
 
 -- bug  #257 subquery produces more content than expected 
+--DDL_STATEMENT_BEGIN--
 DROP TABLE if exists SUBSELECT_TBL cascade;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE SUBSELECT_TBL (
 
     f1 integer,
@@ -162,6 +215,7 @@ CREATE TABLE SUBSELECT_TBL (
     f3 float
 
 );
+--DDL_STATEMENT_END--
 
 INSERT INTO SUBSELECT_TBL VALUES (1, 2, 3);
 INSERT INTO SUBSELECT_TBL VALUES (2, 3, 4);
@@ -181,25 +235,35 @@ SELECT f1, f2
 
 
 -- bug  #230 value too long for type character 
+--DDL_STATEMENT_BEGIN--
 DROP TABLE if exists TEXT_TBL cascade;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE TEXT_TBL (f1 text);
+--DDL_STATEMENT_END--
 INSERT INTO TEXT_TBL VALUES ('doh!');
 INSERT INTO TEXT_TBL VALUES ('hi de ho neighbor');
 
 SELECT CAST(f1 AS char(10)) AS "char(text)" FROM TEXT_TBL;
 
 -- bug #
+--DDL_STATEMENT_BEGIN--
 DROP table if exists INT4_TBL cascade;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE INT4_TBL(f1 int4);
+--DDL_STATEMENT_END--
 INSERT INTO INT4_TBL(f1) VALUES (' 0 ');
 INSERT INTO INT4_TBL(f1) VALUES ('123456 ');
 INSERT INTO INT4_TBL(f1) VALUES (' -123456');
 INSERT INTO INT4_TBL(f1) VALUES ('2147483647');
 INSERT INTO INT4_TBL(f1) VALUES ('-2147483647');
-
+--DDL_STATEMENT_BEGIN--
 DROP table if exists FLOAT8_TBL cascade;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE FLOAT8_TBL(f1 float8);
-
+--DDL_STATEMENT_END--
 INSERT INTO FLOAT8_TBL(f1) VALUES ('    0.0   ');
 INSERT INTO FLOAT8_TBL(f1) VALUES ('1004.30  ');
 INSERT INTO FLOAT8_TBL(f1) VALUES ('   -34.84');
@@ -214,12 +278,20 @@ ORDER BY 1;
 
 
 -- bug#  #318 Connection invalid after it's killed by timeout mechanism 
+--DDL_STATEMENT_BEGIN--
 drop table if exists join_foo;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table join_foo(id integer, t varchar(50));
+--DDL_STATEMENT_END--
 insert into join_foo select generate_series(1, 3) as id, 'xxxxx'::varchar(50) as t;
 --alter table join_foo set (parallel_workers = 0);
+--DDL_STATEMENT_BEGIN--
 drop table if exists join_bar;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table join_bar(id integer, t varchar(50));
+--DDL_STATEMENT_END--
 insert into join_bar select generate_series(1, 10000) as id, 'xxxxx'::varchar(50) as t;
 --alter table join_bar set (parallel_workers = 2);
 -- single-batch with rescan, parallel-oblivious

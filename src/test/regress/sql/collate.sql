@@ -9,33 +9,37 @@
  * however, be more revealing when run in a database with non-C locale,
  * since any departure from C sorting behavior will show as a failure.
  */
-
+--DDL_STATEMENT_BEGIN--
 CREATE SCHEMA collate_tests;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 SET search_path = collate_tests;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE collate_test1 (
     a int,
     b varchar(50) COLLATE "C" NOT NULL
 );
-
+--DDL_STATEMENT_END--
 \d collate_test1
-
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE collate_test_fail (
     a int COLLATE "C",
     b varchar(50)
 );
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE collate_test_like (
     LIKE collate_test1
 );
-
+--DDL_STATEMENT_END--
 \d collate_test_like
-
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE collate_test2 (
     a int,
     b varchar(50) COLLATE "POSIX"
 );
-
+--DDL_STATEMENT_END--
 INSERT INTO collate_test1 VALUES (1, 'abc'), (2, 'Abc'), (3, 'bbc'), (4, 'ABD');
 INSERT INTO collate_test2 SELECT * FROM collate_test1;
 
@@ -58,13 +62,13 @@ SELECT 'bbc' COLLATE "C" > 'Abc' COLLATE "C" AS "true";
 SELECT 'bbc' COLLATE "POSIX" < 'Abc' COLLATE "POSIX" AS "false";
 
 -- upper/lower
-
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE collate_test10 (
     a int,
     x varchar(50) COLLATE "C",
     y varchar(50) COLLATE "POSIX"
 );
-
+--DDL_STATEMENT_END--
 INSERT INTO collate_test10 VALUES (1, 'hij', 'hij'), (2, 'HIJ', 'HIJ');
 
 SELECT a, lower(x), lower(y), upper(x), upper(y), initcap(x), initcap(y) FROM collate_test10;
@@ -73,10 +77,15 @@ SELECT a, lower(x COLLATE "C"), lower(y COLLATE "C") FROM collate_test10;
 SELECT a, x, y FROM collate_test10 ORDER BY lower(y), a;
 
 -- backwards parsing
-
+--DDL_STATEMENT_BEGIN--
 CREATE VIEW collview1 AS SELECT * FROM collate_test1 WHERE b COLLATE "C" >= 'bbc';
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE VIEW collview2 AS SELECT a, b FROM collate_test1 ORDER BY b COLLATE "C";
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE VIEW collview3 AS SELECT a, lower((x || x) COLLATE "POSIX") FROM collate_test10;
+--DDL_STATEMENT_END--
 
 SELECT table_name, view_definition FROM information_schema.views
   WHERE table_name LIKE 'collview%' ORDER BY 1;
@@ -151,20 +160,27 @@ SELECT a, CAST(b AS varchar) FROM collate_test2 ORDER BY 2;
 
 SELECT * FROM unnest((SELECT array_agg(b ORDER BY b) FROM collate_test1)) ORDER BY 1;
 SELECT * FROM unnest((SELECT array_agg(b ORDER BY b) FROM collate_test2)) ORDER BY 1;
-
+--DDL_STATEMENT_BEGIN--
 CREATE FUNCTION dup (anyelement) RETURNS anyelement
     AS 'select $1' LANGUAGE sql;
-
+--DDL_STATEMENT_END--
 SELECT a, dup(b) FROM collate_test1 ORDER BY 2;
 SELECT a, dup(b) FROM collate_test2 ORDER BY 2;
 
 
 -- indexes
-
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX collate_test1_idx1 ON collate_test1 (b);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX collate_test1_idx3 ON collate_test1 ((b COLLATE "POSIX")); -- this is different grammatically
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX collate_test1_idx5 ON collate_test1 (a COLLATE "POSIX"); -- fail
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX collate_test1_idx6 ON collate_test1 ((a COLLATE "POSIX")); -- fail
+--DDL_STATEMENT_END--
 
 SELECT relname, pg_get_indexdef(oid) FROM pg_class WHERE relname LIKE 'collate_test%_idx%' ORDER BY 1;
 
@@ -176,13 +192,18 @@ SELECT relname, pg_get_indexdef(oid) FROM pg_class WHERE relname LIKE 'collate_t
 SET enable_seqscan TO 0;
 SET enable_hashjoin TO 0;
 SET enable_nestloop TO 0;
-
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE collate_test20 (f1 varchar(50) COLLATE "C" PRIMARY KEY);
+--DDL_STATEMENT_END--
 INSERT INTO collate_test20 VALUES ('foo'), ('bar');
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE collate_test21 (f2 varchar(50) COLLATE "POSIX");
+--DDL_STATEMENT_END--
 INSERT INTO collate_test21 VALUES ('foo'), ('bar');
 INSERT INTO collate_test21 VALUES ('baz'); -- fail
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE collate_test22 (f2 varchar(50) COLLATE "POSIX");
+--DDL_STATEMENT_END--
 INSERT INTO collate_test22 VALUES ('foo'), ('bar'), ('baz');
 DELETE FROM collate_test22 WHERE f2 = 'baz';
 
@@ -200,21 +221,33 @@ EXPLAIN (COSTS OFF)
 
 
 -- CREATE/DROP COLLATION
-
+--DDL_STATEMENT_BEGIN--
 CREATE COLLATION mycoll1 FROM "C";
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE COLLATION mycoll2 ( LC_COLLATE = "POSIX", LC_CTYPE = "POSIX" );
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE COLLATION mycoll3 FROM "default";  -- intentionally unsupported
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP COLLATION mycoll1;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE collate_test23 (f1 varchar(50) collate mycoll2);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP COLLATION mycoll2;  -- fail
+--DDL_STATEMENT_END--
 
 -- invalid: non-lowercase quoted identifiers
+--DDL_STATEMENT_BEGIN--
 CREATE COLLATION case_coll ("Lc_Collate" = "POSIX", "Lc_Ctype" = "POSIX");
-
+--DDL_STATEMENT_END--
 -- 9.1 bug with useless COLLATE in an expression subject to length coercion
-
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE vctable (f1 varchar(25));
+--DDL_STATEMENT_END--
 INSERT INTO vctable VALUES ('foo' COLLATE "C");
 
 
@@ -230,12 +263,30 @@ SELECT collation for ((SELECT b FROM collate_test1 LIMIT 1));
 -- must get rid of them.
 --
 \set VERBOSITY terse
+--DDL_STATEMENT_BEGIN--
 drop table collate_tests.collate_test1 cascade;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table collate_tests.collate_test2 cascade;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table collate_tests.collate_test10 cascade;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table collate_tests.collate_test20 cascade;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table collate_tests.collate_test21 cascade;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table collate_tests.collate_test22 cascade;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table collate_tests.collate_test23 cascade;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table collate_tests.collate_test_like cascade;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP SCHEMA collate_tests CASCADE;
+--DDL_STATEMENT_END--

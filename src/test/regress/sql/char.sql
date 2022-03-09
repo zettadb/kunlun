@@ -10,8 +10,12 @@ SELECT char 'c' = char 'c' AS true;
 --
 -- Build a table for testing
 --
+--DDL_STATEMENT_BEGIN--
 DROP TABLE if exists CHAR_TBL;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE CHAR_TBL(f1 char);
+--DDL_STATEMENT_END--
 
 INSERT INTO CHAR_TBL (f1) VALUES ('a');
 
@@ -57,15 +61,15 @@ SELECT '' AS one, c.*
 SELECT '' AS two, c.*
    FROM CHAR_TBL c
    WHERE c.f1 >= 'a';
-
+--DDL_STATEMENT_BEGIN--
 DROP TABLE CHAR_TBL;
-
+--DDL_STATEMENT_END--
 --
 -- Now test longer arrays of char
 --
-
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE CHAR_TBL(f1 char(4));
-
+--DDL_STATEMENT_END--
 INSERT INTO CHAR_TBL (f1) VALUES ('a');
 INSERT INTO CHAR_TBL (f1) VALUES ('ab');
 INSERT INTO CHAR_TBL (f1) VALUES ('abcd');

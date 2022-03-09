@@ -1,8 +1,12 @@
 --
 -- insert...on conflict do unique index inference
 --
+--DDL_STATEMENT_BEGIN--
 drop table if exists insertconflicttest;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table insertconflicttest(key1 int4, fruit text);
+--DDL_STATEMENT_END--
 
 --
 -- Test unique index inference with operator class specifications and
@@ -56,8 +60,9 @@ explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on con
 --
 -- Single key tests
 --
+--DDL_STATEMENT_BEGIN--
 create unique index key_index on insertconflicttest(key1);
-
+--DDL_STATEMENT_END--
 --
 -- Explain tests
 --
@@ -101,9 +106,9 @@ insert into insertconflicttest values (6, 'Passionfruit') on conflict (lower(fru
 insert into insertconflicttest AS ict values (6, 'Passionfruit') on conflict (key1) do update set fruit = excluded.fruit; -- ok, no reference to target table
 insert into insertconflicttest AS ict values (6, 'Passionfruit') on conflict (key1) do update set fruit = ict.fruit; -- ok, alias
 insert into insertconflicttest AS ict values (6, 'Passionfruit') on conflict (key1) do update set fruit = insertconflicttest.fruit; -- error, references aliased away name
-
+--DDL_STATEMENT_BEGIN--
 drop index key_index;
-
+--DDL_STATEMENT_END--
 --
 -- Composite key tests
 --
@@ -147,7 +152,9 @@ insert into insertconflicttest values (29, 'Nectarine') on conflict (key1) do up
 --
 -- Non-spurious duplicate violation tests
 --
+--DDL_STATEMENT_BEGIN--
 create unique index key_index on insertconflicttest(key1);
+--DDL_STATEMENT_END--
 
 -- succeeds, since UPDATE happens to update "fruit" to existing value:
 insert into insertconflicttest values (26, 'Fig') on conflict (key1) do update set fruit = excluded.fruit;
@@ -157,9 +164,9 @@ insert into insertconflicttest values (26, 'Peach') on conflict (key1) do update
 -- succeeds, since "key" isn't repeated/referenced in UPDATE, and "fruit"
 -- arbitrates that statement updates existing "Fig" row:
 insert into insertconflicttest values (25, 'Fig') on conflict (fruit) do update set fruit = excluded.fruit;
-
+--DDL_STATEMENT_BEGIN--
 drop index key_index;
-
+--DDL_STATEMENT_END--
 -- Succeeds
 insert into insertconflicttest values (23, 'Blackberry') on conflict (key1) where fruit like '%berry' do update set fruit = excluded.fruit;
 insert into insertconflicttest values (23, 'Blackberry') on conflict (key1) where fruit like '%berry' and fruit = 'inconsequential' do nothing;
@@ -172,8 +179,9 @@ insert into insertconflicttest values (23, 'Blackberry') on conflict (fruit) whe
 --
 -- Test that wholerow references to ON CONFLICT's EXCLUDED work
 --
+--DDL_STATEMENT_BEGIN--
 create unique index plain on insertconflicttest(key1);
-
+--DDL_STATEMENT_END--
 -- Succeeds, updates existing row:
 insert into insertconflicttest as i values (23, 'Jackfruit') on conflict (key1) do update set fruit = excluded.fruit
   where i.* != excluded.* returning *;
@@ -189,19 +197,21 @@ insert into insertconflicttest as i values (23, 'Avocado') on conflict (key1) do
 -- deparse whole row var in WHERE and SET clauses:
 explain (costs off) insert into insertconflicttest as i values (23, 'Avocado') on conflict (key1) do update set fruit = excluded.fruit where excluded.* is null;
 explain (costs off) insert into insertconflicttest as i values (23, 'Avocado') on conflict (key1) do update set fruit = excluded.*::text;
-
+--DDL_STATEMENT_BEGIN--
 drop index plain;
-
+--DDL_STATEMENT_END--
 -- Cleanup
+--DDL_STATEMENT_BEGIN--
 drop table insertconflicttest;
-
+--DDL_STATEMENT_END--
 
 --
 -- Previous tests all managed to not test any expressions requiring
 -- planner preprocessing ...
 --
+--DDL_STATEMENT_BEGIN--
 create table insertconflict (a bigint, b bigint);
-
+--DDL_STATEMENT_END--
 -- computing column index is not suported
 -- create unique index insertconflicti1 on insertconflict(coalesce(a, 0));
 
@@ -213,9 +223,9 @@ on conflict (b) where coalesce(a, 1) > 0 do nothing;
 
 insert into insertconflict values (1, 2)
 on conflict (b) where coalesce(a, 1) > 1 do nothing;
-
+--DDL_STATEMENT_BEGIN--
 drop table insertconflict;
-
+--DDL_STATEMENT_END--
 --
 -- test insertion through view
 -- not support on conflict clause ,so comment it currently.
@@ -237,15 +247,18 @@ drop table insertconflict;
 -- * Test inheritance (example taken from tutorial)                 *
 -- *                                                                *
 -- ******************************************************************
+--DDL_STATEMENT_BEGIN--
 create table cities (
 	name		text,
 	population	float8,
 	altitude	int		-- (in ft)
 );
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table capitals (
 	state		char(2)
 ) inherits (cities);
+--DDL_STATEMENT_END--
 
 -- prepopulate the tables.
 insert into cities values ('San Francisco', 7.24E+5, 63);
@@ -274,12 +287,18 @@ select * from capitals;
 insert into cities values ('Las Vegas', 5.86E+5, 2223) on conflict (name) do update set population = excluded.population, altitude = excluded.altitude;
 
 -- clean up
+--DDL_STATEMENT_BEGIN--
 drop table capitals;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table cities;
+--DDL_STATEMENT_END--
 
 
 -- Make sure a table named excluded is handled properly
+--DDL_STATEMENT_BEGIN--
 create table excluded(key1 int primary key, data text);
+--DDL_STATEMENT_END--
 insert into excluded values(1, '1');
 -- error, ambiguous
 insert into excluded values(1, '2') on conflict (key1) do update set data = excluded.data RETURNING *;
@@ -291,11 +310,14 @@ insert into excluded AS target values(1, '2') on conflict (key1) do update set d
 insert into excluded values(1, '2') on conflict (key1) do update set data = 3 RETURNING excluded.*;
 
 -- clean up
+--DDL_STATEMENT_BEGIN--
 drop table excluded;
-
+--DDL_STATEMENT_END--
 
 -- Check tables w/o oids are handled correctly
+--DDL_STATEMENT_BEGIN--
 create table testoids(key1 int primary key, data text) without oids;
+--DDL_STATEMENT_END--
 -- first without oids
 insert into testoids values(1, '1') on conflict (key1) do update set data = excluded.data RETURNING *;
 insert into testoids values(1, '2') on conflict (key1) do update set data = excluded.data RETURNING *;
@@ -306,16 +328,21 @@ insert into testoids values(2, '1') on conflict (key1) do update set data = excl
 -- and update it
 insert into testoids values(2, '2') on conflict (key1) do update set data = excluded.data RETURNING *;
 -- remove oids again, test
+--DDL_STATEMENT_BEGIN--
 alter table testoids set without oids;
+--DDL_STATEMENT_END--
 insert into testoids values(1, '4') on conflict (key1) do update set data = excluded.data RETURNING *;
 insert into testoids values(3, '1') on conflict (key1) do update set data = excluded.data RETURNING *;
 insert into testoids values(3, '2') on conflict (key1) do update set data = excluded.data RETURNING *;
-
+--DDL_STATEMENT_BEGIN--
 drop table testoids;
+--DDL_STATEMENT_END--
 
 
 -- check that references to columns after dropped columns are handled correctly
+--DDL_STATEMENT_BEGIN--
 create table dropcol(key1 int primary key, drop1 int, keep1 text, drop2 numeric, keep2 float);
+--DDL_STATEMENT_END--
 insert into dropcol(key1, drop1, keep1, drop2, keep2) values(1, 1, '1', '1', 1);
 -- set using excluded
 insert into dropcol(key1, drop1, keep1, drop2, keep2) values(1, 2, '2', '2', 2) on conflict(key1)
@@ -329,7 +356,9 @@ insert into dropcol(key1, drop1, keep1, drop2, keep2) values(1, 3, '3', '3', 3) 
     do update set drop1 = dropcol.drop1, keep1 = dropcol.keep1, drop2 = dropcol.drop2, keep2 = dropcol.keep2
     returning *;
 ;
+--DDL_STATEMENT_BEGIN--
 alter table dropcol drop column drop1, drop column drop2;
+--DDL_STATEMENT_END--
 -- set using excluded
 insert into dropcol(key1, keep1, keep2) values(1, '4', 4) on conflict(key1)
     do update set keep1 = excluded.keep1, keep2 = excluded.keep2
@@ -342,12 +371,14 @@ insert into dropcol(key1, keep1, keep2) values(1, '5', 5) on conflict(key1)
     do update set keep1 = dropcol.keep1, keep2 = dropcol.keep2
     returning *;
 ;
-
+--DDL_STATEMENT_BEGIN--
 drop table dropcol;
+--DDL_STATEMENT_END--
 
 -- check handling of regular btree constraint along with gist constraint
-
+--DDL_STATEMENT_BEGIN--
 create temp table twoconstraints (f1 int unique, f2 box);
+--DDL_STATEMENT_END--
 insert into twoconstraints values(1, '((0,0),(1,1))');
 insert into twoconstraints values(1, '((2,2),(3,3))');  -- fail on f1
 insert into twoconstraints values(2, '((0,0),(1,2))');  -- fail on f2
@@ -356,11 +387,14 @@ insert into twoconstraints values(2, '((0,0),(1,2))')
 insert into twoconstraints values(2, '((0,0),(1,2))')
   on conflict on constraint twoconstraints_f2_excl do nothing;  -- do nothing
 select * from twoconstraints;
+--DDL_STATEMENT_BEGIN--
 drop table twoconstraints;
+--DDL_STATEMENT_END--
 
 -- check handling of self-conflicts at various isolation levels
-
+--DDL_STATEMENT_BEGIN--
 create table selfconflict (f1 int primary key, f2 int);
+--DDL_STATEMENT_END--
 
 begin transaction isolation level read committed;
 insert into selfconflict values (1,1), (1,2) on conflict do nothing;
@@ -387,13 +421,17 @@ insert into selfconflict values (6,1), (6,2) on conflict(f1) do update set f2 = 
 commit;
 
 select * from selfconflict;
-
+--DDL_STATEMENT_BEGIN--
 drop table selfconflict;
+--DDL_STATEMENT_END--
 
 -- check ON CONFLICT handling with partitioned tables
+--DDL_STATEMENT_BEGIN--
 create table parted_conflict_test (a int unique, b char) partition by list (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table parted_conflict_test_1 partition of parted_conflict_test (b unique) for values in (1, 2);
-
+--DDL_STATEMENT_END--
 -- no indexes required here
 insert into parted_conflict_test values (1, 'a') on conflict do nothing;
 
@@ -418,8 +456,12 @@ select * from parted_conflict_test order by a;
 select * from parted_conflict_test order by a;
 
 -- case where parent will have a dropped column, but the partition won't
+--DDL_STATEMENT_BEGIN--
 alter table parted_conflict_test drop b, add b char;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table parted_conflict_test_3 partition of parted_conflict_test for values in (4);
+--DDL_STATEMENT_END--
 delete from parted_conflict_test;
 insert into parted_conflict_test (a, b) values (4, 'a') on conflict (a) do update set b = excluded.b;
 insert into parted_conflict_test (a, b) values (4, 'b') on conflict (a) do update set b = excluded.b where parted_conflict_test.b = 'a';
@@ -428,8 +470,12 @@ insert into parted_conflict_test (a, b) values (4, 'b') on conflict (a) do updat
 select * from parted_conflict_test order by a;
 
 -- case with multi-level partitioning
+--DDL_STATEMENT_BEGIN--
 create table parted_conflict_test_4 partition of parted_conflict_test for values in (5) partition by list (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table parted_conflict_test_4_1 partition of parted_conflict_test_4 for values in (5);
+--DDL_STATEMENT_END--
 delete from parted_conflict_test;
 insert into parted_conflict_test (a, b) values (5, 'a') on conflict (a) do update set b = excluded.b;
 insert into parted_conflict_test (a, b) values (5, 'b') on conflict (a) do update set b = excluded.b where parted_conflict_test.b = 'a';
@@ -444,28 +490,48 @@ insert into parted_conflict_test (a, b) values (1, 'b'), (2, 'c'), (4, 'b') on c
 
 -- should see (1, 'b'), (2, 'a'), (4, 'b')
 select * from parted_conflict_test order by a;
-
+--DDL_STATEMENT_BEGIN--
 drop table parted_conflict_test;
-
+--DDL_STATEMENT_END--
 -- test behavior of inserting a conflicting tuple into an intermediate
 -- partitioning level
+--DDL_STATEMENT_BEGIN--
 create table parted_conflict (a int primary key, b text) partition by range (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table parted_conflict_1 partition of parted_conflict for values from (0) to (1000) partition by range (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table parted_conflict_1_1 partition of parted_conflict_1 for values from (0) to (500);
+--DDL_STATEMENT_END--
 insert into parted_conflict values (40, 'forty');
 insert into parted_conflict_1 values (40, 'cuarenta')
   on conflict (a) do update set b = excluded.b;
+--DDL_STATEMENT_BEGIN--
 drop table parted_conflict;
+--DDL_STATEMENT_END--
 
 -- same thing, but this time try to use an index that's created not in the
 -- partition
+--DDL_STATEMENT_BEGIN--
 create table parted_conflict (a int, b text) partition by range (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table parted_conflict_1 partition of parted_conflict for values from (0) to (1000) partition by range (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table parted_conflict_1_1 partition of parted_conflict_1 for values from (0) to (500);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create unique index on only parted_conflict_1 (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create unique index on only parted_conflict (a);
+--DDL_STATEMENT_END--
 --alter index parted_conflict_a_idx attach partition parted_conflict_1_a_idx;
 insert into parted_conflict values (40, 'forty');
 insert into parted_conflict_1 values (40, 'cuarenta')
   on conflict (a) do update set b = excluded.b;
+--DDL_STATEMENT_BEGIN--
 drop table parted_conflict;
+--DDL_STATEMENT_END--

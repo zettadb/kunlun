@@ -7,7 +7,9 @@
 --
 
 -- load test data
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE test_missing_target (a int, b int, c char(8), d char);
+--DDL_STATEMENT_END--
 INSERT INTO test_missing_target VALUES (0, 1, 'XXXX', 'A');
 INSERT INTO test_missing_target VALUES (1, 2, 'ABAB', 'b');
 INSERT INTO test_missing_target VALUES (2, 2, 'ABAB', 'c');
@@ -132,4 +134,7 @@ SELECT count(b) FROM test_missing_target x, test_missing_target y
 	GROUP BY x.b/2;
 
 --   Cleanup
+
+--DDL_STATEMENT_BEGIN--
 DROP TABLE test_missing_target;
+--DDL_STATEMENT_END--

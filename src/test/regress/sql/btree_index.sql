@@ -72,9 +72,15 @@ select proname from pg_proc where proname like E'RI\\_FKey%del' order by 1;
 -- First create a tree that's at least four levels deep. The text inserted
 -- is long and poorly compressible. That way only a few index tuples fit on
 -- each page, allowing us to get a tall tree with fewer pages.
+--DDL_STATEMENT_BEGIN--
 drop table if exists btree_tall_tbl;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table btree_tall_tbl(id int4, t varchar(50));
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create index btree_tall_idx on btree_tall_tbl (id, t);
+--DDL_STATEMENT_END--
 insert into btree_tall_tbl
   select g, g::varchar(50) || '_' ||
           (select string_agg(md5(i::varchar(50)), '_') from generate_series(1, 50) i)

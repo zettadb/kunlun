@@ -22,6 +22,7 @@
 -- allowed.
 
 -- This should match IsBinaryCoercible() in parse_coerce.c.
+--DDL_STATEMENT_BEGIN--
 create function binary_coercible(oid, oid) returns bool as $$
 begin
   if $1 = $2 then return true; end if;
@@ -42,9 +43,11 @@ begin
   return false;
 end
 $$ language plpgsql strict stable;
+--DDL_STATEMENT_END--
 
 -- This one ignores castcontext, so it considers only physical equivalence
 -- and not whether the coercion can be invoked implicitly.
+--DDL_STATEMENT_BEGIN--
 create function physically_coercible(oid, oid) returns bool as $$
 begin
   if $1 = $2 then return true; end if;
@@ -65,6 +68,7 @@ begin
   return false;
 end
 $$ language plpgsql strict stable;
+--DDL_STATEMENT_END--
 
 
 -- **************** pg_proc ****************

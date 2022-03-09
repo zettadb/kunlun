@@ -1,17 +1,31 @@
+--DDL_STATEMENT_BEGIN--
 drop table if exists clstr_tst_s;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE clstr_tst_s (rf_a SERIAL PRIMARY KEY,
 	b INT);
-
-drop table if exists clstr_tst;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
+drop table if exists clst _tst;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE clstr_tst (a SERIAL PRIMARY KEY,
 	b INT,
 	c varchar(50),
 	d text);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX clstr_tst_b ON clstr_tst (b);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX clstr_tst_c ON clstr_tst (c);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX clstr_tst_c_b ON clstr_tst (c,b);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX clstr_tst_b_c ON clstr_tst (b,c);
+--DDL_STATEMENT_END--
 
 INSERT INTO clstr_tst_s (b) VALUES (0);
 INSERT INTO clstr_tst_s (b) SELECT b FROM clstr_tst_s;
@@ -19,10 +33,12 @@ INSERT INTO clstr_tst_s (b) SELECT b FROM clstr_tst_s;
 INSERT INTO clstr_tst_s (b) SELECT b FROM clstr_tst_s;
 INSERT INTO clstr_tst_s (b) SELECT b FROM clstr_tst_s;
 INSERT INTO clstr_tst_s (b) SELECT b FROM clstr_tst_s;
-
+--DDL_STATEMENT_BEGIN--
 drop table if exists clstr_tst_inh;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE clstr_tst_inh (like clstr_tst);
-
+--DDL_STATEMENT_END--
 INSERT INTO clstr_tst (b, c) VALUES (11, 'once');
 INSERT INTO clstr_tst (b, c) VALUES (10, 'diez');
 INSERT INTO clstr_tst (b, c) VALUES (31, 'treinta y uno');
@@ -99,13 +115,27 @@ WHERE pg_class.oid=indexrelid
 	AND indisclustered;
 
 -- Verify that clustering all tables does in fact cluster the right ones
+--DDL_STATEMENT_BEGIN--
 CREATE USER regress_clstr_user;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE clstr_1 (a INT PRIMARY KEY);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE clstr_2 (a INT PRIMARY KEY);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE clstr_3 (a INT PRIMARY KEY);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 ALTER TABLE clstr_1 OWNER TO regress_clstr_user;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 ALTER TABLE clstr_3 OWNER TO regress_clstr_user;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 GRANT SELECT ON clstr_2 TO regress_clstr_user;
+--DDL_STATEMENT_END--
 INSERT INTO clstr_1 VALUES (2);
 INSERT INTO clstr_1 VALUES (1);
 INSERT INTO clstr_2 VALUES (2);
@@ -143,9 +173,9 @@ SELECT * FROM clstr_1 order by 1;
 
 -- Test MVCC-safety of cluster. There isn't much we can do to verify the
 -- results with a single backend...
-
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE clustertest (key1 int PRIMARY KEY);
-
+--DDL_STATEMENT_END--
 INSERT INTO clustertest VALUES (10);
 INSERT INTO clustertest VALUES (20);
 INSERT INTO clustertest VALUES (30);
@@ -173,22 +203,33 @@ COMMIT;
 SELECT * FROM clustertest order by key1;
 
 -- check that temp tables can be clustered
+--DDL_STATEMENT_BEGIN--
 create temp table clstr_temp (col1 int primary key, col2 text);
+--DDL_STATEMENT_END--
 insert into clstr_temp values (2, 'two'), (1, 'one');
 select * from clstr_temp;
+--DDL_STATEMENT_BEGIN--
 drop table clstr_temp;
-
+--DDL_STATEMENT_END--
 RESET SESSION AUTHORIZATION;
 
 -- Check that partitioned tables cannot be clustered
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE clstrpart (a int) PARTITION BY RANGE (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX clstrpart_idx ON clstrpart (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TABLE clstrpart;
-
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table clstr_4 (like tenk1);
+--DDL_STATEMENT_END--
 insert into clstr_4 select * from tenk1;
+--DDL_STATEMENT_BEGIN--
 create index cluster_sort on clstr_4 (hundred, thousand, tenthous);
+--DDL_STATEMENT_END--
 set enable_indexscan = off;
 
 -- Use external sort:
@@ -203,9 +244,21 @@ reset enable_indexscan;
 reset maintenance_work_mem;
 
 -- clean up
+--DDL_STATEMENT_BEGIN--
 DROP TABLE clustertest;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TABLE clstr_1;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TABLE clstr_2;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TABLE clstr_3;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TABLE clstr_4;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP USER regress_clstr_user;
+--DDL_STATEMENT_END--

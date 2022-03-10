@@ -12,7 +12,8 @@ cat serial_schedule | grep -v '^#' | sed '/^[ 	]*$/d' | awk '{print $2}' | while
 	else
 		echo "Running sql/$f.sql ......"
 		cat "sql/$f.sql" | grep -v DDL_STATEMENT > "$f.sql"
-		bash run.sh "$f.sql"
+		cp -f "$f.sql" "sql/$f.sql"
+		bash run.sh "sql/$f.sql"
 		mv out.diff $f.diff
 		mv out.diff.orig $f.diff.orig
 		mv 1.out $f.out1

@@ -10,13 +10,15 @@ def process_output(infile):
 	lines = inf.xreadlines()
 	inplan = False
 	for line in lines:
-		if inplan:
-			if re.match(r'\s*\(\s*\d+\s*rows?\s*\)', line):
-				inplan = False
-		elif re.match(r'\s*QUERY\s*PLAN', line):
-			inplan = True
-		else:
-			outf.write(line)
+            if line.find("DDL_STATEMENT_BEGIN") >= 0 or line.find("DDL_STATEMENT_END") >= 0:
+                continue
+            if inplan:
+                if re.match(r'\s*\(\s*\d+\s*rows?\s*\)', line):
+                    inplan = False
+            elif re.match(r'\s*QUERY\s*PLAN', line):
+                inplan = True
+            else:
+                outf.write(line)
 	inf.close()	
 	outf.close()
 

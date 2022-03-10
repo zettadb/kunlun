@@ -11,7 +11,8 @@ cat serial_schedule | grep -v '^#' | sed '/^[ 	]*$/d' | awk '{print $2}' | while
 		echo "expected/$f.out : No such file or directory"
 	else
 		echo "Running sql/$f.sql ......"
-		bash run.sh sql/$f.sql
+		cat "sql/$f.sql" | grep -v DDL_STATEMENT > "$f.sql"
+		bash run.sh "$f.sql"
 		mv out.diff $f.diff
 		mv out.diff.orig $f.diff.orig
 		mv 1.out $f.out1
@@ -31,7 +32,7 @@ cat serial_schedule | grep -v '^#' | sed '/^[ 	]*$/d' | awk '{print $2}' | while
 		else
 			echo "UNEXPECTED_RESULT: Different with official pg and expected output"
 			echo "======= diff content with official pg =========="
-			diff "$f.out1.p" "$f.out1.p"
+			diff "$f.out1.p" "$f.out2.p"
 			echo "======= diff content with expected output =========="
 			diff "$f.out1.p" "expected/$f.out"
 		fi

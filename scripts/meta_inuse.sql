@@ -49,6 +49,19 @@ SUBPARTITIONS 32
 (PARTITION pplaceholder VALUES IN (null) ENGINE = InnoDB) */;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
+--
+-- Table structure for table `global_configuration`
+--
+
+DROP TABLE IF EXISTS `global_configuration`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+ SET character_set_client = utf8mb4 ;
+CREATE TABLE `global_configuration` (
+  `name` varchar(128) NOT NULL,
+  `value` varchar(128) ,
+  PRIMARY KEY (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `data_centers`
@@ -82,6 +95,7 @@ DROP TABLE IF EXISTS `db_clusters`;
 CREATE TABLE `db_clusters` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(120) NOT NULL,
+  `nick_name` varchar(120),
   `owner` varchar(120) NOT NULL,
   `ddl_log_tblname` varchar(120) NOT NULL,
   `when_created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -373,12 +387,11 @@ END ;
 
 create table backup_storage(
 	id int unsigned primary key auto_increment,
-	status enum('inactive','active'),
 	name varchar(256),
 	stype enum('HDFS', 'S3', 'EBS','CEPH', 'OTHER'), -- type of storage service
 	-- connection info
 	conn_str varchar(8192),
-	host_addr varchar(8192),
+	hostaddr varchar(8192),
 	port int,
 	user_name varchar(128),
 	passwd varchar(32),
@@ -446,7 +459,7 @@ create table cluster_general_job_log (
 	when_started timestamp(6) not null default current_timestamp(6), -- when the operation was issued
 	when_ended timestamp(6), -- when the operation ended(either done or failed)
 	job_info varchar(256), -- optional
-	user_name varchar(128) 
+	user_name varchar(128)
 ) ENGINE=InnoDB DEFAULT charset=utf8;
 
 -- roll back record for install error

@@ -127,15 +127,6 @@ create view tt18v as
 NOTICE:  identifier "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxy" will be truncated to "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 NOTICE:  identifier "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz" will be truncated to "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 explain (costs off) select * from tt18v;
-                                             QUERY PLAN                                             
-----------------------------------------------------------------------------------------------------
- Append
-   ->  Materialize
-         ->  RemoteScan on int8_tbl xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-               Shard: 2  Remote SQL: select q1, q2 from regression_$$_public.int8_tbl 
-   ->  RemoteScan on int8_tbl xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx_1
-         Shard: 2        Remote SQL: select q1, q2 from regression_$$_public.int8_tbl 
-(6 rows)
 
 select * from tt18v;
         q1        |        q2         
@@ -167,31 +158,6 @@ CREATE TABLE prt1_p2 PARTITION OF prt1 FOR VALUES FROM (250) TO (500);
 INSERT INTO prt1 SELECT i, i % 25, to_char(i, 'FM0000') FROM generate_series(0, 599) i WHERE i % 2 = 0;
 EXPLAIN (COSTS OFF)
 SELECT t1.a, t1.c, t2.b, t2.c FROM prt1 t1, prt2 t2 WHERE t1.a = t2.b AND t1.a < 450 AND t2.b > 250 AND t1.b = 0 ORDER BY t1.a, t2.b;
-                                                           QUERY PLAN                                                           
---------------------------------------------------------------------------------------------------------------------------------
- Merge Join
-   Merge Cond: (t1.a = t2.b)
-   ->  Sort
-         Sort Key: t1.a
-         ->  Append
-               ->  Materialize
-                     ->  RemoteScan on prt1_p1 t1
-                           Filter: ((a < 450) AND (c = 0))
-                           Shard: 2      Remote SQL: select a, c from regression_$$_public.prt1_p1  where (a < 450) AND (b = 0)
-               ->  Materialize
-                     ->  RemoteScan on prt1_p2 t1_1
-                           Filter: ((a < 450) AND (c = 0))
-                           Shard: 1      Remote SQL: select a, c from regression_$$_public.prt1_p2  where (a < 450) AND (b = 0)
-   ->  Sort
-         Sort Key: t2.b
-         ->  Append
-               ->  RemoteScan on prt2_p2 t2
-                     Filter: (c > 250)
-                     Shard: 2    Remote SQL: select b, c from regression_$$_public.prt2_p2  where (b > 250)
-               ->  RemoteScan on prt2_p3 t2_1
-                     Filter: (c > 250)
-                     Shard: 1    Remote SQL: select b, c from regression_$$_public.prt2_p3  where (b > 250)
-(22 rows)
 
 SELECT t1.a, t1.c, t2.b, t2.c FROM prt1 t1, prt2 t2 WHERE t1.a = t2.b AND t1.a < 450 AND t2.b > 250 AND t1.b = 0 ORDER BY t1.a, t2.b;
   a  |  c   |  b  |  c   
@@ -209,19 +175,6 @@ SELECT 1 AS three UNION SELECT 2 UNION ALL SELECT 2 ORDER BY 1;
 (3 rows)
 
 EXPLAIN SELECT 1 AS three UNION SELECT 2 UNION ALL SELECT 2 ORDER BY 1;
-                               QUERY PLAN                               
-------------------------------------------------------------------------
- Sort  (cost=0.13..0.14 rows=3 width=4)
-   Sort Key: (1)
-   ->  Append  (cost=0.06..0.11 rows=3 width=4)
-         ->  Unique  (cost=0.06..0.07 rows=2 width=4)
-               ->  Sort  (cost=0.06..0.07 rows=2 width=4)
-                     Sort Key: (1)
-                     ->  Append  (cost=0.00..0.05 rows=2 width=4)
-                           ->  Result  (cost=0.00..0.01 rows=1 width=4)
-                           ->  Result  (cost=0.00..0.01 rows=1 width=4)
-         ->  Result  (cost=0.00..0.01 rows=1 width=4)
-(10 rows)
 
 SELECT 1 AS three UNION SELECT 3 UNION SELECT 2 UNION ALL SELECT 2 ORDER BY 1;
  three 
@@ -233,19 +186,6 @@ SELECT 1 AS three UNION SELECT 3 UNION SELECT 2 UNION ALL SELECT 2 ORDER BY 1;
 (4 rows)
 
 EXPLAIN SELECT 1 AS three UNION SELECT 3 UNION SELECT 2 UNION ALL SELECT 2 ORDER BY 1;
-                            QUERY PLAN                            
-------------------------------------------------------------------
- Sort  (cost=0.19..0.20 rows=4 width=4)
-   Sort Key: (1)
-   ->  Append  (cost=0.08..0.15 rows=4 width=4)
-         ->  HashAggregate  (cost=0.08..0.11 rows=3 width=4)
-               Group Key: (1)
-               ->  Append  (cost=0.00..0.07 rows=3 width=4)
-                     ->  Result  (cost=0.00..0.01 rows=1 width=4)
-                     ->  Result  (cost=0.00..0.01 rows=1 width=4)
-                     ->  Result  (cost=0.00..0.01 rows=1 width=4)
-         ->  Result  (cost=0.00..0.01 rows=1 width=4)
-(10 rows)
 
 -- bug 245 Sort should not be pushed down if it uses a set returning funcs or exprs to sort
 drop table if exists few cascade;
@@ -267,14 +207,6 @@ SELECT few.id, generate_series(1,3) g FROM few ORDER BY id, g DESC;
 (9 rows)
 
 EXPLAIN SELECT few.id, generate_series(1,3) g FROM few ORDER BY id, g DESC;
-                                         QUERY PLAN                                         
---------------------------------------------------------------------------------------------
- Sort  (cost=54.84..57.34 rows=1000 width=8)
-   Sort Key: id, (generate_series(1, 3)) DESC
-   ->  ProjectSet  (cost=0.00..5.01 rows=1000 width=8)
-         ->  RemoteScan on few  (cost=0.00..0.00 rows=1 width=4)
-               Shard: 1  Remote SQL: select id, dataa, datab from regression_$$_public.few 
-(5 rows)
 
 SELECT few.id  FROM few ORDER BY id, random() DESC;
  id 
@@ -285,13 +217,6 @@ SELECT few.id  FROM few ORDER BY id, random() DESC;
 (3 rows)
 
 EXPLAIN SELECT few.id  FROM few ORDER BY id, random() DESC;
-                                  QUERY PLAN                                  
-------------------------------------------------------------------------------
- Sort  (cost=0.01..0.02 rows=1 width=12)
-   Sort Key: id, (random()) DESC
-   ->  RemoteScan on few  (cost=0.00..0.00 rows=1 width=12)
-         Shard: 1        Remote SQL: select id from regression_$$_public.few 
-(4 rows)
 
 -- bug #221 string_agg omitted from agg pushdown 
 CREATE TABLE ctv_data (v varchar(30), h varchar(30), c varchar(30), i int, d date);
@@ -326,18 +251,6 @@ SELECT count(1) FROM atest5 a JOIN atest5 b USING (one);
 (1 row)
 
 EXPLAIN SELECT count(1) FROM atest5 a JOIN atest5 b USING (one);
-                                                 QUERY PLAN                                                 
-------------------------------------------------------------------------------------------------------------
- Aggregate  (cost=0.02..0.03 rows=1 width=8)
-   ->  Nested Loop  (cost=0.00..0.01 rows=1 width=0)
-         Join Filter: (a.one = b.one)
-         ->  Materialize  (cost=0.00..0.01 rows=1 width=4)
-               ->  RemoteScan on atest5 a  (cost=0.00..0.00 rows=1 width=4)
-                     Shard: 1    Remote SQL: select one, two, three, four from regression_$$_public.atest5 
-         ->  Materialize  (cost=0.00..0.01 rows=1 width=4)
-               ->  RemoteScan on atest5 b  (cost=0.00..0.00 rows=1 width=4)
-                     Shard: 1    Remote SQL: select one, two, three, four from regression_$$_public.atest5 
-(9 rows)
 
 SELECT count(1) FROM atest5;
  count 
@@ -346,12 +259,6 @@ SELECT count(1) FROM atest5;
 (1 row)
 
 EXPLAIN SELECT count(1) FROM atest5;
-                                             QUERY PLAN                                             
-----------------------------------------------------------------------------------------------------
- Aggregate  (cost=0.00..0.01 rows=1 width=8)
-   ->  RemoteScan on atest5  (cost=0.00..0.00 rows=1 width=0)
-         Shard: 1        Remote SQL: select one, two, three, four from regression_$$_public.atest5 
-(3 rows)
 
 SELECT sum(2+3) FROM atest5 a JOIN atest5 b USING (one);
  sum 
@@ -360,18 +267,6 @@ SELECT sum(2+3) FROM atest5 a JOIN atest5 b USING (one);
 (1 row)
 
 EXPLAIN SELECT sum(2+3) FROM atest5 a JOIN atest5 b USING (one);
-                                                 QUERY PLAN                                                 
-------------------------------------------------------------------------------------------------------------
- Aggregate  (cost=0.02..0.03 rows=1 width=8)
-   ->  Nested Loop  (cost=0.00..0.01 rows=1 width=0)
-         Join Filter: (a.one = b.one)
-         ->  Materialize  (cost=0.00..0.01 rows=1 width=4)
-               ->  RemoteScan on atest5 a  (cost=0.00..0.00 rows=1 width=4)
-                     Shard: 1    Remote SQL: select one, two, three, four from regression_$$_public.atest5 
-         ->  Materialize  (cost=0.00..0.01 rows=1 width=4)
-               ->  RemoteScan on atest5 b  (cost=0.00..0.00 rows=1 width=4)
-                     Shard: 1    Remote SQL: select one, two, three, four from regression_$$_public.atest5 
-(9 rows)
 
 SELECT sum(2+3) FROM atest5;
  sum 
@@ -380,12 +275,6 @@ SELECT sum(2+3) FROM atest5;
 (1 row)
 
 EXPLAIN SELECT sum(2+3) FROM atest5;
-                                             QUERY PLAN                                             
-----------------------------------------------------------------------------------------------------
- Aggregate  (cost=0.00..0.01 rows=1 width=8)
-   ->  RemoteScan on atest5  (cost=0.00..0.00 rows=1 width=0)
-         Shard: 1        Remote SQL: select one, two, three, four from regression_$$_public.atest5 
-(3 rows)
 
 -- bug  #234 View derived conflicting RemoteScans not materialized 
 drop table if exists test1;

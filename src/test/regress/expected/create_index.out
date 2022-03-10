@@ -416,13 +416,6 @@ EXPLAIN (COSTS OFF)
 SELECT * FROM fast_emp4000
     WHERE home_base @ '(200,200),(2000,1000)'::box
     ORDER BY (home_base[0])[0];
-                           QUERY PLAN                           
-----------------------------------------------------------------
- Sort
-   Sort Key: ((home_base[0])[0])
-   ->  Index Only Scan using grect2ind on fast_emp4000
-         Index Cond: (home_base @ '(2000,1000),(200,200)'::box)
-(4 rows)
 
 SELECT * FROM fast_emp4000
     WHERE home_base @ '(200,200),(2000,1000)'::box
@@ -435,12 +428,6 @@ SELECT * FROM fast_emp4000
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM fast_emp4000 WHERE home_base && '(1000,1000,0,0)'::box;
-                         QUERY PLAN                          
--------------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using grect2ind on fast_emp4000
-         Index Cond: (home_base && '(1000,1000),(0,0)'::box)
-(3 rows)
 
 SELECT count(*) FROM fast_emp4000 WHERE home_base && '(1000,1000,0,0)'::box;
  count 
@@ -450,12 +437,6 @@ SELECT count(*) FROM fast_emp4000 WHERE home_base && '(1000,1000,0,0)'::box;
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM fast_emp4000 WHERE home_base IS NULL;
-                      QUERY PLAN                       
--------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using grect2ind on fast_emp4000
-         Index Cond: (home_base IS NULL)
-(3 rows)
 
 SELECT count(*) FROM fast_emp4000 WHERE home_base IS NULL;
  count 
@@ -466,13 +447,6 @@ SELECT count(*) FROM fast_emp4000 WHERE home_base IS NULL;
 EXPLAIN (COSTS OFF)
 SELECT * FROM polygon_tbl WHERE f1 ~ '((1,1),(2,2),(2,1))'::polygon
     ORDER BY (poly_center(f1))[0];
-                        QUERY PLAN                         
------------------------------------------------------------
- Sort
-   Sort Key: ((poly_center(f1))[0])
-   ->  Index Scan using gpolygonind on polygon_tbl
-         Index Cond: (f1 ~ '((1,1),(2,2),(2,1))'::polygon)
-(4 rows)
 
 SELECT * FROM polygon_tbl WHERE f1 ~ '((1,1),(2,2),(2,1))'::polygon
     ORDER BY (poly_center(f1))[0];
@@ -484,13 +458,6 @@ SELECT * FROM polygon_tbl WHERE f1 ~ '((1,1),(2,2),(2,1))'::polygon
 EXPLAIN (COSTS OFF)
 SELECT * FROM circle_tbl WHERE f1 && circle(point(1,-2), 1)
     ORDER BY area(f1);
-                    QUERY PLAN                    
---------------------------------------------------
- Sort
-   Sort Key: (area(f1))
-   ->  Index Scan using gcircleind on circle_tbl
-         Index Cond: (f1 && '<(1,-2),1>'::circle)
-(4 rows)
 
 SELECT * FROM circle_tbl WHERE f1 && circle(point(1,-2), 1)
     ORDER BY area(f1);
@@ -504,12 +471,6 @@ SELECT * FROM circle_tbl WHERE f1 && circle(point(1,-2), 1)
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM gpolygon_tbl WHERE f1 && '(1000,1000,0,0)'::polygon;
-                         QUERY PLAN                         
-------------------------------------------------------------
- Aggregate
-   ->  Index Scan using ggpolygonind on gpolygon_tbl
-         Index Cond: (f1 && '((1000,1000),(0,0))'::polygon)
-(3 rows)
 
 SELECT count(*) FROM gpolygon_tbl WHERE f1 && '(1000,1000,0,0)'::polygon;
  count 
@@ -519,12 +480,6 @@ SELECT count(*) FROM gpolygon_tbl WHERE f1 && '(1000,1000,0,0)'::polygon;
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM gcircle_tbl WHERE f1 && '<(500,500),500>'::circle;
-                      QUERY PLAN                       
--------------------------------------------------------
- Aggregate
-   ->  Index Scan using ggcircleind on gcircle_tbl
-         Index Cond: (f1 && '<(500,500),500>'::circle)
-(3 rows)
 
 SELECT count(*) FROM gcircle_tbl WHERE f1 && '<(500,500),500>'::circle;
  count 
@@ -534,12 +489,6 @@ SELECT count(*) FROM gcircle_tbl WHERE f1 && '<(500,500),500>'::circle;
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM point_tbl WHERE f1 <@ box '(0,0,100,100)';
-                     QUERY PLAN                     
-----------------------------------------------------
- Aggregate
-   ->  Index Only Scan using gpointind on point_tbl
-         Index Cond: (f1 <@ '(100,100),(0,0)'::box)
-(3 rows)
 
 SELECT count(*) FROM point_tbl WHERE f1 <@ box '(0,0,100,100)';
  count 
@@ -549,12 +498,6 @@ SELECT count(*) FROM point_tbl WHERE f1 <@ box '(0,0,100,100)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM point_tbl WHERE box '(0,0,100,100)' @> f1;
-                     QUERY PLAN                     
-----------------------------------------------------
- Aggregate
-   ->  Index Only Scan using gpointind on point_tbl
-         Index Cond: (f1 <@ '(100,100),(0,0)'::box)
-(3 rows)
 
 SELECT count(*) FROM point_tbl WHERE box '(0,0,100,100)' @> f1;
  count 
@@ -564,12 +507,6 @@ SELECT count(*) FROM point_tbl WHERE box '(0,0,100,100)' @> f1;
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM point_tbl WHERE f1 <@ polygon '(0,0),(0,100),(100,100),(50,50),(100,0),(0,0)';
-                                       QUERY PLAN                                       
-----------------------------------------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using gpointind on point_tbl
-         Index Cond: (f1 <@ '((0,0),(0,100),(100,100),(50,50),(100,0),(0,0))'::polygon)
-(3 rows)
 
 SELECT count(*) FROM point_tbl WHERE f1 <@ polygon '(0,0),(0,100),(100,100),(50,50),(100,0),(0,0)';
  count 
@@ -579,12 +516,6 @@ SELECT count(*) FROM point_tbl WHERE f1 <@ polygon '(0,0),(0,100),(100,100),(50,
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM point_tbl WHERE f1 <@ circle '<(50,50),50>';
-                     QUERY PLAN                     
-----------------------------------------------------
- Aggregate
-   ->  Index Only Scan using gpointind on point_tbl
-         Index Cond: (f1 <@ '<(50,50),50>'::circle)
-(3 rows)
 
 SELECT count(*) FROM point_tbl WHERE f1 <@ circle '<(50,50),50>';
  count 
@@ -594,12 +525,6 @@ SELECT count(*) FROM point_tbl WHERE f1 <@ circle '<(50,50),50>';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM point_tbl p WHERE p.f1 << '(0.0, 0.0)';
-                      QUERY PLAN                      
-------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using gpointind on point_tbl p
-         Index Cond: (f1 << '(0,0)'::point)
-(3 rows)
 
 SELECT count(*) FROM point_tbl p WHERE p.f1 << '(0.0, 0.0)';
  count 
@@ -609,12 +534,6 @@ SELECT count(*) FROM point_tbl p WHERE p.f1 << '(0.0, 0.0)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM point_tbl p WHERE p.f1 >> '(0.0, 0.0)';
-                      QUERY PLAN                      
-------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using gpointind on point_tbl p
-         Index Cond: (f1 >> '(0,0)'::point)
-(3 rows)
 
 SELECT count(*) FROM point_tbl p WHERE p.f1 >> '(0.0, 0.0)';
  count 
@@ -624,12 +543,6 @@ SELECT count(*) FROM point_tbl p WHERE p.f1 >> '(0.0, 0.0)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM point_tbl p WHERE p.f1 <^ '(0.0, 0.0)';
-                      QUERY PLAN                      
-------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using gpointind on point_tbl p
-         Index Cond: (f1 <^ '(0,0)'::point)
-(3 rows)
 
 SELECT count(*) FROM point_tbl p WHERE p.f1 <^ '(0.0, 0.0)';
  count 
@@ -639,12 +552,6 @@ SELECT count(*) FROM point_tbl p WHERE p.f1 <^ '(0.0, 0.0)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM point_tbl p WHERE p.f1 >^ '(0.0, 0.0)';
-                      QUERY PLAN                      
-------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using gpointind on point_tbl p
-         Index Cond: (f1 >^ '(0,0)'::point)
-(3 rows)
 
 SELECT count(*) FROM point_tbl p WHERE p.f1 >^ '(0.0, 0.0)';
  count 
@@ -654,12 +561,6 @@ SELECT count(*) FROM point_tbl p WHERE p.f1 >^ '(0.0, 0.0)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM point_tbl p WHERE p.f1 ~= '(-5, -12)';
-                      QUERY PLAN                      
-------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using gpointind on point_tbl p
-         Index Cond: (f1 ~= '(-5,-12)'::point)
-(3 rows)
 
 SELECT count(*) FROM point_tbl p WHERE p.f1 ~= '(-5, -12)';
  count 
@@ -669,11 +570,6 @@ SELECT count(*) FROM point_tbl p WHERE p.f1 ~= '(-5, -12)';
 
 EXPLAIN (COSTS OFF)
 SELECT * FROM point_tbl ORDER BY f1 <-> '0,1';
-                  QUERY PLAN                  
-----------------------------------------------
- Index Only Scan using gpointind on point_tbl
-   Order By: (f1 <-> '(0,1)'::point)
-(2 rows)
 
 SELECT * FROM point_tbl ORDER BY f1 <-> '0,1';
      f1     
@@ -689,11 +585,6 @@ SELECT * FROM point_tbl ORDER BY f1 <-> '0,1';
 
 EXPLAIN (COSTS OFF)
 SELECT * FROM point_tbl WHERE f1 IS NULL;
-                  QUERY PLAN                  
-----------------------------------------------
- Index Only Scan using gpointind on point_tbl
-   Index Cond: (f1 IS NULL)
-(2 rows)
 
 SELECT * FROM point_tbl WHERE f1 IS NULL;
  f1 
@@ -703,12 +594,6 @@ SELECT * FROM point_tbl WHERE f1 IS NULL;
 
 EXPLAIN (COSTS OFF)
 SELECT * FROM point_tbl WHERE f1 IS NOT NULL ORDER BY f1 <-> '0,1';
-                  QUERY PLAN                  
-----------------------------------------------
- Index Only Scan using gpointind on point_tbl
-   Index Cond: (f1 IS NOT NULL)
-   Order By: (f1 <-> '(0,1)'::point)
-(3 rows)
 
 SELECT * FROM point_tbl WHERE f1 IS NOT NULL ORDER BY f1 <-> '0,1';
      f1     
@@ -723,12 +608,6 @@ SELECT * FROM point_tbl WHERE f1 IS NOT NULL ORDER BY f1 <-> '0,1';
 
 EXPLAIN (COSTS OFF)
 SELECT * FROM point_tbl WHERE f1 <@ '(-10,-10),(10,10)':: box ORDER BY f1 <-> '0,1';
-                   QUERY PLAN                   
-------------------------------------------------
- Index Only Scan using gpointind on point_tbl
-   Index Cond: (f1 <@ '(10,10),(-10,-10)'::box)
-   Order By: (f1 <-> '(0,1)'::point)
-(3 rows)
 
 SELECT * FROM point_tbl WHERE f1 <@ '(-10,-10),(10,10)':: box ORDER BY f1 <-> '0,1';
    f1    
@@ -741,12 +620,6 @@ SELECT * FROM point_tbl WHERE f1 <@ '(-10,-10),(10,10)':: box ORDER BY f1 <-> '0
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM quad_point_tbl WHERE p IS NULL;
-                        QUERY PLAN                         
------------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_quad_ind on quad_point_tbl
-         Index Cond: (p IS NULL)
-(3 rows)
 
 SELECT count(*) FROM quad_point_tbl WHERE p IS NULL;
  count 
@@ -756,12 +629,6 @@ SELECT count(*) FROM quad_point_tbl WHERE p IS NULL;
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM quad_point_tbl WHERE p IS NOT NULL;
-                        QUERY PLAN                         
------------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_quad_ind on quad_point_tbl
-         Index Cond: (p IS NOT NULL)
-(3 rows)
 
 SELECT count(*) FROM quad_point_tbl WHERE p IS NOT NULL;
  count 
@@ -771,11 +638,6 @@ SELECT count(*) FROM quad_point_tbl WHERE p IS NOT NULL;
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM quad_point_tbl;
-                        QUERY PLAN                         
------------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_quad_ind on quad_point_tbl
-(2 rows)
 
 SELECT count(*) FROM quad_point_tbl;
  count 
@@ -785,12 +647,6 @@ SELECT count(*) FROM quad_point_tbl;
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM quad_point_tbl WHERE p <@ box '(200,200,1000,1000)';
-                        QUERY PLAN                         
------------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_quad_ind on quad_point_tbl
-         Index Cond: (p <@ '(1000,1000),(200,200)'::box)
-(3 rows)
 
 SELECT count(*) FROM quad_point_tbl WHERE p <@ box '(200,200,1000,1000)';
  count 
@@ -800,12 +656,6 @@ SELECT count(*) FROM quad_point_tbl WHERE p <@ box '(200,200,1000,1000)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM quad_point_tbl WHERE box '(200,200,1000,1000)' @> p;
-                        QUERY PLAN                         
------------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_quad_ind on quad_point_tbl
-         Index Cond: (p <@ '(1000,1000),(200,200)'::box)
-(3 rows)
 
 SELECT count(*) FROM quad_point_tbl WHERE box '(200,200,1000,1000)' @> p;
  count 
@@ -815,12 +665,6 @@ SELECT count(*) FROM quad_point_tbl WHERE box '(200,200,1000,1000)' @> p;
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM quad_point_tbl WHERE p << '(5000, 4000)';
-                        QUERY PLAN                         
------------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_quad_ind on quad_point_tbl
-         Index Cond: (p << '(5000,4000)'::point)
-(3 rows)
 
 SELECT count(*) FROM quad_point_tbl WHERE p << '(5000, 4000)';
  count 
@@ -830,12 +674,6 @@ SELECT count(*) FROM quad_point_tbl WHERE p << '(5000, 4000)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM quad_point_tbl WHERE p >> '(5000, 4000)';
-                        QUERY PLAN                         
------------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_quad_ind on quad_point_tbl
-         Index Cond: (p >> '(5000,4000)'::point)
-(3 rows)
 
 SELECT count(*) FROM quad_point_tbl WHERE p >> '(5000, 4000)';
  count 
@@ -845,12 +683,6 @@ SELECT count(*) FROM quad_point_tbl WHERE p >> '(5000, 4000)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM quad_point_tbl WHERE p <^ '(5000, 4000)';
-                        QUERY PLAN                         
------------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_quad_ind on quad_point_tbl
-         Index Cond: (p <^ '(5000,4000)'::point)
-(3 rows)
 
 SELECT count(*) FROM quad_point_tbl WHERE p <^ '(5000, 4000)';
  count 
@@ -860,12 +692,6 @@ SELECT count(*) FROM quad_point_tbl WHERE p <^ '(5000, 4000)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM quad_point_tbl WHERE p >^ '(5000, 4000)';
-                        QUERY PLAN                         
------------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_quad_ind on quad_point_tbl
-         Index Cond: (p >^ '(5000,4000)'::point)
-(3 rows)
 
 SELECT count(*) FROM quad_point_tbl WHERE p >^ '(5000, 4000)';
  count 
@@ -875,12 +701,6 @@ SELECT count(*) FROM quad_point_tbl WHERE p >^ '(5000, 4000)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM quad_point_tbl WHERE p ~= '(4585, 365)';
-                        QUERY PLAN                         
------------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_quad_ind on quad_point_tbl
-         Index Cond: (p ~= '(4585,365)'::point)
-(3 rows)
 
 SELECT count(*) FROM quad_point_tbl WHERE p ~= '(4585, 365)';
  count 
@@ -890,12 +710,6 @@ SELECT count(*) FROM quad_point_tbl WHERE p ~= '(4585, 365)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM kd_point_tbl WHERE p <@ box '(200,200,1000,1000)';
-                       QUERY PLAN                        
----------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_kd_ind on kd_point_tbl
-         Index Cond: (p <@ '(1000,1000),(200,200)'::box)
-(3 rows)
 
 SELECT count(*) FROM kd_point_tbl WHERE p <@ box '(200,200,1000,1000)';
  count 
@@ -905,12 +719,6 @@ SELECT count(*) FROM kd_point_tbl WHERE p <@ box '(200,200,1000,1000)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM kd_point_tbl WHERE box '(200,200,1000,1000)' @> p;
-                       QUERY PLAN                        
----------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_kd_ind on kd_point_tbl
-         Index Cond: (p <@ '(1000,1000),(200,200)'::box)
-(3 rows)
 
 SELECT count(*) FROM kd_point_tbl WHERE box '(200,200,1000,1000)' @> p;
  count 
@@ -920,12 +728,6 @@ SELECT count(*) FROM kd_point_tbl WHERE box '(200,200,1000,1000)' @> p;
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM kd_point_tbl WHERE p << '(5000, 4000)';
-                      QUERY PLAN                       
--------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_kd_ind on kd_point_tbl
-         Index Cond: (p << '(5000,4000)'::point)
-(3 rows)
 
 SELECT count(*) FROM kd_point_tbl WHERE p << '(5000, 4000)';
  count 
@@ -935,12 +737,6 @@ SELECT count(*) FROM kd_point_tbl WHERE p << '(5000, 4000)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM kd_point_tbl WHERE p >> '(5000, 4000)';
-                      QUERY PLAN                       
--------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_kd_ind on kd_point_tbl
-         Index Cond: (p >> '(5000,4000)'::point)
-(3 rows)
 
 SELECT count(*) FROM kd_point_tbl WHERE p >> '(5000, 4000)';
  count 
@@ -950,12 +746,6 @@ SELECT count(*) FROM kd_point_tbl WHERE p >> '(5000, 4000)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM kd_point_tbl WHERE p <^ '(5000, 4000)';
-                      QUERY PLAN                       
--------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_kd_ind on kd_point_tbl
-         Index Cond: (p <^ '(5000,4000)'::point)
-(3 rows)
 
 SELECT count(*) FROM kd_point_tbl WHERE p <^ '(5000, 4000)';
  count 
@@ -965,12 +755,6 @@ SELECT count(*) FROM kd_point_tbl WHERE p <^ '(5000, 4000)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM kd_point_tbl WHERE p >^ '(5000, 4000)';
-                      QUERY PLAN                       
--------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_kd_ind on kd_point_tbl
-         Index Cond: (p >^ '(5000,4000)'::point)
-(3 rows)
 
 SELECT count(*) FROM kd_point_tbl WHERE p >^ '(5000, 4000)';
  count 
@@ -980,12 +764,6 @@ SELECT count(*) FROM kd_point_tbl WHERE p >^ '(5000, 4000)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM kd_point_tbl WHERE p ~= '(4585, 365)';
-                      QUERY PLAN                       
--------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_kd_ind on kd_point_tbl
-         Index Cond: (p ~= '(4585,365)'::point)
-(3 rows)
 
 SELECT count(*) FROM kd_point_tbl WHERE p ~= '(4585, 365)';
  count 
@@ -995,12 +773,6 @@ SELECT count(*) FROM kd_point_tbl WHERE p ~= '(4585, 365)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM radix_text_tbl WHERE t = 'P0123456789abcdef';
-                         QUERY PLAN                         
-------------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_radix_ind on radix_text_tbl
-         Index Cond: (t = 'P0123456789abcdef'::text)
-(3 rows)
 
 SELECT count(*) FROM radix_text_tbl WHERE t = 'P0123456789abcdef';
  count 
@@ -1010,12 +782,6 @@ SELECT count(*) FROM radix_text_tbl WHERE t = 'P0123456789abcdef';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM radix_text_tbl WHERE t = 'P0123456789abcde';
-                         QUERY PLAN                         
-------------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_radix_ind on radix_text_tbl
-         Index Cond: (t = 'P0123456789abcde'::text)
-(3 rows)
 
 SELECT count(*) FROM radix_text_tbl WHERE t = 'P0123456789abcde';
  count 
@@ -1025,12 +791,6 @@ SELECT count(*) FROM radix_text_tbl WHERE t = 'P0123456789abcde';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM radix_text_tbl WHERE t = 'P0123456789abcdefF';
-                         QUERY PLAN                         
-------------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_radix_ind on radix_text_tbl
-         Index Cond: (t = 'P0123456789abcdefF'::text)
-(3 rows)
 
 SELECT count(*) FROM radix_text_tbl WHERE t = 'P0123456789abcdefF';
  count 
@@ -1040,12 +800,6 @@ SELECT count(*) FROM radix_text_tbl WHERE t = 'P0123456789abcdefF';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM radix_text_tbl WHERE t <    'Aztec                         Ct  ';
-                              QUERY PLAN                              
-----------------------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_radix_ind on radix_text_tbl
-         Index Cond: (t < 'Aztec                         Ct  '::text)
-(3 rows)
 
 SELECT count(*) FROM radix_text_tbl WHERE t <    'Aztec                         Ct  ';
  count 
@@ -1055,12 +809,6 @@ SELECT count(*) FROM radix_text_tbl WHERE t <    'Aztec                         
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM radix_text_tbl WHERE t ~<~  'Aztec                         Ct  ';
-                               QUERY PLAN                               
-------------------------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_radix_ind on radix_text_tbl
-         Index Cond: (t ~<~ 'Aztec                         Ct  '::text)
-(3 rows)
 
 SELECT count(*) FROM radix_text_tbl WHERE t ~<~  'Aztec                         Ct  ';
  count 
@@ -1070,12 +818,6 @@ SELECT count(*) FROM radix_text_tbl WHERE t ~<~  'Aztec                         
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM radix_text_tbl WHERE t <=   'Aztec                         Ct  ';
-                              QUERY PLAN                               
------------------------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_radix_ind on radix_text_tbl
-         Index Cond: (t <= 'Aztec                         Ct  '::text)
-(3 rows)
 
 SELECT count(*) FROM radix_text_tbl WHERE t <=   'Aztec                         Ct  ';
  count 
@@ -1085,12 +827,6 @@ SELECT count(*) FROM radix_text_tbl WHERE t <=   'Aztec                         
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM radix_text_tbl WHERE t ~<=~ 'Aztec                         Ct  ';
-                               QUERY PLAN                                
--------------------------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_radix_ind on radix_text_tbl
-         Index Cond: (t ~<=~ 'Aztec                         Ct  '::text)
-(3 rows)
 
 SELECT count(*) FROM radix_text_tbl WHERE t ~<=~ 'Aztec                         Ct  ';
  count 
@@ -1100,12 +836,6 @@ SELECT count(*) FROM radix_text_tbl WHERE t ~<=~ 'Aztec                         
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM radix_text_tbl WHERE t =    'Aztec                         Ct  ';
-                              QUERY PLAN                              
-----------------------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_radix_ind on radix_text_tbl
-         Index Cond: (t = 'Aztec                         Ct  '::text)
-(3 rows)
 
 SELECT count(*) FROM radix_text_tbl WHERE t =    'Aztec                         Ct  ';
  count 
@@ -1115,12 +845,6 @@ SELECT count(*) FROM radix_text_tbl WHERE t =    'Aztec                         
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM radix_text_tbl WHERE t =    'Worth                         St  ';
-                              QUERY PLAN                              
-----------------------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_radix_ind on radix_text_tbl
-         Index Cond: (t = 'Worth                         St  '::text)
-(3 rows)
 
 SELECT count(*) FROM radix_text_tbl WHERE t =    'Worth                         St  ';
  count 
@@ -1130,12 +854,6 @@ SELECT count(*) FROM radix_text_tbl WHERE t =    'Worth                         
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM radix_text_tbl WHERE t >=   'Worth                         St  ';
-                              QUERY PLAN                               
------------------------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_radix_ind on radix_text_tbl
-         Index Cond: (t >= 'Worth                         St  '::text)
-(3 rows)
 
 SELECT count(*) FROM radix_text_tbl WHERE t >=   'Worth                         St  ';
  count 
@@ -1145,12 +863,6 @@ SELECT count(*) FROM radix_text_tbl WHERE t >=   'Worth                         
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM radix_text_tbl WHERE t ~>=~ 'Worth                         St  ';
-                               QUERY PLAN                                
--------------------------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_radix_ind on radix_text_tbl
-         Index Cond: (t ~>=~ 'Worth                         St  '::text)
-(3 rows)
 
 SELECT count(*) FROM radix_text_tbl WHERE t ~>=~ 'Worth                         St  ';
  count 
@@ -1160,12 +872,6 @@ SELECT count(*) FROM radix_text_tbl WHERE t ~>=~ 'Worth                         
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM radix_text_tbl WHERE t >    'Worth                         St  ';
-                              QUERY PLAN                              
-----------------------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_radix_ind on radix_text_tbl
-         Index Cond: (t > 'Worth                         St  '::text)
-(3 rows)
 
 SELECT count(*) FROM radix_text_tbl WHERE t >    'Worth                         St  ';
  count 
@@ -1175,12 +881,6 @@ SELECT count(*) FROM radix_text_tbl WHERE t >    'Worth                         
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM radix_text_tbl WHERE t ~>~  'Worth                         St  ';
-                               QUERY PLAN                               
-------------------------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_radix_ind on radix_text_tbl
-         Index Cond: (t ~>~ 'Worth                         St  '::text)
-(3 rows)
 
 SELECT count(*) FROM radix_text_tbl WHERE t ~>~  'Worth                         St  ';
  count 
@@ -1190,12 +890,6 @@ SELECT count(*) FROM radix_text_tbl WHERE t ~>~  'Worth                         
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM radix_text_tbl WHERE t ^@	 'Worth';
-                         QUERY PLAN                         
-------------------------------------------------------------
- Aggregate
-   ->  Index Only Scan using sp_radix_ind on radix_text_tbl
-         Index Cond: (t ^@ 'Worth'::text)
-(3 rows)
 
 SELECT count(*) FROM radix_text_tbl WHERE t ^@	 'Worth';
  count 
@@ -1205,12 +899,6 @@ SELECT count(*) FROM radix_text_tbl WHERE t ^@	 'Worth';
 
 EXPLAIN (COSTS OFF)
 SELECT * FROM gpolygon_tbl ORDER BY f1 <-> '(0,0)'::point LIMIT 10;
-                     QUERY PLAN                      
------------------------------------------------------
- Limit
-   ->  Index Scan using ggpolygonind on gpolygon_tbl
-         Order By: (f1 <-> '(0,0)'::point)
-(3 rows)
 
 SELECT * FROM gpolygon_tbl ORDER BY f1 <-> '(0,0)'::point LIMIT 10;
                        f1                        
@@ -1229,12 +917,6 @@ SELECT * FROM gpolygon_tbl ORDER BY f1 <-> '(0,0)'::point LIMIT 10;
 
 EXPLAIN (COSTS OFF)
 SELECT circle_center(f1), round(radius(f1)) as radius FROM gcircle_tbl ORDER BY f1 <-> '(200,300)'::point LIMIT 10;
-                    QUERY PLAN                     
----------------------------------------------------
- Limit
-   ->  Index Scan using ggcircleind on gcircle_tbl
-         Order By: (f1 <-> '(200,300)'::point)
-(3 rows)
 
 SELECT circle_center(f1), round(radius(f1)) as radius FROM gcircle_tbl ORDER BY f1 <-> '(200,300)'::point LIMIT 10;
  circle_center  | radius 
@@ -1257,15 +939,6 @@ SET enable_indexscan = OFF;
 SET enable_bitmapscan = ON;
 EXPLAIN (COSTS OFF)
 SELECT * FROM point_tbl WHERE f1 <@ '(-10,-10),(10,10)':: box ORDER BY f1 <-> '0,1';
-                         QUERY PLAN                         
-------------------------------------------------------------
- Sort
-   Sort Key: ((f1 <-> '(0,1)'::point))
-   ->  Bitmap Heap Scan on point_tbl
-         Recheck Cond: (f1 <@ '(10,10),(-10,-10)'::box)
-         ->  Bitmap Index Scan on gpointind
-               Index Cond: (f1 <@ '(10,10),(-10,-10)'::box)
-(6 rows)
 
 SELECT * FROM point_tbl WHERE f1 <@ '(-10,-10),(10,10)':: box ORDER BY f1 <-> '0,1';
    f1    
@@ -1278,14 +951,6 @@ SELECT * FROM point_tbl WHERE f1 <@ '(-10,-10),(10,10)':: box ORDER BY f1 <-> '0
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM quad_point_tbl WHERE p IS NULL;
-                  QUERY PLAN                  
-----------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on quad_point_tbl
-         Recheck Cond: (p IS NULL)
-         ->  Bitmap Index Scan on sp_quad_ind
-               Index Cond: (p IS NULL)
-(5 rows)
 
 SELECT count(*) FROM quad_point_tbl WHERE p IS NULL;
  count 
@@ -1295,14 +960,6 @@ SELECT count(*) FROM quad_point_tbl WHERE p IS NULL;
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM quad_point_tbl WHERE p IS NOT NULL;
-                  QUERY PLAN                  
-----------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on quad_point_tbl
-         Recheck Cond: (p IS NOT NULL)
-         ->  Bitmap Index Scan on sp_quad_ind
-               Index Cond: (p IS NOT NULL)
-(5 rows)
 
 SELECT count(*) FROM quad_point_tbl WHERE p IS NOT NULL;
  count 
@@ -1312,12 +969,6 @@ SELECT count(*) FROM quad_point_tbl WHERE p IS NOT NULL;
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM quad_point_tbl;
-                  QUERY PLAN                  
-----------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on quad_point_tbl
-         ->  Bitmap Index Scan on sp_quad_ind
-(3 rows)
 
 SELECT count(*) FROM quad_point_tbl;
  count 
@@ -1327,14 +978,6 @@ SELECT count(*) FROM quad_point_tbl;
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM quad_point_tbl WHERE p <@ box '(200,200,1000,1000)';
-                          QUERY PLAN                           
----------------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on quad_point_tbl
-         Recheck Cond: (p <@ '(1000,1000),(200,200)'::box)
-         ->  Bitmap Index Scan on sp_quad_ind
-               Index Cond: (p <@ '(1000,1000),(200,200)'::box)
-(5 rows)
 
 SELECT count(*) FROM quad_point_tbl WHERE p <@ box '(200,200,1000,1000)';
  count 
@@ -1344,14 +987,6 @@ SELECT count(*) FROM quad_point_tbl WHERE p <@ box '(200,200,1000,1000)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM quad_point_tbl WHERE box '(200,200,1000,1000)' @> p;
-                          QUERY PLAN                           
----------------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on quad_point_tbl
-         Recheck Cond: ('(1000,1000),(200,200)'::box @> p)
-         ->  Bitmap Index Scan on sp_quad_ind
-               Index Cond: ('(1000,1000),(200,200)'::box @> p)
-(5 rows)
 
 SELECT count(*) FROM quad_point_tbl WHERE box '(200,200,1000,1000)' @> p;
  count 
@@ -1361,14 +996,6 @@ SELECT count(*) FROM quad_point_tbl WHERE box '(200,200,1000,1000)' @> p;
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM quad_point_tbl WHERE p << '(5000, 4000)';
-                      QUERY PLAN                       
--------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on quad_point_tbl
-         Recheck Cond: (p << '(5000,4000)'::point)
-         ->  Bitmap Index Scan on sp_quad_ind
-               Index Cond: (p << '(5000,4000)'::point)
-(5 rows)
 
 SELECT count(*) FROM quad_point_tbl WHERE p << '(5000, 4000)';
  count 
@@ -1378,14 +1005,6 @@ SELECT count(*) FROM quad_point_tbl WHERE p << '(5000, 4000)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM quad_point_tbl WHERE p >> '(5000, 4000)';
-                      QUERY PLAN                       
--------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on quad_point_tbl
-         Recheck Cond: (p >> '(5000,4000)'::point)
-         ->  Bitmap Index Scan on sp_quad_ind
-               Index Cond: (p >> '(5000,4000)'::point)
-(5 rows)
 
 SELECT count(*) FROM quad_point_tbl WHERE p >> '(5000, 4000)';
  count 
@@ -1395,14 +1014,6 @@ SELECT count(*) FROM quad_point_tbl WHERE p >> '(5000, 4000)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM quad_point_tbl WHERE p <^ '(5000, 4000)';
-                      QUERY PLAN                       
--------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on quad_point_tbl
-         Recheck Cond: (p <^ '(5000,4000)'::point)
-         ->  Bitmap Index Scan on sp_quad_ind
-               Index Cond: (p <^ '(5000,4000)'::point)
-(5 rows)
 
 SELECT count(*) FROM quad_point_tbl WHERE p <^ '(5000, 4000)';
  count 
@@ -1412,14 +1023,6 @@ SELECT count(*) FROM quad_point_tbl WHERE p <^ '(5000, 4000)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM quad_point_tbl WHERE p >^ '(5000, 4000)';
-                      QUERY PLAN                       
--------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on quad_point_tbl
-         Recheck Cond: (p >^ '(5000,4000)'::point)
-         ->  Bitmap Index Scan on sp_quad_ind
-               Index Cond: (p >^ '(5000,4000)'::point)
-(5 rows)
 
 SELECT count(*) FROM quad_point_tbl WHERE p >^ '(5000, 4000)';
  count 
@@ -1429,14 +1032,6 @@ SELECT count(*) FROM quad_point_tbl WHERE p >^ '(5000, 4000)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM quad_point_tbl WHERE p ~= '(4585, 365)';
-                      QUERY PLAN                      
-------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on quad_point_tbl
-         Recheck Cond: (p ~= '(4585,365)'::point)
-         ->  Bitmap Index Scan on sp_quad_ind
-               Index Cond: (p ~= '(4585,365)'::point)
-(5 rows)
 
 SELECT count(*) FROM quad_point_tbl WHERE p ~= '(4585, 365)';
  count 
@@ -1446,14 +1041,6 @@ SELECT count(*) FROM quad_point_tbl WHERE p ~= '(4585, 365)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM kd_point_tbl WHERE p <@ box '(200,200,1000,1000)';
-                          QUERY PLAN                           
----------------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on kd_point_tbl
-         Recheck Cond: (p <@ '(1000,1000),(200,200)'::box)
-         ->  Bitmap Index Scan on sp_kd_ind
-               Index Cond: (p <@ '(1000,1000),(200,200)'::box)
-(5 rows)
 
 SELECT count(*) FROM kd_point_tbl WHERE p <@ box '(200,200,1000,1000)';
  count 
@@ -1463,14 +1050,6 @@ SELECT count(*) FROM kd_point_tbl WHERE p <@ box '(200,200,1000,1000)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM kd_point_tbl WHERE box '(200,200,1000,1000)' @> p;
-                          QUERY PLAN                           
----------------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on kd_point_tbl
-         Recheck Cond: ('(1000,1000),(200,200)'::box @> p)
-         ->  Bitmap Index Scan on sp_kd_ind
-               Index Cond: ('(1000,1000),(200,200)'::box @> p)
-(5 rows)
 
 SELECT count(*) FROM kd_point_tbl WHERE box '(200,200,1000,1000)' @> p;
  count 
@@ -1480,14 +1059,6 @@ SELECT count(*) FROM kd_point_tbl WHERE box '(200,200,1000,1000)' @> p;
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM kd_point_tbl WHERE p << '(5000, 4000)';
-                      QUERY PLAN                       
--------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on kd_point_tbl
-         Recheck Cond: (p << '(5000,4000)'::point)
-         ->  Bitmap Index Scan on sp_kd_ind
-               Index Cond: (p << '(5000,4000)'::point)
-(5 rows)
 
 SELECT count(*) FROM kd_point_tbl WHERE p << '(5000, 4000)';
  count 
@@ -1497,14 +1068,6 @@ SELECT count(*) FROM kd_point_tbl WHERE p << '(5000, 4000)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM kd_point_tbl WHERE p >> '(5000, 4000)';
-                      QUERY PLAN                       
--------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on kd_point_tbl
-         Recheck Cond: (p >> '(5000,4000)'::point)
-         ->  Bitmap Index Scan on sp_kd_ind
-               Index Cond: (p >> '(5000,4000)'::point)
-(5 rows)
 
 SELECT count(*) FROM kd_point_tbl WHERE p >> '(5000, 4000)';
  count 
@@ -1514,14 +1077,6 @@ SELECT count(*) FROM kd_point_tbl WHERE p >> '(5000, 4000)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM kd_point_tbl WHERE p <^ '(5000, 4000)';
-                      QUERY PLAN                       
--------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on kd_point_tbl
-         Recheck Cond: (p <^ '(5000,4000)'::point)
-         ->  Bitmap Index Scan on sp_kd_ind
-               Index Cond: (p <^ '(5000,4000)'::point)
-(5 rows)
 
 SELECT count(*) FROM kd_point_tbl WHERE p <^ '(5000, 4000)';
  count 
@@ -1531,14 +1086,6 @@ SELECT count(*) FROM kd_point_tbl WHERE p <^ '(5000, 4000)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM kd_point_tbl WHERE p >^ '(5000, 4000)';
-                      QUERY PLAN                       
--------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on kd_point_tbl
-         Recheck Cond: (p >^ '(5000,4000)'::point)
-         ->  Bitmap Index Scan on sp_kd_ind
-               Index Cond: (p >^ '(5000,4000)'::point)
-(5 rows)
 
 SELECT count(*) FROM kd_point_tbl WHERE p >^ '(5000, 4000)';
  count 
@@ -1548,14 +1095,6 @@ SELECT count(*) FROM kd_point_tbl WHERE p >^ '(5000, 4000)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM kd_point_tbl WHERE p ~= '(4585, 365)';
-                      QUERY PLAN                      
-------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on kd_point_tbl
-         Recheck Cond: (p ~= '(4585,365)'::point)
-         ->  Bitmap Index Scan on sp_kd_ind
-               Index Cond: (p ~= '(4585,365)'::point)
-(5 rows)
 
 SELECT count(*) FROM kd_point_tbl WHERE p ~= '(4585, 365)';
  count 
@@ -1565,14 +1104,6 @@ SELECT count(*) FROM kd_point_tbl WHERE p ~= '(4585, 365)';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM radix_text_tbl WHERE t = 'P0123456789abcdef';
-                        QUERY PLAN                         
------------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on radix_text_tbl
-         Recheck Cond: (t = 'P0123456789abcdef'::text)
-         ->  Bitmap Index Scan on sp_radix_ind
-               Index Cond: (t = 'P0123456789abcdef'::text)
-(5 rows)
 
 SELECT count(*) FROM radix_text_tbl WHERE t = 'P0123456789abcdef';
  count 
@@ -1582,14 +1113,6 @@ SELECT count(*) FROM radix_text_tbl WHERE t = 'P0123456789abcdef';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM radix_text_tbl WHERE t = 'P0123456789abcde';
-                        QUERY PLAN                        
-----------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on radix_text_tbl
-         Recheck Cond: (t = 'P0123456789abcde'::text)
-         ->  Bitmap Index Scan on sp_radix_ind
-               Index Cond: (t = 'P0123456789abcde'::text)
-(5 rows)
 
 SELECT count(*) FROM radix_text_tbl WHERE t = 'P0123456789abcde';
  count 
@@ -1599,14 +1122,6 @@ SELECT count(*) FROM radix_text_tbl WHERE t = 'P0123456789abcde';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM radix_text_tbl WHERE t = 'P0123456789abcdefF';
-                         QUERY PLAN                         
-------------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on radix_text_tbl
-         Recheck Cond: (t = 'P0123456789abcdefF'::text)
-         ->  Bitmap Index Scan on sp_radix_ind
-               Index Cond: (t = 'P0123456789abcdefF'::text)
-(5 rows)
 
 SELECT count(*) FROM radix_text_tbl WHERE t = 'P0123456789abcdefF';
  count 
@@ -1616,14 +1131,6 @@ SELECT count(*) FROM radix_text_tbl WHERE t = 'P0123456789abcdefF';
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM radix_text_tbl WHERE t <    'Aztec                         Ct  ';
-                                 QUERY PLAN                                 
-----------------------------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on radix_text_tbl
-         Recheck Cond: (t < 'Aztec                         Ct  '::text)
-         ->  Bitmap Index Scan on sp_radix_ind
-               Index Cond: (t < 'Aztec                         Ct  '::text)
-(5 rows)
 
 SELECT count(*) FROM radix_text_tbl WHERE t <    'Aztec                         Ct  ';
  count 
@@ -1633,14 +1140,6 @@ SELECT count(*) FROM radix_text_tbl WHERE t <    'Aztec                         
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM radix_text_tbl WHERE t ~<~  'Aztec                         Ct  ';
-                                  QUERY PLAN                                  
-------------------------------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on radix_text_tbl
-         Recheck Cond: (t ~<~ 'Aztec                         Ct  '::text)
-         ->  Bitmap Index Scan on sp_radix_ind
-               Index Cond: (t ~<~ 'Aztec                         Ct  '::text)
-(5 rows)
 
 SELECT count(*) FROM radix_text_tbl WHERE t ~<~  'Aztec                         Ct  ';
  count 
@@ -1650,14 +1149,6 @@ SELECT count(*) FROM radix_text_tbl WHERE t ~<~  'Aztec                         
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM radix_text_tbl WHERE t <=   'Aztec                         Ct  ';
-                                 QUERY PLAN                                  
------------------------------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on radix_text_tbl
-         Recheck Cond: (t <= 'Aztec                         Ct  '::text)
-         ->  Bitmap Index Scan on sp_radix_ind
-               Index Cond: (t <= 'Aztec                         Ct  '::text)
-(5 rows)
 
 SELECT count(*) FROM radix_text_tbl WHERE t <=   'Aztec                         Ct  ';
  count 
@@ -1667,14 +1158,6 @@ SELECT count(*) FROM radix_text_tbl WHERE t <=   'Aztec                         
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM radix_text_tbl WHERE t ~<=~ 'Aztec                         Ct  ';
-                                  QUERY PLAN                                   
--------------------------------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on radix_text_tbl
-         Recheck Cond: (t ~<=~ 'Aztec                         Ct  '::text)
-         ->  Bitmap Index Scan on sp_radix_ind
-               Index Cond: (t ~<=~ 'Aztec                         Ct  '::text)
-(5 rows)
 
 SELECT count(*) FROM radix_text_tbl WHERE t ~<=~ 'Aztec                         Ct  ';
  count 
@@ -1684,14 +1167,6 @@ SELECT count(*) FROM radix_text_tbl WHERE t ~<=~ 'Aztec                         
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM radix_text_tbl WHERE t =    'Aztec                         Ct  ';
-                                 QUERY PLAN                                 
-----------------------------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on radix_text_tbl
-         Recheck Cond: (t = 'Aztec                         Ct  '::text)
-         ->  Bitmap Index Scan on sp_radix_ind
-               Index Cond: (t = 'Aztec                         Ct  '::text)
-(5 rows)
 
 SELECT count(*) FROM radix_text_tbl WHERE t =    'Aztec                         Ct  ';
  count 
@@ -1701,14 +1176,6 @@ SELECT count(*) FROM radix_text_tbl WHERE t =    'Aztec                         
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM radix_text_tbl WHERE t =    'Worth                         St  ';
-                                 QUERY PLAN                                 
-----------------------------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on radix_text_tbl
-         Recheck Cond: (t = 'Worth                         St  '::text)
-         ->  Bitmap Index Scan on sp_radix_ind
-               Index Cond: (t = 'Worth                         St  '::text)
-(5 rows)
 
 SELECT count(*) FROM radix_text_tbl WHERE t =    'Worth                         St  ';
  count 
@@ -1718,14 +1185,6 @@ SELECT count(*) FROM radix_text_tbl WHERE t =    'Worth                         
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM radix_text_tbl WHERE t >=   'Worth                         St  ';
-                                 QUERY PLAN                                  
------------------------------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on radix_text_tbl
-         Recheck Cond: (t >= 'Worth                         St  '::text)
-         ->  Bitmap Index Scan on sp_radix_ind
-               Index Cond: (t >= 'Worth                         St  '::text)
-(5 rows)
 
 SELECT count(*) FROM radix_text_tbl WHERE t >=   'Worth                         St  ';
  count 
@@ -1735,14 +1194,6 @@ SELECT count(*) FROM radix_text_tbl WHERE t >=   'Worth                         
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM radix_text_tbl WHERE t ~>=~ 'Worth                         St  ';
-                                  QUERY PLAN                                   
--------------------------------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on radix_text_tbl
-         Recheck Cond: (t ~>=~ 'Worth                         St  '::text)
-         ->  Bitmap Index Scan on sp_radix_ind
-               Index Cond: (t ~>=~ 'Worth                         St  '::text)
-(5 rows)
 
 SELECT count(*) FROM radix_text_tbl WHERE t ~>=~ 'Worth                         St  ';
  count 
@@ -1752,14 +1203,6 @@ SELECT count(*) FROM radix_text_tbl WHERE t ~>=~ 'Worth                         
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM radix_text_tbl WHERE t >    'Worth                         St  ';
-                                 QUERY PLAN                                 
-----------------------------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on radix_text_tbl
-         Recheck Cond: (t > 'Worth                         St  '::text)
-         ->  Bitmap Index Scan on sp_radix_ind
-               Index Cond: (t > 'Worth                         St  '::text)
-(5 rows)
 
 SELECT count(*) FROM radix_text_tbl WHERE t >    'Worth                         St  ';
  count 
@@ -1769,14 +1212,6 @@ SELECT count(*) FROM radix_text_tbl WHERE t >    'Worth                         
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM radix_text_tbl WHERE t ~>~  'Worth                         St  ';
-                                  QUERY PLAN                                  
-------------------------------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on radix_text_tbl
-         Recheck Cond: (t ~>~ 'Worth                         St  '::text)
-         ->  Bitmap Index Scan on sp_radix_ind
-               Index Cond: (t ~>~ 'Worth                         St  '::text)
-(5 rows)
 
 SELECT count(*) FROM radix_text_tbl WHERE t ~>~  'Worth                         St  ';
  count 
@@ -1786,14 +1221,6 @@ SELECT count(*) FROM radix_text_tbl WHERE t ~>~  'Worth                         
 
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM radix_text_tbl WHERE t ^@	 'Worth';
-                   QUERY PLAN                   
-------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on radix_text_tbl
-         Recheck Cond: (t ^@ 'Worth'::text)
-         ->  Bitmap Index Scan on sp_radix_ind
-               Index Cond: (t ^@ 'Worth'::text)
-(5 rows)
 
 SELECT count(*) FROM radix_text_tbl WHERE t ^@	 'Worth';
  count 
@@ -1815,15 +1242,6 @@ SET enable_bitmapscan = ON;
 CREATE INDEX intarrayidx ON array_index_op_test USING gin (i);
 explain (costs off)
 SELECT * FROM array_index_op_test WHERE i @> '{32}' ORDER BY seqno;
-                     QUERY PLAN                     
-----------------------------------------------------
- Sort
-   Sort Key: seqno
-   ->  Bitmap Heap Scan on array_index_op_test
-         Recheck Cond: (i @> '{32}'::integer[])
-         ->  Bitmap Index Scan on intarrayidx
-               Index Cond: (i @> '{32}'::integer[])
-(6 rows)
 
 SELECT * FROM array_index_op_test WHERE i @> '{32}' ORDER BY seqno;
  seqno |                i                |                                                                 t                                                                  
@@ -2061,15 +1479,6 @@ SELECT * FROM array_op_test WHERE i <@ '{NULL}' ORDER BY seqno;
 CREATE INDEX textarrayidx ON array_index_op_test USING gin (t);
 explain (costs off)
 SELECT * FROM array_index_op_test WHERE t @> '{AAAAAAAA72908}' ORDER BY seqno;
-                         QUERY PLAN                         
-------------------------------------------------------------
- Sort
-   Sort Key: seqno
-   ->  Bitmap Heap Scan on array_index_op_test
-         Recheck Cond: (t @> '{AAAAAAAA72908}'::text[])
-         ->  Bitmap Index Scan on textarrayidx
-               Index Cond: (t @> '{AAAAAAAA72908}'::text[])
-(6 rows)
 
 SELECT * FROM array_index_op_test WHERE t @> '{AAAAAAAA72908}' ORDER BY seqno;
  seqno |           i           |                                                                     t                                                                      
@@ -2386,14 +1795,6 @@ SET maintenance_work_mem = '1MB';
 CREATE INDEX hash_tuplesort_idx ON tenk1 USING hash (stringu1 name_ops) WITH (fillfactor = 10);
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM tenk1 WHERE stringu1 = 'TVAAAA';
-                      QUERY PLAN                       
--------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on tenk1
-         Recheck Cond: (stringu1 = 'TVAAAA'::name)
-         ->  Bitmap Index Scan on hash_tuplesort_idx
-               Index Cond: (stringu1 = 'TVAAAA'::name)
-(5 rows)
 
 SELECT count(*) FROM tenk1 WHERE stringu1 = 'TVAAAA';
  count 
@@ -2861,18 +2262,6 @@ DROP TABLE onek_with_null;
 EXPLAIN (COSTS OFF)
 SELECT * FROM tenk1
   WHERE thousand = 42 AND (tenthous = 1 OR tenthous = 3 OR tenthous = 42);
-                                                               QUERY PLAN                                                                
------------------------------------------------------------------------------------------------------------------------------------------
- Bitmap Heap Scan on tenk1
-   Recheck Cond: (((thousand = 42) AND (tenthous = 1)) OR ((thousand = 42) AND (tenthous = 3)) OR ((thousand = 42) AND (tenthous = 42)))
-   ->  BitmapOr
-         ->  Bitmap Index Scan on tenk1_thous_tenthous
-               Index Cond: ((thousand = 42) AND (tenthous = 1))
-         ->  Bitmap Index Scan on tenk1_thous_tenthous
-               Index Cond: ((thousand = 42) AND (tenthous = 3))
-         ->  Bitmap Index Scan on tenk1_thous_tenthous
-               Index Cond: ((thousand = 42) AND (tenthous = 42))
-(9 rows)
 
 SELECT * FROM tenk1
   WHERE thousand = 42 AND (tenthous = 1 OR tenthous = 3 OR tenthous = 42);
@@ -2884,20 +2273,6 @@ SELECT * FROM tenk1
 EXPLAIN (COSTS OFF)
 SELECT count(*) FROM tenk1
   WHERE hundred = 42 AND (thousand = 42 OR thousand = 99);
-                                   QUERY PLAN                                    
----------------------------------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on tenk1
-         Recheck Cond: ((hundred = 42) AND ((thousand = 42) OR (thousand = 99)))
-         ->  BitmapAnd
-               ->  Bitmap Index Scan on tenk1_hundred
-                     Index Cond: (hundred = 42)
-               ->  BitmapOr
-                     ->  Bitmap Index Scan on tenk1_thous_tenthous
-                           Index Cond: (thousand = 42)
-                     ->  Bitmap Index Scan on tenk1_thous_tenthous
-                           Index Cond: (thousand = 99)
-(11 rows)
 
 SELECT count(*) FROM tenk1
   WHERE hundred = 42 AND (thousand = 42 OR thousand = 99);
@@ -2916,14 +2291,6 @@ ANALYZE dupindexcols;
 EXPLAIN (COSTS OFF)
   SELECT count(*) FROM dupindexcols
     WHERE f1 BETWEEN 'WA' AND 'ZZZ' and id < 1000 and f1 ~<~ 'YX';
-                                                   QUERY PLAN                                                   
-----------------------------------------------------------------------------------------------------------------
- Aggregate
-   ->  Bitmap Heap Scan on dupindexcols
-         Recheck Cond: ((f1 >= 'WA'::text) AND (f1 <= 'ZZZ'::text) AND (id < 1000) AND (f1 ~<~ 'YX'::text))
-         ->  Bitmap Index Scan on dupindexcols_i
-               Index Cond: ((f1 >= 'WA'::text) AND (f1 <= 'ZZZ'::text) AND (id < 1000) AND (f1 ~<~ 'YX'::text))
-(5 rows)
 
 SELECT count(*) FROM dupindexcols
   WHERE f1 BETWEEN 'WA' AND 'ZZZ' and id < 1000 and f1 ~<~ 'YX';
@@ -2940,11 +2307,6 @@ explain (costs off)
 SELECT unique1 FROM tenk1
 WHERE unique1 IN (1,42,7)
 ORDER BY unique1;
-                      QUERY PLAN                       
--------------------------------------------------------
- Index Only Scan using tenk1_unique1 on tenk1
-   Index Cond: (unique1 = ANY ('{1,42,7}'::integer[]))
-(2 rows)
 
 SELECT unique1 FROM tenk1
 WHERE unique1 IN (1,42,7)
@@ -2960,12 +2322,6 @@ explain (costs off)
 SELECT thousand, tenthous FROM tenk1
 WHERE thousand < 2 AND tenthous IN (1001,3000)
 ORDER BY thousand;
-                      QUERY PLAN                       
--------------------------------------------------------
- Index Only Scan using tenk1_thous_tenthous on tenk1
-   Index Cond: (thousand < 2)
-   Filter: (tenthous = ANY ('{1001,3000}'::integer[]))
-(3 rows)
 
 SELECT thousand, tenthous FROM tenk1
 WHERE thousand < 2 AND tenthous IN (1001,3000)
@@ -2981,13 +2337,6 @@ explain (costs off)
 SELECT thousand, tenthous FROM tenk1
 WHERE thousand < 2 AND tenthous IN (1001,3000)
 ORDER BY thousand;
-                                      QUERY PLAN                                      
---------------------------------------------------------------------------------------
- Sort
-   Sort Key: thousand
-   ->  Index Scan using tenk1_thous_tenthous on tenk1
-         Index Cond: ((thousand < 2) AND (tenthous = ANY ('{1001,3000}'::integer[])))
-(4 rows)
 
 SELECT thousand, tenthous FROM tenk1
 WHERE thousand < 2 AND tenthous IN (1001,3000)
@@ -3004,11 +2353,6 @@ RESET enable_indexonlyscan;
 --
 explain (costs off)
   select * from tenk1 where (thousand, tenthous) in ((1,1001), (null,null));
-                      QUERY PLAN                      
-------------------------------------------------------
- Index Scan using tenk1_thous_tenthous on tenk1
-   Index Cond: ((thousand = 1) AND (tenthous = 1001))
-(2 rows)
 
 --
 -- Check matching of boolean index columns to WHERE conditions and sort keys
@@ -3016,41 +2360,15 @@ explain (costs off)
 create temp table boolindex (b bool, i int, unique(b, i), junk float);
 explain (costs off)
   select * from boolindex order by b, i limit 10;
-                      QUERY PLAN                       
--------------------------------------------------------
- Limit
-   ->  Index Scan using boolindex_b_i_key on boolindex
-(2 rows)
 
 explain (costs off)
   select * from boolindex where b order by i limit 10;
-                      QUERY PLAN                       
--------------------------------------------------------
- Limit
-   ->  Index Scan using boolindex_b_i_key on boolindex
-         Index Cond: (b = true)
-         Filter: b
-(4 rows)
 
 explain (costs off)
   select * from boolindex where b = true order by i desc limit 10;
-                           QUERY PLAN                           
-----------------------------------------------------------------
- Limit
-   ->  Index Scan Backward using boolindex_b_i_key on boolindex
-         Index Cond: (b = true)
-         Filter: b
-(4 rows)
 
 explain (costs off)
   select * from boolindex where not b order by i limit 10;
-                      QUERY PLAN                       
--------------------------------------------------------
- Limit
-   ->  Index Scan using boolindex_b_i_key on boolindex
-         Index Cond: (b = false)
-         Filter: (NOT b)
-(4 rows)
 
 --
 -- Test for multilevel page deletion

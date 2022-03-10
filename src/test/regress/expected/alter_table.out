@@ -543,57 +543,15 @@ create table nv_child_2011 () inherits (nv_parent);
 alter table nv_child_2010 add check (d between '2010-01-01'::date and '2010-12-31'::date) not valid;
 alter table nv_child_2011 add check (d between '2011-01-01'::date and '2011-12-31'::date) not valid;
 explain (costs off) select * from nv_parent where d between '2011-08-01' and '2011-08-31';
-                                QUERY PLAN                                 
----------------------------------------------------------------------------
- Append
-   ->  Seq Scan on nv_parent
-         Filter: ((d >= '08-01-2011'::date) AND (d <= '08-31-2011'::date))
-   ->  Seq Scan on nv_child_2010
-         Filter: ((d >= '08-01-2011'::date) AND (d <= '08-31-2011'::date))
-   ->  Seq Scan on nv_child_2011
-         Filter: ((d >= '08-01-2011'::date) AND (d <= '08-31-2011'::date))
-(7 rows)
 
 create table nv_child_2009 (check (d between '2009-01-01'::date and '2009-12-31'::date)) inherits (nv_parent);
 explain (costs off) select * from nv_parent where d between '2011-08-01'::date and '2011-08-31'::date;
-                                QUERY PLAN                                 
----------------------------------------------------------------------------
- Append
-   ->  Seq Scan on nv_parent
-         Filter: ((d >= '08-01-2011'::date) AND (d <= '08-31-2011'::date))
-   ->  Seq Scan on nv_child_2010
-         Filter: ((d >= '08-01-2011'::date) AND (d <= '08-31-2011'::date))
-   ->  Seq Scan on nv_child_2011
-         Filter: ((d >= '08-01-2011'::date) AND (d <= '08-31-2011'::date))
-(7 rows)
 
 explain (costs off) select * from nv_parent where d between '2009-08-01'::date and '2009-08-31'::date;
-                                QUERY PLAN                                 
----------------------------------------------------------------------------
- Append
-   ->  Seq Scan on nv_parent
-         Filter: ((d >= '08-01-2009'::date) AND (d <= '08-31-2009'::date))
-   ->  Seq Scan on nv_child_2010
-         Filter: ((d >= '08-01-2009'::date) AND (d <= '08-31-2009'::date))
-   ->  Seq Scan on nv_child_2011
-         Filter: ((d >= '08-01-2009'::date) AND (d <= '08-31-2009'::date))
-   ->  Seq Scan on nv_child_2009
-         Filter: ((d >= '08-01-2009'::date) AND (d <= '08-31-2009'::date))
-(9 rows)
 
 -- after validation, the constraint should be used
 alter table nv_child_2011 VALIDATE CONSTRAINT nv_child_2011_d_check;
 explain (costs off) select * from nv_parent where d between '2009-08-01'::date and '2009-08-31'::date;
-                                QUERY PLAN                                 
----------------------------------------------------------------------------
- Append
-   ->  Seq Scan on nv_parent
-         Filter: ((d >= '08-01-2009'::date) AND (d <= '08-31-2009'::date))
-   ->  Seq Scan on nv_child_2010
-         Filter: ((d >= '08-01-2009'::date) AND (d <= '08-31-2009'::date))
-   ->  Seq Scan on nv_child_2009
-         Filter: ((d >= '08-01-2009'::date) AND (d <= '08-31-2009'::date))
-(7 rows)
 
 -- add an inherited NOT VALID constraint
 alter table nv_parent add check (d between '2001-01-01'::date and '2099-12-31'::date) not valid;
@@ -2472,11 +2430,6 @@ View definition:
    FROM at_view_1 v1;
 
 explain (verbose, costs off) select * from at_view_2;
-                        QUERY PLAN                        
-----------------------------------------------------------
- Seq Scan on public.at_base_table bt
-   Output: bt.id, bt.stuff, to_json(ROW(bt.id, bt.stuff))
-(2 rows)
 
 select * from at_view_2;
  id | stuff  |             j              
@@ -2512,11 +2465,6 @@ View definition:
    FROM at_view_1 v1;
 
 explain (verbose, costs off) select * from at_view_2;
-                           QUERY PLAN                           
-----------------------------------------------------------------
- Seq Scan on public.at_base_table bt
-   Output: bt.id, bt.stuff, to_json(ROW(bt.id, bt.stuff, NULL))
-(2 rows)
 
 select * from at_view_2;
  id | stuff  |                   j                    

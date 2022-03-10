@@ -256,11 +256,6 @@ explain (costs off)
 select thousand, tenthous from tenk1
 where (thousand, tenthous) >= (997, 5000)
 order by thousand, tenthous;
-                        QUERY PLAN                         
------------------------------------------------------------
- Index Only Scan using tenk1_thous_tenthous on tenk1
-   Index Cond: (ROW(thousand, tenthous) >= ROW(997, 5000))
-(2 rows)
 
 select thousand, tenthous from tenk1
 where (thousand, tenthous) >= (997, 5000)
@@ -303,11 +298,6 @@ create index on test_table (a,b);
 set enable_sort = off;
 explain (costs off)
 select a,b from test_table where (a,b) > ('a','a') order by a,b;
-                       QUERY PLAN                       
---------------------------------------------------------
- Index Only Scan using test_table_a_b_idx on test_table
-   Index Cond: (ROW(a, b) > ROW('a'::text, 'a'::text))
-(2 rows)
 
 select a,b from test_table where (a,b) > ('a','a') order by a,b;
  a | b 
@@ -323,11 +313,6 @@ ERROR:  cannot compare dissimilar column types bigint and integer at record colu
 explain (costs off)
 select * from int8_tbl i8
 where i8 in (row(123,456)::int8_tbl, '(4567890123456789,123)');
-                                  QUERY PLAN                                   
--------------------------------------------------------------------------------
- Seq Scan on int8_tbl i8
-   Filter: (i8.* = ANY ('{"(123,456)","(4567890123456789,123)"}'::int8_tbl[]))
-(2 rows)
 
 select * from int8_tbl i8
 where i8 in (row(123,456)::int8_tbl, '(4567890123456789,123)');
@@ -956,12 +941,6 @@ explain (costs off)
 select row_to_json(q) from
   (select thousand, tenthous from tenk1
    where thousand = 42 and tenthous < 2000 offset 0) q;
-                         QUERY PLAN                          
--------------------------------------------------------------
- Subquery Scan on q
-   ->  Index Only Scan using tenk1_thous_tenthous on tenk1
-         Index Cond: ((thousand = 42) AND (tenthous < 2000))
-(3 rows)
 
 select row_to_json(q) from
   (select thousand, tenthous from tenk1
@@ -1017,11 +996,6 @@ explain (verbose, costs off)
 select r, r is null as isnull, r is not null as isnotnull
 from (values (1,row(1,2)), (1,row(null,null)), (1,null),
              (null,row(1,2)), (null,row(null,null)), (null,null) ) r(a,b);
-                                                                                                         QUERY PLAN                                                                                                          
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Values Scan on "*VALUES*"
-   Output: ROW("*VALUES*".column1, "*VALUES*".column2), (("*VALUES*".column1 IS NULL) AND ("*VALUES*".column2 IS NOT DISTINCT FROM NULL)), (("*VALUES*".column1 IS NOT NULL) AND ("*VALUES*".column2 IS DISTINCT FROM NULL))
-(2 rows)
 
 select r, r is null as isnull, r is not null as isnotnull
 from (values (1,row(1,2)), (1,row(null,null)), (1,null),
@@ -1041,14 +1015,6 @@ with r(a,b) as
   (values (1,row(1,2)), (1,row(null,null)), (1,null),
           (null,row(1,2)), (null,row(null,null)), (null,null) )
 select r, r is null as isnull, r is not null as isnotnull from r;
-                        QUERY PLAN                        
-----------------------------------------------------------
- CTE Scan on r
-   Output: r.*, (r.* IS NULL), (r.* IS NOT NULL)
-   CTE r
-     ->  Values Scan on "*VALUES*"
-           Output: "*VALUES*".column1, "*VALUES*".column2
-(5 rows)
 
 with r(a,b) as
   (values (1,row(1,2)), (1,row(null,null)), (1,null),

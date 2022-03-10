@@ -554,19 +554,9 @@ RESET
 -- EXPLAIN
 EXPLAIN (COSTS OFF)
   SELECT * FROM collate_test10 ORDER BY x, y;
-                                                                                 QUERY PLAN                                                                                 
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- RemoteScan on collate_test10
-   Shard: 1      Remote SQL: select  collate_test10.a, collate_test10.x, collate_test10.y from regress_$$_collate_tests.collate_test10 collate_test10 ORDER BY 2 ASC, 3 ASC
-(2 rows)
 
 EXPLAIN (COSTS OFF)
   SELECT * FROM collate_test10 ORDER BY x DESC, y COLLATE "C" ASC NULLS FIRST;
-                                                                                          QUERY PLAN                                                                                           
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- RemoteScan on collate_test10
-   Shard: 1      Remote SQL: select  collate_test10.a, collate_test10.x, collate_test10.y, collate_test10.y from regress_$$_collate_tests.collate_test10 collate_test10 ORDER BY 2 DESC, 3 ASC
-(2 rows)
 
 -- CREATE/DROP COLLATION
 CREATE COLLATION mycoll1 FROM "C";

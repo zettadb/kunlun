@@ -394,13 +394,6 @@ SELECT * FROM inet_tbl WHERE i <> '192.168.1.0/24'::cidr ORDER BY i;
 -- test index-only scans
 EXPLAIN (COSTS OFF)
 SELECT i FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
-                  QUERY PLAN                   
------------------------------------------------
- Sort
-   Sort Key: c
-   ->  RemoteScan on inet_tbl
-         Filter: (c << '192.168.1.0/24'::inet)
-(4 rows)
 
 SELECT i FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
         i         
@@ -544,13 +537,6 @@ SELECT * FROM inet_tbl WHERE i <> '192.168.1.0/24'::cidr ORDER BY i;
 -- test index-only scans
 EXPLAIN (COSTS OFF)
 SELECT i FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
-                  QUERY PLAN                   
------------------------------------------------
- Sort
-   Sort Key: c
-   ->  RemoteScan on inet_tbl
-         Filter: (c << '192.168.1.0/24'::inet)
-(4 rows)
 
 SELECT i FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
         i         

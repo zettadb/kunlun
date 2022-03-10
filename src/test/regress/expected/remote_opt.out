@@ -254,32 +254,6 @@ select*from t12 where c not in (select c from t13 where a > 30) order by t12.a;
 (6 rows)
 
 explain select*from t12 where c not in (select c from t13 where a > 30) order by t12.a;
-                                                 QUERY PLAN                                                 
-------------------------------------------------------------------------------------------------------------
- Sort  (cost=0.07..0.08 rows=4 width=12)
-   Sort Key: t120.a
-   ->  Append  (cost=0.00..0.03 rows=4 width=12)
-         ->  RemoteScan on t120  (cost=0.00..0.00 rows=1 width=12)
-               Filter: (NOT (hashed SubPlan 1))
-               Shard: 1  Remote SQL: select a, b, c from regression_$$_public.t120 
-               SubPlan 1
-                 ->  Materialize  (cost=0.00..0.01 rows=1 width=4)
-                       ->  RemoteScan on t13  (cost=0.00..0.00 rows=1 width=4)
-                             Filter: (c > 30)
-                             Shard: 2    Remote SQL: select c from regression_$$_public.t13  where (a > 30)
-         ->  Materialize  (cost=0.00..0.01 rows=1 width=12)
-               ->  RemoteScan on t121  (cost=0.00..0.00 rows=1 width=12)
-                     Filter: (NOT (hashed SubPlan 1))
-                     Shard: 2    Remote SQL: select a, b, c from regression_$$_public.t121 
-         ->  Materialize  (cost=0.00..0.01 rows=1 width=12)
-               ->  RemoteScan on t122  (cost=0.00..0.00 rows=1 width=12)
-                     Filter: (NOT (hashed SubPlan 1))
-                     Shard: 2    Remote SQL: select a, b, c from regression_$$_public.t122 
-         ->  Materialize  (cost=0.00..0.01 rows=1 width=12)
-               ->  RemoteScan on t123  (cost=0.00..0.00 rows=1 width=12)
-                     Filter: (NOT (hashed SubPlan 1))
-                     Shard: 2    Remote SQL: select a, b, c from regression_$$_public.t123 
-(23 rows)
 
 select*from t12 where c not in (select c from t13 where a < 10) order by t12.a;
  a  | b | c 
@@ -314,32 +288,6 @@ select*from t12 where c not in (select c from t13 where a < 10) order by t12.a;
 (27 rows)
 
 explain select*from t12 where c not in (select c from t13 where a < 10) order by t12.a;
-                                                 QUERY PLAN                                                 
-------------------------------------------------------------------------------------------------------------
- Sort  (cost=0.07..0.08 rows=4 width=12)
-   Sort Key: t120.a
-   ->  Append  (cost=0.00..0.03 rows=4 width=12)
-         ->  RemoteScan on t120  (cost=0.00..0.00 rows=1 width=12)
-               Filter: (NOT (hashed SubPlan 1))
-               Shard: 1  Remote SQL: select a, b, c from regression_$$_public.t120 
-               SubPlan 1
-                 ->  Materialize  (cost=0.00..0.01 rows=1 width=4)
-                       ->  RemoteScan on t13  (cost=0.00..0.00 rows=1 width=4)
-                             Filter: (c < 10)
-                             Shard: 2    Remote SQL: select c from regression_$$_public.t13  where (a < 10)
-         ->  Materialize  (cost=0.00..0.01 rows=1 width=12)
-               ->  RemoteScan on t121  (cost=0.00..0.00 rows=1 width=12)
-                     Filter: (NOT (hashed SubPlan 1))
-                     Shard: 2    Remote SQL: select a, b, c from regression_$$_public.t121 
-         ->  Materialize  (cost=0.00..0.01 rows=1 width=12)
-               ->  RemoteScan on t122  (cost=0.00..0.00 rows=1 width=12)
-                     Filter: (NOT (hashed SubPlan 1))
-                     Shard: 2    Remote SQL: select a, b, c from regression_$$_public.t122 
-         ->  Materialize  (cost=0.00..0.01 rows=1 width=12)
-               ->  RemoteScan on t123  (cost=0.00..0.00 rows=1 width=12)
-                     Filter: (NOT (hashed SubPlan 1))
-                     Shard: 2    Remote SQL: select a, b, c from regression_$$_public.t123 
-(23 rows)
 
 select*from t12 where exists (select c from t13 where a < 10) order by t13.a;
 ERROR:  missing FROM-clause entry for table "t13"

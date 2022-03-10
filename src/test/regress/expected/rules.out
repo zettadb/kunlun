@@ -3105,14 +3105,6 @@ SELECT tablename, rulename, definition FROM pg_rules
 
 -- ensure explain works for on insert conflict rules
 explain (costs off) INSERT INTO hats VALUES ('h8', 'forbidden') RETURNING *;
-                                           QUERY PLAN                                            
--------------------------------------------------------------------------------------------------
- Insert on hat_data
-   Conflict Resolution: UPDATE
-   Conflict Arbiter Indexes: hat_data_unique_idx
-   Conflict Filter: ((excluded.hat_color <> 'forbidden'::bpchar) AND (hat_data.* <> excluded.*))
-   ->  Result
-(5 rows)
 
 -- ensure upserting into a rule, with a CTE (different offsets!) works
 WITH data(hat_name, hat_color) AS (
@@ -3137,16 +3129,6 @@ EXPLAIN (costs off) WITH data(hat_name, hat_color) AS (
 INSERT INTO hats
     SELECT * FROM data
 RETURNING *;
-                                           QUERY PLAN                                            
--------------------------------------------------------------------------------------------------
- Insert on hat_data
-   Conflict Resolution: UPDATE
-   Conflict Arbiter Indexes: hat_data_unique_idx
-   Conflict Filter: ((excluded.hat_color <> 'forbidden'::bpchar) AND (hat_data.* <> excluded.*))
-   CTE data
-     ->  Values Scan on "*VALUES*"
-   ->  CTE Scan on data
-(7 rows)
 
 SELECT * FROM hat_data WHERE hat_name IN ('h8', 'h9', 'h7') ORDER BY hat_name;
   hat_name  | hat_color  

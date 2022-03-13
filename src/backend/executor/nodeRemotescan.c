@@ -979,6 +979,8 @@ ExecInitRemoteScan(RemoteScan *node, EState *estate, int eflags)
 {
 	RemoteScanState *scanstate;
 
+	/* Make a copy of the plan */
+	node = copyObject(node);
 	Assert(outerPlan(node) == NULL);
 	Assert(innerPlan(node) == NULL);
 

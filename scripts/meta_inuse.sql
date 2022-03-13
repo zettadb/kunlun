@@ -341,7 +341,7 @@ BEGIN
 	
 	if COALESCE(IS_USED_LOCK('DDL'), 0) != CONNECTION_ID() then
 		SIGNAL SQLSTATE '45000'
-		SET MESSAGE_TEXT = 'DDL lock is hold by current session';
+		SET MESSAGE_TEXT = 'The DDL lock held by the current session may have been lost.';
     end if;
 
     SET @sql = CONCAT('INSERT INTO ', tblname, '(db_name, schema_name, role_name, user_name, objname, objtype, optype, sql_src, sql_storage_node, target_shard_id, initiator)values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
@@ -349,7 +349,6 @@ BEGIN
     EXECUTE stmt USING @dbname, @schema_name, @role_name, @user_name, @objname, @obj_type, @op_type, @sql_src, @sql_src_sn, @target_shardid, @initiator_id;
     set my_opid = LAST_INSERT_ID();
     DEALLOCATE PREPARE stmt;
-    END IF; 
 END ;
 -- ;;
 -- delimiter ;

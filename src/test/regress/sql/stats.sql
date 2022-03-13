@@ -15,12 +15,21 @@ SET enable_indexscan TO on;
 SET enable_indexonlyscan TO off;
 
 -- test effects of TRUNCATE on n_live_tup/n_dead_tup counters
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE trunc_stats_test(id serial);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE trunc_stats_test1(id serial, stuff text);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE trunc_stats_test2(id serial);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE trunc_stats_test3(id serial, stuff text);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE trunc_stats_test4(id serial);
-
+--DDL_STATEMENT_END--
 -- check that n_live_tup is reset to 0 after truncate
 INSERT INTO trunc_stats_test DEFAULT VALUES;
 INSERT INTO trunc_stats_test DEFAULT VALUES;
@@ -100,10 +109,22 @@ SELECT st.heap_blks_read + st.heap_blks_hit >= pr.heap_blks + cl.relpages,
 SELECT pr.snap_ts < pg_stat_get_snapshot_timestamp() as snapshot_newer
 FROM prevstats AS pr;
 
+--DDL_STATEMENT_BEGIN--
 DROP TABLE trunc_stats_test;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table trunc_stats_test1;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table trunc_stats_test2;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table trunc_stats_test3;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table trunc_stats_test4;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TABLE prevstats;
+--DDL_STATEMENT_END--
 -- End of Stats Test

@@ -1,18 +1,37 @@
 --
 -- NUMERIC
 --
-
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE num_data (id int4, val numeric(65,10));
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE num_exp_add (id1 int4, id2 int4, expected numeric(65,10));
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE num_exp_sub (id1 int4, id2 int4, expected numeric(65,10));
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE num_exp_div (id1 int4, id2 int4, expected numeric(65,10));
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE num_exp_mul (id1 int4, id2 int4, expected numeric(65,10));
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE num_exp_sqrt (id int4, expected numeric(65,10));
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE num_exp_ln (id int4, expected numeric(65,10));
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE num_exp_log10 (id int4, expected numeric(65,10));
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE num_exp_power_10_ln (id int4, expected numeric(65,10));
+--DDL_STATEMENT_END--
 
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE num_result (id1 int4, id2 int4, result numeric(65,10));
+--DDL_STATEMENT_END--
 
 
 -- ******************************
@@ -486,15 +505,30 @@ COMMIT TRANSACTION;
 -- ******************************
 -- * Create indices for faster checks
 -- ******************************
-
+--DDL_STATEMENT_BEGIN--
 CREATE UNIQUE INDEX num_exp_add_idx ON num_exp_add (id1, id2);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE UNIQUE INDEX num_exp_sub_idx ON num_exp_sub (id1, id2);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE UNIQUE INDEX num_exp_div_idx ON num_exp_div (id1, id2);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE UNIQUE INDEX num_exp_mul_idx ON num_exp_mul (id1, id2);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE UNIQUE INDEX num_exp_sqrt_idx ON num_exp_sqrt (id);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE UNIQUE INDEX num_exp_ln_idx ON num_exp_ln (id);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE UNIQUE INDEX num_exp_log10_idx ON num_exp_log10 (id);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE UNIQUE INDEX num_exp_power_10_ln_idx ON num_exp_power_10_ln (id);
+--DDL_STATEMENT_END--
 
 -- VACUUM ANALYZE num_exp_add;
 -- VACUUM ANALYZE num_exp_sub;
@@ -643,7 +677,9 @@ SELECT STDDEV(val) FROM num_data;
 SELECT VARIANCE(val) FROM num_data;
 
 -- Check for appropriate rounding and overflow
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE fract_only (id int, val numeric(4,4));
+--DDL_STATEMENT_END--
 INSERT INTO fract_only VALUES (1, '0.0');
 INSERT INTO fract_only VALUES (2, '0.1');
 INSERT INTO fract_only VALUES (3, '1.0');	-- should fail
@@ -653,7 +689,10 @@ INSERT INTO fract_only VALUES (6, '0.99995');  -- should fail
 INSERT INTO fract_only VALUES (7, '0.00001');
 INSERT INTO fract_only VALUES (8, '0.00017');
 SELECT * FROM fract_only;
+
+--DDL_STATEMENT_BEGIN--
 DROP TABLE fract_only;
+--DDL_STATEMENT_END--
 
 -- Check inf/nan conversion behavior
 SELECT 'NaN'::float8::numeric;
@@ -664,7 +703,9 @@ SELECT 'Infinity'::float4::numeric;
 SELECT '-Infinity'::float4::numeric;
 
 -- Simple check that ceil(), floor(), and round() work correctly
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE ceil_floor_round (a numeric);
+--DDL_STATEMENT_END--
 INSERT INTO ceil_floor_round VALUES ('-5.5');
 INSERT INTO ceil_floor_round VALUES ('-5.499999');
 INSERT INTO ceil_floor_round VALUES ('9.5');
@@ -673,7 +714,9 @@ INSERT INTO ceil_floor_round VALUES ('0.0');
 INSERT INTO ceil_floor_round VALUES ('0.0000001');
 INSERT INTO ceil_floor_round VALUES ('-0.000001');
 SELECT a, ceil(a), ceiling(a), floor(a), round(a) FROM ceil_floor_round;
+--DDL_STATEMENT_BEGIN--
 DROP TABLE ceil_floor_round;
+--DDL_STATEMENT_END--
 
 -- Check rounding, it should round ties away from zero.
 SELECT i as pow,
@@ -699,8 +742,9 @@ SELECT width_bucket('NaN', 3.0, 4.0, 888);
 SELECT width_bucket(0::float8, 'NaN', 4.0::float8, 888);
 
 -- normal operation
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE width_bucket_test (operand_num numeric, operand_f8 float8);
-
+--DDL_STATEMENT_END--
 COPY width_bucket_test (operand_num) FROM stdin;
 -5.2
 -0.0000000001
@@ -745,8 +789,9 @@ SELECT width_bucket(0.0::float8, 'Infinity'::float8, 5, 10); -- error
 SELECT width_bucket(0.0::float8, 5, '-Infinity'::float8, 20); -- error
 SELECT width_bucket('Infinity'::float8, 1, 10, 10),
        width_bucket('-Infinity'::float8, 1, 10, 10);
-
+--DDL_STATEMENT_BEGIN--
 DROP TABLE width_bucket_test;
+--DDL_STATEMENT_END--
 
 -- TO_CHAR()
 --
@@ -828,9 +873,9 @@ RESET lc_numeric;
 --
 -- Input syntax
 --
-
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE num_input_test (n1 numeric);
-
+--DDL_STATEMENT_END--
 -- good inputs
 INSERT INTO num_input_test(n1) VALUES (' 123');
 INSERT INTO num_input_test(n1) VALUES ('   3245874    ');
@@ -1043,15 +1088,36 @@ select scale(-13.000000000000000);
 -- cases that need carry propagation
 SELECT SUM(9999::numeric) FROM generate_series(1, 100000);
 SELECT SUM((-9999)::numeric) FROM generate_series(1, 100000);
-
+--DDL_STATEMENT_BEGIN--
 drop table num_data;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table num_exp_add;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table num_exp_sub;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table num_exp_div;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table num_exp_mul;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table num_exp_sqrt;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table num_exp_ln;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table num_exp_log10;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table num_exp_power_10_ln;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table num_result;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table num_input_test;
+--DDL_STATEMENT_END--

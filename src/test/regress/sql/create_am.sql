@@ -3,12 +3,15 @@
 --
 
 -- Make gist2 over gisthandler. In fact, it would be a synonym to gist.
+--DDL_STATEMENT_BEGIN--
 CREATE ACCESS METHOD gist2 TYPE INDEX HANDLER gisthandler;
-
+--DDL_STATEMENT_END--
 -- Try to create gist2 index on fast_emp4000: fail because opclass doesn't exist
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX grect2ind2 ON fast_emp4000 USING gist2 (home_base);
-
+--DDL_STATEMENT_END--
 -- Make operator class for boxes using gist2
+--DDL_STATEMENT_BEGIN--
 CREATE OPERATOR CLASS box_ops DEFAULT
 	FOR TYPE box USING gist2 AS
 	OPERATOR 1	<<,
@@ -31,10 +34,11 @@ CREATE OPERATOR CLASS box_ops DEFAULT
 	FUNCTION 5	gist_box_penalty(internal, internal, internal),
 	FUNCTION 6	gist_box_picksplit(internal, internal),
 	FUNCTION 7	gist_box_same(box, box, internal);
-
+--DDL_STATEMENT_END--
 -- Create gist2 index on fast_emp4000
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX grect2ind2 ON fast_emp4000 USING gist2 (home_base);
-
+--DDL_STATEMENT_END--
 -- Now check the results from plain indexscan; temporarily drop existing
 -- index grect2ind to ensure it doesn't capture the plan
 BEGIN;
@@ -62,7 +66,11 @@ SELECT count(*) FROM fast_emp4000 WHERE home_base IS NULL;
 ROLLBACK;
 
 -- Try to drop access method: fail because of dependent objects
+--DDL_STATEMENT_BEGIN--
 DROP ACCESS METHOD gist2;
+--DDL_STATEMENT_END--
 
 -- Drop access method cascade
+--DDL_STATEMENT_BEGIN--
 DROP ACCESS METHOD gist2 CASCADE;
+--DDL_STATEMENT_END--

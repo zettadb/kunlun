@@ -10,11 +10,12 @@ select '31:12:'::txid_snapshot;
 select '0:1:'::txid_snapshot;
 select '12:13:0'::txid_snapshot;
 select '12:16:14,13'::txid_snapshot;
-
+--DDL_STATEMENT_BEGIN--
 create temp table snapshot_test (
 	nr	integer,
 	snap	txid_snapshot
 );
+--DDL_STATEMENT_END--
 
 insert into snapshot_test values (1, '12:13:');
 insert into snapshot_test values (2, '12:20:13,15,18');
@@ -82,6 +83,7 @@ SELECT txid_status(3); -- in regress testing FirstNormalTransactionId will alway
 COMMIT;
 
 BEGIN;
+--DDL_STATEMENT_BEGIN--
 CREATE FUNCTION test_future_xid_status(bigint)
 RETURNS void
 LANGUAGE plpgsql
@@ -95,7 +97,9 @@ EXCEPTION
     RAISE NOTICE 'Got expected error for xid in the future';
 END;
 $$;
+--DDL_STATEMENT_END--
 SELECT test_future_xid_status(:inprogress + 10000);
 ROLLBACK;
-
+--DDL_STATEMENT_BEGIN--
 drop table snapshot_test;
+--DDL_STATEMENT_END--

@@ -13,16 +13,16 @@ SET extra_float_digits TO -3;
 SELECT '' AS four, center(f1) AS center
    FROM BOX_TBL;
 
-SELECT '' AS four, (@@ f1) AS center
+SELECT '' AS four, (--DDL_STATEMENT_BEGIN-- f1) AS center
    FROM BOX_TBL;
 
 SELECT '' AS six, point(f1) AS center
    FROM CIRCLE_TBL;
 
-SELECT '' AS six, (@@ f1) AS center
+SELECT '' AS six, (--DDL_STATEMENT_BEGIN-- f1) AS center
    FROM CIRCLE_TBL;
 
-SELECT '' AS two, (@@ f1) AS center
+SELECT '' AS two, (--DDL_STATEMENT_BEGIN-- f1) AS center
    FROM POLYGON_TBL
    WHERE (# f1) > 2;
 

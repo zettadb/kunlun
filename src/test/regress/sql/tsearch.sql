@@ -51,9 +51,9 @@ SELECT count(*) FROM test_tsvector WHERE a @@ 'w:*|q:*';
 SELECT count(*) FROM test_tsvector WHERE a @@ any ('{wr,qh}');
 SELECT count(*) FROM test_tsvector WHERE a @@ 'no_such_lexeme';
 SELECT count(*) FROM test_tsvector WHERE a @@ '!no_such_lexeme';
-
+--DDL_STATEMENT_BEGIN--
 create index wowidx on test_tsvector using gist (a);
-
+--DDL_STATEMENT_END--
 SET enable_seqscan=OFF;
 SET enable_indexscan=ON;
 SET enable_bitmapscan=OFF;
@@ -90,11 +90,12 @@ SELECT count(*) FROM test_tsvector WHERE a @@ '!no_such_lexeme';
 RESET enable_seqscan;
 RESET enable_indexscan;
 RESET enable_bitmapscan;
-
+--DDL_STATEMENT_BEGIN--
 DROP INDEX wowidx;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX wowidx ON test_tsvector USING gin (a);
-
+--DDL_STATEMENT_END--
 SET enable_seqscan=OFF;
 -- GIN only supports bitmapscan, so no need to test plain indexscan
 
@@ -401,8 +402,9 @@ S. T. Coleridge (1772-1834)
 ', to_tsquery('english', 'Coleridge & stuck'), 'MaxFragments=2,FragmentDelimiter=***');
 
 --Rewrite sub system
-
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE test_tsquery (txtkeyword TEXT, txtsample TEXT);
+--DDL_STATEMENT_END--
 \set ECHO none
 \copy test_tsquery from stdin
 'New York'	new & york | big & apple | nyc
@@ -413,10 +415,13 @@ Moscow	moskva | moscow
 5 <-> 6	5 <-> 7
 \.
 \set ECHO all
-
+--DDL_STATEMENT_BEGIN--
 ALTER TABLE test_tsquery ADD COLUMN keyword tsquery;
+--DDL_STATEMENT_END--
 UPDATE test_tsquery SET keyword = to_tsquery('english', txtkeyword);
+--DDL_STATEMENT_BEGIN--
 ALTER TABLE test_tsquery ADD COLUMN sample tsquery;
+--DDL_STATEMENT_END--
 UPDATE test_tsquery SET sample = to_tsquery('english', txtsample::text);
 
 
@@ -425,9 +430,9 @@ SELECT COUNT(*) FROM test_tsquery WHERE keyword <= 'new & york';
 SELECT COUNT(*) FROM test_tsquery WHERE keyword = 'new & york';
 SELECT COUNT(*) FROM test_tsquery WHERE keyword >= 'new & york';
 SELECT COUNT(*) FROM test_tsquery WHERE keyword >  'new & york';
-
+--DDL_STATEMENT_BEGIN--
 CREATE UNIQUE INDEX bt_tsq ON test_tsquery (keyword);
-
+--DDL_STATEMENT_END--
 SET enable_seqscan=OFF;
 
 SELECT COUNT(*) FROM test_tsquery WHERE keyword <  'new & york';
@@ -469,8 +474,9 @@ SELECT ts_rewrite( query, 'SELECT keyword, sample FROM test_tsquery' ) FROM to_t
 SELECT ts_rewrite( query, 'SELECT keyword, sample FROM test_tsquery' ) FROM to_tsquery('english', 'moscow') AS query;
 SELECT ts_rewrite( query, 'SELECT keyword, sample FROM test_tsquery' ) FROM to_tsquery('english', 'moscow & hotel') AS query;
 SELECT ts_rewrite( query, 'SELECT keyword, sample FROM test_tsquery' ) FROM to_tsquery('english', 'bar & new & qq & foo & york') AS query;
-
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX qq ON test_tsquery USING gist (keyword tsquery_ops);
+--DDL_STATEMENT_END--
 SET enable_seqscan=OFF;
 
 SELECT keyword FROM test_tsquery WHERE keyword @> 'new';
@@ -506,10 +512,11 @@ SELECT plainto_tsquery('SKIES My booKs');
 SELECT to_tsquery('SKIES & My | booKs');
 
 --trigger
+--DDL_STATEMENT_BEGIN--
 CREATE TRIGGER tsvectorupdate
 BEFORE UPDATE OR INSERT ON test_tsvector
 FOR EACH ROW EXECUTE PROCEDURE tsvector_update_trigger(a, 'pg_catalog.english', t);
-
+--DDL_STATEMENT_END--
 SELECT count(*) FROM test_tsvector WHERE a @@ to_tsquery('345&qwerty');
 INSERT INTO test_tsvector (t) VALUES ('345 qwerty');
 SELECT count(*) FROM test_tsvector WHERE a @@ to_tsquery('345&qwerty');
@@ -521,8 +528,12 @@ INSERT INTO test_tsvector (t) VALUES ('345 qwerty');
 SELECT count(*) FROM test_tsvector WHERE a @@ to_tsquery('345&qwerty');
 
 -- test finding items in GIN's pending list
+--DDL_STATEMENT_BEGIN--
 create temp table pendtest (ts tsvector);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create index pendtest_idx on pendtest using gin(ts);
+--DDL_STATEMENT_END--
 insert into pendtest values (to_tsvector('Lore ipsam'));
 insert into pendtest values (to_tsvector('Lore ipsum'));
 select * from pendtest where 'ipsu:*'::tsquery @@ ts;
@@ -532,7 +543,9 @@ select * from pendtest where 'ipt:*'::tsquery @@ ts;
 select * from pendtest where 'ipi:*'::tsquery @@ ts;
 
 --check OP_PHRASE on index
+--DDL_STATEMENT_BEGIN--
 create temp table phrase_index_test(fts tsvector);
+--DDL_STATEMENT_END--
 insert into phrase_index_test values ('A fat cat has just eaten a rat.');
 insert into phrase_index_test values (to_tsvector('english', 'A fat cat has just eaten a rat.'));
 create index phrase_index_test_idx on phrase_index_test using gin(fts);

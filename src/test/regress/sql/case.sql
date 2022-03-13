@@ -2,19 +2,24 @@
 -- CASE
 -- Test the case statement
 --
-
+--DDL_STATEMENT_BEGIN--
 DROP TABLE if exists CASE_TBL;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE CASE_TBL (
   i integer,
   f double precision
 );
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TABLE if exists CASE2_TBL;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE CASE2_TBL (
   i integer,
   j integer
 );
-
+--DDL_STATEMENT_END--
 INSERT INTO CASE_TBL VALUES (1, 10.1);
 INSERT INTO CASE_TBL VALUES (2, 20.2);
 INSERT INTO CASE_TBL VALUES (3, -30.3);
@@ -177,10 +182,10 @@ SELECT * FROM CASE_TBL;
 -- Wrap this in a single transaction so the transient '=' operator doesn't
 -- cause problems in concurrent sessions
 BEGIN;
-
+--DDL_STATEMENT_BEGIN--
 CREATE FUNCTION vol(text) returns text as
   'begin return $1; end' language plpgsql volatile;
-
+--DDL_STATEMENT_END--
 SELECT CASE
   (CASE vol('bar')
     WHEN 'foo' THEN 'it was foo!'
@@ -195,9 +200,9 @@ ROLLBACK;
 
 -- Test interaction of CASE with ArrayCoerceExpr (bug #15471)
 BEGIN;
-
+--DDL_STATEMENT_BEGIN--
 CREATE TYPE casetestenum AS ENUM ('e', 'f', 'g');
-
+--DDL_STATEMENT_END--
 SELECT
   CASE 'foo'::text
     WHEN 'foo' THEN ARRAY['a', 'b', 'c', 'd'] || enum_range(NULL::casetestenum)::text[]
@@ -209,6 +214,9 @@ ROLLBACK;
 --
 -- Clean up
 --
-
+--DDL_STATEMENT_BEGIN--
 DROP TABLE CASE_TBL;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TABLE CASE2_TBL;
+--DDL_STATEMENT_END--

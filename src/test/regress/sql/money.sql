@@ -3,9 +3,12 @@
 --
 -- Note that we assume lc_monetary has been set to C.
 --
-
+--DDL_STATEMENT_BEGIN--
 DROP TABLE if exists money_data;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE money_data (m money);
+--DDL_STATEMENT_END--
 
 INSERT INTO money_data VALUES ('123');
 SELECT * FROM money_data;
@@ -130,5 +133,6 @@ SELECT '12345678901234567'::money::numeric;
 SELECT '-12345678901234567'::money::numeric;
 SELECT '92233720368547758.07'::money::numeric;
 SELECT '-92233720368547758.08'::money::numeric;
-
+--DDL_STATEMENT_BEGIN--
 DROP TABLE if exists money_data;
+--DDL_STATEMENT_END--

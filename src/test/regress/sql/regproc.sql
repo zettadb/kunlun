@@ -3,9 +3,9 @@
 --
 
 /* If objects exist, return oids */
-
+--DDL_STATEMENT_BEGIN--
 CREATE ROLE regress_regrole_test;
-
+--DDL_STATEMENT_END--
 -- without schemaname
 
 SELECT regoper('||/');
@@ -50,9 +50,9 @@ SELECT to_regnamespace('pg_catalog');
 SELECT to_regnamespace('"pg_catalog"');
 
 /* If objects don't exist, raise errors. */
-
+--DDL_STATEMENT_BEGIN--
 DROP ROLE regress_regrole_test;
-
+--DDL_STATEMENT_END--
 -- without schemaname
 
 SELECT regoper('||//');

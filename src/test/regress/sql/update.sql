@@ -1,19 +1,25 @@
 --
 -- UPDATE syntax tests
 --
+--DDL_STATEMENT_BEGIN--
 drop table if exists update_test;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE update_test (
     a   INT DEFAULT 10,
     b   INT,
     c   TEXT
 );
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists upsert_test;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE upsert_test (
     a   INT PRIMARY KEY,
     b   TEXT
 );
-
+--DDL_STATEMENT_END--
 INSERT INTO update_test VALUES (5, 10, 'foo');
 INSERT INTO update_test(b, a) VALUES (15, 10);
 
@@ -80,10 +86,12 @@ UPDATE update_test t
 --  SET (a, b) = (SELECT b, a FROM update_test s WHERE s.a = t.a)
 --  WHERE CURRENT_USER = SESSION_USER;
 SELECT a, b, char_length(c) FROM update_test order by 1,2,3;
-
+--DDL_STATEMENT_BEGIN--
 DROP TABLE update_test;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TABLE upsert_test;
-
+--DDL_STATEMENT_END--
 
 ---------------------------
 -- UPDATE with row movement
@@ -94,8 +102,10 @@ DROP TABLE upsert_test;
 -- the correct partition for the new partition key (if one exists). We must
 -- also ensure that updatable views on partitioned tables properly enforce any
 -- WITH CHECK OPTION that is defined. 
-
+--DDL_STATEMENT_BEGIN--
 drop table if exists range_parted cascade;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE range_parted (
 	a text,
 	b bigint,
@@ -103,15 +113,24 @@ CREATE TABLE range_parted (
 	d int,
 	e varchar
 ) PARTITION BY RANGE (a, b);
-
+--DDL_STATEMENT_END--
 -- Create partitions intentionally in descending bound order, so as to test
 -- that update-row-movement works with the leaf partitions not in bound order.
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE part_b_20_b_30 PARTITION OF range_parted FOR VALUES FROM ('b', 20) TO ('b', 30);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE part_b_10_b_20 PARTITION OF range_parted FOR VALUES FROM ('b', 10) TO ('b', 20) PARTITION BY RANGE (c);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE part_b_1_b_10 PARTITION OF range_parted FOR VALUES FROM ('b', 1) TO ('b', 10);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE part_a_10_a_20 PARTITION OF range_parted FOR VALUES FROM ('a', 10) TO ('a', 20);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE part_a_1_a_10 PARTITION OF range_parted FOR VALUES FROM ('a', 1) TO ('a', 10);
-
+--DDL_STATEMENT_END--
 -- Check that partition-key UPDATE works sanely on a partitioned table that
 -- does not have any child partitions.
 UPDATE part_b_10_b_20 set b = b - 6;
@@ -119,12 +138,18 @@ UPDATE part_b_10_b_20 set b = b - 6;
 -- Create some more partitions following the above pattern of descending bound
 -- order, but let's make the situation a bit more complex by having the
 -- attribute numbers of the columns vary from their parent partition.
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE part_c_100_200 PARTITION OF part_b_10_b_20 FOR VALUES FROM (100) TO (200) PARTITION BY range (abs(d));
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE part_d_1_15 PARTITION OF part_c_100_200 FOR VALUES FROM (1) TO (15);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE part_d_15_20 PARTITION OF part_c_100_200 FOR VALUES FROM (15) TO (20);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE part_c_1_100 PARTITION OF part_b_10_b_20 FOR VALUES FROM (1) TO (100);
-
+--DDL_STATEMENT_END--
 \set init_range_parted 'delete from range_parted; insert into range_parted VALUES (''a'', 1, 1, 1), (''a'', 10, 200, 1), (''b'', 12, 96, 1), (''b'', 13, 97, 2), (''b'', 15, 105, 16), (''b'', 17, 105, 19)'
 \set show_data 'select * from range_parted ORDER BY 1, 2, 3, 4, 5, 6'
 :init_range_parted;
@@ -157,12 +182,18 @@ UPDATE range_parted set b = b - 6 WHERE c > 116 returning a, b + c;
 :show_data;
 
 -- Common table needed for multiple test scenarios.
+--DDL_STATEMENT_BEGIN--
 drop table if exists mintab;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE mintab(c1 int);
+--DDL_STATEMENT_END--
 INSERT into mintab VALUES (120);
 
 -- update partition key using updatable view.
+--DDL_STATEMENT_BEGIN--
 CREATE VIEW upview AS SELECT * FROM range_parted WHERE (select c > c1 FROM mintab) WITH CHECK OPTION;
+--DDL_STATEMENT_END--
 -- ok
 UPDATE upview set c = 199 WHERE b = 4;
 -- fail, check option violation
@@ -175,8 +206,9 @@ UPDATE upview set a = 'b', b = 15 WHERE b = 4;
 :show_data;
 
 -- cleanup
+--DDL_STATEMENT_BEGIN--
 DROP VIEW upview;
-
+--DDL_STATEMENT_END--
 -- RETURNING having whole-row vars.
 :init_range_parted;
 UPDATE range_parted set c = 95 WHERE a = 'b' and b > 10 and c > 100 returning (range_parted), *;
@@ -212,8 +244,12 @@ UPDATE range_parted set b = 15 WHERE b = 1;
 -----------------------------------------
 
 --not support: ALTER TABLE range_parted ENABLE ROW LEVEL SECURITY;
+--DDL_STATEMENT_BEGIN--
 CREATE USER regress_range_parted_user;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 GRANT ALL ON range_parted, mintab TO regress_range_parted_user;
+--DDL_STATEMENT_END--
 -- not support: CREATE POLICY seeall ON range_parted AS PERMISSIVE FOR SELECT USING (true);
 -- not support: CREATE POLICY policy_range_parted ON range_parted for UPDATE USING (true) WITH CHECK (c % 2 = 0);
 
@@ -236,8 +272,9 @@ UPDATE range_parted set a = 'b', c = 150 WHERE a = 'a' and c = 200;
 
 -- Cleanup
 RESET SESSION AUTHORIZATION;
+--DDL_STATEMENT_BEGIN--
 DROP FUNCTION func_d_1_15();
-
+--DDL_STATEMENT_END--
 -- Policy expression contains SubPlan
 RESET SESSION AUTHORIZATION;
 :init_range_parted;
@@ -270,10 +307,15 @@ RESET SESSION AUTHORIZATION;
 --DROP POLICY policy_range_parted ON range_parted;
 --DROP POLICY policy_range_parted_subplan ON range_parted;
 --DROP POLICY policy_range_parted_wholerow ON range_parted;
+--DDL_STATEMENT_BEGIN--
 REVOKE ALL ON range_parted, mintab FROM regress_range_parted_user;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP USER regress_range_parted_user;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TABLE mintab;
-
+--DDL_STATEMENT_END--
 
 :init_range_parted;
 
@@ -305,29 +347,46 @@ UPDATE range_parted set a = 'b' WHERE a = 'bd';
 :show_data;
 
 -- Cleanup: range_parted no longer needed.
+--DDL_STATEMENT_BEGIN--
 DROP TABLE range_parted;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists list_parted;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE list_parted (
 	a text,
 	b int
 ) PARTITION BY list (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE list_part1  PARTITION OF list_parted for VALUES in ('a', 'b');
+--DDL_STATEMENT_END--
 INSERT into list_part1 VALUES ('a', 1);
+--DDL_STATEMENT_BEGIN--
 DROP TABLE list_parted;
-
+--DDL_STATEMENT_END--
 --------------
 -- Some more update-partition-key test scenarios below. This time use list
 -- partitions.
 --------------
 
 -- Setup for list partitions
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE list_parted (a numeric, b int, c int8) PARTITION BY list (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE sub_parted PARTITION OF list_parted for VALUES in (1) PARTITION BY list (b);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE sub_part1 PARTITION OF sub_parted for VALUES in (1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE sub_part2 PARTITION OF sub_parted for VALUES in (2);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE list_part1 PARTITION OF list_parted for VALUES in (2,3);;
-
+--DDL_STATEMENT_END--
 INSERT into list_parted VALUES (2,5,50);
 INSERT into list_parted VALUES (3,6,60);
 INSERT into sub_parted VALUES (1,1,60);
@@ -356,32 +415,53 @@ SELECT * FROM list_parted ORDER BY 1, 2, 3;
 -- UPDATE partition-key with FROM clause. If join produces multiple output
 -- rows for the same row to be modified, we should tuple-route the row only
 -- once. There should not be any rows inserted.
+--DDL_STATEMENT_BEGIN--
 drop table if exists non_parted;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE non_parted (id int);
+--DDL_STATEMENT_END--
 INSERT into non_parted VALUES (1), (1), (1), (2), (2), (2), (3), (3), (3);
 -- not supported: UPDATE list_parted t1 set a = 2 FROM non_parted t2 WHERE t1.a = t2.id and a = 1;
 SELECT * FROM list_parted ORDER BY 1, 2, 3;
+--DDL_STATEMENT_BEGIN--
 DROP TABLE non_parted;
-
+--DDL_STATEMENT_END--
 -- Cleanup: list_parted no longer needed.
+--DDL_STATEMENT_BEGIN--
 DROP TABLE list_parted;
-
+--DDL_STATEMENT_END--
 -- create custom operator class and hash function, for the same reason
 -- explained in alter_table.sql
+--DDL_STATEMENT_BEGIN--
 create or replace function dummy_hashint4(a int4, seed int8) returns int8 as
 $$ begin return (a + seed); end; $$ language 'plpgsql' immutable;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create operator class custom_opclass for type int4 using hash as
 operator 1 = , function 2 dummy_hashint4(int4, int8);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists hash_parted;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table hash_parted (
 	a int,
 	b int
 ) partition by hash (a custom_opclass, b custom_opclass);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table hpart1 partition of hash_parted for values with (modulus 2, remainder 1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table hpart2 partition of hash_parted for values with (modulus 4, remainder 2);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table hpart3 partition of hash_parted for values with (modulus 8, remainder 0);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table hpart4 partition of hash_parted for values with (modulus 8, remainder 4);
+--DDL_STATEMENT_END--
 insert into hpart1 values (1, 1);
 insert into hpart2 values (2, 5);
 insert into hpart4 values (3, 4);
@@ -394,6 +474,12 @@ update hash_parted set b = b - 1 where b = 1;
 update hash_parted set b = b + 8 where b = 1;
 
 -- cleanup
+--DDL_STATEMENT_BEGIN--
 drop table hash_parted;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop operator class custom_opclass using hash;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop function dummy_hashint4(a int4, seed int8);
+--DDL_STATEMENT_END--

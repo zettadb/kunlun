@@ -1,13 +1,33 @@
+--DDL_STATEMENT_BEGIN--
 drop table if exists t1;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists t100;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists t101;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists t102;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists t103;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table t1(a int primary key, b serial) partition by hash(a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table t100 partition of t1 for values with (modulus 4, remainder 0); 
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table t101 partition of t1 for values with (modulus 4, remainder 1); 
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table t102 partition of t1 for values with (modulus 4, remainder 2); 
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table t103 partition of t1 for values with (modulus 4, remainder 3); 
+--DDL_STATEMENT_END--
 insert into t1 values(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
 select*from t1;
 select a from t1 where a between 3 and 11;
@@ -30,9 +50,12 @@ delete from t1;
 select*from t1;
 rollback;
 select*from t1;
-
+--DDL_STATEMENT_BEGIN--
 drop table if exists t2;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table t2(a int primary key, b timestamptz default now(), c varchar(32) default 'xyz');
+--DDL_STATEMENT_END--
 --start transaction;
 insert into t2 values(1) returning *;
 insert into t2 values(8, NULL, 'xxx'),(9, NULL, NULL) returning *;
@@ -47,27 +70,58 @@ commit;
 
 select*from t2;
 
-
+--DDL_STATEMENT_BEGIN--
 drop table if exists t3;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists t301;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists t302;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table t3(a int, b varchar(16) NOT NULL, c int, primary key(b,a)) partition by list(a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table t301 partition of t3 for values in (1,3,5,7,9);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table t302 partition of t3 for values in (2,4,6, 8, 10);
+--DDL_STATEMENT_END--
 insert into t3 values (1, 'amd', 24254),(2, 'intel', 325332),(3, 'broadcom', 345220),(4, 'nvidia', 87902),(5, 'huawei',89790),(6, 'apple',45232);
 create index on t3(c);
 select*from t3 where c > 100000;
 
+--DDL_STATEMENT_BEGIN--
 drop table if exists t5;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists t501;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists t502;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists t503;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists t504;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table t5(a int primary key, b timestamptz default now(), c varchar(32) default 'abc') partition by range(a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table t501 partition of t5 for values from (MINVALUE) to (10);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table t502 partition of t5 for values from (10) to (20);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table t503 partition of t5 for values from (20) to (30);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table t504 partition of t5 for values from (30) to (MAXVALUE);
+--DDL_STATEMENT_END--
 insert into t5 values(-10),(0), (15),(40) returning *;
 insert into t5 values(-20),(10), (25),(400);
 select*from t5 where a between 30 and 100;
@@ -84,8 +138,12 @@ EXECUTE q2(0, 10);
 EXECUTE q1(10, 30);
 EXECUTE q2(5, 40);
 deallocate q1;
+--DDL_STATEMENT_BEGIN--
 drop table if exists t4 cascade;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table t4(a int primary key, b serial);
+--DDL_STATEMENT_END--
 insert into t4 values(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
 
 PREPARE q3(int, int) AS SELECT * FROM t4 WHERE a between $1 and $2;
@@ -154,9 +212,9 @@ select*from t5 where a%7=3 or a%7=4 or a%7=5;
 EXECUTE q5('qps', 11, 'XYZ');
 deallocate q4;
 deallocate q5;
-
+--DDL_STATEMENT_BEGIN--
 create table t31(a int primary key, b int, c int, d int);
-
+--DDL_STATEMENT_END--
 insert into t31 values
 (21 ,  1 , 21 ,  1),
 ( 22 ,  2 , 22 ,  2),
@@ -171,9 +229,18 @@ select * from t31 where a!=all(values(1),(21),(23));
 select * from t31 where a=any(values(1),(21),(22));
 select greatest(a,b,c) as g, least(a,b,c) as l from t31;
 select greatest(a,b,c) as g, least(a,b,c) as l, coalesce(null,a,b,c) from t31;
-
+--DDL_STATEMENT_BEGIN--
 drop table t31;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table t2;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table t1;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table t4;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table t5;
+--DDL_STATEMENT_END--

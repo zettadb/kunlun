@@ -18,25 +18,40 @@ set max_parallel_workers_per_gather=4;
 --
 explain (costs off) create table parallel_write as
     select length(stringu1) from tenk1 group by length(stringu1);
+--DDL_STATEMENT_BEGIN--	
 create table parallel_write as
     select length(stringu1) from tenk1 group by length(stringu1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table parallel_write;
-
+--DDL_STATEMENT_END--
 explain (costs off) select length(stringu1) into parallel_write
     from tenk1 group by length(stringu1);
 select length(stringu1) into parallel_write
     from tenk1 group by length(stringu1);
+--DDL_STATEMENT_BEGIN--
 drop table parallel_write;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 explain (costs off) create materialized view parallel_mat_view as
     select length(stringu1) from tenk1 group by length(stringu1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create materialized view parallel_mat_view as
     select length(stringu1) from tenk1 group by length(stringu1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop materialized view parallel_mat_view;
+--DDL_STATEMENT_END--
 
 prepare prep_stmt as select length(stringu1) from tenk1 group by length(stringu1);
-explain (costs off) create table parallel_write as execute prep_stmt;
+--DDL_STATEMENT_BEGIN--
+explain (costs off) create table paralylel_write as execute prep_stmt;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table parallel_write as execute prep_stmt;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table parallel_write;
-
+--DDL_STATEMENT_END--
 rollback;

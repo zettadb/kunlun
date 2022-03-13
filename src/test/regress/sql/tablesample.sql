@@ -1,4 +1,6 @@
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE test_tablesample (id int, name text) WITH (fillfactor=10);
+--DDL_STATEMENT_END--
 -- use fillfactor so we don't have to load too much data to get multiple pages
 
 INSERT INTO test_tablesample
@@ -14,11 +16,14 @@ SELECT id FROM test_tablesample TABLESAMPLE BERNOULLI (5.5) REPEATABLE (0);
 SELECT count(*) FROM test_tablesample TABLESAMPLE SYSTEM (100);
 SELECT count(*) FROM test_tablesample TABLESAMPLE SYSTEM (100) REPEATABLE (1+2);
 SELECT count(*) FROM test_tablesample TABLESAMPLE SYSTEM (100) REPEATABLE (0.4);
-
+--DDL_STATEMENT_BEGIN--
 CREATE VIEW test_tablesample_v1 AS
   SELECT id FROM test_tablesample TABLESAMPLE SYSTEM (10*2) REPEATABLE (2);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE VIEW test_tablesample_v2 AS
   SELECT id FROM test_tablesample TABLESAMPLE SYSTEM (99);
+--DDL_STATEMENT_END--
 \d+ test_tablesample_v1
 \d+ test_tablesample_v2
 
@@ -102,9 +107,17 @@ SELECT * FROM query_select TABLESAMPLE BERNOULLI (5.5) REPEATABLE (1);
 SELECT q.* FROM (SELECT * FROM test_tablesample) as q TABLESAMPLE BERNOULLI (5);
 
 -- check partitioned tables support tablesample
+--DDL_STATEMENT_BEGIN--
 create table parted_sample (a int) partition by list (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table parted_sample_1 partition of parted_sample for values in (1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table parted_sample_2 partition of parted_sample for values in (2);
+--DDL_STATEMENT_END--
 explain (costs off)
   select * from parted_sample tablesample bernoulli (100);
+--DDL_STATEMENT_BEGIN--
 drop table parted_sample, parted_sample_1, parted_sample_2;
+--DDL_STATEMENT_END--

@@ -271,10 +271,6 @@ SET enable_seqscan TO false;
 SET
 EXPLAIN (COSTS OFF)
 SELECT f1 FROM INTERVAL_TBL_OF r1 ORDER BY f1;
-                             QUERY PLAN                             
---------------------------------------------------------------------
- Index Only Scan using interval_tbl_of_f1_idx on interval_tbl_of r1
-(1 row)
 
 SELECT f1 FROM INTERVAL_TBL_OF r1 ORDER BY f1;
                     f1                     

@@ -460,11 +460,6 @@ create table list_parted_tbl1 partition of list_parted_tbl
   for values in (1) partition by list(b);
 CREATE TABLE
 explain (costs off) select * from list_parted_tbl;
-        QUERY PLAN        
---------------------------
- Result
-   One-Time Filter: false
-(2 rows)
 
 drop table list_parted_tbl;
 DROP TABLE

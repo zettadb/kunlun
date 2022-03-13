@@ -192,16 +192,18 @@ FROM   (VALUES (NULL::pg_lsn), ('16/B374D84'), ('30/B374D84'),
 		('255/B374D84'), ('25/B379D90'), ('900/F37FD90')) x(v)
 WHERE  pg_lsn_hash(v)::bit(32) != pg_lsn_hash_extended(v, 0)::bit(32)
        OR pg_lsn_hash(v)::bit(32) = pg_lsn_hash_extended(v, 1)::bit(32);
-
+--DDL_STATEMENT_BEGIN--
 CREATE TYPE mood AS ENUM ('sad', 'ok', 'happy');
+--DDL_STATEMENT_END--
 SELECT v as value, hashenum(v)::bit(32) as standard,
 	   hashenumextended(v, 0)::bit(32) as extended0,
 	   hashenumextended(v, 1)::bit(32) as extended1
 FROM   (VALUES ('sad'::mood), ('ok'), ('happy')) x(v)
 WHERE  hashenum(v)::bit(32) != hashenumextended(v, 0)::bit(32)
        OR hashenum(v)::bit(32) = hashenumextended(v, 1)::bit(32);
+--DDL_STATEMENT_BEGIN--
 DROP TYPE mood;
-
+--DDL_STATEMENT_END--
 SELECT v as value, jsonb_hash(v)::bit(32) as standard,
 	   jsonb_hash_extended(v, 0)::bit(32) as extended0,
 	   jsonb_hash_extended(v, 1)::bit(32) as extended1

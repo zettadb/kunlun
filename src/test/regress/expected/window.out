@@ -619,13 +619,6 @@ explain (costs off)
 select first_value(max(x)) over (), y
   from (select unique1 as x, ten+four as y from tenk1) ss
   group by y;
-                 QUERY PLAN                  
----------------------------------------------
- WindowAgg
-   ->  HashAggregate
-         Group Key: (tenk1.ten + tenk1.four)
-         ->  Seq Scan on tenk1
-(4 rows)
 
 -- test non-default frame specifications
 SELECT four, ten,
@@ -2847,14 +2840,6 @@ explain (costs off)
 select f1, sum(f1) over (partition by f1 order by f2
                          range between 1 preceding and 1 following)
 from t1 where f1 = f2;
-           QUERY PLAN            
----------------------------------
- WindowAgg
-   ->  Sort
-         Sort Key: f1
-         ->  Seq Scan on t1
-               Filter: (f1 = f2)
-(5 rows)
 
 select f1, sum(f1) over (partition by f1 order by f2
                          range between 1 preceding and 1 following)
@@ -2893,14 +2878,6 @@ explain (costs off)
 select f1, sum(f1) over (partition by f1 order by f2
                          groups between 1 preceding and 1 following)
 from t1 where f1 = f2;
-           QUERY PLAN            
----------------------------------
- WindowAgg
-   ->  Sort
-         Sort Key: f1
-         ->  Seq Scan on t1
-               Filter: (f1 = f2)
-(5 rows)
 
 select f1, sum(f1) over (partition by f1 order by f2
                          groups between 1 preceding and 1 following)
@@ -3008,16 +2985,6 @@ SELECT * FROM
           min(salary) OVER (PARTITION BY depname || 'A', depname) depminsalary
    FROM empsalary) emp
 WHERE depname = 'sales';
-                             QUERY PLAN                              
----------------------------------------------------------------------
- Subquery Scan on emp
-   ->  WindowAgg
-         ->  Sort
-               Sort Key: (((empsalary.depname)::text || 'A'::text))
-               ->  WindowAgg
-                     ->  Seq Scan on empsalary
-                           Filter: ((depname)::text = 'sales'::text)
-(7 rows)
 
 -- pushdown is unsafe because there's a PARTITION BY clause without depname:
 EXPLAIN (COSTS OFF)
@@ -3027,18 +2994,6 @@ SELECT * FROM
           min(salary) OVER (PARTITION BY depname) depminsalary
    FROM empsalary) emp
 WHERE depname = 'sales';
-                        QUERY PLAN                         
------------------------------------------------------------
- Subquery Scan on emp
-   Filter: ((emp.depname)::text = 'sales'::text)
-   ->  WindowAgg
-         ->  Sort
-               Sort Key: empsalary.depname
-               ->  WindowAgg
-                     ->  Sort
-                           Sort Key: empsalary.enroll_date
-                           ->  Seq Scan on empsalary
-(9 rows)
 
 -- cleanup
 DROP TABLE empsalary;

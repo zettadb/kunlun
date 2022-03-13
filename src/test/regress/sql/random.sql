@@ -17,8 +17,12 @@ INTERSECT
   FROM onek ORDER BY random() LIMIT 1);
 
 -- count roughly 1/10 of the tuples
+--DDL_STATEMENT_BEGIN--
 drop table if exists RANDOM_TBL;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table RANDOM_TBL(random int);
+--DDL_STATEMENT_END--
 INSERT INTO RANDOM_TBL SELECT count(*) FROM onek WHERE random() < 1.0/10;
 
 -- select again, the count should be different

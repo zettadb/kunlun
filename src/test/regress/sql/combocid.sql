@@ -1,8 +1,9 @@
 --
 -- Tests for some likely failure cases with combo cmin/cmax mechanism
 --
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE combocidtest (foobar int);
-
+--DDL_STATEMENT_END--
 BEGIN;
 
 -- a few dummy ops to push up the CommandId counter
@@ -88,10 +89,12 @@ SELECT * FROM combocidtest;
 
 -- test for bug reported in
 -- CABRT9RC81YUf1=jsmWopcKJEro=VoeG2ou6sPwyOUTx_qteRsg@mail.gmail.com
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE IF NOT EXISTS testcase(
 	id int PRIMARY KEY,
 	balance numeric
 );
+--DDL_STATEMENT_END--
 INSERT INTO testcase VALUES (1, 0);
 BEGIN;
 -- syntax error for kunlun: SELECT * FROM testcase WHERE testcase.id = 1 FOR UPDATE;
@@ -102,4 +105,6 @@ ROLLBACK TO SAVEPOINT subxact;
 -- should return one tuple
 -- syntax error for kunlun: SELECT * FROM testcase WHERE id = 1 FOR UPDATE;
 ROLLBACK;
+--DDL_STATEMENT_BEGIN--
 DROP TABLE testcase;
+--DDL_STATEMENT_END--

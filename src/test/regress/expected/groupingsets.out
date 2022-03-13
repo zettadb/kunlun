@@ -366,15 +366,6 @@ explain (costs off)
 select g as alias1, g as alias2
   from generate_series(1,3) g
  group by alias1, rollup(alias2);
-                   QUERY PLAN                   
-------------------------------------------------
- GroupAggregate
-   Group Key: g, g
-   Group Key: g
-   ->  Sort
-         Sort Key: g
-         ->  Function Scan on generate_series g
-(6 rows)
 
 select g as alias1, g as alias2
   from generate_series(1,3) g
@@ -460,14 +451,6 @@ LINE 3:        lateral (select a, b, sum(v.x) from gstest_data(v.x) ...
 -- min max optimization should still work with GROUP BY ()
 explain (costs off)
   select min(unique1) from tenk1 GROUP BY ();
-                         QUERY PLAN                         
-------------------------------------------------------------
- Result
-   InitPlan 1 (returns $0)
-     ->  Limit
-           ->  Index Only Scan using tenk1_unique1 on tenk1
-                 Index Cond: (unique1 IS NOT NULL)
-(5 rows)
 
 -- Views with GROUPING SET queries
 CREATE VIEW gstest_view AS select a, b, grouping(a,b), sum(c), count(*), max(c)
@@ -640,15 +623,6 @@ select a, b, sum(v.x)
 -- Test reordering of grouping sets
 explain (costs off)
 select * from gstest1 group by grouping sets((a,b,v),(v)) order by v,b,a;
-                                  QUERY PLAN                                  
-------------------------------------------------------------------------------
- GroupAggregate
-   Group Key: "*VALUES*".column3, "*VALUES*".column2, "*VALUES*".column1
-   Group Key: "*VALUES*".column3
-   ->  Sort
-         Sort Key: "*VALUES*".column3, "*VALUES*".column2, "*VALUES*".column1
-         ->  Values Scan on "*VALUES*"
-(6 rows)
 
 -- Agg level check. This query should error out.
 select (select grouping(a,b) from gstest2) from gstest2 group by a,b;
@@ -720,16 +694,6 @@ select a,count(*) from gstest2 group by rollup(a) having a is distinct from 1 or
 
 explain (costs off)
   select a,count(*) from gstest2 group by rollup(a) having a is distinct from 1 order by a;
-            QUERY PLAN            
-----------------------------------
- GroupAggregate
-   Group Key: a
-   Group Key: ()
-   Filter: (a IS DISTINCT FROM 1)
-   ->  Sort
-         Sort Key: a
-         ->  Seq Scan on gstest2
-(7 rows)
 
 select v.c, (select count(*) from gstest2 group by () having v.c)
   from (values (false),(true)) v(c) order by v.c;
@@ -742,19 +706,6 @@ select v.c, (select count(*) from gstest2 group by () having v.c)
 explain (costs off)
   select v.c, (select count(*) from gstest2 group by () having v.c)
     from (values (false),(true)) v(c) order by v.c;
-                        QUERY PLAN                         
------------------------------------------------------------
- Sort
-   Sort Key: "*VALUES*".column1
-   ->  Values Scan on "*VALUES*"
-         SubPlan 1
-           ->  Aggregate
-                 Group Key: ()
-                 Filter: "*VALUES*".column1
-                 ->  Result
-                       One-Time Filter: "*VALUES*".column1
-                       ->  Seq Scan on gstest2
-(10 rows)
 
 -- HAVING with GROUPING queries
 select ten, grouping(ten) from onek
@@ -968,15 +919,6 @@ select a, b, grouping(a,b), sum(v), count(*), max(v)
 
 explain (costs off) select a, b, grouping(a,b), sum(v), count(*), max(v)
   from gstest1 group by grouping sets ((a),(b)) order by 3,1,2;
-                                               QUERY PLAN                                               
---------------------------------------------------------------------------------------------------------
- Sort
-   Sort Key: (GROUPING("*VALUES*".column1, "*VALUES*".column2)), "*VALUES*".column1, "*VALUES*".column2
-   ->  HashAggregate
-         Hash Key: "*VALUES*".column1
-         Hash Key: "*VALUES*".column2
-         ->  Values Scan on "*VALUES*"
-(6 rows)
 
 select a, b, grouping(a,b), sum(v), count(*), max(v)
   from gstest1 group by cube(a,b) order by 3,1,2;
@@ -1002,34 +944,11 @@ select a, b, grouping(a,b), sum(v), count(*), max(v)
 
 explain (costs off) select a, b, grouping(a,b), sum(v), count(*), max(v)
   from gstest1 group by cube(a,b) order by 3,1,2;
-                                               QUERY PLAN                                               
---------------------------------------------------------------------------------------------------------
- Sort
-   Sort Key: (GROUPING("*VALUES*".column1, "*VALUES*".column2)), "*VALUES*".column1, "*VALUES*".column2
-   ->  MixedAggregate
-         Hash Key: "*VALUES*".column1, "*VALUES*".column2
-         Hash Key: "*VALUES*".column1
-         Hash Key: "*VALUES*".column2
-         Group Key: ()
-         ->  Values Scan on "*VALUES*"
-(8 rows)
 
 -- shouldn't try and hash
 explain (costs off)
   select a, b, grouping(a,b), array_agg(v order by v)
     from gstest1 group by cube(a,b);
-                        QUERY PLAN                        
-----------------------------------------------------------
- GroupAggregate
-   Group Key: "*VALUES*".column1, "*VALUES*".column2
-   Group Key: "*VALUES*".column1
-   Group Key: ()
-   Sort Key: "*VALUES*".column2
-     Group Key: "*VALUES*".column2
-   ->  Sort
-         Sort Key: "*VALUES*".column1, "*VALUES*".column2
-         ->  Values Scan on "*VALUES*"
-(9 rows)
 
 -- unsortable cases
 select unsortable_col, count(*)
@@ -1065,17 +984,6 @@ explain (costs off)
          count(*), sum(v)
     from gstest4 group by grouping sets ((unhashable_col),(unsortable_col))
    order by 3,5;
-                            QUERY PLAN                            
-------------------------------------------------------------------
- Sort
-   Sort Key: (GROUPING(unhashable_col, unsortable_col)), (sum(v))
-   ->  MixedAggregate
-         Hash Key: unsortable_col
-         Group Key: unhashable_col
-         ->  Sort
-               Sort Key: unhashable_col
-               ->  Seq Scan on gstest4
-(8 rows)
 
 select unhashable_col, unsortable_col,
        grouping(unhashable_col, unsortable_col),
@@ -1108,17 +1016,6 @@ explain (costs off)
          count(*), sum(v)
     from gstest4 group by grouping sets ((v,unhashable_col),(v,unsortable_col))
    order by 3,5;
-                            QUERY PLAN                            
-------------------------------------------------------------------
- Sort
-   Sort Key: (GROUPING(unhashable_col, unsortable_col)), (sum(v))
-   ->  MixedAggregate
-         Hash Key: v, unsortable_col
-         Group Key: v, unhashable_col
-         ->  Sort
-               Sort Key: v, unhashable_col
-               ->  Seq Scan on gstest4
-(8 rows)
 
 -- empty input: first is 0 rows, second 1, third 3 etc.
 select a, b, sum(v), count(*) from gstest_empty group by grouping sets ((a,b),a);
@@ -1128,13 +1025,6 @@ select a, b, sum(v), count(*) from gstest_empty group by grouping sets ((a,b),a)
 
 explain (costs off)
   select a, b, sum(v), count(*) from gstest_empty group by grouping sets ((a,b),a);
-           QUERY PLAN           
---------------------------------
- HashAggregate
-   Hash Key: a, b
-   Hash Key: a
-   ->  Seq Scan on gstest_empty
-(4 rows)
 
 select a, b, sum(v), count(*) from gstest_empty group by grouping sets ((a,b),());
  a | b | sum | count 
@@ -1152,15 +1042,6 @@ select a, b, sum(v), count(*) from gstest_empty group by grouping sets ((a,b),()
 
 explain (costs off)
   select a, b, sum(v), count(*) from gstest_empty group by grouping sets ((a,b),(),(),());
-           QUERY PLAN           
---------------------------------
- MixedAggregate
-   Hash Key: a, b
-   Group Key: ()
-   Group Key: ()
-   Group Key: ()
-   ->  Seq Scan on gstest_empty
-(6 rows)
 
 select sum(v), count(*) from gstest_empty group by grouping sets ((),(),());
  sum | count 
@@ -1172,14 +1053,6 @@ select sum(v), count(*) from gstest_empty group by grouping sets ((),(),());
 
 explain (costs off)
   select sum(v), count(*) from gstest_empty group by grouping sets ((),(),());
-           QUERY PLAN           
---------------------------------
- Aggregate
-   Group Key: ()
-   Group Key: ()
-   Group Key: ()
-   ->  Seq Scan on gstest_empty
-(5 rows)
 
 -- check that functionally dependent cols are not nulled
 select a, d, grouping(a,b,c)
@@ -1197,13 +1070,6 @@ explain (costs off)
   select a, d, grouping(a,b,c)
     from gstest3
    group by grouping sets ((a,b), (a,c));
-        QUERY PLAN         
----------------------------
- HashAggregate
-   Hash Key: a, b
-   Hash Key: a, c
-   ->  Seq Scan on gstest3
-(4 rows)
 
 -- simple rescan tests
 select a, b, sum(v.x)
@@ -1224,17 +1090,6 @@ explain (costs off)
     from (values (1),(2)) v(x), gstest_data(v.x)
    group by grouping sets (a,b)
    order by 3, 1, 2;
-                             QUERY PLAN                              
----------------------------------------------------------------------
- Sort
-   Sort Key: (sum("*VALUES*".column1)), gstest_data.a, gstest_data.b
-   ->  HashAggregate
-         Hash Key: gstest_data.a
-         Hash Key: gstest_data.b
-         ->  Nested Loop
-               ->  Values Scan on "*VALUES*"
-               ->  Function Scan on gstest_data
-(8 rows)
 
 select *
   from (values (1),(2)) v(x),
@@ -1280,16 +1135,6 @@ select a, b, grouping(a,b), sum(v), count(*), max(v)
 explain (costs off)
   select a, b, grouping(a,b), sum(v), count(*), max(v)
     from gstest1 group by grouping sets ((a,b),(a+1,b+1),(a+2,b+2)) order by 3,6;
-                                        QUERY PLAN                                         
--------------------------------------------------------------------------------------------
- Sort
-   Sort Key: (GROUPING("*VALUES*".column1, "*VALUES*".column2)), (max("*VALUES*".column3))
-   ->  HashAggregate
-         Hash Key: "*VALUES*".column1, "*VALUES*".column2
-         Hash Key: ("*VALUES*".column1 + 1), ("*VALUES*".column2 + 1)
-         Hash Key: ("*VALUES*".column1 + 2), ("*VALUES*".column2 + 2)
-         ->  Values Scan on "*VALUES*"
-(7 rows)
 
 select a, b, sum(c), sum(sum(c)) over (order by a,b) as rsum
   from gstest2 group by cube (a,b) order by rsum, a, b;
@@ -1308,20 +1153,6 @@ select a, b, sum(c), sum(sum(c)) over (order by a,b) as rsum
 explain (costs off)
   select a, b, sum(c), sum(sum(c)) over (order by a,b) as rsum
     from gstest2 group by cube (a,b) order by rsum, a, b;
-                 QUERY PLAN                  
----------------------------------------------
- Sort
-   Sort Key: (sum((sum(c))) OVER (?)), a, b
-   ->  WindowAgg
-         ->  Sort
-               Sort Key: a, b
-               ->  MixedAggregate
-                     Hash Key: a, b
-                     Hash Key: a
-                     Hash Key: b
-                     Group Key: ()
-                     ->  Seq Scan on gstest2
-(11 rows)
 
 select a, b, sum(v.x)
   from (values (1),(2)) v(x), gstest_data(v.x)
@@ -1346,19 +1177,6 @@ explain (costs off)
   select a, b, sum(v.x)
     from (values (1),(2)) v(x), gstest_data(v.x)
    group by cube (a,b) order by a,b;
-                   QUERY PLAN                   
-------------------------------------------------
- Sort
-   Sort Key: gstest_data.a, gstest_data.b
-   ->  MixedAggregate
-         Hash Key: gstest_data.a, gstest_data.b
-         Hash Key: gstest_data.a
-         Hash Key: gstest_data.b
-         Group Key: ()
-         ->  Nested Loop
-               ->  Values Scan on "*VALUES*"
-               ->  Function Scan on gstest_data
-(10 rows)
 
 -- More rescan tests
 select * from (values (1),(2)) v(a) left join lateral (select v.a, four, ten, count(*) from onek group by cube(four,ten)) s on true order by v.a,four,ten;
@@ -1494,22 +1312,6 @@ explain (costs off)
          count(hundred), count(thousand), count(twothousand),
          count(*)
     from tenk1 group by grouping sets (unique1,twothousand,thousand,hundred,ten,four,two);
-          QUERY PLAN           
--------------------------------
- MixedAggregate
-   Hash Key: two
-   Hash Key: four
-   Hash Key: ten
-   Hash Key: hundred
-   Group Key: unique1
-   Sort Key: twothousand
-     Group Key: twothousand
-   Sort Key: thousand
-     Group Key: thousand
-   ->  Sort
-         Sort Key: unique1
-         ->  Seq Scan on tenk1
-(13 rows)
 
 explain (costs off)
   select unique1,
@@ -1517,18 +1319,6 @@ explain (costs off)
          count(hundred), count(thousand), count(twothousand),
          count(*)
     from tenk1 group by grouping sets (unique1,hundred,ten,four,two);
-          QUERY PLAN           
--------------------------------
- MixedAggregate
-   Hash Key: two
-   Hash Key: four
-   Hash Key: ten
-   Hash Key: hundred
-   Group Key: unique1
-   ->  Sort
-         Sort Key: unique1
-         ->  Seq Scan on tenk1
-(9 rows)
 
 set work_mem = '384kB';
 explain (costs off)
@@ -1537,21 +1327,6 @@ explain (costs off)
          count(hundred), count(thousand), count(twothousand),
          count(*)
     from tenk1 group by grouping sets (unique1,twothousand,thousand,hundred,ten,four,two);
-          QUERY PLAN           
--------------------------------
- MixedAggregate
-   Hash Key: two
-   Hash Key: four
-   Hash Key: ten
-   Hash Key: hundred
-   Hash Key: thousand
-   Group Key: unique1
-   Sort Key: twothousand
-     Group Key: twothousand
-   ->  Sort
-         Sort Key: unique1
-         ->  Seq Scan on tenk1
-(12 rows)
 
 -- check collation-sensitive matching between grouping expressions
 -- (similar to a check for aggregates, but there are additional code

@@ -252,10 +252,15 @@ SELECT '3.4'::numeric UNION SELECT 'foo';
 -- Test that expression-index constraints can be pushed down through
 -- UNION or UNION ALL
 --
-
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE t1 (a text, b text);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX t1_ab_idx on t1 ((a || b));
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE t2 (ab text primary key);
+--DDL_STATEMENT_END--
 INSERT INTO t1 VALUES ('a', 'b'), ('x', 'y');
 INSERT INTO t2 VALUES ('ab'), ('xy');
 
@@ -281,10 +286,15 @@ explain (costs off)
 -- Test that ORDER BY for UNION ALL can be pushed down to inheritance
 -- children.
 --
-
+--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE t1c (b text, a text);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 INSERT INTO t1c VALUES ('v', 'w'), ('c', 'd'), ('m', 'n'), ('e', 'f');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE INDEX t1c_ab_idx on t1c ((a || b));
+--DDL_STATEMENT_END--
 
 set enable_seqscan = on;
 set enable_indexonlyscan = off;

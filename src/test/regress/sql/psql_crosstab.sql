@@ -1,8 +1,9 @@
 --
 -- \crosstabview
 --
-
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE ctv_data (v varchar(30), h varchar(30), c varchar(30), i int, d date); 
+--DDL_STATEMENT_END--
 insert into ctv_data VALUES
    ('v1','h2','foo', 3, '2015-04-01'::date),
    ('v2','h1','bar', 3, '2015-01-02'),
@@ -106,16 +107,18 @@ SELECT a,a,1 FROM generate_series(1,3000) AS a
 
 -- error: only one column
 SELECT 1 \crosstabview
-
+--DDL_STATEMENT_BEGIN--
 DROP TABLE ctv_data;
-
+--DDL_STATEMENT_END--
 -- check error reporting (bug #14476)
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE ctv_data (x int, y int, v text);
-
+--DDL_STATEMENT_END--
 INSERT INTO ctv_data SELECT 1, x, '*' || x FROM generate_series(1,10) x;
 SELECT * FROM ctv_data \crosstabview
 
 INSERT INTO ctv_data VALUES (1, 10, '*'); -- duplicate data to cause error
 SELECT * FROM ctv_data \crosstabview
-
+--DDL_STATEMENT_BEGIN--
 DROP TABLE ctv_data;
+--DDL_STATEMENT_END--

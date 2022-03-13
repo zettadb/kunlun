@@ -20,97 +20,154 @@
 --     you look behind the wall when looking at a patchfield
 --     or into a room.
 --
-
+--DDL_STATEMENT_BEGIN--
 drop table if exists Room;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table Room (
     roomno	char(8),
     comment	text
 );
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create unique index Room_rno on Room using btree (roomno bpchar_ops);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists WSlot;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table WSlot (
     slotname	char(20),
     roomno	char(8),
     slotlink	char(20),
     backlink	char(20)
 );
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create unique index WSlot_name on WSlot using btree (slotname bpchar_ops);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists PField;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table PField (
     name	text,
     comment	text
 );
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create unique index PField_name on PField using btree (name text_ops);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists PSlot;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table PSlot (
     slotname	char(20),
     pfname	text,
     slotlink	char(20),
     backlink	char(20)
 );
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create unique index PSlot_name on PSlot using btree (slotname bpchar_ops);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists PLine;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table PLine (
     slotname	char(20),
     phonenumber	char(20),
     comment	text,
     backlink	char(20)
 );
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create unique index PLine_name on PLine using btree (slotname bpchar_ops);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists Hub;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table Hub (
     name	char(14),
     comment	text,
     nslots	integer
 );
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create unique index Hub_name on Hub using btree (name bpchar_ops);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists HSlot;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table HSlot (
     slotname	char(20),
     hubname	char(14),
     slotno	integer,
     slotlink	char(20)
 );
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create unique index HSlot_name on HSlot using btree (slotname bpchar_ops);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create index HSlot_hubname on HSlot using btree (hubname bpchar_ops);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists System;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table System (
     name	text,
     comment	text
 );
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create unique index System_name on System using btree (name text_ops);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists IFace;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table IFace (
     slotname	char(20),
     sysname	text,
     ifname	text,
     slotlink	char(20)
 );
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create unique index IFace_name on IFace using btree (slotname bpchar_ops);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists PHone;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table PHone (
     slotname	char(20),
     comment	text,
     slotlink	char(20)
 );
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create unique index PHone_name on PHone using btree (slotname bpchar_ops);
+--DDL_STATEMENT_END--
 
 
 -- Test comments
+--DDL_STATEMENT_BEGIN--
 COMMENT ON FUNCTION tg_hub_adjustslots_wrong(bpchar, integer, integer) IS 'function with args';
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 COMMENT ON FUNCTION tg_hub_adjustslots(bpchar, integer, integer) IS 'function with args';
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 COMMENT ON FUNCTION tg_hub_adjustslots(bpchar, integer, integer) IS NULL;
-
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function tg_slotlink_set(bpchar, bpchar)
 returns integer as '
 declare
@@ -191,12 +248,13 @@ begin
     raise exception ''illegal slotlink beginning with %'', mytype;
 end;
 ' language plpgsql;
-
+--DDL_STATEMENT_END--
 
 -- ************************************************************
 -- * Support function to clear out the slotlink field if
 -- * it still points to specific slot
 -- ************************************************************
+--DDL_STATEMENT_BEGIN--
 create function tg_slotlink_unset(bpchar, bpchar)
 returns integer as '
 declare
@@ -258,11 +316,11 @@ begin
     end if;
 end;
 ' language plpgsql;
-
-
+--DDL_STATEMENT_END--
 -- ************************************************************
 -- * Describe the backside of a patchfield slot
 -- ************************************************************
+--DDL_STATEMENT_BEGIN--
 create function pslot_backlink_view(bpchar)
 returns text as '
 <<outer>>
@@ -303,11 +361,12 @@ begin
     return rec.backlink;
 end;
 ' language plpgsql;
-
+--DDL_STATEMENT_END--
 
 -- ************************************************************
 -- * Describe the front of a patchfield slot
 -- ************************************************************
+--DDL_STATEMENT_BEGIN--
 create function pslot_slotlink_view(bpchar)
 returns text as '
 declare
@@ -339,11 +398,11 @@ begin
     return psrec.slotlink;
 end;
 ' language plpgsql;
-
-
+--DDL_STATEMENT_END--
 -- ************************************************************
 -- * Describe the front of a wall connector slot
 -- ************************************************************
+--DDL_STATEMENT_BEGIN--
 create function wslot_slotlink_view(bpchar)
 returns text as '
 declare
@@ -389,17 +448,17 @@ begin
     return rec.slotlink;
 end;
 ' language plpgsql;
-
-
+--DDL_STATEMENT_END--
 
 -- ************************************************************
 -- * View of a patchfield describing backside and patches
 -- ************************************************************
+@@
 create view Pfield_v1 as select PF.pfname, PF.slotname,
 	pslot_backlink_view(PF.slotname) as backside,
 	pslot_slotlink_view(PF.slotname) as patch
     from PSlot PF;
-
+!!
 
 --
 -- First we build the house - so we create the rooms
@@ -683,6 +742,7 @@ insert into IFace values ('IF', 'orion', 'ethernet_interface_name_too_long', '')
 --
 -- Test recursion, per bug report 7-Sep-01
 --
+--DDL_STATEMENT_BEGIN--
 CREATE FUNCTION recursion_test(int,int) RETURNS text AS '
 DECLARE rslt text;
 BEGIN
@@ -693,12 +753,12 @@ BEGIN
     END IF;
     RETURN rslt;
 END;' LANGUAGE plpgsql;
-
+--DDL_STATEMENT_END--
 SELECT recursion_test(4,3);
 
 
 --select * from test_ret_set_scalar(1,10);
-
+--DDL_STATEMENT_BEGIN--
 create function test_ret_set_rec_dyn(int) returns setof record as '
 DECLARE
 	retval RECORD;
@@ -714,10 +774,10 @@ BEGIN
 	END IF;
 	RETURN;
 END;' language plpgsql;
-
+--DDL_STATEMENT_END--
 SELECT * FROM test_ret_set_rec_dyn(1500) AS (a int, b int, c int);
 SELECT * FROM test_ret_set_rec_dyn(5) AS (a int, b numeric, c text);
-
+--DDL_STATEMENT_BEGIN--
 create function test_ret_rec_dyn(int) returns record as '
 DECLARE
 	retval RECORD;
@@ -730,7 +790,7 @@ BEGIN
 		RETURN retval;
 	END IF;
 END;' language plpgsql;
-
+--DDL_STATEMENT_END--
 SELECT * FROM test_ret_rec_dyn(1500) AS (a int, b int, c int);
 SELECT * FROM test_ret_rec_dyn(5) AS (a int, b numeric, c text);
 
@@ -740,30 +800,33 @@ SELECT * FROM test_ret_rec_dyn(5) AS (a int, b numeric, c text);
 --
 
 -- wrong way to do it:
+--DDL_STATEMENT_BEGIN--
 create function f1(in i int, out j int) returns int as $$
 begin
   return i+1;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function f1(in i int, out j int) as $$
 begin
   j = i+1;
   return;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select f1(42);
 select * from f1(42);
-
+--DDL_STATEMENT_BEGIN--
 create or replace function f1(inout i int) as $$
 begin
   i = i+1;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select f1(42);
 select * from f1(42);
-
+--DDL_STATEMENT_BEGIN--
 drop function f1(int);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function f1(in i int, out j int) returns setof int as $$
 begin
   j = i+1;
@@ -772,23 +835,25 @@ begin
   return next;
   return;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select * from f1(42);
-
+--DDL_STATEMENT_BEGIN--
 drop function f1(int);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function f1(in i int, out j int, out k text) as $$
 begin
   j = i;
   j = j+1;
   k = 'foo';
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select f1(42);
 select * from f1(42);
-
+--DDL_STATEMENT_BEGIN--
 drop function f1(int);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function f1(in i int, out j int, out k text) returns setof record as $$
 begin
   j = i+1;
@@ -798,32 +863,34 @@ begin
   k = 'foot';
   return next;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select * from f1(42);
-
+--DDL_STATEMENT_BEGIN--
 drop function f1(int);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function duplic(in i anyelement, out j anyelement, out k anyarray) as $$
 begin
   j = i;
   k = array[j,j];
   return;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select * from duplic(42);
 select * from duplic('foo'::text);
-
+--DDL_STATEMENT_BEGIN--
 drop function duplic(anyelement);
-
+--DDL_STATEMENT_END--
 --
 -- test PERFORM
 --
-
+--DDL_STATEMENT_BEGIN--
 create table perform_test (
 	a	INT,
 	b	INT
 );
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function perform_simple_func(int) returns boolean as '
 BEGIN
 	IF $1 < 20 THEN
@@ -833,7 +900,8 @@ BEGIN
 		RETURN FALSE;
 	END IF;
 END;' language plpgsql;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function perform_test_func() returns void as '
 BEGIN
 	IF FOUND then
@@ -854,16 +922,16 @@ BEGIN
 
 	RETURN;
 END;' language plpgsql;
-
+--DDL_STATEMENT_END--
 SELECT perform_test_func();
 SELECT * FROM perform_test;
-
+--DDL_STATEMENT_BEGIN--
 drop table perform_test;
-
+--DDL_STATEMENT_END--
 --
 -- Test error trapping
 --
-
+--DDL_STATEMENT_BEGIN--
 create function trap_zero_divide(int) returns int as $$
 declare x int;
 	sx smallint;
@@ -887,12 +955,12 @@ begin
 	end;
 	return x;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select trap_zero_divide(50);
 select trap_zero_divide(0);
 select trap_zero_divide(100000);
 select trap_zero_divide(-100);
-
+--DDL_STATEMENT_BEGIN--
 create function trap_matching_test(int) returns int as $$
 declare x int;
 	sx smallint;
@@ -913,14 +981,15 @@ begin
 	end;
 	return x;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select trap_matching_test(50);
 select trap_matching_test(0);
 select trap_matching_test(100000);
 select trap_matching_test(1);
-
+--DDL_STATEMENT_BEGIN--
 create temp table foo (f1 int);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function subxact_rollback_semantics() returns int as $$
 declare x int;
 begin
@@ -937,11 +1006,13 @@ begin
   insert into foo values(x);
   return x;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select subxact_rollback_semantics();
 select * from foo;
+--DDL_STATEMENT_BEGIN--
 drop table foo;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function trap_timeout() returns void as $$
 begin
   declare x int;
@@ -958,13 +1029,14 @@ begin
   -- the next top-level statement would be vulnerable to the timeout.
   raise exception 'end of function';
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 begin;
 set statement_timeout to 2000;
 select trap_timeout();
 rollback;
 
 -- Test for pass-by-ref values being stored in proper context
+--DDL_STATEMENT_BEGIN--
 create function test_variable_storage() returns text as $$
 declare x text;
 begin
@@ -979,21 +1051,21 @@ begin
   end;
   return x;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select test_variable_storage();
 
 --
 -- test foreign key error trapping
 --
-
+--DDL_STATEMENT_BEGIN--
 create temp table master(f1 int primary key);
-
+--DDL_STATEMENT_END--
 --create temp table slave(f1 int references master deferrable);
 
 insert into master values(1);
 insert into slave values(1);
 insert into slave values(2);	-- fails
-
+--DDL_STATEMENT_BEGIN--
 create function trap_foreign_key(int) returns int as $$
 begin
 	begin	-- start a subtransaction
@@ -1005,7 +1077,8 @@ begin
 	end;
 	return 1;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function trap_foreign_key_2() returns int as $$
 begin
 	begin	-- start a subtransaction
@@ -1017,7 +1090,7 @@ begin
 	end;
 	return 1;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select trap_foreign_key(1);
 select trap_foreign_key(2);	-- detects FK violation
 
@@ -1029,16 +1102,19 @@ begin;
   rollback to x;
   select trap_foreign_key_2();  -- detects FK violation
 commit;				-- still fails
-
+--DDL_STATEMENT_BEGIN--
 drop function trap_foreign_key(int);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop function trap_foreign_key_2();
-
+--DDL_STATEMENT_END--
 --
 -- Test proper snapshot handling in simple expressions
 --
-
+--DDL_STATEMENT_BEGIN--
 create temp table users(login text, id serial);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function sp_id_user(a_login text) returns int as $$
 declare x int;
 begin
@@ -1046,12 +1122,12 @@ begin
   if found then return x; end if;
   return 0;
 end$$ language plpgsql stable;
-
+--DDL_STATEMENT_END--
 insert into users values('user1');
 
 select sp_id_user('user1');
 select sp_id_user('userx');
-
+--DDL_STATEMENT_BEGIN--
 create function sp_add_user(a_login text) returns int as $$
 declare my_id_user int;
 begin
@@ -1066,26 +1142,30 @@ begin
   END IF;
   RETURN my_id_user;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select sp_add_user('user1');
 select sp_add_user('user2');
 select sp_add_user('user2');
 select sp_add_user('user3');
 select sp_add_user('user3');
-
+--DDL_STATEMENT_BEGIN--
 drop function sp_add_user(text);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop function sp_id_user(text);
-
+--DDL_STATEMENT_END--
 --
 -- tests for refcursors
 --
+--DDL_STATEMENT_BEGIN--
 create table rc_test (a int, b int);
+--DDL_STATEMENT_END--
 copy rc_test from stdin;
 5	10
 50	100
 500	1000
 \.
-
+--DDL_STATEMENT_BEGIN--
 create function return_unnamed_refcursor() returns refcursor as $$
 declare
     rc refcursor;
@@ -1094,7 +1174,8 @@ begin
     return rc;
 end
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function use_refcursor(rc refcursor) returns int as $$
 declare
     rc refcursor;
@@ -1105,23 +1186,24 @@ begin
     return x.a;
 end
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select use_refcursor(return_unnamed_refcursor());
-
+--DDL_STATEMENT_BEGIN--
 create function return_refcursor(rc refcursor) returns refcursor as $$
 begin
     open rc for select a from rc_test;
     return rc;
 end
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function refcursor_test1(refcursor) returns refcursor as $$
 begin
     perform return_refcursor($1);
     return $1;
 end
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 begin;
 
 select refcursor_test1('test1');
@@ -1135,7 +1217,7 @@ commit;
 
 -- should fail
 fetch next from test1;
-
+--DDL_STATEMENT_BEGIN--
 create function refcursor_test2(int, int) returns boolean as $$
 declare
     c1 cursor (param1 int, param2 int) for select * from rc_test where a > param1 and b > param2;
@@ -1151,13 +1233,14 @@ begin
     end if;
 end
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select refcursor_test2(20000, 20000) as "Should be false",
        refcursor_test2(20, 20) as "Should be true";
 
 --
 -- tests for cursors with named parameter arguments
 --
+--DDL_STATEMENT_BEGIN--
 create function namedparmcursor_test1(int, int) returns boolean as $$
 declare
     c1 cursor (param1 int, param12 int) for select * from rc_test where a > param1 and b > param12;
@@ -1173,11 +1256,12 @@ begin
     end if;
 end
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select namedparmcursor_test1(20000, 20000) as "Should be false",
        namedparmcursor_test1(20, 20) as "Should be true";
 
 -- mixing named and positional argument notations
+--DDL_STATEMENT_BEGIN--
 create function namedparmcursor_test2(int, int) returns boolean as $$
 declare
     c1 cursor (param1 int, param2 int) for select * from rc_test where a > param1 and b > param2;
@@ -1193,10 +1277,12 @@ begin
     end if;
 end
 $$ language plpgsql;
+--DDL_STATEMENT_END--
 select namedparmcursor_test2(20, 20);
 
 -- mixing named and positional: param2 is given twice, once in named notation
 -- and second time in positional notation. Should throw an error at parse time
+--DDL_STATEMENT_BEGIN--
 create function namedparmcursor_test3() returns void as $$
 declare
     c1 cursor (param1 int, param2 int) for select * from rc_test where a > param1 and b > param2;
@@ -1204,8 +1290,9 @@ begin
     open c1(param2 = 20, 21);
 end
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 -- mixing named and positional: same as previous test, but param1 is duplicated
+--DDL_STATEMENT_BEGIN--
 create function namedparmcursor_test4() returns void as $$
 declare
     c1 cursor (param1 int, param2 int) for select * from rc_test where a > param1 and b > param2;
@@ -1213,8 +1300,9 @@ begin
     open c1(20, param1 = 21);
 end
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 -- duplicate named parameter, should throw an error at parse time
+--DDL_STATEMENT_BEGIN--
 create function namedparmcursor_test5() returns void as $$
 declare
   c1 cursor (p1 int, p2 int) for
@@ -1223,8 +1311,9 @@ begin
   open c1 (p2 = 77, p2 = 42);
 end
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 -- not enough parameters, should throw an error at parse time
+--DDL_STATEMENT_BEGIN--
 create function namedparmcursor_test6() returns void as $$
 declare
   c1 cursor (p1 int, p2 int) for
@@ -1233,9 +1322,10 @@ begin
   open c1 (p2 = 77);
 end
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 -- division by zero runtime error, the context given in the error message
 -- should be sensible
+--DDL_STATEMENT_BEGIN--
 create function namedparmcursor_test7() returns void as $$
 declare
   c1 cursor (p1 int, p2 int) for
@@ -1243,6 +1333,7 @@ declare
 begin
   open c1 (p2 = 77, p1 = 42/0);
 end $$ language plpgsql;
+--DDL_STATEMENT_END--
 select namedparmcursor_test7();
 
 -- check that line comments work correctly within the argument list (there
@@ -1250,6 +1341,7 @@ select namedparmcursor_test7();
 -- comment must be preserved when the argument-evaluating query is
 -- constructed, otherwise the comment effectively comments out the next
 -- argument, too)
+--DDL_STATEMENT_BEGIN--
 create function namedparmcursor_test8() returns int4 as $$
 declare
   c1 cursor (p1 int, p2 int) for
@@ -1261,9 +1353,11 @@ begin
   fetch c1 into n;
   return n;
 end $$ language plpgsql;
+--DDL_STATEMENT_END--
 select namedparmcursor_test8();
 
 -- cursor parameter name can match plpgsql variable or unreserved keyword
+--DDL_STATEMENT_BEGIN--
 create function namedparmcursor_test9(p1 int) returns int4 as $$
 declare
   c1 cursor (p1 int, p2 int, debug int) for
@@ -1276,37 +1370,41 @@ begin
   fetch c1 into n;
   return n;
 end $$ language plpgsql;
+--DDL_STATEMENT_END--
 select namedparmcursor_test9(6);
 
 --
 -- tests for "raise" processing
 --
+--DDL_STATEMENT_BEGIN--
 create function raise_test1(int) returns int as $$
 begin
     raise notice 'This message has too many parameters!', $1;
     return $1;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function raise_test2(int) returns int as $$
 begin
     raise notice 'This message has too few parameters: %, %, %', $1, $1;
     return $1;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function raise_test3(int) returns int as $$
 begin
     raise notice 'This message has no parameters (despite having %% signs in it)!';
     return $1;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select raise_test3(1);
 
 -- Test re-RAISE inside a nested exception block.  This case is allowed
 -- by Oracle's PL/SQL but was handled differently by PG before 9.1.
-
+--DDL_STATEMENT_BEGIN--
 CREATE FUNCTION reraise_test() RETURNS void AS $$
 BEGIN
    BEGIN
@@ -1326,13 +1424,14 @@ EXCEPTION
        raise notice 'WRONG - exception % caught in outer block', sqlerrm;
 END;
 $$ LANGUAGE plpgsql;
-
+--DDL_STATEMENT_END--
 SELECT reraise_test();
 
 --
 -- reject function definitions that contain malformed SQL queries at
 -- compile-time, where possible
 --
+--DDL_STATEMENT_BEGIN--
 create function bad_sql1() returns int as $$
 declare a int;
 begin
@@ -1341,7 +1440,8 @@ begin
     a = 10;
     return a;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function bad_sql2() returns int as $$
 declare r record;
 begin
@@ -1350,45 +1450,54 @@ begin
     end loop;
     return 5;
 end;$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 -- a RETURN expression is mandatory, except for void-returning
 -- functions, where it is not allowed
+--DDL_STATEMENT_BEGIN--
 create function missing_return_expr() returns int as $$
 begin
     return ;
 end;$$ language plpgsql;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function void_return_expr() returns void as $$
 begin
     return 5;
 end;$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 -- VOID functions are allowed to omit RETURN
+--DDL_STATEMENT_BEGIN--
 create function void_return_expr() returns void as $$
 begin
     perform 2+2;
 end;$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select void_return_expr();
 
 -- but ordinary functions are not
+--DDL_STATEMENT_BEGIN--
 create function missing_return_expr() returns int as $$
 begin
     perform 2+2;
 end;$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select missing_return_expr();
-
+--DDL_STATEMENT_BEGIN--
 drop function void_return_expr();
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop function missing_return_expr();
-
+--DDL_STATEMENT_END--
 --
 -- EXECUTE ... INTO test
 --
-
+--DDL_STATEMENT_BEGIN--
 create table eifoo (i integer, y integer);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create type eitype as (i integer, y integer);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create or replace function execute_into_test(varchar) returns record as $$
 declare
     _r record;
@@ -1408,16 +1517,18 @@ begin
     execute 'select 1,2' into _v;
     return _v;
 end; $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select execute_into_test('eifoo');
-
+--DDL_STATEMENT_BEGIN--
 drop table eifoo cascade;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop type eitype cascade;
-
+--DDL_STATEMENT_END--
 --
 -- SQLSTATE and SQLERRM test
 --
-
+--DDL_STATEMENT_BEGIN--
 create function excpt_test1() returns void as $$
 begin
     raise notice '% %', sqlstate, sqlerrm;
@@ -1425,7 +1536,8 @@ end; $$ language plpgsql;
 -- should fail: SQLSTATE and SQLERRM are only in defined EXCEPTION
 -- blocks
 select excpt_test1();
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function excpt_test2() returns void as $$
 begin
     begin
@@ -1434,9 +1546,10 @@ begin
         end;
     end;
 end; $$ language plpgsql;
+--DDL_STATEMENT_END--
 -- should fail
 select excpt_test2();
-
+--DDL_STATEMENT_BEGIN--
 create function excpt_test3() returns void as $$
 begin
     begin
@@ -1456,21 +1569,31 @@ begin
 	    raise notice '% %', sqlstate, sqlerrm;
     end;
 end; $$ language plpgsql;
+--DDL_STATEMENT_END--
 select excpt_test3();
-
+--DDL_STATEMENT_BEGIN--
 create function excpt_test4() returns text as $$
 begin
 	begin perform 1/0;
 	exception when others then return sqlerrm; end;
 end; $$ language plpgsql;
+--DDL_STATEMENT_END--
 select excpt_test4();
-
+--DDL_STATEMENT_BEGIN--
 drop function excpt_test1();
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop function excpt_test2();
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop function excpt_test3();
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop function excpt_test4();
+--DDL_STATEMENT_END--
 
 -- parameters of raise stmt can be expressions
+--DDL_STATEMENT_BEGIN--
 create function raise_exprs() returns void as $$
 declare
     a integer[] = '{10,20,30}';
@@ -1480,14 +1603,16 @@ begin
     i = 2;
     raise notice '%; %; %; %; %; %', a, a[i], c, (select c || 'abc'), row(10,'aaa',NULL,30), NULL;
 end;$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select raise_exprs();
+--DDL_STATEMENT_BEGIN--
 drop function raise_exprs();
-
+--DDL_STATEMENT_END--
 -- regression test: verify that multiple uses of same plpgsql datum within
 -- a SQL command all get mapped to the same $n parameter.  The return value
 -- of the SELECT is not important, we only care that it doesn't fail with
 -- a complaint about an ungrouped column reference.
+--DDL_STATEMENT_BEGIN--
 create function multi_datum_use(p1 int) returns bool as $$
 declare
   x int;
@@ -1496,7 +1621,7 @@ begin
   select into x,y unique1/p1, unique1/$1 from tenk1 group by unique1/p1;
   return x = y;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select multi_datum_use(42);
 
 --
@@ -1504,11 +1629,11 @@ select multi_datum_use(42);
 -- Note that a data-modifying query is quasi strict (disallow multi rows)
 -- by default in the planned case, but not in EXECUTE.
 --
-
+--DDL_STATEMENT_BEGIN--
 create temp table foo (f1 int, f2 int);
-
+--DDL_STATEMENT_END--
 insert into foo values (1,2), (3,4);
-
+--DDL_STATEMENT_BEGIN--
 create or replace function stricttest() returns void as $$
 declare x record;
 begin
@@ -1516,9 +1641,9 @@ begin
   insert into foo values(5,6) returning * into x;
   raise notice 'x.f1 = %, x.f2 = %', x.f1, x.f2;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select stricttest();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function stricttest() returns void as $$
 declare x record;
 begin
@@ -1526,9 +1651,9 @@ begin
   insert into foo values(7,8),(9,10) returning * into x;
   raise notice 'x.f1 = %, x.f2 = %', x.f1, x.f2;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select stricttest();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function stricttest() returns void as $$
 declare x record;
 begin
@@ -1536,9 +1661,9 @@ begin
   execute 'insert into foo values(5,6) returning *' into x;
   raise notice 'x.f1 = %, x.f2 = %', x.f1, x.f2;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select stricttest();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function stricttest() returns void as $$
 declare x record;
 begin
@@ -1546,11 +1671,11 @@ begin
   execute 'insert into foo values(7,8),(9,10) returning *' into x;
   raise notice 'x.f1 = %, x.f2 = %', x.f1, x.f2;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select stricttest();
 
 select * from foo;
-
+--DDL_STATEMENT_BEGIN--
 create or replace function stricttest() returns void as $$
 declare x record;
 begin
@@ -1558,9 +1683,9 @@ begin
   select * from foo where f1 = 3 into strict x;
   raise notice 'x.f1 = %, x.f2 = %', x.f1, x.f2;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select stricttest();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function stricttest() returns void as $$
 declare x record;
 begin
@@ -1568,9 +1693,9 @@ begin
   select * from foo where f1 = 0 into strict x;
   raise notice 'x.f1 = %, x.f2 = %', x.f1, x.f2;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select stricttest();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function stricttest() returns void as $$
 declare x record;
 begin
@@ -1578,9 +1703,9 @@ begin
   select * from foo where f1 > 3 into strict x;
   raise notice 'x.f1 = %, x.f2 = %', x.f1, x.f2;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select stricttest();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function stricttest() returns void as $$
 declare x record;
 begin
@@ -1588,9 +1713,9 @@ begin
   execute 'select * from foo where f1 = 3' into strict x;
   raise notice 'x.f1 = %, x.f2 = %', x.f1, x.f2;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select stricttest();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function stricttest() returns void as $$
 declare x record;
 begin
@@ -1598,9 +1723,9 @@ begin
   execute 'select * from foo where f1 = 0' into strict x;
   raise notice 'x.f1 = %, x.f2 = %', x.f1, x.f2;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select stricttest();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function stricttest() returns void as $$
 declare x record;
 begin
@@ -1608,15 +1733,15 @@ begin
   execute 'select * from foo where f1 > 3' into strict x;
   raise notice 'x.f1 = %, x.f2 = %', x.f1, x.f2;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select stricttest();
-
+--DDL_STATEMENT_BEGIN--
 drop function stricttest();
-
+--DDL_STATEMENT_END--
 -- test printing parameters after failure due to STRICT
 
 set plpgsql.print_strict_params to true;
-
+--DDL_STATEMENT_BEGIN--
 create or replace function stricttest() returns void as $$
 declare
 x record;
@@ -1627,9 +1752,9 @@ begin
   select * from foo where f1 = p1 and f1::text = p3 into strict x;
   raise notice 'x.f1 = %, x.f2 = %', x.f1, x.f2;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select stricttest();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function stricttest() returns void as $$
 declare
 x record;
@@ -1640,9 +1765,9 @@ begin
   select * from foo where f1 > p1 or f1::text = p3  into strict x;
   raise notice 'x.f1 = %, x.f2 = %', x.f1, x.f2;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select stricttest();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function stricttest() returns void as $$
 declare x record;
 begin
@@ -1650,9 +1775,9 @@ begin
   select * from foo where f1 > 3 into strict x;
   raise notice 'x.f1 = %, x.f2 = %', x.f1, x.f2;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select stricttest();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function stricttest() returns void as $$
 declare x record;
 begin
@@ -1660,9 +1785,9 @@ begin
   execute 'select * from foo where f1 = $1 or f1::text = $2' using 0, 'foo' into strict x;
   raise notice 'x.f1 = %, x.f2 = %', x.f1, x.f2;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select stricttest();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function stricttest() returns void as $$
 declare x record;
 begin
@@ -1670,9 +1795,9 @@ begin
   execute 'select * from foo where f1 > $1' using 1 into strict x;
   raise notice 'x.f1 = %, x.f2 = %', x.f1, x.f2;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select stricttest();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function stricttest() returns void as $$
 declare x record;
 begin
@@ -1680,9 +1805,9 @@ begin
   execute 'select * from foo where f1 > 3' into strict x;
   raise notice 'x.f1 = %, x.f2 = %', x.f1, x.f2;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select stricttest();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function stricttest() returns void as $$
 -- override the global
 #print_strict_params off
@@ -1695,11 +1820,11 @@ begin
   select * from foo where f1 > p1 or f1::text = p3  into strict x;
   raise notice 'x.f1 = %, x.f2 = %', x.f1, x.f2;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select stricttest();
 
 reset plpgsql.print_strict_params;
-
+--DDL_STATEMENT_BEGIN--
 create or replace function stricttest() returns void as $$
 -- override the global
 #print_strict_params on
@@ -1712,7 +1837,7 @@ begin
   select * from foo where f1 > p1 or f1::text = p3  into strict x;
   raise notice 'x.f1 = %, x.f2 = %', x.f1, x.f2;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select stricttest();
 
 -- test warnings and errors
@@ -1726,6 +1851,7 @@ set plpgsql.extra_errors to 'none';
 set plpgsql.extra_warnings to 'shadowed_variables';
 
 -- simple shadowing of input and output parameters
+--DDL_STATEMENT_BEGIN--
 create or replace function shadowtest(in1 int)
 	returns table (out1 int) as $$
 declare
@@ -1735,9 +1861,10 @@ begin
 end
 $$ language plpgsql;
 select shadowtest(1);
-
+--DDL_STATEMENT_END--
 set plpgsql.extra_warnings to 'shadowed_variables';
 select shadowtest(1);
+--DDL_STATEMENT_BEGIN--
 create or replace function shadowtest(in1 int)
 	returns table (out1 int) as $$
 declare
@@ -1746,10 +1873,13 @@ out1 int;
 begin
 end
 $$ language plpgsql;
+--DDL_STATEMENT_END--
 select shadowtest(1);
+--DDL_STATEMENT_BEGIN--
 drop function shadowtest(int);
-
+--DDL_STATEMENT_END--
 -- shadowing in a second DECLARE block
+--DDL_STATEMENT_BEGIN--
 create or replace function shadowtest()
 	returns void as $$
 declare
@@ -1760,9 +1890,12 @@ begin
 	begin
 	end;
 end$$ language plpgsql;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop function shadowtest();
-
+--DDL_STATEMENT_END--
 -- several levels of shadowing
+--DDL_STATEMENT_BEGIN--
 create or replace function shadowtest(in1 int)
 	returns void as $$
 declare
@@ -1773,9 +1906,12 @@ begin
 	begin
 	end;
 end$$ language plpgsql;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop function shadowtest(int);
-
+--DDL_STATEMENT_END--
 -- shadowing in cursor definitions
+--DDL_STATEMENT_BEGIN--
 create or replace function shadowtest()
 	returns void as $$
 declare
@@ -1783,29 +1919,31 @@ f1 int;
 c1 cursor (f1 int) for select 1;
 begin
 end$$ language plpgsql;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop function shadowtest();
-
+--DDL_STATEMENT_END--
 -- test errors when shadowing a variable
 
 set plpgsql.extra_errors to 'shadowed_variables';
-
+--DDL_STATEMENT_BEGIN--
 create or replace function shadowtest(f1 int)
 	returns boolean as $$
 declare f1 int; begin return 1; end $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select shadowtest(1);
 
 reset plpgsql.extra_errors;
 reset plpgsql.extra_warnings;
-
+--DDL_STATEMENT_BEGIN--
 create or replace function shadowtest(f1 int)
 	returns boolean as $$
 declare f1 int; begin return 1; end $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select shadowtest(1);
 
 -- test scrollable cursor support
-
+--DDL_STATEMENT_BEGIN--
 create function sc_test() returns setof integer as $$
 declare
   c scroll cursor for select f1 from int4_tbl;
@@ -1820,9 +1958,9 @@ begin
   close c;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select * from sc_test();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function sc_test() returns setof integer as $$
 declare
   c no scroll cursor for select f1 from int4_tbl;
@@ -1837,9 +1975,9 @@ begin
   close c;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select * from sc_test();  -- fails because of NO SCROLL specification
-
+--DDL_STATEMENT_BEGIN--
 create or replace function sc_test() returns setof integer as $$
 declare
   c refcursor;
@@ -1854,9 +1992,9 @@ begin
   close c;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select * from sc_test();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function sc_test() returns setof integer as $$
 declare
   c refcursor;
@@ -1871,9 +2009,9 @@ begin
   close c;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select * from sc_test();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function sc_test() returns setof integer as $$
 declare
   c refcursor;
@@ -1889,9 +2027,9 @@ begin
   close c;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select * from sc_test();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function sc_test() returns setof integer as $$
 declare
   c cursor for select * from generate_series(1, 10);
@@ -1911,9 +2049,9 @@ begin
   close c;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select * from sc_test();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function sc_test() returns setof integer as $$
 declare
   c cursor for select * from generate_series(1, 10);
@@ -1928,13 +2066,13 @@ begin
   close c;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select * from sc_test();
-
+--DDL_STATEMENT_BEGIN--
 drop function sc_test();
-
+--DDL_STATEMENT_END--
 -- test qualified variable names
-
+--DDL_STATEMENT_BEGIN--
 create function pl_qual_names (param1 int) returns void as $$
 <<outerblock>>
 declare
@@ -1951,12 +2089,13 @@ begin
   end;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select pl_qual_names(42);
-
+--DDL_STATEMENT_BEGIN--
 drop function pl_qual_names(int);
-
+--DDL_STATEMENT_END--
 -- tests for RETURN QUERY
+--DDL_STATEMENT_BEGIN--
 create function ret_query1(out int, out int) returns setof record as $$
 begin
     $1 = -1;
@@ -1966,21 +2105,23 @@ begin
     return next;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select * from ret_query1();
-
+--DDL_STATEMENT_BEGIN--
 create type record_type as (x text, y int, z boolean);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create or replace function ret_query2(lim int) returns setof record_type as $$
 begin
     return query select md5(s.x::text), s.x, s.x > 0
                  from generate_series(-8, lim) s (x) where s.x % 2 = 0;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select * from ret_query2(8);
 
 -- test EXECUTE USING
+--DDL_STATEMENT_BEGIN--
 create function exc_using(int, text) returns int as $$
 declare i int;
 begin
@@ -1991,11 +2132,12 @@ begin
   return i;
 end
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select exc_using(5, 'foobar');
-
+--DDL_STATEMENT_BEGIN--
 drop function exc_using(int, text);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create or replace function exc_using(int) returns void as $$
 declare
   c refcursor;
@@ -2011,13 +2153,13 @@ begin
   return;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select exc_using(5);
-
+--DDL_STATEMENT_BEGIN--
 drop function exc_using(int);
-
+--DDL_STATEMENT_END--
 -- test FOR-over-cursor
-
+--DDL_STATEMENT_BEGIN--
 create or replace function forc01() returns void as $$
 declare
   c cursor(r1 integer, r2 integer)
@@ -2053,14 +2195,14 @@ begin
   return;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select forc01();
 
 -- try updating the cursor's current row
 
 --create temp table forc_test as
 --  select n as i, n as j from generate_series(1,10) n;
-
+--DDL_STATEMENT_BEGIN--
 create or replace function forc01() returns void as $$
 declare
   c cursor for select * from forc_test;
@@ -2071,12 +2213,13 @@ begin
   end loop;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 --select forc01();
 
 --select * from forc_test;
 
 -- same, with a cursor whose portal name doesn't match variable name
+--DDL_STATEMENT_BEGIN--
 create or replace function forc01() returns void as $$
 declare
   c refcursor = 'fooled_ya';
@@ -2091,15 +2234,15 @@ begin
   end loop;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 --select forc01();
 
 --select * from forc_test;
-
+--DDL_STATEMENT_BEGIN--
 drop function forc01();
-
+--DDL_STATEMENT_END--
 -- fail because cursor has no query bound to it
-
+--DDL_STATEMENT_BEGIN--
 create or replace function forc_bad() returns void as $$
 declare
   c refcursor;
@@ -2109,9 +2252,9 @@ begin
   end loop;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 -- test RETURN QUERY EXECUTE
-
+--DDL_STATEMENT_BEGIN--
 create or replace function return_dquery()
 returns setof int as $$
 begin
@@ -2119,16 +2262,17 @@ begin
   return query execute 'select * from (values($1),($2)) f' using 40,50;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select * from return_dquery();
-
+--DDL_STATEMENT_BEGIN--
 drop function return_dquery();
-
+--DDL_STATEMENT_END--
 -- test RETURN QUERY with dropped columns
-
+--DDL_STATEMENT_BEGIN--
 create table tabwithcols(a int, b int, c int, d int);
+--DDL_STATEMENT_END--
 insert into tabwithcols values(10,20,30,40),(50,60,70,80);
-
+--DDL_STATEMENT_BEGIN--
 create or replace function returnqueryf()
 returns setof tabwithcols as $$
 begin
@@ -2136,31 +2280,34 @@ begin
   return query execute 'select * from tabwithcols';
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select * from returnqueryf();
-
+--DDL_STATEMENT_BEGIN--
 alter table tabwithcols drop column b;
-
+--DDL_STATEMENT_END--
 select * from returnqueryf();
-
+--DDL_STATEMENT_BEGIN--
 alter table tabwithcols drop column d;
-
+--DDL_STATEMENT_END--
 select * from returnqueryf();
-
+--DDL_STATEMENT_BEGIN--
 alter table tabwithcols add column d int;
-
+--DDL_STATEMENT_END--
 select * from returnqueryf();
-
+--DDL_STATEMENT_BEGIN--
 drop function returnqueryf();
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table tabwithcols;
-
+--DDL_STATEMENT_END--
 --
 -- Tests for composite-type results
 --
-
+--DDL_STATEMENT_BEGIN--
 create type compostype as (x int, y varchar);
-
+--DDL_STATEMENT_END--
 -- test: use of variable of composite type in return statement
+--DDL_STATEMENT_BEGIN--
 create or replace function compos() returns compostype as $$
 declare
   v compostype;
@@ -2169,10 +2316,11 @@ begin
   return v;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select compos();
 
 -- test: use of variable of record type in return statement
+--DDL_STATEMENT_BEGIN--
 create or replace function compos() returns compostype as $$
 declare
   v record;
@@ -2181,39 +2329,43 @@ begin
   return v;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select compos();
 
 -- test: use of row expr in return statement
+--DDL_STATEMENT_BEGIN--
 create or replace function compos() returns compostype as $$
 begin
   return (1, 'hello'::varchar);
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select compos();
 
 -- this does not work currently (no implicit casting)
+--DDL_STATEMENT_BEGIN--
 create or replace function compos() returns compostype as $$
 begin
   return (1, 'hello');
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select compos();
 
 -- ... but this does
+--DDL_STATEMENT_BEGIN--
 create or replace function compos() returns compostype as $$
 begin
   return (1, 'hello')::compostype;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select compos();
-
+--DDL_STATEMENT_BEGIN--
 drop function compos();
-
+--DDL_STATEMENT_END--
 -- test: return a row expr as record.
+--DDL_STATEMENT_BEGIN--
 create or replace function composrec() returns record as $$
 declare
   v record;
@@ -2222,43 +2374,47 @@ begin
   return v;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select composrec();
 
 -- test: return row expr in return statement.
+--DDL_STATEMENT_BEGIN--
 create or replace function composrec() returns record as $$
 begin
   return (1, 'hello');
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select composrec();
-
+--DDL_STATEMENT_BEGIN--
 drop function composrec();
 
-
+--DDL_STATEMENT_END--
 -- test: use invalid expr in return statement.
+--DDL_STATEMENT_BEGIN--
 create or replace function compos() returns compostype as $$
 begin
   return 1 + 1;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select compos();
 
 -- RETURN variable is a different code path ...
+--DDL_STATEMENT_BEGIN--
 create or replace function compos() returns compostype as $$
 declare x int = 42;
 begin
   return x;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select * from compos();
-
+--DDL_STATEMENT_BEGIN--
 drop function compos();
-
+--DDL_STATEMENT_END--
 -- test: invalid use of composite variable in scalar-returning function
+--DDL_STATEMENT_BEGIN--
 create or replace function compos() returns int as $$
 declare
   v compostype;
@@ -2267,25 +2423,28 @@ begin
   return v;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select compos();
 
 -- test: invalid use of composite expression in scalar-returning function
+--DDL_STATEMENT_BEGIN--
 create or replace function compos() returns int as $$
 begin
   return (1, 'hello')::compostype;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select compos();
-
+--DDL_STATEMENT_BEGIN--
 drop function compos();
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop type compostype;
-
+--DDL_STATEMENT_END--
 --
 -- Tests for 8.4's new RAISE features
 --
-
+--DDL_STATEMENT_BEGIN--
 create or replace function raise_test() returns void as $$
 begin
   raise notice '% % %', 1, 2, 3
@@ -2294,12 +2453,12 @@ begin
      using errcode = 'division_by_zero', detail = 'some detail info';
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select raise_test();
 
 -- Since we can't actually see the thrown SQLSTATE in default psql output,
 -- test it like this; this also tests re-RAISE
-
+--DDL_STATEMENT_BEGIN--
 create or replace function raise_test() returns void as $$
 begin
   raise 'check me'
@@ -2310,9 +2469,9 @@ begin
       raise;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select raise_test();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function raise_test() returns void as $$
 begin
   raise 'check me'
@@ -2323,10 +2482,11 @@ begin
       raise;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select raise_test();
 
 -- SQLSTATE specification in WHEN
+--DDL_STATEMENT_BEGIN--
 create or replace function raise_test() returns void as $$
 begin
   raise 'check me'
@@ -2337,9 +2497,9 @@ begin
       raise;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select raise_test();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function raise_test() returns void as $$
 begin
   raise division_by_zero using detail = 'some detail info';
@@ -2349,76 +2509,81 @@ begin
       raise;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select raise_test();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function raise_test() returns void as $$
 begin
   raise division_by_zero;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select raise_test();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function raise_test() returns void as $$
 begin
   raise sqlstate '1234F';
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select raise_test();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function raise_test() returns void as $$
 begin
   raise division_by_zero using message = 'custom' || ' message';
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select raise_test();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function raise_test() returns void as $$
 begin
   raise using message = 'custom' || ' message', errcode = '22012';
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select raise_test();
 
 -- conflict on message
+--DDL_STATEMENT_BEGIN--
 create or replace function raise_test() returns void as $$
 begin
   raise notice 'some message' using message = 'custom' || ' message', errcode = '22012';
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select raise_test();
 
 -- conflict on errcode
+--DDL_STATEMENT_BEGIN--
 create or replace function raise_test() returns void as $$
 begin
   raise division_by_zero using message = 'custom' || ' message', errcode = '22012';
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select raise_test();
 
 -- nothing to re-RAISE
+--DDL_STATEMENT_BEGIN--
 create or replace function raise_test() returns void as $$
 begin
   raise;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select raise_test();
 
 -- test access to exception data
+--DDL_STATEMENT_BEGIN--
 create function zero_divide() returns int as $$
 declare v int = 0;
 begin
   return 10 / v;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create or replace function raise_test() returns void as $$
 begin
   raise exception 'custom exception'
@@ -2426,7 +2591,8 @@ begin
            hint = 'some hint related to custom exception';
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function stacked_diagnostics_test() returns void as $$
 declare _sqlstate text;
         _message text;
@@ -2442,9 +2608,9 @@ exception when others then
     _sqlstate, _message, replace(_context, E'\n', ' <- ');
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select stacked_diagnostics_test();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function stacked_diagnostics_test() returns void as $$
 declare _detail text;
         _hint text;
@@ -2459,10 +2625,11 @@ exception when others then
   raise notice 'message: %, detail: %, hint: %', _message, _detail, _hint;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select stacked_diagnostics_test();
 
 -- fail, cannot use stacked diagnostics statement outside handler
+--DDL_STATEMENT_BEGIN--
 create or replace function stacked_diagnostics_test() returns void as $$
 declare _detail text;
         _hint text;
@@ -2475,14 +2642,17 @@ begin
   raise notice 'message: %, detail: %, hint: %', _message, _detail, _hint;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select stacked_diagnostics_test();
-
+--DDL_STATEMENT_BEGIN--
 drop function zero_divide();
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop function stacked_diagnostics_test();
-
+--DDL_STATEMENT_END--
 -- check cases where implicit SQLSTATE variable could be confused with
 -- SQLSTATE as a keyword, cf bug #5524
+--DDL_STATEMENT_BEGIN--
 create or replace function raise_test() returns void as $$
 begin
   perform 1/0;
@@ -2492,14 +2662,14 @@ exception
     raise sqlstate '22012' using message = 'substitute message';
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select raise_test();
-
+--DDL_STATEMENT_BEGIN--
 drop function raise_test();
-
+--DDL_STATEMENT_END--
 -- test passing column_name, constraint_name, datatype_name, table_name
 -- and schema_name error fields
-
+--DDL_STATEMENT_BEGIN--
 create or replace function stacked_diagnostics_test() returns void as $$
 declare _column_name text;
         _constraint_name text;
@@ -2524,13 +2694,14 @@ exception when others then
     _column_name, _constraint_name, _datatype_name, _table_name, _schema_name;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select stacked_diagnostics_test();
-
+--DDL_STATEMENT_BEGIN--
 drop function stacked_diagnostics_test();
-
+--DDL_STATEMENT_END--
 
 -- in case of conflict, non-variadic version is preferred
+--DDL_STATEMENT_BEGIN--
 create or replace function pleast(numeric)
 returns numeric as $$
 begin
@@ -2538,22 +2709,23 @@ begin
   return $1;
 end;
 $$ language plpgsql immutable strict;
-
+--DDL_STATEMENT_END--
 select pleast(10);
 
 --drop function pleast(numeric[]);
+--DDL_STATEMENT_BEGIN--
 drop function pleast(numeric);
-
+--DDL_STATEMENT_END--
 -- test table functions
-
+--DDL_STATEMENT_BEGIN--
 create function tftest(int) returns table(a int, b int) as $$
 begin
   return query select $1, $1+i from generate_series(1,5) g(i);
 end;
 $$ language plpgsql immutable strict;
-
+--DDL_STATEMENT_END--
 select * from tftest(10);
-
+--DDL_STATEMENT_BEGIN--
 create or replace function tftest(a1 int) returns table(a int, b int) as $$
 begin
   a = a1; b = a1 + 1;
@@ -2562,11 +2734,12 @@ begin
   return next;
 end;
 $$ language plpgsql immutable strict;
-
+--DDL_STATEMENT_END--
 select * from tftest(10);
-
+--DDL_STATEMENT_BEGIN--
 drop function tftest(int);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create or replace function rttest()
 returns setof int as $$
 declare rc int;
@@ -2587,14 +2760,14 @@ begin
   raise notice '% %', found, rca[2];
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select * from rttest();
-
+--DDL_STATEMENT_BEGIN--
 drop function rttest();
-
+--DDL_STATEMENT_END--
 -- Test for proper cleanup at subtransaction exit.  This example
 -- exposed a bug in PG 8.2.
-
+--DDL_STATEMENT_BEGIN--
 CREATE FUNCTION leaker_1(fail BOOL) RETURNS INTEGER AS $$
 DECLARE
   v_var INTEGER;
@@ -2607,7 +2780,8 @@ BEGIN
   RETURN 1;
 END;
 $$ LANGUAGE plpgsql;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE FUNCTION leaker_2(fail BOOL, OUT error_code INTEGER, OUT new_id INTEGER)
   RETURNS RECORD AS $$
 BEGIN
@@ -2619,16 +2793,18 @@ BEGIN
   RETURN;
 END;
 $$ LANGUAGE plpgsql;
-
+--DDL_STATEMENT_END--
 SELECT * FROM leaker_1(false);
 SELECT * FROM leaker_1(true);
-
+--DDL_STATEMENT_BEGIN--
 DROP FUNCTION leaker_1(bool);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP FUNCTION leaker_2(bool);
-
+--DDL_STATEMENT_END--
 -- Test for appropriate cleanup of non-simple expression evaluations
 -- (bug in all versions prior to August 2010)
-
+--DDL_STATEMENT_BEGIN--
 CREATE FUNCTION nonsimple_expr_test() RETURNS text[] AS $$
 DECLARE
   arr text[];
@@ -2643,11 +2819,12 @@ BEGIN
   RETURN arr;
 END;
 $$ LANGUAGE plpgsql;
-
+--DDL_STATEMENT_END--
 SELECT nonsimple_expr_test();
-
+--DDL_STATEMENT_BEGIN--
 DROP FUNCTION nonsimple_expr_test();
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE FUNCTION nonsimple_expr_test() RETURNS integer AS $$
 declare
    i integer NOT NULL = 0;
@@ -2661,17 +2838,17 @@ begin
   return i;
 end;
 $$ LANGUAGE plpgsql;
-
+--DDL_STATEMENT_END--
 SELECT nonsimple_expr_test();
-
+--DDL_STATEMENT_BEGIN--
 DROP FUNCTION nonsimple_expr_test();
-
+--DDL_STATEMENT_END--
 --
 -- Test cases involving recursion and error recovery in simple expressions
 -- (bugs in all versions before October 2010).  The problems are most
 -- easily exposed by mutual recursion between plpgsql and sql functions.
 --
-
+--DDL_STATEMENT_BEGIN--
 create function recurse(float8) returns float8 as
 $$
 begin
@@ -2681,46 +2858,56 @@ begin
     return $1;
   end if;
 end;
---$$ language plpgsql;
+$$ language plpgsql;
+--DDL_STATEMENT_END--
 
 -- "limit" is to prevent this from being inlined
+--DDL_STATEMENT_BEGIN--
 create function sql_recurse(float8) returns float8 as
 $$ select recurse($1) limit 1; $$ language sql;
-
+--DDL_STATEMENT_END--
 select recurse(10);
-
+--DDL_STATEMENT_BEGIN--
 create function error1(text) returns text language sql as
 $$ SELECT relname::text FROM pg_class c WHERE c.oid = $1::regclass $$;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function error2(p_name_table text) returns text language plpgsql as $$
 begin
   return error1(p_name_table);
 end$$;
-
+--DDL_STATEMENT_END--
 --BEGIN;
+--DDL_STATEMENT_BEGIN--
 create table public.stuffs (stuff text);
+--DDL_STATEMENT_END--
 SAVEPOINT a;
+
 select error2('nonexistent.stuffs');
 ROLLBACK TO a;
 select error2('public.stuffs');
 rollback;
-
+--DDL_STATEMENT_BEGIN--
 drop function error2(p_name_table text);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop function error1(text);
-
+--DDL_STATEMENT_END--
 -- Test for proper handling of cast-expression caching
-
+--DDL_STATEMENT_BEGIN--
 create function sql_to_date(integer) returns date as $$
 select $1::text::date
 $$ language sql immutable strict;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create cast (integer as date) with function sql_to_date(integer) as assignment;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function cast_invoker(integer) returns date as $$
 begin
   return $1;
 end$$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select cast_invoker(20150717);
 select cast_invoker(20150718);  -- second call crashed in pre-release 9.5
 
@@ -2734,10 +2921,12 @@ rollback to savepoint s1;
 select cast_invoker(20150719);
 select cast_invoker(20150720);
 commit;
-
+--DDL_STATEMENT_BEGIN--
 drop function cast_invoker(integer);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop function sql_to_date(integer) cascade;
-
+--DDL_STATEMENT_END--
 -- Test handling of cast cache inside DO blocks
 -- (to check the original crash case, this must be a cast not previously
 -- used in this session)
@@ -2748,62 +2937,62 @@ do $$ declare x text[]; begin x = '{1.23, 4.56}'::numeric[]; end $$;
 end;
 
 -- Test for consistent reporting of error context
-
+--DDL_STATEMENT_BEGIN--
 create function fail() returns int language plpgsql as $$
 begin
   return 1/0;
 end
 $$;
-
+--DDL_STATEMENT_END--
 select fail();
 select fail();
-
+--DDL_STATEMENT_BEGIN--
 drop function fail();
-
+--DDL_STATEMENT_END--
 -- Test handling of string literals.
 
 set standard_conforming_strings = off;
-
+--DDL_STATEMENT_BEGIN--
 create or replace function strtest() returns text as $$
 begin
   raise notice 'foo\\bar\041baz';
   return 'foo\\bar\041baz';
 end
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select strtest();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function strtest() returns text as $$
 begin
   raise notice E'foo\\bar\041baz';
   return E'foo\\bar\041baz';
 end
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select strtest();
 
 set standard_conforming_strings = on;
-
+--DDL_STATEMENT_BEGIN--
 create or replace function strtest() returns text as $$
 begin
   raise notice 'foo\\bar\041baz\';
   return 'foo\\bar\041baz\';
 end
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select strtest();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function strtest() returns text as $$
 begin
   raise notice E'foo\\bar\041baz';
   return E'foo\\bar\041baz';
 end
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select strtest();
-
+--DDL_STATEMENT_BEGIN--
 drop function strtest();
-
+--DDL_STATEMENT_END--
 -- Test anonymous code blocks.
 
 DO $$
@@ -2849,7 +3038,7 @@ $outer$;
 
 -- Check variable scoping -- a var is not available in its own or prior
 -- default expressions.
-
+--DDL_STATEMENT_BEGIN--
 create function scope_test() returns int as $$
 declare x int = 42;
 begin
@@ -2860,15 +3049,15 @@ begin
   end;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select scope_test();
-
+--DDL_STATEMENT_BEGIN--
 drop function scope_test();
-
+--DDL_STATEMENT_END--
 -- Check handling of conflicts between plpgsql vars and table columns.
 
 set plpgsql.variable_conflict = error;
-
+--DDL_STATEMENT_BEGIN--
 create function conflict_test() returns setof int8_tbl as $$
 declare r record;
   q1 bigint = 42;
@@ -2878,9 +3067,9 @@ begin
   end loop;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select * from conflict_test();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function conflict_test() returns setof int8_tbl as $$
 #variable_conflict use_variable
 declare r record;
@@ -2891,9 +3080,9 @@ begin
   end loop;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select * from conflict_test();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function conflict_test() returns setof int8_tbl as $$
 #variable_conflict use_column
 declare r record;
@@ -2904,13 +3093,13 @@ begin
   end loop;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select * from conflict_test();
-
+--DDL_STATEMENT_BEGIN--
 drop function conflict_test();
-
+--DDL_STATEMENT_END--
 -- Check that an unreserved keyword can be used as a variable name
-
+--DDL_STATEMENT_BEGIN--
 create function unreserved_test() returns int as $$
 declare
   forward int = 21;
@@ -2919,9 +3108,9 @@ begin
   return forward;
 end
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select unreserved_test();
-
+--DDL_STATEMENT_BEGIN--
 create or replace function unreserved_test() returns int as $$
 declare
   return int = 42;
@@ -2930,15 +3119,15 @@ begin
   return return;
 end
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select unreserved_test();
-
+--DDL_STATEMENT_BEGIN--
 drop function unreserved_test();
-
+--DDL_STATEMENT_END--
 --
 -- Test FOREACH over arrays
 --
-
+--DDL_STATEMENT_BEGIN--
 create function foreach_test(anyarray)
 returns void as $$
 declare x int;
@@ -2949,10 +3138,10 @@ begin
   end loop;
   end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select foreach_test(ARRAY[1,2,3,4]);
 select foreach_test(ARRAY[[1,2],[3,4]]);
-
+--DDL_STATEMENT_BEGIN--
 create or replace function foreach_test(anyarray)
 returns void as $$
 declare x int;
@@ -2963,11 +3152,11 @@ begin
   end loop;
   end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 -- should fail
 select foreach_test(ARRAY[1,2,3,4]);
 select foreach_test(ARRAY[[1,2],[3,4]]);
-
+--DDL_STATEMENT_BEGIN--
 create or replace function foreach_test(anyarray)
 returns void as $$
 declare x int[];
@@ -2978,7 +3167,7 @@ begin
   end loop;
   end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select foreach_test(ARRAY[1,2,3,4]);
 select foreach_test(ARRAY[[1,2],[3,4]]);
 
@@ -3003,6 +3192,7 @@ select foreach_test(ARRAY[[[1,2]],[[3,4]]]);
 create type xy_tuple AS (x int, y int);
 
 -- iteration over array of records
+--DDL_STATEMENT_BEGIN--
 create or replace function foreach_test(anyarray)
 returns void as $$
 declare r record;
@@ -3013,10 +3203,10 @@ begin
   end loop;
   end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select foreach_test(ARRAY[(10,20),(40,69),(35,78)]::xy_tuple[]);
 select foreach_test(ARRAY[[(10,20),(40,69)],[(35,78),(88,76)]]::xy_tuple[]);
-
+--DDL_STATEMENT_BEGIN--
 create or replace function foreach_test(anyarray)
 returns void as $$
 declare x int; y int;
@@ -3027,11 +3217,12 @@ begin
   end loop;
   end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select foreach_test(ARRAY[(10,20),(40,69),(35,78)]::xy_tuple[]);
 select foreach_test(ARRAY[[(10,20),(40,69)],[(35,78),(88,76)]]::xy_tuple[]);
 
 -- slicing over array of composite types
+--DDL_STATEMENT_BEGIN--
 create or replace function foreach_test(anyarray)
 returns void as $$
 declare x xy_tuple[];
@@ -3042,19 +3233,22 @@ begin
   end loop;
   end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select foreach_test(ARRAY[(10,20),(40,69),(35,78)]::xy_tuple[]);
 select foreach_test(ARRAY[[(10,20),(40,69)],[(35,78),(88,76)]]::xy_tuple[]);
-
+--DDL_STATEMENT_BEGIN--
 drop function foreach_test(anyarray);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop type xy_tuple;
-
+--DDL_STATEMENT_END--
 --
 -- Assorted tests for array subscript assignment
 --
-
+--DDL_STATEMENT_BEGIN--
 create temp table rtype (id int, ar text[]);
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function arrayassign1() returns text[] language plpgsql as $$
 declare
  r record;
@@ -3063,7 +3257,7 @@ begin
   r.ar[2] = 'replace';
   return r.ar;
 end$$;
-
+--DDL_STATEMENT_END--
 select arrayassign1();
 select arrayassign1(); -- try again to exercise internal caching
 
@@ -3071,18 +3265,19 @@ select arrayassign1(); -- try again to exercise internal caching
 --
 -- Test handling of expanded arrays
 --
-
+--DDL_STATEMENT_BEGIN--
 create function returns_rw_array(int) returns int[]
 language plpgsql as $$
   declare r int[];
   begin r = array[$1, $1]; return r; end;
 $$ stable;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create function consumes_rw_array(int[]) returns int
 language plpgsql as $$
   begin return $1[1]; end;
 $$ stable;
-
+--DDL_STATEMENT_END--
 select consumes_rw_array(returns_rw_array(42));
 
 -- bug #14174
@@ -3118,7 +3313,7 @@ end$$;
 --
 -- Test access to call stack
 --
-
+--DDL_STATEMENT_BEGIN--
 create function inner_func(int)
 returns int as $$
 declare _context text;
@@ -3132,7 +3327,8 @@ begin
   return 2 * $1;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create or replace function outer_func(int)
 returns int as $$
 declare
@@ -3144,7 +3340,8 @@ begin
   return myresult;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create or replace function outer_outer_func(int)
 returns int as $$
 declare
@@ -3156,16 +3353,21 @@ begin
   return myresult;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select outer_outer_func(10);
 -- repeated call should to work
 select outer_outer_func(20);
-
+--DDL_STATEMENT_BEGIN--
 drop function outer_outer_func(int);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop function outer_func(int);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop function inner_func(int);
-
+--DDL_STATEMENT_END--
 -- access to call stack from exception
+--DDL_STATEMENT_BEGIN--
 create function inner_func(int)
 returns int as $$
 declare
@@ -3187,7 +3389,8 @@ begin
   return 2 * $1;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create or replace function outer_func(int)
 returns int as $$
 declare
@@ -3199,7 +3402,8 @@ begin
   return myresult;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create or replace function outer_outer_func(int)
 returns int as $$
 declare
@@ -3211,15 +3415,19 @@ begin
   return myresult;
 end;
 $$ language plpgsql;
-
+--DDL_STATEMENT_END--
 select outer_outer_func(10);
 -- repeated call should to work
 select outer_outer_func(20);
-
+--DDL_STATEMENT_BEGIN--
 drop function outer_outer_func(int);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop function outer_func(int);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop function inner_func(int);
-
+--DDL_STATEMENT_END--
 --
 -- Test ASSERT
 --
@@ -3272,9 +3480,9 @@ $$;
 --
 -- test usage of transition tables in AFTER triggers
 --
-
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE transition_table_base (id int PRIMARY KEY, val text);
-
+--DDL_STATEMENT_END--
 --CREATE TRIGGER transition_table_base_ins_trig
 --  AFTER INSERT ON transition_table_base
 --  REFERENCING OLD TABLE AS oldtable NEW TABLE AS newtable
@@ -3300,14 +3508,15 @@ INSERT INTO transition_table_base VALUES (3, 'Three'), (4, 'Four');
 UPDATE transition_table_base
   SET val = '*' || val || '*'
   WHERE id BETWEEN 2 AND 3;
-
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE transition_table_level1
 (
       level1_no serial NOT NULL ,
       level1_node_name varchar(255),
        PRIMARY KEY (level1_no)
 ) WITHOUT OIDS;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE transition_table_level2
 (
       level2_no serial NOT NULL ,
@@ -3315,7 +3524,8 @@ CREATE TABLE transition_table_level2
       level1_node_name varchar(255),
        PRIMARY KEY (level2_no)
 ) WITHOUT OIDS;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE transition_table_status
 (
       level int NOT NULL,
@@ -3323,7 +3533,7 @@ CREATE TABLE transition_table_status
       status int,
        PRIMARY KEY (level, node_no)
 ) WITHOUT OIDS;
-
+--DDL_STATEMENT_END--
 --CREATE TRIGGER transition_table_level1_ri_parent_del_trigger
 --  AFTER DELETE ON transition_table_level1
 --  REFERENCING OLD TABLE AS p
@@ -3408,13 +3618,13 @@ DELETE FROM transition_table_level2
   WHERE level2_no BETWEEN 211 AND 220;
 
 SELECT count(*) FROM transition_table_level2;
-
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE alter_table_under_transition_tables
 (
   id int PRIMARY KEY,
   name text
 );
-
+--DDL_STATEMENT_END--
 
 -- should fail, TRUNCATE is not compatible with transition tables
 --CREATE TRIGGER alter_table_under_transition_tables_upd_trigger
@@ -3436,14 +3646,18 @@ UPDATE alter_table_under_transition_tables
   SET name = name || name;
 
 -- now change 'name' to an integer to see what happens...
+--DDL_STATEMENT_BEGIN--
 ALTER TABLE alter_table_under_transition_tables
   ALTER COLUMN name TYPE int USING name::integer;
+--DDL_STATEMENT_END--
 UPDATE alter_table_under_transition_tables
   SET name = (name::text || name::text)::integer;
 
 -- now drop column 'name'
+--DDL_STATEMENT_BEGIN--
 ALTER TABLE alter_table_under_transition_tables
   DROP column name;
+--DDL_STATEMENT_END--
 UPDATE alter_table_under_transition_tables
   SET id = id;
 
@@ -3451,8 +3665,9 @@ UPDATE alter_table_under_transition_tables
 --
 -- Test multiple reference to a transition table
 --
-
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE multi_test (i int);
+--DDL_STATEMENT_END--
 INSERT INTO multi_test VALUES (1);
 
 --CREATE TRIGGER my_trigger AFTER UPDATE ON multi_test
@@ -3460,21 +3675,27 @@ INSERT INTO multi_test VALUES (1);
 --  FOR EACH STATEMENT EXECUTE PROCEDURE multi_test_trig();
 
 --UPDATE multi_test SET i = i;
-
+--DDL_STATEMENT_BEGIN--
 DROP TABLE multi_test;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP FUNCTION multi_test_trig();
-
+--DDL_STATEMENT_END--
 --
 -- Check type parsing and record fetching from partitioned tables
 --
-
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE partitioned_table (a int, b text) PARTITION BY LIST (a);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE pt_part1 PARTITION OF partitioned_table FOR VALUES IN (1);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE pt_part2 PARTITION OF partitioned_table FOR VALUES IN (2);
-
+--DDL_STATEMENT_END--
 INSERT INTO partitioned_table VALUES (1, 'Row 1');
 INSERT INTO partitioned_table VALUES (2, 'Row 2');
-
+--DDL_STATEMENT_BEGIN--
 CREATE OR REPLACE FUNCTION get_from_partitioned_table(partitioned_table.a%type)
 RETURNS partitioned_table AS $$
 DECLARE
@@ -3485,9 +3706,9 @@ BEGIN
     SELECT * INTO result FROM partitioned_table WHERE a = a_val;
     RETURN result;
 END; $$ LANGUAGE plpgsql;
-
+--DDL_STATEMENT_END--
 SELECT * FROM get_from_partitioned_table(1) AS t;
-
+--DDL_STATEMENT_BEGIN--
 CREATE OR REPLACE FUNCTION list_partitioned_table()
 RETURNS SETOF partitioned_table.a%TYPE AS $$
 DECLARE
@@ -3500,14 +3721,16 @@ BEGIN
     END LOOP;
     RETURN;
 END; $$ LANGUAGE plpgsql;
-
+--DDL_STATEMENT_END--
 SELECT * FROM list_partitioned_table() AS t;
 
 --
 -- Check argument name is used instead of $n in error message
 --
+--DDL_STATEMENT_BEGIN--
 CREATE FUNCTION fx(x WSlot) RETURNS void AS $$
 BEGIN
   GET DIAGNOSTICS x = ROW_COUNT;
   RETURN;
 END; $$ LANGUAGE plpgsql;
+--DDL_STATEMENT_END--

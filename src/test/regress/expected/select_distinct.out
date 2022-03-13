@@ -57,16 +57,6 @@ SELECT DISTINCT p.age FROM person* p ORDER BY age using >;
 EXPLAIN (VERBOSE, COSTS OFF)
 SELECT count(*) FROM
   (SELECT DISTINCT two, four, two FROM tenk1) ss;
-                                                         QUERY PLAN                                                         
-----------------------------------------------------------------------------------------------------------------------------
- Aggregate
-   Output: count(*)
-   ->  Unique
-         Output: tenk1.two, tenk1.four, tenk1.two
-         ->  RemoteScan on public.tenk1
-               Output: tenk1.two, tenk1.four, tenk1.two
-               Shard: 2  Remote SQL: select  tenk1.two, tenk1.four from regress_$$_public.tenk1 tenk1 ORDER BY 1 ASC, 2 ASC
-(7 rows)
 
 SELECT count(*) FROM
   (SELECT DISTINCT two, four, two FROM tenk1) ss;tenk1

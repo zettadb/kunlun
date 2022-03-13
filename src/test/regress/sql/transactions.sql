@@ -1,9 +1,12 @@
 --
 -- TRANSACTIONS
 --
-
+--DDL_STATEMENT_BEGIN--
 drop table if exists xacttest;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table xacttest (like aggtest);
+--DDL_STATEMENT_END--
 BEGIN;
 INSERT INTO xacttest (a, b) VALUES (777, 777.777);
 END;
@@ -16,9 +19,15 @@ SELECT * FROM aggtest;
 
 
 -- Read-only tests
+--DDL_STATEMENT_BEGIN--
 drop table if exists writetest;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE writetest (a int);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TEMPORARY TABLE temptest (a int);
+--DDL_STATEMENT_END--
 
 BEGIN;
 SET TRANSACTION ISOLATION LEVEL SERIALIZABLE, READ ONLY, DEFERRABLE; -- ok
@@ -63,8 +72,9 @@ SHOW transaction_read_only;  -- off
 COMMIT;
 
 SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;
-
+--DDL_STATEMENT_BEGIN--
 DROP TABLE writetest; -- fail
+--DDL_STATEMENT_END--
 INSERT INTO writetest VALUES (1); -- fail
 SELECT * FROM writetest; -- ok
 DELETE FROM temptest; -- ok
@@ -74,17 +84,30 @@ EXECUTE test; -- fail
 SELECT * FROM writetest, temptest; -- ok
 
 SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;
+--DDL_STATEMENT_BEGIN--
 DROP TABLE writetest; -- ok
-
+--DDL_STATEMENT_END--
 -- Subtransactions, basic tests
 -- create & drop tables
 SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;
+--DDL_STATEMENT_BEGIN--
 drop table if exists trans_foo;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists trans_baz;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists trans_barbaz;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE trans_foo (a int);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE trans_baz (a int);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE trans_barbaz (a int);
+--DDL_STATEMENT_END--
 
 -- should exist: trans_barbaz, trans_baz, trans_foo
 SELECT * FROM trans_foo;		-- should be empty
@@ -112,9 +135,12 @@ BEGIN;
 COMMIT;
 SELECT * FROM trans_foo;		-- should have 1 and 3
 SELECT * FROM trans_barbaz;	-- should have 1
-
+--DDL_STATEMENT_BEGIN--
 drop table if exists savepoints;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE savepoints (a int);
+--DDL_STATEMENT_END--
 -- test whole-tree commit
 BEGIN;
 	SAVEPOINT one;
@@ -205,9 +231,9 @@ BEGIN;
 		INSERT INTO savepoints VALUES (22);
 COMMIT;
 SELECT a FROM savepoints WHERE a BETWEEN 18 AND 22;
-
+--DDL_STATEMENT_BEGIN--
 DROP TABLE savepoints;
-
+--DDL_STATEMENT_END--
 -- only in a transaction block:
 SAVEPOINT one;
 ROLLBACK TO SAVEPOINT one;
@@ -231,47 +257,53 @@ SELECT 1;			-- this should work
 -- that's a mite hard to do within the limitations of pg_regress.)
 --
 select * from xacttest;
-
+--DDL_STATEMENT_BEGIN--
 create or replace function max_xacttest() returns smallint language sql as
 'select max(a) from xacttest' stable;
-
+--DDL_STATEMENT_END--
 --not supported: begin;
 --update xacttest set a = max_xacttest() + 10 where a > 0;
 --select * from xacttest;
 --rollback;
-
+--DDL_STATEMENT_BEGIN--
 -- But a volatile function can see the partial results of the calling query
 create or replace function max_xacttest() returns smallint language sql as
 'select max(a) from xacttest' volatile;
-
+--DDL_STATEMENT_END--
 -- not supported: begin;
 --update xacttest set a = max_xacttest() + 10 where a > 0;
 --select * from xacttest;
 --rollback;
-
+--DDL_STATEMENT_BEGIN--
 -- Now the same test with plpgsql (since it depends on SPI which is different)
 create or replace function max_xacttest() returns smallint language plpgsql as
 'begin return max(a) from xacttest; end' stable;
-
+--DDL_STATEMENT_END--
 --not support: begin;
 --update xacttest set a = max_xacttest() + 10 where a > 0;
 --select * from xacttest;
 --rollback;
-
+--DDL_STATEMENT_BEGIN--
 create or replace function max_xacttest() returns smallint language plpgsql as
 'begin return max(a) from xacttest; end' volatile;
-
+--DDL_STATEMENT_END--
 -- not support: begin;
 --update xacttest set a = max_xacttest() + 10 where a > 0;
 --select * from xacttest;
 --rollback;
-
+--DDL_STATEMENT_BEGIN--
 DROP TABLE trans_foo;
-DROP TABLE trans_baz;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
+DROP TABLE trans_baz;\
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 DROP TABLE trans_barbaz;
+--DDL_STATEMENT_END--
 
 
 -- test case for problems with revalidating an open relation during abort
+--DDL_STATEMENT_BEGIN--
 create function inverse(int) returns float8 as
 $$
 begin
@@ -280,14 +312,21 @@ begin
 exception
   when division_by_zero then return 0;
 end$$ language plpgsql volatile;
-
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists revalidate_bug;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table revalidate_bug (c float8 unique);
+--DDL_STATEMENT_END--
 insert into revalidate_bug values (1);
 -- insert into revalidate_bug values (inverse(0)); -- crash happens --
-
+--DDL_STATEMENT_BEGIN--
 drop table revalidate_bug;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop function inverse(int);
+--DDL_STATEMENT_END--
 
 -- Test assorted behaviors around the implicit transaction block created
 -- when multiple SQL commands are sent in a single Query message.  These

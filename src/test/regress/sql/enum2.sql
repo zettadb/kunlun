@@ -1,6 +1,12 @@
+--DDL_STATEMENT_BEGIN--
 create type vihicles as enum ('car', 'suv', 'truck', 'mpv', 'wagon', 'hatchback');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 drop table if exists tvehicles;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 create table tvehicles (a int, b vihicles);
+--DDL_STATEMENT_END--
 insert into tvehicles values(1, 'car'),(2, 'suv'),(3, 'truck'),(4, 'hatchback'),(5, 'mpv'), (6, 'wagon');
 select*from tvehicles;
 select*from tvehicles where b > 'suv';

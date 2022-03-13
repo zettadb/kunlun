@@ -96,8 +96,9 @@ SELECT 1 + \gdesc
 
 -- check behavior with empty results
 SELECT \gdesc
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE bububu(a int) \gdesc
-
+--DDL_STATEMENT_END--
 -- subject command should not have executed
 TABLE bububu;  -- fail
 
@@ -110,8 +111,9 @@ SELECT 1 AS x, 'Hello', 2 AS y, true AS "dirty\name"
 SELECT 3 AS x, 'Hello', 4 AS y, true AS "dirty\name" \gdesc \g
 
 -- \gexec
-
+--DDL_STATEMENT_BEGIN--
 create temporary table gexec_test(a int, b text, c date, d float);
+--DDL_STATEMENT_END--
 select format('create index on gexec_test(%I)', attname)
 from pg_attribute
 where attrelid = 'gexec_test'::regclass and attnum > 0
@@ -397,7 +399,7 @@ execute q;
 
 deallocate q;
 
-\pset linestyle ascii
+\pset linestyle ascii                                
 
 prepare q as select ' | = | lkjsafi\\/ /oeu rio)(!@&*#)*(!&@*) \ (&' as " | -- | 012345678 9abc def!*@#&!@(*&*~~_+-=\ \", '11' as "0123456789", 11 as int from generate_series(1,10) as n;
 
@@ -405,7 +407,7 @@ prepare q as select ' | = | lkjsafi\\/ /oeu rio)(!@&*#)*(!&@*) \ (&' as " | -- |
 \pset expanded off
 \pset border 0
 execute q;
-
+                                       
 \pset border 1
 execute q;
 

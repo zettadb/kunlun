@@ -117,16 +117,6 @@ CREATE SEQUENCE
 explain (verbose, costs off)
 select unique1, unique2, nextval('testseq')
   from tenk1 order by unique2 limit 10;
-                                                         QUERY PLAN                                                         
-----------------------------------------------------------------------------------------------------------------------------
- Limit
-   Output: unique1, unique2, ("nextval"('testseq'::regclass))
-   ->  Result
-         Output: unique1, unique2, "nextval"('testseq'::regclass)
-         ->  RemoteScan on public.tenk1
-               Output: unique1, unique2
-               Shard: 2  Remote SQL: select  tenk1.unique1, tenk1.unique2 from regress_$$_public.tenk1 tenk1 ORDER BY 2 ASC
-(7 rows)
 
 select unique1, unique2, nextval('testseq')
   from tenk1 order by unique2 limit 10;
@@ -139,16 +129,6 @@ psql:sql/limit.sql:62: ERROR:  currval of sequence "testseq" is not yet defined 
 explain (verbose, costs off)
 select unique1, unique2, nextval('testseq')
   from tenk1 order by tenthous limit 10;
-                                                                 QUERY PLAN                                                                 
---------------------------------------------------------------------------------------------------------------------------------------------
- Limit
-   Output: unique1, unique2, ("nextval"('testseq'::regclass)), tenthous
-   ->  Result
-         Output: unique1, unique2, "nextval"('testseq'::regclass), tenthous
-         ->  RemoteScan on public.tenk1
-               Output: unique1, unique2, tenthous
-               Shard: 2  Remote SQL: select  tenk1.unique1, tenk1.unique2, tenk1.tenthous from regress_$$_public.tenk1 tenk1 ORDER BY 3 ASC
-(7 rows)
 
 select unique1, unique2, nextval('testseq')
   from tenk1 order by tenthous limit 10;
@@ -161,16 +141,6 @@ psql:sql/limit.sql:71: ERROR:  currval of sequence "testseq" is not yet defined 
 explain (verbose, costs off)
 select unique1, unique2, generate_series(1,10)
   from tenk1 order by unique2 limit 7;
-                                                         QUERY PLAN                                                         
-----------------------------------------------------------------------------------------------------------------------------
- Limit
-   Output: unique1, unique2, (generate_series(1, 10))
-   ->  ProjectSet
-         Output: unique1, unique2, generate_series(1, 10)
-         ->  RemoteScan on public.tenk1
-               Output: unique1, unique2
-               Shard: 2  Remote SQL: select  tenk1.unique1, tenk1.unique2 from regress_$$_public.tenk1 tenk1 ORDER BY 2 ASC
-(7 rows)
 
 select unique1, unique2, generate_series(1,10)
   from tenk1 order by unique2 limit 7;
@@ -181,16 +151,6 @@ select unique1, unique2, generate_series(1,10)
 explain (verbose, costs off)
 select unique1, unique2, generate_series(1,10)
   from tenk1 order by tenthous limit 7;
-                                                                 QUERY PLAN                                                                 
---------------------------------------------------------------------------------------------------------------------------------------------
- Limit
-   Output: unique1, unique2, (generate_series(1, 10)), tenthous
-   ->  ProjectSet
-         Output: unique1, unique2, generate_series(1, 10), tenthous
-         ->  RemoteScan on public.tenk1
-               Output: unique1, unique2, tenthous
-               Shard: 2  Remote SQL: select  tenk1.unique1, tenk1.unique2, tenk1.tenthous from regress_$$_public.tenk1 tenk1 ORDER BY 3 ASC
-(7 rows)
 
 select unique1, unique2, generate_series(1,10)
   from tenk1 order by tenthous limit 7;
@@ -201,12 +161,6 @@ select unique1, unique2, generate_series(1,10)
 -- use of random() is to keep planner from folding the expressions together
 explain (verbose, costs off)
 select generate_series(0,2) as s1, generate_series((random()*.1)::int,2) as s2;
-                                              QUERY PLAN                                              
-------------------------------------------------------------------------------------------------------
- ProjectSet
-   Output: generate_series(0, 2), generate_series(((random() * '0.1'::double precision))::integer, 2)
-   ->  Result
-(3 rows)
 
 select generate_series(0,2) as s1, generate_series((random()*.1)::int,2) as s2;
  s1 | s2 
@@ -219,15 +173,6 @@ select generate_series(0,2) as s1, generate_series((random()*.1)::int,2) as s2;
 explain (verbose, costs off)
 select generate_series(0,2) as s1, generate_series((random()*.1)::int,2) as s2
 order by s2 desc;
-                                                 QUERY PLAN                                                 
-------------------------------------------------------------------------------------------------------------
- Sort
-   Output: (generate_series(0, 2)), (generate_series(((random() * '0.1'::double precision))::integer, 2))
-   Sort Key: (generate_series(((random() * '0.1'::double precision))::integer, 2)) DESC
-   ->  ProjectSet
-         Output: generate_series(0, 2), generate_series(((random() * '0.1'::double precision))::integer, 2)
-         ->  Result
-(6 rows)
 
 select generate_series(0,2) as s1, generate_series((random()*.1)::int,2) as s2
 order by s2 desc;
@@ -242,16 +187,6 @@ order by s2 desc;
 explain (verbose, costs off)
 select sum(tenthous) as s1, sum(tenthous) + random()*0 as s2
   from tenk1 group by thousand order by thousand limit 3;
-                                                                        QUERY PLAN                                                                         
------------------------------------------------------------------------------------------------------------------------------------------------------------
- Limit
-   Output: (sum(tenthous)), ((((sum(tenthous)))::double precision + (random() * '0'::double precision))), thousand
-   ->  Result
-         Output: (sum(tenthous)), (((sum(tenthous)))::double precision + (random() * '0'::double precision)), thousand
-         ->  RemoteScan on public.tenk1
-               Output: (sum(tenthous)), thousand
-               Shard: 2  Remote SQL: select  SUM(tenk1.tenthous), tenk1.thousand from regress_$$_public.tenk1 tenk1 GROUP BY tenk1.thousand ORDER BY 2 ASC
-(7 rows)
 
 select sum(tenthous) as s1, sum(tenthous) + random()*0 as s2
   from tenk1 group by thousand order by thousand limit 3;

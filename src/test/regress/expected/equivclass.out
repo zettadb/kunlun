@@ -143,19 +143,9 @@ SET
 --
 explain (costs off)
   select * from ec0 where ff = f1 and f1 = '42'::int8;
-                                                           QUERY PLAN                                                            
----------------------------------------------------------------------------------------------------------------------------------
- RemoteScan on ec0
-   Shard: 2      Remote SQL: select  ec0.ff, ec0.f1, ec0.f2 from regress_$$_public.ec0 ec0 where (ec0.ff = 42) AND (ec0.f1 = 42)
-(2 rows)
 
 explain (costs off)
   select * from ec0 where ff = f1 and f1 = '42'::int8alias1;
-                                                           QUERY PLAN                                                            
----------------------------------------------------------------------------------------------------------------------------------
- RemoteScan on ec0
-   Shard: 2      Remote SQL: select  ec0.ff, ec0.f1, ec0.f2 from regress_$$_public.ec0 ec0 where (ec0.ff = 42) AND (ec0.f1 = 42)
-(2 rows)
 
 set enable_nestloop = on;
 SET
@@ -172,18 +162,8 @@ DROP ROLE
 -- check that X=X is converted to X IS NOT NULL when appropriate
 explain (costs off)
   select * from tenk1 where unique1 = unique1 and unique2 = unique2;
-                                                                                                                                                                                   QUERY PLAN                                                                                                                                                                                   
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- RemoteScan on tenk1
-   Shard: 2      Remote SQL: select  tenk1.unique1, tenk1.unique2, tenk1.two, tenk1.four, tenk1.ten, tenk1.twenty, tenk1.hundred, tenk1.thousand, tenk1.twothousand, tenk1.fivethous, tenk1.tenthous, tenk1.odd, tenk1.even, tenk1.stringu1, tenk1.stringu2, tenk1.string4 from regress_$$_public.tenk1 tenk1 where (tenk1.unique1 IS NOT NULL) AND (tenk1.unique2 IS NOT NULL)
-(2 rows)
 
 -- this could be converted, but isn't at present
 explain (costs off)
   select * from tenk1 where unique1 = unique1 or unique2 = unique2;
-                                                                                                                                                                                       QUERY PLAN                                                                                                                                                                                        
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- RemoteScan on tenk1
-   Shard: 2      Remote SQL: select  tenk1.unique1, tenk1.unique2, tenk1.two, tenk1.four, tenk1.ten, tenk1.twenty, tenk1.hundred, tenk1.thousand, tenk1.twothousand, tenk1.fivethous, tenk1.tenthous, tenk1.odd, tenk1.even, tenk1.stringu1, tenk1.stringu2, tenk1.string4 from regress_$$_public.tenk1 tenk1 where ((tenk1.unique1 = tenk1.unique1) OR (tenk1.unique2 = tenk1.unique2))
-(2 rows)
 

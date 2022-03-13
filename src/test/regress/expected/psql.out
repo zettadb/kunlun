@@ -162,8 +162,6 @@ EXECUTE test \gdesc
 EXPLAIN EXECUTE test \gdesc
    Column   | Type 
 ------------+------
- QUERY PLAN | text
-(1 row)
 
 -- should fail cleanly - syntax error
 SELECT 1 + \gdesc

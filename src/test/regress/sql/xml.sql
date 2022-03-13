@@ -1,10 +1,12 @@
-
+--DDL_STATEMENT_BEGIN--
 DROP TABLE if exists xmltest;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE xmltest (
     id int,
     data xml
 );
-
+--DDL_STATEMENT_END--
 INSERT INTO xmltest VALUES (1, '<value>one</value>');
 INSERT INTO xmltest VALUES (2, '<value>two</value>');
 INSERT INTO xmltest VALUES (3, '<wrong');
@@ -165,17 +167,33 @@ SELECT xml '<!DOCTYPE a><a/><b/>';
 
 
 -- Test backwards parsing
-
+--DDL_STATEMENT_BEGIN--
 CREATE VIEW xmlview1 AS SELECT xmlcomment('test');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE VIEW xmlview2 AS SELECT xmlconcat('hello', 'you');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE VIEW xmlview3 AS SELECT xmlelement(name element, xmlattributes (1 as ":one:", 'deuce' as two), 'content&');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE VIEW xmlview4 AS SELECT xmlelement(name employee, xmlforest(name, age, salary as pay)) FROM emp;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE VIEW xmlview5 AS SELECT xmlparse(content '<abc>x</abc>');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE VIEW xmlview6 AS SELECT xmlpi(name foo, 'bar');
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE VIEW xmlview7 AS SELECT xmlroot(xml '<foo/>', version no value, standalone yes);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE VIEW xmlview8 AS SELECT xmlserialize(content 'good' as char(10));
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE VIEW xmlview9 AS SELECT xmlserialize(content 'good' as text);
-
+--DDL_STATEMENT_END--
 SELECT table_name, view_definition FROM information_schema.views
   WHERE table_name LIKE 'xmlview%' ORDER BY 1;
 
@@ -319,8 +337,12 @@ SELECT XMLPARSE(DOCUMENT '<!DOCTYPE foo [<!ENTITY c SYSTEM "/etc/no.such.file">]
 SELECT XMLPARSE(DOCUMENT '<!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN" "http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd"><chapter>&nbsp;</chapter>');
 
 -- XMLPATH tests
+--DDL_STATEMENT_BEGIN--
 DROP TABLE if exists xmldata;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE xmldata(data xml);
+--DDL_STATEMENT_END--
 INSERT INTO xmldata VALUES('<ROWS>
 <ROW id="1">
   <COUNTRY_ID>AU</COUNTRY_ID>
@@ -367,7 +389,7 @@ SELECT  xmltable.*
                                   size float PATH 'SIZE',
                                   unit text PATH 'SIZE/@unit',
                                   premier_name text PATH 'PREMIER_NAME' DEFAULT 'not specified');
-
+--DDL_STATEMENT_BEGIN--
 CREATE VIEW xmltableview1 AS SELECT  xmltable.*
    FROM (SELECT data FROM xmldata) x,
         LATERAL XMLTABLE('/ROWS/ROW'
@@ -380,7 +402,7 @@ CREATE VIEW xmltableview1 AS SELECT  xmltable.*
                                   size float PATH 'SIZE',
                                   unit text PATH 'SIZE/@unit',
                                   premier_name text PATH 'PREMIER_NAME' DEFAULT 'not specified');
-
+--DDL_STATEMENT_END--
 SELECT * FROM xmltableview1;
 
 \sv xmltableview1
@@ -393,12 +415,12 @@ SELECT * FROM XMLTABLE(XMLNAMESPACES('http://x.y' AS zz),
                       '/zz:rows/zz:row'
                       PASSING '<rows xmlns="http://x.y"><row><a>10</a></row></rows>'
                       COLUMNS a int PATH 'zz:a');
-
+--DDL_STATEMENT_BEGIN--
 CREATE VIEW xmltableview2 AS SELECT * FROM XMLTABLE(XMLNAMESPACES('http://x.y' AS zz),
                       '/zz:rows/zz:row'
                       PASSING '<rows xmlns="http://x.y"><row><a>10</a></row></rows>'
                       COLUMNS a int PATH 'zz:a');
-
+--DDL_STATEMENT_END--
 SELECT * FROM xmltableview2;
 
 SELECT * FROM XMLTABLE(XMLNAMESPACES(DEFAULT 'http://x.y'),
@@ -595,10 +617,12 @@ WITH
                                          proargtypes text))
    SELECT * FROM z
    EXCEPT SELECT * FROM x;
-
-DROP TABLE if exists xmltest2;
+--DDL_STATEMENT_BEGIN--
+DROP TABLE if exists xmltest2
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE xmltest2(x xml, _path text);
-
+--DDL_STATEMENT_END--
 INSERT INTO xmltest2 VALUES('<d><r><ac>1</ac></r></d>', 'A');
 INSERT INTO xmltest2 VALUES('<d><r><bc>2</bc></r></d>', 'B');
 INSERT INTO xmltest2 VALUES('<d><r><cc>3</cc></r></d>', 'C');

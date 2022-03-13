@@ -5,9 +5,12 @@
 SELECT text 'this is a text string' = text 'this is a text string' AS true;
 
 SELECT text 'this is a text string' = text 'this is a text strin' AS false;
-
+--DDL_STATEMENT_BEGIN--
 DROP TABLE if exists TEXT_TBL;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 CREATE TABLE TEXT_TBL (f1 text);
+--DDL_STATEMENT_END--
 
 INSERT INTO TEXT_TBL VALUES ('doh!');
 INSERT INTO TEXT_TBL VALUES ('hi de ho neighbor');

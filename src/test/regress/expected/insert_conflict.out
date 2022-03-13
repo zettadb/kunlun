@@ -17,92 +17,30 @@ explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on con
 ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 -- succeeds
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (key, fruit) do nothing;
-                                  QUERY PLAN                                   
--------------------------------------------------------------------------------
- Insert on insertconflicttest
-   Conflict Resolution: NOTHING
-   Conflict Arbiter Indexes: op_index_key, collation_index_key, both_index_key
-   ->  Result
-(4 rows)
 
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (fruit, key, fruit, key) do nothing;
-                                  QUERY PLAN                                   
--------------------------------------------------------------------------------
- Insert on insertconflicttest
-   Conflict Resolution: NOTHING
-   Conflict Arbiter Indexes: op_index_key, collation_index_key, both_index_key
-   ->  Result
-(4 rows)
 
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (lower(fruit), key, lower(fruit), key) do nothing;
-                   QUERY PLAN                    
--------------------------------------------------
- Insert on insertconflicttest
-   Conflict Resolution: NOTHING
-   Conflict Arbiter Indexes: both_index_expr_key
-   ->  Result
-(4 rows)
 
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (key, fruit) do update set fruit = excluded.fruit
   where exists (select 1 from insertconflicttest ii where ii.key = excluded.key);
-                                  QUERY PLAN                                   
--------------------------------------------------------------------------------
- Insert on insertconflicttest
-   Conflict Resolution: UPDATE
-   Conflict Arbiter Indexes: op_index_key, collation_index_key, both_index_key
-   Conflict Filter: (alternatives: SubPlan 1 or hashed SubPlan 2)
-   ->  Result
-   SubPlan 1
-     ->  Index Only Scan using both_index_expr_key on insertconflicttest ii
-           Index Cond: (key = excluded.key)
-   SubPlan 2
-     ->  Seq Scan on insertconflicttest ii_1
-(10 rows)
 
 -- Neither collation nor operator class specifications are required --
 -- supplying them merely *limits* matches to indexes with matching opclasses
 -- used for relevant indexes
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (key, fruit text_pattern_ops) do nothing;
-                        QUERY PLAN                        
-----------------------------------------------------------
- Insert on insertconflicttest
-   Conflict Resolution: NOTHING
-   Conflict Arbiter Indexes: op_index_key, both_index_key
-   ->  Result
-(4 rows)
 
 -- Okay, arbitrates using both index where text_pattern_ops opclass does and
 -- does not appear.
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (key, fruit collate "C") do nothing;
-                           QUERY PLAN                            
------------------------------------------------------------------
- Insert on insertconflicttest
-   Conflict Resolution: NOTHING
-   Conflict Arbiter Indexes: collation_index_key, both_index_key
-   ->  Result
-(4 rows)
 
 -- Okay, but only accepts the single index where both opclass and collation are
 -- specified
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (fruit collate "C" text_pattern_ops, key) do nothing;
-                 QUERY PLAN                 
---------------------------------------------
- Insert on insertconflicttest
-   Conflict Resolution: NOTHING
-   Conflict Arbiter Indexes: both_index_key
-   ->  Result
-(4 rows)
 
 -- Okay, but only accepts the single index where both opclass and collation are
 -- specified (plus expression variant)
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (lower(fruit) collate "C", key, key) do nothing;
-                   QUERY PLAN                    
--------------------------------------------------
- Insert on insertconflicttest
-   Conflict Resolution: NOTHING
-   Conflict Arbiter Indexes: both_index_expr_key
-   ->  Result
-(4 rows)
 
 -- Attribute appears twice, while not all attributes/expressions on attributes
 -- appearing within index definition match in terms of both opclass and
@@ -119,22 +57,8 @@ explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on con
 -- cases.  It rolls with unique indexes where attributes redundantly appear
 -- multiple times, too (which is not tested here).
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (fruit, key, fruit text_pattern_ops, key) do nothing;
-                        QUERY PLAN                        
-----------------------------------------------------------
- Insert on insertconflicttest
-   Conflict Resolution: NOTHING
-   Conflict Arbiter Indexes: op_index_key, both_index_key
-   ->  Result
-(4 rows)
 
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (lower(fruit) collate "C" text_pattern_ops, key, key) do nothing;
-                   QUERY PLAN                    
--------------------------------------------------
- Insert on insertconflicttest
-   Conflict Resolution: NOTHING
-   Conflict Arbiter Indexes: both_index_expr_key
-   ->  Result
-(4 rows)
 
 drop index op_index_key;
 drop index collation_index_key;
@@ -149,13 +73,6 @@ explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on con
 ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 -- works:
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (lower(fruit) collate "C", upper(fruit) text_pattern_ops) do nothing;
-               QUERY PLAN                
------------------------------------------
- Insert on insertconflicttest
-   Conflict Resolution: NOTHING
-   Conflict Arbiter Indexes: cross_match
-   ->  Result
-(4 rows)
 
 drop index cross_match;
 --
@@ -166,62 +83,15 @@ create unique index key_index on insertconflicttest(key);
 -- Explain tests
 --
 explain (costs off) insert into insertconflicttest values (0, 'Bilberry') on conflict (key) do update set fruit = excluded.fruit;
-              QUERY PLAN               
----------------------------------------
- Insert on insertconflicttest
-   Conflict Resolution: UPDATE
-   Conflict Arbiter Indexes: key_index
-   ->  Result
-(4 rows)
 
 -- Should display qual actually attributable to internal sequential scan:
 explain (costs off) insert into insertconflicttest values (0, 'Bilberry') on conflict (key) do update set fruit = excluded.fruit where insertconflicttest.fruit != 'Cawesh';
-                           QUERY PLAN                            
------------------------------------------------------------------
- Insert on insertconflicttest
-   Conflict Resolution: UPDATE
-   Conflict Arbiter Indexes: key_index
-   Conflict Filter: (insertconflicttest.fruit <> 'Cawesh'::text)
-   ->  Result
-(5 rows)
 
 -- With EXCLUDED.* expression in scan node:
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (key) do update set fruit = excluded.fruit where excluded.fruit != 'Elderberry';
-                        QUERY PLAN                         
------------------------------------------------------------
- Insert on insertconflicttest
-   Conflict Resolution: UPDATE
-   Conflict Arbiter Indexes: key_index
-   Conflict Filter: (excluded.fruit <> 'Elderberry'::text)
-   ->  Result
-(5 rows)
 
 -- Does the same, but JSON format shows "Conflict Arbiter Index" as JSON array:
 explain (costs off, format json) insert into insertconflicttest values (0, 'Bilberry') on conflict (key) do update set fruit = excluded.fruit where insertconflicttest.fruit != 'Lime' returning *;
-                               QUERY PLAN                               
-------------------------------------------------------------------------
- [                                                                     +
-   {                                                                   +
-     "Plan": {                                                         +
-       "Node Type": "ModifyTable",                                     +
-       "Operation": "Insert",                                          +
-       "Parallel Aware": false,                                        +
-       "Relation Name": "insertconflicttest",                          +
-       "Alias": "insertconflicttest",                                  +
-       "Conflict Resolution": "UPDATE",                                +
-       "Conflict Arbiter Indexes": ["key_index"],                      +
-       "Conflict Filter": "(insertconflicttest.fruit <> 'Lime'::text)",+
-       "Plans": [                                                      +
-         {                                                             +
-           "Node Type": "Result",                                      +
-           "Parent Relationship": "Member",                            +
-           "Parallel Aware": false                                     +
-         }                                                             +
-       ]                                                               +
-     }                                                                 +
-   }                                                                   +
- ]
-(1 row)
 
 -- Fails (no unique index inference specification, required for do update variant):
 insert into insertconflicttest values (1, 'Apple') on conflict do update set fruit = excluded.fruit;
@@ -333,13 +203,6 @@ insert into insertconflicttest values (24, 'Plum') on conflict (key, lower(fruit
 insert into insertconflicttest values (25, 'Peach') on conflict (lower(fruit), key) do update set fruit = excluded.fruit;
 -- Should not infer "tricky_expr_comp_key_index" index:
 explain (costs off) insert into insertconflicttest values (26, 'Fig') on conflict (lower(fruit), key, lower(fruit), key) do update set fruit = excluded.fruit;
-                   QUERY PLAN                    
--------------------------------------------------
- Insert on insertconflicttest
-   Conflict Resolution: UPDATE
-   Conflict Arbiter Indexes: expr_comp_key_index
-   ->  Result
-(4 rows)
 
 -- inference fails:
 insert into insertconflicttest values (27, 'Prune') on conflict (key, upper(fruit)) do update set fruit = excluded.fruit;
@@ -419,23 +282,8 @@ insert into insertconflicttest as i values (23, 'Avocado') on conflict (key) do 
 
 -- deparse whole row var in WHERE and SET clauses:
 explain (costs off) insert into insertconflicttest as i values (23, 'Avocado') on conflict (key) do update set fruit = excluded.fruit where excluded.* is null;
-               QUERY PLAN                
------------------------------------------
- Insert on insertconflicttest i
-   Conflict Resolution: UPDATE
-   Conflict Arbiter Indexes: plain
-   Conflict Filter: (excluded.* IS NULL)
-   ->  Result
-(5 rows)
 
 explain (costs off) insert into insertconflicttest as i values (23, 'Avocado') on conflict (key) do update set fruit = excluded.*::text;
-            QUERY PLAN             
------------------------------------
- Insert on insertconflicttest i
-   Conflict Resolution: UPDATE
-   Conflict Arbiter Indexes: plain
-   ->  Result
-(4 rows)
 
 drop index plain;
 -- Cleanup

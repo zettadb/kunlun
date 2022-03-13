@@ -19,12 +19,6 @@ SELECT * FROM mvtest_tv ORDER BY type;
 -- create a materialized view with no data, and confirm correct behavior
 EXPLAIN (costs off)
   CREATE MATERIALIZED VIEW mvtest_tm AS SELECT type, sum(amt) AS totamt FROM mvtest_t GROUP BY type WITH NO DATA;
-         QUERY PLAN         
-----------------------------
- HashAggregate
-   Group Key: type
-   ->  Seq Scan on mvtest_t
-(3 rows)
 
 CREATE MATERIALIZED VIEW mvtest_tm AS SELECT type, sum(amt) AS totamt FROM mvtest_t GROUP BY type WITH NO DATA;
 SELECT relispopulated FROM pg_class WHERE oid = 'mvtest_tm'::regclass;
@@ -55,14 +49,6 @@ SELECT * FROM mvtest_tm ORDER BY type;
 -- create various views
 EXPLAIN (costs off)
   CREATE MATERIALIZED VIEW mvtest_tvm AS SELECT * FROM mvtest_tv ORDER BY type;
-            QUERY PLAN            
-----------------------------------
- Sort
-   Sort Key: mvtest_t.type
-   ->  HashAggregate
-         Group Key: mvtest_t.type
-         ->  Seq Scan on mvtest_t
-(5 rows)
 
 CREATE MATERIALIZED VIEW mvtest_tvm AS SELECT * FROM mvtest_tv ORDER BY type;
 SELECT * FROM mvtest_tvm;
@@ -80,13 +66,6 @@ CREATE UNIQUE INDEX mvtest_tvmm_pred ON mvtest_tvmm (grandtot) WHERE grandtot < 
 CREATE VIEW mvtest_tvv AS SELECT sum(totamt) AS grandtot FROM mvtest_tv;
 EXPLAIN (costs off)
   CREATE MATERIALIZED VIEW mvtest_tvvm AS SELECT * FROM mvtest_tvv;
-            QUERY PLAN            
-----------------------------------
- Aggregate
-   ->  HashAggregate
-         Group Key: mvtest_t.type
-         ->  Seq Scan on mvtest_t
-(4 rows)
 
 CREATE MATERIALIZED VIEW mvtest_tvvm AS SELECT * FROM mvtest_tvv;
 CREATE VIEW mvtest_tvvmv AS SELECT * FROM mvtest_tvvm;
@@ -207,24 +186,12 @@ RESET search_path;
 -- confirm pre- and post-refresh contents of nested materialized views
 EXPLAIN (costs off)
   SELECT * FROM mvtest_tmm;
-       QUERY PLAN       
-------------------------
- Seq Scan on mvtest_tmm
-(1 row)
 
 EXPLAIN (costs off)
   SELECT * FROM mvtest_tvmm;
-       QUERY PLAN        
--------------------------
- Seq Scan on mvtest_tvmm
-(1 row)
 
 EXPLAIN (costs off)
   SELECT * FROM mvtest_tvvm;
-       QUERY PLAN        
--------------------------
- Seq Scan on mvtest_tvvm
-(1 row)
 
 SELECT * FROM mvtest_tmm;
  grandtot 
@@ -252,24 +219,12 @@ REFRESH MATERIALIZED VIEW mvtest_tvmm;
 REFRESH MATERIALIZED VIEW mvtest_tvvm;
 EXPLAIN (costs off)
   SELECT * FROM mvtest_tmm;
-       QUERY PLAN       
-------------------------
- Seq Scan on mvtest_tmm
-(1 row)
 
 EXPLAIN (costs off)
   SELECT * FROM mvtest_tvmm;
-       QUERY PLAN        
--------------------------
- Seq Scan on mvtest_tvmm
-(1 row)
 
 EXPLAIN (costs off)
   SELECT * FROM mvtest_tvvm;
-       QUERY PLAN        
--------------------------
- Seq Scan on mvtest_tvvm
-(1 row)
 
 SELECT * FROM mvtest_tmm;
  grandtot 

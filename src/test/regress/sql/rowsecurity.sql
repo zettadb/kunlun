@@ -8,6 +8,7 @@
 --DDL_STATEMENT_BEGIN--
 SET client_min_messages TO 'warning';
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP USER IF EXISTS regress_rls_alice;
 --DDL_STATEMENT_END--
@@ -29,9 +30,11 @@ DROP ROLE IF EXISTS regress_rls_group1;
 --DDL_STATEMENT_BEGIN--
 DROP ROLE IF EXISTS regress_rls_group2;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP SCHEMA IF EXISTS regress_rls_schema CASCADE;
 --DDL_STATEMENT_END--
+
 RESET client_min_messages;
 
 -- initial setup
@@ -56,6 +59,7 @@ CREATE ROLE regress_rls_group1 NOLOGIN;
 --DDL_STATEMENT_BEGIN--
 CREATE ROLE regress_rls_group2 NOLOGIN;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 GRANT regress_rls_group1 TO regress_rls_bob;
 --DDL_STATEMENT_END--
@@ -69,6 +73,7 @@ CREATE SCHEMA regress_rls_schema;
 --DDL_STATEMENT_BEGIN--
 GRANT ALL ON SCHEMA regress_rls_schema to public;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 SET search_path = regress_rls_schema;
 --DDL_STATEMENT_END--
@@ -81,7 +86,9 @@ CREATE OR REPLACE FUNCTION f_leak(text) RETURNS bool
 --DDL_STATEMENT_BEGIN--
 GRANT EXECUTE ON FUNCTION f_leak(text) TO public;
 --DDL_STATEMENT_END--
+
 -- BASIC Row-Level Security Scenario
+
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_rls_alice;
 --DDL_STATEMENT_END--
@@ -99,6 +106,7 @@ INSERT INTO uaccount VALUES
     ('regress_rls_bob', 1),
     ('regress_rls_carol', 2),
     ('regress_rls_dave', 3);
+	
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE category (
     cid        int primary key,
@@ -113,6 +121,7 @@ INSERT INTO category VALUES
     (22, 'science fiction'),
     (33, 'technology'),
     (44, 'manga');
+	
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE document (
     did         int primary key,
@@ -243,12 +252,15 @@ SET SESSION AUTHORIZATION regress_rls_alice;
 SET row_security TO OFF;
 SELECT * FROM document order by 1,2,3,4,5;
 SELECT * FROM category;
+
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_rls_alice;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 SET row_security TO ON;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE t1 (a int, junk1 text, b text);
 --DDL_STATEMENT_END--
@@ -258,7 +270,9 @@ ALTER TABLE t1 DROP COLUMN junk1;    -- just a disturbing factor
 --DDL_STATEMENT_BEGIN--
 GRANT ALL ON t1 TO public;
 --DDL_STATEMENT_END--
+
 SET SESSION AUTHORIZATION regress_rls_bob;
+
 SELECT * FROM t1;
 EXPLAIN (COSTS OFF) SELECT * FROM t1;
 
@@ -280,9 +294,11 @@ EXPLAIN (COSTS OFF) SELECT * FROM t1 WHERE f_leak(b);
 --
 -- Partitioned Tables
 --
+
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_rls_alice;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE part_document (
     did         int,
@@ -295,6 +311,7 @@ CREATE TABLE part_document (
 --DDL_STATEMENT_BEGIN--
 GRANT ALL ON part_document TO public;
 --DDL_STATEMENT_END--
+
 -- Create partitions for document categories
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE part_document_fiction PARTITION OF part_document FOR VALUES FROM (11) to (12);
@@ -305,6 +322,7 @@ CREATE TABLE part_document_satire PARTITION OF part_document FOR VALUES FROM (55
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE part_document_nonfiction PARTITION OF part_document FOR VALUES FROM (99) to (100);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 GRANT ALL ON part_document_fiction TO public;
 --DDL_STATEMENT_END--
@@ -314,7 +332,6 @@ GRANT ALL ON part_document_satire TO public;
 --DDL_STATEMENT_BEGIN--
 GRANT ALL ON part_document_nonfiction TO public;
 --DDL_STATEMENT_END--
-
 
 INSERT INTO part_document VALUES
     ( 1, 11, 1, 'regress_rls_bob', 'my first novel'),
@@ -433,18 +450,23 @@ SET SESSION AUTHORIZATION regress_rls_alice;
 --DDL_STATEMENT_BEGIN--
 SET row_security TO ON;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE dependee (x integer, y integer);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE dependent (x integer, y integer);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE dependee; -- Should fail without CASCADE due to dependency on row security qual?
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE dependee CASCADE;
 --DDL_STATEMENT_END--
+
 EXPLAIN (COSTS OFF) SELECT * FROM dependent; -- After drop, should be unqualified
 
 -----   RECURSION    ----
@@ -458,14 +480,12 @@ SET SESSION AUTHORIZATION regress_rls_alice;
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE rec1 (x integer, y integer);
 --DDL_STATEMENT_END--
-
 SET SESSION AUTHORIZATION regress_rls_bob;
 SELECT * FROM rec1; -- fail, direct recursion
 
 --
 -- Mutual recursion
 --
-
 SET SESSION AUTHORIZATION regress_rls_alice;
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE rec2 (a integer, b integer);
@@ -495,11 +515,13 @@ SELECT * FROM rec1;    -- fail, mutual recursion via views
 -- Mutual recursion via .s.b views
 --
 SET SESSION AUTHORIZATION regress_rls_bob;
+
 \set VERBOSITY terse \\ -- suppress cascade details
 --DDL_STATEMENT_BEGIN--
 DROP VIEW rec1v, rec2v CASCADE;
 --DDL_STATEMENT_END--
 \set VERBOSITY default
+
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW rec1v WITH (security_barrier) AS SELECT * FROM rec1;
 --DDL_STATEMENT_END--
@@ -521,13 +543,16 @@ SET SESSION AUTHORIZATION regress_rls_alice;
 CREATE TABLE s1 (a int, b text);
 --DDL_STATEMENT_END--
 INSERT INTO s1 (SELECT x, md5(x::text) FROM generate_series(-10,10) x);
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE s2 (x int, y text);
 --DDL_STATEMENT_END--
 INSERT INTO s2 (SELECT x, md5(x::text) FROM generate_series(-6,6) x);
+
 --DDL_STATEMENT_BEGIN--
 GRANT SELECT ON s1, s2 TO regress_rls_bob;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_rls_bob;
 --DDL_STATEMENT_END--
@@ -625,6 +650,7 @@ INSERT INTO b1 (SELECT x, md5(x::text) FROM generate_series(-10,10) x);
 --DDL_STATEMENT_BEGIN--
 GRANT ALL ON b1 TO regress_rls_bob;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_rls_bob;
 --DDL_STATEMENT_END--
@@ -761,10 +787,12 @@ CREATE TABLE z1 (a int, b text);
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE z2 (a int, b text);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 GRANT SELECT ON z1,z2 TO regress_rls_group1, regress_rls_group2,
     regress_rls_bob, regress_rls_carol;
 --DDL_STATEMENT_END--
+
 INSERT INTO z1 VALUES
     (1, 'aba'),
     (2, 'bbb'),
@@ -865,18 +893,21 @@ SET SESSION AUTHORIZATION regress_rls_bob;
 --DDL_STATEMENT_BEGIN--
 DROP VIEW rls_view;
 --DDL_STATEMENT_END--
+
 --
 -- Command specific
 --
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_rls_alice;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE x1 (a int, b text, c text);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 GRANT ALL ON x1 TO PUBLIC;
 --DDL_STATEMENT_END--
+
 INSERT INTO x1 VALUES
     (1, 'abc', 'regress_rls_bob'),
     (2, 'bcd', 'regress_rls_bob'),
@@ -911,6 +942,7 @@ CREATE TABLE y2 (a int, b text);
 --DDL_STATEMENT_BEGIN--
 GRANT ALL ON y1, y2 TO regress_rls_bob;
 --DDL_STATEMENT_END--
+
 --
 -- Expression structure with SBV
 --
@@ -926,6 +958,7 @@ EXPLAIN (COSTS OFF) SELECT * FROM rls_sbv WHERE (a = 1);
 --DDL_STATEMENT_BEGIN--
 DROP VIEW rls_sbv;
 --DDL_STATEMENT_END--
+
 -- Create view as role that does not own table.  RLS should be applied.
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_rls_bob;
@@ -938,6 +971,7 @@ EXPLAIN (COSTS OFF) SELECT * FROM rls_sbv WHERE (a = 1);
 --DDL_STATEMENT_BEGIN--
 DROP VIEW rls_sbv;
 --DDL_STATEMENT_END--
+
 --
 -- Expression structure
 --
@@ -953,11 +987,13 @@ EXPLAIN (COSTS OFF) SELECT * FROM y2 WHERE f_leak(b);
 --
 SELECT * FROM y2 WHERE f_leak('abc');
 EXPLAIN (COSTS OFF) SELECT * FROM y2 WHERE f_leak('abc');
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE test_qual_pushdown (
     abc text
 );
 --DDL_STATEMENT_END--
+
 INSERT INTO test_qual_pushdown VALUES ('abc'),('def');
 
 SELECT * FROM y2 JOIN test_qual_pushdown ON (b = abc) WHERE f_leak(abc);
@@ -965,9 +1001,11 @@ EXPLAIN (COSTS OFF) SELECT * FROM y2 JOIN test_qual_pushdown ON (b = abc) WHERE 
 
 SELECT * FROM y2 JOIN test_qual_pushdown ON (b = abc) WHERE f_leak(b);
 EXPLAIN (COSTS OFF) SELECT * FROM y2 JOIN test_qual_pushdown ON (b = abc) WHERE f_leak(b);
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE test_qual_pushdown;
 --DDL_STATEMENT_END--
+
 --
 -- Plancache invalidate on user change.
 --
@@ -978,14 +1016,16 @@ RESET SESSION AUTHORIZATION;
 DROP TABLE t1 CASCADE;
 --DDL_STATEMENT_END--
 \set VERBOSITY default
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE t1 (a integer);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 GRANT SELECT ON t1 TO regress_rls_bob, regress_rls_carol;
 --DDL_STATEMENT_END--
--- Prepare as regress_rls_bob
 
+-- Prepare as regress_rls_bob
 SET ROLE regress_rls_bob;
 PREPARE role_inval AS SELECT * FROM t1;
 -- Check plan
@@ -1069,9 +1109,11 @@ CREATE TABLE blog (id integer, author text, post text);
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE comment (blog_id integer, message text);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 GRANT ALL ON blog, comment TO regress_rls_bob;
 --DDL_STATEMENT_END--
+
 INSERT INTO blog VALUES
     (1, 'alice', 'blog #1'),
     (2, 'bob', 'blog #1'),
@@ -1102,6 +1144,7 @@ SET SESSION AUTHORIZATION regress_rls_bob;
 SELECT id, author, message FROM blog JOIN comment ON id = blog_id order by id,author,message;
 --SELECT id, author, message FROM comment JOIN blog ON id = blog_id;
 SELECT id, author, message FROM comment JOIN blog ON id = blog_id order by id,author,message;
+
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_rls_alice;
 --DDL_STATEMENT_END--
@@ -1111,6 +1154,7 @@ DROP TABLE blog;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE comment;
 --DDL_STATEMENT_END--
+
 --
 -- Default Deny Policy
 --
@@ -1120,6 +1164,7 @@ RESET SESSION AUTHORIZATION;
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE t1 OWNER TO regress_rls_alice;
 --DDL_STATEMENT_END--
+
 -- Check that default deny does not apply to superuser.
 RESET SESSION AUTHORIZATION;
 SELECT * FROM t1;
@@ -1142,6 +1187,7 @@ EXPLAIN (COSTS OFF) SELECT * FROM t1;
 --
 -- COPY TO/FROM
 --
+
 --DDL_STATEMENT_BEGIN--
 RESET SESSION AUTHORIZATION;
 --DDL_STATEMENT_END--
@@ -1154,9 +1200,11 @@ CREATE TABLE copy_t (a integer, b text);
 --CREATE POLICY p1 ON copy_t USING (a % 2 = 0);
 
 --ALTER TABLE copy_t ENABLE ROW LEVEL SECURITY;
+
 --DDL_STATEMENT_BEGIN--
 GRANT ALL ON copy_t TO regress_rls_bob, regress_rls_exempt_user;
 --DDL_STATEMENT_END--
+
 INSERT INTO copy_t (SELECT x, md5(x::text) FROM generate_series(0,10) x);
 
 -- Check COPY TO as Superuser/owner.
@@ -1200,9 +1248,11 @@ CREATE TABLE copy_rel_to (a integer, b text);
 --CREATE POLICY p1 ON copy_rel_to USING (a % 2 = 0);
 
 --ALTER TABLE copy_rel_to ENABLE ROW LEVEL SECURITY;
+
 --DDL_STATEMENT_BEGIN--
 GRANT ALL ON copy_rel_to TO regress_rls_bob, regress_rls_exempt_user;
 --DDL_STATEMENT_END--
+
 INSERT INTO copy_rel_to VALUES (1, md5('1'));
 
 -- Check COPY TO as Superuser/owner.
@@ -1273,6 +1323,7 @@ SET row_security TO OFF;
 COPY copy_t FROM STDIN; --fail - permission denied.
 SET row_security TO ON;
 COPY copy_t FROM STDIN; --fail - permission denied.
+
 --DDL_STATEMENT_BEGIN--
 RESET SESSION AUTHORIZATION;
 --DDL_STATEMENT_END--
@@ -1282,10 +1333,12 @@ DROP TABLE copy_t;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE copy_rel_to CASCADE;
 --DDL_STATEMENT_END--
+
 -- Check WHERE CURRENT OF
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_rls_alice;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE current_check (currentid int, payload text, rlsuser text);
 --DDL_STATEMENT_END--
@@ -1343,9 +1396,11 @@ CREATE TABLE r2 (a int);
 --DDL_STATEMENT_END--
 INSERT INTO r1 VALUES (10), (20);
 INSERT INTO r2 VALUES (10), (20);
+
 --DDL_STATEMENT_BEGIN--
 GRANT ALL ON r1, r2 TO regress_rls_bob;
 --DDL_STATEMENT_END--
+
 SET SESSION AUTHORIZATION regress_rls_bob;
 SELECT * FROM r1;
 SELECT * FROM r2;
@@ -1362,6 +1417,7 @@ DELETE FROM r2 RETURNING *; -- Deletes nothing
 -- not support: DELETE FROM r1 USING r2 WHERE r1.a = r2.a + 2 RETURNING *; -- OK
 SELECT * FROM r1;
 SELECT * FROM r2;
+
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_rls_alice;
 --DDL_STATEMENT_END--
@@ -1371,6 +1427,7 @@ DROP TABLE r1;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE r2;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_rls_alice;
 --DDL_STATEMENT_END--
@@ -1401,9 +1458,11 @@ SET row_security = off;
 TABLE r1;
 UPDATE r1 SET a = 1;
 DELETE FROM r1;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE r1;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_rls_alice;
 --DDL_STATEMENT_END--
@@ -1429,12 +1488,14 @@ TABLE r1;
 
 -- No error, RI still sees that row exists in r1
 INSERT INTO r2 VALUES (10);
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE r2;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 DROP TABLE r1;
 --DDL_STATEMENT_END--
+
 -- Ensure cascaded DELETE works
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE r1 (a int PRIMARY KEY);
@@ -1451,6 +1512,7 @@ DELETE FROM r1;
 -- As owner, we now bypass RLS
 -- verify no rows in r2 now
 TABLE r2;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE r2;
 --DDL_STATEMENT_END--
@@ -1474,6 +1536,7 @@ UPDATE r1 SET a = a+5;
 -- As owner, we now bypass RLS
 -- verify records in r2 updated
 TABLE r2;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE r2;
 --DDL_STATEMENT_END--
@@ -1509,9 +1572,11 @@ SET row_security = on;
 
 -- Error
 INSERT INTO r1 VALUES (10), (20) RETURNING *;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE r1;
 --DDL_STATEMENT_END--
+
 --
 -- Test UPDATE+RETURNING applies SELECT policies as
 -- WithCheckOptions (meaning an error is thrown)
@@ -1525,6 +1590,7 @@ SET row_security = on;
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE r1 (a int PRIMARY KEY);
 --DDL_STATEMENT_END--
+
 INSERT INTO r1 VALUES (10);
 -- Works fine
 UPDATE r1 SET a = 30;
@@ -1550,9 +1616,11 @@ INSERT INTO r1 VALUES (10)
     ON CONFLICT (a) DO UPDATE SET a = 30;
 INSERT INTO r1 VALUES (10)
     ON CONFLICT ON CONSTRAINT r1_pkey DO UPDATE SET a = 30;
+	
 --DDL_STATEMENT_BEGIN--
 DROP TABLE r1;
 --DDL_STATEMENT_END--
+
 -- Check dependency handling
 --DDL_STATEMENT_BEGIN--
 RESET SESSION AUTHORIZATION;
@@ -1583,15 +1651,18 @@ SELECT count(*) = 1 FROM pg_shdepend
 SELECT count(*) = 0 FROM pg_depend
 				   WHERE objid = (SELECT oid FROM pg_policy WHERE polname = 'dep_p1')
 					 AND refobjid = (SELECT oid FROM pg_class WHERE relname = 'dep2');
+					 
 --DDL_STATEMENT_BEGIN--
 RESET SESSION AUTHORIZATION;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE ROLE regress_rls_dob_role1;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE ROLE regress_rls_dob_role2;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE dob_t1 (c1 int);
 --DDL_STATEMENT_END--
@@ -1605,21 +1676,25 @@ DROP USER regress_rls_dob_role1;
 --DDL_STATEMENT_BEGIN--
 DROP USER regress_rls_dob_role2;
 --DDL_STATEMENT_END--
+
 -- Bug #15708: view + table with RLS should check policies as view owner
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE ref_tbl (a int);
 --DDL_STATEMENT_END--
 INSERT INTO ref_tbl VALUES (1);
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE rls_tbl (a int);
 --DDL_STATEMENT_END--
 INSERT INTO rls_tbl VALUES (10);
+
 --DDL_STATEMENT_BEGIN--
 GRANT SELECT ON ref_tbl TO regress_rls_bob;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 GRANT SELECT ON rls_tbl TO regress_rls_bob;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW rls_view AS SELECT * FROM rls_tbl;
 --DDL_STATEMENT_END--
@@ -1629,11 +1704,13 @@ ALTER VIEW rls_view OWNER TO regress_rls_bob;
 --DDL_STATEMENT_BEGIN--
 GRANT SELECT ON rls_view TO regress_rls_alice;
 --DDL_STATEMENT_END--
+
 SET SESSION AUTHORIZATION regress_rls_alice;
 SELECT * FROM ref_tbl; -- Permission denied
 SELECT * FROM rls_tbl; -- Permission denied
 SELECT * FROM rls_view; -- OK
 RESET SESSION AUTHORIZATION;
+
 --DDL_STATEMENT_BEGIN--
 DROP VIEW rls_view;
 --DDL_STATEMENT_END--
@@ -1643,12 +1720,14 @@ DROP TABLE rls_tbl;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE ref_tbl;
 --DDL_STATEMENT_END--
+
 --
 -- Clean up objects
 --
 --DDL_STATEMENT_BEGIN--
 RESET SESSION AUTHORIZATION;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table regress_rls_schema.t1 cascade;
 --DDL_STATEMENT_END--
@@ -1712,6 +1791,7 @@ drop function regress_rls_schema.op_leak(integer,integer) cascade;
 --DDL_STATEMENT_BEGIN--
 DROP USER regress_rls_alice;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table regress_rls_schema.dep1 cascade;
 --DDL_STATEMENT_END--
@@ -1721,6 +1801,7 @@ drop table regress_rls_schema.t2 cascade;
 --DDL_STATEMENT_BEGIN--
 DROP USER regress_rls_bob;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP USER regress_rls_carol;
 --DDL_STATEMENT_END--
@@ -1736,6 +1817,7 @@ DROP ROLE regress_rls_group1;
 --DDL_STATEMENT_BEGIN--
 DROP ROLE regress_rls_group2;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table regress_rls_schema.dob_t1 cascade;
 --DDL_STATEMENT_END--
@@ -1751,7 +1833,7 @@ drop table regress_rls_schema.dep2 cascade;
 DROP SCHEMA regress_rls_schema CASCADE;
 --DDL_STATEMENT_END--
 \set VERBOSITY default
---DDL_STATEMENT_END--
+
 -- Arrange to have a few policies left over, for testing
 -- pg_dump/pg_restore
 --DDL_STATEMENT_BEGIN--
@@ -1760,9 +1842,11 @@ CREATE SCHEMA regress_rls_schema;
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE rls_tbl (c1 int);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE rls_tbl_force (c1 int);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table rls_tbl;
 --DDL_STATEMENT_END--

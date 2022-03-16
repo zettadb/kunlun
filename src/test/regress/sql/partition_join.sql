@@ -34,6 +34,7 @@ CREATE INDEX iprt1_p2_a on prt1_p2(a);
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX iprt1_p3_a on prt1_p3(a);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE if exists prt2;
 --DDL_STATEMENT_END--
@@ -59,6 +60,7 @@ CREATE INDEX iprt2_p2_b on prt2_p2(b);
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX iprt2_p3_b on prt2_p3(b);
 --DDL_STATEMENT_END--
+
 -- inner join
 EXPLAIN (COSTS OFF)
 SELECT t1.a, t1.c, t2.b, t2.c FROM prt1 t1, prt2 t2 WHERE t1.a = t2.b AND t1.b = 0 ORDER BY t1.a, t2.b;
@@ -141,6 +143,7 @@ CREATE TABLE prt1_e_p3 PARTITION OF prt1_e FOR VALUES FROM (500) TO (600);
 --DDL_STATEMENT_END--
 INSERT INTO prt1_e SELECT i, i, i % 25 FROM generate_series(0, 599, 2) i;
 --DDL_STATEMENT_BEGIN--
+
 DROP TABLE if exists prt2_e;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
@@ -253,9 +256,8 @@ CREATE TABLE prt2_m_p2 PARTITION OF prt2_m FOR VALUES FROM (250, 250) TO (500, 5
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE prt2_m_p3 PARTITION OF prt2_m FOR VALUES FROM (500, 500) TO (600, 600);
 --DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 INSERT INTO prt2_m SELECT i, i, i % 25 FROM generate_series(0, 599, 3) i;
---DDL_STATEMENT_END--
+
 EXPLAIN (COSTS OFF)
 SELECT t1.a, t1.c, t2.b, t2.c FROM (SELECT * FROM prt1_m WHERE prt1_m.c = 0) t1 FULL JOIN (SELECT * FROM prt2_m WHERE prt2_m.c = 0) t2 ON (t1.a = (t2.b + t2.a)/2 AND t2.b = (t1.a + t1.b)/2) ORDER BY t1.a, t2.b;
 SELECT t1.a, t1.c, t2.b, t2.c FROM (SELECT * FROM prt1_m WHERE prt1_m.c = 0) t1 FULL JOIN (SELECT * FROM prt2_m WHERE prt2_m.c = 0) t2 ON (t1.a = (t2.b + t2.a)/2 AND t2.b = (t1.a + t1.b)/2) ORDER BY t1.a, t2.b;
@@ -279,6 +281,7 @@ CREATE TABLE plt1_p2 PARTITION OF plt1 FOR VALUES IN ('0001', '0005', '0002', '0
 CREATE TABLE plt1_p3 PARTITION OF plt1 FOR VALUES IN ('0006', '0007', '0008', '0011');
 --DDL_STATEMENT_END--
 INSERT INTO plt1 SELECT i, i, to_char(i/50, 'FM0000') FROM generate_series(0, 599, 2) i;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE if exists plt2;
 --DDL_STATEMENT_END--
@@ -427,6 +430,7 @@ CREATE TABLE prt1_l_p3_p1 PARTITION OF prt1_l_p3 FOR VALUES FROM (0) TO (13);
 CREATE TABLE prt1_l_p3_p2 PARTITION OF prt1_l_p3 FOR VALUES FROM (13) TO (25);
 --DDL_STATEMENT_END--
 INSERT INTO prt1_l SELECT i, i % 25, to_char(i % 4, 'FM0000') FROM generate_series(0, 599, 2) i;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE if exists prt2_l;
 --DDL_STATEMENT_END--
@@ -548,6 +552,7 @@ CREATE TABLE prt3_n_p2 PARTITION OF prt3_n FOR VALUES IN ('0001', '0002', '0008'
 CREATE TABLE prt3_n_p3 PARTITION OF prt3_n FOR VALUES IN ('0003', '0005', '0009', '0011');
 --DDL_STATEMENT_END--
 INSERT INTO prt2_n SELECT i, i, to_char(i/50, 'FM0000') FROM generate_series(0, 599, 2) i;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE if exists prt4_n;
 --DDL_STATEMENT_END--

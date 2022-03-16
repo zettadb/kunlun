@@ -63,6 +63,7 @@ explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on con
 --DDL_STATEMENT_BEGIN--
 create unique index key_index on insertconflicttest(key1);
 --DDL_STATEMENT_END--
+
 --
 -- Explain tests
 --
@@ -106,9 +107,11 @@ insert into insertconflicttest values (6, 'Passionfruit') on conflict (lower(fru
 insert into insertconflicttest AS ict values (6, 'Passionfruit') on conflict (key1) do update set fruit = excluded.fruit; -- ok, no reference to target table
 insert into insertconflicttest AS ict values (6, 'Passionfruit') on conflict (key1) do update set fruit = ict.fruit; -- ok, alias
 insert into insertconflicttest AS ict values (6, 'Passionfruit') on conflict (key1) do update set fruit = insertconflicttest.fruit; -- error, references aliased away name
+
 --DDL_STATEMENT_BEGIN--
 drop index key_index;
 --DDL_STATEMENT_END--
+
 --
 -- Composite key tests
 --
@@ -164,9 +167,11 @@ insert into insertconflicttest values (26, 'Peach') on conflict (key1) do update
 -- succeeds, since "key" isn't repeated/referenced in UPDATE, and "fruit"
 -- arbitrates that statement updates existing "Fig" row:
 insert into insertconflicttest values (25, 'Fig') on conflict (fruit) do update set fruit = excluded.fruit;
+
 --DDL_STATEMENT_BEGIN--
 drop index key_index;
 --DDL_STATEMENT_END--
+
 -- Succeeds
 insert into insertconflicttest values (23, 'Blackberry') on conflict (key1) where fruit like '%berry' do update set fruit = excluded.fruit;
 insert into insertconflicttest values (23, 'Blackberry') on conflict (key1) where fruit like '%berry' and fruit = 'inconsequential' do nothing;
@@ -182,6 +187,7 @@ insert into insertconflicttest values (23, 'Blackberry') on conflict (fruit) whe
 --DDL_STATEMENT_BEGIN--
 create unique index plain on insertconflicttest(key1);
 --DDL_STATEMENT_END--
+
 -- Succeeds, updates existing row:
 insert into insertconflicttest as i values (23, 'Jackfruit') on conflict (key1) do update set fruit = excluded.fruit
   where i.* != excluded.* returning *;
@@ -197,13 +203,16 @@ insert into insertconflicttest as i values (23, 'Avocado') on conflict (key1) do
 -- deparse whole row var in WHERE and SET clauses:
 explain (costs off) insert into insertconflicttest as i values (23, 'Avocado') on conflict (key1) do update set fruit = excluded.fruit where excluded.* is null;
 explain (costs off) insert into insertconflicttest as i values (23, 'Avocado') on conflict (key1) do update set fruit = excluded.*::text;
+
 --DDL_STATEMENT_BEGIN--
 drop index plain;
 --DDL_STATEMENT_END--
+
 -- Cleanup
 --DDL_STATEMENT_BEGIN--
 drop table insertconflicttest;
 --DDL_STATEMENT_END--
+
 
 --
 -- Previous tests all managed to not test any expressions requiring
@@ -212,6 +221,7 @@ drop table insertconflicttest;
 --DDL_STATEMENT_BEGIN--
 create table insertconflict (a bigint, b bigint);
 --DDL_STATEMENT_END--
+
 -- computing column index is not suported
 -- create unique index insertconflicti1 on insertconflict(coalesce(a, 0));
 
@@ -223,9 +233,11 @@ on conflict (b) where coalesce(a, 1) > 0 do nothing;
 
 insert into insertconflict values (1, 2)
 on conflict (b) where coalesce(a, 1) > 1 do nothing;
+
 --DDL_STATEMENT_BEGIN--
 drop table insertconflict;
 --DDL_STATEMENT_END--
+
 --
 -- test insertion through view
 -- not support on conflict clause ,so comment it currently.
@@ -253,6 +265,7 @@ create table cities (
 	population	float8,
 	altitude	int		-- (in ft)
 );
+
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 create table capitals (
@@ -314,6 +327,7 @@ insert into excluded values(1, '2') on conflict (key1) do update set data = 3 RE
 drop table excluded;
 --DDL_STATEMENT_END--
 
+
 -- Check tables w/o oids are handled correctly
 --DDL_STATEMENT_BEGIN--
 create table testoids(key1 int primary key, data text) without oids;
@@ -334,6 +348,7 @@ alter table testoids set without oids;
 insert into testoids values(1, '4') on conflict (key1) do update set data = excluded.data RETURNING *;
 insert into testoids values(3, '1') on conflict (key1) do update set data = excluded.data RETURNING *;
 insert into testoids values(3, '2') on conflict (key1) do update set data = excluded.data RETURNING *;
+
 --DDL_STATEMENT_BEGIN--
 drop table testoids;
 --DDL_STATEMENT_END--
@@ -371,11 +386,13 @@ insert into dropcol(key1, keep1, keep2) values(1, '5', 5) on conflict(key1)
     do update set keep1 = dropcol.keep1, keep2 = dropcol.keep2
     returning *;
 ;
+
 --DDL_STATEMENT_BEGIN--
 drop table dropcol;
 --DDL_STATEMENT_END--
 
 -- check handling of regular btree constraint along with gist constraint
+
 --DDL_STATEMENT_BEGIN--
 create temp table twoconstraints (f1 int unique, f2 box);
 --DDL_STATEMENT_END--
@@ -392,6 +409,7 @@ drop table twoconstraints;
 --DDL_STATEMENT_END--
 
 -- check handling of self-conflicts at various isolation levels
+
 --DDL_STATEMENT_BEGIN--
 create table selfconflict (f1 int primary key, f2 int);
 --DDL_STATEMENT_END--
@@ -421,6 +439,7 @@ insert into selfconflict values (6,1), (6,2) on conflict(f1) do update set f2 = 
 commit;
 
 select * from selfconflict;
+
 --DDL_STATEMENT_BEGIN--
 drop table selfconflict;
 --DDL_STATEMENT_END--
@@ -432,6 +451,7 @@ create table parted_conflict_test (a int unique, b char) partition by list (a);
 --DDL_STATEMENT_BEGIN--
 create table parted_conflict_test_1 partition of parted_conflict_test (b unique) for values in (1, 2);
 --DDL_STATEMENT_END--
+
 -- no indexes required here
 insert into parted_conflict_test values (1, 'a') on conflict do nothing;
 
@@ -490,9 +510,11 @@ insert into parted_conflict_test (a, b) values (1, 'b'), (2, 'c'), (4, 'b') on c
 
 -- should see (1, 'b'), (2, 'a'), (4, 'b')
 select * from parted_conflict_test order by a;
+
 --DDL_STATEMENT_BEGIN--
 drop table parted_conflict_test;
 --DDL_STATEMENT_END--
+
 -- test behavior of inserting a conflicting tuple into an intermediate
 -- partitioning level
 --DDL_STATEMENT_BEGIN--

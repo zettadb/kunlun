@@ -6,6 +6,7 @@
 --DDL_STATEMENT_BEGIN--
 CREATE TYPE casttesttype;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION casttesttype_in(cstring)
    RETURNS casttesttype
@@ -18,6 +19,7 @@ CREATE FUNCTION casttesttype_out(casttesttype)
    AS 'textout'
    LANGUAGE internal STRICT IMMUTABLE;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TYPE casttesttype (
    internallength = variable,
@@ -26,11 +28,13 @@ CREATE TYPE casttesttype (
    alignment = int4
 );
 --DDL_STATEMENT_END--
+
 -- a dummy function to test with
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION casttestfunc(casttesttype) RETURNS int4 LANGUAGE SQL AS
 $$ SELECT 1; $$;
 --DDL_STATEMENT_END--
+
 SELECT casttestfunc('foo'::text); -- fails, as there's no cast
 
 -- Try binary coercion cast
@@ -52,17 +56,22 @@ SELECT casttestfunc('foo'::text); -- Should work now
 -- Try I/O conversion cast.
 SELECT 1234::int4::casttesttype; -- No cast yet, should fail
 --DDL_STATEMENT_BEGIN--
+
 CREATE CAST (int4 AS casttesttype) WITH INOUT;
 --DDL_STATEMENT_END--
 SELECT 1234::int4::casttesttype; -- Should work now
 --DDL_STATEMENT_BEGIN--
+
 DROP CAST (int4 AS casttesttype);
 --DDL_STATEMENT_END--
+
 -- Try cast with a function
+
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION int4_casttesttype(int4) RETURNS casttesttype LANGUAGE SQL AS
 $$ SELECT ('foo'::text || $1::text)::casttesttype; $$;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE CAST (int4 AS casttesttype) WITH FUNCTION int4_casttesttype(int4) AS IMPLICIT;
 --DDL_STATEMENT_END--

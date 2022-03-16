@@ -5,6 +5,7 @@ drop table if exists clstr_tst_s;
 CREATE TABLE clstr_tst_s (rf_a SERIAL PRIMARY KEY,
 	b INT);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists clst _tst;
 --DDL_STATEMENT_END--
@@ -14,6 +15,7 @@ CREATE TABLE clstr_tst (a SERIAL PRIMARY KEY,
 	c varchar(50),
 	d text);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX clstr_tst_b ON clstr_tst (b);
 --DDL_STATEMENT_END--
@@ -33,12 +35,14 @@ INSERT INTO clstr_tst_s (b) SELECT b FROM clstr_tst_s;
 INSERT INTO clstr_tst_s (b) SELECT b FROM clstr_tst_s;
 INSERT INTO clstr_tst_s (b) SELECT b FROM clstr_tst_s;
 INSERT INTO clstr_tst_s (b) SELECT b FROM clstr_tst_s;
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists clstr_tst_inh;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE clstr_tst_inh (like clstr_tst);
 --DDL_STATEMENT_END--
+
 INSERT INTO clstr_tst (b, c) VALUES (11, 'once');
 INSERT INTO clstr_tst (b, c) VALUES (10, 'diez');
 INSERT INTO clstr_tst (b, c) VALUES (31, 'treinta y uno');
@@ -173,9 +177,11 @@ SELECT * FROM clstr_1 order by 1;
 
 -- Test MVCC-safety of cluster. There isn't much we can do to verify the
 -- results with a single backend...
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE clustertest (key1 int PRIMARY KEY);
 --DDL_STATEMENT_END--
+
 INSERT INTO clustertest VALUES (10);
 INSERT INTO clustertest VALUES (20);
 INSERT INTO clustertest VALUES (30);
@@ -211,6 +217,7 @@ select * from clstr_temp;
 --DDL_STATEMENT_BEGIN--
 drop table clstr_temp;
 --DDL_STATEMENT_END--
+
 RESET SESSION AUTHORIZATION;
 
 -- Check that partitioned tables cannot be clustered
@@ -223,6 +230,8 @@ CREATE INDEX clstrpart_idx ON clstrpart (a);
 --DDL_STATEMENT_BEGIN--
 DROP TABLE clstrpart;
 --DDL_STATEMENT_END--
+
+
 --DDL_STATEMENT_BEGIN--
 create table clstr_4 (like tenk1);
 --DDL_STATEMENT_END--

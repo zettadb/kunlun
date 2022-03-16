@@ -5,6 +5,7 @@
 SELECT text 'this is a text string' = text 'this is a text string' AS true;
 
 SELECT text 'this is a text string' = text 'this is a text strin' AS false;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE if exists TEXT_TBL;
 --DDL_STATEMENT_END--

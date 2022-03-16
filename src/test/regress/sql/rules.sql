@@ -16,6 +16,7 @@ create table rtest_t2 (a int4, b int4);
 --DDL_STATEMENT_BEGIN--
 create table rtest_t3 (a int4, b int4);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create view rtest_v1 as select * from rtest_t1;
 --DDL_STATEMENT_END--
@@ -56,6 +57,7 @@ create table rtest_person (pname text, pdesc text);
 --DDL_STATEMENT_BEGIN--
 create table rtest_admin (pname text, sysname text);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create rule rtest_sys_upd as on update to rtest_system do also (
 	update rtest_interface set sysname = new.sysname
@@ -64,20 +66,24 @@ create rule rtest_sys_upd as on update to rtest_system do also (
 		where sysname = old.sysname
 	);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create rule rtest_sys_del as on delete to rtest_system do also (
 	delete from rtest_interface where sysname = old.sysname;
 	delete from rtest_admin where sysname = old.sysname;
 	);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create rule rtest_pers_upd as on update to rtest_person do also
 	update rtest_admin set pname = new.pname where pname = old.pname;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create rule rtest_pers_del as on delete to rtest_person do also
 	delete from rtest_admin where pname = old.pname;
 --DDL_STATEMENT_END--
+
 --
 -- Tables and rules for the logging test
 --
@@ -90,21 +96,25 @@ create table rtest_emplog (ename char(20), who name, action char(10), newsal mon
 --DDL_STATEMENT_BEGIN--
 create table rtest_empmass (ename char(20), salary money);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create rule rtest_emp_ins as on insert to rtest_emp do
 	insert into rtest_emplog values (new.ename, current_user,
 			'hired', new.salary, '0.00');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create rule rtest_emp_upd as on update to rtest_emp where new.salary != old.salary do
 	insert into rtest_emplog values (new.ename, current_user,
 			'honored', new.salary, old.salary);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create rule rtest_emp_del as on delete to rtest_emp do
 	insert into rtest_emplog values (old.ename, current_user,
 			'fired', '0.00', old.salary);
 --DDL_STATEMENT_END--
+
 --
 -- Tables and rules for the multiple cascaded qualified instead
 -- rule test
@@ -127,26 +137,31 @@ create table rtest_t8 (a int4, b text);
 --DDL_STATEMENT_BEGIN--
 create table rtest_t9 (a int4, b text);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create rule rtest_t4_ins1 as on insert to rtest_t4
 		where new.a >= 10 and new.a < 20 do instead
 	insert into rtest_t5 values (new.a, new.b);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create rule rtest_t4_ins2 as on insert to rtest_t4
 		where new.a >= 20 and new.a < 30 do
 	insert into rtest_t6 values (new.a, new.b);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create rule rtest_t5_ins as on insert to rtest_t5
 		where new.a > 15 do
 	insert into rtest_t7 values (new.a, new.b);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create rule rtest_t6_ins as on insert to rtest_t6
 		where new.a > 25 do instead
 	insert into rtest_t8 values (new.a, new.b);
 --DDL_STATEMENT_END--
+
 --
 -- Tables and rules for the rule fire order test
 --
@@ -159,30 +174,36 @@ create table rtest_order1 (a int4);
 --DDL_STATEMENT_BEGIN--
 create table rtest_order2 (a int4, b int4, c text);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create sequence rtest_seq;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create rule rtest_order_r3 as on insert to rtest_order1 do instead
 	insert into rtest_order2 values (new.a, nextval('rtest_seq'),
 		'rule 3 - this should run 3rd');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create rule rtest_order_r4 as on insert to rtest_order1
 		where a < 100 do instead
 	insert into rtest_order2 values (new.a, nextval('rtest_seq'),
 		'rule 4 - this should run 4th');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create rule rtest_order_r2 as on insert to rtest_order1 do
 	insert into rtest_order2 values (new.a, nextval('rtest_seq'),
 		'rule 2 - this should run 2nd');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create rule rtest_order_r1 as on insert to rtest_order1 do instead
 	insert into rtest_order2 values (new.a, nextval('rtest_seq'),
 		'rule 1 - this should run 1st');
 --DDL_STATEMENT_END--
+
 --
 -- Tables and rules for the instead nothing test
 --
@@ -203,19 +224,23 @@ create table rtest_nothn4 (a int4, b text);
 create rule rtest_nothn_r1 as on insert to rtest_nothn1
 	where new.a >= 10 and new.a < 20 do instead nothing;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create rule rtest_nothn_r2 as on insert to rtest_nothn1
 	where new.a >= 30 and new.a < 40 do instead nothing;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create rule rtest_nothn_r3 as on insert to rtest_nothn2
 	where new.a >= 100 do instead
 	insert into rtest_nothn3 values (new.a, new.b);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create rule rtest_nothn_r4 as on insert to rtest_nothn2
 	do instead nothing;
 --DDL_STATEMENT_END--
+
 --
 -- Tests on a view that is select * of a table
 -- and has insert/update/delete instead rules to
@@ -521,6 +546,7 @@ create function rtest_viewfunc1(int4) returns int4 as
 create view rtest_vview5 as select a, b, rtest_viewfunc1(a) as refcount
 	from rtest_view1;
 --DDL_STATEMENT_END--
+
 insert into rtest_view1 values (1, 'item 1', 't');
 insert into rtest_view1 values (2, 'item 2', 't');
 insert into rtest_view1 values (3, 'item 3', 't');
@@ -574,18 +600,22 @@ create table rtest_comp (
 	size	float
 );
 --DDL_STATEMENT_END--
+
+
 --DDL_STATEMENT_BEGIN--
 create table rtest_unitfact (
 	unit	char(4),
 	factor	float
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create view rtest_vcomp as
 	select X.part, (X.size * Y.factor) as size_in_cm
 			from rtest_comp X, rtest_unitfact Y
 			where X.unit = Y.unit;
 --DDL_STATEMENT_END--
+
 
 insert into rtest_unitfact values ('m', 100.0);
 insert into rtest_unitfact values ('cm', 1.0);
@@ -616,6 +646,7 @@ CREATE TABLE shoe_data (
 	slunit     char(8)        -- length unit
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE shoelace_data (
 	sl_name    char(10),      -- primary key
@@ -625,12 +656,14 @@ CREATE TABLE shoelace_data (
 	sl_unit    char(8)        -- length unit
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE unit (
 	un_name    char(8),       -- the primary key
 	un_fact    float          -- factor to transform to cm
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW shoe AS
 	SELECT sh.shoename,
@@ -644,6 +677,7 @@ CREATE VIEW shoe AS
 	  FROM shoe_data sh, unit un
 	 WHERE sh.slunit = un.un_name;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW shoelace AS
 	SELECT s.sl_name,
@@ -655,6 +689,7 @@ CREATE VIEW shoelace AS
 	  FROM shoelace_data s, unit u
 	 WHERE s.sl_unit = u.un_name;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW shoe_ready AS
 	SELECT rsh.shoename,
@@ -667,6 +702,7 @@ CREATE VIEW shoe_ready AS
 	   AND rsl.sl_len_cm >= rsh.slminlen_cm
 	   AND rsl.sl_len_cm <= rsh.slmaxlen_cm;
 --DDL_STATEMENT_END--
+
 INSERT INTO unit VALUES ('cm', 1.0);
 INSERT INTO unit VALUES ('m', 100.0);
 INSERT INTO unit VALUES ('inch', 2.54);
@@ -697,9 +733,11 @@ SELECT * FROM shoe_ready WHERE total_avail >= 2 ORDER BY 1;
         log_when   timestamp      -- when
     );
 --DDL_STATEMENT_END--
+
 -- Want "log_who" to be CURRENT_USER,
 -- but that is non-portable for the regression test
 -- - thomas 1999-02-21
+
 --DDL_STATEMENT_BEGIN--
     CREATE RULE log_shoelace AS ON UPDATE TO shoelace_data
         WHERE NEW.sl_avail != OLD.sl_avail
@@ -714,6 +752,7 @@ SELECT * FROM shoe_ready WHERE total_avail >= 2 ORDER BY 1;
 UPDATE shoelace_data SET sl_avail = 6 WHERE  sl_name = 'sl7';
 
 SELECT * FROM shoelace_log;
+
 --DDL_STATEMENT_BEGIN--
     CREATE RULE shoelace_ins AS ON INSERT TO shoelace
         DO INSTEAD
@@ -724,6 +763,7 @@ SELECT * FROM shoelace_log;
                NEW.sl_len,
                NEW.sl_unit);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
     CREATE RULE shoelace_upd AS ON UPDATE TO shoelace
         DO INSTEAD
@@ -735,24 +775,28 @@ SELECT * FROM shoelace_log;
                sl_unit = NEW.sl_unit
          WHERE sl_name = OLD.sl_name;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
     CREATE RULE shoelace_del AS ON DELETE TO shoelace
         DO INSTEAD
         DELETE FROM shoelace_data
          WHERE sl_name = OLD.sl_name;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
     CREATE TABLE shoelace_arrive (
         arr_name    char(10),
         arr_quant   integer
     );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
     CREATE TABLE shoelace_ok (
         ok_name     char(10),
         ok_quant    integer
     );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
     CREATE RULE shoelace_ok_ins AS ON INSERT TO shoelace_ok
         DO INSTEAD
@@ -760,6 +804,7 @@ SELECT * FROM shoelace_log;
                sl_avail = sl_avail + NEW.ok_quant
          WHERE sl_name = NEW.ok_name;
 --DDL_STATEMENT_END--
+
 INSERT INTO shoelace_arrive VALUES ('sl3', 10);
 INSERT INTO shoelace_arrive VALUES ('sl6', 20);
 INSERT INTO shoelace_arrive VALUES ('sl8', 20);
@@ -771,15 +816,18 @@ insert into shoelace_ok select * from shoelace_arrive;
 SELECT * FROM shoelace ORDER BY sl_name;
 
 SELECT * FROM shoelace_log ORDER BY sl_name;
+
 --DDL_STATEMENT_BEGIN--
     CREATE VIEW shoelace_obsolete AS
 	SELECT * FROM shoelace WHERE NOT EXISTS
 	    (SELECT shoename FROM shoe WHERE slcolor = sl_color);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
     CREATE VIEW shoelace_candelete AS
 	SELECT * FROM shoelace_obsolete WHERE sl_avail = 0;
 --DDL_STATEMENT_END--
+
 insert into shoelace values ('sl9', 0, 'pink', 35.0, 'inch', 0.0);
 insert into shoelace values ('sl10', 1000, 'magenta', 40.0, 'inch', 0.0);
 -- Unsupported (even though a similar updatable view construct is)
@@ -808,16 +856,20 @@ create table rules_foo (f1 int);
 --DDL_STATEMENT_BEGIN--
 create table rules_foo2 (f1 int);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create rule rules_foorule as on insert to rules_foo where f1 < 100
 do instead nothing;
 --DDL_STATEMENT_END--
+
 insert into rules_foo values(1);
 insert into rules_foo values(1001);
 select * from rules_foo;
+
 --DDL_STATEMENT_BEGIN--
 drop rule rules_foorule on rules_foo;
 --DDL_STATEMENT_END--
+
 -- this should fail because f1 is not exposed for unqualified reference:
 --DDL_STATEMENT_BEGIN--
 create rule rules_foorule as on insert to rules_foo where f1 < 100
@@ -828,11 +880,13 @@ do instead insert into rules_foo2 values (f1);
 create rule rules_foorule as on insert to rules_foo where f1 < 100
 do instead insert into rules_foo2 values (new.f1);
 --DDL_STATEMENT_END--
+
 insert into rules_foo values(2);
 insert into rules_foo values(100);
 
 select * from rules_foo;
 select * from rules_foo2;
+
 --DDL_STATEMENT_BEGIN--
 drop rule rules_foorule on rules_foo;
 --DDL_STATEMENT_END--
@@ -843,6 +897,7 @@ drop table rules_foo;
 drop table rules_foo2;
 --DDL_STATEMENT_END--
 
+
 --
 -- Test rules containing INSERT ... SELECT, which is a very ugly special
 -- case as of 7.1.  Example is based on bug report from Joel Burton.
@@ -852,15 +907,18 @@ create table pparent (pid int, txt text);
 --DDL_STATEMENT_END--
 insert into pparent values (1,'parent1');
 insert into pparent values (2,'parent2');
+
 --DDL_STATEMENT_BEGIN--
 create table cchild (pid int, descrip text);
 --DDL_STATEMENT_END--
 insert into cchild values (1,'descrip1');
+
 --DDL_STATEMENT_BEGIN--
 create view vview as
   select pparent.pid, txt, descrip from
     pparent left join cchild using (pid);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create rule rrule as
   on update to vview do instead
@@ -870,6 +928,7 @@ create rule rrule as
   update cchild set descrip = new.descrip where cchild.pid = old.pid;
 );
 --DDL_STATEMENT_END--
+
 select * from vview;
 update vview set descrip='test1' where pid=1;
 select * from vview;
@@ -878,6 +937,7 @@ select * from vview;
 update vview set descrip='test3' where pid=3;
 select * from vview;
 select * from cchild;
+
 --DDL_STATEMENT_BEGIN--
 drop rule rrule on vview;
 --DDL_STATEMENT_END--
@@ -890,6 +950,7 @@ drop table pparent;
 --DDL_STATEMENT_BEGIN--
 drop table cchild;
 --DDL_STATEMENT_END--
+
 
 --
 -- Check that ruleutils are working
@@ -909,21 +970,26 @@ SELECT tablename, rulename, definition FROM pg_rules
 --
 -- CREATE OR REPLACE RULE
 --
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE ruletest_tbl (a int, b int);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE ruletest_tbl2 (a int, b int);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE OR REPLACE RULE myrule AS ON INSERT TO ruletest_tbl
 	DO INSTEAD INSERT INTO ruletest_tbl2 VALUES (10, 10);
 --DDL_STATEMENT_END--
+
 INSERT INTO ruletest_tbl VALUES (99, 99);
+
 --DDL_STATEMENT_BEGIN--
 CREATE OR REPLACE RULE myrule AS ON INSERT TO ruletest_tbl
 	DO INSTEAD INSERT INTO ruletest_tbl2 VALUES (1000, 1000);
 --DDL_STATEMENT_END--
+
 INSERT INTO ruletest_tbl VALUES (99, 99);
 
 SELECT * FROM ruletest_tbl2;
@@ -938,6 +1004,7 @@ create table rule_and_refint_t1 (
 	primary key (id1a, id1b)
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create table rule_and_refint_t2 (
 	id2a integer,
@@ -946,6 +1013,7 @@ create table rule_and_refint_t2 (
 	primary key (id2a, id2c)
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create table rule_and_refint_t3 (
 	id3a integer,
@@ -959,6 +1027,7 @@ create table rule_and_refint_t3 (
 	foreign key (id3a, id3c) references rule_and_refint_t2 (id2a, id2c)
 );
 --DDL_STATEMENT_END--
+
 
 insert into rule_and_refint_t1 values (1, 11);
 insert into rule_and_refint_t1 values (1, 12);
@@ -987,6 +1056,7 @@ insert into rule_and_refint_t3 values (1, 13, 11, 'row6')
 insert into shoelace values ('sl9', 0, 'pink', 35.0, 'inch', 0.0)
   on conflict (sl_name) do update
   set sl_avail = excluded.sl_avail;
+  
 --DDL_STATEMENT_BEGIN--
 create rule rule_and_refint_t3_ins as on insert to rule_and_refint_t3
 	where (exists (select 1 from rule_and_refint_t3
@@ -998,12 +1068,14 @@ create rule rule_and_refint_t3_ins as on insert to rule_and_refint_t3
 	and (rule_and_refint_t3.id3b = new.id3b))
 	and (rule_and_refint_t3.id3c = new.id3c));
 --DDL_STATEMENT_END--
+
 insert into rule_and_refint_t3 values (1, 11, 13, 'row7');
 insert into rule_and_refint_t3 values (1, 13, 11, 'row8');
 
 --
 -- disallow dropping a view's rule (bug #5072)
 --
+
 --DDL_STATEMENT_BEGIN--
 create view rules_fooview as select 'rules_foo'::text;
 --DDL_STATEMENT_END--
@@ -1013,25 +1085,31 @@ drop rule "_RETURN" on rules_fooview;
 --DDL_STATEMENT_BEGIN--
 drop view rules_fooview;
 --DDL_STATEMENT_END--
+
 --
 -- test conversion of table to view (needed to load some pg_dump files)
 --
+
 --DDL_STATEMENT_BEGIN--
 create table rules_fooview (x int, y text);
 --DDL_STATEMENT_END--
 select xmin, * from rules_fooview;
+
 --DDL_STATEMENT_BEGIN--
 create rule "_RETURN" as on select to rules_fooview do instead
   select 1 as x, 'aaa'::text as y;
 --DDL_STATEMENT_END--
+
 select * from rules_fooview;
 select xmin, * from rules_fooview;  -- fail, views don't have such a column
 
 select reltoastrelid, relkind, relfrozenxid
   from pg_class where oid = 'rules_fooview'::regclass;
+  
 --DDL_STATEMENT_BEGIN--
 drop view rules_fooview;
 --DDL_STATEMENT_END--
+
 -- trying to convert a partitioned table to view is not allowed
 --DDL_STATEMENT_BEGIN--
 create table rules_fooview (x int, y text) partition by list (x);
@@ -1040,6 +1118,7 @@ create table rules_fooview (x int, y text) partition by list (x);
 create rule "_RETURN" as on select to rules_fooview do instead
   select 1 as x, 'aaa'::text as y;
 --DDL_STATEMENT_END--
+
 -- nor can one convert a partition to view
 --DDL_STATEMENT_BEGIN--
 create table rules_fooview_part partition of rules_fooview for values in (1);
@@ -1048,9 +1127,11 @@ create table rules_fooview_part partition of rules_fooview for values in (1);
 create rule "_RETURN" as on select to rules_fooview_part do instead
   select 1 as x, 'aaa'::text as y;
 --DDL_STATEMENT_END--
+
 --
 -- check for planner problems with complex inherited UPDATES
 --
+
 --DDL_STATEMENT_BEGIN--
 create table id (id serial primary key, name text);
 --DDL_STATEMENT_END--
@@ -1064,42 +1145,51 @@ create table test_2 (id integer primary key) inherits (id);
 --DDL_STATEMENT_BEGIN--
 create table test_3 (id integer primary key) inherits (id);
 --DDL_STATEMENT_END--
+
 insert into test_1 (name) values ('Test 1');
 insert into test_1 (name) values ('Test 2');
 insert into test_2 (name) values ('Test 3');
 insert into test_2 (name) values ('Test 4');
 insert into test_3 (name) values ('Test 5');
 insert into test_3 (name) values ('Test 6');
+
 --DDL_STATEMENT_BEGIN--
 create view id_ordered as select * from id order by id;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create rule update_id_ordered as on update to id_ordered
 	do instead update id set name = new.name where id = old.id;
 --DDL_STATEMENT_END--
+
 select * from id_ordered;
 update id_ordered set name = 'update 2' where id = 2;
 update id_ordered set name = 'update 4' where id = 4;
 update id_ordered set name = 'update 5' where id = 5;
 select * from id_ordered;
+
 --DDL_STATEMENT_BEGIN--
 \set VERBOSITY terse \\ -- suppress cascade details
 drop table id cascade;
 \set VERBOSITY default
 --DDL_STATEMENT_END--
+
 --
 -- check corner case where an entirely-dummy subplan is created by
 -- constraint exclusion
 --
+
 --DDL_STATEMENT_BEGIN--
 create temp table t1 (a integer primary key);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create temp table t1_1 (check (a >= 0 and a < 10)) inherits (t1);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 create temp table t1_2 (check (a >= 10 and a < 20)) inherits (t1);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create rule t1_ins_1 as on insert to t1
 	where new.a >= 0 and new.a < 10
@@ -1112,6 +1202,7 @@ create rule t1_ins_2 as on insert to t1
 	do instead
 	insert into t1_2 values (new.a);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create rule t1_upd_1 as on update to t1
 	where old.a >= 0 and old.a < 10
@@ -1124,6 +1215,7 @@ create rule t1_upd_2 as on update to t1
 	do instead
 	update t1_2 set a = new.a where a = old.a;
 --DDL_STATEMENT_END--
+
 set constraint_exclusion = on;
 
 insert into t1 select * from generate_series(5,19,1) g;
@@ -1144,6 +1236,7 @@ select pg_get_viewdef('shoe'::regclass,0) as prettier;
 --
 -- check multi-row VALUES in rules
 --
+
 --DDL_STATEMENT_BEGIN--
 create table rules_src(f1 int, f2 int);
 --DDL_STATEMENT_END--
@@ -1191,15 +1284,18 @@ CREATE TABLE rule_t1 (a INT);
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW rule_v1 AS SELECT * FROM rule_t1;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE RULE InsertRule AS
     ON INSERT TO rule_v1
     DO INSTEAD
         INSERT INTO rule_t1 VALUES(new.a);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER RULE InsertRule ON rule_v1 RENAME to NewInsertRule;
 --DDL_STATEMENT_END--
+
 INSERT INTO rule_v1 VALUES(1);
 SELECT * FROM rule_v1;
 
@@ -1217,12 +1313,14 @@ ALTER RULE NewInsertRule ON rule_v1 RENAME TO "_RETURN"; -- already exists
 --DDL_STATEMENT_BEGIN--
 ALTER RULE "_RETURN" ON rule_v1 RENAME TO abc; -- ON SELECT rule cannot be renamed
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP VIEW rule_v1;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 DROP TABLE rule_t1;
 --DDL_STATEMENT_END--
+
 --
 -- check display of VALUES in view definitions
 --
@@ -1254,6 +1352,7 @@ create view rule_v1(x) as select * from (values(1,2)) v(q,w);
 --DDL_STATEMENT_BEGIN--
 drop view rule_v1;
 --DDL_STATEMENT_END--
+
 --
 -- Check DO INSTEAD rules with ON CONFLICT
 --
@@ -1263,6 +1362,7 @@ CREATE TABLE hats (
 	hat_color   char(10)      -- hat color
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE hat_data (
 	hat_name    char(10),
@@ -1273,6 +1373,7 @@ CREATE TABLE hat_data (
 create unique index hat_data_unique_idx
   on hat_data (hat_name COLLATE "C" bpchar_pattern_ops);
 --DDL_STATEMENT_END--
+
 -- DO NOTHING with ON CONFLICT
 --DDL_STATEMENT_BEGIN--
 CREATE RULE hat_nosert AS ON INSERT TO hats
@@ -1285,6 +1386,7 @@ CREATE RULE hat_nosert AS ON INSERT TO hats
         RETURNING *;
 SELECT definition FROM pg_rules WHERE tablename = 'hats' ORDER BY rulename;
 --DDL_STATEMENT_END--
+
 -- Works (projects row)
 INSERT INTO hats VALUES ('h7', 'black') RETURNING *;
 -- Works (does nothing)
@@ -1294,6 +1396,7 @@ SELECT tablename, rulename, definition FROM pg_rules
 --DDL_STATEMENT_BEGIN--
 DROP RULE hat_nosert ON hats;
 --DDL_STATEMENT_END--
+
 -- DO NOTHING without ON CONFLICT
 --DDL_STATEMENT_BEGIN--
 CREATE RULE hat_nosert_all AS ON INSERT TO hats
@@ -1309,6 +1412,7 @@ SELECT definition FROM pg_rules WHERE tablename = 'hats' ORDER BY rulename;
 --DDL_STATEMENT_BEGIN--
 DROP RULE hat_nosert_all ON hats;
 --DDL_STATEMENT_END--
+
 -- Works (does nothing)
 INSERT INTO hats VALUES ('h7', 'black') RETURNING *;
 
@@ -1357,15 +1461,18 @@ INSERT INTO hats
     SELECT * FROM data
 RETURNING *;
 SELECT * FROM hat_data WHERE hat_name IN ('h8', 'h9', 'h7') ORDER BY hat_name;
+
 --DDL_STATEMENT_BEGIN--
 DROP RULE hat_upsert ON hats;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table hats;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 drop table hat_data;
 --DDL_STATEMENT_END--
+
 -- test for pg_get_functiondef properly regurgitating SET parameters
 -- Note that the function is kept around to stress pg_dump.
 --DDL_STATEMENT_BEGIN--
@@ -1379,6 +1486,7 @@ CREATE FUNCTION func_with_set_params() RETURNS integer
     SET local_preload_libraries TO "Mixed/Case", 'c:/''a"/path', '', '0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789'
     IMMUTABLE STRICT;
 SELECT pg_get_functiondef('func_with_set_params()'::regprocedure);
+
 --DDL_STATEMENT_END--
 -- tests for pg_get_*def with invalid objects
 SELECT pg_get_constraintdef(0);
@@ -1412,6 +1520,7 @@ ALTER RULE rules_parted_table_insert ON rules_parted_table RENAME TO rules_parte
 --DDL_STATEMENT_BEGIN--
 DROP TABLE rules_parted_table;
 --DDL_STATEMENT_END--
+
 --
 -- Test enabling/disabling
 --
@@ -1421,10 +1530,12 @@ CREATE TABLE ruletest1 (a int);
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE ruletest2 (b int);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE RULE rule1 AS ON INSERT TO ruletest1
     DO INSTEAD INSERT INTO ruletest2 VALUES (NEW.*);
 --DDL_STATEMENT_END--
+
 INSERT INTO ruletest1 VALUES (1);
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE ruletest1 DISABLE RULE rule1;
@@ -1444,6 +1555,7 @@ INSERT INTO ruletest1 VALUES (5);
 
 SELECT * FROM ruletest1;
 SELECT * FROM ruletest2;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE ruletest1;
 --DDL_STATEMENT_END--

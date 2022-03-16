@@ -11,9 +11,11 @@ SELECT name 'name string' = name 'name string ' AS "False";
 --
 --
 --
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE NAME_TBL(f1 name);
 --DDL_STATEMENT_END--
+
 INSERT INTO NAME_TBL(f1) VALUES ('1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQR');
 
 INSERT INTO NAME_TBL(f1) VALUES ('1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopqr');
@@ -50,9 +52,11 @@ SELECT '' AS zero, c.f1 FROM NAME_TBL c WHERE c.f1 !~ '.*';
 SELECT '' AS three, c.f1 FROM NAME_TBL c WHERE c.f1 ~ '[0-9]';
 
 SELECT '' AS two, c.f1 FROM NAME_TBL c WHERE c.f1 ~ '.*asdf.*';
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE NAME_TBL;
 --DDL_STATEMENT_END--
+
 DO $$
 DECLARE r text[];
 BEGIN

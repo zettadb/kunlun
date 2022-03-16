@@ -114,6 +114,7 @@ CREATE TABLE pagg_tab1_p2 PARTITION OF pagg_tab1 FOR VALUES FROM (10) TO (20);
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab1_p3 PARTITION OF pagg_tab1 FOR VALUES FROM (20) TO (30);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists pagg_tab2;
 --DDL_STATEMENT_END--
@@ -129,6 +130,7 @@ CREATE TABLE pagg_tab2_p2 PARTITION OF pagg_tab2 FOR VALUES FROM (10) TO (20);
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab2_p3 PARTITION OF pagg_tab2 FOR VALUES FROM (20) TO (30);
 --DDL_STATEMENT_END--
+
 INSERT INTO pagg_tab1 SELECT i % 30, i % 20 FROM generate_series(0, 299, 2) i;
 INSERT INTO pagg_tab2 SELECT i % 20, i % 30 FROM generate_series(0, 299, 3) i;
 
@@ -198,6 +200,7 @@ SELECT a.x, a.y, count(*) FROM (SELECT * FROM pagg_tab1 WHERE x = 1 AND x = 2) a
 
 
 -- Partition by multiple columns
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists pagg_tab_m;
 --DDL_STATEMENT_END--
@@ -232,6 +235,7 @@ SELECT a, c, sum(b), avg(c), count(*) FROM pagg_tab_m GROUP BY (a+b)/2, 2, 1 HAV
 
 
 -- Test with multi-level partitioning scheme
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists pagg_tab_ml;
 --DDL_STATEMENT_END--
@@ -250,6 +254,7 @@ CREATE TABLE pagg_tab_ml_p2_s1 PARTITION OF pagg_tab_ml_p2 FOR VALUES IN ('0000'
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab_ml_p2_s2 PARTITION OF pagg_tab_ml_p2 FOR VALUES IN ('0002', '0003');
 --DDL_STATEMENT_END--
+
 -- This level of partitioning has different column positions than the parent
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab_ml_p3 PARTITION OF pagg_tab_ml FOR VALUES FROM (20) TO (30) PARTITION BY RANGE (b);
@@ -260,6 +265,7 @@ CREATE TABLE pagg_tab_ml_p3_s1 PARTITION OF pagg_tab_ml_p3 FOR VALUES FROM (0) T
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab_ml_p3_s2 PARTITION OF pagg_tab_ml_p3 FOR VALUES FROM (5) TO (10);
 --DDL_STATEMENT_END--
+
 INSERT INTO pagg_tab_ml SELECT i % 30, i % 10, to_char(i % 4, 'FM0000') FROM generate_series(0, 29999) i;
 
 -- For Parallel Append
@@ -329,6 +335,7 @@ SELECT a, sum(b), count(*) FROM pagg_tab_ml GROUP BY a, b, c HAVING avg(b) > 7 O
 -- wins as we add it first. This parallel_setup_cost plays a vital role in
 -- costing such plans.
 SET parallel_setup_cost TO 10;
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists pagg_tab_para;
 --DDL_STATEMENT_END--
@@ -344,6 +351,7 @@ CREATE TABLE pagg_tab_para_p2 PARTITION OF pagg_tab_para FOR VALUES FROM (10) TO
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab_para_p3 PARTITION OF pagg_tab_para FOR VALUES FROM (20) TO (30);
 --DDL_STATEMENT_END--
+
 INSERT INTO pagg_tab_para SELECT i % 30, i % 20 FROM generate_series(0, 29999) i;
 
 -- When GROUP BY clause matches; full aggregation is performed for each partition.
@@ -374,6 +382,7 @@ SELECT x, sum(y), avg(y), count(*) FROM pagg_tab_para GROUP BY x HAVING avg(y) <
 
 
 --Crash when select count(*) from a partition table #439
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists t1;
 --DDL_STATEMENT_END--
@@ -389,6 +398,7 @@ create table t12 partition of t1 for values in (5,6,7,8);
 select count(*) from t1;
 select count(*) from t11;
 select count(*) from t12;
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists t1;
 --DDL_STATEMENT_END--

@@ -92,6 +92,7 @@ FROM (SELECT $$a$$ || x AS b,
                ROW(y.*,ARRAY[4,5,6])] AS z
       FROM generate_series(1,2) x,
            generate_series(4,5) y) q;
+		   
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE rows(x int, y text);
 --DDL_STATEMENT_END--
@@ -161,12 +162,14 @@ FROM (SELECT '{"a":1,"b": [2,3,4,"d","e","f"],"c":{"p":1,"q":2}}'::json AS "json
 
 
 -- json extraction functions
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE test_json (
        json_type text,
        test_json json
 );
 --DDL_STATEMENT_END--
+
 INSERT INTO test_json VALUES
 ('scalar','"a scalar"'),
 ('array','["zero", "one","two",null,"four","five", [1,2,3],{"f1":9}]'),
@@ -385,9 +388,11 @@ select * from json_array_elements_text('[1,true,[1,[2,3]],null,{"f1":1,"f2":[7,8
 --DDL_STATEMENT_BEGIN--
 create type jpop as (a text, b int, c timestamp);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create type j_unordered_pair as (x int, y int);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TYPE jsrec AS (
 	i	int,
@@ -409,11 +414,13 @@ CREATE TYPE jsrec AS (
 	reca	jpop[]
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TYPE jsrec_i_not_null AS (
 	i	js_int_not_null
 );
 --DDL_STATEMENT_END--
+
 select * from json_populate_record(null::jpop,'{"a":"blurfl","x":43.2}') q;
 select * from json_populate_record(row('x',3,'2012-12-31 15:30:56')::jpop,'{"a":"blurfl","x":43.2}') q;
 
@@ -535,6 +542,7 @@ select * from json_populate_recordset(null::jpop,'[{"a":"blurfl","x":43.2},{"b":
 select * from json_populate_recordset(row('def',99,null)::jpop,'[{"a":"blurfl","x":43.2},{"b":3,"c":"2012-01-20 10:42:53"}]') q;
 select * from json_populate_recordset(row('def',99,null)::jpop,'[{"a":[100,200,300],"x":43.2},{"a":{"z":true},"b":3,"c":"2012-01-20 10:42:53"}]') q;
 select * from json_populate_recordset(row('def',99,null)::jpop,'[{"c":[100,200,300],"x":43.2},{"a":{"z":true},"b":3,"c":"2012-01-20 10:42:53"}]') q;
+
 --DDL_STATEMENT_BEGIN--
 create type jpop2 as (a int, b json, c int, d int);
 --DDL_STATEMENT_END--
@@ -570,6 +578,7 @@ select * from json_populate_recordset(row(1000000000::int,50::int),'[{"b":"2"},{
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE jspoptest (js json);
 --DDL_STATEMENT_END--
+
 INSERT INTO jspoptest
 SELECT '{
 	"jsa": [1, "2", null, 4],
@@ -579,6 +588,7 @@ SELECT '{
 FROM generate_series(1, 3);
 
 SELECT (json_populate_record(NULL::jsrec, js)).* FROM jspoptest;
+
 --DDL_STATEMENT_BEGIN--
 DROP TYPE jsrec;
 --DDL_STATEMENT_END--
@@ -588,6 +598,7 @@ DROP TYPE jsrec_i_not_null;
 --DDL_STATEMENT_BEGIN--
 DROP TYPE j_unordered_pair;
 --DDL_STATEMENT_END--
+
 --json_typeof() function
 select value, json_typeof(value)
   from (values (json '123.4'),
@@ -651,6 +662,7 @@ SELECT json_build_object(r,2) FROM (SELECT 1 AS a, 2 AS b) r;
 SELECT json_build_object(json '{"a":1,"b":2}', 3);
 
 SELECT json_build_object('{1,2,3}'::int[], 3);
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE foo (serial_num int, name text, type text);
 --DDL_STATEMENT_END--

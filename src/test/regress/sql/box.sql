@@ -18,9 +18,11 @@
 
 -- boxes are specified by two points, given by four floats x1,y1,x2,y2
 
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE BOX_TBL (f1 box);
 --DDL_STATEMENT_END--
+
 INSERT INTO BOX_TBL (f1) VALUES ('(2.0,2.0,0.0,0.0)');
 
 INSERT INTO BOX_TBL (f1) VALUES ('(1.0,1.0,3.0,3.0)');
@@ -108,7 +110,7 @@ SELECT '' AS one, b.f1
    WHERE box '(1,1,3,3)' ~= b.f1;
 
 -- center of box, left unary operator
-SELECT '' AS four, --DDL_STATEMENT_BEGIN--(b1.f1) AS p
+SELECT '' AS four, @@(b1.f1) AS p
    FROM BOX_TBL b1;
 
 -- wholly-contained
@@ -121,15 +123,19 @@ SELECT '' AS four, height(f1), width(f1) FROM BOX_TBL;
 --
 -- Test the SP-GiST index
 --
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMPORARY TABLE box_temp (f1 box);
 --DDL_STATEMENT_END--
+
 INSERT INTO box_temp
 	SELECT box(point(i, i), point(i * 2, i * 2))
 	FROM generate_series(1, 50) AS i;
+	
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX box_spgist ON box_temp USING spgist (f1);
 --DDL_STATEMENT_END--
+
 INSERT INTO box_temp
 	VALUES (NULL),
 		   ('(0,0)(0,100)'),
@@ -177,15 +183,18 @@ SELECT * FROM box_temp WHERE f1 ~= '(20,20),(40,40)';
 EXPLAIN (COSTS OFF) SELECT * FROM box_temp WHERE f1 ~= '(20,20),(40,40)';
 
 RESET enable_seqscan;
+
 --DDL_STATEMENT_BEGIN--
 DROP INDEX box_spgist;
 --DDL_STATEMENT_END--
+
 --
 -- Test the SP-GiST index on the larger volume of data
 --
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE quad_box_tbl (b box);
 --DDL_STATEMENT_END--
+
 INSERT INTO quad_box_tbl
 	SELECT box(point(x * 10, y * 10), point(x * 10 + 5, y * 10 + 5))
 	FROM generate_series(1, 100) x,
@@ -203,9 +212,11 @@ INSERT INTO quad_box_tbl
 		('((-infinity,-infinity),(infinity,infinity))'),
 		('((-infinity,100),(-infinity,500))'),
 		('((-infinity,-infinity),(700,infinity))');
+		
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX quad_box_tbl_idx ON quad_box_tbl USING spgist(b);
 --DDL_STATEMENT_END--
+
 SET enable_seqscan = OFF;
 SET enable_indexscan = ON;
 SET enable_bitmapscan = ON;

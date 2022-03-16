@@ -24,6 +24,7 @@ CREATE SEQUENCE sequence_testx INCREMENT BY 1 START -10;
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE sequence_testx CACHE 0;
 --DDL_STATEMENT_END--
+
 -- OWNED BY errors
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE sequence_testx OWNED BY nobody;  -- nonsense word
@@ -43,6 +44,7 @@ CREATE SEQUENCE sequence_testx OWNED BY sequence_test_table.b;  -- wrong column
 --DDL_STATEMENT_BEGIN--
 DROP TABLE sequence_test_table;
 --DDL_STATEMENT_END--
+
 -- sequence data types
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE sequence_test5 AS integer;
@@ -80,12 +82,14 @@ CREATE SEQUENCE sequence_testx AS text;
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE sequence_testx AS nosuchtype;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE sequence_testx AS smallint MAXVALUE 100000;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE sequence_testx AS smallint MINVALUE -100000;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER SEQUENCE sequence_test5 AS smallint;  -- success, max will be adjusted
 --DDL_STATEMENT_END--
@@ -104,6 +108,7 @@ ALTER SEQUENCE sequence_test10 AS smallint;  -- fail, min has to be adjusted
 --DDL_STATEMENT_BEGIN--
 ALTER SEQUENCE sequence_test10 AS smallint MINVALUE -20000;  -- ok now
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER SEQUENCE sequence_test11 AS int;  -- max will be adjusted
 --DDL_STATEMENT_END--
@@ -116,12 +121,15 @@ ALTER SEQUENCE sequence_test13 AS int;  -- min and max will be adjusted
 --DDL_STATEMENT_BEGIN--
 ALTER SEQUENCE sequence_test14 AS int;  -- min and max will be adjusted
 --DDL_STATEMENT_END--
+
 ---
 --- test creation of SERIAL column
 ---
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE serialTest1 (f1 text, f2 serial);
 --DDL_STATEMENT_END--
+
 INSERT INTO serialTest1 VALUES ('foo');
 INSERT INTO serialTest1 VALUES ('bar');
 INSERT INTO serialTest1 VALUES ('force', 100);
@@ -136,6 +144,7 @@ SELECT pg_get_serial_sequence('serialTest1', 'f2');
 CREATE TABLE serialTest2 (f1 text, f2 serial, f3 smallserial, f4 serial2,
   f5 bigserial, f6 serial8);
 --DDL_STATEMENT_END--
+
 INSERT INTO serialTest2 (f1)
   VALUES ('test_defaults');
 
@@ -185,6 +194,7 @@ CREATE SEQUENCE sequence_test;
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE IF NOT EXISTS sequence_test;
 --DDL_STATEMENT_END--
+
 SELECT nextval('sequence_test'::text);
 SELECT nextval('sequence_test'::regclass);
 SELECT currval('sequence_test'::text);
@@ -199,9 +209,11 @@ SELECT setval('sequence_test'::regclass, 99, false);
 SELECT nextval('sequence_test'::text);
 DISCARD SEQUENCES;
 SELECT currval('sequence_test'::regclass);
+
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE sequence_test;
 --DDL_STATEMENT_END--
+
 -- renaming sequences
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE foo_seq;
@@ -216,6 +228,7 @@ SELECT nextval('foo_seq_new');
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE foo_seq_new;
 --DDL_STATEMENT_END--
+
 -- renaming serial sequences
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE serialtest1_f2_seq RENAME TO serialtest1_f2_foo;
@@ -261,9 +274,11 @@ DROP SEQUENCE t1_f1_seq;
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE myseq2;
 --DDL_STATEMENT_END--
+
 --
 -- Alter sequence
 --
+
 
 --DDL_STATEMENT_BEGIN--
 ALTER SEQUENCE serialTest1 CYCLE;  -- error, not a sequence
@@ -280,8 +295,10 @@ CREATE SEQUENCE sequence_test2 START WITH 32;
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE sequence_test4 INCREMENT BY -1;
 --DDL_STATEMENT_END--
+
 SELECT nextval('sequence_test2');
 SELECT nextval('sequence_test4');
+
 --DDL_STATEMENT_BEGIN--
 ALTER SEQUENCE IF EXISTS sequence_test2 RESTART WITH 24
   INCREMENT BY 4 MAXVALUE 36 MINVALUE 5 CYCLE;
@@ -293,11 +310,13 @@ ALTER SEQUENCE sequence_test2 RESTART;
 --DDL_STATEMENT_END--
 SELECT nextval('sequence_test2');
 --DDL_STATEMENT_BEGIN--
+
 ALTER SEQUENCE sequence_test2 RESTART WITH 0;  -- error
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 ALTER SEQUENCE sequence_test4 RESTART WITH 40;  -- error
 --DDL_STATEMENT_END--
+
 -- test CYCLE and NO CYCLE
 --DDL_STATEMENT_BEGIN--
 ALTER SEQUENCE sequence_test2 RESTART WITH 24
@@ -308,6 +327,7 @@ SELECT nextval('sequence_test2');
 SELECT nextval('sequence_test2');
 SELECT nextval('sequence_test2');
 SELECT nextval('sequence_test2');  -- cycled
+
 --DDL_STATEMENT_BEGIN--
 ALTER SEQUENCE sequence_test2 RESTART WITH 24
   NO CYCLE;
@@ -317,6 +337,7 @@ SELECT nextval('sequence_test2');
 SELECT nextval('sequence_test2');
 SELECT nextval('sequence_test2');
 SELECT nextval('sequence_test2');  -- error
+
 --DDL_STATEMENT_BEGIN--
 ALTER SEQUENCE sequence_test2 RESTART WITH -24 START WITH -24
   INCREMENT BY -4 MINVALUE -36 MAXVALUE -5 CYCLE;
@@ -326,6 +347,7 @@ SELECT nextval('sequence_test2');
 SELECT nextval('sequence_test2');
 SELECT nextval('sequence_test2');
 SELECT nextval('sequence_test2');  -- cycled
+
 --DDL_STATEMENT_BEGIN--
 ALTER SEQUENCE sequence_test2 RESTART WITH -24
   NO CYCLE;
@@ -341,12 +363,15 @@ SELECT nextval('sequence_test2');  -- error
 ALTER SEQUENCE IF EXISTS sequence_test2 RESTART WITH 32 START WITH 32
   INCREMENT BY 4 MAXVALUE 36 MINVALUE 5 CYCLE;
 --DDL_STATEMENT_END--
+
 SELECT setval('sequence_test2', -100);  -- error
 SELECT setval('sequence_test2', 100);  -- error
 SELECT setval('sequence_test2', 5);
+
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE sequence_test3;  -- not read from, to test is_called
 --DDL_STATEMENT_END--
+
 
 -- Information schema
 SELECT * FROM information_schema.sequences
@@ -381,19 +406,23 @@ SELECT setval('seq', 99);
 SELECT lastval();
 DISCARD SEQUENCES;
 SELECT lastval();
+
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE seq2;
 --DDL_STATEMENT_END--
 SELECT nextval('seq2');
 SELECT lastval();
+
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE seq2;
 --DDL_STATEMENT_END--
 -- should fail
 SELECT lastval();
+
 --DDL_STATEMENT_BEGIN--
 CREATE USER regress_seq_user;
 --DDL_STATEMENT_END--
+
 -- Test sequences in read-only transactions
 --DDL_STATEMENT_BEGIN--
 CREATE TEMPORARY SEQUENCE sequence_test_temp1;
@@ -434,6 +463,7 @@ ROLLBACK;
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE seq3;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE seq3;
 --DDL_STATEMENT_END--
@@ -450,6 +480,7 @@ ROLLBACK;
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE seq3;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE seq3;
 --DDL_STATEMENT_END--
@@ -466,6 +497,7 @@ ROLLBACK;
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE seq3;
 --DDL_STATEMENT_END--
+
 -- currval
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE seq3;
@@ -484,6 +516,7 @@ ROLLBACK;
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE seq3;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE seq3;
 --DDL_STATEMENT_END--
@@ -501,6 +534,7 @@ ROLLBACK;
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE seq3;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE seq3;
 --DDL_STATEMENT_END--
@@ -518,6 +552,7 @@ ROLLBACK;
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE seq3;
 --DDL_STATEMENT_END--
+
 -- lastval
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE seq3;
@@ -554,6 +589,7 @@ ROLLBACK;
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE seq3;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE seq3;
 --DDL_STATEMENT_END--
@@ -571,6 +607,7 @@ ROLLBACK;
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE seq3;
 --DDL_STATEMENT_END--
+
 -- setval
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE seq3;
@@ -592,6 +629,7 @@ ROLLBACK;
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE seq3;
 --DDL_STATEMENT_END--
+
 -- ALTER SEQUENCE
 BEGIN;
 SET LOCAL SESSION AUTHORIZATION regress_seq_user;
@@ -607,17 +645,20 @@ DROP TABLE serialTest1;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE serialTest2;
 --DDL_STATEMENT_END--
+
 -- Make sure sequences are gone:
 SELECT * FROM information_schema.sequences WHERE sequence_name IN
   ('sequence_test2', 'serialtest2_f2_seq', 'serialtest2_f3_seq',
    'serialtest2_f4_seq', 'serialtest2_f5_seq', 'serialtest2_f6_seq')
   ORDER BY sequence_name ASC;
+  
 --DDL_STATEMENT_BEGIN--
 DROP USER regress_seq_user;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE seq;
 --DDL_STATEMENT_END--
+
 -- cache tests
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE test_seq1 CACHE 10;
@@ -625,6 +666,7 @@ CREATE SEQUENCE test_seq1 CACHE 10;
 SELECT nextval('test_seq1');
 SELECT nextval('test_seq1');
 SELECT nextval('test_seq1');
+
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE test_seq1;
 --DDL_STATEMENT_END--

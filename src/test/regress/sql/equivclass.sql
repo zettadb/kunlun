@@ -10,6 +10,7 @@
 -- to create one.  We do this by making two alias types that are really
 -- int8 (so we need no new C code) and adding only some operators for them
 -- into the standard integer_ops opfamily.
+
 --DDL_STATEMENT_BEGIN--
 drop type if exists int8alias1 cascade;
 --DDL_STATEMENT_END--
@@ -31,6 +32,7 @@ create type int8alias1 (
     like = int8
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop type if exists int8alias2 cascade;
 --DDL_STATEMENT_END--
@@ -52,6 +54,7 @@ create type int8alias2 (
     like = int8
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create cast (int8 as int8alias1) without function;
 --DDL_STATEMENT_END--
@@ -64,6 +67,7 @@ create cast (int8alias1 as int8) without function;
 --DDL_STATEMENT_BEGIN--
 create cast (int8alias2 as int8) without function;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create function int8alias1eq(int8alias1, int8alias1) returns bool
   strict immutable language internal as 'int8eq';
@@ -80,6 +84,7 @@ create operator = (
 --DDL_STATEMENT_BEGIN--
 alter operator family integer_ops using btree add
   operator 3 = (int8alias1, int8alias1);
+  
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 create function int8alias2eq(int8alias2, int8alias2) returns bool
@@ -98,6 +103,7 @@ create operator = (
 alter operator family integer_ops using btree add
   operator 3 = (int8alias2, int8alias2);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create function int8alias1eq(int8, int8alias1) returns bool
   strict immutable language internal as 'int8eq';
@@ -114,6 +120,7 @@ create operator = (
 alter operator family integer_ops using btree add
   operator 3 = (int8, int8alias1);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create function int8alias1eq(int8alias1, int8alias2) returns bool
   strict immutable language internal as 'int8eq';
@@ -130,6 +137,7 @@ create operator = (
 alter operator family integer_ops using btree add
   operator 3 = (int8alias1, int8alias2);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create function int8alias1lt(int8alias1, int8alias1) returns bool
   strict immutable language internal as 'int8lt';
@@ -144,6 +152,7 @@ create operator < (
 alter operator family integer_ops using btree add
   operator 1 < (int8alias1, int8alias1);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create function int8alias1cmp(int8, int8alias1) returns int
   strict immutable language internal as 'btint8cmp';
@@ -152,12 +161,14 @@ create function int8alias1cmp(int8, int8alias1) returns int
 alter operator family integer_ops using btree add
   function 1 int8alias1cmp (int8, int8alias1);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists ec0;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 create table ec0 (ff int8 primary key, f1 int8, f2 int8);
 --DDL_STATEMENT_END--
+
 -- for the moment we only want to look at nestloop plans
 set enable_hashjoin = off;
 set enable_mergejoin = off;
@@ -175,18 +186,22 @@ explain (costs off)
 
 set enable_nestloop = on;
 set enable_mergejoin = off;
+
 --DDL_STATEMENT_BEGIN--
 create user regress_user_ectest;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 grant select on ec0 to regress_user_ectest;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 revoke select on ec0 from regress_user_ectest;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop user regress_user_ectest;
 --DDL_STATEMENT_END--
+
 -- check that X=X is converted to X IS NOT NULL when appropriate
 explain (costs off)
   select * from tenk1 where unique1 = unique1 and unique2 = unique2;

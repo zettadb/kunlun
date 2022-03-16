@@ -74,6 +74,7 @@ INSERT INTO INT8_TBL VALUES('4567890123456789','123');
 INSERT INTO INT8_TBL VALUES(+4567890123456789,'4567890123456789');
 INSERT INTO INT8_TBL VALUES('+4567890123456789','-4567890123456789');
 SELECT * FROM INT8_TBL;
+
 --DDL_STATEMENT_BEGIN--
 create view tt18v as
 
@@ -81,6 +82,7 @@ create view tt18v as
     union all
     select * from int8_tbl xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz;
 --DDL_STATEMENT_END--
+
 explain (costs off) select * from tt18v;
 select * from tt18v;
 
@@ -195,10 +197,12 @@ insert into test1 (t) values ('b');
 insert into test1 (t) values ('c');
 insert into test1 (t) values ('d');
 insert into test1 (t) values ('e');
+
 --DDL_STATEMENT_BEGIN--
 create view v_test1
 as select 'v_' || t from test1;
 --DDL_STATEMENT_END--
+
 copy (select t from test1 where id = 1 UNION select * from v_test1 ORDER BY 1) to stdout;
 
 copy (select * from (select t from test1 where id = 1 UNION select * from v_test1 ORDER BY 1) t1) to stdout;
@@ -258,12 +262,14 @@ INSERT INTO INT4_TBL(f1) VALUES ('123456 ');
 INSERT INTO INT4_TBL(f1) VALUES (' -123456');
 INSERT INTO INT4_TBL(f1) VALUES ('2147483647');
 INSERT INTO INT4_TBL(f1) VALUES ('-2147483647');
+
 --DDL_STATEMENT_BEGIN--
 DROP table if exists FLOAT8_TBL cascade;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE FLOAT8_TBL(f1 float8);
 --DDL_STATEMENT_END--
+
 INSERT INTO FLOAT8_TBL(f1) VALUES ('    0.0   ');
 INSERT INTO FLOAT8_TBL(f1) VALUES ('1004.30  ');
 INSERT INTO FLOAT8_TBL(f1) VALUES ('   -34.84');

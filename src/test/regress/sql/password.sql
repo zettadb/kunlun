@@ -64,6 +64,7 @@ ALTER ROLE regress_passwd1 PASSWORD 'md5cd3578025fe2c3d7ed1b9a9b26238b70';
 --DDL_STATEMENT_BEGIN--
 ALTER ROLE regress_passwd3 PASSWORD 'SCRAM-SHA-256$4096:VLK4RMaQLCvNtQ==$6YtlR4t69SguDiwFvbVgVZtuz6gpJQQqUMZ7IQJK5yI=:ps75jrHeYU4lXCcXI4O8oIdJ3eO8o2jirjruw9phBTo=';
 --DDL_STATEMENT_END--
+
 SET password_encryption = 'scram-sha-256';
 -- create SCRAM verifier
 --DDL_STATEMENT_BEGIN--
@@ -73,6 +74,7 @@ ALTER ROLE  regress_passwd4 PASSWORD 'foo';
 --DDL_STATEMENT_BEGIN--
 CREATE ROLE regress_passwd5 PASSWORD 'md5e73a4b11df52a6068f8b39f90be36023';
 --DDL_STATEMENT_END--
+
 -- This looks like a valid SCRAM-SHA-256 verifier, but it is not
 -- so it should be hashed with SCRAM-SHA-256.
 --DDL_STATEMENT_BEGIN--
@@ -88,6 +90,7 @@ CREATE ROLE regress_passwd7 PASSWORD 'md5012345678901234567890123456789zz';
 --DDL_STATEMENT_BEGIN--
 CREATE ROLE regress_passwd8 PASSWORD 'md501234567890123456789012345678901zz';
 --DDL_STATEMENT_END--
+
 SELECT rolname, regexp_replace(rolpassword, '(SCRAM-SHA-256)\$(\d+):([a-zA-Z0-9+/=]+)\$([a-zA-Z0-9+=/]+):([a-zA-Z0-9+/=]+)', '\1$\2:<salt>$<storedkey>:<serverkey>') as rolpassword_masked
     FROM pg_authid
     WHERE rolname LIKE 'regress_passwd%'
@@ -118,12 +121,14 @@ CREATE ROLE regress_passwd_sha_len1 PASSWORD 'SCRAM-SHA-256$4096:A6xHKoH/494E941
 --DDL_STATEMENT_BEGIN--
 CREATE ROLE regress_passwd_sha_len2 PASSWORD 'SCRAM-SHA-256$4096:A6xHKoH/494E941doaPOYg==$Ky+A30sewHIH3VHQLRN9vYsuzlgNyGNKCh37dy96Rqw=:COPdlNiIkrsacU5QoxydEuOH6e/KfiipeETb/bPw8ZIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
 --DDL_STATEMENT_END--
+
 -- Check that the invalid verifiers were re-hashed. A re-hashed verifier
 -- should not contain the original salt.
 SELECT rolname, rolpassword not like '%A6xHKoH/494E941doaPOYg==%' as is_rolpassword_rehashed
     FROM pg_authid
     WHERE rolname LIKE 'regress_passwd_sha_len%'
     ORDER BY rolname;
+	
 --DDL_STATEMENT_BEGIN--
 DROP ROLE regress_passwd1;
 --DDL_STATEMENT_END--

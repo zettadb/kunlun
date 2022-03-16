@@ -14,6 +14,7 @@ drop table if not exists pxtest1;
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE pxtest1 (foobar VARCHAR(10));
 --DDL_STATEMENT_END--
+
 INSERT INTO pxtest1 VALUES ('aaa');
 
 
@@ -102,6 +103,7 @@ CREATE TABLE pxtest3(fff int);
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE pxtest4 (a int);
 --DDL_STATEMENT_END--
+
 -- Test subtransactions
 BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;
   INSERT INTO pxtest2 VALUES (1);

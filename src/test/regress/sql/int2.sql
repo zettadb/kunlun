@@ -1,6 +1,7 @@
 --
 -- INT2
 --
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE if exists INT2_TBL;
 --DDL_STATEMENT_END--

@@ -203,6 +203,7 @@ CREATE TABLE iportaltest (
 	p		polygon
 );
 --DDL_STATEMENT_END--
+
 INSERT INTO iportaltest (i, d, p)
    VALUES (1, 3.567, '(3.0,1.0),(4.0,2.0)'::polygon);
 

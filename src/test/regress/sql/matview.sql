@@ -122,8 +122,8 @@ SELECT * FROM mvtest_tvvm;
 --DDL_STATEMENT_BEGIN--
 DROP MATERIALIZED VIEW IF EXISTS no_such_mv;
 --DDL_STATEMENT_END--
--- make sure invalid combination of options is prohibited
 
+-- make sure invalid combination of options is prohibited
 REFRESH MATERIALIZED VIEW CONCURRENTLY mvtest_tvmm WITH NO DATA;
 
 -- no tuple locks on materialized views
@@ -136,6 +136,7 @@ SELECT type, m.totamt AS mtot, v.totamt AS vtot FROM mvtest_tm m LEFT JOIN mvtes
 --DDL_STATEMENT_BEGIN--
 DROP TABLE mvtest_t;
 --DDL_STATEMENT_END--
+
 -- some additional tests not using base tables
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW mvtest_vt1 AS SELECT 1 moo;
@@ -152,9 +153,11 @@ CREATE MATERIALIZED VIEW mv_test2 AS SELECT moo, 2*moo FROM mvtest_vt2 UNION ALL
 CREATE MATERIALIZED VIEW mv_test3 AS SELECT * FROM mv_test2 WHERE moo = 12345;
 --DDL_STATEMENT_END--
 SELECT relispopulated FROM pg_class WHERE oid = 'mv_test3'::regclass;
+
 --DDL_STATEMENT_BEGIN--
 DROP VIEW mvtest_vt1 CASCADE;
 --DDL_STATEMENT_END--
+
 -- test that duplicate values on unique index prevent refresh
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE mvtest_foo(a int, b int);
@@ -193,6 +196,7 @@ REFRESH MATERIALIZED VIEW CONCURRENTLY mvtest_mv;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE mvtest_foo CASCADE;
 --DDL_STATEMENT_END--
+
 -- allow subquery to reference unpopulated matview if WITH NO DATA is specified
 --DDL_STATEMENT_BEGIN--
 CREATE MATERIALIZED VIEW mvtest_mv1 AS SELECT 1 AS col1 WITH NO DATA;
@@ -204,8 +208,8 @@ CREATE MATERIALIZED VIEW mvtest_mv2 AS SELECT * FROM mvtest_mv1
 --DDL_STATEMENT_BEGIN--
 DROP MATERIALIZED VIEW mvtest_mv1 CASCADE;
 --DDL_STATEMENT_END--
--- make sure that types with unusual equality tests work
 
+-- make sure that types with unusual equality tests work
 --DDL_STATEMENT_BEGIN--
 CREATE temp TABLE mvtest_boxes (id serial primary key, b box);
 --DDL_STATEMENT_END--
@@ -220,10 +224,10 @@ CREATE MATERIALIZED VIEW mvtest_boxmv AS SELECT * FROM mvtest_boxes;
 UPDATE mvtest_boxes SET b = '(2,2),(1,1)' WHERE id = 2;
 REFRESH MATERIALIZED VIEW CONCURRENTLY mvtest_boxmv;
 SELECT * FROM mvtest_boxmv ORDER BY id;
-
 --DDL_STATEMENT_BEGIN--
 DROP TABLE mvtest_boxes CASCADE;
 --DDL_STATEMENT_END--
+
 -- make sure that column names are handled correctly
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE mvtest_v (i int, j int);
@@ -275,6 +279,7 @@ SELECT * FROM mvtest_mv_v_4;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE mvtest_v CASCADE;
 --DDL_STATEMENT_END--
+
 -- Check that unknown literals are converted to "text" in CREATE MATVIEW,
 -- so that we don't end up with unknown-type columns.
 --DDL_STATEMENT_BEGIN--
@@ -286,6 +291,7 @@ SELECT * FROM mv_unspecified_types;
 --DDL_STATEMENT_BEGIN--
 DROP MATERIALIZED VIEW mv_unspecified_types;
 --DDL_STATEMENT_END--
+
 -- make sure that create WITH NO DATA does not plan the query (bug #13907)
 --DDL_STATEMENT_BEGIN--
 create materialized view mvtest_error as select 1/0 as x;  -- fail
@@ -300,6 +306,7 @@ refresh materialized view mvtest_error;  -- fail here
 drop materialized view mvtest_error;
 --DDL_STATEMENT_END--
 -- make sure that matview rows can be referenced as source rows (bug #9398)
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE mvtest_v(a int);
 --DDL_STATEMENT_END--
@@ -314,8 +321,8 @@ SELECT * FROM mvtest_mv_v;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE mvtest_v CASCADE;
 --DDL_STATEMENT_END--
--- make sure running as superuser works when MV owned by another role (bug #11208)
 
+-- make sure running as superuser works when MV owned by another role (bug #11208)
 --DDL_STATEMENT_BEGIN--
 CREATE ROLE regress_user_mvtest;
 --DDL_STATEMENT_END--
@@ -372,3 +379,4 @@ DROP MATERIALIZED VIEW mvtest1;
 --DDL_STATEMENT_BEGIN--
 DROP MATERIALIZED VIEW mvtest2;
 --DDL_STATEMENT_END--
+

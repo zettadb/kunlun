@@ -77,9 +77,11 @@ select amname, prop, pg_indexam_has_property(a.oid, prop) as p
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE foo (f1 int, f2 int, f3 int, f4 int);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX fooindex ON foo (f1 desc, f2 asc, f3 nulls first, f4 nulls last);
 --DDL_STATEMENT_END--
+
 select col, prop, pg_index_column_has_property(o, col, prop)
   from (values ('fooindex'::regclass)) v1(o),
        (values (1,'orderable'),(2,'asc'),(3,'desc'),
@@ -87,9 +89,11 @@ select col, prop, pg_index_column_has_property(o, col, prop)
                (6, 'bogus')) v2(idx,prop),
        generate_series(1,4) col
  order by col, idx;
+ 
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX foocover ON foo (f1) INCLUDE (f2,f3);
 --DDL_STATEMENT_END--
+
 select col, prop, pg_index_column_has_property(o, col, prop)
   from (values ('foocover'::regclass)) v1(o),
        (values (1,'orderable'),(2,'asc'),(3,'desc'),

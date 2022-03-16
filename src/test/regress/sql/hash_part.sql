@@ -5,6 +5,7 @@
 -- Use hand-rolled hash functions and operator classes to get predictable
 -- result on different matchines.  See the definitions of
 -- part_part_test_int4_ops and part_test_text_ops in insert.sql.
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists mchash;
 --DDL_STATEMENT_END--
@@ -16,6 +17,7 @@ CREATE TABLE mchash (a int, b text, c jsonb)
 CREATE TABLE mchash1
   PARTITION OF mchash FOR VALUES WITH (MODULUS 4, REMAINDER 0);
 --DDL_STATEMENT_END--
+
 -- invalid OID, no such table
 SELECT satisfies_hash_partition(0, 4, 0, NULL);
 
@@ -67,6 +69,7 @@ drop table if exists mcinthash;
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE mcinthash (a int, b int, c jsonb)
   PARTITION BY HASH (a part_test_int4_ops, b part_test_int4_ops);
+
 --DDL_STATEMENT_END--
 -- now variadic should work, should be false
 SELECT satisfies_hash_partition('mcinthash'::regclass, 4, 0,

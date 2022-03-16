@@ -1,6 +1,7 @@
 --
 -- INT4
 --
+
 --DDL_STATEMENT_BEGIN--
 DROP table if exists INT4_TBL;
 --DDL_STATEMENT_END--

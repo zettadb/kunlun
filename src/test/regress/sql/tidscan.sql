@@ -2,6 +2,7 @@
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE tidscan(id integer);
 --DDL_STATEMENT_END--
+
 -- only insert a few rows, we don't want to spill onto a second table page
 INSERT INTO tidscan VALUES (1), (2), (3);
 
@@ -62,6 +63,7 @@ FETCH NEXT FROM c;
 EXPLAIN (ANALYZE, COSTS OFF, SUMMARY OFF, TIMING OFF)
 UPDATE tidscan SET id = -id WHERE CURRENT OF c RETURNING *;
 ROLLBACK;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE tidscan;
 --DDL_STATEMENT_END--

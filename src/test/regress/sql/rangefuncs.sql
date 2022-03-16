@@ -7,9 +7,11 @@ CREATE TABLE rngfunc2(rngfuncid int, f2 int);
 INSERT INTO rngfunc2 VALUES(1, 11);
 INSERT INTO rngfunc2 VALUES(2, 22);
 INSERT INTO rngfunc2 VALUES(1, 111);
+
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION rngfunct(int) returns setof rngfunc2 as 'SELECT * FROM rngfunc2 WHERE rngfuncid = $1 ORDER BY f2;' LANGUAGE SQL;
 --DDL_STATEMENT_END--
+
 -- function with ORDINALITY
 select * from rngfunct(1) with ordinality as z(a,b,ord);
 select * from rngfunct(1) with ordinality as z(a,b,ord) where b > 100;   -- ordinal 2, not 1
@@ -29,6 +31,7 @@ select definition from pg_views where viewname='vw_ord';
 --DDL_STATEMENT_BEGIN--
 drop view vw_ord;
 --DDL_STATEMENT_END--
+
 -- multiple functions
 select * from rows from(rngfunct(1),rngfunct(2)) with ordinality as z(a,b,c,d,ord);
 --DDL_STATEMENT_BEGIN--
@@ -39,6 +42,7 @@ select definition from pg_views where viewname='vw_ord';
 --DDL_STATEMENT_BEGIN--
 drop view vw_ord;
 --DDL_STATEMENT_END--
+
 -- expansions of unnest()
 select * from unnest(array[10,20],array['foo','bar'],array[1.0]);
 select * from unnest(array[10,20],array['foo','bar'],array[1.0]) with ordinality as z(a,b,c,ord);
@@ -68,6 +72,7 @@ select definition from pg_views where viewname='vw_ord';
 --DDL_STATEMENT_BEGIN--
 drop view vw_ord;
 --DDL_STATEMENT_END--
+
 -- function with implicit LATERAL
 --will crash:  select * from rngfunc2, rngfunct(rngfunc2.rngfuncid) z where rngfunc2.f2 = z.f2;
 
@@ -86,6 +91,7 @@ drop view vw_ord;
 -- nested functions
 select rngfunct.rngfuncid, rngfunct.f2 from rngfunct(sin(pi()/2)::int) ORDER BY 1,2;
 --DDL_STATEMENT_BEGIN--
+
 drop table if exists rngfunc cascade;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
@@ -115,6 +121,7 @@ SELECT * FROM vw_getrngfunc;
 --DDL_STATEMENT_BEGIN--
 DROP VIEW vw_getrngfunc;
 --DDL_STATEMENT_END--
+
 -- sql, proretset = t, prorettype = b
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION getrngfunc2(int) RETURNS setof int AS 'SELECT rngfuncid FROM rngfunc WHERE rngfuncid = $1;' LANGUAGE SQL;
@@ -135,6 +142,7 @@ SELECT * FROM vw_getrngfunc;
 --DDL_STATEMENT_BEGIN--
 DROP VIEW vw_getrngfunc;
 --DDL_STATEMENT_END--
+
 -- sql, proretset = t, prorettype = b
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION getrngfunc3(int) RETURNS setof text AS 'SELECT rngfuncname FROM rngfunc WHERE rngfuncid = $1;' LANGUAGE SQL;
@@ -155,6 +163,7 @@ SELECT * FROM vw_getrngfunc;
 --DDL_STATEMENT_BEGIN--
 DROP VIEW vw_getrngfunc;
 --DDL_STATEMENT_END--
+
 -- sql, proretset = f, prorettype = c
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION getrngfunc4(int) RETURNS rngfunc AS 'SELECT * FROM rngfunc WHERE rngfuncid = $1;' LANGUAGE SQL;
@@ -175,6 +184,7 @@ SELECT * FROM vw_getrngfunc;
 --DDL_STATEMENT_BEGIN--
 DROP VIEW vw_getrngfunc;
 --DDL_STATEMENT_END--
+
 -- sql, proretset = t, prorettype = c
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION getrngfunc5(int) RETURNS setof rngfunc AS 'SELECT * FROM rngfunc WHERE rngfuncid = $1;' LANGUAGE SQL;
@@ -195,6 +205,7 @@ SELECT * FROM vw_getrngfunc;
 --DDL_STATEMENT_BEGIN--
 DROP VIEW vw_getrngfunc;
 --DDL_STATEMENT_END--
+
 -- sql, proretset = f, prorettype = record
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION getrngfunc6(int) RETURNS RECORD AS 'SELECT * FROM rngfunc WHERE rngfuncid = $1;' LANGUAGE SQL;
@@ -218,6 +229,7 @@ SELECT * FROM vw_getrngfunc;
 --DDL_STATEMENT_BEGIN--
 DROP VIEW vw_getrngfunc;
 --DDL_STATEMENT_END--
+
 -- sql, proretset = t, prorettype = record
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION getrngfunc7(int) RETURNS setof record AS 'SELECT * FROM rngfunc WHERE rngfuncid = $1;' LANGUAGE SQL;
@@ -241,6 +253,7 @@ SELECT * FROM vw_getrngfunc;
 --DDL_STATEMENT_BEGIN--
 DROP VIEW vw_getrngfunc;
 --DDL_STATEMENT_END--
+
 -- plpgsql, proretset = f, prorettype = b
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION getrngfunc8(int) RETURNS int AS 'DECLARE rngfuncint int; BEGIN SELECT rngfuncid into rngfuncint FROM rngfunc WHERE rngfuncid = $1; RETURN rngfuncint; END;' LANGUAGE plpgsql;
@@ -282,6 +295,7 @@ SELECT * FROM vw_getrngfunc;
 --DDL_STATEMENT_BEGIN--
 DROP VIEW vw_getrngfunc;
 --DDL_STATEMENT_END--
+
 -- mix 'n match kinds, to exercise expandRTE and related logic
 
 select * from rows from(getrngfunc1(1),getrngfunc2(1),getrngfunc3(1),getrngfunc4(1),getrngfunc5(1),
@@ -307,6 +321,7 @@ select pg_get_viewdef('vw_rngfunc');
 --DDL_STATEMENT_BEGIN--
 drop view vw_rngfunc;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP FUNCTION getrngfunc1(int);
 --DDL_STATEMENT_END--
@@ -343,6 +358,7 @@ DROP TABLE rngfunc2;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE rngfunc;
 --DDL_STATEMENT_END--
+
 -- Rescan tests --
 --DDL_STATEMENT_BEGIN--
 CREATE TEMPORARY SEQUENCE rngfunc_rescan_seq1;
@@ -353,6 +369,7 @@ CREATE TEMPORARY SEQUENCE rngfunc_rescan_seq2;
 --DDL_STATEMENT_BEGIN--
 CREATE TYPE rngfunc_rescan_t AS (i integer, s bigint);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION rngfunc_sql(int,int) RETURNS setof rngfunc_rescan_t AS 'SELECT i, nextval(''rngfunc_rescan_seq1'') FROM generate_series($1,$2) i;' LANGUAGE SQL;
 --DDL_STATEMENT_END--
@@ -456,6 +473,7 @@ FROM (VALUES (1),(2)) v1(r1)
         ) AS ss1 ON TRUE
         FULL JOIN generate_series(1, v1.r1) AS gs4 ON FALSE
     ) AS ss0 ON TRUE;
+	
 --DDL_STATEMENT_BEGIN--
 DROP FUNCTION rngfunc_sql(int,int);
 --DDL_STATEMENT_END--
@@ -466,9 +484,11 @@ DROP SEQUENCE rngfunc_rescan_seq1;
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE rngfunc_rescan_seq2;
 --DDL_STATEMENT_END--
+
 --
 -- Test cases involving OUT parameters
 --
+
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION rngfunc(in f1 int, out f2 int)
 AS 'select $1+1' LANGUAGE sql;
@@ -497,6 +517,7 @@ CREATE OR REPLACE FUNCTION rngfunc(in f1 int, out f2 int, out f3 text)
 RETURNS record
 AS 'select $1+1' LANGUAGE sql;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE OR REPLACE FUNCTION rngfuncr(in f1 int, out f2 int, out text)
 AS $$select $1-1, $1::text || 'z'$$ LANGUAGE sql;
@@ -504,6 +525,7 @@ AS $$select $1-1, $1::text || 'z'$$ LANGUAGE sql;
 SELECT f1, rngfuncr(f1) FROM int4_tbl;
 SELECT * FROM rngfuncr(42);
 SELECT * FROM rngfuncr(42) AS p(a,b);
+
 --DDL_STATEMENT_BEGIN--
 CREATE OR REPLACE FUNCTION rngfuncb(in f1 int, inout f2 int, out text)
 AS $$select $2-1, $1::text || 'z'$$ LANGUAGE sql;
@@ -526,6 +548,7 @@ DROP FUNCTION rngfuncb(in f1 int, inout f2 int);
 --
 -- For my next trick, polymorphic OUT parameters
 --
+
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION dup (f1 anyelement, f2 out anyelement, f3 out anyarray)
 AS 'select $1, array[$1,$1]' LANGUAGE sql;
@@ -540,26 +563,32 @@ SELECT * FROM dup('xyz'::text);
 CREATE OR REPLACE FUNCTION dup (inout f2 anyelement, out f3 anyarray)
 AS 'select $1, array[$1,$1]' LANGUAGE sql;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP FUNCTION dup(anyelement);
 --DDL_STATEMENT_END--
+
 -- equivalent behavior, though different name exposed for input arg
 --DDL_STATEMENT_BEGIN--
 CREATE OR REPLACE FUNCTION dup (inout f2 anyelement, out f3 anyarray)
 AS 'select $1, array[$1,$1]' LANGUAGE sql;
 SELECT dup(22);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP FUNCTION dup(anyelement);
 --DDL_STATEMENT_END--
+
 -- fails, no way to deduce outputs
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION bad (f1 int, out f2 anyelement, out f3 anyarray)
 AS 'select $1, array[$1,$1]' LANGUAGE sql;
 --DDL_STATEMENT_END--
+
 --
 -- table functions
 --
+
 --DDL_STATEMENT_BEGIN--
 CREATE OR REPLACE FUNCTION rngfunc()
 RETURNS TABLE(a int)
@@ -569,6 +598,7 @@ SELECT * FROM rngfunc();
 --DDL_STATEMENT_BEGIN--
 DROP FUNCTION rngfunc();
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE OR REPLACE FUNCTION rngfunc(int)
 RETURNS TABLE(a int, b int)
@@ -580,6 +610,7 @@ SELECT * FROM rngfunc(3);
 --DDL_STATEMENT_BEGIN--
 DROP FUNCTION rngfunc(int);
 --DDL_STATEMENT_END--
+
 -- case that causes change of typmod knowledge during inlining
 --DDL_STATEMENT_BEGIN--
 CREATE OR REPLACE FUNCTION rngfunc()
@@ -590,17 +621,21 @@ SELECT * FROM rngfunc() GROUP BY 1;
 --DDL_STATEMENT_BEGIN--
 DROP FUNCTION rngfunc();
 --DDL_STATEMENT_END--
+
 --
 -- some tests on SQL functions with RETURNING
 --
+
 --DDL_STATEMENT_BEGIN--
 create temp table tt(f1 serial, data text);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create function insert_tt(text) returns int as
 $$ insert into tt(data) values($1) returning f1 $$
 language sql;
 --DDL_STATEMENT_END--
+
 select insert_tt('foo');
 select insert_tt('bar');
 select * from tt;
@@ -611,6 +646,7 @@ create or replace function insert_tt(text) returns int as
 $$ insert into tt(data) values($1),($1||$1) returning f1 $$
 language sql;
 --DDL_STATEMENT_END--
+
 select insert_tt('fool');
 select * from tt;
 
@@ -620,6 +656,7 @@ create or replace function insert_tt2(text,text) returns setof int as
 $$ insert into tt(data) values($1),($2) returning f1 $$
 language sql;
 --DDL_STATEMENT_END--
+
 select insert_tt2('foolish','barrish');
 select * from insert_tt2('baz','quux');
 select * from tt;
@@ -635,6 +672,7 @@ select * from tt;
 --DDL_STATEMENT_BEGIN--
 create temp table tt_log(f1 int, data text);
 --DDL_STATEMENT_END--
+
 select insert_tt2('foollog','barlog') limit 1;
 select * from tt;
 -- note that nextval() gets executed a second time in the rule expansion,
@@ -648,27 +686,34 @@ create function rngfunc1(n integer, out a text, out b text)
   language sql
   as $$ select 'foo ' || i, 'bar ' || i from generate_series(1,$1) i $$;
 --DDL_STATEMENT_END--
+
 set work_mem='64kB';
 select t.a, t, t.a from rngfunc1(10000) t limit 1;
 reset work_mem;
 select t.a, t, t.a from rngfunc1(10000) t limit 1;
+
 --DDL_STATEMENT_BEGIN--
 drop function rngfunc1(n integer);
 --DDL_STATEMENT_END--
+
 -- test use of SQL functions returning record
 -- this is supported in some cases where the query doesn't specify
 -- the actual record type ...
+
 --DDL_STATEMENT_BEGIN--
 create function array_to_set(anyarray) returns setof record as $$
   select i AS "index", $1[i] AS "value" from generate_subscripts($1, 1) i
 $$ language sql strict immutable;
 --DDL_STATEMENT_END--
+
 select array_to_set(array['one', 'two']);
 select * from array_to_set(array['one', 'two']) as t(f1 int,f2 text);
 select * from array_to_set(array['one', 'two']); -- fail
+
 --DDL_STATEMENT_BEGIN--
 create temp table rngfunc(f1 int8, f2 int8);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop function if exists testrngfunc;
 --DDL_STATEMENT_END--
@@ -677,26 +722,33 @@ create function testrngfunc() returns record as $$
   insert into rngfunc values (1,2) returning *;
 $$ language sql;
 --DDL_STATEMENT_END--
+
 select testrngfunc();
 select * from testrngfunc() as t(f1 int8,f2 int8);
 select * from testrngfunc(); -- fail
+
 --DDL_STATEMENT_BEGIN--
 drop function testrngfunc();
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create function testrngfunc() returns setof record as $$
   insert into rngfunc values (1,2), (3,4) returning *;
 $$ language sql;
 --DDL_STATEMENT_END--
+
 select testrngfunc();
 select * from testrngfunc() as t(f1 int8,f2 int8);
 select * from testrngfunc(); -- fail
+
 --DDL_STATEMENT_BEGIN--
 drop function testrngfunc();
 --DDL_STATEMENT_END--
+
 --
 -- Check some cases involving added/dropped columns in a rowtype result
 --
+
 --DDL_STATEMENT_BEGIN--
 create temp table users (userid text, seq int, email text, todrop bool, moredrop int, enabled bool);
 --DDL_STATEMENT_END--
@@ -705,18 +757,22 @@ insert into users values ('id2',2,'email2',true,12,true);
 --DDL_STATEMENT_BEGIN--
 alter table users drop column todrop;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create or replace function get_first_user() returns users as
 $$ SELECT * FROM users ORDER BY userid LIMIT 1; $$
 language sql stable;
 --DDL_STATEMENT_END--
+
 SELECT get_first_user();
 SELECT * FROM get_first_user();
+
 --DDL_STATEMENT_BEGIN--
 create or replace function get_users() returns setof users as
 $$ SELECT * FROM users ORDER BY userid; $$
 language sql stable;
 --DDL_STATEMENT_END--
+
 SELECT get_users();
 SELECT * FROM get_users();
 SELECT * FROM get_users() WITH ORDINALITY;   -- make sure ordinality copes
@@ -730,6 +786,7 @@ SELECT * FROM ROWS FROM(get_users(), generate_series(10,11)) WITH ORDINALITY;
 create temp view usersview as
 SELECT * FROM ROWS FROM(get_users(), generate_series(10,11)) WITH ORDINALITY;
 --DDL_STATEMENT_END--
+
 select * from usersview;
 --DDL_STATEMENT_BEGIN--
 alter table users add column junk text;
@@ -745,6 +802,7 @@ rollback;
 alter table users alter column seq type numeric;
 --DDL_STATEMENT_END--
 select * from usersview;  -- expect clean failure
+
 --DDL_STATEMENT_BEGIN--
 drop view usersview;
 --DDL_STATEMENT_END--
@@ -757,75 +815,97 @@ drop function get_users();
 --DDL_STATEMENT_BEGIN--
 drop table users;
 --DDL_STATEMENT_END--
+
 -- this won't get inlined because of type coercion, but it shouldn't fail
+
 --DDL_STATEMENT_BEGIN--
 create or replace function rngfuncbar() returns setof text as
 $$ select 'foo'::varchar union all select 'bar'::varchar ; $$
 language sql stable;
 --DDL_STATEMENT_END--
+
 select rngfuncbar();
 select * from rngfuncbar();
+
 --DDL_STATEMENT_BEGIN--
 drop function rngfuncbar();
 --DDL_STATEMENT_END--
+
 -- check handling of a SQL function with multiple OUT params (bug #5777)
+
 --DDL_STATEMENT_BEGIN--
 create or replace function rngfuncbar(out integer, out numeric) as
 $$ select (1, 2.1) $$ language sql;
 --DDL_STATEMENT_END--
+
 select * from rngfuncbar();
+
 --DDL_STATEMENT_BEGIN--
 create or replace function rngfuncbar(out integer, out numeric) as
 $$ select (1, 2) $$ language sql;
 --DDL_STATEMENT_END--
+
 select * from rngfuncbar();  -- fail
+
 --DDL_STATEMENT_BEGIN--
 create or replace function rngfuncbar(out integer, out numeric) as
 $$ select (1, 2.1, 3) $$ language sql;
 --DDL_STATEMENT_END--
+
 select * from rngfuncbar();  -- fail
+
 --DDL_STATEMENT_BEGIN--
 drop function rngfuncbar();
 --DDL_STATEMENT_END--
+
 -- check whole-row-Var handling in nested lateral functions (bug #11703)
+
 --DDL_STATEMENT_BEGIN--
 create function extractq2(t int8_tbl) returns int8 as $$
   select t.q2
 $$ language sql immutable;
 --DDL_STATEMENT_END--
+
 explain (verbose, costs off)
 select x from int8_tbl, extractq2(int8_tbl) f(x);
 
 select x from int8_tbl, extractq2(int8_tbl) f(x);
+
 --DDL_STATEMENT_BEGIN--
 create function extractq2_2(t int8_tbl) returns table(ret1 int8) as $$
   select extractq2(t) offset 0
 $$ language sql immutable;
 --DDL_STATEMENT_END--
+
 explain (verbose, costs off)
 select x from int8_tbl, extractq2_2(int8_tbl) f(x);
 
 -- syntax error currently: select x from int8_tbl, extractq2_2(int8_tbl) f(x);
 
 -- without the "offset 0", this function gets optimized quite differently
+
 --DDL_STATEMENT_BEGIN--
 create function extractq2_2_opt(t int8_tbl) returns table(ret1 int8) as $$
   select extractq2(t)
 $$ language sql immutable;
 --DDL_STATEMENT_END--
+
 explain (verbose, costs off)
 select x from int8_tbl, extractq2_2_opt(int8_tbl) f(x);
 
 select x from int8_tbl, extractq2_2_opt(int8_tbl) f(x);
 
 -- check handling of nulls in SRF results (bug #7808)
+
 --DDL_STATEMENT_BEGIN--
 create type rngfunc2 as (a integer, b text);
 --DDL_STATEMENT_END--
+
 select *, row_to_json(u) from unnest(array[(1,'foo')::rngfunc2, null::rngfunc2]) u;
 select *, row_to_json(u) from unnest(array[null::rngfunc2, null::rngfunc2]) u;
 select *, row_to_json(u) from unnest(array[null::rngfunc2, (1,'foo')::rngfunc2, null::rngfunc2]) u;
 select *, row_to_json(u) from unnest(array[]::rngfunc2[]) u;
+
 --DDL_STATEMENT_BEGIN--
 drop type rngfunc2;
 --DDL_STATEMENT_END--

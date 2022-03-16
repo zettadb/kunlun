@@ -1,6 +1,7 @@
 --
 -- FLOAT8
 --
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists FLOAT8_TBL;
 --DDL_STATEMENT_END--

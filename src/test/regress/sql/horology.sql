@@ -220,9 +220,11 @@ SELECT (time '00:00', interval '1 hour')
 -- intervals can wrap around the day boundary - thomas 2001-09-25
 SELECT (time '00:00', interval '1 hour')
   OVERLAPS (time '01:30', interval '1 day') AS "False";
+  
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE TEMP_TIMESTAMP (f1 timestamp with time zone);
 --DDL_STATEMENT_END--
+
 -- get some candidate input values
 
 INSERT INTO TEMP_TIMESTAMP (f1)
@@ -252,9 +254,11 @@ SELECT '' AS "16", f1 AS "timestamp", date(f1) AS date
   FROM TEMP_TIMESTAMP
   WHERE f1 <> timestamp 'now'
   ORDER BY date, "timestamp";
+  
 --DDL_STATEMENT_BEGIN--
 DROP TABLE TEMP_TIMESTAMP;
 --DDL_STATEMENT_END--
+
 --
 -- Formats
 --

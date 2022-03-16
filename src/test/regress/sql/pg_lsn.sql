@@ -1,6 +1,7 @@
 --
 -- PG_LSN
 --
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists PG_LSN_TBL;
 --DDL_STATEMENT_END--

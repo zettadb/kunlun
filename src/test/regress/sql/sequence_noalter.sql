@@ -29,6 +29,7 @@ CREATE SEQUENCE sequence_testx INCREMENT BY 1 START -10;
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE sequence_testx CACHE 0;
 --DDL_STATEMENT_END--
+
 -- OWNED BY errors
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE sequence_testx OWNED BY nobody;  -- nonsense word
@@ -48,6 +49,7 @@ CREATE SEQUENCE sequence_testx OWNED BY sequence_test_table.b;  -- wrong column
 --DDL_STATEMENT_BEGIN--
 DROP TABLE sequence_test_table;
 --DDL_STATEMENT_END--
+
 -- sequence data types
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE sequence_test5 AS integer;
@@ -85,6 +87,7 @@ CREATE SEQUENCE sequence_testx AS text;
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE sequence_testx AS nosuchtype;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE sequence_testx AS smallint MAXVALUE 100000;
 --DDL_STATEMENT_END--
@@ -96,6 +99,7 @@ CREATE SEQUENCE sequence_testx AS smallint MINVALUE -100000;
 ---
 --- test creation of SERIAL column
 ---
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE serialTest1 (f1 text, f2 serial primary key);
 --DDL_STATEMENT_END--
@@ -113,6 +117,7 @@ SELECT pg_get_serial_sequence('serialTest1', 'f2');
 CREATE TABLE serialTest2 (f1 text, f2 serial, f3 smallserial, f4 serial2,
   f5 bigserial, f6 serial8 primary key);
 --DDL_STATEMENT_END--
+
 INSERT INTO serialTest2 (f1)
   VALUES ('test_defaults');
 
@@ -162,6 +167,7 @@ CREATE SEQUENCE sequence_test;
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE IF NOT EXISTS sequence_test;
 --DDL_STATEMENT_END--
+
 SELECT nextval('sequence_test'::text);
 SELECT nextval('sequence_test'::regclass);
 SELECT currval('sequence_test'::text);
@@ -176,9 +182,11 @@ SELECT setval('sequence_test'::regclass, 99, false);
 SELECT nextval('sequence_test'::text);
 DISCARD SEQUENCES;
 SELECT currval('sequence_test'::regclass);
+
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE sequence_test;
 --DDL_STATEMENT_END--
+
 -- renaming sequences
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE foo_seq_new;
@@ -187,6 +195,7 @@ SELECT nextval('foo_seq_new');
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE foo_seq_new;
 --DDL_STATEMENT_END--
+
 
 --
 -- Check dependencies of serial and ordinary sequences
@@ -226,6 +235,8 @@ DROP SEQUENCE t1_f1_seq;
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE myseq2;
 --DDL_STATEMENT_END--
+
+
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE sequence_test2 START WITH 32;
 --DDL_STATEMENT_END--
@@ -235,6 +246,7 @@ CREATE SEQUENCE sequence_test4 INCREMENT BY -1;
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE sequence_test3;  -- not read from, to test is_called
 --DDL_STATEMENT_END--
+
 
 -- Information schema
 SELECT * FROM information_schema.sequences
@@ -269,6 +281,7 @@ SELECT setval('seq', 99);
 SELECT lastval();
 DISCARD SEQUENCES;
 SELECT lastval();
+
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE seq2;
 --DDL_STATEMENT_END--
@@ -348,6 +361,7 @@ GRANT USAGE ON seq3 TO regress_seq_user;
 --DDL_STATEMENT_END--
 SELECT nextval('seq3');
 ROLLBACK;
+
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE seq3;
 --DDL_STATEMENT_END--
@@ -421,6 +435,7 @@ GRANT SELECT ON seq3 TO regress_seq_user;
 --DDL_STATEMENT_END--
 SELECT lastval();
 ROLLBACK;
+
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE seq3;
 --DDL_STATEMENT_END--
@@ -456,6 +471,7 @@ GRANT USAGE ON seq3 TO regress_seq_user;
 --DDL_STATEMENT_END--
 SELECT lastval();
 ROLLBACK;
+
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE seq3;
 --DDL_STATEMENT_END--
@@ -488,17 +504,20 @@ DROP TABLE serialTest1;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE serialTest2;
 --DDL_STATEMENT_END--
+
 -- Make sure sequences are gone:
 SELECT * FROM information_schema.sequences WHERE sequence_name IN
   ('sequence_test2', 'serialtest2_f2_seq', 'serialtest2_f3_seq',
    'serialtest2_f4_seq', 'serialtest2_f5_seq', 'serialtest2_f6_seq')
   ORDER BY sequence_name ASC;
+  
 --DDL_STATEMENT_BEGIN--
 DROP USER regress_seq_user;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE seq;
 --DDL_STATEMENT_END--
+
 -- cache tests
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE test_seq1 CACHE 10;
@@ -506,9 +525,11 @@ CREATE SEQUENCE test_seq1 CACHE 10;
 SELECT nextval('test_seq1');
 SELECT nextval('test_seq1');
 SELECT nextval('test_seq1');
+
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE test_seq1;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create table tseq(a serial primary key, b int);
 --DDL_STATEMENT_END--
@@ -551,6 +572,7 @@ insert into tseq2(e) values(11),(default),(33),(default);
 select*from tseq2;
 insert into tseq2(f) values(111),(default),(333),(default);
 select*from tseq2;
+
 --DDL_STATEMENT_BEGIN--
 create table tseq1(a serial primary key, b smallserial, c bigserial, d int) partition by hash(a);
 --DDL_STATEMENT_END--
@@ -608,6 +630,7 @@ create table tseq5(a serial primary key, b int generated always as identity);
 --DDL_STATEMENT_BEGIN--
 create table tseq6(a serial primary key, b int);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create table tseq1(a serial primary key, b smallserial, c bigserial) partition by hash(a);
 --DDL_STATEMENT_END--
@@ -647,6 +670,7 @@ drop table tseq6;
 --DDL_STATEMENT_BEGIN--
 drop table tseq1;
 --DDL_STATEMENT_END--
+
 -- oracle sequence grammar
 --create sequence seq34 nomaxvalue nominvalue nocache nocycle --noorder starts with 34;
 --create sequence seq35 nomaxvalue nominvalue cache 1 no --cycle order starts with 35;
@@ -677,6 +701,7 @@ create sequence seq7;
 --DDL_STATEMENT_BEGIN--
 create sequence seq6;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create sequence seq56;
 --DDL_STATEMENT_END--
@@ -691,6 +716,7 @@ select*from t55;
 --DDL_STATEMENT_BEGIN--
 drop table if exists t7;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create table t7(a int  primary key, b serial, c int generated by default as identity,d int default nextval('seq7'), e int);
 --DDL_STATEMENT_END--
@@ -711,6 +737,7 @@ select currval('seq7');
 --insert into t6(c,d) values(seq6.nextval, seq7.nextval),(seq6.nextval, seq7.nextval),(seq6.currval, seq7.currval);
 --insert into t6(c,d) values(seq6.currval, seq7.currval),(seq6.currval, seq7.currval),(seq6.nextval, seq7.nextval);
 select*from t6;
+
 --DDL_STATEMENT_BEGIN--
 create schema scm1;
 --DDL_STATEMENT_END--
@@ -723,6 +750,7 @@ alter sequence seq7 set schema scm1;
 --DDL_STATEMENT_BEGIN--
 alter sequence scm1.seq7 rename to seq77;
 --DDL_STATEMENT_END--
+
 --select scm1.seq77.nextval, scm1.seq77.currval;
 select lastval();
 --DDL_STATEMENT_BEGIN--
@@ -731,6 +759,7 @@ drop schema scm1;
 --DDL_STATEMENT_BEGIN--
 drop schema scm1 cascade;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table t6;
 --DDL_STATEMENT_END--
@@ -749,6 +778,7 @@ drop sequence seq6;
 --DDL_STATEMENT_BEGIN--
 drop sequence seq56;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop sequence sequence_test5;
 --DDL_STATEMENT_END--

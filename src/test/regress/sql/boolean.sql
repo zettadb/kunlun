@@ -90,9 +90,11 @@ SELECT true::boolean::text AS true, false::boolean::text AS false;
 
 SELECT '  tru e '::text::boolean AS invalid;    -- error
 SELECT ''::text::boolean AS invalid;            -- error
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE BOOLTBL1 (f1 bool);
 --DDL_STATEMENT_END--
+
 INSERT INTO BOOLTBL1 (f1) VALUES (bool 't');
 
 INSERT INTO BOOLTBL1 (f1) VALUES (bool 'True');
@@ -122,6 +124,7 @@ INSERT INTO BOOLTBL1 (f1) VALUES (bool 'f');
 SELECT '' AS f_1, BOOLTBL1.*
    FROM BOOLTBL1
    WHERE f1 = bool 'false';
+
 
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE BOOLTBL2 (f1 bool);
@@ -257,15 +260,19 @@ SELECT isnul OR istrue OR isfalse FROM booltbl4;
 --  particularly useful so just get rid of them for now.
 --  - thomas 1997-11-30
 --
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE  BOOLTBL1;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE  BOOLTBL2;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE  BOOLTBL3;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE  BOOLTBL4;
 --DDL_STATEMENT_END--

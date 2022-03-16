@@ -1,6 +1,7 @@
 --
 -- OID
 --
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists OID_TBL;
 --DDL_STATEMENT_END--
@@ -43,6 +44,7 @@ SELECT '' AS two, o.* FROM OID_TBL o WHERE o.f1 < '1234';
 SELECT '' AS four, o.* FROM OID_TBL o WHERE o.f1 >= '1234';
 
 SELECT '' AS three, o.* FROM OID_TBL o WHERE o.f1 > '1234';
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE OID_TBL;
 --DDL_STATEMENT_END--

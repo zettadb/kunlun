@@ -192,6 +192,7 @@ SELECT current_user = 'regress_guc_user';
 --DDL_STATEMENT_BEGIN--
 DROP ROLE regress_guc_user;
 --DDL_STATEMENT_END--
+
 --
 -- search_path should react to changes in pg_namespace
 --
@@ -213,19 +214,25 @@ reset search_path;
 --
 
 set work_mem = '3MB';
+
 --DDL_STATEMENT_BEGIN--
 create function report_guc(text) returns text as
 $$ select current_setting($1) $$ language sql
 set work_mem = '1MB';
 --DDL_STATEMENT_END--
+
 select report_guc('work_mem'), current_setting('work_mem');
+
 --DDL_STATEMENT_BEGIN--
 alter function report_guc(text) set work_mem = '2MB';
 --DDL_STATEMENT_END--
+
 select report_guc('work_mem'), current_setting('work_mem');
+
 --DDL_STATEMENT_BEGIN--
 alter function report_guc(text) reset all;
 --DDL_STATEMENT_END--
+
 select report_guc('work_mem'), current_setting('work_mem');
 
 -- SET LOCAL is restricted by a function SET option
@@ -238,10 +245,13 @@ end $$
 language plpgsql
 set work_mem = '1MB';
 --DDL_STATEMENT_END--
+
 select myfunc(0), current_setting('work_mem');
+
 --DDL_STATEMENT_BEGIN--
 alter function myfunc(int) reset all;
 --DDL_STATEMENT_END--
+
 select myfunc(0), current_setting('work_mem');
 
 set work_mem = '3MB';
@@ -256,6 +266,7 @@ end $$
 language plpgsql
 set work_mem = '1MB';
 --DDL_STATEMENT_END--
+
 select myfunc(0), current_setting('work_mem');
 
 set work_mem = '3MB';
@@ -271,6 +282,7 @@ end $$
 language plpgsql
 set work_mem = '1MB';
 --DDL_STATEMENT_END--
+
 select myfunc(0);
 select current_setting('work_mem');
 select myfunc(1), current_setting('work_mem');
@@ -291,6 +303,7 @@ select current_setting('nosuch.setting', true);
 -- Normally, CREATE FUNCTION should complain about invalid values in
 -- function SET options; but not if check_function_bodies is off,
 -- because that creates ordering hazards for pg_dump
+
 --DDL_STATEMENT_BEGIN--
 create function func_with_bad_set() returns int as $$ select 1 $$
 language sql
@@ -299,6 +312,7 @@ set default_text_search_config = no_such_config;
 
 set check_function_bodies = off;
 --DDL_STATEMENT_BEGIN--
+
 create function func_with_bad_set() returns int as $$ select 1 $$
 language sql
 set default_text_search_config = no_such_config;

@@ -3,6 +3,7 @@
 --
 -- Note that we assume lc_monetary has been set to C.
 --
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE if exists money_data;
 --DDL_STATEMENT_END--
@@ -133,6 +134,7 @@ SELECT '12345678901234567'::money::numeric;
 SELECT '-12345678901234567'::money::numeric;
 SELECT '92233720368547758.07'::money::numeric;
 SELECT '-92233720368547758.08'::money::numeric;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE if exists money_data;
 --DDL_STATEMENT_END--

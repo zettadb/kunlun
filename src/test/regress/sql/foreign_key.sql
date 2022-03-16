@@ -12,6 +12,7 @@ CREATE TABLE PKTABLE ( ptest1 int PRIMARY KEY, ptest2 text );
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE FKTABLE ( ftest1 int REFERENCES PKTABLE MATCH FULL ON DELETE CASCADE ON UPDATE CASCADE, ftest2 int );
 --DDL_STATEMENT_END--
+
 -- Insert test data into PKTABLE
 INSERT INTO PKTABLE VALUES (1, 'Test1');
 INSERT INTO PKTABLE VALUES (2, 'Test2');
@@ -31,6 +32,7 @@ INSERT INTO FKTABLE VALUES (100, 2);
 -- Check FKTABLE
 SELECT * FROM FKTABLE;
 
+
 -- Delete a row from PK TABLE
 DELETE FROM PKTABLE WHERE ptest1=1;
 
@@ -48,6 +50,7 @@ DROP TABLE FKTABLE;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE PKTABLE;
 --DDL_STATEMENT_END--
+
 --
 -- check set NULL and table constraint on multiple columns
 --
@@ -58,6 +61,7 @@ CREATE TABLE PKTABLE ( ptest1 int, ptest2 int, ptest3 text, PRIMARY KEY(ptest1, 
 CREATE TABLE FKTABLE ( ftest1 int, ftest2 int, ftest3 int, CONSTRAINT constrname FOREIGN KEY(ftest1, ftest2)
                        REFERENCES PKTABLE MATCH FULL ON DELETE SET NULL ON UPDATE SET NULL);
 --DDL_STATEMENT_END--
+
 -- Test comments
 --DDL_STATEMENT_BEGIN--
 COMMENT ON CONSTRAINT constrname_wrong ON FKTABLE IS 'fk constraint comment';
@@ -127,6 +131,7 @@ DROP TABLE PKTABLE CASCADE;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE FKTABLE;
 --DDL_STATEMENT_END--
+
 --
 -- check set default and table constraint on multiple columns
 --
@@ -204,6 +209,7 @@ CREATE TABLE PKTABLE ( ptest1 int PRIMARY KEY, ptest2 text );
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE FKTABLE ( ftest1 int REFERENCES PKTABLE MATCH FULL, ftest2 int );
 --DDL_STATEMENT_END--
+
 -- Insert test data into PKTABLE
 INSERT INTO PKTABLE VALUES (1, 'Test1');
 INSERT INTO PKTABLE VALUES (2, 'Test2');
@@ -243,12 +249,14 @@ UPDATE PKTABLE SET ptest1=0 WHERE ptest1=4;
 
 -- Check PKTABLE for updates
 SELECT * FROM PKTABLE;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE FKTABLE;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 DROP TABLE PKTABLE;
 --DDL_STATEMENT_END--
+
 
 -- MATCH SIMPLE
 
@@ -260,6 +268,7 @@ CREATE TABLE PKTABLE ( ptest1 int, ptest2 int, ptest3 int, ptest4 text, PRIMARY 
 CREATE TABLE FKTABLE ( ftest1 int, ftest2 int, ftest3 int, ftest4 int,  CONSTRAINT constrname3
 			FOREIGN KEY(ftest1, ftest2, ftest3) REFERENCES PKTABLE);
 --DDL_STATEMENT_END--
+
 -- Insert Primary Key values
 INSERT INTO PKTABLE VALUES (1, 2, 3, 'test1');
 INSERT INTO PKTABLE VALUES (1, 3, 3, 'test2');
@@ -295,6 +304,7 @@ DELETE FROM PKTABLE where ptest1=2;
 SELECT * from PKTABLE;
 
 SELECT * from FKTABLE;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE FKTABLE;
 --DDL_STATEMENT_END--
@@ -369,6 +379,7 @@ CREATE TABLE FKTABLE ( ftest1 int DEFAULT 0, ftest2 int, ftest3 int, ftest4 int,
 			FOREIGN KEY(ftest1, ftest2, ftest3) REFERENCES PKTABLE
 			ON DELETE SET DEFAULT ON UPDATE SET NULL);
 --DDL_STATEMENT_END--
+
 -- Insert Primary Key values
 INSERT INTO PKTABLE VALUES (1, 2, 3, 'test1');
 INSERT INTO PKTABLE VALUES (1, 3, 3, 'test2');
@@ -412,6 +423,7 @@ DELETE FROM PKTABLE where ptest2=5;
 -- Show PKTABLE and FKTABLE
 SELECT * from PKTABLE;
 SELECT * from FKTABLE;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE FKTABLE;
 --DDL_STATEMENT_END--
@@ -428,6 +440,7 @@ CREATE TABLE FKTABLE ( ftest1 int DEFAULT 0, ftest2 int DEFAULT -1, ftest3 int D
 			FOREIGN KEY(ftest1, ftest2, ftest3) REFERENCES PKTABLE
 			ON DELETE SET NULL ON UPDATE SET DEFAULT);
 --DDL_STATEMENT_END--
+
 -- Insert Primary Key values
 INSERT INTO PKTABLE VALUES (1, 2, 3, 'test1');
 INSERT INTO PKTABLE VALUES (1, 3, 3, 'test2');
@@ -477,12 +490,14 @@ DELETE FROM PKTABLE where ptest2=-1 and ptest3=5;
 -- Show PKTABLE and FKTABLE
 SELECT * from PKTABLE;
 SELECT * from FKTABLE;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE FKTABLE;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 DROP TABLE PKTABLE;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE PKTABLE (ptest1 int PRIMARY KEY);
 --DDL_STATEMENT_END--
@@ -492,6 +507,7 @@ CREATE TABLE FKTABLE_FAIL1 ( ftest1 int, CONSTRAINT fkfail1 FOREIGN KEY (ftest2)
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE FKTABLE_FAIL2 ( ftest1 int, CONSTRAINT fkfail1 FOREIGN KEY (ftest1) REFERENCES PKTABLE(ptest2));
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE FKTABLE_FAIL1;
 --DDL_STATEMENT_END--
@@ -500,6 +516,7 @@ DROP TABLE FKTABLE_FAIL2;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 DROP TABLE PKTABLE;
+
 --DDL_STATEMENT_END--
 -- Test for referencing column number smaller than referenced constraint
 --DDL_STATEMENT_BEGIN--
@@ -508,6 +525,7 @@ CREATE TABLE PKTABLE (ptest1 int, ptest2 int, UNIQUE(ptest1, ptest2));
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE FKTABLE_FAIL1 (ftest1 int REFERENCES pktable(ptest1));
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE FKTABLE_FAIL1;
 --DDL_STATEMENT_END--
@@ -615,6 +633,7 @@ DROP TABLE FKTABLE;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 DROP TABLE PKTABLE;
+
 --DDL_STATEMENT_END--
 -- Two columns, same table
 -- Make sure this still works...
@@ -714,6 +733,7 @@ drop table pktable;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 drop table pktable_base;
+
 --DDL_STATEMENT_END--
 -- Now we'll do one all in 1 table with 2 columns of matching types
 --DDL_STATEMENT_BEGIN--
@@ -773,6 +793,7 @@ drop table pktable;
 --DDL_STATEMENT_BEGIN--
 drop table pktable_base;
 --DDL_STATEMENT_END--
+
 -- 2 columns (1 table), mismatched types
 --DDL_STATEMENT_BEGIN--
 create table pktable_base(base1 int not null, base2 int);
@@ -785,10 +806,12 @@ create table pktable(ptest1 inet, ptest2 inet[], primary key(base1, ptest1), for
 create table pktable(ptest1 inet, ptest2 inet, primary key(base1, ptest1), foreign key(base2, ptest2) references
                                              pktable(ptest1, base1)) inherits (pktable_base);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--											
 create table pktable(ptest1 inet, ptest2 inet, primary key(base1, ptest1), foreign key(ptest2, base2) references
                                            pktable(base1, ptest1)) inherits (pktable_base);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--										   
 create table pktable(ptest1 inet, ptest2 inet, primary key(base1, ptest1), foreign key(ptest2, base2) references                                            pktable(base1, ptest1)) inherits (pktable_base);
 --DDL_STATEMENT_END--
@@ -811,12 +834,14 @@ CREATE TABLE pktable (
 	other	INT4
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE fktable (
 	id		INT4 PRIMARY KEY,
 	fk		INT4 REFERENCES pktable DEFERRABLE
 );
 --DDL_STATEMENT_END--
+
 -- default to immediate: should fail
 INSERT INTO fktable VALUES (5, 10);
 
@@ -829,9 +854,11 @@ INSERT INTO fktable VALUES (10, 15);
 INSERT INTO pktable VALUES (15, 0); -- make the FK insert valid
 
 COMMIT;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE fktable, pktable;
 --DDL_STATEMENT_END--
+
 -- deferrable, initially deferred
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE pktable (
@@ -839,12 +866,14 @@ CREATE TABLE pktable (
 	other	INT4
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE fktable (
 	id		INT4 PRIMARY KEY,
 	fk		INT4 REFERENCES pktable DEFERRABLE INITIALLY DEFERRED
 );
 --DDL_STATEMENT_END--
+
 -- default to deferred, should succeed
 BEGIN;
 
@@ -862,9 +891,11 @@ SET CONSTRAINTS ALL IMMEDIATE;
 INSERT INTO fktable VALUES (500, 1000);
 
 COMMIT;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE fktable, pktable;
 --DDL_STATEMENT_END--
+
 -- tricky behavior: according to SQL99, if a deferred constraint is set
 -- to 'immediate' mode, it should be checked for validity *immediately*,
 -- not when the current transaction commits (i.e. the mode change applies
@@ -875,12 +906,14 @@ CREATE TABLE pktable (
 	other	INT4
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE fktable (
 	id		INT4 PRIMARY KEY,
 	fk		INT4 REFERENCES pktable DEFERRABLE
 );
 --DDL_STATEMENT_END--
+
 BEGIN;
 
 SET CONSTRAINTS ALL DEFERRED;
@@ -894,9 +927,11 @@ SET CONSTRAINTS ALL IMMEDIATE;
 INSERT INTO pktable VALUES (2000, 3); -- too late
 
 COMMIT;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE fktable, pktable;
 --DDL_STATEMENT_END--
+
 -- deferrable, initially deferred
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE pktable (
@@ -904,12 +939,14 @@ CREATE TABLE pktable (
 	other	INT4
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE fktable (
 	id		INT4 PRIMARY KEY,
 	fk		INT4 REFERENCES pktable DEFERRABLE INITIALLY DEFERRED
 );
 --DDL_STATEMENT_END--
+
 BEGIN;
 
 -- no error here
@@ -917,11 +954,14 @@ INSERT INTO fktable VALUES (100, 200);
 
 -- error here on commit
 COMMIT;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE pktable, fktable;
 --DDL_STATEMENT_END--
+
 -- test notice about expensive referential integrity checks,
 -- where the index cannot be used because of type incompatibilities.
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE pktable (
         id1     INT4 PRIMARY KEY,
@@ -930,6 +970,7 @@ CREATE TEMP TABLE pktable (
         UNIQUE(id1, id2, id3)
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE fktable (
         x1      INT4 REFERENCES pktable(id1),
@@ -939,6 +980,7 @@ CREATE TEMP TABLE fktable (
         x5      INT2
 );
 --DDL_STATEMENT_END--
+
 -- check individual constraints with alter table.
 
 -- should fail
@@ -948,21 +990,25 @@ CREATE TEMP TABLE fktable (
 ALTER TABLE fktable ADD CONSTRAINT fk_2_3
 FOREIGN KEY (x2) REFERENCES pktable(id3);
 --DDL_STATEMENT_END--
+
 -- nor to int4
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE fktable ADD CONSTRAINT fk_2_1
 FOREIGN KEY (x2) REFERENCES pktable(id1);
 --DDL_STATEMENT_END--
+
 -- real does not promote to int4
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE fktable ADD CONSTRAINT fk_3_1
 FOREIGN KEY (x3) REFERENCES pktable(id1);
 --DDL_STATEMENT_END--
+
 -- int4 does not promote to text
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE fktable ADD CONSTRAINT fk_1_2
 FOREIGN KEY (x1) REFERENCES pktable(id2);
 --DDL_STATEMENT_END--
+
 -- should succeed
 
 -- int4 promotes to real
@@ -970,61 +1016,75 @@ FOREIGN KEY (x1) REFERENCES pktable(id2);
 ALTER TABLE fktable ADD CONSTRAINT fk_1_3
 FOREIGN KEY (x1) REFERENCES pktable(id3);
 --DDL_STATEMENT_END--
+
 -- text is compatible with varchar
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE fktable ADD CONSTRAINT fk_4_2
 FOREIGN KEY (x4) REFERENCES pktable(id2);
 --DDL_STATEMENT_END--
+
 -- int2 is part of integer opfamily as of 8.0
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE fktable ADD CONSTRAINT fk_5_1
 FOREIGN KEY (x5) REFERENCES pktable(id1);
 --DDL_STATEMENT_END--
+
 -- check multikey cases, especially out-of-order column lists
 
 -- these should work
+
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE fktable ADD CONSTRAINT fk_123_123
 FOREIGN KEY (x1,x2,x3) REFERENCES pktable(id1,id2,id3);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE fktable ADD CONSTRAINT fk_213_213
 FOREIGN KEY (x2,x1,x3) REFERENCES pktable(id2,id1,id3);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE fktable ADD CONSTRAINT fk_253_213
 FOREIGN KEY (x2,x5,x3) REFERENCES pktable(id2,id1,id3);
 --DDL_STATEMENT_END--
+
 -- these should fail
+
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE fktable ADD CONSTRAINT fk_123_231
 FOREIGN KEY (x1,x2,x3) REFERENCES pktable(id2,id3,id1);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE fktable ADD CONSTRAINT fk_241_132
 FOREIGN KEY (x2,x4,x1) REFERENCES pktable(id1,id3,id2);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE pktable, fktable;
 --DDL_STATEMENT_END--
+
 -- test a tricky case: we can elide firing the FK check trigger during
 -- an UPDATE if the UPDATE did not change the foreign key
 -- field. However, we can't do this if our transaction was the one that
 -- created the updated row and the trigger is deferred, since our UPDATE
 -- will have invalidated the original newly-inserted tuple, and therefore
 -- cause the on-INSERT RI trigger not to be fired.
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE pktable (
     id int primary key,
     other int
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE fktable (
     id int primary key,
     fk int references pktable deferrable initially deferred
 );
 --DDL_STATEMENT_END--
+
 INSERT INTO pktable VALUES (5, 10);
 
 BEGIN;
@@ -1092,9 +1152,11 @@ COMMIT;
 --
 
 INSERT INTO fktable VALUES (1, 5);
+
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE fktable ALTER CONSTRAINT fktable_fk_fkey DEFERRABLE INITIALLY IMMEDIATE;
 --DDL_STATEMENT_END--
+
 BEGIN;
 
 -- doesn't match FK, should throw error now
@@ -1117,18 +1179,22 @@ ALTER TABLE fktable ALTER CONSTRAINT fktable_fk_fkey NOT DEFERRABLE;
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE fktable ALTER CONSTRAINT fktable_fk_fkey NOT DEFERRABLE INITIALLY DEFERRED;
 --DDL_STATEMENT_END--
+
 -- test order of firing of FK triggers when several RI-induced changes need to
 -- be made to the same row.  This was broken by subtransaction-related
 -- changes in 8.0.
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE users (
   id INT PRIMARY KEY,
   name VARCHAR NOT NULL
 );
 --DDL_STATEMENT_END--
+
 INSERT INTO users VALUES (1, 'Jozko');
 INSERT INTO users VALUES (2, 'Ferko');
 INSERT INTO users VALUES (3, 'Samko');
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE tasks (
   id INT PRIMARY KEY,
@@ -1137,6 +1203,7 @@ CREATE TEMP TABLE tasks (
   checked_by INT REFERENCES users ON UPDATE CASCADE ON DELETE SET NULL
 );
 --DDL_STATEMENT_END--
+
 
 INSERT INTO tasks VALUES (1,1,NULL,NULL);
 INSERT INTO tasks VALUES (2,2,2,NULL);
@@ -1171,6 +1238,7 @@ create temp table selfref (
         on update cascade on delete cascade
 );
 --DDL_STATEMENT_END--
+
 insert into selfref (a, b)
 values
     (0, 0),
@@ -1222,6 +1290,7 @@ update pp set f1=f1+1; -- fail
 --DDL_STATEMENT_BEGIN--
 drop table pp, cc;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create temp table pp (f1 int primary key);
 --DDL_STATEMENT_END--
@@ -1236,6 +1305,7 @@ update pp set f1=f1+1; -- fail
 --DDL_STATEMENT_BEGIN--
 drop table pp, cc;
 --DDL_STATEMENT_END--
+
 --
 -- Test interaction of foreign-key optimization with rules (bug #14219)
 --
@@ -1267,6 +1337,7 @@ update pktable2 set d = 5;
 --DDL_STATEMENT_BEGIN--
 drop table pktable2, fktable2;
 --DDL_STATEMENT_END--
+
 --
 -- Test deferred FK check on a tuple deleted by a rolled-back subtransaction
 --
@@ -1295,18 +1366,21 @@ commit; -- fail
 --
 -- Test that we prevent dropping FK constraint with pending trigger events
 --
-
 begin;
 insert into fktable2 values(2);
 alter table fktable2 drop constraint fktable2_f1_fkey;
 commit;
+
 begin;
 delete from pktable2 where f1 = 1;
 alter table fktable2 drop constraint fktable2_f1_fkey;
 commit;
+
 --DDL_STATEMENT_BEGIN--
 drop table pktable2, fktable2;
 --DDL_STATEMENT_END--
+
+
 --
 -- Foreign keys and partitioned tables
 --
@@ -1332,6 +1406,7 @@ ALTER TABLE fk_notpartitioned_fk_2 ADD FOREIGN KEY (a, b)
 --DDL_STATEMENT_BEGIN--
 DROP TABLE fk_partitioned_pk, fk_notpartitioned_fk_2;
 --DDL_STATEMENT_END--
+
 -- Creation of a partitioned hierarchy with irregular definitions
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE fk_notpartitioned_pk (fdrop1 int, a int, fdrop2 int, b int,
@@ -1367,6 +1442,7 @@ ALTER TABLE fk_partitioned_fk_2 DROP COLUMN fdrop1, DROP COLUMN fdrop2;
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE fk_partitioned_fk ATTACH PARTITION fk_partitioned_fk_2 FOR VALUES FROM (1000,1000) TO (2000,2000);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE fk_partitioned_fk_3 (fdrop1 int, fdrop2 int, fdrop3 int, fdrop4 int, b int, a int)
   PARTITION BY HASH (a);
@@ -1435,6 +1511,7 @@ ALTER TABLE fk_partitioned_fk DROP CONSTRAINT fk_partitioned_fk_a_fkey;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE fk_notpartitioned_pk, fk_partitioned_fk;
 --DDL_STATEMENT_END--
+
 -- Altering a type referenced by a foreign key needs to drop/recreate the FK.
 -- Ensure that works.
 --DDL_STATEMENT_BEGIN--
@@ -1455,6 +1532,7 @@ DELETE FROM fk_notpartitioned_pk WHERE a = 1;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE fk_notpartitioned_pk, fk_partitioned_fk;
 --DDL_STATEMENT_END--
+
 -- Test some other exotic foreign key features: MATCH SIMPLE, ON UPDATE/DELETE
 -- actions
 --DDL_STATEMENT_BEGIN--
@@ -1480,6 +1558,7 @@ CREATE TABLE fk_partitioned_fk_3 (a int, b int);
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE fk_partitioned_fk ATTACH PARTITION fk_partitioned_fk_3 FOR VALUES IN (2500,2501,2502,2503);
 --DDL_STATEMENT_END--
+
 -- this insert fails
 INSERT INTO fk_partitioned_fk (a, b) VALUES (2502, 2503);
 INSERT INTO fk_partitioned_fk_3 (a, b) VALUES (2502, 2503);
@@ -1503,7 +1582,7 @@ SELECT count(*) FROM fk_partitioned_fk WHERE a IS NULL;
 DELETE FROM fk_notpartitioned_pk;
 SELECT count(*) FROM fk_partitioned_fk WHERE a IS NULL;
 
--- ON UPDATE/DELETE SET DEFAULT\
+-- ON UPDATE/DELETE SET DEFAULT
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE fk_partitioned_fk DROP CONSTRAINT fk_partitioned_fk_a_fkey;
 --DDL_STATEMENT_END--
@@ -1582,6 +1661,7 @@ ALTER TABLE fk_partitioned_fk ATTACH PARTITION fk_partitioned_fk_2 FOR VALUES IN
 --DDL_STATEMENT_BEGIN--
 DROP TABLE fk_partitioned_fk_2;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE fk_partitioned_fk_4 (a int, b int, FOREIGN KEY (a, b) REFERENCES fk_notpartitioned_pk(a, b) ON UPDATE CASCADE ON DELETE CASCADE) PARTITION BY RANGE (b, a);
 --DDL_STATEMENT_END--
@@ -1608,6 +1688,7 @@ ALTER TABLE fk_partitioned_fk ATTACH PARTITION fk_partitioned_fk_4 FOR VALUES IN
 \d fk_partitioned_fk_4_1
 -- this one has an FK with mismatched properties
 \d fk_partitioned_fk_4_2
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE fk_partitioned_fk_5 (a int, b int,
 	FOREIGN KEY (a, b) REFERENCES fk_notpartitioned_pk(a, b) ON UPDATE CASCADE ON DELETE CASCADE DEFERRABLE,
@@ -1663,6 +1744,7 @@ INSERT INTO fk_notpartitioned_pk VALUES (1600, 601), (1600, 1601);
 ALTER TABLE fk_partitioned_fk ATTACH PARTITION fk_partitioned_fk_2
   FOR VALUES IN (1600);
 --DDL_STATEMENT_END--
+
 -- leave these tables around intentionally
 
 -- test the case when the referenced table is owned by a different user
@@ -1707,6 +1789,7 @@ revoke all on fk_notpartitioned_pk from regress_other_partitioned_fk_owner;
 --DDL_STATEMENT_BEGIN--
 drop role regress_other_partitioned_fk_owner;
 --DDL_STATEMENT_END--
+
 -- Test creating a constraint at the parent that already exists in partitions.
 -- There should be no duplicated constraints, and attempts to drop the
 -- constraint in partitions should raise appropriate errors.
@@ -1721,10 +1804,11 @@ create schema fkpart0
       partition by list (a)
   create table fk_part_23_2 partition of fk_part_23 for values in (2);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 alter table fkpart0.fk_part add foreign key (a) references fkpart0.pkey;
 --DDL_STATEMENT_END--
-\d fkpart0.fk_part_1	\\ -- should have only one FK\
+\d fkpart0.fk_part_1	\\ -- should have only one FK
 --DDL_STATEMENT_BEGIN--
 alter table fkpart0.fk_part_1 drop constraint fk_part_1_a_fkey;
 --DDL_STATEMENT_END--
@@ -1737,6 +1821,7 @@ alter table fkpart0.fk_part_23 drop constraint fk_part_23_a_fkey;
 --DDL_STATEMENT_BEGIN--
 alter table fkpart0.fk_part_23_2 drop constraint fk_part_23_a_fkey;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create table fkpart0.fk_part_4 partition of fkpart0.fk_part for values in (4);
 --DDL_STATEMENT_END--
@@ -1744,6 +1829,7 @@ create table fkpart0.fk_part_4 partition of fkpart0.fk_part for values in (4);
 --DDL_STATEMENT_BEGIN--
 alter table fkpart0.fk_part_4 drop constraint fk_part_a_fkey;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create table fkpart0.fk_part_56 partition of fkpart0.fk_part
     for values in (5,6) partition by list (a);
@@ -1759,6 +1845,7 @@ alter table fkpart0.fk_part_56 drop constraint fk_part_a_fkey;
 --DDL_STATEMENT_BEGIN--
 alter table fkpart0.fk_part_56_5 drop constraint fk_part_a_fkey;
 --DDL_STATEMENT_END--
+
 -- verify that attaching and detaching partitions maintains the right set of
 -- triggers
 --DDL_STATEMENT_BEGIN--
@@ -1811,6 +1898,7 @@ alter table fkpart2.fk_part_1 drop constraint fkey;	-- ok
 --DDL_STATEMENT_BEGIN--
 alter table fkpart2.fk_part_1_1 drop constraint my_fkey;	-- doesn't exist
 --DDL_STATEMENT_END--
+
 -- ensure we check partitions are "not used" when dropping constraints
 --DDL_STATEMENT_BEGIN--
 CREATE SCHEMA fkpart8
@@ -1818,7 +1906,6 @@ CREATE SCHEMA fkpart8
   CREATE TABLE tbl2(f1 int REFERENCES tbl1 DEFERRABLE INITIALLY DEFERRED) PARTITION BY RANGE(f1)
   CREATE TABLE tbl2_p1 PARTITION OF tbl2 FOR VALUES FROM (minvalue) TO (maxvalue);
 --DDL_STATEMENT_END--
-
 INSERT INTO fkpart8.tbl1 VALUES(1);
 --DDL_STATEMENT_BEGIN--
 BEGIN;
@@ -1830,6 +1917,7 @@ ALTER TABLE fkpart8.tbl2 DROP CONSTRAINT tbl2_f1_fkey;
 --DDL_STATEMENT_BEGIN--
 COMMIT;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 \set VERBOSITY terse	\\ -- suppress cascade details
 --DDL_STATEMENT_END--

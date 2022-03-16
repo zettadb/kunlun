@@ -1,3 +1,4 @@
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE if exists xmltest;
 --DDL_STATEMENT_END--
@@ -7,6 +8,7 @@ CREATE TABLE xmltest (
     data xml
 );
 --DDL_STATEMENT_END--
+
 INSERT INTO xmltest VALUES (1, '<value>one</value>');
 INSERT INTO xmltest VALUES (2, '<value>two</value>');
 INSERT INTO xmltest VALUES (3, '<wrong');
@@ -167,6 +169,7 @@ SELECT xml '<!DOCTYPE a><a/><b/>';
 
 
 -- Test backwards parsing
+
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW xmlview1 AS SELECT xmlcomment('test');
 --DDL_STATEMENT_END--
@@ -194,6 +197,7 @@ CREATE VIEW xmlview8 AS SELECT xmlserialize(content 'good' as char(10));
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW xmlview9 AS SELECT xmlserialize(content 'good' as text);
 --DDL_STATEMENT_END--
+
 SELECT table_name, view_definition FROM information_schema.views
   WHERE table_name LIKE 'xmlview%' ORDER BY 1;
 
@@ -390,6 +394,7 @@ SELECT  xmltable.*
                                   unit text PATH 'SIZE/@unit',
                                   premier_name text PATH 'PREMIER_NAME' DEFAULT 'not specified');
 --DDL_STATEMENT_BEGIN--
+
 CREATE VIEW xmltableview1 AS SELECT  xmltable.*
    FROM (SELECT data FROM xmldata) x,
         LATERAL XMLTABLE('/ROWS/ROW'
@@ -403,6 +408,7 @@ CREATE VIEW xmltableview1 AS SELECT  xmltable.*
                                   unit text PATH 'SIZE/@unit',
                                   premier_name text PATH 'PREMIER_NAME' DEFAULT 'not specified');
 --DDL_STATEMENT_END--
+
 SELECT * FROM xmltableview1;
 
 \sv xmltableview1
@@ -415,12 +421,14 @@ SELECT * FROM XMLTABLE(XMLNAMESPACES('http://x.y' AS zz),
                       '/zz:rows/zz:row'
                       PASSING '<rows xmlns="http://x.y"><row><a>10</a></row></rows>'
                       COLUMNS a int PATH 'zz:a');
+					  
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW xmltableview2 AS SELECT * FROM XMLTABLE(XMLNAMESPACES('http://x.y' AS zz),
                       '/zz:rows/zz:row'
                       PASSING '<rows xmlns="http://x.y"><row><a>10</a></row></rows>'
                       COLUMNS a int PATH 'zz:a');
 --DDL_STATEMENT_END--
+
 SELECT * FROM xmltableview2;
 
 SELECT * FROM XMLTABLE(XMLNAMESPACES(DEFAULT 'http://x.y'),
@@ -618,11 +626,12 @@ WITH
    SELECT * FROM z
    EXCEPT SELECT * FROM x;
 --DDL_STATEMENT_BEGIN--
-DROP TABLE if exists xmltest2
+DROP TABLE if exists xmltest2;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE xmltest2(x xml, _path text);
 --DDL_STATEMENT_END--
+
 INSERT INTO xmltest2 VALUES('<d><r><ac>1</ac></r></d>', 'A');
 INSERT INTO xmltest2 VALUES('<d><r><bc>2</bc></r></d>', 'B');
 INSERT INTO xmltest2 VALUES('<d><r><cc>3</cc></r></d>', 'C');

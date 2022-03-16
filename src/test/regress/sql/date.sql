@@ -1,12 +1,14 @@
 --
 -- DATE
 --
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists DATE_TBL;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE DATE_TBL (f1 date);
 --DDL_STATEMENT_END--
+
 INSERT INTO DATE_TBL VALUES ('1957-04-09');
 INSERT INTO DATE_TBL VALUES ('1957-06-13');
 INSERT INTO DATE_TBL VALUES ('1996-02-28');
@@ -349,6 +351,7 @@ select make_date(2013, 13, 1);
 select make_date(2013, 11, -1);
 select make_time(10, 55, 100.1);
 select make_time(24, 0, 2.1);
+
 --DDL_STATEMENT_BEGIN--
 drop table DATE_TBL;
 --DDL_STATEMENT_END--

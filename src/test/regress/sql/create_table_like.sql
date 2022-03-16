@@ -5,23 +5,28 @@ DROP TABLE if exists inhx;
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE inhx (xx varchar(100) DEFAULT 'text');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE foo (LIKE nonexistent);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE inhe (ee text, LIKE inhx);
 --DDL_STATEMENT_END--
 INSERT INTO inhe VALUES (DEFAULT, 'ee-col4');
 SELECT * FROM inhe; /* Columns aa, bb, xx value NULL, ee */
 SELECT * FROM inhx; /* Empty set since LIKE inherits structure only */
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE inhf (LIKE inhx, LIKE inhx); /* Throw error */
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE inhf (LIKE inhx INCLUDING DEFAULTS INCLUDING CONSTRAINTS);
 --DDL_STATEMENT_END--
 INSERT INTO inhf DEFAULT VALUES;
 SELECT * FROM inhf; /* Single entry with value 'text' */
+
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE inhx ADD PRIMARY KEY (xx);
 --DDL_STATEMENT_END--
@@ -42,6 +47,7 @@ SELECT * FROM inhg; /* Two records with three columns in order x=x, xx=text, y=y
 --DDL_STATEMENT_BEGIN--
 DROP TABLE inhg;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE test_like_id_1 (a bigint GENERATED ALWAYS AS IDENTITY, b text);
 --DDL_STATEMENT_END--
@@ -69,6 +75,7 @@ DROP TABLE test_like_id_2;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE test_like_id_3;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE inhg (x text, LIKE inhx INCLUDING INDEXES, y text); /* copies indexes */
 --DDL_STATEMENT_END--
@@ -118,31 +125,37 @@ COMMENT ON COLUMN ctlt1.b IS 'B';
 COMMENT ON CONSTRAINT ctlt1_a_check ON ctlt1 IS 't1_a_check';
 COMMENT ON INDEX ctlt1_pkey IS 'index pkey';
 COMMENT ON INDEX ctlt1_b_key IS 'index b_key';
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE ctlt2 (c text);
 --DDL_STATEMENT_END--
 COMMENT ON COLUMN ctlt2.c IS 'C';
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE ctlt3 (a text, c text);
 --DDL_STATEMENT_END--
 COMMENT ON COLUMN ctlt3.a IS 'A3';
 COMMENT ON COLUMN ctlt3.c IS 'C';
 COMMENT ON CONSTRAINT ctlt3_a_check ON ctlt3 IS 't3_a_check';
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE ctlt4 (a text, c text);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE ctlt12_storage (LIKE ctlt1 INCLUDING STORAGE, LIKE ctlt2 INCLUDING STORAGE);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE ctlt12_comments (LIKE ctlt1 INCLUDING COMMENTS, LIKE ctlt2 INCLUDING COMMENTS);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE ctlt_all (LIKE ctlt1 INCLUDING ALL);
 --DDL_STATEMENT_END--
 \d+ ctlt_all
 SELECT c.relname, objsubid, description FROM pg_description, pg_index i, pg_class c WHERE classoid = 'pg_class'::regclass AND objoid = i.indexrelid AND c.oid = i.indexrelid AND i.indrelid = 'ctlt_all'::regclass ORDER BY c.relname, objsubid;
 SELECT s.stxname, objsubid, description FROM pg_description, pg_statistic_ext s WHERE classoid = 'pg_statistic_ext'::regclass AND objoid = s.oid AND s.stxrelid = 'ctlt_all'::regclass ORDER BY s.stxname, objsubid;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE ctlt1 CASCADE;
 --DDL_STATEMENT_END--
@@ -166,15 +179,18 @@ DROP TABLE ctlt_all CASCADE;
 --DDL_STATEMENT_END--
 
 /* LIKE with other relation kinds */
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE ctlt4 (a int, b text);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE ctlseq1;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE ctlt10 (LIKE ctlseq1);  -- fail
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW ctlv1 AS SELECT * FROM ctlt4;
 --DDL_STATEMENT_END--
@@ -184,12 +200,14 @@ CREATE TABLE ctlt11 (LIKE ctlv1);
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE ctlt11a (LIKE ctlv1 INCLUDING ALL);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TYPE ctlty1 AS (a int, b text);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE ctlt12 (LIKE ctlty1);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE ctlseq1;
 --DDL_STATEMENT_END--

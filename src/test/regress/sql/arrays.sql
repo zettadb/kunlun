@@ -11,6 +11,7 @@ CREATE temp TABLE arrtest (
 	f			char(5)[],
 	g			varchar(5)[]
 );
+
 --DDL_STATEMENT_END--
 --
 -- only the 'e' array is 0-based, the others are 1-based.
@@ -233,6 +234,7 @@ insert into arrtest_f values(6,'cat2',1.15);
 insert into arrtest_f values(7,'cat2',1.26);
 insert into arrtest_f values(8,'cat2',1.32);
 insert into arrtest_f values(9,'cat2',1.30);
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE arrtest_i (f0 int, f1 text, f2 int);
 --DDL_STATEMENT_END--
@@ -462,6 +464,7 @@ select '[0:1]={1.1,2.2}'::float8[];
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE arraggtest ( f1 INT[], f2 TEXT[][], f3 FLOAT[]);
 --DDL_STATEMENT_END--
+
 INSERT INTO arraggtest (f1, f2, f3) VALUES
 ('{1,2,3,4}','{{grey,red},{blue,blue}}','{1.6, 0.0}');
 INSERT INTO arraggtest (f1, f2, f3) VALUES
@@ -485,12 +488,15 @@ INSERT INTO arraggtest (f1, f2, f3) VALUES
 SELECT max(f1), min(f1), max(f2), min(f2), max(f3), min(f3) FROM arraggtest;
 
 -- A few simple tests for arrays of composite types
+
 --DDL_STATEMENT_BEGIN--
 create type comptype as (f1 int, f2 text);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create temp table comptable (c1 comptype, c2 comptype[]);
 --DDL_STATEMENT_END--
+
 -- XXX would like to not have to specify row() construct types here ...
 insert into comptable
   values (row(1,'foo'), array[row(2,'bar')::comptype, row(3,'baz')::comptype]);
@@ -499,8 +505,10 @@ insert into comptable
 --DDL_STATEMENT_BEGIN--
 create type _comptype as enum('fooey');
 --DDL_STATEMENT_END--
+
 select * from comptable;
 select c2[2].f2 from comptable;
+
 --DDL_STATEMENT_BEGIN--
 drop type _comptype;
 --DDL_STATEMENT_END--
@@ -510,12 +518,14 @@ drop table comptable;
 --DDL_STATEMENT_BEGIN--
 drop type comptype;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create or replace function unnest1(anyarray)
 returns setof anyelement as $$
 select $1[s] from generate_subscripts($1,1) g(s);
 $$ language sql immutable;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create or replace function unnest2(anyarray)
 returns setof anyelement as $$
@@ -523,14 +533,17 @@ select $1[s1][s2] from generate_subscripts($1,1) g1(s1),
                    generate_subscripts($1,2) g2(s2);
 $$ language sql immutable;
 --DDL_STATEMENT_END--
+
 select * from unnest1(array[1,2,3]);
 select * from unnest2(array[[1,2,3],[4,5,6]]);
+
 --DDL_STATEMENT_BEGIN--
 drop function unnest1(anyarray);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 drop function unnest2(anyarray);
 --DDL_STATEMENT_END--
+
 select array_fill(null::integer, array[3,3],array[2,2]);
 select array_fill(null::integer, array[3,3]);
 select array_fill(null::text, array[3,3],array[2,2]);
@@ -639,6 +652,7 @@ select array(select array[i,i/2] from generate_series(1,5) i);
 select array(select array['Hello', i::text] from generate_series(9,11) i);
 
 -- Insert/update on a column that is array of composite
+
 --DDL_STATEMENT_BEGIN--
 create temp table t1 (f1 int8_tbl[]);
 --DDL_STATEMENT_END--
@@ -648,6 +662,7 @@ update t1 set f1[5].q2 = 43;
 select * from t1;
 
 -- Check that arrays of composites are safely detoasted when needed
+
 --DDL_STATEMENT_BEGIN--
 create temp table src (f1 text);
 --DDL_STATEMENT_END--
@@ -674,6 +689,7 @@ drop table dest;
 --DDL_STATEMENT_BEGIN--
 drop type textandtext;
 --DDL_STATEMENT_END--
+
 -- Tests for polymorphic-array form of width_bucket()
 
 -- this exercises the varwidth and float8 code paths

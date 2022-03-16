@@ -36,7 +36,6 @@ CREATE STATISTICS tst ON (relpages, reltuples) FROM pg_class;
 CREATE STATISTICS tst (unrecognized) ON relname, relnatts FROM pg_class;
 --DDL_STATEMENT_END--
 
-
 -- Ensure stats are dropped sanely, and test IF NOT EXISTS while at it
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE ab1 (a INTEGER, b INTEGER, c INTEGER);
@@ -50,6 +49,7 @@ CREATE STATISTICS IF NOT EXISTS ab1_a_b_stats ON a, b FROM ab1;
 --DDL_STATEMENT_BEGIN--
 DROP STATISTICS ab1_a_b_stats;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE SCHEMA regress_schema_2;
 --DDL_STATEMENT_END--
@@ -59,9 +59,11 @@ CREATE STATISTICS regress_schema_2.ab1_a_b_stats ON a, b FROM ab1;
 
 -- Let's also verify the pg_get_statisticsobjdef output looks sane.
 SELECT pg_get_statisticsobjdef(oid) FROM pg_statistic_ext WHERE stxname = 'ab1_a_b_stats';
+
 --DDL_STATEMENT_BEGIN--
 DROP STATISTICS regress_schema_2.ab1_a_b_stats;
 --DDL_STATEMENT_END--
+
 -- Ensure statistics are dropped when columns are
 --DDL_STATEMENT_BEGIN--
 CREATE STATISTICS ab1_b_c_stats ON b, c FROM ab1;
@@ -104,6 +106,7 @@ ANALYZE ab1;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE ab1;
 --DDL_STATEMENT_END--
+
 -- Ensure we can build statistics for tables with inheritance.
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE ab1 (a INTEGER, b INTEGER);
@@ -111,7 +114,6 @@ CREATE TABLE ab1 (a INTEGER, b INTEGER);
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE ab1c () INHERITS (ab1);
 --DDL_STATEMENT_END--
-
 INSERT INTO ab1 VALUES (1,1);
 --DDL_STATEMENT_BEGIN--
 CREATE STATISTICS ab1_a_b_stats ON a, b FROM ab1;
@@ -120,10 +122,12 @@ ANALYZE ab1;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE ab1 CASCADE;
 --DDL_STATEMENT_END--
+
 -- Verify supported object types for extended statistics
 --DDL_STATEMENT_BEGIN--
 CREATE schema tststats;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE tststats.t (a int, b int, c text);
 --DDL_STATEMENT_END--
@@ -157,6 +161,7 @@ CREATE TABLE tststats.pt (a int, b int, c text) PARTITION BY RANGE (a, b);
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE tststats.pt1 PARTITION OF tststats.pt FOR VALUES FROM (-10, -10) TO (10, 10);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE STATISTICS tststats.s1 ON a, b FROM tststats.t;
 --DDL_STATEMENT_END--
@@ -194,6 +199,7 @@ EXCEPTION WHEN wrong_object_type THEN
 END;
 $$;
 --DDL_STATEMENT_BEGIN--
+
 \set VERBOSITY terse \\ -- suppress cascade details
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
@@ -217,6 +223,7 @@ CREATE TABLE ndistinct (
     d INT
 );
 --DDL_STATEMENT_END--
+
 -- over-estimates when using only per-column statistics
 INSERT INTO ndistinct (a, b, c, filler1)
      SELECT i/100, i/100, i/100, cash_words((i/100)::money)
@@ -244,6 +251,7 @@ EXPLAIN (COSTS off)
 --DDL_STATEMENT_BEGIN--
 CREATE STATISTICS s10 ON a, b, c FROM ndistinct;
 --DDL_STATEMENT_END--
+
 ANALYZE ndistinct;
 
 SELECT stxkind, stxndistinct
@@ -295,9 +303,11 @@ EXPLAIN (COSTS off)
 
 EXPLAIN (COSTS off)
  SELECT COUNT(*) FROM ndistinct GROUP BY a, d;
+ 
 --DDL_STATEMENT_BEGIN--
 DROP STATISTICS s10;
 --DDL_STATEMENT_END--
+
 SELECT stxkind, stxndistinct
   FROM pg_statistic_ext WHERE stxrelid = 'ndistinct'::regclass;
 
@@ -330,13 +340,16 @@ CREATE TABLE functional_dependencies (
     d TEXT
 );
 --DDL_STATEMENT_END--
+
 SET random_page_cost = 1.2;
+
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX fdeps_ab_idx ON functional_dependencies (a, b);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX fdeps_abc_idx ON functional_dependencies (a, b, c);
 --DDL_STATEMENT_END--
+
 -- random data (no functional dependencies)
 INSERT INTO functional_dependencies (a, b, c, filler1)
      SELECT mod(i, 23), mod(i, 29), mod(i, 31), i FROM generate_series(1,5000) s(i);
@@ -353,6 +366,7 @@ EXPLAIN (COSTS OFF)
 --DDL_STATEMENT_BEGIN--
 CREATE STATISTICS func_deps_stat (dependencies) ON a, b, c FROM functional_dependencies;
 --DDL_STATEMENT_END--
+
 ANALYZE functional_dependencies;
 
 EXPLAIN (COSTS OFF)
@@ -366,6 +380,7 @@ TRUNCATE functional_dependencies;
 --DDL_STATEMENT_BEGIN--
 DROP STATISTICS func_deps_stat;
 --DDL_STATEMENT_END--
+
 INSERT INTO functional_dependencies (a, b, c, filler1)
      SELECT mod(i,100), mod(i,50), mod(i,25), i FROM generate_series(1,5000) s(i);
 
@@ -381,6 +396,7 @@ EXPLAIN (COSTS OFF)
 --DDL_STATEMENT_BEGIN--
 CREATE STATISTICS func_deps_stat (dependencies) ON a, b, c FROM functional_dependencies;
 --DDL_STATEMENT_END--
+
 ANALYZE functional_dependencies;
 
 EXPLAIN (COSTS OFF)
@@ -393,6 +409,7 @@ EXPLAIN (COSTS OFF)
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE functional_dependencies ALTER COLUMN c TYPE numeric;
 --DDL_STATEMENT_END--
+
 EXPLAIN (COSTS OFF)
  SELECT * FROM functional_dependencies WHERE a = 1 AND b = '1' AND c = 1;
 

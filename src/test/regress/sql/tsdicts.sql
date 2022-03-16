@@ -8,6 +8,7 @@ CREATE TEXT SEARCH DICTIONARY ispell (
                         AffFile=ispell_sample
 );
 --DDL_STATEMENT_END--
+
 SELECT ts_lexize('ispell', 'skies');
 SELECT ts_lexize('ispell', 'bookings');
 SELECT ts_lexize('ispell', 'booking');
@@ -33,6 +34,7 @@ CREATE TEXT SEARCH DICTIONARY hunspell (
                         AffFile=hunspell_sample
 );
 --DDL_STATEMENT_END--
+
 SELECT ts_lexize('hunspell', 'skies');
 SELECT ts_lexize('hunspell', 'bookings');
 SELECT ts_lexize('hunspell', 'booking');
@@ -58,6 +60,7 @@ CREATE TEXT SEARCH DICTIONARY hunspell_long (
                         AffFile=hunspell_sample_long
 );
 --DDL_STATEMENT_END--
+
 SELECT ts_lexize('hunspell_long', 'skies');
 SELECT ts_lexize('hunspell_long', 'bookings');
 SELECT ts_lexize('hunspell_long', 'booking');
@@ -86,6 +89,7 @@ CREATE TEXT SEARCH DICTIONARY hunspell_num (
                         AffFile=hunspell_sample_num
 );
 --DDL_STATEMENT_END--
+
 SELECT ts_lexize('hunspell_num', 'skies');
 SELECT ts_lexize('hunspell_num', 'sk');
 SELECT ts_lexize('hunspell_num', 'bookings');
@@ -112,6 +116,7 @@ CREATE TEXT SEARCH DICTIONARY synonym (
 						Synonyms=synonym_sample
 );
 --DDL_STATEMENT_END--
+
 SELECT ts_lexize('synonym', 'PoStGrEs');
 SELECT ts_lexize('synonym', 'Gogle');
 SELECT ts_lexize('synonym', 'indices');
@@ -126,6 +131,7 @@ CREATE TEXT SEARCH DICTIONARY thesaurus (
 						Dictionary=english_stem
 );
 --DDL_STATEMENT_END--
+
 SELECT ts_lexize('thesaurus', 'one');
 
 -- Test ispell dictionary in configuration
@@ -134,11 +140,13 @@ CREATE TEXT SEARCH CONFIGURATION ispell_tst (
 						COPY=english
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER TEXT SEARCH CONFIGURATION ispell_tst ALTER MAPPING FOR
 	word, numword, asciiword, hword, numhword, asciihword, hword_part, hword_numpart, hword_asciipart
 	WITH ispell, english_stem;
 --DDL_STATEMENT_END--
+
 SELECT to_tsvector('ispell_tst', 'Booking the skies after rebookings for footballklubber from a foot');
 SELECT to_tsquery('ispell_tst', 'footballklubber');
 SELECT to_tsquery('ispell_tst', 'footballyklubber:b & rebookings:A & sky');
@@ -149,10 +157,12 @@ CREATE TEXT SEARCH CONFIGURATION hunspell_tst (
 						COPY=ispell_tst
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER TEXT SEARCH CONFIGURATION hunspell_tst ALTER MAPPING
 	REPLACE ispell WITH hunspell;
 --DDL_STATEMENT_END--
+
 SELECT to_tsvector('hunspell_tst', 'Booking the skies after rebookings for footballklubber from a foot');
 SELECT to_tsquery('hunspell_tst', 'footballklubber');
 SELECT to_tsquery('hunspell_tst', 'footballyklubber:b & rebookings:A & sky');
@@ -165,6 +175,7 @@ SELECT phraseto_tsquery('hunspell_tst', 'footballyklubber sky');
 ALTER TEXT SEARCH CONFIGURATION hunspell_tst ALTER MAPPING
 	REPLACE hunspell WITH hunspell_long;
 --DDL_STATEMENT_END--
+
 SELECT to_tsvector('hunspell_tst', 'Booking the skies after rebookings for footballklubber from a foot');
 SELECT to_tsquery('hunspell_tst', 'footballklubber');
 SELECT to_tsquery('hunspell_tst', 'footballyklubber:b & rebookings:A & sky');
@@ -174,6 +185,7 @@ SELECT to_tsquery('hunspell_tst', 'footballyklubber:b & rebookings:A & sky');
 ALTER TEXT SEARCH CONFIGURATION hunspell_tst ALTER MAPPING
 	REPLACE hunspell_long WITH hunspell_num;
 --DDL_STATEMENT_END--
+
 SELECT to_tsvector('hunspell_tst', 'Booking the skies after rebookings for footballklubber from a foot');
 SELECT to_tsquery('hunspell_tst', 'footballklubber');
 SELECT to_tsquery('hunspell_tst', 'footballyklubber:b & rebookings:A & sky');
@@ -184,11 +196,13 @@ CREATE TEXT SEARCH CONFIGURATION synonym_tst (
 						COPY=english
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER TEXT SEARCH CONFIGURATION synonym_tst ALTER MAPPING FOR
 	asciiword, hword_asciipart, asciihword
 	WITH synonym, english_stem;
 --DDL_STATEMENT_END--
+
 SELECT to_tsvector('synonym_tst', 'Postgresql is often called as postgres or pgsql and pronounced as postgre');
 SELECT to_tsvector('synonym_tst', 'Most common mistake is to write Gogle instead of Google');
 SELECT to_tsvector('synonym_tst', 'Indexes or indices - Which is right plural form of index?');
@@ -201,11 +215,13 @@ CREATE TEXT SEARCH CONFIGURATION thesaurus_tst (
 						COPY=synonym_tst
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER TEXT SEARCH CONFIGURATION thesaurus_tst ALTER MAPPING FOR
 	asciiword, hword_asciipart, asciihword
 	WITH synonym, thesaurus, english_stem;
 --DDL_STATEMENT_END--
+
 SELECT to_tsvector('thesaurus_tst', 'one postgres one two one two three one');
 SELECT to_tsvector('thesaurus_tst', 'Supernovae star is very new star and usually called supernovae (abbreviation SN)');
 SELECT to_tsvector('thesaurus_tst', 'Booking tickets is looking like a booking a tickets');

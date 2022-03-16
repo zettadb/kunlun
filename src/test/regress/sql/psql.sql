@@ -99,6 +99,7 @@ SELECT \gdesc
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE bububu(a int) \gdesc
 --DDL_STATEMENT_END--
+
 -- subject command should not have executed
 TABLE bububu;  -- fail
 
@@ -111,6 +112,7 @@ SELECT 1 AS x, 'Hello', 2 AS y, true AS "dirty\name"
 SELECT 3 AS x, 'Hello', 4 AS y, true AS "dirty\name" \gdesc \g
 
 -- \gexec
+
 --DDL_STATEMENT_BEGIN--
 create temporary table gexec_test(a int, b text, c date, d float);
 --DDL_STATEMENT_END--

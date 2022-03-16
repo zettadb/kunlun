@@ -10,6 +10,7 @@ select '31:12:'::txid_snapshot;
 select '0:1:'::txid_snapshot;
 select '12:13:0'::txid_snapshot;
 select '12:16:14,13'::txid_snapshot;
+
 --DDL_STATEMENT_BEGIN--
 create temp table snapshot_test (
 	nr	integer,
@@ -100,6 +101,7 @@ $$;
 --DDL_STATEMENT_END--
 SELECT test_future_xid_status(:inprogress + 10000);
 ROLLBACK;
+
 --DDL_STATEMENT_BEGIN--
 drop table snapshot_test;
 --DDL_STATEMENT_END--

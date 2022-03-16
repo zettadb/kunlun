@@ -50,6 +50,7 @@ SELECT count(*) FROM
 -- Also, some tests of IS DISTINCT FROM, which doesn't quite deserve its
 -- very own regression file.
 --
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE disttable (f1 integer);
 --DDL_STATEMENT_END--

@@ -7,6 +7,7 @@ DROP TABLE IF EXISTS TIMESTAMPTZ_TBL;
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE TIMESTAMPTZ_TBL (d1 timestamp(2) with time zone);
 --DDL_STATEMENT_END--
+
 -- Test shorthand input values
 -- We can't just "select" the results since they aren't constants; test for
 -- equality instead.  We can do that by running the test inside a transaction
@@ -271,9 +272,11 @@ SELECT to_char(now(), 'OF') as "OF", to_char(now(), 'TZH:TZM') as "TZH:TZM";
 SET timezone = '04:15';
 SELECT to_char(now(), 'OF') as "OF", to_char(now(), 'TZH:TZM') as "TZH:TZM";
 RESET timezone;
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE TIMESTAMPTZ_TST (a int , b timestamptz);
 --DDL_STATEMENT_END--
+
 -- Test year field value with len > 4
 INSERT INTO TIMESTAMPTZ_TST VALUES(1, 'Sat Mar 12 23:58:48 1000 IST');
 --not supported by kunlun: INSERT INTO TIMESTAMPTZ_TST VALUES(2, 'Sat Mar 12 23:58:48 10000 IST');
@@ -284,9 +287,11 @@ INSERT INTO TIMESTAMPTZ_TST VALUES(1, 'Sat Mar 12 23:58:48 1000 IST');
 --Verify data
 SELECT * FROM TIMESTAMPTZ_TST ORDER BY a;
 --Cleanup
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE TIMESTAMPTZ_TST;
 --DDL_STATEMENT_END--
+
 -- test timestamptz constructors
 set TimeZone to 'America/New_York';
 

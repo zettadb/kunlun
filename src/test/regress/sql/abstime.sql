@@ -9,9 +9,11 @@
 -- system.  the main correctness issue is that the OS may not get
 -- daylight savings time right for times prior to Unix epoch (jan 1 1970).
 --
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE ABSTIME_TBL (f1 abstime);
 --DDL_STATEMENT_END--
+
 BEGIN;
 INSERT INTO ABSTIME_TBL (f1) VALUES (abstime 'now');
 INSERT INTO ABSTIME_TBL (f1) VALUES (abstime 'now');

@@ -50,6 +50,7 @@ delete from t1;
 select*from t1;
 rollback;
 select*from t1;
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists t2;
 --DDL_STATEMENT_END--
@@ -69,6 +70,7 @@ insert into t2 values(1) returning *;
 commit;
 
 select*from t2;
+
 
 --DDL_STATEMENT_BEGIN--
 drop table if exists t3;
@@ -212,9 +214,11 @@ select*from t5 where a%7=3 or a%7=4 or a%7=5;
 EXECUTE q5('qps', 11, 'XYZ');
 deallocate q4;
 deallocate q5;
+
 --DDL_STATEMENT_BEGIN--
 create table t31(a int primary key, b int, c int, d int);
 --DDL_STATEMENT_END--
+
 insert into t31 values
 (21 ,  1 , 21 ,  1),
 ( 22 ,  2 , 22 ,  2),
@@ -229,6 +233,7 @@ select * from t31 where a!=all(values(1),(21),(23));
 select * from t31 where a=any(values(1),(21),(22));
 select greatest(a,b,c) as g, least(a,b,c) as l from t31;
 select greatest(a,b,c) as g, least(a,b,c) as l, coalesce(null,a,b,c) from t31;
+
 --DDL_STATEMENT_BEGIN--
 drop table t31;
 --DDL_STATEMENT_END--

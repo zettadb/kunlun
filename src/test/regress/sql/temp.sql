@@ -4,51 +4,71 @@
 --
 
 -- test temp table/index masking
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE temptest(col int);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX i_temptest ON temptest(col);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE temptest(tcol int);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX i_temptest ON temptest(tcol);
 --DDL_STATEMENT_END--
+
 SELECT * FROM temptest;
+
 --DDL_STATEMENT_BEGIN--
 DROP INDEX i_temptest;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE temptest;
 --DDL_STATEMENT_END--
+
 SELECT * FROM temptest;
+
 --DDL_STATEMENT_BEGIN--
 DROP INDEX i_temptest;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE temptest;
 --DDL_STATEMENT_END--
+
 -- test temp table selects
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE temptest(col int);
 --DDL_STATEMENT_END--
+
 INSERT INTO temptest VALUES (1);
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE temptest(tcol float);
 --DDL_STATEMENT_END--
+
 INSERT INTO temptest VALUES (2.1);
 
 SELECT * FROM temptest;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE temptest;
 --DDL_STATEMENT_END--
+
 SELECT * FROM temptest;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE temptest;
 --DDL_STATEMENT_END--
+
 -- test temp table deletion
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE temptest(col int);
 --DDL_STATEMENT_END--
@@ -57,9 +77,11 @@ CREATE TEMP TABLE temptest(col int);
 SELECT * FROM temptest;
 
 -- Test ON COMMIT DELETE ROWS
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE temptest(col int) ON COMMIT DELETE ROWS;
 --DDL_STATEMENT_END--
+
 BEGIN;
 INSERT INTO temptest VALUES (1);
 INSERT INTO temptest VALUES (2);
@@ -68,15 +90,19 @@ SELECT * FROM temptest;
 COMMIT;
 
 SELECT * FROM temptest;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE temptest;
 --DDL_STATEMENT_END--
+
 -- Test ON COMMIT DROP
 
 BEGIN;
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE temptest(col int) ON COMMIT DROP;
 --DDL_STATEMENT_END--
+
 INSERT INTO temptest VALUES (1);
 INSERT INTO temptest VALUES (2);
 
@@ -86,22 +112,27 @@ COMMIT;
 SELECT * FROM temptest;
 
 -- Test manipulation of temp schema's placement in search path
+
 --DDL_STATEMENT_BEGIN--
 create table public.whereami (f1 text);
 --DDL_STATEMENT_END--
 insert into public.whereami values ('public');
+
 --DDL_STATEMENT_BEGIN--
 create temp table whereami (f1 text);
 --DDL_STATEMENT_END--
 insert into whereami values ('temp');
+
 --DDL_STATEMENT_BEGIN--
 create function public.whoami() returns text
   as $$select 'public'::text$$ language sql;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create function pg_temp.whoami() returns text
   as $$select 'temp'::text$$ language sql;
 --DDL_STATEMENT_END--
+
 -- default should have pg_temp implicitly first, but only for tables
 select * from whereami;
 select whoami();
@@ -118,9 +149,11 @@ select whoami();
 
 -- you can invoke a temp function explicitly, though
 select pg_temp.whoami();
+
 --DDL_STATEMENT_BEGIN--
 drop table public.whereami;
 --DDL_STATEMENT_END--
+
 reset search_path;
 
 -- For partitioned temp tables, ON COMMIT actions ignore storage-less
@@ -142,6 +175,7 @@ select * from temp_parted_oncommit;
 --DDL_STATEMENT_BEGIN--
 drop table temp_parted_oncommit;
 --DDL_STATEMENT_END--
+
 -- Check dependencies between ON COMMIT actions with a partitioned
 -- table and its partitions.  Using ON COMMIT DROP on a parent removes
 -- the whole set.
@@ -191,6 +225,7 @@ select relname from pg_class where relname like 'temp_parted_oncommit_test%';
 --DDL_STATEMENT_BEGIN--
 drop table temp_parted_oncommit_test;
 --DDL_STATEMENT_END--
+
 -- Check dependencies between ON COMMIT actions with inheritance trees.
 -- Using ON COMMIT DROP on a parent removes the whole set.
 begin;
@@ -223,6 +258,7 @@ select relname from pg_class where relname like 'temp_inh_oncommit_test%';
 --DDL_STATEMENT_BEGIN--
 drop table temp_inh_oncommit_test;
 --DDL_STATEMENT_END--
+
 -- Tests with two-phase commit
 -- Transactions creating objects in a temporary namespace cannot be used
 -- with two-phase commit.

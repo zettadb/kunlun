@@ -134,7 +134,6 @@ SELECT count(b) FROM test_missing_target x, test_missing_target y
 	GROUP BY x.b/2;
 
 --   Cleanup
-
 --DDL_STATEMENT_BEGIN--
 DROP TABLE test_missing_target;
 --DDL_STATEMENT_END--

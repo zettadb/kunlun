@@ -73,6 +73,7 @@ delete from rw_view16 where aa=2;
 insert into rw_view16 values(4,'new row');
 UPDATE rw_view16 SET aa=-4 WHERE a=4;
 select*from rw_view16 order by a;
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists base_tbl cascade;
 --DDL_STATEMENT_END--
@@ -226,6 +227,7 @@ CREATE VIEW rw_view1 AS SELECT * FROM base_tbl WHERE a>0;
 --DDL_STATEMENT_END--
 EXPLAIN (costs off) UPDATE rw_view1 SET a=6 WHERE a=5;
 EXPLAIN (costs off) DELETE FROM rw_view1 WHERE a=5;
+
 --DDL_STATEMENT_BEGIN--
 DROP table if exists T cascade;
 --DDL_STATEMENT_END--
@@ -234,6 +236,7 @@ CREATE TABLE T (pk INT NOT NULL PRIMARY KEY);
 --DDL_STATEMENT_END--
 INSERT INTO T SELECT * FROM generate_series(1, 10) a;
 EXPLAIN (VERBOSE TRUE, COSTS FALSE) DELETE FROM T WHERE pk BETWEEN 10 AND 20 RETURNING *;
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists mvtest_t cascade;
 --DDL_STATEMENT_END--
@@ -244,6 +247,7 @@ CREATE TABLE mvtest_t (id int NOT NULL PRIMARY KEY, type varchar(50) NOT NULL, a
 EXPLAIN (costs off)
 	CREATE MATERIALIZED VIEW mvtest_tm AS SELECT type, sum(amt) AS totamt FROM mvtest_t GROUP BY type WITH NO DATA;
 --DDL_STATEMENT_END--
+
 
 -- bug 36
 --DDL_STATEMENT_BEGIN--
@@ -372,6 +376,7 @@ select * from rngfunc2 where f2 in (select f2 from rngfunct(rngfunc2.rngfuncid) 
 select * from rngfunc2 where f2 in (select f2 from rngfunct(1) z where z.rngfuncid = rngfunc2.rngfuncid) ORDER BY 1,2;
 
 select * from rngfunc2 where f2 in (select f2 from rngfunct(rngfunc2.rngfuncid) z where z.rngfuncid = 1) ORDER BY 1,2;
+
 
 --DDL_STATEMENT_BEGIN--
 DROP TABLE if exists prt1_l cascade;
@@ -572,6 +577,7 @@ create table insertconflicttest1(key1 int4, fruit text);
 create index idx1 on insertconflicttest1(fruit);
 --DDL_STATEMENT_END--
 
+
 -- bug 40 
 --DDL_STATEMENT_BEGIN--
 drop table if exists SUBSELECT_TBL cascade;
@@ -702,6 +708,7 @@ ALTER TABLE T ADD COLUMN c1 TIMESTAMP DEFAULT now();
 select*from T;
 insert into T values(2);
 select*from T;
+
 --DDL_STATEMENT_BEGIN--
  CREATE OR REPLACE FUNCTION foo(a INT) RETURNS TEXT AS $$
 DECLARE res TEXT = 'xyz';
@@ -760,7 +767,6 @@ drop table if exists test_missing_target cascade;
 CREATE TABLE test_missing_target (a int primary key, b int, c char(8), d char);
 --DDL_STATEMENT_END--
 INSERT INTO test_missing_target VALUES (0, 1, 'XXXX', 'A'), (1, 2, 'ABAB', 'b'), (2, 2, 'ABAB', 'c'), (3, 3, 'BBBB', 'D'), (4, 3, 'BBBB', 'e'), (5, 3, 'bbbb', 'F'), (6, 4, 'cccc', 'g'), (7, 4, 'cccc', 'h'), (8, 4, 'CCCC', 'I'), (9, 4, 'CCCC', 'j');
-
 SELECT x.b, count(*) FROM test_missing_target x, test_missing_target y WHERE x.a = y.a GROUP BY x.b ORDER BY x.b;
 explain (verbose)
 SELECT x.b, count(*) FROM test_missing_target x, test_missing_target y WHERE x.a = y.a GROUP BY x.b ORDER BY x.b;
@@ -874,6 +880,7 @@ alter table s1.t1 set schema s1;
 --DDL_STATEMENT_BEGIN--
 drop schema if exists s1 cascade;
 --DDL_STATEMENT_END--
+
 --bug 80
 --DDL_STATEMENT_BEGIN--
 drop table if exists SUBSELECT_TBL cascade;
@@ -882,7 +889,6 @@ drop table if exists SUBSELECT_TBL cascade;
 CREATE TABLE SUBSELECT_TBL ( id serial primary key, f1 integer, f2 integer, f3 float );
 --DDL_STATEMENT_END--
 INSERT INTO SUBSELECT_TBL (f1, f2, f3) VALUES (1, 2, 3), (2, 3, 4), (3, 4, 5), (1, 1, 1), (2, 2, 2), (3, 3, 3), (6, 7, 8), (8, 9, NULL);
-
 SELECT f1, f2 FROM SUBSELECT_TBL WHERE (f1, f2) NOT IN (SELECT f2, CAST(f3 AS int4) FROM SUBSELECT_TBL WHERE f3 IS NOT NULL);
 
 
@@ -917,6 +923,7 @@ create sequence testschema.seq1;
 --select testschema.seq1.nextval, nextval('testschema.seq1');
 --DDL_STATEMENT_BEGIN--
 drop schema testschema cascade;
+
 --DDL_STATEMENT_END--
 -- bug 44 todo
 --DDL_STATEMENT_BEGIN--
@@ -950,6 +957,7 @@ drop table if exists INT4_TBL cascade;
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE INT4_TBL(id serial primary key, f1 int4);
 --DDL_STATEMENT_END--
+
 COPY tenk1(unique1, unique2, two, four, ten, twenty, hundred, thousand, twothousand, fivethous, tenthous, odd, even, stringu1 , stringu2 ,string4) FROM '/home/kunlun/pgregressdata/tenk.data';
 insert into int4_tbl (f1) select generate_series(1,13);
 
@@ -1049,6 +1057,7 @@ with ins (a, b, c) as (insert into mlparted (b, a) select s.a, 1 from generate_s
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE INT8_TBL(id serial primary key, q1 int8, q2 int8);
 --DDL_STATEMENT_END--
+
 INSERT INTO INT8_TBL (q1, q2) VALUES(' 123 ',' 456');
 INSERT INTO INT8_TBL (q1, q2) VALUES('123 ','4567890123456789');
 INSERT INTO INT8_TBL (q1, q2) VALUES('4567890123456789','123');
@@ -1097,6 +1106,7 @@ CREATE TEMP TABLE temptest1(col int PRIMARY KEY);
 insert into temptest1 values (1),(2);
 select*from temptest1;
 commit;
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists temptest2 cascade;
 --DDL_STATEMENT_END--
@@ -1163,6 +1173,7 @@ CREATE TABLE fail_part PARTITION OF list_parted FOR VALUES IN (int '1');
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE fail_part PARTITION OF list_parted FOR VALUES IN ('1'::int);
 --DDL_STATEMENT_END--
+
 -- bug 72
 --DDL_STATEMENT_BEGIN--
 drop table if exists onek cascade;
@@ -1191,6 +1202,7 @@ CREATE TABLE onek (
 
 CREATE UNIQUE INDEX onek_idx ON onek (unique2 nulls first,unique1);
 --DDL_STATEMENT_END--
+
 -- bug 34
 --DDL_STATEMENT_BEGIN--
 drop table if exists part_attmp cascade;
@@ -1234,6 +1246,7 @@ CREATE INDEX test_index1 on test_default_tab (id);
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE test_default_tab ALTER id TYPE bigint;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists anothertab cascade;
 --DDL_STATEMENT_END--
@@ -1249,6 +1262,7 @@ create index on anothertab(f2,f3);
 --DDL_STATEMENT_BEGIN--
 create unique index on anothertab(f4);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 alter table anothertab alter column f1 type bigint;
 --DDL_STATEMENT_END--
@@ -1258,6 +1272,7 @@ alter table anothertab
     alter column f3 type bigint,
     alter column f4 type bigint;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create table at_partitioned(id int primary key, name varchar(64), unique (id, name)) partition by hash(id);
 --DDL_STATEMENT_END--
@@ -1267,6 +1282,7 @@ create table at_partitioned_1 partition of at_partitioned for values with (modul
 --DDL_STATEMENT_BEGIN--
 alter table at_partitioned alter column name type varchar(127);
 --DDL_STATEMENT_END--
+
 -- bug 24 this doesn't pass now. we have to disable DEFAULT partitions now.
 -- drop table if exists range_parted2 cascade;
 --  CREATE TABLE range_parted2 (a int primary key) PARTITION BY RANGE (a);
@@ -1361,6 +1377,7 @@ CREATE TYPE person_type AS (id int, name varchar(50));
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE persons OF person_type;
 --DDL_STATEMENT_END--
+
 -- bug 112
 --DDL_STATEMENT_BEGIN--
 drop table if exists base_tbl cascade;
@@ -1449,6 +1466,7 @@ select*from testschema.part1 ;
 --DDL_STATEMENT_BEGIN--
 drop schema testschema cascade;
 --DDL_STATEMENT_END--
+
 -- bug 121
 --DDL_STATEMENT_BEGIN--
 drop table if exists indext1 cascade;
@@ -1462,6 +1480,7 @@ ALTER TABLE indext1 ADD CONSTRAINT oindext1_id_constraint UNIQUE (id);
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE indext1 DROP CONSTRAINT oindext1_id_constraint;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE part1 (a serial primary key, b int, c varchar(32), unique (b,a)) PARTITION BY LIST (a);
 --DDL_STATEMENT_END--
@@ -1471,6 +1490,7 @@ create index part1_b_c2 on part1(b,c);
 --DDL_STATEMENT_BEGIN--
 create table part1_0 partition of part1 for values in (1,2,3,4);
 --DDL_STATEMENT_END--
+
 insert into part1 (b,c) values(11, 'abc'),(12,'bcd'),(13,'cde');
 select*from part1;
 --DDL_STATEMENT_BEGIN--
@@ -1514,6 +1534,7 @@ drop index part1_b_c2;
 --DDL_STATEMENT_BEGIN--
 drop table part1 cascade;
 --DDL_STATEMENT_END--
+
 -- bug 135
 --DDL_STATEMENT_BEGIN--
 drop table if exists t1 cascade;
@@ -1554,6 +1575,7 @@ drop table if exists t4 cascade;
 --DDL_STATEMENT_BEGIN--
 create table t4(a money);
 --DDL_STATEMENT_END--
+
 insert into t4 values(999);
 insert into t4 values(1000);
 insert into t4 values (-92233720368547758.08);
@@ -1618,6 +1640,7 @@ INSERT INTO pagg_tab2 SELECT i % 20, i % 30 FROM generate_series(0, 299, 3) i;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE if exists prt1 cascade;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE prt1 (a int, b int, c varchar) PARTITION BY RANGE(a);
 --DDL_STATEMENT_END--
@@ -1647,6 +1670,7 @@ CREATE TABLE prt2_p2 PARTITION OF prt2 FOR VALUES FROM (250) TO (500);
 CREATE TABLE prt2_p3 PARTITION OF prt2 FOR VALUES FROM (500) TO (600);
 --DDL_STATEMENT_END--
 INSERT INTO prt2 SELECT i % 25, i, to_char(i, 'FM0000') FROM generate_series(0, 599) i WHERE i % 3 = 0;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE if exists prt1_e cascade;
 --DDL_STATEMENT_END--

@@ -101,7 +101,7 @@ INSERT INTO UNIQUE_TBL (t) VALUES ('seven');
 -- should fail
 -- INSERT INTO UNIQUE_TBL VALUES (1, 'a'), (2, 'b'), (2, 'b') ON CONFLICT (i) DO UPDATE SET t = 'fails';
 
-SELECT '' AS five, * FROM UNIQUE_TBL order by 2,3;
+SELECT '' AS five, * FROM UNIQUE_TBL;
 
 DROP TABLE UNIQUE_TBL;
 

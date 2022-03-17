@@ -1,6 +1,7 @@
 --DDL_STATEMENT_BEGIN--
 CREATE SCHEMA if not exists testxmlschema;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists  testxmlschema.test1;
 --DDL_STATEMENT_END--

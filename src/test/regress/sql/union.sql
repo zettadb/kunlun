@@ -252,6 +252,7 @@ SELECT '3.4'::numeric UNION SELECT 'foo';
 -- Test that expression-index constraints can be pushed down through
 -- UNION or UNION ALL
 --
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE t1 (a text, b text);
 --DDL_STATEMENT_END--
@@ -286,6 +287,7 @@ explain (costs off)
 -- Test that ORDER BY for UNION ALL can be pushed down to inheritance
 -- children.
 --
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE t1c (b text, a text);
 --DDL_STATEMENT_END--

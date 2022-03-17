@@ -47,6 +47,7 @@ DROP TYPE shell;     -- fail, type not exist
 --DDL_STATEMENT_BEGIN--
 CREATE TYPE myshell;
 --DDL_STATEMENT_END--
+
 --
 -- Test type-related default values (broken in releases before PG 7.2)
 --
@@ -96,6 +97,7 @@ CREATE TYPE int42 (
    passedbyvalue
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TYPE text_w_default (
    internallength = variable,
@@ -105,6 +107,7 @@ CREATE TYPE text_w_default (
    default = 'zippo'
 );
 --DDL_STATEMENT_END--
+
 -- invalid: non-lowercase quoted identifiers
 --DDL_STATEMENT_BEGIN--
 CREATE TYPE case_int42 (
@@ -118,9 +121,11 @@ CREATE TYPE case_int42 (
 --DDL_STATEMENT_END--
 
 -- Test stand-alone composite type
+
 --DDL_STATEMENT_BEGIN--
 CREATE TYPE default_test_row AS (f1 text_w_default, f2 int42);
 --DDL_STATEMENT_END--
+
 -- Test comments
 COMMENT ON TYPE bad IS 'bad comment';
 COMMENT ON TYPE default_test_row IS 'good comment';
@@ -133,9 +138,11 @@ COMMENT ON COLUMN default_test_row.f1 IS NULL;
 --DDL_STATEMENT_BEGIN--
 CREATE TYPE text_w_default;		-- should fail
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TYPE default_test_row CASCADE;
 --DDL_STATEMENT_END--
+
 -- Check type create with input/output incompatibility
 --DDL_STATEMENT_BEGIN--
 CREATE TYPE not_existing_type (INPUT = array_in,
@@ -171,6 +178,7 @@ DROP TYPE base_type CASCADE;
 
 -- Check usage of typmod with a user-defined type
 -- (we have borrowed numeric's typmod functions)
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE mytab (foo widget(42,13,7));     -- should fail
 --DDL_STATEMENT_END--

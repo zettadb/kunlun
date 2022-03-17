@@ -30,6 +30,7 @@ CREATE TABLE trunc_stats_test3(id serial, stuff text);
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE trunc_stats_test4(id serial);
 --DDL_STATEMENT_END--
+
 -- check that n_live_tup is reset to 0 after truncate
 INSERT INTO trunc_stats_test DEFAULT VALUES;
 INSERT INTO trunc_stats_test DEFAULT VALUES;

@@ -89,6 +89,7 @@ select to_jsonb(timestamptz 'Infinity');
 select to_jsonb(timestamptz '-Infinity');
 
 --jsonb_agg
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE rows(x int, y text);
 --DDL_STATEMENT_END--
@@ -116,6 +117,7 @@ CREATE TEMP TABLE test_jsonb (
        test_json jsonb
 );
 --DDL_STATEMENT_END--
+
 INSERT INTO test_jsonb VALUES
 ('scalar','"a scalar"'),
 ('array','["zero", "one","two",null,"four","five", [1,2,3],{"f1":9}]'),
@@ -363,6 +365,7 @@ SELECT jsonb_build_object('{1,2,3}'::int[], 3);
 -- handling of NULL values
 SELECT jsonb_object_agg(1, NULL::jsonb);
 SELECT jsonb_object_agg(NULL, '{"a":1}');
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE foo (serial_num int, name text, type text);
 --DDL_STATEMENT_END--
@@ -507,9 +510,11 @@ SELECT * FROM jsonb_array_elements_text('[1,true,[1,[2,3]],null,{"f1":1,"f2":[7,
 --DDL_STATEMENT_BEGIN--
 CREATE TYPE jbpop AS (a text, b int, c timestamp);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create type jb_unordered_pair as (x int, y int);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TYPE jsbrec AS (
 	i	int,
@@ -531,11 +536,13 @@ CREATE TYPE jsbrec AS (
 	reca	jbpop[]
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TYPE jsbrec_i_not_null AS (
 	i	jsb_int_not_null
 );
 --DDL_STATEMENT_END--
+
 SELECT * FROM jsonb_populate_record(NULL::jbpop,'{"a":"blurfl","x":43.2}') q;
 SELECT * FROM jsonb_populate_record(row('x',3,'2012-12-31 15:30:56')::jbpop,'{"a":"blurfl","x":43.2}') q;
 
@@ -721,6 +728,7 @@ select * from jsonb_to_record('{"out": "{\"key\": 1}"}') as x(out jsonb);
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE jsbpoptest (js jsonb);
 --DDL_STATEMENT_END--
+
 INSERT INTO jsbpoptest
 SELECT '{
 	"jsa": [1, "2", null, 4],
@@ -730,6 +738,7 @@ SELECT '{
 FROM generate_series(1, 3);
 
 SELECT (jsonb_populate_record(NULL::jsbrec, js)).* FROM jsbpoptest;
+
 --DDL_STATEMENT_BEGIN--
 DROP TYPE jsbrec;
 --DDL_STATEMENT_END--
@@ -739,6 +748,7 @@ DROP TYPE jsbrec_i_not_null;
 --DDL_STATEMENT_BEGIN--
 DROP TYPE jb_unordered_pair;
 --DDL_STATEMENT_END--
+
 -- indexing
 SELECT count(*) FROM testjsonb WHERE j @> '{"wait":null}';
 SELECT count(*) FROM testjsonb WHERE j @> '{"wait":"CC"}';
@@ -789,6 +799,7 @@ SET enable_sort = on;
 
 RESET enable_hashagg;
 RESET enable_sort;
+
 --DDL_STATEMENT_BEGIN--
 DROP INDEX jidx;
 --DDL_STATEMENT_END--
@@ -808,6 +819,7 @@ SELECT count(*) FROM testjsonb WHERE j = '{"pos":98, "line":371, "node":"CBA", "
 --DDL_STATEMENT_BEGIN--
 DROP INDEX jidx;
 --DDL_STATEMENT_END--
+
 -- nested tests
 SELECT '{"ff":{"a":12,"b":16}}'::jsonb;
 SELECT '{"ff":{"a":12,"b":16},"qq":123}'::jsonb;

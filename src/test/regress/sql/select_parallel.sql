@@ -1,10 +1,12 @@
 --
 -- PARALLEL
 --
+
 --DDL_STATEMENT_BEGIN--
 create function sp_parallel_restricted(int) returns int as
   $$begin return $1; end$$ language plpgsql parallel restricted;
 --DDL_STATEMENT_END--
+
 -- Serializable isolation would disable parallel query, so explicitly use an
 -- arbitrary other level.
 begin isolation level repeatable read;
@@ -97,6 +99,7 @@ explain (costs off)
 --DDL_STATEMENT_BEGIN--
 drop table part_pa_test;
 --DDL_STATEMENT_END--
+
 -- test with leader participation disabled
 set parallel_leader_participation = off;
 explain (costs off)
@@ -157,6 +160,7 @@ explain (costs off)
 --DDL_STATEMENT_BEGIN--
 alter table tenk2 reset (parallel_workers);
 --DDL_STATEMENT_END--
+
 -- test parallel plan for a query containing initplan.
 set enable_indexscan = off;
 set enable_indexonlyscan = off;
@@ -164,6 +168,7 @@ set enable_bitmapscan = off;
 --DDL_STATEMENT_BEGIN--
 alter table tenk2 set (parallel_workers = 2);
 --DDL_STATEMENT_END--
+
 explain (costs off)
 	select count(*) from tenk1
         where tenk1.unique1 = (Select max(tenk2.unique1) from tenk2);
@@ -176,6 +181,7 @@ reset enable_bitmapscan;
 --DDL_STATEMENT_BEGIN--
 alter table tenk2 reset (parallel_workers);
 --DDL_STATEMENT_END--
+
 -- test parallel index scans.
 set enable_seqscan to off;
 set enable_bitmapscan to off;
@@ -249,6 +255,7 @@ explain (analyze, timing off, summary off, costs off)
 --DDL_STATEMENT_BEGIN--
 alter table tenk2 reset (parallel_workers);
 --DDL_STATEMENT_END--
+
 reset work_mem;
 --DDL_STATEMENT_BEGIN--
 create function explain_parallel_sort_stats() returns setof text
@@ -281,6 +288,7 @@ drop table bmscantest;
 --DDL_STATEMENT_BEGIN--
 drop function explain_parallel_sort_stats();
 --DDL_STATEMENT_END--
+
 -- test parallel merge join path.
 set enable_hashjoin to off;
 set enable_nestloop to off;
@@ -309,11 +317,14 @@ begin
 end;
 $$ language plpgsql PARALLEL SAFE;
 --DDL_STATEMENT_END--
+
 explain (costs off, verbose)
     select ten, sp_simple_func(ten) from tenk1 where ten < 100 order by ten;
+	
 --DDL_STATEMENT_BEGIN--
 drop function sp_simple_func(integer);
 --DDL_STATEMENT_END--
+
 -- test handling of SRFs in targetlist (bug in 10.0)
 
 explain (costs off)
@@ -382,7 +393,6 @@ SAVEPOINT settings;
 SET LOCAL force_parallel_mode = 1;
 explain (costs off)
   select stringu1::int2 from tenk1 where unique1 = 1;
-
 ROLLBACK TO SAVEPOINT settings;
 
 -- exercise record typmod remapping between backends

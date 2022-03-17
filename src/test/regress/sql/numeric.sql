@@ -1,6 +1,7 @@
 --
 -- NUMERIC
 --
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE num_data (id int4, val numeric(65,10));
 --DDL_STATEMENT_END--
@@ -505,6 +506,7 @@ COMMIT TRANSACTION;
 -- ******************************
 -- * Create indices for faster checks
 -- ******************************
+
 --DDL_STATEMENT_BEGIN--
 CREATE UNIQUE INDEX num_exp_add_idx ON num_exp_add (id1, id2);
 --DDL_STATEMENT_END--
@@ -689,7 +691,6 @@ INSERT INTO fract_only VALUES (6, '0.99995');  -- should fail
 INSERT INTO fract_only VALUES (7, '0.00001');
 INSERT INTO fract_only VALUES (8, '0.00017');
 SELECT * FROM fract_only;
-
 --DDL_STATEMENT_BEGIN--
 DROP TABLE fract_only;
 --DDL_STATEMENT_END--
@@ -745,6 +746,7 @@ SELECT width_bucket(0::float8, 'NaN', 4.0::float8, 888);
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE width_bucket_test (operand_num numeric, operand_f8 float8);
 --DDL_STATEMENT_END--
+
 COPY width_bucket_test (operand_num) FROM stdin;
 -5.2
 -0.0000000001
@@ -789,6 +791,7 @@ SELECT width_bucket(0.0::float8, 'Infinity'::float8, 5, 10); -- error
 SELECT width_bucket(0.0::float8, 5, '-Infinity'::float8, 20); -- error
 SELECT width_bucket('Infinity'::float8, 1, 10, 10),
        width_bucket('-Infinity'::float8, 1, 10, 10);
+	   
 --DDL_STATEMENT_BEGIN--
 DROP TABLE width_bucket_test;
 --DDL_STATEMENT_END--
@@ -873,9 +876,11 @@ RESET lc_numeric;
 --
 -- Input syntax
 --
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE num_input_test (n1 numeric);
 --DDL_STATEMENT_END--
+
 -- good inputs
 INSERT INTO num_input_test(n1) VALUES (' 123');
 INSERT INTO num_input_test(n1) VALUES ('   3245874    ');
@@ -1088,6 +1093,7 @@ select scale(-13.000000000000000);
 -- cases that need carry propagation
 SELECT SUM(9999::numeric) FROM generate_series(1, 100000);
 SELECT SUM((-9999)::numeric) FROM generate_series(1, 100000);
+
 --DDL_STATEMENT_BEGIN--
 drop table num_data;
 --DDL_STATEMENT_END--

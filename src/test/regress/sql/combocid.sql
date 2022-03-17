@@ -4,6 +4,7 @@
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE combocidtest (foobar int);
 --DDL_STATEMENT_END--
+
 BEGIN;
 
 -- a few dummy ops to push up the CommandId counter

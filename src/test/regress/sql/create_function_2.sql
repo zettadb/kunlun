@@ -64,25 +64,25 @@ CREATE FUNCTION equipment_named_ambiguous_2b(hobby text)
 
 CREATE FUNCTION pt_in_widget(point, widget)
    RETURNS bool
-   AS '/home/kunlun/tools/postgresql-11.5/src/test/regress/regress.so'
+   AS '//home/kunlun/kunlun/src/test/regress/regress.so'
    LANGUAGE C STRICT;
 
 CREATE FUNCTION overpaid(emp)
    RETURNS bool
-   AS '/home/kunlun/tools/postgresql-11.5/src/test/regress/regress.so'
+   AS '//home/kunlun/kunlun/src/test/regress/regress.so'
    LANGUAGE C STRICT;
 
 CREATE FUNCTION interpt_pp(path, path)
    RETURNS point
-   AS '/home/kunlun/tools/postgresql-11.5/src/test/regress/regress.so'
+   AS '//home/kunlun/kunlun/src/test/regress/regress.so'
    LANGUAGE C STRICT;
 
 CREATE FUNCTION reverse_name(name)
    RETURNS name
-   AS '/home/kunlun/tools/postgresql-11.5/src/test/regress/regress.so'
+   AS '//home/kunlun/kunlun/src/test/regress/regress.so'
    LANGUAGE C STRICT;
 
 --
 -- Function dynamic loading
 --
-LOAD '/home/kunlun/tools/postgresql-11.5/src/test/regress/regress.so';
+LOAD '//home/kunlun/kunlun/src/test/regress/regress.so';

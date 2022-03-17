@@ -7,14 +7,16 @@
 SET client_min_messages TO 'warning';
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-DROP ROLE IF EXISTS regress_addr_user;\
+DROP ROLE IF EXISTS regress_addr_user;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 RESET client_min_messages;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE USER regress_addr_user;
 --DDL_STATEMENT_END--
+
 -- Test generic object addressing/identification functions
 --DDL_STATEMENT_BEGIN--
 CREATE SCHEMA addr_nsp;
@@ -39,7 +41,7 @@ CREATE TEXT SEARCH TEMPLATE addr_ts_temp (lexize=dsimple_lexize);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE TEXT SEARCH PARSER addr_ts_prs
-    (start = prsd_start, gettoken = prsd_nexttoken, end = prsd_end, lextypes = prsd_lextype)
+    (start = prsd_start, gettoken = prsd_nexttoken, end = prsd_end, lextypes = prsd_lextype);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE addr_nsp.gentable (
@@ -246,6 +248,7 @@ WITH objects (type, name, args) AS (VALUES
 --- Cleanup resources
 ---
 \set VERBOSITY terse \\ -- suppress cascade details
+
 --DDL_STATEMENT_BEGIN--
 DROP FOREIGN DATA WRAPPER addr_fdw CASCADE;
 --DDL_STATEMENT_END--
@@ -256,12 +259,14 @@ drop table addr_nsp.parttable cascade;
 --DDL_STATEMENT_BEGIN--
 DROP SCHEMA addr_nsp CASCADE;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER DEFAULT PRIVILEGES FOR ROLE regress_addr_user IN SCHEMA public REVOKE ALL ON TABLES FROM regress_addr_user;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 ALTER DEFAULT PRIVILEGES FOR ROLE regress_addr_user GRANT DELETE ON TABLES TO regress_addr_user;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP USER regress_addr_user;
 --DDL_STATEMENT_END--

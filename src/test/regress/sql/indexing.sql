@@ -26,6 +26,7 @@ select relname, relkind, inhparent::regclass
 --DDL_STATEMENT_BEGIN--
 drop table idxpart;
 --DDL_STATEMENT_END--
+
 -- Some unsupported features
 --DDL_STATEMENT_BEGIN--
 create table idxpart (a int, b int, c text) partition by range (a);
@@ -39,6 +40,7 @@ create index concurrently on idxpart (a);
 --DDL_STATEMENT_BEGIN--
 drop table idxpart;
 --DDL_STATEMENT_END--
+
 -- Verify bugfix with query on indexed partitioned table with no partitions
 -- https://postgr.es/m/20180124162006.pmapfiznhgngwtjf@alvherre.pgsql
 --DDL_STATEMENT_BEGIN--
@@ -57,6 +59,7 @@ DROP table idxpart;
 --DDL_STATEMENT_BEGIN--
 drop table idxpart_two;
 --DDL_STATEMENT_END--
+
 -- Verify bugfix with index rewrite on ALTER TABLE / SET DATA TYPE
 -- https://postgr.es/m/CAKcux6mxNCGsgATwf5CGMF8g4WSupCXicCVMeKUTuWbyxHOMsQ@mail.gmail.com
 --DDL_STATEMENT_BEGIN--
@@ -75,6 +78,7 @@ ALTER TABLE idxpart ALTER COLUMN c TYPE numeric;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE idxpart;
 --DDL_STATEMENT_END--
+
 -- If a table without index is attached as partition to a table with
 -- an index, the index is automatically created
 --DDL_STATEMENT_BEGIN--
@@ -96,6 +100,7 @@ create table idxpart1 partition of idxpart for values from (0) to (10);;
 --DDL_STATEMENT_BEGIN--
 drop table idxpart;
 --DDL_STATEMENT_END--
+
 -- If a partition already has an index, don't create a duplicative one
 --DDL_STATEMENT_BEGIN--
 create table idxpart (a int, b int) partition by range (a, b);
@@ -117,6 +122,7 @@ select relname, relkind, inhparent::regclass
 --DDL_STATEMENT_BEGIN--
 drop table idxpart;
 --DDL_STATEMENT_END--
+
 -- DROP behavior for partitioned indexes
 --DDL_STATEMENT_BEGIN--
 create table idxpart (a int) partition by range (a);
@@ -146,6 +152,7 @@ select relname, relkind from pg_class
 --DDL_STATEMENT_BEGIN--
 drop table idxpart;
 --DDL_STATEMENT_END--
+
 -- ALTER INDEX .. ATTACH, error cases
 --DDL_STATEMENT_BEGIN--
 create table idxpart (a int, b int) partition by range (a, b);
@@ -165,6 +172,7 @@ create index idxpart1_tst1 on idxpart1 (b, a);
 --DDL_STATEMENT_BEGIN--
 create index idxpart1_tst2 on idxpart1 using hash (a);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table idxpart;
 --DDL_STATEMENT_END--
@@ -190,6 +198,7 @@ create index on idxpart (a);
 --DDL_STATEMENT_BEGIN--
 drop table idxpart;
 --DDL_STATEMENT_END--
+
 -- If CREATE INDEX ONLY, don't create indexes on partitions; and existing
 -- indexes on partitions don't change parent.  ALTER INDEX ATTACH can change
 -- the parent after the fact.
@@ -241,6 +250,7 @@ create index on idxpart21 (a);
 --DDL_STATEMENT_BEGIN--
 drop table idxpart;
 --DDL_STATEMENT_END--
+
 -- When a table is attached a partition and it already has an index, a
 -- duplicate index should not get created, but rather the index becomes
 -- attached to the parent's index.
@@ -264,6 +274,7 @@ select relname, relkind, inhparent::regclass
 --DDL_STATEMENT_BEGIN--
 drop table idxpart;
 --DDL_STATEMENT_END--
+
 -- Verify that attaching an invalid index does not mark the parent index valid.
 -- On the other hand, attaching a valid index marks not only its direct
 -- ancestor valid, but also any indirect ancestor that was only missing the one
@@ -344,6 +355,7 @@ drop table idxpart2;
 drop table idxpart3;
 --DDL_STATEMENT_END--
 select relname, relkind from pg_class where relname like 'idxpart%' order by relname;
+
 --DDL_STATEMENT_BEGIN--
 create table idxpart (a int) partition by range (a);
 --DDL_STATEMENT_END--
@@ -432,6 +444,7 @@ select relname as child, inhparent::regclass as parent, pg_get_indexdef as child
 --DDL_STATEMENT_BEGIN--
 drop table idxpart;
 --DDL_STATEMENT_END--
+
 -- Verify behavior for opclass (mis)matches
 --DDL_STATEMENT_BEGIN--
 create table idxpart (a varchar(50)) partition by range (a);
@@ -466,6 +479,7 @@ create index on only idxpart (a text_pattern_ops);
 --DDL_STATEMENT_BEGIN--
 drop table idxpart;
 --DDL_STATEMENT_END--
+
 -- Verify that attaching indexes maps attribute numbers correctly
 --DDL_STATEMENT_BEGIN--
 create table idxpart (col1 int, a int, col2 int, b int) partition by range (a);
@@ -493,6 +507,7 @@ select relname as child, inhparent::regclass as parent, pg_get_indexdef as child
 --DDL_STATEMENT_BEGIN--
 drop table idxpart;
 --DDL_STATEMENT_END--
+
 -- Make sure the partition columns are mapped correctly
 --DDL_STATEMENT_BEGIN--
 create table idxpart (a int, b int, c varchar(50)) partition by range (a);
@@ -605,6 +620,7 @@ create table idxpart (a int primary key, b int) partition by range (b, a);
 --DDL_STATEMENT_BEGIN--
 create table idxpart (a int, b int primary key) partition by range (b, a);
 --DDL_STATEMENT_END--
+
 -- OK if you use them in some other order
 --DDL_STATEMENT_BEGIN--
 create table idxpart (a int, b int, c varchar(50), primary key  (a, b, c)) partition by range (b, c, a);
@@ -612,6 +628,7 @@ create table idxpart (a int, b int, c varchar(50), primary key  (a, b, c)) parti
 --DDL_STATEMENT_BEGIN--
 drop table idxpart;
 --DDL_STATEMENT_END--
+
 -- not other types of index-based constraints
 --DDL_STATEMENT_BEGIN--
 create table idxpart (a int, exclude (a with = )) partition by range (a);
@@ -624,6 +641,7 @@ create table idxpart (a int primary key, b int) partition by range ((b + a));
 --DDL_STATEMENT_BEGIN--
 create table idxpart (a int unique, b int) partition by range ((b + a));
 --DDL_STATEMENT_END--
+
 -- use ALTER TABLE to add a primary key
 --DDL_STATEMENT_BEGIN--
 create table idxpart (a int, b int, c text) partition by range (a, b);
@@ -655,6 +673,7 @@ alter table idxpart add unique (b, a);		-- this works
 --DDL_STATEMENT_BEGIN--
 drop table idxpart;
 --DDL_STATEMENT_END--
+
 -- Exclusion constraints cannot be added
 --DDL_STATEMENT_BEGIN--
 create table idxpart (a int, b int) partition by range (a);
@@ -665,6 +684,7 @@ alter table idxpart add exclude (a with =);
 --DDL_STATEMENT_BEGIN--
 drop table idxpart;
 --DDL_STATEMENT_END--
+
 -- When (sub)partitions are created, they also contain the constraint
 --DDL_STATEMENT_BEGIN--
 create table idxpart (a int, b int, primary key (a, b)) partition by range (a, b);
@@ -704,6 +724,7 @@ for values from (0) to (1000) partition by range (b); -- fail
 --DDL_STATEMENT_BEGIN--
 drop table idxpart;
 --DDL_STATEMENT_END--
+
 -- Multi-layer partitioning works correctly in this case:
 --DDL_STATEMENT_BEGIN--
 create table idxpart (a int, b int, primary key (a, b)) partition by range (a);
@@ -720,6 +741,7 @@ select conname, contype, conrelid::regclass, conindid::regclass, conkey
 --DDL_STATEMENT_BEGIN--
 drop table idxpart;
 --DDL_STATEMENT_END--
+
 -- If a partitioned table has a unique/PK constraint, then it's not possible
 -- to drop the corresponding constraint in the children; nor it's possible
 -- to drop the indexes individually.  Dropping the constraint in the parent
@@ -769,6 +791,7 @@ select indrelid::regclass, indexrelid::regclass, inhparent::regclass, indisvalid
 --DDL_STATEMENT_BEGIN--
 drop table idxpart;
 --DDL_STATEMENT_END--
+
 -- Test that unique constraints are working
 --DDL_STATEMENT_BEGIN--
 create table idxpart (a int, b varchar(50), primary key (a, b)) partition by range (a);
@@ -789,6 +812,7 @@ insert into idxpart values (857142, 'six');
 --DDL_STATEMENT_BEGIN--
 drop table idxpart;
 --DDL_STATEMENT_END--
+
 -- test fastpath mechanism for index insertion
 --DDL_STATEMENT_BEGIN--
 drop table if exists fastpath;
@@ -799,6 +823,7 @@ create table fastpath (a int, b varchar(50), c numeric);
 --DDL_STATEMENT_BEGIN--
 create unique index fpindex1 on fastpath(a);
 --DDL_STATEMENT_END--
+
 insert into fastpath values (1, 'b1', 100.00);
 insert into fastpath values (1, 'b1', 100.00); -- unique key check
 
@@ -915,9 +940,11 @@ select md5(string_agg(a::text, b order by b, a desc)) from fastpath
 	where a >= 1000 and a < 2000 and b > 'b1' and b < 'b3';
 select md5(string_agg(a::text, b order by b, a asc)) from fastpath
 	where a >= 1000 and a < 2000 and b > 'b1' and b < 'b3';
+	
 --DDL_STATEMENT_BEGIN--
 drop table fastpath;
 --DDL_STATEMENT_END--
+
 -- intentionally leave some objects around
 --DDL_STATEMENT_BEGIN--
 drop table if exists idxpart;
@@ -968,6 +995,7 @@ drop table idxpart_another;
 --DDL_STATEMENT_BEGIN--
 drop table idxpart;
 --DDL_STATEMENT_END--
+
 -- check that detaching a partition also detaches the primary key constraint
 --DDL_STATEMENT_BEGIN--
 drop table if exists parted_pk_detach_test;

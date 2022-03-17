@@ -3,12 +3,14 @@
 --
 -- There are other tests to test different SP-GiST opclasses. This is for
 -- testing SP-GiST code itself.
+
 --DDL_STATEMENT_BEGIN--
 create table spgist_point_tbl(id int4, p point);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 create index spgist_point_idx on spgist_point_tbl using spgist(p) with (fillfactor = 75);
 --DDL_STATEMENT_END--
+
 -- Test vacuum-root operation. It gets invoked when the root is also a leaf,
 -- i.e. the index is very small.
 insert into spgist_point_tbl (id, p)
@@ -35,6 +37,7 @@ vacuum spgist_point_tbl;
 -- Test rescan paths (cf. bug #15378)
 -- use box and && rather than point, so that rescan happens when the
 -- traverse stack is non-empty
+
 --DDL_STATEMENT_BEGIN--
 create table spgist_box_tbl(id serial, b box);
 --DDL_STATEMENT_END--
@@ -46,6 +49,7 @@ select box(point(i,j),point(i+s,j+s))
 --DDL_STATEMENT_BEGIN--
 create index spgist_box_idx on spgist_box_tbl using spgist (b);
 --DDL_STATEMENT_END--
+
 select count(*)
   from (values (point(5,5)),(point(8,8)),(point(12,12))) v(p)
  where exists(select * from spgist_box_tbl b where b.b && box(v.p,v.p));
@@ -53,6 +57,7 @@ select count(*)
 -- The point opclass's choose method only uses the spgMatchNode action,
 -- so the other actions are not tested by the above. Create an index using
 -- text opclass, which uses the others actions.
+
 --DDL_STATEMENT_BEGIN--
 create table spgist_text_tbl(id int4, t text);
 --DDL_STATEMENT_END--
@@ -77,6 +82,7 @@ create index spgist_point_idx2 on spgist_point_tbl using spgist(p) with (fillfac
 --DDL_STATEMENT_BEGIN--
 create index spgist_point_idx2 on spgist_point_tbl using spgist(p) with (fillfactor = 101);
 --DDL_STATEMENT_END--
+
 -- Modify fillfactor in existing index
 --DDL_STATEMENT_BEGIN--
 alter index spgist_point_idx set (fillfactor = 90);

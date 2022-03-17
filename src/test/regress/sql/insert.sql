@@ -38,6 +38,7 @@ select * from inserttest;
 insert into inserttest values(30, 50, repeat('x', 10000));
 
 select col1, col2, char_length(col3) from inserttest;
+
 --DDL_STATEMENT_BEGIN--
 drop table inserttest;
 --DDL_STATEMENT_END--
@@ -67,6 +68,7 @@ create table range_parted (
 
 -- no partitions, so fail
 insert into range_parted values ('a', 11);
+
 --DDL_STATEMENT_BEGIN--
 create table part1 partition of range_parted for values from ('a', 1) to ('a', 10);
 --DDL_STATEMENT_END--
@@ -133,6 +135,7 @@ create table part_ee_ff1 partition of part_ee_ff for values from (1) to (10);
 --DDL_STATEMENT_BEGIN--
 create table part_ee_ff2 partition of part_ee_ff for values from (10) to (20);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create table part_xx_yy partition of list_parted for values in ('xx', 'yy') partition by list (a);
 --DDL_STATEMENT_END--
@@ -197,6 +200,7 @@ create table part_gg2_1 partition of part_gg2 for values from (1) to (5);
 --DDL_STATEMENT_BEGIN--
 create table part_gg2_2 partition of part_gg2 for values from (5) to (10);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create table part_ee_ff3 partition of part_ee_ff for values from (20) to (30) partition by range (b);
 --DDL_STATEMENT_END--
@@ -219,6 +223,7 @@ insert into list_parted (b) values (1);
 -- result on different matchines.  The hash function for int4 simply returns
 -- the sum of the values passed to it and the one for text returns the length
 -- of the non-empty string value passed to it or 0.
+
 --DDL_STATEMENT_BEGIN--
 create or replace function part_hashint4_noop(value int4, seed int8)
 returns int8 as $$
@@ -269,6 +274,7 @@ create table hpart2 partition of hash_parted for values with (modulus 4, remaind
 --DDL_STATEMENT_BEGIN--
 create table hpart3 partition of hash_parted for values with (modulus 4, remainder 3);
 --DDL_STATEMENT_END--
+
 insert into hash_parted values(generate_series(1,10));
 
 -- direct insert of values divisible by 4 - ok;
@@ -292,6 +298,7 @@ drop table list_parted;
 --DDL_STATEMENT_BEGIN--
 drop table hash_parted;
 --DDL_STATEMENT_END--
+
 -- check routing error through a list partitioned table when the key is null
 --DDL_STATEMENT_BEGIN--
 create table lparted_nonullpart (a int, b char) partition by list (b);
@@ -303,6 +310,7 @@ insert into lparted_nonullpart values (1);
 --DDL_STATEMENT_BEGIN--
 drop table lparted_nonullpart;
 --DDL_STATEMENT_END--
+
 -- check that message shown after failure to find a partition shows the
 -- appropriate key description (or none) in various situations
 --DDL_STATEMENT_BEGIN--
@@ -311,6 +319,7 @@ create table key_desc (a int, b int) partition by list ((a+0));
 --DDL_STATEMENT_BEGIN--
 create table key_desc_1 partition of key_desc for values in (1) partition by range (b);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create user regress_insert_other_user;
 --DDL_STATEMENT_END--
@@ -320,6 +329,7 @@ grant select (a) on key_desc_1 to regress_insert_other_user;
 --DDL_STATEMENT_BEGIN--
 grant insert on key_desc to regress_insert_other_user;
 --DDL_STATEMENT_END--
+
 set role regress_insert_other_user;
 -- no key description is shown
 insert into key_desc values (1, 1);
@@ -350,6 +360,7 @@ drop table key_desc;
 --DDL_STATEMENT_BEGIN--
 drop table key_desc_1;
 --DDL_STATEMENT_END--
+
 -- test minvalue/maxvalue restrictions
 --DDL_STATEMENT_BEGIN--
 create table mcrparted (a int, b int, c int) partition by range (a, abs(b), c);
@@ -535,6 +546,7 @@ create table mcrparted7_gt_common_lt_d partition of mcrparted for values from ('
 --DDL_STATEMENT_BEGIN--
 create table mcrparted8_ge_d partition of mcrparted for values from ('d', minvalue) to (maxvalue, maxvalue);
 --DDL_STATEMENT_END--
+
 \d+ mcrparted
 \d+ mcrparted1_lt_b
 \d+ mcrparted2_b

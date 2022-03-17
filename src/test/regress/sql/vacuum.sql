@@ -1,6 +1,7 @@
 --
 -- VACUUM
 --
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE vactst (i INT);
 --DDL_STATEMENT_END--
@@ -42,6 +43,7 @@ SELECT * FROM vactst;
 
 VACUUM (FULL, FREEZE) vactst;
 VACUUM (ANALYZE, FULL) vactst;
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE vaccluster (i INT PRIMARY KEY);
 --DDL_STATEMENT_END--
@@ -49,6 +51,7 @@ CREATE TABLE vaccluster (i INT PRIMARY KEY);
 ALTER TABLE vaccluster CLUSTER ON vaccluster_pkey;
 --DDL_STATEMENT_END--
 CLUSTER vaccluster;
+
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION do_analyze() RETURNS VOID VOLATILE LANGUAGE SQL
 	AS 'ANALYZE pg_am';
@@ -105,6 +108,7 @@ ANALYZE vactst (i), vacparted (does_not_exist);
 -- parenthesized syntax for ANALYZE
 ANALYZE (VERBOSE) does_not_exist;
 ANALYZE (nonexistant-arg) does_not_exist;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE vaccluster;
 --DDL_STATEMENT_END--

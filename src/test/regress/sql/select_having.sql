@@ -48,6 +48,7 @@ SELECT 1 AS one FROM test_having HAVING 1 < 2;
 
 -- and just to prove that we aren't scanning the table:
 SELECT 1 AS one FROM test_having WHERE 1/a = 1 HAVING 1 < 2;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE test_having;
 --DDL_STATEMENT_END--

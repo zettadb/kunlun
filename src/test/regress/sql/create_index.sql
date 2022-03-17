@@ -9,42 +9,55 @@
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX onek_unique1 ON onek USING btree(unique1 int4_ops);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX IF NOT EXISTS onek_unique1 ON onek USING btree(unique1 int4_ops);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX IF NOT EXISTS ON onek USING btree(unique1 int4_ops);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX onek_unique2 ON onek USING btree(unique2 int4_ops);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX onek_hundred ON onek USING btree(hundred int4_ops);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX onek_stringu1 ON onek USING btree(stringu1 name_ops);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX tenk1_unique1 ON tenk1 USING btree(unique1 int4_ops);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX tenk1_unique2 ON tenk1 USING btree(unique2 int4_ops);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX tenk1_hundred ON tenk1 USING btree(hundred int4_ops);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX tenk1_thous_tenthous ON tenk1 (thousand, tenthous);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX tenk2_unique1 ON tenk2 USING btree(unique1 int4_ops);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX tenk2_unique2 ON tenk2 USING btree(unique2 int4_ops);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX tenk2_hundred ON tenk2 USING btree(hundred int4_ops);
 --DDL_STATEMENT_END--
+
 -- test comments
 COMMENT ON INDEX six_wrong IS 'bad index';
 COMMENT ON INDEX six IS 'good index';
@@ -61,26 +74,33 @@ COMMENT ON INDEX six IS NULL;
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX bt_i4_index ON bt_i4_heap USING btree (seqno int4_ops);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX bt_name_index ON bt_name_heap USING btree (seqno name_ops);
 --DDL_STATEMENT_END--
+
 -- CREATE INDEX bt_txt_index ON bt_txt_heap USING btree (seqno text_ops);
+
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX bt_f8_index ON bt_f8_heap USING btree (seqno float8_ops);
 --DDL_STATEMENT_END--
+
 --
 -- HASH
 --
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX hash_i4_index ON hash_i4_heap USING hash (random int4_ops);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX hash_name_index ON hash_name_heap USING hash (random name_ops);
 --DDL_STATEMENT_END--
+
 -- CREATE INDEX hash_txt_index ON hash_txt_heap USING hash (random text_ops);
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX hash_f8_index ON hash_f8_heap USING hash (random float8_ops) WITH (fillfactor=60);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE unlogged_hash_table (id int4);
 --DDL_STATEMENT_END--
@@ -136,12 +156,15 @@ DROP TABLE covering_index_heap;
 --
 -- Test ADD CONSTRAINT USING INDEX
 --
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE cwi_test( a int , b varchar(10), c char);
 --DDL_STATEMENT_END--
+
 -- add some data so that all tests have something to work with.
 
 INSERT INTO cwi_test VALUES(1, 2), (3, 4), (5, 6);
+
 --DDL_STATEMENT_BEGIN--
 CREATE UNIQUE INDEX cwi_uniq_idx ON cwi_test(a , b);
 --DDL_STATEMENT_END--
@@ -149,6 +172,7 @@ CREATE UNIQUE INDEX cwi_uniq_idx ON cwi_test(a , b);
 
 \d cwi_test
 \d cwi_uniq_idx
+
 --DDL_STATEMENT_BEGIN--
 CREATE UNIQUE INDEX cwi_uniq2_idx ON cwi_test(b , a);
 --DDL_STATEMENT_END--
@@ -158,9 +182,11 @@ CREATE UNIQUE INDEX cwi_uniq2_idx ON cwi_test(b , a);
 --\d cwi_test
 --\d cwi_replaced_pkey
 --DROP INDEX cwi_replaced_pkey;	-- Should fail; a constraint depends on it
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE cwi_test;
 --DDL_STATEMENT_END--
+
 -- ADD CONSTRAINT USING INDEX is forbidden on partitioned tables
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE cwi_test(a int) PARTITION BY hash (a);
@@ -197,11 +223,43 @@ SELECT count(*) FROM onek_with_null WHERE unique1 IS NOT NULL;
 SELECT count(*) FROM onek_with_null WHERE unique1 IS NULL AND unique2 IS NOT NULL;
 SELECT count(*) FROM onek_with_null WHERE unique1 IS NOT NULL AND unique1 > 500;
 SELECT count(*) FROM onek_with_null WHERE unique1 IS NULL AND unique1 > 500;
+
 --DDL_STATEMENT_BEGIN--
 DROP INDEX onek_nulltest;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE UNIQUE INDEX onek_nulltest ON onek_with_null (unique2 desc,unique1);
+--DDL_STATEMENT_END--
+
+SELECT count(*) FROM onek_with_null WHERE unique1 IS NULL;
+SELECT count(*) FROM onek_with_null WHERE unique1 IS NULL AND unique2 IS NULL;
+SELECT count(*) FROM onek_with_null WHERE unique1 IS NOT NULL;
+SELECT count(*) FROM onek_with_null WHERE unique1 IS NULL AND unique2 IS NOT NULL;
+SELECT count(*) FROM onek_with_null WHERE unique1 IS NOT NULL AND unique1 > 500;
+SELECT count(*) FROM onek_with_null WHERE unique1 IS NULL AND unique1 > 500;
+
+--DDL_STATEMENT_BEGIN--
+DROP INDEX onek_nulltest;
+--DDL_STATEMENT_END--
+
+--DDL_STATEMENT_BEGIN--
+CREATE UNIQUE INDEX onek_nulltest ON onek_with_null (unique2 desc nulls last,unique1);
+--DDL_STATEMENT_END--
+
+SELECT count(*) FROM onek_with_null WHERE unique1 IS NULL;
+SELECT count(*) FROM onek_with_null WHERE unique1 IS NULL AND unique2 IS NULL;
+SELECT count(*) FROM onek_with_null WHERE unique1 IS NOT NULL;
+SELECT count(*) FROM onek_with_null WHERE unique1 IS NULL AND unique2 IS NOT NULL;
+SELECT count(*) FROM onek_with_null WHERE unique1 IS NOT NULL AND unique1 > 500;
+SELECT count(*) FROM onek_with_null WHERE unique1 IS NULL AND unique1 > 500;
+
+--DDL_STATEMENT_BEGIN--
+DROP INDEX onek_nulltest;
+--DDL_STATEMENT_END--
+
+--DDL_STATEMENT_BEGIN--
+CREATE UNIQUE INDEX onek_nulltest ON onek_with_null (unique2  nulls first,unique1);
 --DDL_STATEMENT_END--
 
 SELECT count(*) FROM onek_with_null WHERE unique1 IS NULL;
@@ -213,34 +271,12 @@ SELECT count(*) FROM onek_with_null WHERE unique1 IS NULL AND unique1 > 500;
 --DDL_STATEMENT_BEGIN--
 DROP INDEX onek_nulltest;
 --DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-CREATE UNIQUE INDEX onek_nulltest ON onek_with_null (unique2 desc nulls last,unique1);
---DDL_STATEMENT_END--
-SELECT count(*) FROM onek_with_null WHERE unique1 IS NULL;
-SELECT count(*) FROM onek_with_null WHERE unique1 IS NULL AND unique2 IS NULL;
-SELECT count(*) FROM onek_with_null WHERE unique1 IS NOT NULL;
-SELECT count(*) FROM onek_with_null WHERE unique1 IS NULL AND unique2 IS NOT NULL;
-SELECT count(*) FROM onek_with_null WHERE unique1 IS NOT NULL AND unique1 > 500;
-SELECT count(*) FROM onek_with_null WHERE unique1 IS NULL AND unique1 > 500;
---DDL_STATEMENT_BEGIN--
-DROP INDEX onek_nulltest;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-CREATE UNIQUE INDEX onek_nulltest ON onek_with_null (unique2  nulls first,unique1);
---DDL_STATEMENT_END--
-SELECT count(*) FROM onek_with_null WHERE unique1 IS NULL;
-SELECT count(*) FROM onek_with_null WHERE unique1 IS NULL AND unique2 IS NULL;
-SELECT count(*) FROM onek_with_null WHERE unique1 IS NOT NULL;
-SELECT count(*) FROM onek_with_null WHERE unique1 IS NULL AND unique2 IS NOT NULL;
-SELECT count(*) FROM onek_with_null WHERE unique1 IS NOT NULL AND unique1 > 500;
-SELECT count(*) FROM onek_with_null WHERE unique1 IS NULL AND unique1 > 500;
---DDL_STATEMENT_BEGIN--
-DROP INDEX onek_nulltest;
---DDL_STATEMENT_END--
 -- Check initial-positioning logic too
+
 --DDL_STATEMENT_BEGIN--
 CREATE UNIQUE INDEX onek_nulltest ON onek_with_null (unique2);
 --DDL_STATEMENT_END--
+
 SET enable_seqscan = OFF;
 SET enable_indexscan = ON;
 SET enable_bitmapscan = OFF;
@@ -262,9 +298,11 @@ SELECT unique1, unique2 FROM onek_with_null WHERE unique2 < 999
 RESET enable_seqscan;
 RESET enable_indexscan;
 RESET enable_bitmapscan;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE onek_with_null;
 --DDL_STATEMENT_END--
+
 --
 -- Check bitmap index path planning
 --
@@ -326,6 +364,7 @@ explain (costs off)
 --DDL_STATEMENT_BEGIN--
 create temp table boolindex (b bool, i int, unique(b, i), junk float);
 --DDL_STATEMENT_END--
+
 explain (costs off)
   select * from boolindex order by b, i limit 10;
 explain (costs off)
@@ -347,6 +386,7 @@ ALTER TABLE delete_test_table ADD PRIMARY KEY (a,b,c,d);
 --DDL_STATEMENT_END--
 DELETE FROM delete_test_table WHERE a > 40000;
 DELETE FROM delete_test_table WHERE a > 10;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE delete_test_table;
 --DDL_STATEMENT_END--

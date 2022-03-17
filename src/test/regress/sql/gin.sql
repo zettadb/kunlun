@@ -34,6 +34,7 @@ vacuum gin_test_tbl;
 --DDL_STATEMENT_BEGIN--
 alter index gin_test_idx set (fastupdate = off);
 --DDL_STATEMENT_END--
+
 insert into gin_test_tbl select array[1, 2, g] from generate_series(1, 1000) g;
 insert into gin_test_tbl select array[1, 3, g] from generate_series(1, 1000) g;
 

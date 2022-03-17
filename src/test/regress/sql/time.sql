@@ -1,6 +1,7 @@
 --
 -- TIME
 --
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE if exists TIME_TBL;
 --DDL_STATEMENT_END--

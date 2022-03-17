@@ -53,9 +53,11 @@ delete  from  t1 where c=56;
 UPDATE t1 set id='99' where c=100;
 select * from t1 order by id ;	
 delete  from  t1 where id=99;
+
 --DDL_STATEMENT_BEGIN--
 drop table t1;
 --DDL_STATEMENT_END--
+
 --Arbitrary Precision Numbers 任意精度数字
 --DDL_STATEMENT_BEGIN--
 drop table if exists t2;
@@ -86,7 +88,9 @@ delete  from  t2 where c=33;
 --DDL_STATEMENT_BEGIN--
 drop table t2;
 --DDL_STATEMENT_END--
+
 --Floating-Point Types and Serial Types -- 浮点和序数
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists t3;
 --DDL_STATEMENT_END--
@@ -122,6 +126,7 @@ delete  from  t3 where b=666;
 drop table t3;
 --DDL_STATEMENT_END--
 
+
 --Monetary Types--
 --DDL_STATEMENT_BEGIN--
 drop table if exists t4;
@@ -143,7 +148,9 @@ select sum(a) from t4;
 --DDL_STATEMENT_BEGIN--
 drop table t4;
 --DDL_STATEMENT_END--
+
 --Character Types 字符类型
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists char_test;
 --DDL_STATEMENT_END--
@@ -153,6 +160,7 @@ id int2,
 a char(4),
 b varchar(4));
 --DDL_STATEMENT_END--
+
 insert into char_test values(1,'abcd', 'qwer');
 insert into char_test values(2,'a', 'b');
 insert into char_test values(3,'1234', '5678');
@@ -169,8 +177,10 @@ delete  from  char_test  where id=4;
 select  * from char_test ORDER by id;
 
 SELECT a, char_length(a),b,char_length(b) FROM char_test;
+
 --DDL_STATEMENT_BEGIN--
 drop table char_test;
+
 --DDL_STATEMENT_END--
 --Binary Data Types 
 --DDL_STATEMENT_BEGIN--
@@ -179,15 +189,19 @@ drop table if exists tab_bytea;
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE tab_bytea(a bytea,b bytea);
 --DDL_STATEMENT_END--
+
 INSERT INTO tab_bytea VALUES('\047',E'\xF');
 UPDATE tab_bytea set a='\134' where a='\047';
 delete  from  tab_bytea  where a='\134';
 
 --SELECT * FROM tab_bytea;
+
 --DDL_STATEMENT_BEGIN--
 drop table tab_bytea;
 --DDL_STATEMENT_END--
+
 --Date/Time Types 日期/时间类型
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists tab_date;
 --DDL_STATEMENT_END--
@@ -209,6 +223,8 @@ UPDATE tab_date set a='2021-10-27' where id=4;
 SELECT * FROM tab_date;
 delete from tab_date where a='2021-10-27';
 delete from tab_date where id=3;
+
+
 --DDL_STATEMENT_BEGIN--
 drop table tab_date;
 --DDL_STATEMENT_END--
@@ -229,6 +245,7 @@ delete from tab_timestamp where a='2021-10-27 03:20:34+08';
 --DDL_STATEMENT_BEGIN--
 drop table tab_timestamp;
 --DDL_STATEMENT_END--
+
 
 --Boolean Type-- 布尔类型
 --DDL_STATEMENT_BEGIN--
@@ -254,7 +271,9 @@ delete from tab_boolean where a='no';
 --DDL_STATEMENT_BEGIN--
 drop table tab_boolean;
 --DDL_STATEMENT_END--
+
 --Enumerated Types--  枚举类型
+
 --DDL_STATEMENT_BEGIN--
 CREATE TYPE mood AS ENUM ('sad', 'ok', 'happy');
 --DDL_STATEMENT_END--
@@ -274,12 +293,14 @@ select * from person;
 SELECT * FROM person WHERE b > 'sad';
 SELECT * FROM person WHERE b > 'sad' ORDER BY b;
 delete from person where b='ok';
+
 --DDL_STATEMENT_BEGIN--
 drop table person;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 DROP TYPE mood; 
 --DDL_STATEMENT_END--
+
 
 
 --Network Address Types-- 网络地址类型
@@ -302,6 +323,7 @@ delete from tab_icm where a='10/8';
 drop table tab_icm;
 --DDL_STATEMENT_END--
 
+
 -- Bit String Types--位串类型
 --DDL_STATEMENT_BEGIN--
 drop table if exists tab_bit_string;
@@ -309,6 +331,7 @@ drop table if exists tab_bit_string;
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE tab_bit_string (id int2,a BIT(3), b BIT VARYING(5));
 --DDL_STATEMENT_END--
+
 INSERT INTO tab_bit_string VALUES (1,B'101', B'00');
 INSERT INTO tab_bit_string VALUES (2,B'10'::bit(3), B'101');
 select * from tab_bit_string;
@@ -321,6 +344,7 @@ SELECT * FROM tab_bit_string;
 --DDL_STATEMENT_BEGIN--
 drop table tab_bit_string;
 --DDL_STATEMENT_END--
+
 
 
 
@@ -343,6 +367,7 @@ delete from tab_json where id =2;
 drop table tab_json;
 
 --DDL_STATEMENT_END--
+
  
 --pg_lsn Type pg_lsn 类型
 --DDL_STATEMENT_BEGIN--
@@ -358,6 +383,7 @@ delete from tab_pg_lsn where id =2;
 --DDL_STATEMENT_BEGIN--
 drop table tab_pg_lsn;
 --DDL_STATEMENT_END--
+
  
 --Object Identifier Types 对象标识符类型
 --DDL_STATEMENT_BEGIN--
@@ -378,6 +404,7 @@ select * from tab_oid order by id;
 drop table tab_oid;
 --DDL_STATEMENT_END--
 
+
 --UUID Type-- UUID类型
 --DDL_STATEMENT_BEGIN--
 drop table if exists tab_uuid;
@@ -395,6 +422,7 @@ select * from tab_uuid;
 --DDL_STATEMENT_BEGIN--
 drop table tab_uuid;
 --DDL_STATEMENT_END--
+
 
 -- XML Type--XML类型
 --drop table if exists tab_xml;

@@ -5,9 +5,11 @@
 --
 -- Build tables for testing
 --
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE BIT_TABLE(b BIT(11));
 --DDL_STATEMENT_END--
+
 INSERT INTO BIT_TABLE VALUES (B'10'); -- too short
 INSERT INTO BIT_TABLE VALUES (B'00000000000');
 INSERT INTO BIT_TABLE VALUES (B'11011000000');
@@ -17,9 +19,11 @@ INSERT INTO BIT_TABLE VALUES (B'101011111010'); -- too long
 --INSERT INTO BIT_TABLE VALUES ('X555');
 
 SELECT * FROM BIT_TABLE;
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE VARBIT_TABLE(v BIT VARYING(11));
 --DDL_STATEMENT_END--
+
 INSERT INTO VARBIT_TABLE VALUES (B'');
 INSERT INTO VARBIT_TABLE VALUES (B'0');
 INSERT INTO VARBIT_TABLE VALUES (B'010101');
@@ -78,9 +82,11 @@ SELECT a, b, ~a AS "~ a", a & b AS "a & b",
 SELECT a,b,a<b AS "a<b",a<=b AS "a<=b",a=b AS "a=b",
         a>=b AS "a>=b",a>b AS "a>b",a<>b AS "a<>b" FROM varbit_table;
 SELECT a,a<<4 AS "a<<4",b,b>>2 AS "b>>2" FROM varbit_table;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE varbit_table;
 --DDL_STATEMENT_END--
+
 --- Bit operations
 --DDL_STATEMENT_BEGIN--
 DROP TABLE bit_table;
@@ -106,9 +112,11 @@ SELECT a,b,~a AS "~ a",a & b AS "a & b",
 SELECT a,b,a<b AS "a<b",a<=b AS "a<=b",a=b AS "a=b",
         a>=b AS "a>=b",a>b AS "a>b",a<>b AS "a<>b" FROM bit_table;
 SELECT a,a<<4 AS "a<<4",b,b>>2 AS "b>>2" FROM bit_table;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE bit_table;
 --DDL_STATEMENT_END--
+
 
 -- The following should fail
 select B'001' & B'10';
@@ -165,6 +173,7 @@ SELECT POSITION(B'0000000000011101011111010110' IN B'000000000011101011111010110
 
 
 -- Shifting
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE BIT_SHIFT_TABLE(b BIT(16));
 --DDL_STATEMENT_END--
@@ -178,6 +187,7 @@ SELECT POSITION(B'1101' IN b),
        b
        FROM BIT_SHIFT_TABLE ;
 
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE VARBIT_SHIFT_TABLE(v BIT VARYING(20));
 --DDL_STATEMENT_END--
@@ -190,6 +200,7 @@ SELECT POSITION(B'1101' IN v),
        POSITION(B'11011' IN v),
        v
        FROM VARBIT_SHIFT_TABLE ;
+
 
 --DDL_STATEMENT_BEGIN--
 DROP TABLE BIT_SHIFT_TABLE;

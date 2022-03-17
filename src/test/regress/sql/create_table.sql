@@ -14,6 +14,7 @@ CREATE TABLE hobbies_r (
 	person 		text
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists equipment_r;
 --DDL_STATEMENT_END--
@@ -23,6 +24,7 @@ CREATE TABLE equipment_r (
 	hobby		text
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists onek;
 --DDL_STATEMENT_END--
@@ -46,6 +48,7 @@ CREATE TABLE onek (
 	string4		name
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists tenk1;
 --DDL_STATEMENT_END--
@@ -69,6 +72,7 @@ CREATE TABLE tenk1 (
 	string4		name
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists tenk2;
 --DDL_STATEMENT_END--
@@ -92,6 +96,8 @@ CREATE TABLE tenk2 (
 	string4		name
 );
 --DDL_STATEMENT_END--
+
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists person;
 --DDL_STATEMENT_END--
@@ -101,6 +107,7 @@ CREATE TABLE person (
 	age			int4
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists emp;
 --DDL_STATEMENT_END--
@@ -112,6 +119,7 @@ CREATE TABLE emp (
 	manager 	name
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists student;
 --DDL_STATEMENT_END--
@@ -122,6 +130,7 @@ CREATE TABLE student (
 	gpa 		float8
 ) ;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists stud_emp;
 --DDL_STATEMENT_END--
@@ -135,6 +144,7 @@ CREATE TABLE stud_emp (
 	percent 	int4
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists dept;
 --DDL_STATEMENT_END--
@@ -144,6 +154,7 @@ CREATE TABLE dept (
 	mgrname 	text
 );
 --DDL_STATEMENT_END--
+
 --
 -- test the "star" operators a bit more thoroughly -- this time,
 -- throw in lots of NULL fields...
@@ -163,6 +174,7 @@ CREATE TABLE a_star (
 	a 			int4
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists aggtest;
 --DDL_STATEMENT_END--
@@ -172,6 +184,7 @@ CREATE TABLE aggtest (
 	b			float4
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists hash_i4_heap;
 --DDL_STATEMENT_END--
@@ -181,6 +194,7 @@ CREATE TABLE hash_i4_heap (
 	random 		int4
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists hash_name_heap;
 --DDL_STATEMENT_END--
@@ -190,6 +204,7 @@ CREATE TABLE hash_name_heap (
 	random 		name
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists hash_txt_heap;
 --DDL_STATEMENT_END--
@@ -199,6 +214,7 @@ CREATE TABLE hash_txt_heap (
 	random 		text
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists hash_f8_heap;
 --DDL_STATEMENT_END--
@@ -208,6 +224,7 @@ CREATE TABLE hash_f8_heap (
 	random 		float8
 );
 --DDL_STATEMENT_END--
+
 -- don't include the hash_ovfl_heap stuff in the distribution
 -- the data set is too large for what it's worth
 --
@@ -224,6 +241,7 @@ CREATE TABLE bt_i4_heap (
 	random 		int4
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists bt_name_heap;
 --DDL_STATEMENT_END--
@@ -233,6 +251,7 @@ CREATE TABLE bt_name_heap (
 	random 		int4
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists bt_txt_heap;
 --DDL_STATEMENT_END--
@@ -242,6 +261,7 @@ CREATE TABLE bt_txt_heap (
 	random 		int4
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists bt_f8_heap;
 --DDL_STATEMENT_END--
@@ -251,6 +271,7 @@ CREATE TABLE bt_f8_heap (
 	random 		int4
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists testjsonb;
 --DDL_STATEMENT_END--
@@ -259,11 +280,13 @@ CREATE TABLE testjsonb (
        j jsonb
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE unknowntab (
 	u unknown    -- fail
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TYPE unknown_comptype AS (
 	u unknown    -- fail
@@ -322,6 +345,7 @@ CREATE TABLE partitioned (
 	a1 int,
 	a2 int
 ) PARTITION BY LIST (a1, a2);	-- fail
+
 --DDL_STATEMENT_END--
 -- prevent using prohibited expressions in the key
 --DDL_STATEMENT_BEGIN--
@@ -338,27 +362,32 @@ CREATE TABLE partitioned (
 --DDL_STATEMENT_BEGIN--
 DROP FUNCTION retset(int);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE partitioned (
 	a int
 ) PARTITION BY RANGE ((avg(a)));
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE partitioned (
 	a int,
 	b int
 ) PARTITION BY RANGE ((avg(a) OVER (PARTITION BY b)));
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE partitioned (
 	a int
 ) PARTITION BY LIST ((a LIKE (SELECT 1)));
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE partitioned (
 	a int
 ) PARTITION BY RANGE (('a'));
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop function if exists const_func ();
 --DDL_STATEMENT_END--
@@ -416,6 +445,7 @@ DROP FUNCTION immut_func(int);
 CREATE TABLE partitioned (
 	a	int
 ) PARTITION BY RANGE ((partitioned));
+
 --DDL_STATEMENT_END--
 -- some checks after successful creation of a partitioned table
 --DDL_STATEMENT_BEGIN--
@@ -424,6 +454,7 @@ drop function if exists plusone(int);
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION plusone(a int) RETURNS INT AS $$ SELECT a+1; $$ LANGUAGE SQL;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE partitioned (
 	a int,
@@ -461,6 +492,7 @@ INSERT INTO partitioned2 VALUES (1, 'hello');
 CREATE TABLE part2_1 PARTITION OF partitioned2 FOR VALUES FROM (-1, 'aaaaa') TO (100, 'ccccc');
 --DDL_STATEMENT_END--
 \d+ part2_1
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE partitioned;
 --DDL_STATEMENT_END--
@@ -473,6 +505,7 @@ DROP TABLE partitioned2;
 --
 
 -- check partition bound syntax
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists list_parted;
 --DDL_STATEMENT_END--
@@ -498,6 +531,7 @@ CREATE TABLE fail_part PARTITION OF list_parted FOR VALUES IN (int '1');
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE fail_part PARTITION OF list_parted FOR VALUES IN ('1'::int);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 -- syntax does not allow empty list of values for list partitions
 CREATE TABLE fail_part PARTITION OF list_parted FOR VALUES IN ();
@@ -589,10 +623,12 @@ CREATE TABLE fail_part PARTITION OF range_parted FOR VALUES FROM ('a', 1) TO ('z
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE fail_part PARTITION OF range_parted FOR VALUES FROM ('a') TO ('z', 1);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 -- cannot specify null values in range bounds
 CREATE TABLE fail_part PARTITION OF range_parted FOR VALUES FROM (null) TO (maxvalue);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 -- trying to specify modulus and remainder for range partitioned table
 CREATE TABLE fail_part PARTITION OF range_parted FOR VALUES WITH (MODULUS 10, REMAINDER 1);
@@ -653,6 +689,7 @@ CREATE TABLE fail_part PARTITION OF unparted FOR VALUES WITH (MODULUS 2, REMAIND
 --DDL_STATEMENT_BEGIN--
 DROP TABLE unparted;
 --DDL_STATEMENT_END--
+
 -- cannot create a permanent rel as partition of a temp rel
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE temp_parted (
@@ -665,6 +702,7 @@ CREATE TABLE fail_part PARTITION OF temp_parted FOR VALUES IN ('a');
 --DDL_STATEMENT_BEGIN--
 DROP TABLE temp_parted;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 -- cannot create a table with oids as partition of table without oids
 CREATE TABLE no_oids_parted (
@@ -674,6 +712,7 @@ CREATE TABLE no_oids_parted (
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE fail_part PARTITION OF no_oids_parted FOR VALUES FROM (1) TO (10);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE no_oids_parted;
 --DDL_STATEMENT_END--
@@ -696,6 +735,7 @@ DROP TABLE part_forced_oids;
 --DDL_STATEMENT_END--
 
 -- check for partition bound overlap and other invalid specifications
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE list_parted2 (
 	a varchar
@@ -708,6 +748,7 @@ CREATE TABLE part_null_z PARTITION OF list_parted2 FOR VALUES IN (null, 'z');
 CREATE TABLE part_ab PARTITION OF list_parted2 FOR VALUES IN ('a', 'b');
 --DDL_STATEMENT_END--
 --CREATE TABLE list_parted2_def PARTITION OF list_parted2 DEFAULT;
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE fail_part PARTITION OF list_parted2 FOR VALUES IN (null);
 --DDL_STATEMENT_END--
@@ -719,11 +760,13 @@ INSERT INTO list_parted2 VALUES('X');
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE fail_part PARTITION OF list_parted2 FOR VALUES IN ('W', 'X', 'Y');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE range_parted2 (
 	a int
 ) PARTITION BY RANGE (a);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 -- trying to create range partition with empty range
 CREATE TABLE fail_part PARTITION OF range_parted2 FOR VALUES FROM (1) TO (0);
@@ -732,6 +775,7 @@ CREATE TABLE fail_part PARTITION OF range_parted2 FOR VALUES FROM (1) TO (0);
 -- note that the range '[1, 1)' has no elements
 CREATE TABLE fail_part PARTITION OF range_parted2 FOR VALUES FROM (1) TO (1);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE part0 PARTITION OF range_parted2 FOR VALUES FROM (minvalue) TO (1);
 --DDL_STATEMENT_END--
@@ -785,6 +829,7 @@ CREATE TABLE part00 PARTITION OF range_parted3 FOR VALUES FROM (0, minvalue) TO 
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE fail_part PARTITION OF range_parted3 FOR VALUES FROM (0, minvalue) TO (0, 1);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE part10 PARTITION OF range_parted3 FOR VALUES FROM (1, minvalue) TO (1, 1);
 --DDL_STATEMENT_END--
@@ -836,15 +881,19 @@ CREATE TABLE fail_part PARTITION OF hash_parted2 FOR VALUES WITH (MODULUS 0, REM
 -- remainder must be greater than or equal to zero and less than modulus
 CREATE TABLE fail_part PARTITION OF hash_parted2 FOR VALUES WITH (MODULUS 8, REMAINDER 8);
 --DDL_STATEMENT_END--
+
 -- check schema propagation from parent
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE parted (
 	a text,
 	b int NOT NULL DEFAULT 0
 ) PARTITION BY LIST (a);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE part_a PARTITION OF parted FOR VALUES IN ('a');
+
 --DDL_STATEMENT_END--
 -- only inherited attributes (never local ones)
 SELECT attname, attislocal, attinhcount FROM pg_attribute
@@ -860,6 +909,7 @@ CREATE TABLE part_b PARTITION OF parted (
 	b DEFAULT 1
 ) FOR VALUES IN ('b');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE part_b PARTITION OF parted (
 	b NOT NULL DEFAULT 1
@@ -874,10 +924,12 @@ CREATE TABLE fail_part_col_not_found PARTITION OF parted FOR VALUES IN ('c') PAR
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE part_c PARTITION OF parted (b WITH OPTIONS NOT NULL DEFAULT 0) FOR VALUES IN ('c') PARTITION BY RANGE ((b));
+
 --DDL_STATEMENT_END--
 -- create a level-2 partition
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE part_c_1_10 PARTITION OF part_c FOR VALUES FROM (1) TO (10);
+
 --DDL_STATEMENT_END--
 -- check that NOT NULL and default value are inherited correctly
 --DDL_STATEMENT_BEGIN--
@@ -954,6 +1006,7 @@ CREATE TABLE range_parted4_3 PARTITION OF range_parted4 FOR VALUES FROM (6, 8, M
 --DDL_STATEMENT_BEGIN--
 DROP TABLE range_parted4;
 --DDL_STATEMENT_END--
+
 -- user-defined operator class in partition key
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION my_int4_sort(int4,int4) RETURNS int LANGUAGE sql
@@ -1008,7 +1061,6 @@ DROP OPERATOR CLASS test_int4_ops USING btree;
 --DDL_STATEMENT_BEGIN--
 DROP FUNCTION my_int4_sort(int4,int4);
 --DDL_STATEMENT_END--
-
 
 -- comments on partitioned tables columns
 --DDL_STATEMENT_BEGIN--

@@ -112,9 +112,11 @@ TABLE int8_tbl;
 --
 -- Test ORDER BY options
 --
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE foo (f1 int);
 --DDL_STATEMENT_END--
+
 INSERT INTO foo VALUES (42),(3),(10),(7),(null),(null),(1);
 
 SELECT * FROM foo ORDER BY f1;
@@ -133,16 +135,20 @@ SELECT * FROM foo ORDER BY f1;
 SELECT * FROM foo ORDER BY f1 NULLS FIRST;
 SELECT * FROM foo ORDER BY f1 DESC;
 SELECT * FROM foo ORDER BY f1 DESC NULLS LAST;
+
 --DDL_STATEMENT_BEGIN--
 DROP INDEX fooi;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX fooi ON foo (f1 DESC);
 --DDL_STATEMENT_END--
+
 SELECT * FROM foo ORDER BY f1;
 SELECT * FROM foo ORDER BY f1 NULLS FIRST;
 SELECT * FROM foo ORDER BY f1 DESC;
 SELECT * FROM foo ORDER BY f1 DESC NULLS LAST;
+
 --DDL_STATEMENT_BEGIN--
 DROP INDEX fooi;
 --DDL_STATEMENT_END--
@@ -163,7 +169,6 @@ SELECT * FROM foo ORDER BY f1 DESC NULLS LAST;
 SELECT 1 AS x ORDER BY x;
 
 -- But ORDER BY on a set-valued expression does
-
 --DDL_STATEMENT_BEGIN--
 create function sillysrf(int) returns setof int as
   'values (1),(10),(2),($1)' language sql immutable;
@@ -171,6 +176,7 @@ create function sillysrf(int) returns setof int as
 
 select sillysrf(42);
 select sillysrf(-1) order by 1;
+
 --DDL_STATEMENT_BEGIN--
 drop function sillysrf(int);
 --DDL_STATEMENT_END--

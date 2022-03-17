@@ -28,6 +28,7 @@ CREATE TABLE brintest (byteacol bytea,
 	uuidcol uuid,
 	lsncol pg_lsn
 );
+
 --DDL_STATEMENT_END--
 INSERT INTO brintest SELECT
 	repeat(stringu1, 8)::bytea,

@@ -1,6 +1,7 @@
 --
 -- WINDOW FUNCTIONS
 --
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMPORARY TABLE empsalary (
     depname varchar,
@@ -9,6 +10,7 @@ CREATE TEMPORARY TABLE empsalary (
     enroll_date date
 );
 --DDL_STATEMENT_END--
+
 INSERT INTO empsalary VALUES
 ('develop', 10, 5200, '2007-08-01'),
 ('sales', 1, 5000, '2006-10-01'),
@@ -28,6 +30,7 @@ SELECT depname, empno, salary, rank() OVER (PARTITION BY depname ORDER BY salary
 -- with GROUP BY
 SELECT four, ten, SUM(SUM(four)) OVER (PARTITION BY four), AVG(ten) FROM tenk1
 GROUP BY four, ten ORDER BY four, ten;
+
 SELECT depname, empno, salary, sum(salary) OVER w FROM empsalary WINDOW w AS (PARTITION BY depname);
 
 SELECT depname, empno, salary, rank() OVER w FROM empsalary WINDOW w AS (PARTITION BY depname ORDER BY salary) ORDER BY rank() OVER w;
@@ -267,61 +270,76 @@ SELECT sum(unique1) over
 	 rows (SELECT unique1 FROM tenk1 ORDER BY unique1 LIMIT 1) + 1 PRECEDING),
 	unique1
 FROM tenk1 WHERE unique1 < 10;
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP VIEW v_window AS
 	SELECT i, sum(i) over (order by i rows between 1 preceding and 1 following) as sum_rows
 	FROM generate_series(1, 10) i;
 --DDL_STATEMENT_END--
+
 SELECT * FROM v_window;
 
 SELECT pg_get_viewdef('v_window');
+
 --DDL_STATEMENT_BEGIN--
 CREATE OR REPLACE TEMP VIEW v_window AS
 	SELECT i, sum(i) over (order by i rows between 1 preceding and 1 following
 	exclude current row) as sum_rows FROM generate_series(1, 10) i;
 --DDL_STATEMENT_END--
+
 SELECT * FROM v_window;
 
 SELECT pg_get_viewdef('v_window');
+
 --DDL_STATEMENT_BEGIN--
 CREATE OR REPLACE TEMP VIEW v_window AS
 	SELECT i, sum(i) over (order by i rows between 1 preceding and 1 following
 	exclude group) as sum_rows FROM generate_series(1, 10) i;
 --DDL_STATEMENT_END--
+
 SELECT * FROM v_window;
 
 SELECT pg_get_viewdef('v_window');
+
 --DDL_STATEMENT_BEGIN--
 CREATE OR REPLACE TEMP VIEW v_window AS
 	SELECT i, sum(i) over (order by i rows between 1 preceding and 1 following
 	exclude ties) as sum_rows FROM generate_series(1, 10) i;
 --DDL_STATEMENT_END--
+
 SELECT * FROM v_window;
 
 SELECT pg_get_viewdef('v_window');
+
 --DDL_STATEMENT_BEGIN--
 CREATE OR REPLACE TEMP VIEW v_window AS
 	SELECT i, sum(i) over (order by i rows between 1 preceding and 1 following
 	exclude no others) as sum_rows FROM generate_series(1, 10) i;
 --DDL_STATEMENT_END--
+
 SELECT * FROM v_window;
 
 SELECT pg_get_viewdef('v_window');
+
 --DDL_STATEMENT_BEGIN--
 CREATE OR REPLACE TEMP VIEW v_window AS
 	SELECT i, sum(i) over (order by i groups between 1 preceding and 1 following) as sum_rows FROM generate_series(1, 10) i;
 --DDL_STATEMENT_END--
+
 SELECT * FROM v_window;
 
 SELECT pg_get_viewdef('v_window');
+
 --DDL_STATEMENT_BEGIN--
 DROP VIEW v_window;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP VIEW v_window AS
 	SELECT i, min(i) over (order by i range between '1 day' preceding and '10 days' following) as min_i
   FROM generate_series(now(), now()+'100 days'::interval, '1 hour') i;
 --DDL_STATEMENT_END--
+
 SELECT pg_get_viewdef('v_window');
 
 -- RANGE offset PRECEDING/FOLLOWING tests
@@ -490,6 +508,7 @@ select x, last_value(x) over (order by x desc range between current row and 5 fo
 from generate_series(-9223372036854775806, -9223372036854775804) x;
 
 -- Test in_range for other numeric datatypes
+
 --DDL_STATEMENT_BEGIN--
 create temp table numerics(
     id int,
@@ -498,6 +517,7 @@ create temp table numerics(
     f_numeric numeric
 );
 --DDL_STATEMENT_END--
+
 insert into numerics values
 (0, '-infinity', '-infinity', '-1000'),  -- numeric type lacks infinities
 (1, -3, -3, -3),
@@ -562,6 +582,7 @@ window w as (order by f_numeric range between
              1.1 preceding and 'NaN' following);  -- error, NaN disallowed
 
 -- Test in_range for other datetime datatypes
+
 --DDL_STATEMENT_BEGIN--
 create temp table datetimes(
     id int,
@@ -572,6 +593,7 @@ create temp table datetimes(
     f_timestamp timestamp
 );
 --DDL_STATEMENT_END--
+
 insert into datetimes values
 (1, '11:00', '11:00 BST', '1 year', '2000-10-19 10:23:54+01', '2000-10-19 10:23:54'),
 (2, '12:00', '12:00 BST', '2 years', '2001-10-19 10:23:54+01', '2001-10-19 10:23:54'),
@@ -898,6 +920,7 @@ WHERE depname = 'sales';
 --DDL_STATEMENT_BEGIN--
 DROP TABLE empsalary;
 --DDL_STATEMENT_END--
+
 -- test user-defined window function with named args and default args
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION nth_value_def(val anyelement, n integer = 1) RETURNS anyelement
@@ -916,21 +939,25 @@ SELECT nth_value_def(ten) OVER (PARTITION BY four), ten, four
 
 -- create aggregates that record the series of transform calls (these are
 -- intentionally not true inverses)
+
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION logging_sfunc_nonstrict(text, anyelement) RETURNS text AS
 $$ SELECT COALESCE($1, '') || '*' || quote_nullable($2) $$
 LANGUAGE SQL IMMUTABLE;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION logging_msfunc_nonstrict(text, anyelement) RETURNS text AS
 $$ SELECT COALESCE($1, '') || '+' || quote_nullable($2) $$
 LANGUAGE SQL IMMUTABLE;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION logging_minvfunc_nonstrict(text, anyelement) RETURNS text AS
 $$ SELECT $1 || '-' || quote_nullable($2) $$
 LANGUAGE SQL IMMUTABLE;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE logging_agg_nonstrict (anyelement)
 (
@@ -941,6 +968,7 @@ CREATE AGGREGATE logging_agg_nonstrict (anyelement)
 	minvfunc = logging_minvfunc_nonstrict
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE logging_agg_nonstrict_initcond (anyelement)
 (
@@ -953,21 +981,25 @@ CREATE AGGREGATE logging_agg_nonstrict_initcond (anyelement)
 	minitcond = 'MI'
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION logging_sfunc_strict(text, anyelement) RETURNS text AS
 $$ SELECT $1 || '*' || quote_nullable($2) $$
 LANGUAGE SQL STRICT IMMUTABLE;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION logging_msfunc_strict(text, anyelement) RETURNS text AS
 $$ SELECT $1 || '+' || quote_nullable($2) $$
 LANGUAGE SQL STRICT IMMUTABLE;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION logging_minvfunc_strict(text, anyelement) RETURNS text AS
 $$ SELECT $1 || '-' || quote_nullable($2) $$
 LANGUAGE SQL STRICT IMMUTABLE;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE logging_agg_strict (text)
 (
@@ -978,6 +1010,7 @@ CREATE AGGREGATE logging_agg_strict (text)
 	minvfunc = logging_minvfunc_strict
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE logging_agg_strict_initcond (anyelement)
 (
@@ -1078,11 +1111,13 @@ ORDER BY i;
 -- restarts the aggregation from scratch. The second aggregate is supposed
 -- to test cases where only some aggregates restart, the third one checks
 -- that one aggregate restarting doesn't cause others to restart.
+
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION sum_int_randrestart_minvfunc(int4, int4) RETURNS int4 AS
 $$ SELECT CASE WHEN random() < 0.2 THEN NULL ELSE $1 - $2 END $$
 LANGUAGE SQL STRICT;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE sum_int_randomrestart (int4)
 (
@@ -1093,6 +1128,7 @@ CREATE AGGREGATE sum_int_randomrestart (int4)
 	minvfunc = sum_int_randrestart_minvfunc
 );
 --DDL_STATEMENT_END--
+
 WITH
 vs AS (
 	SELECT i, (random() * 100)::int4 AS v

@@ -8,12 +8,14 @@
 --DDL_STATEMENT_BEGIN--
 SET client_min_messages TO 'warning';
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP ROLE IF EXISTS regress_priv_group1;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 DROP ROLE IF EXISTS regress_priv_group2;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP ROLE IF EXISTS regress_priv_user1;
 --DDL_STATEMENT_END--
@@ -32,9 +34,11 @@ DROP ROLE IF EXISTS regress_priv_user5;
 --DDL_STATEMENT_BEGIN--
 DROP ROLE IF EXISTS regress_priv_user6;
 --DDL_STATEMENT_END--
+
 RESET client_min_messages;
 
 -- test proper begins here
+
 --DDL_STATEMENT_BEGIN--
 CREATE USER regress_priv_user1;
 --DDL_STATEMENT_END--
@@ -53,15 +57,18 @@ CREATE USER regress_priv_user5;
 --DDL_STATEMENT_BEGIN--
 CREATE USER regress_priv_user5;	-- duplicate
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE GROUP regress_priv_group1;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE GROUP regress_priv_group2 WITH USER regress_priv_user1, regress_priv_user2;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER GROUP regress_priv_group1 ADD USER regress_priv_user4;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER GROUP regress_priv_group2 ADD USER regress_priv_user2;	-- duplicate
 --DDL_STATEMENT_END--
@@ -71,13 +78,16 @@ ALTER GROUP regress_priv_group2 DROP USER regress_priv_user2;
 --DDL_STATEMENT_BEGIN--
 GRANT regress_priv_group2 TO regress_priv_user4 WITH ADMIN OPTION;
 --DDL_STATEMENT_END--
+
 -- test owner privileges
+
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_priv_user1;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 SELECT session_user, current_user;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE if exists atest1;
 --DDL_STATEMENT_END--
@@ -94,10 +104,12 @@ BEGIN;
 LOCK atest1 IN ACCESS EXCLUSIVE MODE;
 COMMIT;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 REVOKE ALL ON atest1 FROM PUBLIC;
 --DDL_STATEMENT_END--
 SELECT * FROM atest1;
+
 --DDL_STATEMENT_BEGIN--
 GRANT ALL ON atest1 TO regress_priv_user2;
 --DDL_STATEMENT_END--
@@ -105,6 +117,7 @@ GRANT ALL ON atest1 TO regress_priv_user2;
 GRANT SELECT ON atest1 TO regress_priv_user3, regress_priv_user4;
 --DDL_STATEMENT_END--
 SELECT * FROM atest1;
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists atest2;
 --DDL_STATEMENT_END--
@@ -120,6 +133,8 @@ GRANT UPDATE ON atest2 TO regress_priv_user3;
 --DDL_STATEMENT_BEGIN--
 GRANT INSERT ON atest2 TO regress_priv_user4;
 --DDL_STATEMENT_END--
+
+
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_priv_user2;
 --DDL_STATEMENT_END--
@@ -146,9 +161,11 @@ COPY atest2 FROM stdin; -- fail
 --DDL_STATEMENT_BEGIN--
 GRANT ALL ON atest1 TO PUBLIC; -- fail
 --DDL_STATEMENT_END--
+
 -- checks in subquery, both ok
 SELECT * FROM atest1 WHERE ( b IN ( SELECT col1 FROM atest2 ) );
 SELECT * FROM atest2 WHERE ( col1 IN ( SELECT b FROM atest1 ) );
+
 
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_priv_user3;
@@ -174,6 +191,7 @@ COPY atest2 FROM stdin; -- fail
 -- checks in subquery, both fail
 SELECT * FROM atest1 WHERE ( b IN ( SELECT col1 FROM atest2 ) );
 SELECT * FROM atest2 WHERE ( col1 IN ( SELECT b FROM atest1 ) );
+
 SET SESSION AUTHORIZATION regress_priv_user4;
 COPY atest2 FROM stdin; -- ok
 bar	true
@@ -187,6 +205,7 @@ SELECT * FROM atest1; -- ok
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_priv_user1;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists atest12;
 --DDL_STATEMENT_END--
@@ -197,6 +216,7 @@ insert into atest12 SELECT x AS a, 10001 - x AS b FROM generate_series(1,10000) 
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX ON atest12 (a);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION leak(integer,integer) RETURNS boolean
   AS $$begin return $1 < $2; end$$
@@ -206,6 +226,7 @@ CREATE FUNCTION leak(integer,integer) RETURNS boolean
 CREATE OPERATOR <<< (procedure = leak, leftarg = integer, rightarg = integer,
                      restrict = scalarltsel);
 --DDL_STATEMENT_END--
+
 -- views with leaky operator
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW atest12v AS
@@ -215,13 +236,13 @@ CREATE VIEW atest12v AS
 CREATE VIEW atest12sbv AS
   SELECT * FROM atest12 WHERE b <<< 5;
 --DDL_STATEMENT_END--
-
 --DDL_STATEMENT_BEGIN--
 GRANT SELECT ON atest12v TO PUBLIC;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 GRANT SELECT ON atest12sbv TO PUBLIC;
 --DDL_STATEMENT_END--
+
 -- This plan should use nestloop, knowing that few rows will be selected.
 EXPLAIN (COSTS OFF) SELECT * FROM atest12v x, atest12v y WHERE x.a = y.b;
 
@@ -237,6 +258,7 @@ EXPLAIN (COSTS OFF) SELECT * FROM atest12sbv x, atest12sbv y WHERE x.a = y.b;
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_priv_user2;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION leak2(integer,integer) RETURNS boolean
   AS $$begin raise notice 'leak % %', $1, $2; return $1 > $2; end$$
@@ -246,6 +268,7 @@ CREATE FUNCTION leak2(integer,integer) RETURNS boolean
 CREATE OPERATOR >>> (procedure = leak2, leftarg = integer, rightarg = integer,
                      restrict = scalargtsel);
 --DDL_STATEMENT_END--
+
 -- This should not show any "leak" notices before failing.
 EXPLAIN (COSTS OFF) SELECT * FROM atest12 WHERE a >>> 0;
 
@@ -283,7 +306,11 @@ EXPLAIN (COSTS OFF) SELECT * FROM atest12 x, atest12 y
 --DDL_STATEMENT_BEGIN--
 DROP FUNCTION leak2(integer, integer) CASCADE;
 --DDL_STATEMENT_END--
+
+
 -- groups
+
+
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_priv_user3;
 --DDL_STATEMENT_END--
@@ -296,6 +323,7 @@ CREATE TABLE atest3 (one int, two int, three int);
 --DDL_STATEMENT_BEGIN--
 GRANT DELETE ON atest3 TO GROUP regress_priv_group2;
 --DDL_STATEMENT_END--
+
 SET SESSION AUTHORIZATION regress_priv_user1;
 
 SELECT * FROM atest3; -- fail
@@ -305,6 +333,7 @@ DELETE FROM atest3; -- ok
 -- views
 
 SET SESSION AUTHORIZATION regress_priv_user3;
+
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW atestv1 AS SELECT * FROM atest1; -- ok
 --DDL_STATEMENT_END--
@@ -319,6 +348,7 @@ CREATE VIEW atestv3 AS SELECT * FROM atest3; -- ok
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW atestv0 AS SELECT 0 as x WHERE false; -- ok
 --DDL_STATEMENT_END--
+
 SELECT * FROM atestv1; -- ok
 SELECT * FROM atestv2; -- fail
 --DDL_STATEMENT_BEGIN--
@@ -348,6 +378,7 @@ select * from
    (select b.q2 as x, random() from int8_tbl b where q2 > 0)) ss
 where x < 0;
 reset constraint_exclusion;
+
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW atestv4 AS SELECT * FROM atestv3; -- nested view
 --DDL_STATEMENT_END--
@@ -355,6 +386,7 @@ SELECT * FROM atestv4; -- ok
 --DDL_STATEMENT_BEGIN--
 GRANT SELECT ON atestv4 TO regress_priv_user2;
 --DDL_STATEMENT_END--
+
 SET SESSION AUTHORIZATION regress_priv_user2;
 
 -- Two complex cases:
@@ -366,6 +398,7 @@ SELECT * FROM atest2; -- ok
 SELECT * FROM atestv2; -- fail (even though regress_priv_user2 can access underlying atest2)
 
 -- Test column level permissions
+
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_priv_user1;
 --DDL_STATEMENT_END--
@@ -387,6 +420,7 @@ GRANT SELECT (one), INSERT (two), UPDATE (three) ON atest5 TO regress_priv_user4
 --DDL_STATEMENT_BEGIN--
 GRANT ALL (one) ON atest5 TO regress_priv_user3;
 --DDL_STATEMENT_END--
+
 INSERT INTO atest5 VALUES (1,2,3);
 
 SET SESSION AUTHORIZATION regress_priv_user4;
@@ -410,11 +444,13 @@ SELECT atest1.*,atest5.one FROM atest1 JOIN atest5 ON (atest1.a = atest5.two); -
 SELECT atest1.*,atest5.one FROM atest1 JOIN atest5 ON (atest1.a = atest5.one); -- ok
 SELECT one, two FROM atest5; -- fail
 --DDL_STATEMENT_BEGIN--
+
 SET SESSION AUTHORIZATION regress_priv_user1;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 GRANT SELECT (one,two) ON atest6 TO regress_priv_user4;
 --DDL_STATEMENT_END--
+
 SET SESSION AUTHORIZATION regress_priv_user4;
 SELECT one, two FROM atest5 NATURAL JOIN atest6; -- fail still
 
@@ -422,6 +458,7 @@ SET SESSION AUTHORIZATION regress_priv_user1;
 --DDL_STATEMENT_BEGIN--
 GRANT SELECT (two) ON atest5 TO regress_priv_user4;
 --DDL_STATEMENT_END--
+
 SET SESSION AUTHORIZATION regress_priv_user4;
 SELECT one, two FROM atest5 NATURAL JOIN atest6; -- ok now
 
@@ -440,6 +477,7 @@ UPDATE atest5 SET three = 5, one = 2; -- fail
 
 -- Check that the columns in the inference require select privileges
 INSERT INTO atest5(four) VALUES (4); -- fail
+
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_priv_user1;
 --DDL_STATEMENT_END--
@@ -449,6 +487,7 @@ GRANT INSERT (four) ON atest5 TO regress_priv_user4;
 SET SESSION AUTHORIZATION regress_priv_user4;
 
 INSERT INTO atest5(four) VALUES (4); -- ok
+
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_priv_user1;
 --DDL_STATEMENT_END--
@@ -464,6 +503,7 @@ REVOKE ALL (one) ON atest5 FROM regress_priv_user4;
 --DDL_STATEMENT_BEGIN--
 GRANT SELECT (one,two,blue) ON atest6 TO regress_priv_user4;
 --DDL_STATEMENT_END--
+
 SET SESSION AUTHORIZATION regress_priv_user4;
 SELECT one FROM atest5; -- fail
 UPDATE atest5 SET one = 1; -- fail
@@ -509,6 +549,7 @@ SET SESSION AUTHORIZATION regress_priv_user1;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE t1;
 --DDL_STATEMENT_END--
+
 -- test column-level privileges when involved with DELETE
 SET SESSION AUTHORIZATION regress_priv_user1;
 --DDL_STATEMENT_BEGIN--
@@ -526,6 +567,7 @@ REVOKE ALL (one) ON atest5 FROM regress_priv_user3;
 --DDL_STATEMENT_BEGIN--
 GRANT SELECT (one) ON atest5 TO regress_priv_user4;
 --DDL_STATEMENT_END--
+
 SET SESSION AUTHORIZATION regress_priv_user4;
 SELECT atest6 FROM atest6; -- fail
 SELECT one FROM atest5 NATURAL JOIN atest6; -- fail
@@ -534,6 +576,7 @@ SET SESSION AUTHORIZATION regress_priv_user1;
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE atest6 DROP COLUMN three;
 --DDL_STATEMENT_END--
+
 SET SESSION AUTHORIZATION regress_priv_user4;
 SELECT one FROM atest5 NATURAL JOIN atest6; -- ok
 
@@ -544,6 +587,7 @@ ALTER TABLE atest6 DROP COLUMN two;
 --DDL_STATEMENT_BEGIN--
 REVOKE SELECT (one,blue) ON atest6 FROM regress_priv_user4;
 --DDL_STATEMENT_END--
+
 SET SESSION AUTHORIZATION regress_priv_user4;
 SELECT * FROM atest6; -- fail
 SELECT 1 FROM atest6; -- fail
@@ -556,6 +600,7 @@ DELETE FROM atest5 WHERE two = 2; -- ok
 
 -- switch to superuser
 \c -
+
 --DDL_STATEMENT_BEGIN--
 REVOKE ALL PRIVILEGES ON LANGUAGE sql FROM PUBLIC;
 --DDL_STATEMENT_END--
@@ -565,6 +610,7 @@ GRANT USAGE ON LANGUAGE sql TO regress_priv_user1; --
 --DDL_STATEMENT_BEGIN--
 GRANT USAGE ON LANGUAGE c TO PUBLIC; -- fail
 --DDL_STATEMENT_END--
+
 SET SESSION AUTHORIZATION regress_priv_user1;
 --DDL_STATEMENT_BEGIN--
 GRANT USAGE ON LANGUAGE sql TO regress_priv_user2; -- fail
@@ -581,6 +627,7 @@ CREATE AGGREGATE priv_testagg1(int) (sfunc = int4pl, stype = int4);
 --DDL_STATEMENT_BEGIN--
 CREATE PROCEDURE priv_testproc1(int) AS 'select $1;' LANGUAGE sql;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 REVOKE ALL ON FUNCTION priv_testfunc1(int), priv_testfunc2(int), priv_testagg1(int) FROM PUBLIC;
 --DDL_STATEMENT_END--
@@ -626,6 +673,7 @@ CREATE FUNCTION priv_testfunc4(boolean) RETURNS text
 --DDL_STATEMENT_BEGIN--
 GRANT EXECUTE ON FUNCTION priv_testfunc4(boolean) TO regress_priv_user3;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_priv_user2;
 --DDL_STATEMENT_END--
@@ -642,12 +690,14 @@ SELECT priv_testagg1(x) FROM (VALUES (1), (2), (3)) _(x); -- fail
 CALL priv_testproc1(6); -- fail
 SELECT col1 FROM atest2 WHERE col2 = true; -- fail
 SELECT priv_testfunc4(true); -- ok
+
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_priv_user4;
 --DDL_STATEMENT_END--
 SELECT priv_testfunc1(5); -- ok
 SELECT priv_testagg1(x) FROM (VALUES (1), (2), (3)) _(x); -- ok
 CALL priv_testproc1(6); -- ok
+
 --DDL_STATEMENT_BEGIN--
 DROP FUNCTION priv_testfunc1(int); -- fail
 --DDL_STATEMENT_END--
@@ -657,7 +707,9 @@ DROP AGGREGATE priv_testagg1(int); -- fail
 --DDL_STATEMENT_BEGIN--
 DROP PROCEDURE priv_testproc1(int); -- fail
 --DDL_STATEMENT_END--
+
 \c -
+
 --DDL_STATEMENT_BEGIN--
 DROP FUNCTION priv_testfunc1(int); -- ok
 --DDL_STATEMENT_END--
@@ -665,6 +717,7 @@ DROP FUNCTION priv_testfunc1(int); -- ok
 --DDL_STATEMENT_BEGIN--
 GRANT ALL PRIVILEGES ON LANGUAGE sql TO PUBLIC;
 --DDL_STATEMENT_END--
+
 -- verify privilege checks on array-element coercions
 BEGIN;
 SELECT '{1}'::int4[]::int8[];
@@ -811,15 +864,18 @@ drop table mytable;
 --DDL_STATEMENT_END--
 
 -- Grant options
+
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_priv_user1;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists atest4;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE atest4 (a int);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 GRANT SELECT ON atest4 TO regress_priv_user2 WITH GRANT OPTION;
 --DDL_STATEMENT_END--
@@ -829,18 +885,22 @@ GRANT UPDATE ON atest4 TO regress_priv_user2;
 --DDL_STATEMENT_BEGIN--
 GRANT SELECT ON atest4 TO GROUP regress_priv_group1 WITH GRANT OPTION;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_priv_user2;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 GRANT SELECT ON atest4 TO regress_priv_user3;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 GRANT UPDATE ON atest4 TO regress_priv_user3; -- fail
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_priv_user1;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 REVOKE SELECT ON atest4 FROM regress_priv_user3; -- does nothing
 --DDL_STATEMENT_END--
@@ -860,6 +920,7 @@ SELECT has_table_privilege('regress_priv_user1', 'atest4', 'SELECT WITH GRANT OP
 
 
 -- Admin options
+
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_priv_user4;
 --DDL_STATEMENT_END--
@@ -876,6 +937,7 @@ SET ROLE regress_priv_group2;
 --DDL_STATEMENT_BEGIN--
 GRANT regress_priv_group2 TO regress_priv_user5; -- fails: SET ROLE suspended privilege
 --DDL_STATEMENT_END--
+
 SET SESSION AUTHORIZATION regress_priv_user1;
 --DDL_STATEMENT_BEGIN--
 GRANT regress_priv_group2 TO regress_priv_user5; -- fails: no ADMIN OPTION
@@ -885,6 +947,7 @@ SET ROLE regress_priv_group2;
 --DDL_STATEMENT_BEGIN--
 GRANT regress_priv_group2 TO regress_priv_user5; -- fails: SET ROLE did not help
 --DDL_STATEMENT_END--
+
 SET SESSION AUTHORIZATION regress_priv_group2;
 --DDL_STATEMENT_BEGIN--
 --DDL_STATEMENT_BEGIN--
@@ -899,6 +962,7 @@ SELECT dogrant_fails();			-- fails: no self-admin in SECURITY DEFINER
 --DDL_STATEMENT_BEGIN--
 DROP FUNCTION dogrant_fails();
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_priv_user4;
 --DDL_STATEMENT_END--
@@ -909,14 +973,18 @@ DROP FUNCTION dogrant_ok();
 REVOKE regress_priv_group2 FROM regress_priv_user5;
 --DDL_STATEMENT_END--
 
+
 -- has_sequence_privilege tests
 \c -
+
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE x_seq;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 GRANT USAGE on x_seq to regress_priv_user2;
 --DDL_STATEMENT_END--
+
 SELECT has_sequence_privilege('regress_priv_user1', 'atest1', 'SELECT');
 SELECT has_sequence_privilege('regress_priv_user1', 'x_seq', 'INSERT');
 SELECT has_sequence_privilege('regress_priv_user1', 'x_seq', 'SELECT');
@@ -930,11 +998,13 @@ SELECT has_sequence_privilege('x_seq', 'USAGE');
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_priv_user1;
 --DDL_STATEMENT_END--
+
 SELECT lo_create(1001);
 SELECT lo_create(1002);
 SELECT lo_create(1003);
 SELECT lo_create(1004);
 SELECT lo_create(1005);
+
 --DDL_STATEMENT_BEGIN--
 GRANT ALL ON LARGE OBJECT 1001 TO PUBLIC;
 --DDL_STATEMENT_END--
@@ -950,6 +1020,7 @@ GRANT ALL ON LARGE OBJECT 1005 TO regress_priv_user2;
 --DDL_STATEMENT_BEGIN--
 GRANT SELECT ON LARGE OBJECT 1005 TO regress_priv_user2 WITH GRANT OPTION;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 GRANT SELECT, INSERT ON LARGE OBJECT 1001 TO PUBLIC;	-- to be failed
 --DDL_STATEMENT_END--
@@ -978,6 +1049,7 @@ SELECT lowrite(lo_open(1001, x'20000'::int), 'abcd');
 SELECT lowrite(lo_open(1002, x'20000'::int), 'abcd');	-- to be denied
 SELECT lowrite(lo_open(1003, x'20000'::int), 'abcd');	-- to be denied
 SELECT lowrite(lo_open(1004, x'20000'::int), 'abcd');
+
 --DDL_STATEMENT_BEGIN--
 GRANT SELECT ON LARGE OBJECT 1005 TO regress_priv_user3;
 --DDL_STATEMENT_END--
@@ -1040,59 +1112,75 @@ SELECT * FROM pg_largeobject LIMIT 0;			-- to be denied
 
 -- test default ACLs
 \c -
+
 --DDL_STATEMENT_BEGIN--
 CREATE SCHEMA testns;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 GRANT ALL ON SCHEMA testns TO regress_priv_user1;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE testns.acltest1 (x int);
 --DDL_STATEMENT_END--
 SELECT has_table_privilege('regress_priv_user1', 'testns.acltest1', 'SELECT'); -- no
 SELECT has_table_privilege('regress_priv_user1', 'testns.acltest1', 'INSERT'); -- no
+
 --DDL_STATEMENT_BEGIN--
 ALTER DEFAULT PRIVILEGES IN SCHEMA testns GRANT SELECT ON TABLES TO public;
 --DDL_STATEMENT_END--
+
 SELECT has_table_privilege('regress_priv_user1', 'testns.acltest1', 'SELECT'); -- no
 SELECT has_table_privilege('regress_priv_user1', 'testns.acltest1', 'INSERT'); -- no
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE testns.acltest1;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE testns.acltest1 (x int);
 --DDL_STATEMENT_END--
+
 SELECT has_table_privilege('regress_priv_user1', 'testns.acltest1', 'SELECT'); -- yes
 SELECT has_table_privilege('regress_priv_user1', 'testns.acltest1', 'INSERT'); -- no
+
 --DDL_STATEMENT_BEGIN--
 ALTER DEFAULT PRIVILEGES IN SCHEMA testns GRANT INSERT ON TABLES TO regress_priv_user1;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE testns.acltest1;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE testns.acltest1 (x int);
 --DDL_STATEMENT_END--
+
 SELECT has_table_privilege('regress_priv_user1', 'testns.acltest1', 'SELECT'); -- yes
 SELECT has_table_privilege('regress_priv_user1', 'testns.acltest1', 'INSERT'); -- yes
+
 --DDL_STATEMENT_BEGIN--
 ALTER DEFAULT PRIVILEGES IN SCHEMA testns REVOKE INSERT ON TABLES FROM regress_priv_user1;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE testns.acltest1;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE testns.acltest1 (x int);
 --DDL_STATEMENT_END--
+
 SELECT has_table_privilege('regress_priv_user1', 'testns.acltest1', 'SELECT'); -- yes
 SELECT has_table_privilege('regress_priv_user1', 'testns.acltest1', 'INSERT'); -- no
+
 --DDL_STATEMENT_BEGIN--
 ALTER DEFAULT PRIVILEGES FOR ROLE regress_priv_user1 REVOKE EXECUTE ON FUNCTIONS FROM public;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER DEFAULT PRIVILEGES IN SCHEMA testns GRANT USAGE ON SCHEMAS TO regress_priv_user2; -- error
 --DDL_STATEMENT_END--
+
 SET ROLE regress_priv_user1;
+
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION testns.foo() RETURNS int AS 'select 1' LANGUAGE sql;
 --DDL_STATEMENT_END--
@@ -1102,12 +1190,15 @@ CREATE AGGREGATE testns.agg1(int) (sfunc = int4pl, stype = int4);
 --DDL_STATEMENT_BEGIN--
 CREATE PROCEDURE testns.bar() AS 'select 1' LANGUAGE sql;
 --DDL_STATEMENT_END--
+
 SELECT has_function_privilege('regress_priv_user2', 'testns.foo()', 'EXECUTE'); -- no
 SELECT has_function_privilege('regress_priv_user2', 'testns.agg1(int)', 'EXECUTE'); -- no
 SELECT has_function_privilege('regress_priv_user2', 'testns.bar()', 'EXECUTE'); -- no
+
 --DDL_STATEMENT_BEGIN--
 ALTER DEFAULT PRIVILEGES IN SCHEMA testns GRANT EXECUTE ON ROUTINES to public;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP FUNCTION testns.foo();
 --DDL_STATEMENT_END--
@@ -1126,9 +1217,11 @@ DROP PROCEDURE testns.bar();
 --DDL_STATEMENT_BEGIN--
 CREATE PROCEDURE testns.bar() AS 'select 1' LANGUAGE sql;
 --DDL_STATEMENT_END--
+
 SELECT has_function_privilege('regress_priv_user2', 'testns.foo()', 'EXECUTE'); -- yes
 SELECT has_function_privilege('regress_priv_user2', 'testns.agg1(int)', 'EXECUTE'); -- yes
 SELECT has_function_privilege('regress_priv_user2', 'testns.bar()', 'EXECUTE'); -- yes (counts as function here)
+
 --DDL_STATEMENT_BEGIN--
 DROP FUNCTION testns.foo();
 --DDL_STATEMENT_END--
@@ -1138,20 +1231,24 @@ DROP AGGREGATE testns.agg1(int);
 --DDL_STATEMENT_BEGIN--
 DROP PROCEDURE testns.bar();
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER DEFAULT PRIVILEGES FOR ROLE regress_priv_user1 REVOKE USAGE ON TYPES FROM public;
 --DDL_STATEMENT_END--
+
 RESET ROLE;
 
 SELECT count(*)
   FROM pg_default_acl d LEFT JOIN pg_namespace n ON defaclnamespace = n.oid
   WHERE nspname = 'testns';
+  
 --DDL_STATEMENT_BEGIN--
 DROP TABLE testns.acltest1;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 DROP SCHEMA testns CASCADE;
 --DDL_STATEMENT_END--
+
 SELECT d.*     -- check that entries went away
   FROM pg_default_acl d LEFT JOIN pg_namespace n ON defaclnamespace = n.oid
   WHERE nspname IS NULL AND defaclnamespace != 0;
@@ -1159,6 +1256,7 @@ SELECT d.*     -- check that entries went away
 
 -- Grant on all objects of given type in a schema
 \c -
+
 --DDL_STATEMENT_BEGIN--
 CREATE SCHEMA testns;
 --DDL_STATEMENT_END--
@@ -1170,16 +1268,21 @@ CREATE TABLE testns.t2 (f1 int);
 --DDL_STATEMENT_END--
 
 SELECT has_table_privilege('regress_priv_user1', 'testns.t1', 'SELECT'); -- false
+
 --DDL_STATEMENT_BEGIN--
 GRANT ALL ON ALL TABLES IN SCHEMA testns TO regress_priv_user1;
 --DDL_STATEMENT_END--
+
 SELECT has_table_privilege('regress_priv_user1', 'testns.t1', 'SELECT'); -- true
 SELECT has_table_privilege('regress_priv_user1', 'testns.t2', 'SELECT'); -- true
+
 --DDL_STATEMENT_BEGIN--
 REVOKE ALL ON ALL TABLES IN SCHEMA testns FROM regress_priv_user1;
 --DDL_STATEMENT_END--
+
 SELECT has_table_privilege('regress_priv_user1', 'testns.t1', 'SELECT'); -- false
 SELECT has_table_privilege('regress_priv_user1', 'testns.t2', 'SELECT'); -- false
+
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION testns.priv_testfunc(int) RETURNS int AS 'select 3 * $1;' LANGUAGE sql;
 --DDL_STATEMENT_END--
@@ -1193,19 +1296,25 @@ CREATE PROCEDURE testns.priv_testproc(int) AS 'select 3' LANGUAGE sql;
 SELECT has_function_privilege('regress_priv_user1', 'testns.priv_testfunc(int)', 'EXECUTE'); -- true by default
 SELECT has_function_privilege('regress_priv_user1', 'testns.priv_testagg(int)', 'EXECUTE'); -- true by default
 SELECT has_function_privilege('regress_priv_user1', 'testns.priv_testproc(int)', 'EXECUTE'); -- true by default
+
 --DDL_STATEMENT_BEGIN--
 REVOKE ALL ON ALL FUNCTIONS IN SCHEMA testns FROM PUBLIC;
 --DDL_STATEMENT_END--
+
 SELECT has_function_privilege('regress_priv_user1', 'testns.priv_testfunc(int)', 'EXECUTE'); -- false
 SELECT has_function_privilege('regress_priv_user1', 'testns.priv_testagg(int)', 'EXECUTE'); -- false
 SELECT has_function_privilege('regress_priv_user1', 'testns.priv_testproc(int)', 'EXECUTE'); -- still true, not a function
+
 --DDL_STATEMENT_BEGIN--
 REVOKE ALL ON ALL PROCEDURES IN SCHEMA testns FROM PUBLIC;
 --DDL_STATEMENT_END--
+
 SELECT has_function_privilege('regress_priv_user1', 'testns.priv_testproc(int)', 'EXECUTE'); -- now false
+
 --DDL_STATEMENT_BEGIN--
 GRANT ALL ON ALL ROUTINES IN SCHEMA testns TO PUBLIC;
 --DDL_STATEMENT_END--
+
 SELECT has_function_privilege('regress_priv_user1', 'testns.priv_testfunc(int)', 'EXECUTE'); -- true
 SELECT has_function_privilege('regress_priv_user1', 'testns.priv_testagg(int)', 'EXECUTE'); -- true
 SELECT has_function_privilege('regress_priv_user1', 'testns.priv_testproc(int)', 'EXECUTE'); -- true
@@ -1225,6 +1334,7 @@ DROP SCHEMA testns CASCADE;
 
 -- Change owner of the schema & and rename of new schema owner
 \c -
+
 --DDL_STATEMENT_BEGIN--
 CREATE ROLE regress_schemauser1 superuser login;
 --DDL_STATEMENT_END--
@@ -1236,7 +1346,9 @@ SET SESSION ROLE regress_schemauser1;
 --DDL_STATEMENT_BEGIN--
 CREATE SCHEMA testns;
 --DDL_STATEMENT_END--
+
 SELECT nspname, rolname FROM pg_namespace, pg_roles WHERE pg_namespace.nspname = 'testns' AND pg_namespace.nspowner = pg_roles.oid;
+
 --DDL_STATEMENT_BEGIN--
 ALTER SCHEMA testns OWNER TO regress_schemauser2;
 --DDL_STATEMENT_END--
@@ -1254,6 +1366,7 @@ DROP SCHEMA testns CASCADE;
 
 -- clean up
 \c -
+
 --DDL_STATEMENT_BEGIN--
 DROP ROLE regress_schemauser1;
 --DDL_STATEMENT_END--
@@ -1267,8 +1380,10 @@ drop schema testns;
 DROP ROLE regress_schemauser_renamed;
 --DDL_STATEMENT_END--
 
+
 -- test that dependent privileges are revoked (or not) properly
 \c -
+
 --DDL_STATEMENT_BEGIN--
 set session role regress_priv_user1;
 --DDL_STATEMENT_END--
@@ -1321,12 +1436,15 @@ set session role regress_priv_user1;
 drop table dep_priv_test;
 --DDL_STATEMENT_END--
 
+
 -- clean up
 
 \c
+
 --DDL_STATEMENT_BEGIN--
 drop sequence x_seq;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP AGGREGATE priv_testagg1(int);
 --DDL_STATEMENT_END--
@@ -1339,6 +1457,7 @@ DROP FUNCTION priv_testfunc4(boolean);
 --DDL_STATEMENT_BEGIN--
 DROP PROCEDURE priv_testproc1(int);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP VIEW atestv0;
 --DDL_STATEMENT_END--
@@ -1356,6 +1475,7 @@ DROP VIEW atestv3 CASCADE;
 --DDL_STATEMENT_BEGIN--
 DROP VIEW atestv4;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE atest1 cascade;
 --DDL_STATEMENT_END--
@@ -1394,6 +1514,7 @@ drop table atest12 cascade;
 --DDL_STATEMENT_BEGIN--
 drop function leak(integer,integer) cascade;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER DEFAULT PRIVILEGES FOR ROLE regress_priv_user1 grant EXECUTE ON FUNCTIONS to public;
 --DDL_STATEMENT_END--
@@ -1452,6 +1573,7 @@ ROLLBACK
 --DDL_STATEMENT_BEGIN--
 REVOKE SELECT ON lock_table FROM regress_locktable_user;
 --DDL_STATEMENT_END--
+
 -- LOCK TABLE and INSERT permission
 --DDL_STATEMENT_BEGIN--
 GRANT INSERT ON lock_table TO regress_locktable_user;
@@ -1476,6 +1598,7 @@ ROLLBACK;
 --DDL_STATEMENT_BEGIN--
 REVOKE INSERT ON lock_table FROM regress_locktable_user;
 --DDL_STATEMENT_END--
+
 -- LOCK TABLE and UPDATE permission
 --DDL_STATEMENT_BEGIN--
 GRANT UPDATE ON lock_table TO regress_locktable_user;
@@ -1500,6 +1623,7 @@ COMMIT;
 --DDL_STATEMENT_BEGIN--
 REVOKE UPDATE ON lock_table FROM regress_locktable_user;
 --DDL_STATEMENT_END--
+
 -- LOCK TABLE and DELETE permission
 --DDL_STATEMENT_BEGIN--
 GRANT DELETE ON lock_table TO regress_locktable_user;
@@ -1526,6 +1650,7 @@ COMMIT;
 --DDL_STATEMENT_BEGIN--
 REVOKE DELETE ON lock_table FROM regress_locktable_user;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 SET SESSION AUTHORIZATION regress_locktable_user;
 --DDL_STATEMENT_END--

@@ -34,6 +34,7 @@ CREATE TABLE SUBSELECT_TBL (
   f3 float
 );
 --DDL_STATEMENT_END--
+
 INSERT INTO SUBSELECT_TBL VALUES (1, 2, 3);
 INSERT INTO SUBSELECT_TBL VALUES (2, 3, 4);
 INSERT INTO SUBSELECT_TBL VALUES (3, 4, 5);
@@ -146,12 +147,14 @@ select count(distinct ss.ten) from
 -- "IN (SELECT DISTINCT ...)" and related cases.  Per example from
 -- Luca Pireddu and Michael Fuhr.
 --
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE foo (id integer);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE bar (id1 integer, id2 integer);
 --DDL_STATEMENT_END--
+
 INSERT INTO foo VALUES (1);
 
 INSERT INTO bar VALUES (1, 1);
@@ -180,6 +183,7 @@ SELECT * FROM foo WHERE id IN
 -- Test case to catch problems with multiply nested sub-SELECTs not getting
 -- recalculated properly.  Per bug report from Didier Moens.
 --
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE if exists orderstest;
 --DDL_STATEMENT_END--
@@ -190,6 +194,7 @@ CREATE TABLE orderstest (
     ordercanceled boolean
 );
 --DDL_STATEMENT_END--
+
 INSERT INTO orderstest VALUES (1, 1, false);
 INSERT INTO orderstest VALUES (66, 5, false);
 INSERT INTO orderstest VALUES (66, 6, false);
@@ -201,6 +206,7 @@ INSERT INTO orderstest VALUES (77, 1, false);
 INSERT INTO orderstest VALUES (1, 1, false);
 INSERT INTO orderstest VALUES (66, 1, false);
 INSERT INTO orderstest VALUES (1, 1, false);
+
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW orders_view AS
 SELECT *,
@@ -239,22 +245,27 @@ END) AS "Status",
 END) AS "Status_OK"
 FROM orderstest ord;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 SELECT * FROM orders_view;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE orderstest cascade;
 --DDL_STATEMENT_END--
+
 --
 -- Test cases to catch situations where rule rewriter fails to propagate
 -- hasSubLinks flag correctly.  Per example from Kyle Bateman.
 --
+
 --DDL_STATEMENT_BEGIN--
 create temp table parts (
     partnum     text,
     cost        float8
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create temp table shipped (
     ttype       char(2),
@@ -263,10 +274,12 @@ create temp table shipped (
     value       float8
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create temp view shipped_view as
     select * from shipped where ttype = 'wt';
 --DDL_STATEMENT_END--
+
 insert into parts (partnum, cost) values (1, 1234.56);
 
 insert into shipped_view (ordnum, partnum, value)
@@ -311,6 +324,7 @@ select * from (
 create temp table numeric_table (num_col numeric);
 --DDL_STATEMENT_END--
 insert into numeric_table values (1), (1.000000000000000000001), (2), (3);
+
 --DDL_STATEMENT_BEGIN--
 create temp table float_table (float_col float8);
 --DDL_STATEMENT_END--
@@ -325,21 +339,27 @@ select * from numeric_table
 --
 -- Test case for bug #4290: bogus calculation of subplan param sets
 --
+
 --DDL_STATEMENT_BEGIN--
 create temp table ta (id int primary key, val int);
 --DDL_STATEMENT_END--
+
 insert into ta values(1,1);
 insert into ta values(2,2);
+
 --DDL_STATEMENT_BEGIN--
 create temp table tb (id int primary key, aval int);
 --DDL_STATEMENT_END--
+
 insert into tb values(1,1);
 insert into tb values(2,1);
 insert into tb values(3,2);
 insert into tb values(4,2);
+
 --DDL_STATEMENT_BEGIN--
 create temp table tc (id int primary key, aid int);
 --DDL_STATEMENT_END--
+
 insert into tc values(1,1);
 insert into tc values(2,2);
 
@@ -351,9 +371,11 @@ from tc;
 --
 -- Test case for 8.3 "failed to locate grouping columns" bug
 --
+
 --DDL_STATEMENT_BEGIN--
 create temp table t1 (f1 numeric(14,0), f2 varchar(30));
 --DDL_STATEMENT_END--
+
 select * from
   (select distinct f1, f2, (select f2 from t1 x where x.f1 = up.f1) as fs
    from t1 up) ss
@@ -362,13 +384,16 @@ group by f1,f2,fs;
 --
 -- Test case for bug #5514 (mishandling of whole-row Vars in subselects)
 --
+
 --DDL_STATEMENT_BEGIN--
 create temp table table_a(id integer);
 --DDL_STATEMENT_END--
 insert into table_a values (42);
+
 --DDL_STATEMENT_BEGIN--
 create temp view view_a as select * from table_a;
 --DDL_STATEMENT_END--
+
 select view_a from view_a;
 select (select view_a) from view_a;
 select (select (select view_a)) from view_a;
@@ -419,6 +444,7 @@ returning *;
 --
 -- Test case for cross-type partial matching in hashed subplan (bug #7597)
 --
+
 --DDL_STATEMENT_BEGIN--
 create temp table outer_7597 (f1 int4, f2 int4);
 --DDL_STATEMENT_END--
@@ -426,6 +452,7 @@ insert into outer_7597 values (0, 0);
 insert into outer_7597 values (1, 0);
 insert into outer_7597 values (0, null);
 insert into outer_7597 values (1, null);
+
 --DDL_STATEMENT_BEGIN--
 create temp table inner_7597(c1 int8, c2 int8);
 --DDL_STATEMENT_END--
@@ -529,6 +556,7 @@ from int4_tbl;
 --DDL_STATEMENT_BEGIN--
 create temp sequence ts1;
 --DDL_STATEMENT_END--
+
 select * from
   (select distinct ten from tenk1) ss
   where ten < 10 + nextval('ts1')
@@ -562,6 +590,8 @@ select * from
 --DDL_STATEMENT_BEGIN--
 alter function tattle(x int, y int) stable;
 --DDL_STATEMENT_END--
+
+
 explain (verbose, costs off)
 select * from
   (select 9 as x, unnest(array[1,2,3,11,12,13]) as u) ss
@@ -583,6 +613,7 @@ select * from
 --DDL_STATEMENT_BEGIN--
 drop function tattle(x int, y int);
 --DDL_STATEMENT_END--
+
 --
 -- Test that LIMIT can be pushed to SORT through a subquery that just projects
 -- columns.  We check for that having happened by looking to see if EXPLAIN
@@ -602,6 +633,7 @@ insert into sq_limit values
     (7, 3, 3),
     (8, 4, 4);
 --DDL_STATEMENT_BEGIN--
+
 create function explain_sq_limit() returns setof text language plpgsql as
 $$
 declare ln text;
@@ -618,15 +650,19 @@ begin
 end;
 $$;
 --DDL_STATEMENT_END--
+
 select * from explain_sq_limit();
 
 select * from (select pk,c2 from sq_limit order by c1,pk) as x limit 3;
+
 --DDL_STATEMENT_BEGIN--
 drop function explain_sq_limit();
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table sq_limit;
 --DDL_STATEMENT_END--
+
 --
 -- Ensure that backward scan direction isn't propagated into
 -- expression subqueries (bug #15336)

@@ -19,6 +19,7 @@ CREATE TABLE wo (i INT,
                  n1 int, n2 int, n3 int, n4 int,
                  n5 int, n6 int, n7 int) WITHOUT OIDS;
 --DDL_STATEMENT_END--
+
 INSERT INTO wi VALUES (1);  -- 1
 INSERT INTO wo SELECT i FROM wi;  -- 1
 INSERT INTO wo SELECT i+1 FROM wi;  -- 1+1=2
@@ -51,12 +52,14 @@ VACUUM ANALYZE wo;
 SELECT min(relpages) < max(relpages), min(reltuples) - max(reltuples)
   FROM pg_class
  WHERE relname IN ('wi', 'wo');
+ 
 --DDL_STATEMENT_BEGIN--
 DROP TABLE wi;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 DROP TABLE wo;
 --DDL_STATEMENT_END--
+
 --
 -- WITH / WITHOUT OIDS in CREATE TABLE AS
 --
@@ -66,17 +69,21 @@ CREATE TABLE create_table_test (
     b int
 );
 --DDL_STATEMENT_END--
+
 COPY create_table_test FROM stdin;
 5	10
 10	15
 \.
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE create_table_test2 WITH OIDS AS
     SELECT a + b AS c1, a - b AS c2 FROM create_table_test;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE create_table_test3 WITHOUT OIDS AS
     SELECT a + b AS c1, a - b AS c2 FROM create_table_test;
+	
 --DDL_STATEMENT_END--
 SELECT count(oid) FROM create_table_test2;
 -- should fail
@@ -84,15 +91,18 @@ SELECT count(oid) FROM create_table_test3;
 
 PREPARE table_source(int) AS
     SELECT a + b AS c1, a - b AS c2, $1 AS c3 FROM create_table_test;
+	
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE execute_with WITH OIDS AS EXECUTE table_source(1);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE execute_without WITHOUT OIDS AS EXECUTE table_source(2);
 --DDL_STATEMENT_END--
+
 SELECT count(oid) FROM execute_with;
 -- should fail
 SELECT count(oid) FROM execute_without;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE create_table_test;
 --DDL_STATEMENT_END--
@@ -103,7 +113,7 @@ DROP TABLE create_table_test2;
 DROP TABLE create_table_test3;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-DROP TABLE execute_with;\
+DROP TABLE execute_with;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 DROP TABLE execute_without;

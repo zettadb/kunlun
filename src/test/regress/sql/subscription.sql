@@ -1,6 +1,7 @@
 --
 -- SUBSCRIPTION
 --
+
 --DDL_STATEMENT_BEGIN--
 CREATE ROLE regress_subscription_user LOGIN SUPERUSER;
 --DDL_STATEMENT_END--
@@ -21,24 +22,29 @@ CREATE SUBSCRIPTION testsub CONNECTION 'foo';
 --DDL_STATEMENT_BEGIN--
 CREATE SUBSCRIPTION testsub PUBLICATION foo;
 --DDL_STATEMENT_END--
+
 -- fail - cannot do CREATE SUBSCRIPTION CREATE SLOT inside transaction block
 --DDL_STATEMENT_BEGIN--
 BEGIN;
 CREATE SUBSCRIPTION testsub CONNECTION 'testconn' PUBLICATION testpub WITH (create_slot);
 COMMIT;
 --DDL_STATEMENT_END--
+
 -- fail - invalid connection string
 --DDL_STATEMENT_BEGIN--
 CREATE SUBSCRIPTION testsub CONNECTION 'testconn' PUBLICATION testpub;
 --DDL_STATEMENT_END--
+
 -- fail - duplicate publications
 --DDL_STATEMENT_BEGIN--
 CREATE SUBSCRIPTION testsub CONNECTION 'dbname=doesnotexist' PUBLICATION foo, testpub, foo WITH (connect = false);
 --DDL_STATEMENT_END--
+
 -- ok
 --DDL_STATEMENT_BEGIN--
 CREATE SUBSCRIPTION testsub CONNECTION 'dbname=doesnotexist' PUBLICATION testpub WITH (connect = false);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 COMMENT ON SUBSCRIPTION testsub IS 'test subscription';
 --DDL_STATEMENT_END--
@@ -48,6 +54,7 @@ SELECT obj_description(s.oid, 'pg_subscription') FROM pg_subscription s;
 --DDL_STATEMENT_BEGIN--
 CREATE SUBSCRIPTION testsub CONNECTION 'dbname=doesnotexist' PUBLICATION testpub WITH (connect = false);
 --DDL_STATEMENT_END--
+
 -- fail - must be superuser
 SET SESSION AUTHORIZATION 'regress_subscription_user2';
 --DDL_STATEMENT_BEGIN--
@@ -56,7 +63,6 @@ CREATE SUBSCRIPTION testsub2 CONNECTION 'dbname=doesnotexist' PUBLICATION foo WI
 SET SESSION AUTHORIZATION 'regress_subscription_user';
 
 -- fail - invalid option combinations
-
 --DDL_STATEMENT_BEGIN--
 CREATE SUBSCRIPTION testsub2 CONNECTION 'dbname=doesnotexist' PUBLICATION testpub WITH (connect = false, copy_data = true);
 --DDL_STATEMENT_END--
@@ -81,6 +87,7 @@ CREATE SUBSCRIPTION testsub2 CONNECTION 'dbname=doesnotexist' PUBLICATION testpu
 --DDL_STATEMENT_BEGIN--
 CREATE SUBSCRIPTION testsub2 CONNECTION 'dbname=doesnotexist' PUBLICATION testpub WITH (slot_name = NONE, create_slot = false);
 --DDL_STATEMENT_END--
+
 -- ok - with slot_name = NONE
 --DDL_STATEMENT_BEGIN--
 CREATE SUBSCRIPTION testsub3 CONNECTION 'dbname=doesnotexist' PUBLICATION testpub WITH (slot_name = NONE, connect = false);
@@ -92,14 +99,18 @@ ALTER SUBSCRIPTION testsub3 ENABLE;
 --DDL_STATEMENT_BEGIN--
 ALTER SUBSCRIPTION testsub3 REFRESH PUBLICATION;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP SUBSCRIPTION testsub3;
 --DDL_STATEMENT_END--
+
 -- fail - invalid connection string
 --DDL_STATEMENT_BEGIN--
 ALTER SUBSCRIPTION testsub CONNECTION 'foobar';
 --DDL_STATEMENT_END--
+
 \dRs+
+
 --DDL_STATEMENT_BEGIN--
 ALTER SUBSCRIPTION testsub SET PUBLICATION testpub2, testpub3 WITH (refresh = false);
 --DDL_STATEMENT_END--
@@ -124,10 +135,13 @@ BEGIN;
 --DDL_STATEMENT_BEGIN--
 ALTER SUBSCRIPTION testsub ENABLE;
 --DDL_STATEMENT_END--
+
 \dRs
+
 --DDL_STATEMENT_BEGIN--
 ALTER SUBSCRIPTION testsub DISABLE;
 --DDL_STATEMENT_END--
+
 \dRs
 
 COMMIT;
@@ -138,6 +152,7 @@ SET ROLE regress_subscription_user_dummy;
 ALTER SUBSCRIPTION testsub RENAME TO testsub_dummy;
 --DDL_STATEMENT_END--
 RESET ROLE;
+
 --DDL_STATEMENT_BEGIN--
 ALTER SUBSCRIPTION testsub RENAME TO testsub_foo;
 --DDL_STATEMENT_END--
@@ -173,21 +188,25 @@ BEGIN;
 DROP SUBSCRIPTION testsub;
 COMMIT;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER SUBSCRIPTION testsub SET (slot_name = NONE);
 --DDL_STATEMENT_END--
+
 -- now it works
 --DDL_STATEMENT_BEGIN--
 BEGIN;
 DROP SUBSCRIPTION testsub;
 COMMIT;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP SUBSCRIPTION IF EXISTS testsub;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 DROP SUBSCRIPTION testsub;  -- fail
 --DDL_STATEMENT_END--
+
 RESET SESSION AUTHORIZATION;
 --DDL_STATEMENT_BEGIN--
 DROP ROLE regress_subscription_user;

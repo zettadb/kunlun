@@ -123,9 +123,11 @@ explain (verbose, costs off)
 update some_tab set a = a + 1 where false returning b, a;
 update some_tab set a = a + 1 where false returning b, a;
 table some_tab;
+
 --DDL_STATEMENT_BEGIN--
 drop table some_tab cascade;
 --DDL_STATEMENT_END--
+
 -- Check UPDATE with inherited target and an inherited source table
 --DDL_STATEMENT_BEGIN--
 create temp table foo(f1 int, f2 int);
@@ -171,7 +173,7 @@ create table some_tab (a int);
 --DDL_STATEMENT_END--
 insert into some_tab values (0);
 --DDL_STATEMENT_BEGIN--
-create table some_tab_child () inherits (some_tab);\
+create table some_tab_child () inherits (some_tab);
 --DDL_STATEMENT_END--
 insert into some_tab_child values (1);
 --DDL_STATEMENT_BEGIN--
@@ -186,7 +188,6 @@ create table parted_tab_part2 partition of parted_tab for values in (2);
 --DDL_STATEMENT_BEGIN--
 create table parted_tab_part3 partition of parted_tab for values in (3);
 --DDL_STATEMENT_END--
-
 insert into parted_tab values (1, 'a'), (2, 'a'), (3, 'a');
 
 update parted_tab set b = 'b'
@@ -205,9 +206,11 @@ select tableoid::regclass::text as relname, parted_tab.* from parted_tab order b
 
 -- modifies partition key, but no rows will actually be updated
 explain update parted_tab set a = 2 where false;
+
 --DDL_STATEMENT_BEGIN--
 drop table parted_tab;
 --DDL_STATEMENT_END--
+
 -- Check UPDATE with multi-level partitioned inherited target
 --DDL_STATEMENT_BEGIN--
 create table mlparted_tab (a int, b char, c text) partition by list (a);
@@ -234,6 +237,7 @@ from
   (select a from some_tab union all select a+1 from some_tab) ss (a)
 where (mlp.a = ss.a and mlp.b = 'b') or mlp.a = 3;
 select tableoid::regclass::text as relname, mlparted_tab.* from mlparted_tab order by 1,2;
+
 --DDL_STATEMENT_BEGIN--
 drop table mlparted_tab;
 --DDL_STATEMENT_END--
@@ -242,6 +246,7 @@ drop table some_tab cascade;
 --DDL_STATEMENT_END--
 
 /* Test multiple inheritance of column defaults */
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE firstparent (tomorrow date default now()::date + 1);
 --DDL_STATEMENT_END--
@@ -261,9 +266,11 @@ CREATE TABLE otherchild () INHERITS (firstparent, thirdparent);  -- not ok
 CREATE TABLE otherchild (tomorrow date default now())
   INHERITS (firstparent, thirdparent);  -- ok, child resolves ambiguous default
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE firstparent, secondparent, jointchild, thirdparent, otherchild;
 --DDL_STATEMENT_END--
+
 -- Test changing the type of inherited columns
 insert into d values('test','one','two','three');
 --DDL_STATEMENT_BEGIN--
@@ -275,6 +282,7 @@ select * from d;
 --DDL_STATEMENT_BEGIN--
 create table oid_parent (a int) with oids;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create table oid_child () inherits (oid_parent);
 --DDL_STATEMENT_END--
@@ -283,6 +291,7 @@ select attinhcount, attislocal from pg_attribute
 --DDL_STATEMENT_BEGIN--
 drop table oid_child;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create table oid_child (a int) without oids;
 --DDL_STATEMENT_END--
@@ -312,9 +321,11 @@ alter table oid_child set without oids;
 --DDL_STATEMENT_END--
 select attinhcount, attislocal from pg_attribute
   where attrelid = 'oid_child'::regclass and attname = 'oid';
+  
 --DDL_STATEMENT_BEGIN--
 drop table oid_parent cascade;
 --DDL_STATEMENT_END--
+
 -- Test non-inheritable parent constraints
 --DDL_STATEMENT_BEGIN--
 create table p1(ff1 int);
@@ -339,6 +350,7 @@ create table c1 () inherits (p1);
 --DDL_STATEMENT_BEGIN--
 create table c2 (constraint p2chk check (ff1 > 10) no inherit) inherits (p1);	--fails
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table p1 cascade;
 --DDL_STATEMENT_END--
@@ -360,6 +372,7 @@ drop table derived;
 --DDL_STATEMENT_BEGIN--
 drop table base;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create table p1(ff1 int);
 --DDL_STATEMENT_END--
@@ -400,6 +413,7 @@ select pc.relname, pgc.conname, pgc.contype, pgc.conislocal, pgc.coninhcount, pg
 
 insert into ac (aa) values (NULL);
 insert into bc (aa) values (NULL);
+
 --DDL_STATEMENT_BEGIN--
 alter table bc drop constraint ac_check;  -- fail, disallowed
 --DDL_STATEMENT_END--
@@ -416,6 +430,7 @@ select pc.relname, pgc.conname, pgc.contype, pgc.conislocal, pgc.coninhcount, pg
 
 insert into ac (aa) values (NULL);
 insert into bc (aa) values (NULL);
+
 --DDL_STATEMENT_BEGIN--
 alter table bc drop constraint ac_aa_check;  -- fail, disallowed
 --DDL_STATEMENT_END--
@@ -423,6 +438,7 @@ alter table bc drop constraint ac_aa_check;  -- fail, disallowed
 alter table ac drop constraint ac_aa_check;
 --DDL_STATEMENT_END--
 select pc.relname, pgc.conname, pgc.contype, pgc.conislocal, pgc.coninhcount, pgc.consrc from pg_class as pc inner join pg_constraint as pgc on (pgc.conrelid = pc.oid) where pc.relname in ('ac', 'bc') order by 1,2;
+
 --DDL_STATEMENT_BEGIN--
 alter table ac add constraint ac_check check (aa is not null);
 --DDL_STATEMENT_END--
@@ -438,6 +454,7 @@ select pc.relname, pgc.conname, pgc.contype, pgc.conislocal, pgc.coninhcount, pg
 alter table ac drop constraint ac_check;
 --DDL_STATEMENT_END--
 select pc.relname, pgc.conname, pgc.contype, pgc.conislocal, pgc.coninhcount, pgc.consrc from pg_class as pc inner join pg_constraint as pgc on (pgc.conrelid = pc.oid) where pc.relname in ('ac', 'bc') order by 1,2;
+
 --DDL_STATEMENT_BEGIN--
 drop table bc;
 --DDL_STATEMENT_END--
@@ -451,6 +468,7 @@ create table ac (a int constraint check_a check (a <> 0));
 create table bc (a int constraint check_a check (a <> 0), b int constraint check_b check (b <> 0)) inherits (ac);
 --DDL_STATEMENT_END--
 select pc.relname, pgc.conname, pgc.contype, pgc.conislocal, pgc.coninhcount, pgc.consrc from pg_class as pc inner join pg_constraint as pgc on (pgc.conrelid = pc.oid) where pc.relname in ('ac', 'bc') order by 1,2;
+
 --DDL_STATEMENT_BEGIN--
 drop table bc;
 --DDL_STATEMENT_END--
@@ -467,10 +485,12 @@ create table bc (b int constraint check_b check (b <> 0));
 create table cc (c int constraint check_c check (c <> 0)) inherits (ac, bc);
 --DDL_STATEMENT_END--
 select pc.relname, pgc.conname, pgc.contype, pgc.conislocal, pgc.coninhcount, pgc.consrc from pg_class as pc inner join pg_constraint as pgc on (pgc.conrelid = pc.oid) where pc.relname in ('ac', 'bc', 'cc') order by 1,2;
+
 --DDL_STATEMENT_BEGIN--
 alter table cc no inherit bc;
 --DDL_STATEMENT_END--
 select pc.relname, pgc.conname, pgc.contype, pgc.conislocal, pgc.coninhcount, pgc.consrc from pg_class as pc inner join pg_constraint as pgc on (pgc.conrelid = pc.oid) where pc.relname in ('ac', 'bc', 'cc') order by 1,2;
+
 --DDL_STATEMENT_BEGIN--
 drop table cc;
 --DDL_STATEMENT_END--
@@ -480,6 +500,7 @@ drop table bc;
 --DDL_STATEMENT_BEGIN--
 drop table ac;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create table p1(f1 int);
 --DDL_STATEMENT_END--
@@ -518,6 +539,7 @@ drop table p1 cascade;
 --DDL_STATEMENT_BEGIN--
 drop table p2 cascade;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create table pp1 (f1 int);
 --DDL_STATEMENT_END--
@@ -550,6 +572,7 @@ CREATE TABLE inhs1 (b int, c int);
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE inhts (d int) INHERITS (inht1, inhs1);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE inht1 RENAME a TO aa;
 --DDL_STATEMENT_END--
@@ -563,6 +586,7 @@ ALTER TABLE inhts RENAME aa TO aaa;      -- to be failed
 ALTER TABLE inhts RENAME d TO dd;
 --DDL_STATEMENT_END--
 \d+ inhts
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE inhts;
 --DDL_STATEMENT_END--
@@ -577,10 +601,12 @@ CREATE TABLE inht3 (y int) INHERITS (inht1);
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE inht4 (z int) INHERITS (inht2, inht3);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE inht1 RENAME aa TO aaa;
 --DDL_STATEMENT_END--
 \d+ inht4
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE inhts (d int) INHERITS (inht2, inhs1);
 --DDL_STATEMENT_END--
@@ -602,6 +628,7 @@ SELECT a.attrelid::regclass, a.attname, a.attinhcount, e.expected
         WHERE inhparent IN (SELECT inhrelid FROM r) GROUP BY inhrelid) e
   JOIN pg_attribute a ON e.inhrelid = a.attrelid WHERE NOT attislocal
   ORDER BY a.attrelid::regclass::name, a.attnum;
+  
 --DDL_STATEMENT_BEGIN--
 DROP TABLE inht1, inhs1 CASCADE;
 --DDL_STATEMENT_END--
@@ -626,6 +653,7 @@ DROP TABLE test_constraints_inh;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE test_constraints;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE test_ex_constraints (
     c circle,
@@ -702,25 +730,29 @@ create table p1(f1 int);
 --DDL_STATEMENT_BEGIN--
 create table p1_c1() inherits(p1);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 alter table p1 add constraint inh_check_constraint1 check (f1 > 0);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 alter table p1_c1 add constraint inh_check_constraint1 check (f1 > 0);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 alter table p1_c1 add constraint inh_check_constraint2 check (f1 < 10);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-alter table p1 add constraint inh_check_constraint2 check (f1 < 10);\
+alter table p1 add constraint inh_check_constraint2 check (f1 < 10);
 --DDL_STATEMENT_END--
 
 select conrelid::regclass::text as relname, conname, conislocal, coninhcount
 from pg_constraint where conname like 'inh\_check\_constraint%'
 order by 1, 2;
+
 --DDL_STATEMENT_BEGIN--
 drop table p1 cascade;
 --DDL_STATEMENT_END--
+
 -- Test that a valid child can have not-valid parent, but not vice versa
 --DDL_STATEMENT_BEGIN--
 create table invalid_check_con(f1 int);
@@ -728,6 +760,7 @@ create table invalid_check_con(f1 int);
 --DDL_STATEMENT_BEGIN--
 create table invalid_check_con_child() inherits(invalid_check_con);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 alter table invalid_check_con_child add constraint inh_check_constraint check(f1 > 0) not valid;
 --DDL_STATEMENT_END--
@@ -739,6 +772,7 @@ alter table invalid_check_con_child drop constraint inh_check_constraint;
 --DDL_STATEMENT_END--
 
 insert into invalid_check_con values(0);
+
 --DDL_STATEMENT_BEGIN--
 alter table invalid_check_con_child add constraint inh_check_constraint check(f1 > 0);
 --DDL_STATEMENT_END--
@@ -759,6 +793,7 @@ order by 1, 2;
 --
 -- Test parameterized append plans for inheritance trees
 --
+
 --DDL_STATEMENT_BEGIN--
 create temp table patest0 (id, x) as
   select x, x from generate_series(0,1000) x;
@@ -789,18 +824,23 @@ analyze patest2;
 explain (costs off)
 select * from patest0 join (select f1 from int4_tbl limit 1) ss on id = f1;
 select * from patest0 join (select f1 from int4_tbl limit 1) ss on id = f1;
+
 --DDL_STATEMENT_BEGIN--
 drop index patest2i;
 --DDL_STATEMENT_END--
+
 explain (costs off)
 select * from patest0 join (select f1 from int4_tbl limit 1) ss on id = f1;
 select * from patest0 join (select f1 from int4_tbl limit 1) ss on id = f1;
+
 --DDL_STATEMENT_BEGIN--
 drop table patest0 cascade;
 --DDL_STATEMENT_END--
+
 --
 -- Test merge-append plans for inheritance trees
 --
+
 --DDL_STATEMENT_BEGIN--
 create table matest0 (id serial primary key, name text);
 --DDL_STATEMENT_END--
@@ -813,6 +853,7 @@ create table matest2 (id integer primary key) inherits (matest0);
 --DDL_STATEMENT_BEGIN--
 create table matest3 (id integer primary key) inherits (matest0);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create index matest0i on matest0 ((1-id));
 --DDL_STATEMENT_END--
@@ -846,13 +887,16 @@ explain (verbose, costs off) select min(1-id) from matest0;
 select min(1-id) from matest0;
 reset enable_seqscan;
 reset enable_parallel_append;
+
 --DDL_STATEMENT_BEGIN--
 drop table matest0 cascade;
 --DDL_STATEMENT_END--
+
 --
 -- Check that use of an index with an extraneous column doesn't produce
 -- a plan with extraneous sorting
 --
+
 --DDL_STATEMENT_BEGIN--
 create table matest0 (a int, b int, c int, d int);
 --DDL_STATEMENT_END--
@@ -874,9 +918,11 @@ where t1.b = t2.b and t2.c = t2.d
 order by t1.b limit 10;
 
 reset enable_nestloop;
+
 --DDL_STATEMENT_BEGIN--
 drop table matest0 cascade;
 --DDL_STATEMENT_END--
+
 --
 -- Test merge-append for UNION ALL append relations
 --
@@ -992,6 +1038,7 @@ explain (costs off) select * from list_parted where a is not null;
 explain (costs off) select * from list_parted where a in ('ab', 'cd', 'ef');
 explain (costs off) select * from list_parted where a = 'ab' or a in (null, 'cd');
 explain (costs off) select * from list_parted where a = 'ab';
+
 --DDL_STATEMENT_BEGIN--
 create table range_list_parted (
 	a	int,
@@ -1050,6 +1097,7 @@ explain (costs off) select * from range_list_parted where a is null;
 explain (costs off) select * from range_list_parted where b is null;
 explain (costs off) select * from range_list_parted where a is not null and a < 67;
 explain (costs off) select * from range_list_parted where a >= 30;
+
 --DDL_STATEMENT_BEGIN--
 drop table list_parted;
 --DDL_STATEMENT_END--

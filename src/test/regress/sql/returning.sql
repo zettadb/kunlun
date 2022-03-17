@@ -3,9 +3,11 @@
 --
 
 -- Simple cases
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE foo (f1 serial, f2 text, f3 int default 42);
 --DDL_STATEMENT_END--
+
 INSERT INTO foo (f2,f3)
   VALUES ('test', DEFAULT), ('More', 11), (upper('more'), 7+9)
   RETURNING *, f1+f3 AS sum;
@@ -53,13 +55,17 @@ SELECT * FROM foo;
 -- SELECT * FROM foo;
 
 -- Check inheritance cases
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE foochild (fc int) INHERITS (foo);
 --DDL_STATEMENT_END--
+
 INSERT INTO foochild VALUES(123,'child',999,-123);
+
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE foo ADD COLUMN f4 int8 DEFAULT 99;
 --DDL_STATEMENT_END--
+
 SELECT * FROM foo;
 SELECT * FROM foochild;
 
@@ -85,13 +91,17 @@ SELECT * FROM foochild;
 --
 --SELECT * FROM foo;
 --SELECT * FROM foochild;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE foochild;
 --DDL_STATEMENT_END--
+
 -- Rules and views
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP VIEW voo AS SELECT f1, f2 FROM foo;
 --DDL_STATEMENT_END--
+
 INSERT INTO voo VALUES(11,'zit');
 -- fails:
 INSERT INTO voo VALUES(12,'zoo') RETURNING *, f1*2;
@@ -117,16 +127,19 @@ SELECT * FROM foo;
 SELECT * FROM voo;
 
 -- Try a join case
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE joinme (f2j text, other int);
 --DDL_STATEMENT_END--
 INSERT INTO joinme VALUES('more', 12345);
 INSERT INTO joinme VALUES('zoo2', 54321);
 INSERT INTO joinme VALUES('other', 0);
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP VIEW joinview AS
   SELECT foo.*, other FROM foo JOIN joinme ON (f2 = f2j);
 --DDL_STATEMENT_END--
+
 SELECT * FROM joinview;
 
 UPDATE joinview SET f1 = f1 + 1 WHERE f3 = 57 RETURNING *, other + 1;

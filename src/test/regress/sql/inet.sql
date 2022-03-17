@@ -3,6 +3,7 @@
 --
 
 -- prepare the table...
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE if exists INET_TBL;
 --DDL_STATEMENT_END--
@@ -151,6 +152,7 @@ INSERT INTO INET_TBL (c, i) VALUES ('10', '10::/8');
 SELECT inet_merge(c, i) FROM INET_TBL;
 -- fix it by inet_same_family() condition
 SELECT inet_merge(c, i) FROM INET_TBL WHERE inet_same_family(c, i);
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE INET_TBL;
 --DDL_STATEMENT_END--

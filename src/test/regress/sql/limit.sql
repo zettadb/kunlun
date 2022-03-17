@@ -49,9 +49,11 @@ SELECT
 -- Test behavior of volatile and set-returning functions in conjunction
 -- with ORDER BY and LIMIT.
 --
+
 --DDL_STATEMENT_BEGIN--
 create temp sequence testseq;
 --DDL_STATEMENT_END--
+
 explain (verbose, costs off)
 select unique1, unique2, nextval('testseq')
   from tenk1 order by unique2 limit 10;

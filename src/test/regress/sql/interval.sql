@@ -14,9 +14,11 @@ SELECT INTERVAL '-1 days +02:03' AS "22 hours ago...";
 SELECT INTERVAL '1.5 weeks' AS "Ten days twelve hours";
 SELECT INTERVAL '1.5 months' AS "One month 15 days";
 SELECT INTERVAL '10 years -11 month -12 days +13:14' AS "9 years...";
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE INTERVAL_TBL (f1 interval);
 --DDL_STATEMENT_END--
+
 INSERT INTO INTERVAL_TBL (f1) VALUES ('@ 1 minute');
 INSERT INTO INTERVAL_TBL (f1) VALUES ('@ 5 hour');
 INSERT INTO INTERVAL_TBL (f1) VALUES ('@ 10 day');
@@ -79,17 +81,21 @@ SELECT r1.*, r2.*
    FROM INTERVAL_TBL_OF r1, INTERVAL_TBL_OF r2
    WHERE r1.f1 > r2.f1
    ORDER BY r1.f1, r2.f1;
+   
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX ON INTERVAL_TBL_OF USING btree (f1);
 --DDL_STATEMENT_END--
+
 SET enable_seqscan TO false;
 EXPLAIN (COSTS OFF)
 SELECT f1 FROM INTERVAL_TBL_OF r1 ORDER BY f1;
 SELECT f1 FROM INTERVAL_TBL_OF r1 ORDER BY f1;
 RESET enable_seqscan;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE INTERVAL_TBL_OF;
 --DDL_STATEMENT_END--
+
 -- Test multiplication and division with intervals.
 -- Floating point arithmetic rounding errors can lead to unexpected results,
 -- though the code attempts to do the right thing and round up to days and
@@ -97,6 +103,7 @@ DROP TABLE INTERVAL_TBL_OF;
 -- Note that it is expected for some day components to be greater than 29 and
 -- some time components be greater than 23:59:59 due to how intervals are
 -- stored internally.
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE INTERVAL_MULDIV_TBL (span interval);
 --DDL_STATEMENT_END--
@@ -122,9 +129,11 @@ FROM INTERVAL_MULDIV_TBL;
 
 SELECT span / 100 AS quotient
 FROM INTERVAL_MULDIV_TBL;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE INTERVAL_MULDIV_TBL;
 --DDL_STATEMENT_END--
+
 SET DATESTYLE = 'postgres';
 SET IntervalStyle to postgres_verbose;
 

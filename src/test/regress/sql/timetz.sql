@@ -1,6 +1,7 @@
 --
 -- TIMETZ
 --
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE if exists TIMETZ_TBL;
 --DDL_STATEMENT_END--
@@ -44,6 +45,7 @@ SELECT f1 AS "Ten" FROM TIMETZ_TBL WHERE f1 >= '00:00-07';
 -- where we do mixed-type arithmetic. - thomas 2000-12-02
 
 SELECT f1 + time with time zone '00:01' AS "Illegal" FROM TIMETZ_TBL;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE TIMETZ_TBL;
 --DDL_STATEMENT_END--

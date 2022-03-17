@@ -20,6 +20,7 @@ CREATE TABLE guid2
 	text_field TEXT DEFAULT(now())
 );
 --DDL_STATEMENT_END--
+
 -- inserting invalid data tests
 -- too long
 INSERT INTO guid1(guid_field) VALUES('11111111-1111-1111-1111-111111111111F');

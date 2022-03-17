@@ -42,6 +42,7 @@ ALTER ROLE regress_rol_lock1 SET search_path = lock_schema1;
 --DDL_STATEMENT_BEGIN--
 GRANT USAGE ON SCHEMA lock_schema1 TO regress_rol_lock1;
 --DDL_STATEMENT_END--
+
 -- Try all valid lock options; also try omitting the optional TABLE keyword.
 --DDL_STATEMENT_BEGIN--
 BEGIN TRANSACTION;
@@ -56,7 +57,10 @@ LOCK lock_tbl1 IN ROW SHARE MODE;
 LOCK TABLE lock_tbl1 IN ROW EXCLUSIVE MODE;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-LOCK TABLE lock_tbl1 IN SHARE UPDATE EXCLUSIVE MODE
+LOCK TABLE lock_tbl1 IN SHARE UPDATE EXCLUSIVE MODE;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
+LOCK TABLE lock_tbl1 IN SHARE MODE;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 LOCK lock_tbl1 IN SHARE ROW EXCLUSIVE MODE;
@@ -104,7 +108,6 @@ ROLLBACK;
 --DDL_STATEMENT_END--
 
 -- Verify that we can lock views.
-
 BEGIN TRANSACTION;
 LOCK TABLE lock_view1 IN EXCLUSIVE MODE;
 -- lock_view1 and lock_tbl1 are locked.
@@ -158,7 +161,6 @@ ROLLBACK;
 --ROLLBACK;
 
 -- Verify that we can lock a table with inheritance children.
-
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE lock_tbl2 (b BIGINT) INHERITS (lock_tbl1);
 --DDL_STATEMENT_END--
@@ -169,6 +171,7 @@ CREATE TABLE lock_tbl3 () INHERITS (lock_tbl2);
 BEGIN TRANSACTION;
 LOCK TABLE lock_tbl1 * IN ACCESS EXCLUSIVE MODE;
 ROLLBACK;
+
 --DDL_STATEMENT_END--
 -- Verify that we can't lock a child table just because we have permission
 -- on the parent, but that we can lock the parent only.
@@ -178,7 +181,6 @@ GRANT UPDATE ON TABLE lock_tbl1 TO regress_rol_lock1;
 --DDL_STATEMENT_BEGIN--
 SET ROLE regress_rol_lock1;
 --DDL_STATEMENT_END--
-
 --DDL_STATEMENT_BEGIN--
 BEGIN;
 LOCK TABLE lock_tbl1 * IN ACCESS EXCLUSIVE MODE;
@@ -230,6 +232,7 @@ DROP SCHEMA lock_schema1 CASCADE;
 --DDL_STATEMENT_BEGIN--
 DROP ROLE regress_rol_lock1;
 --DDL_STATEMENT_END--
+
 
 -- atomic ops tests
 RESET search_path;

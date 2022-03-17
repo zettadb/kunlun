@@ -23,6 +23,7 @@ revoke  ALL on database  星际穿越 from 太阳;
 drop user 太阳;
 --DDL_STATEMENT_END--
 select * from pg_user;
+
 --DDL_STATEMENT_BEGIN--
 CREATE SCHEMA 地球;
 --DDL_STATEMENT_END--
@@ -41,6 +42,7 @@ SELECT * FROM pg_namespace;
 --DDL_STATEMENT_BEGIN--
 create table 个人表(编号 integer primary key, 姓名 varchar(10),年龄 serial,身高 text);
 --DDL_STATEMENT_END--
+
 --alter table--
 --DDL_STATEMENT_BEGIN--
 alter table 个人表  rename to 信息表;
@@ -57,6 +59,7 @@ alter table 信息表 add constraint 年龄 unique(年龄);
 alter table 信息表 drop constraint "年龄";
 --DDL_STATEMENT_END--
 \d 信息表
+
 --DDL_STATEMENT_BEGIN--
 alter table 信息表  add 性别 int NULL;
 --DDL_STATEMENT_END--
@@ -119,9 +122,11 @@ select * from 信息表 limit 4;
 select * from 信息表 limit 4 OFFSET 2;
 select * from 信息表 order by 编号 desc;
 
+
 --DDL_STATEMENT_BEGIN--	
 create table 个人表(编号 integer primary key, 姓名 varchar(10),工资 integer,工作 text);
 --DDL_STATEMENT_END--
+
 insert into 个人表(编号,姓名,工资,工作) values(1,'张三',15000,'内科'),(2,'李四',18000,'内科'),(3,'王五',25000,'外科'),(4,'陈六',25000,'外科'),
 (5,'陈琪',10000,'前台'),(6,'李舞',15000,'外科'),(7,'张霸',20000 ,'内科');
 
@@ -214,6 +219,7 @@ delete from 个人表;
 \d 个人表
 delete from 信息表;
 \d 信息表
+
 
 
 --DDL_STATEMENT_BEGIN--

@@ -38,12 +38,15 @@ CREATE RECURSIVE VIEW nums (n) AS
 UNION ALL
     SELECT n+1 FROM nums WHERE n < 5;
 --DDL_STATEMENT_END--
+
 SELECT * FROM nums;
+
 --DDL_STATEMENT_BEGIN--
 CREATE OR REPLACE RECURSIVE VIEW nums (n) AS
     VALUES (1)
 UNION ALL
     SELECT n+1 FROM nums WHERE n < 6;
+	
 --DDL_STATEMENT_END--
 SELECT * FROM nums;
 
@@ -97,6 +100,7 @@ SELECT n, n IS OF (int) AS is_int FROM t;
 --      |         |
 --      |         +->D-+->F
 --      +->E-+->G
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE department (
 	id INTEGER PRIMARY KEY,  -- department ID
@@ -104,6 +108,7 @@ CREATE TEMP TABLE department (
 	name TEXT -- department name
 );
 --DDL_STATEMENT_END--
+
 INSERT INTO department VALUES (0, NULL, 'ROOT');
 INSERT INTO department VALUES (1, 0, 'A');
 INSERT INTO department VALUES (2, 1, 'B');
@@ -198,6 +203,7 @@ CREATE TEMPORARY VIEW vsubdepartment AS
 	)
 	SELECT * FROM subdepartment;
 --DDL_STATEMENT_END--
+
 SELECT * FROM vsubdepartment ORDER BY name;
 
 -- Check reverse listing
@@ -214,6 +220,7 @@ UNION ALL
 )
 SELECT sum(n) FROM t;
 --DDL_STATEMENT_END--
+
 \d+ sums_1_100
 
 -- corner case in which sub-WITH gets initialized first
@@ -256,6 +263,7 @@ CREATE TEMPORARY TABLE tree(
     parent_id INTEGER
 );
 --DDL_STATEMENT_END--
+
 INSERT INTO tree
 VALUES (1, NULL), (2, 1), (3,1), (4,2), (5,2), (6,2), (7,3), (8,3),
        (9,4), (10,4), (11,7), (12,7), (13,7), (14, 9), (15,11), (16,11);
@@ -301,10 +309,11 @@ SELECT t1.id, t2.path, t2 FROM t AS t1 JOIN t AS t2 ON
 
 --
 -- test cycle detection
---\
+--
 --DDL_STATEMENT_BEGIN--
 create temp table graph( f int, t int, label text );
 --DDL_STATEMENT_END--
+
 insert into graph values
 	(1, 2, 'arc 1 -> 2'),
 	(1, 3, 'arc 1 -> 3'),
@@ -381,6 +390,7 @@ WITH RECURSIVE
 --
 -- Test WITH attached to a data-modifying statement
 --
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMPORARY TABLE y (a INTEGER);
 --DDL_STATEMENT_END--
@@ -409,9 +419,11 @@ WITH RECURSIVE t(a) AS (
 DELETE FROM y USING t WHERE t.a = y.a RETURNING y.a;
 
 SELECT * FROM y;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE y;
 --DDL_STATEMENT_END--
+
 --
 -- error cases
 --
@@ -437,6 +449,7 @@ WITH RECURSIVE x(n) AS (SELECT n FROM x)
 -- recursive term in the left hand side (strictly speaking, should allow this)
 WITH RECURSIVE x(n) AS (SELECT n FROM x UNION ALL SELECT 1)
 	SELECT * FROM x;
+	
 --DDL_STATEMENT_BEGIN--
 CREATE TEMPORARY TABLE y (a INTEGER);
 --DDL_STATEMENT_END--
@@ -549,6 +562,7 @@ SELECT * FROM foo;
 --DDL_STATEMENT_BEGIN--
 CREATE TEMPORARY TABLE x (n integer);
 --DDL_STATEMENT_END--
+
 --
 -- test for bug #4902
 --
@@ -762,9 +776,11 @@ WITH t1 AS ( DELETE FROM bug6051 RETURNING * )
 INSERT INTO bug6051 SELECT * FROM t1;
 
 SELECT * FROM bug6051;
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE bug6051_2 (i int);
 --DDL_STATEMENT_END--
+
 WITH t1 AS ( DELETE FROM bug6051 RETURNING * )
 INSERT INTO bug6051 SELECT * FROM t1;
 
@@ -801,6 +817,7 @@ WITH t AS (
 SELECT * FROM t LIMIT 10;
 
 SELECT * FROM y;
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE withz(k int, v text);
 --DDL_STATEMENT_END--
@@ -808,15 +825,18 @@ insert into withz SELECT i AS k, (i || ' v')::text v FROM generate_series(1, 16,
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE withz ADD UNIQUE (k);
 --DDL_STATEMENT_END--
+
 SELECT * FROM t JOIN y ON t.k = y.a ORDER BY a, k;
 
 SELECT * FROM aa;
 
 -- New query/snapshot demonstrates side-effects of previous query.
 SELECT * FROM withz ORDER BY k;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE withz;
 --DDL_STATEMENT_END--
+
 -- check that run to completion happens in proper ordering
 
 delete from y;
@@ -824,6 +844,7 @@ INSERT INTO y SELECT generate_series(1, 3);
 --DDL_STATEMENT_BEGIN--
 CREATE TEMPORARY TABLE yy (a INTEGER);
 --DDL_STATEMENT_END--
+
 WITH RECURSIVE t1 AS (
   INSERT INTO y SELECT * FROM y RETURNING *
 ), t2 AS (
@@ -884,9 +905,11 @@ SELECT * FROM t;
 SELECT * FROM y;
 
 -- WITH attached to inherited UPDATE or DELETE
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE parent ( id int, val text );
 --DDL_STATEMENT_END--
+
 INSERT INTO parent VALUES ( 1, 'p1' );
 
 WITH rcte AS ( SELECT sum(id) AS totalid FROM parent )

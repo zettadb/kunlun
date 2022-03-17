@@ -1,6 +1,7 @@
 --
 -- TRIGGERS
 --
+
 --DDL_STATEMENT_BEGIN--
 create table pkeys (pkey1 int4 not null, pkey2 text not null);
 --DDL_STATEMENT_END--
@@ -10,6 +11,7 @@ create table fkeys (fkey1 int4, fkey2 text, fkey3 int);
 --DDL_STATEMENT_BEGIN--
 create table fkeys2 (fkey21 int4, fkey22 text, pkey23 int not null);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create index fkeys_i on fkeys (fkey1, fkey2);
 --DDL_STATEMENT_END--
@@ -19,6 +21,7 @@ create index fkeys2_i on fkeys2 (fkey21, fkey22);
 --DDL_STATEMENT_BEGIN--
 create index fkeys2p_i on fkeys2 (pkey23);
 --DDL_STATEMENT_END--
+
 insert into pkeys values (10, '1');
 insert into pkeys values (20, '2');
 insert into pkeys values (30, '3');
@@ -28,6 +31,7 @@ insert into pkeys values (60, '6');
 --DDL_STATEMENT_BEGIN--
 create unique index pkeys_i on pkeys (pkey1, pkey2);
 --DDL_STATEMENT_END--
+
 --
 -- For fkeys:
 -- 	(fkey1, fkey2)	--> pkeys (pkey1, pkey2)
@@ -40,12 +44,14 @@ create trigger check_fkeys_pkey_exist
 	execute function
 	check_primary_key ('fkey1', 'fkey2', 'pkeys', 'pkey1', 'pkey2');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create trigger check_fkeys_pkey2_exist
 	before insert or update on fkeys
 	for each row
 	execute function check_primary_key ('fkey3', 'fkeys2', 'pkey23');
 --DDL_STATEMENT_END--
+
 --
 -- For fkeys2:
 -- 	(fkey21, fkey22)	--> pkeys (pkey1, pkey2)
@@ -57,6 +63,7 @@ create trigger check_fkeys2_pkey_exist
 	execute procedure
 	check_primary_key ('fkey21', 'fkey22', 'pkeys', 'pkey1', 'pkey2');
 --DDL_STATEMENT_END--
+
 -- Test comments
 COMMENT ON TRIGGER check_fkeys2_pkey_bad ON fkeys2 IS 'wrong';
 COMMENT ON TRIGGER check_fkeys2_pkey_exist ON fkeys2 IS 'right';
@@ -87,6 +94,7 @@ create trigger check_fkeys2_fkey_restrict
 	for each row
 	execute procedure check_foreign_key (1, 'restrict', 'pkey23', 'fkeys', 'fkey3');
 --DDL_STATEMENT_END--
+
 insert into fkeys2 values (10, '1', 1);
 insert into fkeys2 values (30, '3', 2);
 insert into fkeys2 values (40, '4', 5);
@@ -114,6 +122,7 @@ SELECT trigger_name, event_manipulation, event_object_schema, event_object_table
   FROM information_schema.triggers
   WHERE event_object_table in ('pkeys', 'fkeys', 'fkeys2')
   ORDER BY trigger_name COLLATE "C", 2;
+  
 --DDL_STATEMENT_BEGIN--
 DROP TABLE pkeys;
 --DDL_STATEMENT_END--
@@ -123,15 +132,18 @@ DROP TABLE fkeys;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE fkeys2;
 --DDL_STATEMENT_END--
+
 -- Check behavior when trigger returns unmodified trigtuple
 --DDL_STATEMENT_BEGIN--
 create table trigtest (f1 int, f2 text);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create trigger trigger_return_old
 	before insert or delete or update on trigtest
 	for each row execute procedure trigger_return_old();
 --DDL_STATEMENT_END--
+
 insert into trigtest values(1, 'foo');
 select * from trigtest;
 update trigtest set f2 = f2 || 'bar';
@@ -141,9 +153,11 @@ select * from trigtest;
 --DDL_STATEMENT_BEGIN--
 drop table trigtest;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create sequence ttdummy_seq increment 10 start 0 minvalue 0;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create table tttest (
 	price_id	int4,
@@ -152,6 +166,7 @@ create table tttest (
 	price_off	int4 default 999999
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create trigger ttdummy
 	before delete or update on tttest
@@ -159,6 +174,7 @@ create trigger ttdummy
 	execute procedure
 	ttdummy (price_on, price_off);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create trigger ttserial
 	before insert or update on tttest
@@ -166,6 +182,7 @@ create trigger ttserial
 	execute procedure
 	autoinc (price_on, ttdummy_seq);
 --DDL_STATEMENT_END--
+
 insert into tttest values (1, 1, null);
 insert into tttest values (2, 2, null);
 insert into tttest values (3, 3, 0);
@@ -212,21 +229,26 @@ select * from tttest;
 
 -- get price for price_id == 5 as it was @ "date" 35
 select * from tttest where price_on <= 35 and price_off > 35 and price_id = 5;
+
 --DDL_STATEMENT_BEGIN--
 drop table tttest;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 drop sequence ttdummy_seq;
 --DDL_STATEMENT_END--
+
 --
 -- tests for per-statement triggers
 --
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE log_table (tstamp timestamp default timeofday()::timestamp);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE main_table (a int unique, b int);
 --DDL_STATEMENT_END--
+
 COPY main_table (a,b) FROM stdin;
 5	10
 20	20
@@ -234,6 +256,7 @@ COPY main_table (a,b) FROM stdin;
 50	35
 80	15
 \.
+
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION trigger_func() RETURNS trigger LANGUAGE plpgsql AS '
 BEGIN
@@ -241,14 +264,17 @@ BEGIN
 	RETURN NULL;
 END;';
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER before_ins_stmt_trig BEFORE INSERT ON main_table
 FOR EACH STATEMENT EXECUTE PROCEDURE trigger_func('before_ins_stmt');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER after_ins_stmt_trig AFTER INSERT ON main_table
 FOR EACH STATEMENT EXECUTE PROCEDURE trigger_func('after_ins_stmt');
 --DDL_STATEMENT_END--
+
 --
 -- if neither 'FOR EACH ROW' nor 'FOR EACH STATEMENT' was specified,
 -- CREATE TRIGGER should default to 'FOR EACH STATEMENT'
@@ -257,15 +283,18 @@ FOR EACH STATEMENT EXECUTE PROCEDURE trigger_func('after_ins_stmt');
 CREATE TRIGGER after_upd_stmt_trig AFTER UPDATE ON main_table
 EXECUTE PROCEDURE trigger_func('after_upd_stmt');
 --DDL_STATEMENT_END--
+
 -- Both insert and update statement level triggers (before and after) should
 -- fire.  Doesn't fire UPDATE before trigger, but only because one isn't
 -- defined.
 INSERT INTO main_table (a, b) VALUES (5, 10) ON CONFLICT (a)
   DO UPDATE SET b = EXCLUDED.b;
+  
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER after_upd_row_trig AFTER UPDATE ON main_table
 FOR EACH ROW EXECUTE PROCEDURE trigger_func('after_upd_row');
 --DDL_STATEMENT_END--
+
 INSERT INTO main_table DEFAULT VALUES;
 
 UPDATE main_table SET a = a + 1 WHERE b < 30;
@@ -276,6 +305,7 @@ UPDATE main_table SET a = a + 2 WHERE b > 100;
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE main_table DROP CONSTRAINT main_table_a_key;
 --DDL_STATEMENT_END--
+
 -- COPY should fire per-row and per-statement INSERT triggers
 COPY main_table (a, b) FROM stdin;
 30	40
@@ -287,6 +317,7 @@ SELECT * FROM main_table ORDER BY a, b;
 --
 -- test triggers with WHEN clause
 --
+
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER modified_a BEFORE UPDATE OF a ON main_table
 FOR EACH ROW WHEN (OLD.a <> NEW.a) EXECUTE PROCEDURE trigger_func('modified_a');
@@ -346,10 +377,12 @@ DROP TRIGGER insert_when ON main_table;
 --DDL_STATEMENT_BEGIN--
 DROP TRIGGER delete_when ON main_table;
 --DDL_STATEMENT_END--
+
 -- Test column-level triggers
 --DDL_STATEMENT_BEGIN--
 DROP TRIGGER after_upd_row_trig ON main_table;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER before_upd_a_row_trig BEFORE UPDATE OF a ON main_table
 FOR EACH ROW EXECUTE PROCEDURE trigger_func('before_upd_a_row');
@@ -362,6 +395,7 @@ FOR EACH ROW EXECUTE PROCEDURE trigger_func('after_upd_b_row');
 CREATE TRIGGER after_upd_a_b_row_trig AFTER UPDATE OF a, b ON main_table
 FOR EACH ROW EXECUTE PROCEDURE trigger_func('after_upd_a_b_row');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER before_upd_a_stmt_trig BEFORE UPDATE OF a ON main_table
 FOR EACH STATEMENT EXECUTE PROCEDURE trigger_func('before_upd_a_stmt');
@@ -370,6 +404,7 @@ FOR EACH STATEMENT EXECUTE PROCEDURE trigger_func('before_upd_a_stmt');
 CREATE TRIGGER after_upd_b_stmt_trig AFTER UPDATE OF b ON main_table
 FOR EACH STATEMENT EXECUTE PROCEDURE trigger_func('after_upd_b_stmt');
 --DDL_STATEMENT_END--
+
 SELECT pg_get_triggerdef(oid) FROM pg_trigger WHERE tgrelid = 'main_table'::regclass AND tgname = 'after_upd_a_b_row_trig';
 
 UPDATE main_table SET a = 50;
@@ -412,6 +447,7 @@ UPDATE some_t SET some_col = TRUE;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE some_t;
 --DDL_STATEMENT_END--
+
 -- bogus cases
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER error_upd_and_col BEFORE UPDATE OR UPDATE OF a ON main_table
@@ -445,6 +481,7 @@ CREATE TRIGGER error_stmt_when BEFORE UPDATE OF a ON main_table
 FOR EACH STATEMENT WHEN (OLD.* IS DISTINCT FROM NEW.*)
 EXECUTE PROCEDURE trigger_func('error_stmt_when');
 --DDL_STATEMENT_END--
+
 -- check dependency restrictions
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE main_table DROP COLUMN b;
@@ -466,6 +503,7 @@ ALTER TABLE main_table DROP COLUMN b;
 rollback;
 
 -- Test enable/disable triggers
+
 --DDL_STATEMENT_BEGIN--
 create table trigtest (i serial primary key);
 --DDL_STATEMENT_END--
@@ -473,6 +511,7 @@ create table trigtest (i serial primary key);
 --DDL_STATEMENT_BEGIN--
 create table trigtest2 (i int references trigtest(i) on delete cascade);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create function trigtest() returns trigger as $$
 begin
@@ -480,6 +519,7 @@ begin
 	return new;
 end;$$ language plpgsql;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create trigger trigtest_b_row_tg before insert or update or delete on trigtest
 for each row execute procedure trigtest();
@@ -492,6 +532,7 @@ for each row execute procedure trigtest();
 create trigger trigtest_b_stmt_tg before insert or update or delete on trigtest
 for each statement execute procedure trigtest();
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create trigger trigtest_a_stmt_tg after insert or update or delete on trigtest
 for each statement execute procedure trigtest();
@@ -535,6 +576,7 @@ drop table trigtest2;
 drop table trigtest;
 --DDL_STATEMENT_END--
 
+
 -- dump trigger data
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE trigger_test (
@@ -542,6 +584,7 @@ CREATE TABLE trigger_test (
         v varchar
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE OR REPLACE FUNCTION trigger_data()  RETURNS trigger
 LANGUAGE plpgsql AS $$
@@ -601,24 +644,31 @@ CREATE TRIGGER show_trigger_data_trig
 BEFORE INSERT OR UPDATE OR DELETE ON trigger_test
 FOR EACH ROW EXECUTE PROCEDURE trigger_data(23,'skidoo');
 --DDL_STATEMENT_END--
+
 insert into trigger_test values(1,'insert');
 update trigger_test set v = 'update' where i = 1;
 delete from trigger_test;
+
 --DDL_STATEMENT_BEGIN--
 DROP TRIGGER show_trigger_data_trig on trigger_test;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP FUNCTION trigger_data();
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE trigger_test;
 --DDL_STATEMENT_END--
+
 --
 -- Test use of row comparisons on OLD/NEW
 --
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE trigger_test (f1 int, f2 text, f3 text);
 --DDL_STATEMENT_END--
+
 -- this is the obvious (and wrong...) way to compare rows
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION mytrigger() RETURNS trigger LANGUAGE plpgsql as $$
@@ -631,11 +681,13 @@ begin
 	return new;
 end$$;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER t
 BEFORE UPDATE ON trigger_test
 FOR EACH ROW EXECUTE PROCEDURE mytrigger();
 --DDL_STATEMENT_END--
+
 INSERT INTO trigger_test VALUES(1, 'foo', 'bar');
 INSERT INTO trigger_test VALUES(2, 'baz', 'quux');
 
@@ -656,15 +708,19 @@ begin
 	return new;
 end$$;
 --DDL_STATEMENT_END--
+
 UPDATE trigger_test SET f3 = 'bar';
 UPDATE trigger_test SET f3 = NULL;
 UPDATE trigger_test SET f3 = NULL;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE trigger_test;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP FUNCTION mytrigger();
 --DDL_STATEMENT_END--
+
 -- Test snapshot management in serializable transactions involving triggers
 -- per bug report in 6bc73d4c0910042358k3d1adff3qa36f8df75198ecea@mail.gmail.com
 --DDL_STATEMENT_BEGIN--
@@ -678,6 +734,7 @@ begin
 end;
 $$;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE serializable_update_tab (
 	id int,
@@ -685,10 +742,12 @@ CREATE TABLE serializable_update_tab (
 	description text
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER serializable_update_trig BEFORE UPDATE ON serializable_update_tab
 	FOR EACH ROW EXECUTE PROCEDURE serializable_update_trig();
 --DDL_STATEMENT_END--
+
 INSERT INTO serializable_update_tab SELECT a, repeat('xyzxz', 100), 'new'
 	FROM generate_series(1, 50) a;
 
@@ -700,32 +759,39 @@ SELECT description FROM serializable_update_tab WHERE id = 1;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE serializable_update_tab;
 --DDL_STATEMENT_END--
+
 -- minimal update trigger
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE min_updates_test (
 	f1	text,
 	f2 int,
 	f3 int);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE min_updates_test_oids (
 	f1	text,
 	f2 int,
 	f3 int) WITH OIDS;
 --DDL_STATEMENT_END--
+
 INSERT INTO min_updates_test VALUES ('a',1,2),('b','2',null);
 
 INSERT INTO min_updates_test_oids VALUES ('a',1,2),('b','2',null);
+
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER z_min_update
 BEFORE UPDATE ON min_updates_test
 FOR EACH ROW EXECUTE PROCEDURE suppress_redundant_updates_trigger();
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER z_min_update
 BEFORE UPDATE ON min_updates_test_oids
 FOR EACH ROW EXECUTE PROCEDURE suppress_redundant_updates_trigger();
 --DDL_STATEMENT_END--
+
 \set QUIET false
 
 UPDATE min_updates_test SET f1 = f1;
@@ -745,18 +811,23 @@ UPDATE min_updates_test_oids SET f3 = 2 WHERE f3 is null;
 SELECT * FROM min_updates_test;
 
 SELECT * FROM min_updates_test_oids;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE min_updates_test;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE min_updates_test_oids;
 --DDL_STATEMENT_END--
+
 --
 -- Test triggers on views
 --
+
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW main_view AS SELECT a, b FROM main_table;
 --DDL_STATEMENT_END--
+
 -- VIEW trigger function
 --DDL_STATEMENT_BEGIN--
 CREATE OR REPLACE FUNCTION view_trigger() RETURNS trigger
@@ -799,58 +870,69 @@ begin
 end;
 $$;
 --DDL_STATEMENT_END--
+
 -- Before row triggers aren't allowed on views
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER invalid_trig BEFORE INSERT ON main_view
 FOR EACH ROW EXECUTE PROCEDURE trigger_func('before_ins_row');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER invalid_trig BEFORE UPDATE ON main_view
 FOR EACH ROW EXECUTE PROCEDURE trigger_func('before_upd_row');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER invalid_trig BEFORE DELETE ON main_view
 FOR EACH ROW EXECUTE PROCEDURE trigger_func('before_del_row');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 -- After row triggers aren't allowed on views
 CREATE TRIGGER invalid_trig AFTER INSERT ON main_view
 FOR EACH ROW EXECUTE PROCEDURE trigger_func('before_ins_row');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER invalid_trig AFTER UPDATE ON main_view
 FOR EACH ROW EXECUTE PROCEDURE trigger_func('before_upd_row');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER invalid_trig AFTER DELETE ON main_view
 FOR EACH ROW EXECUTE PROCEDURE trigger_func('before_del_row');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 -- Truncate triggers aren't allowed on views
 CREATE TRIGGER invalid_trig BEFORE TRUNCATE ON main_view
 EXECUTE PROCEDURE trigger_func('before_tru_row');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER invalid_trig AFTER TRUNCATE ON main_view
 EXECUTE PROCEDURE trigger_func('before_tru_row');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 -- INSTEAD OF triggers aren't allowed on tables
 CREATE TRIGGER invalid_trig INSTEAD OF INSERT ON main_table
 FOR EACH ROW EXECUTE PROCEDURE view_trigger('instead_of_ins');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER invalid_trig INSTEAD OF UPDATE ON main_table
 FOR EACH ROW EXECUTE PROCEDURE view_trigger('instead_of_upd');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER invalid_trig INSTEAD OF DELETE ON main_table
 FOR EACH ROW EXECUTE PROCEDURE view_trigger('instead_of_del');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 -- Don't support WHEN clauses with INSTEAD OF triggers
 CREATE TRIGGER invalid_trig INSTEAD OF UPDATE ON main_view
-
 FOR EACH ROW WHEN (OLD.a <> NEW.a) EXECUTE PROCEDURE view_trigger('instead_of_upd');
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
@@ -858,50 +940,61 @@ FOR EACH ROW WHEN (OLD.a <> NEW.a) EXECUTE PROCEDURE view_trigger('instead_of_up
 CREATE TRIGGER invalid_trig INSTEAD OF UPDATE OF a ON main_view
 FOR EACH ROW EXECUTE PROCEDURE view_trigger('instead_of_upd');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 -- Don't support statement-level INSTEAD OF triggers
 CREATE TRIGGER invalid_trig INSTEAD OF UPDATE ON main_view
 EXECUTE PROCEDURE view_trigger('instead_of_upd');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 -- Valid INSTEAD OF triggers
 CREATE TRIGGER instead_of_insert_trig INSTEAD OF INSERT ON main_view
 FOR EACH ROW EXECUTE PROCEDURE view_trigger('instead_of_ins');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER instead_of_update_trig INSTEAD OF UPDATE ON main_view
 FOR EACH ROW EXECUTE PROCEDURE view_trigger('instead_of_upd');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER instead_of_delete_trig INSTEAD OF DELETE ON main_view
 FOR EACH ROW EXECUTE PROCEDURE view_trigger('instead_of_del');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 -- Valid BEFORE statement VIEW triggers
 CREATE TRIGGER before_ins_stmt_trig BEFORE INSERT ON main_view
 FOR EACH STATEMENT EXECUTE PROCEDURE view_trigger('before_view_ins_stmt');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER before_upd_stmt_trig BEFORE UPDATE ON main_view
 FOR EACH STATEMENT EXECUTE PROCEDURE view_trigger('before_view_upd_stmt');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER before_del_stmt_trig BEFORE DELETE ON main_view
 FOR EACH STATEMENT EXECUTE PROCEDURE view_trigger('before_view_del_stmt');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 -- Valid AFTER statement VIEW triggers
 CREATE TRIGGER after_ins_stmt_trig AFTER INSERT ON main_view
 FOR EACH STATEMENT EXECUTE PROCEDURE view_trigger('after_view_ins_stmt');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER after_upd_stmt_trig AFTER UPDATE ON main_view
 FOR EACH STATEMENT EXECUTE PROCEDURE view_trigger('after_view_upd_stmt');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER after_del_stmt_trig AFTER DELETE ON main_view
 FOR EACH STATEMENT EXECUTE PROCEDURE view_trigger('after_view_del_stmt');
 --DDL_STATEMENT_END--
+
 \set QUIET false
 
 -- Insert into view using trigger
@@ -942,6 +1035,7 @@ DROP TRIGGER instead_of_delete_trig ON main_view;
 --DDL_STATEMENT_BEGIN--
 DROP VIEW main_view;
 --DDL_STATEMENT_END--
+
 --
 -- Test triggers on a join view
 --
@@ -958,6 +1052,7 @@ INSERT INTO country_table (country_name, continent)
            ('UK', 'Europe'),
            ('USA', 'North America')
     RETURNING *;
+	
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE city_table (
     city_id        serial primary key,
@@ -966,12 +1061,14 @@ CREATE TABLE city_table (
     country_id    int references country_table
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW city_view AS
     SELECT city_id, city_name, population, country_name, continent
     FROM city_table ci
     LEFT JOIN country_table co ON co.country_id = ci.country_id;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION city_insert() RETURNS trigger LANGUAGE plpgsql AS $$
 declare
@@ -1000,10 +1097,12 @@ begin
 end;
 $$;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER city_insert_trig INSTEAD OF INSERT ON city_view
 FOR EACH ROW EXECUTE PROCEDURE city_insert();
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION city_delete() RETURNS trigger LANGUAGE plpgsql AS $$
 begin
@@ -1013,10 +1112,12 @@ begin
 end;
 $$;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER city_delete_trig INSTEAD OF DELETE ON city_view
 FOR EACH ROW EXECUTE PROCEDURE city_delete();
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION city_update() RETURNS trigger LANGUAGE plpgsql AS $$
 declare
@@ -1045,6 +1146,7 @@ begin
 end;
 $$;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER city_update_trig INSTEAD OF UPDATE ON city_view
 FOR EACH ROW EXECUTE PROCEDURE city_update();
@@ -1082,14 +1184,17 @@ CREATE VIEW european_city_view AS
     SELECT * FROM city_view WHERE continent = 'Europe';
 SELECT count(*) FROM european_city_view;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION no_op_trig_fn() RETURNS trigger LANGUAGE plpgsql
 AS 'begin RETURN NULL; end';
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TRIGGER no_op_trig INSTEAD OF INSERT OR UPDATE OR DELETE
 ON european_city_view FOR EACH ROW EXECUTE PROCEDURE no_op_trig_fn();
 --DDL_STATEMENT_END--
+
 \set QUIET false
 
 INSERT INTO european_city_view VALUES (0, 'x', 10000, 'y', 'z');
@@ -1105,6 +1210,7 @@ DO INSTEAD INSERT INTO city_view
 VALUES (NEW.city_id, NEW.city_name, NEW.population, NEW.country_name, NEW.continent)
 RETURNING *;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE RULE european_city_update_rule AS ON UPDATE TO european_city_view
 DO INSTEAD UPDATE city_view SET
@@ -1114,10 +1220,12 @@ DO INSTEAD UPDATE city_view SET
 WHERE city_id = OLD.city_id
 RETURNING NEW.*;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE RULE european_city_delete_rule AS ON DELETE TO european_city_view
 DO INSTEAD DELETE FROM city_view WHERE city_id = OLD.city_id RETURNING *;
 --DDL_STATEMENT_END--
+
 \set QUIET false
 
 -- INSERT not limited by view's WHERE clause, but UPDATE AND DELETE are
@@ -1145,6 +1253,7 @@ UPDATE city_view v SET population = 599657
 \set QUIET true
 
 SELECT * FROM city_view;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE city_table CASCADE;
 --DDL_STATEMENT_END--
@@ -1154,6 +1263,7 @@ DROP TABLE country_table;
 
 
 -- Test pg_trigger_depth()
+
 --DDL_STATEMENT_BEGIN--
 create table depth_a (id int not null primary key);
 --DDL_STATEMENT_END--
@@ -1163,6 +1273,7 @@ create table depth_b (id int not null primary key);
 --DDL_STATEMENT_BEGIN--
 create table depth_c (id int not null primary key);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create function depth_a_tf() returns trigger
   language plpgsql as $$
@@ -1178,6 +1289,7 @@ $$;
 create trigger depth_a_tr before insert on depth_a
   for each row execute procedure depth_a_tf();
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create function depth_b_tf() returns trigger
   language plpgsql as $$
@@ -1201,6 +1313,7 @@ $$;
 create trigger depth_b_tr before insert on depth_b
   for each row execute procedure depth_b_tf();
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create function depth_c_tf() returns trigger
   language plpgsql as $$
@@ -1218,11 +1331,13 @@ $$;
 create trigger depth_c_tr before insert on depth_c
   for each row execute procedure depth_c_tf();
 --DDL_STATEMENT_END--
+
 select pg_trigger_depth();
 insert into depth_a values (1);
 select pg_trigger_depth();
 insert into depth_a values (2);
 select pg_trigger_depth();
+
 --DDL_STATEMENT_BEGIN--
 drop table depth_a, depth_b, depth_c;
 --DDL_STATEMENT_END--
@@ -1235,10 +1350,12 @@ drop function depth_b_tf();
 --DDL_STATEMENT_BEGIN--
 drop function depth_c_tf();
 --DDL_STATEMENT_END--
+
 --
 -- Test updates to rows during firing of BEFORE ROW triggers.
 -- As of 9.2, such cases should be rejected (see bug #6123).
 --
+
 --DDL_STATEMENT_BEGIN--
 create temp table parent (
     aid int not null primary key,
@@ -1254,6 +1371,7 @@ create temp table child (
     aid int not null,
     val1 text);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create function parent_upd_func()
   returns trigger language plpgsql as
@@ -1271,6 +1389,7 @@ $$;
 create trigger parent_upd_trig before update on parent
   for each row execute procedure parent_upd_func();
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create function parent_del_func()
   returns trigger language plpgsql as
@@ -1285,6 +1404,7 @@ $$;
 create trigger parent_del_trig before delete on parent
   for each row execute procedure parent_del_func();
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create function child_ins_func()
   returns trigger language plpgsql as
@@ -1299,6 +1419,7 @@ $$;
 create trigger child_ins_trig after insert on child
   for each row execute procedure child_ins_func();
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create function child_del_func()
   returns trigger language plpgsql as
@@ -1313,6 +1434,7 @@ $$;
 create trigger child_del_trig after delete on child
   for each row execute procedure child_del_func();
 --DDL_STATEMENT_END--
+
 insert into parent values (1, 'a', 'a', 'a', 'a', 0);
 insert into child values (10, 1, 'b');
 select * from parent; select * from child;
@@ -1339,11 +1461,14 @@ begin
 end;
 $$;
 --DDL_STATEMENT_END--
+
 delete from parent where aid = 1;
 select * from parent; select * from child;
+
 --DDL_STATEMENT_BEGIN--
 drop table parent, child;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop function parent_upd_func();
 --DDL_STATEMENT_END--
@@ -1356,8 +1481,10 @@ drop function child_ins_func();
 --DDL_STATEMENT_BEGIN--
 drop function child_del_func();
 --DDL_STATEMENT_END--
+
 -- similar case, but with a self-referencing FK so that parent and child
 -- rows can be affected by a single operation
+
 --DDL_STATEMENT_BEGIN--
 create temp table self_ref_trigger (
     id int primary key,
@@ -1366,6 +1493,7 @@ create temp table self_ref_trigger (
     nchildren int not null default 0
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create function self_ref_trigger_ins_func()
   returns trigger language plpgsql as
@@ -1383,6 +1511,7 @@ $$;
 create trigger self_ref_trigger_ins_trig before insert on self_ref_trigger
   for each row execute procedure self_ref_trigger_ins_func();
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create function self_ref_trigger_del_func()
   returns trigger language plpgsql as
@@ -1400,6 +1529,7 @@ $$;
 create trigger self_ref_trigger_del_trig before delete on self_ref_trigger
   for each row execute procedure self_ref_trigger_del_func();
 --DDL_STATEMENT_END--
+
 insert into self_ref_trigger values (1, null, 'root');
 insert into self_ref_trigger values (2, 1, 'root child A');
 insert into self_ref_trigger values (3, 1, 'root child B');
@@ -1413,6 +1543,7 @@ select * from self_ref_trigger;
 delete from self_ref_trigger;
 
 select * from self_ref_trigger;
+
 --DDL_STATEMENT_BEGIN--
 drop table self_ref_trigger;
 --DDL_STATEMENT_END--
@@ -1422,9 +1553,11 @@ drop function self_ref_trigger_ins_func();
 --DDL_STATEMENT_BEGIN--
 drop function self_ref_trigger_del_func();
 --DDL_STATEMENT_END--
+
 --
 -- Check that statement triggers work correctly even with all children excluded
 --
+
 --DDL_STATEMENT_BEGIN--
 create table stmt_trig_on_empty_upd (a int);
 --DDL_STATEMENT_END--
@@ -1449,25 +1582,30 @@ create trigger before_stmt_trigger
 	before update on stmt_trig_on_empty_upd1
 	execute procedure update_stmt_notice();
 --DDL_STATEMENT_END--
+
 -- inherited no-op update
 update stmt_trig_on_empty_upd set a = a where false returning a+1 as aa;
 -- simple no-op update
 update stmt_trig_on_empty_upd1 set a = a where false returning a+1 as aa;
+
 --DDL_STATEMENT_BEGIN--
 drop table stmt_trig_on_empty_upd cascade;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 drop function update_stmt_notice();
 --DDL_STATEMENT_END--
+
 --
 -- Check that index creation (or DDL in general) is prohibited in a trigger
 --
+
 --DDL_STATEMENT_BEGIN--
 create table trigger_ddl_table (
    col1 integer,
    col2 integer
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create function trigger_ddl_func() returns trigger as $$
 begin
@@ -1475,11 +1613,14 @@ begin
   return new;
 end$$ language plpgsql;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create trigger trigger_ddl_func before insert on trigger_ddl_table for each row
   execute procedure trigger_ddl_func();
 --DDL_STATEMENT_END--
+
 insert into trigger_ddl_table values (1, 42);  -- fail
+
 --DDL_STATEMENT_BEGIN--
 create or replace function trigger_ddl_func() returns trigger as $$
 begin
@@ -1487,13 +1628,16 @@ begin
   return new;
 end$$ language plpgsql;
 --DDL_STATEMENT_END--
+
 insert into trigger_ddl_table values (1, 42);  -- fail
+
 --DDL_STATEMENT_BEGIN--
 drop table trigger_ddl_table;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 drop function trigger_ddl_func();
 --DDL_STATEMENT_END--
+
 --
 -- Verify behavior of before and after triggers with INSERT...ON CONFLICT
 -- DO UPDATE
@@ -1501,6 +1645,7 @@ drop function trigger_ddl_func();
 --DDL_STATEMENT_BEGIN--
 create table upsert (key int4 primary key, color text);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create function upsert_before_func()
   returns trigger language plpgsql as
@@ -1525,6 +1670,7 @@ $$;
 create trigger upsert_before_trig before insert or update on upsert
   for each row execute procedure upsert_before_func();
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create function upsert_after_func()
   returns trigger language plpgsql as
@@ -1544,6 +1690,7 @@ $$;
 create trigger upsert_after_trig after insert or update on upsert
   for each row execute procedure upsert_after_func();
 --DDL_STATEMENT_END--
+
 insert into upsert values(1, 'black') on conflict (key) do update set color = 'updated ' || upsert.color;
 insert into upsert values(2, 'red') on conflict (key) do update set color = 'updated ' || upsert.color;
 insert into upsert values(3, 'orange') on conflict (key) do update set color = 'updated ' || upsert.color;
@@ -1554,6 +1701,7 @@ insert into upsert values(7, 'pink') on conflict (key) do update set color = 'up
 insert into upsert values(8, 'yellow') on conflict (key) do update set color = 'updated ' || upsert.color;
 
 select * from upsert;
+
 --DDL_STATEMENT_BEGIN--
 drop table upsert;
 --DDL_STATEMENT_END--
@@ -1563,10 +1711,12 @@ drop function upsert_before_func();
 --DDL_STATEMENT_BEGIN--
 drop function upsert_after_func();
 --DDL_STATEMENT_END--
+
 --
 -- Verify that triggers with transition tables are not allowed on
 -- views
 --
+
 --DDL_STATEMENT_BEGIN--
 create table my_table (i int);
 --DDL_STATEMENT_END--
@@ -1589,6 +1739,7 @@ drop view my_view;
 --DDL_STATEMENT_BEGIN--
 drop table my_table;
 --DDL_STATEMENT_END--
+
 --
 -- Verify cases that are unsupported with partitioned tables
 --
@@ -1665,6 +1816,7 @@ drop table trigpart;
 --DDL_STATEMENT_BEGIN--
 drop function trigger_nothing();
 --DDL_STATEMENT_END--
+
 --
 -- Verify that triggers are fired for partitioned tables
 --
@@ -1857,6 +2009,7 @@ insert into parted_trig values (50), (1500);
 --DDL_STATEMENT_BEGIN--
 drop table parted_trig;
 --DDL_STATEMENT_END--
+
 -- Verify propagation of trigger arguments to partitions
 --DDL_STATEMENT_BEGIN--
 create table parted_trig (a int) partition by list (a);
@@ -1880,6 +2033,7 @@ create or replace function trigger_notice() returns trigger as $$
 create trigger aaa after insert on parted_trig
    for each row execute procedure trigger_notice('quirky', 1);
 --DDL_STATEMENT_END--
+
 -- Verify propagation of trigger arguments to partitions attached after creating trigger
 --DDL_STATEMENT_BEGIN--
 create table parted_trig2 partition of parted_trig for values in (2);
@@ -1958,6 +2112,7 @@ insert into parted_irreg_ancestor values ('aasvogel', 3);
 --DDL_STATEMENT_BEGIN--
 drop table parted_irreg_ancestor;
 --DDL_STATEMENT_END--
+
 --
 -- Constraint triggers and partitioned tables
 --DDL_STATEMENT_BEGIN--
@@ -1990,6 +2145,7 @@ create constraint trigger parted_trig_two after insert on parted_constr
   for each row when (bark(new.b) AND new.a % 2 = 1)
   execute procedure trigger_notice_ab();
 --DDL_STATEMENT_END--
+
 -- The immediate constraint is fired immediately; the WHEN clause of the
 -- deferred constraint is also called immediately.  The deferred constraint
 -- is fired at commit time.
@@ -2012,6 +2168,7 @@ drop table parted_constr_ancestor;
 --DDL_STATEMENT_BEGIN--
 drop function bark(text);
 --DDL_STATEMENT_END--
+
 -- Test that the WHEN clause is set properly to partitions
 --DDL_STATEMENT_BEGIN--
 create table parted_trigger (a int, b text) partition by range (a);
@@ -2052,6 +2209,7 @@ update parted_trigger set a = a + 2; -- notice for odd 'a' values, long 'b' valu
 --DDL_STATEMENT_BEGIN--
 drop table parted_trigger;
 --DDL_STATEMENT_END--
+
 -- try a constraint trigger, also
 --DDL_STATEMENT_BEGIN--
 create table parted_referenced (a int);
@@ -2104,6 +2262,7 @@ select tgname, conname, t.tgrelid::regclass, t.tgconstrrelid::regclass,
 --DDL_STATEMENT_BEGIN--
 drop table parted_referenced, parted_trigger, unparted_trigger;
 --DDL_STATEMENT_END--
+
 -- verify that the "AFTER UPDATE OF columns" event is propagated correctly
 --DDL_STATEMENT_BEGIN--
 create table parted_trigger (a int, b text) partition by range (a);
@@ -2142,9 +2301,11 @@ update parted_trigger set b = b || 'b';	-- all triggers should fire
 --DDL_STATEMENT_BEGIN--
 drop table parted_trigger;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop function trigger_notice_ab();
 --DDL_STATEMENT_END--
+
 -- Make sure we don't end up with unnecessary copies of triggers, when
 -- cloning them.
 --DDL_STATEMENT_BEGIN--
@@ -2173,12 +2334,14 @@ select tgrelid::regclass, count(*) from pg_trigger
 --DDL_STATEMENT_BEGIN--
 drop table trg_clone;
 --DDL_STATEMENT_END--
+
 --
 -- Test the interaction between transition tables and both kinds of
 -- inheritance.  We'll dump the contents of the transition tables in a
 -- format that shows the attribute order, so that we can distinguish
 -- tuple formats (though not dropped attributes).
 --
+
 --DDL_STATEMENT_BEGIN--
 create or replace function dump_insert() returns trigger language plpgsql as
 $$
@@ -2190,6 +2353,7 @@ $$
   end;
 $$;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create or replace function dump_update() returns trigger language plpgsql as
 $$
@@ -2202,6 +2366,7 @@ $$
   end;
 $$;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create or replace function dump_delete() returns trigger language plpgsql as
 $$
@@ -2213,19 +2378,23 @@ $$
   end;
 $$;
 --DDL_STATEMENT_END--
+
 --
 -- Verify behavior of statement triggers on partition hierarchy with
 -- transition tables.  Tuples should appear to each trigger in the
 -- format of the relation the trigger is attached to.
 --
+
 --DDL_STATEMENT_BEGIN--
 -- set up a partition hierarchy with some different TupleDescriptors
 create table parent (a text, b int) partition by list (a);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 -- a child matching parent
 create table child1 partition of parent for values in ('AAA');
 --DDL_STATEMENT_END--
+
 -- a child with a dropped column
 --DDL_STATEMENT_BEGIN--
 create table child2 (x int, a text, b int);
@@ -2236,6 +2405,7 @@ alter table child2 drop column x;
 --DDL_STATEMENT_BEGIN--
 alter table parent attach partition child2 for values in ('BBB');
 --DDL_STATEMENT_END--
+
 -- a child with a different column order
 --DDL_STATEMENT_BEGIN--
 create table child3 (b int, a text);
@@ -2243,6 +2413,7 @@ create table child3 (b int, a text);
 --DDL_STATEMENT_BEGIN--
 alter table parent attach partition child3 for values in ('CCC');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create trigger parent_insert_trig
   after insert on parent referencing new table as new_table
@@ -2258,6 +2429,7 @@ create trigger parent_delete_trig
   after delete on parent referencing old table as old_table
   for each statement execute procedure dump_delete();
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create trigger child1_insert_trig
   after insert on child1 referencing new table as new_table
@@ -2273,6 +2445,7 @@ create trigger child1_delete_trig
   after delete on child1 referencing old table as old_table
   for each statement execute procedure dump_delete();
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create trigger child2_insert_trig
   after insert on child2 referencing new table as new_table
@@ -2288,6 +2461,7 @@ create trigger child2_delete_trig
   after delete on child2 referencing old table as old_table
   for each statement execute procedure dump_delete();
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create trigger child3_insert_trig
   after insert on child3 referencing new table as new_table
@@ -2303,6 +2477,7 @@ create trigger child3_delete_trig
   after delete on child3 referencing old table as old_table
   for each statement execute procedure dump_delete();
 --DDL_STATEMENT_END--
+
 SELECT trigger_name, event_manipulation, event_object_schema, event_object_table,
        action_order, action_condition, action_orientation, action_timing,
        action_reference_old_table, action_reference_new_table
@@ -2388,11 +2563,13 @@ $$
   end;
 $$;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create trigger intercept_insert_child3
   before insert on child3
   for each row execute procedure intercept_insert();
 --DDL_STATEMENT_END--
+
 
 -- insert, parent trigger sees post-modification parent-format tuple
 insert into parent values ('AAA', 42), ('BBB', 42), ('CCC', 66);
@@ -2403,12 +2580,14 @@ AAA	42
 BBB	42
 CCC	234
 \.
+
 --DDL_STATEMENT_BEGIN--
 drop table child1, child2, child3, parent;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 drop function intercept_insert();
 --DDL_STATEMENT_END--
+
 --
 -- Verify prohibition of row triggers with transition triggers on
 -- partitions
@@ -2419,25 +2598,30 @@ create table parent (a text, b int) partition by list (a);
 --DDL_STATEMENT_BEGIN--
 create table child partition of parent for values in ('AAA');
 --DDL_STATEMENT_END--
+
 -- adding row trigger with transition table fails
 --DDL_STATEMENT_BEGIN--
 create trigger child_row_trig
   after insert on child referencing new table as new_table
   for each row execute procedure dump_insert();
 --DDL_STATEMENT_END--
+
 -- detaching it first works
 --DDL_STATEMENT_BEGIN--
 alter table parent detach partition child;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create trigger child_row_trig
   after insert on child referencing new table as new_table
   for each row execute procedure dump_insert();
 --DDL_STATEMENT_END--
+
 -- but now we're not allowed to reattach it
 --DDL_STATEMENT_BEGIN--
 alter table parent attach partition child for values in ('AAA');
 --DDL_STATEMENT_END--
+
 -- drop the trigger, and now we're allowed to attach it again
 --DDL_STATEMENT_BEGIN--
 drop trigger child_row_trig on child;
@@ -2445,9 +2629,11 @@ drop trigger child_row_trig on child;
 --DDL_STATEMENT_BEGIN--
 alter table parent attach partition child for values in ('AAA');
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table child, parent;
 --DDL_STATEMENT_END--
+
 --
 -- Verify behavior of statement triggers on (non-partition)
 -- inheritance hierarchy with transition tables; similar to the
@@ -2459,8 +2645,8 @@ drop table child, parent;
 --DDL_STATEMENT_BEGIN--
 create table parent (a text, b int);
 --DDL_STATEMENT_END--
--- a child matching parent
 
+-- a child matching parent
 --DDL_STATEMENT_BEGIN--
 create table child1 () inherits (parent);
 --DDL_STATEMENT_END--
@@ -2472,10 +2658,12 @@ create table child2 (b int, a text);
 --DDL_STATEMENT_BEGIN--
 alter table child2 inherit parent;
 --DDL_STATEMENT_END--
+
 -- a child with an extra column
 --DDL_STATEMENT_BEGIN--
 create table child3 (c text) inherits (parent);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create trigger parent_insert_trig
   after insert on parent referencing new table as new_table
@@ -2491,6 +2679,7 @@ create trigger parent_delete_trig
   after delete on parent referencing old table as old_table
   for each statement execute procedure dump_delete();
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create trigger child1_insert_trig
   after insert on child1 referencing new table as new_table
@@ -2506,6 +2695,7 @@ create trigger child1_delete_trig
   after delete on child1 referencing old table as old_table
   for each statement execute procedure dump_delete();
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create trigger child2_insert_trig
   after insert on child2 referencing new table as new_table
@@ -2521,6 +2711,7 @@ create trigger child2_delete_trig
   after delete on child2 referencing old table as old_table
   for each statement execute procedure dump_delete();
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create trigger child3_insert_trig
   after insert on child3 referencing new table as new_table
@@ -2536,6 +2727,7 @@ create trigger child3_delete_trig
   after delete on child3 referencing old table as old_table
   for each statement execute procedure dump_delete();
 --DDL_STATEMENT_END--
+
 -- insert directly into children sees respective child-format tuples
 insert into child1 values ('AAA', 42);
 insert into child2 values (42, 'BBB');
@@ -2604,9 +2796,11 @@ drop trigger child3_update_trig on child3;
 drop trigger child3_delete_trig on child3;
 --DDL_STATEMENT_END--
 delete from parent;
+
 --DDL_STATEMENT_BEGIN--
 drop table child1, child2, child3, parent;
 --DDL_STATEMENT_END--
+
 --
 -- Verify prohibition of row triggers with transition triggers on
 -- inheritance children
@@ -2617,25 +2811,30 @@ create table parent (a text, b int);
 --DDL_STATEMENT_BEGIN--
 create table child () inherits (parent);
 --DDL_STATEMENT_END--
+
 -- adding row trigger with transition table fails
 --DDL_STATEMENT_BEGIN--
 create trigger child_row_trig
   after insert on child referencing new table as new_table
   for each row execute procedure dump_insert();
 --DDL_STATEMENT_END--
+
 -- disinheriting it first works
 --DDL_STATEMENT_BEGIN--
 alter table child no inherit parent;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create trigger child_row_trig
   after insert on child referencing new table as new_table
   for each row execute procedure dump_insert();
 --DDL_STATEMENT_END--
+
 -- but now we're not allowed to make it inherit anymore
 --DDL_STATEMENT_BEGIN--
 alter table child inherit parent;
 --DDL_STATEMENT_END--
+
 -- drop the trigger, and now we're allowed to make it inherit again
 --DDL_STATEMENT_BEGIN--
 drop trigger child_row_trig on child;
@@ -2643,9 +2842,11 @@ drop trigger child_row_trig on child;
 --DDL_STATEMENT_BEGIN--
 alter table child inherit parent;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table child, parent;
 --DDL_STATEMENT_END--
+
 --
 -- Verify behavior of queries with wCTEs, where multiple transition
 -- tuplestores can be active at the same time because there are
@@ -2668,6 +2869,7 @@ create trigger table2_trig
   after insert on table2 referencing new table as new_table
   for each statement execute procedure dump_insert();
 --DDL_STATEMENT_END--
+
 with wcte as (insert into table1 values (42))
   insert into table2 values ('hello world');
 
@@ -2676,16 +2878,19 @@ with wcte as (insert into table1 values (43))
 
 select * from table1;
 select * from table2;
+
 --DDL_STATEMENT_BEGIN--
 drop table table1;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 drop table table2;
 --DDL_STATEMENT_END--
+
 --
 -- Verify behavior of INSERT ... ON CONFLICT DO UPDATE ... with
 -- transition tables.
 --
+
 --DDL_STATEMENT_BEGIN--
 create table my_table (a int primary key, b text);
 --DDL_STATEMENT_END--
@@ -2699,6 +2904,7 @@ create trigger my_table_update_trig
   after update on my_table referencing old table as old_table new table as new_table
   for each statement execute procedure dump_update();
 --DDL_STATEMENT_END--
+
 -- inserts only
 insert into my_table values (1, 'AAA'), (2, 'BBB')
   on conflict (a) do
@@ -2717,6 +2923,7 @@ insert into my_table values (3, 'CCC'), (4, 'DDD')
 --
 -- now using a partitioned table
 --
+
 --DDL_STATEMENT_BEGIN--
 create table iocdu_tt_parted (a int primary key, b text) partition by list (a);
 --DDL_STATEMENT_END--
@@ -2742,6 +2949,7 @@ create trigger iocdu_tt_parted_update_trig
   after update on iocdu_tt_parted referencing old table as old_table new table as new_table
   for each statement execute procedure dump_update();
 --DDL_STATEMENT_END--
+
 -- inserts only
 insert into iocdu_tt_parted values (1, 'AAA'), (2, 'BBB')
   on conflict (a) do
@@ -2756,33 +2964,41 @@ insert into iocdu_tt_parted values (1, 'AAA'), (2, 'BBB'), (3, 'CCC'), (4, 'DDD'
 insert into iocdu_tt_parted values (3, 'CCC'), (4, 'DDD')
   on conflict (a) do
   update set b = iocdu_tt_parted.b || ':' || excluded.b;
+  
 --DDL_STATEMENT_BEGIN--
 drop table iocdu_tt_parted;
 --DDL_STATEMENT_END--
+
 --
 -- Verify that you can't create a trigger with transition tables for
 -- more than one event.
 --
+
 --DDL_STATEMENT_BEGIN--
 create trigger my_table_multievent_trig
   after insert or update on my_table referencing new table as new_table
   for each statement execute procedure dump_insert();
 --DDL_STATEMENT_END--
+
 --
 -- Verify that you can't create a trigger with transition tables with
 -- a column list.
 --
+
 --DDL_STATEMENT_BEGIN--
 create trigger my_table_col_update_trig
   after update of b on my_table referencing new table as new_table
   for each statement execute procedure dump_insert();
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table my_table;
 --DDL_STATEMENT_END--
+
 --
 -- Test firing of triggers with transition tables by foreign key cascades
 --
+
 --DDL_STATEMENT_BEGIN--
 create table refd_table (a int primary key, b text);
 --DDL_STATEMENT_END--
@@ -2791,6 +3007,7 @@ create table trig_table (a int, b text,
   foreign key (a) references refd_table on update cascade on delete cascade
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create trigger trig_table_before_trig
   before insert or update or delete on trig_table
@@ -2811,6 +3028,7 @@ create trigger trig_table_delete_trig
   after delete on trig_table referencing old table as old_table
   for each statement execute procedure dump_delete();
 --DDL_STATEMENT_END--
+
 insert into refd_table values
   (1, 'one'),
   (2, 'two'),
@@ -2833,13 +3051,16 @@ select * from trig_table;
 --DDL_STATEMENT_BEGIN--
 drop table refd_table, trig_table;
 --DDL_STATEMENT_END--
+
 --
 -- self-referential FKs are even more fun
 --
+
 --DDL_STATEMENT_BEGIN--
 create table self_ref (a int primary key,
                        b int references self_ref(a) on delete cascade);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create trigger self_ref_before_trig
   before delete on self_ref
@@ -2855,6 +3076,7 @@ create trigger self_ref_s_trig
   after delete on self_ref referencing old table as old_table
   for each statement execute procedure dump_delete();
 --DDL_STATEMENT_END--
+
 insert into self_ref values (1, null), (2, 1), (3, 2);
 
 delete from self_ref where a = 1;
@@ -2863,12 +3085,15 @@ delete from self_ref where a = 1;
 --DDL_STATEMENT_BEGIN--
 drop trigger self_ref_r_trig on self_ref;
 --DDL_STATEMENT_END--
+
 insert into self_ref values (1, null), (2, 1), (3, 2), (4, 3);
 
 delete from self_ref where a = 1;
+
 --DDL_STATEMENT_BEGIN--
 drop table self_ref;
 --DDL_STATEMENT_END--
+
 -- cleanup
 --DDL_STATEMENT_BEGIN--
 drop function dump_insert();

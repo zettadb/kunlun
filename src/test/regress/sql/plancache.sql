@@ -1,6 +1,7 @@
 --
 -- Tests to exercise the plan caching/invalidation mechanism
 --
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE pcachetest(like int8_tbl);
 --DDL_STATEMENT_END--
@@ -20,6 +21,7 @@ EXECUTE prepstmt2(123);
 --DDL_STATEMENT_BEGIN--
 DROP TABLE pcachetest;
 --DDL_STATEMENT_END--
+
 EXECUTE prepstmt;
 EXECUTE prepstmt2(123);
 
@@ -45,6 +47,7 @@ EXECUTE prepstmt2(123);
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE pcachetest DROP COLUMN q3;
 --DDL_STATEMENT_END--
+
 EXECUTE prepstmt;
 EXECUTE prepstmt2(123);
 
@@ -54,16 +57,20 @@ EXECUTE prepstmt2(123);
 CREATE TEMP VIEW pcacheview AS
   SELECT * FROM pcachetest;
 --DDL_STATEMENT_END--
+
 PREPARE vprep AS SELECT * FROM pcacheview;
 
 EXECUTE vprep;
+
 --DDL_STATEMENT_BEGIN--
 CREATE OR REPLACE TEMP VIEW pcacheview AS
   SELECT q1, q2/2 AS q2 FROM pcachetest;
 --DDL_STATEMENT_END--
+
 EXECUTE vprep;
 
 -- Check basic SPI plan invalidation
+
 --DDL_STATEMENT_BEGIN--
 drop function if exists cache_test(int);
 --DDL_STATEMENT_END--
@@ -84,15 +91,18 @@ begin
 end
 $$ language plpgsql;
 --DDL_STATEMENT_END--
+
 select cache_test(1);
 select cache_test(2);
 select cache_test(3);
 
 -- Check invalidation of plpgsql "simple expression"
+
 --DDL_STATEMENT_BEGIN--
 create temp view v1 as
   select 2+2 as f1;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop function if exists cache_test_2();
 --DDL_STATEMENT_END--
@@ -102,12 +112,15 @@ begin
 	return f1 from v1;
 end$$ language plpgsql;
 --DDL_STATEMENT_END--
+
 select cache_test_2();
+
 --DDL_STATEMENT_BEGIN--
 create or replace temp view v1 as
   select 2+2+4 as f1;
 --DDL_STATEMENT_END--
 select cache_test_2();
+
 --DDL_STATEMENT_BEGIN--
 create or replace temp view v1 as
   select 2+2+4+(select max(unique1) from tenk1) as f1;
@@ -115,18 +128,21 @@ create or replace temp view v1 as
 select cache_test_2();
 
 --- Check that change of search_path is honored when re-using cached plan
+
 --DDL_STATEMENT_BEGIN--
 create schema s1;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 create table s1.abc (f1 int);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create schema s2;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 create table s2.abc (f1 int);
 --DDL_STATEMENT_END--
+
 insert into s1.abc values(123);
 insert into s2.abc values(456);
 
@@ -141,12 +157,15 @@ set search_path = s2;
 select f1 from abc;
 
 execute p1;
+
 --DDL_STATEMENT_BEGIN--
 alter table s1.abc add column f2 float8;   -- force replan
 --DDL_STATEMENT_END--
+
 execute p1;
 
 reset search_path;
+
 --DDL_STATEMENT_BEGIN--
 drop table s1.abc cascade;
 --DDL_STATEMENT_END--
@@ -161,22 +180,28 @@ drop schema s2 cascade;
 --DDL_STATEMENT_END--
 
 -- Check that invalidation deals with regclass constants
+
 --DDL_STATEMENT_BEGIN--
 create temp sequence seq;
 --DDL_STATEMENT_END--
+
 prepare p2 as select nextval('seq');
 
 execute p2;
+
 --DDL_STATEMENT_BEGIN--
 drop sequence seq;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create temp sequence seq;
 --DDL_STATEMENT_END--
+
 execute p2;
 
 -- Check DDL via SPI, immediately followed by SPI plan re-use
 -- (bug in original coding)
+
 --DDL_STATEMENT_BEGIN--
 drop function if exists cachebug();
 --DDL_STATEMENT_END--
@@ -184,7 +209,6 @@ drop function if exists cachebug();
 create function cachebug() returns void as $$
 declare r int;
 --DDL_STATEMENT_END--
-
 begin
 --DDL_STATEMENT_BEGIN--
   drop table if exists temptable cascade;

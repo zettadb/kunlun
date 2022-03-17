@@ -2,12 +2,14 @@
 -- CREATE_OPERATOR
 --
 --DDL_STATEMENT_BEGIN--
+
 CREATE OPERATOR ## (
    leftarg = path,
    rightarg = path,
    function = path_inter,
    commutator = ##
 );
+
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE OPERATOR <% (
@@ -18,18 +20,21 @@ CREATE OPERATOR <% (
    negator = >=%
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE OPERATOR @#@ (
    rightarg = int8,		-- left unary
    procedure = numeric_fac
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE OPERATOR #@# (
    leftarg = int8,		-- right unary
    procedure = numeric_fac
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE OPERATOR #%# (
    leftarg = int8,		-- right unary
@@ -51,6 +56,7 @@ CREATE OPERATOR => (
    procedure = numeric_fac
 );
 --DDL_STATEMENT_END--
+
 -- lexing of <=, >=, <>, != has a number of edge cases
 -- (=> is tested elsewhere)
 
@@ -74,7 +80,7 @@ DO $$ -- use DO to protect -- from psql
     raise info 'r = %', r;
   end;
 $$;
---DDL_STATEMENT_END--
+
 -- check that <= etc. followed by more operator characters are returned
 -- as the correct token with correct precedence
 SELECT true<>-1 BETWEEN 1 AND 1;  -- BETWEEN has prec. above <> but below Op
@@ -118,6 +124,8 @@ CREATE OPERATOR #*# (
    procedure = numeric_fac
 );
 ROLLBACK;
+
+
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 -- Should fail. SETOF type functions not allowed as argument (testing rightarg)
@@ -168,6 +176,7 @@ CREATE OPERATOR #@%# (
 );
 --DDL_STATEMENT_END--
 -- Should fail. Procedure should be mandatorily specified
+
 --DDL_STATEMENT_BEGIN--
 CREATE OPERATOR #@%# (
    leftarg = int8
@@ -292,6 +301,7 @@ CREATE OPERATOR #*# (
    procedure = fn_op6
 );
 ROLLBACK;
+
 --DDL_STATEMENT_END--
 -- invalid: non-lowercase quoted identifiers
 --DDL_STATEMENT_BEGIN--

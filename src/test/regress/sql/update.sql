@@ -11,6 +11,7 @@ CREATE TABLE update_test (
     c   TEXT
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists upsert_test;
 --DDL_STATEMENT_END--
@@ -20,6 +21,7 @@ CREATE TABLE upsert_test (
     b   TEXT
 );
 --DDL_STATEMENT_END--
+
 INSERT INTO update_test VALUES (5, 10, 'foo');
 INSERT INTO update_test(b, a) VALUES (15, 10);
 
@@ -86,12 +88,14 @@ UPDATE update_test t
 --  SET (a, b) = (SELECT b, a FROM update_test s WHERE s.a = t.a)
 --  WHERE CURRENT_USER = SESSION_USER;
 SELECT a, b, char_length(c) FROM update_test order by 1,2,3;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE update_test;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 DROP TABLE upsert_test;
 --DDL_STATEMENT_END--
+
 
 ---------------------------
 -- UPDATE with row movement
@@ -102,6 +106,7 @@ DROP TABLE upsert_test;
 -- the correct partition for the new partition key (if one exists). We must
 -- also ensure that updatable views on partitioned tables properly enforce any
 -- WITH CHECK OPTION that is defined. 
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists range_parted cascade;
 --DDL_STATEMENT_END--
@@ -114,6 +119,7 @@ CREATE TABLE range_parted (
 	e varchar
 ) PARTITION BY RANGE (a, b);
 --DDL_STATEMENT_END--
+
 -- Create partitions intentionally in descending bound order, so as to test
 -- that update-row-movement works with the leaf partitions not in bound order.
 --DDL_STATEMENT_BEGIN--
@@ -131,6 +137,7 @@ CREATE TABLE part_a_10_a_20 PARTITION OF range_parted FOR VALUES FROM ('a', 10) 
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE part_a_1_a_10 PARTITION OF range_parted FOR VALUES FROM ('a', 1) TO ('a', 10);
 --DDL_STATEMENT_END--
+
 -- Check that partition-key UPDATE works sanely on a partitioned table that
 -- does not have any child partitions.
 UPDATE part_b_10_b_20 set b = b - 6;
@@ -147,9 +154,11 @@ CREATE TABLE part_d_1_15 PARTITION OF part_c_100_200 FOR VALUES FROM (1) TO (15)
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE part_d_15_20 PARTITION OF part_c_100_200 FOR VALUES FROM (15) TO (20);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE part_c_1_100 PARTITION OF part_b_10_b_20 FOR VALUES FROM (1) TO (100);
 --DDL_STATEMENT_END--
+
 \set init_range_parted 'delete from range_parted; insert into range_parted VALUES (''a'', 1, 1, 1), (''a'', 10, 200, 1), (''b'', 12, 96, 1), (''b'', 13, 97, 2), (''b'', 15, 105, 16), (''b'', 17, 105, 19)'
 \set show_data 'select * from range_parted ORDER BY 1, 2, 3, 4, 5, 6'
 :init_range_parted;
@@ -209,6 +218,7 @@ UPDATE upview set a = 'b', b = 15 WHERE b = 4;
 --DDL_STATEMENT_BEGIN--
 DROP VIEW upview;
 --DDL_STATEMENT_END--
+
 -- RETURNING having whole-row vars.
 :init_range_parted;
 UPDATE range_parted set c = 95 WHERE a = 'b' and b > 10 and c > 100 returning (range_parted), *;
@@ -275,6 +285,7 @@ RESET SESSION AUTHORIZATION;
 --DDL_STATEMENT_BEGIN--
 DROP FUNCTION func_d_1_15();
 --DDL_STATEMENT_END--
+
 -- Policy expression contains SubPlan
 RESET SESSION AUTHORIZATION;
 :init_range_parted;
@@ -317,6 +328,7 @@ DROP USER regress_range_parted_user;
 DROP TABLE mintab;
 --DDL_STATEMENT_END--
 
+
 :init_range_parted;
 
 UPDATE range_parted set c = c - 50 WHERE c > 97;
@@ -350,6 +362,7 @@ UPDATE range_parted set a = 'b' WHERE a = 'bd';
 --DDL_STATEMENT_BEGIN--
 DROP TABLE range_parted;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists list_parted;
 --DDL_STATEMENT_END--
@@ -366,6 +379,7 @@ INSERT into list_part1 VALUES ('a', 1);
 --DDL_STATEMENT_BEGIN--
 DROP TABLE list_parted;
 --DDL_STATEMENT_END--
+
 --------------
 -- Some more update-partition-key test scenarios below. This time use list
 -- partitions.
@@ -387,6 +401,7 @@ CREATE TABLE sub_part2 PARTITION OF sub_parted for VALUES in (2);
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE list_part1 PARTITION OF list_parted for VALUES in (2,3);;
 --DDL_STATEMENT_END--
+
 INSERT into list_parted VALUES (2,5,50);
 INSERT into list_parted VALUES (3,6,60);
 INSERT into sub_parted VALUES (1,1,60);
@@ -427,6 +442,7 @@ SELECT * FROM list_parted ORDER BY 1, 2, 3;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE non_parted;
 --DDL_STATEMENT_END--
+
 -- Cleanup: list_parted no longer needed.
 --DDL_STATEMENT_BEGIN--
 DROP TABLE list_parted;
@@ -441,6 +457,7 @@ $$ begin return (a + seed); end; $$ language 'plpgsql' immutable;
 create operator class custom_opclass for type int4 using hash as
 operator 1 = , function 2 dummy_hashint4(int4, int8);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists hash_parted;
 --DDL_STATEMENT_END--

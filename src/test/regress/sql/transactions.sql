@@ -1,6 +1,7 @@
 --
 -- TRANSACTIONS
 --
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists xacttest;
 --DDL_STATEMENT_END--
@@ -72,6 +73,7 @@ SHOW transaction_read_only;  -- off
 COMMIT;
 
 SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE writetest; -- fail
 --DDL_STATEMENT_END--
@@ -87,6 +89,7 @@ SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE writetest; -- ok
 --DDL_STATEMENT_END--
+
 -- Subtransactions, basic tests
 -- create & drop tables
 SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;
@@ -135,6 +138,7 @@ BEGIN;
 COMMIT;
 SELECT * FROM trans_foo;		-- should have 1 and 3
 SELECT * FROM trans_barbaz;	-- should have 1
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists savepoints;
 --DDL_STATEMENT_END--
@@ -231,9 +235,11 @@ BEGIN;
 		INSERT INTO savepoints VALUES (22);
 COMMIT;
 SELECT a FROM savepoints WHERE a BETWEEN 18 AND 22;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE savepoints;
 --DDL_STATEMENT_END--
+
 -- only in a transaction block:
 SAVEPOINT one;
 ROLLBACK TO SAVEPOINT one;
@@ -257,42 +263,54 @@ SELECT 1;			-- this should work
 -- that's a mite hard to do within the limitations of pg_regress.)
 --
 select * from xacttest;
+
 --DDL_STATEMENT_BEGIN--
 create or replace function max_xacttest() returns smallint language sql as
 'select max(a) from xacttest' stable;
 --DDL_STATEMENT_END--
+
 --not supported: begin;
 --update xacttest set a = max_xacttest() + 10 where a > 0;
 --select * from xacttest;
 --rollback;
+
 --DDL_STATEMENT_BEGIN--
 -- But a volatile function can see the partial results of the calling query
 create or replace function max_xacttest() returns smallint language sql as
 'select max(a) from xacttest' volatile;
 --DDL_STATEMENT_END--
+
 -- not supported: begin;
 --update xacttest set a = max_xacttest() + 10 where a > 0;
 --select * from xacttest;
 --rollback;
+
 --DDL_STATEMENT_BEGIN--
 -- Now the same test with plpgsql (since it depends on SPI which is different)
 create or replace function max_xacttest() returns smallint language plpgsql as
 'begin return max(a) from xacttest; end' stable;
 --DDL_STATEMENT_END--
+
 --not support: begin;
 --update xacttest set a = max_xacttest() + 10 where a > 0;
 --select * from xacttest;
 --rollback;
+
 --DDL_STATEMENT_BEGIN--
 create or replace function max_xacttest() returns smallint language plpgsql as
 'begin return max(a) from xacttest; end' volatile;
 --DDL_STATEMENT_END--
+
 -- not support: begin;
 --update xacttest set a = max_xacttest() + 10 where a > 0;
 --select * from xacttest;
 --rollback;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE trans_foo;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
+DROP TABLE trans_baz;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 DROP TABLE trans_baz;\
@@ -313,6 +331,7 @@ exception
   when division_by_zero then return 0;
 end$$ language plpgsql volatile;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists revalidate_bug;
 --DDL_STATEMENT_END--
@@ -321,6 +340,7 @@ create table revalidate_bug (c float8 unique);
 --DDL_STATEMENT_END--
 insert into revalidate_bug values (1);
 -- insert into revalidate_bug values (inverse(0)); -- crash happens --
+
 --DDL_STATEMENT_BEGIN--
 drop table revalidate_bug;
 --DDL_STATEMENT_END--

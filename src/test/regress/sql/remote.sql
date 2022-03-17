@@ -1,3 +1,4 @@
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists t4;
 --DDL_STATEMENT_END--
@@ -7,6 +8,7 @@ drop table if exists t5;
 --DDL_STATEMENT_BEGIN--
 drop table if exists t6;
 --DDL_STATEMENT_END--
+
 --create table t4(a int primary key, b int unique) --with oids;
 --DDL_STATEMENT_BEGIN--
 create table t4(a int primary key, b int unique, c varchar(32) not null);
@@ -29,6 +31,7 @@ create temporary table t6(a int);
 --DDL_STATEMENT_END--
 insert into t6 values(1),(2),(3);
 select*from t6;
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists t7;
 --DDL_STATEMENT_END--
@@ -50,6 +53,7 @@ create index t7_b on t7(b collate en_US);
 --DDL_STATEMENT_BEGIN--
 create index t7_b on t7(b collate zh_CN);
 --DDL_STATEMENT_END--
+
 --create index t7_b on t7(b ) include (c);
 --DDL_STATEMENT_BEGIN--
 create index t7_b on t7(b zh_pinyin_cmp);
@@ -74,6 +78,7 @@ create index t7_b on t7(b nulls last);
 
 -- forbidden create index clauses end
 
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists t3;
 --DDL_STATEMENT_END--
@@ -82,6 +87,7 @@ create table t3(a int) partition by list(a);
 --DDL_STATEMENT_END--
 --show last_remote_sql;
 \d+ t3;
+
 --DDL_STATEMENT_BEGIN--
 create table t301 partition of t3 for values in (1,3,5);
 --DDL_STATEMENT_END--
@@ -92,6 +98,7 @@ create table t302 partition of t3 for values in (2,4,6);
 --DDL_STATEMENT_END--
 --show last_remote_sql;
 \d+ t302;
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists t3;
 --DDL_STATEMENT_END--
@@ -106,12 +113,14 @@ create index on t3(c);
 --DDL_STATEMENT_END--
 --show last_remote_sql;
 \d+ t3;
+
 --DDL_STATEMENT_BEGIN--
 create table t301 partition of t3 for values from ('2000-01-01') to ('2009-12-31');
 --DDL_STATEMENT_END--
 --show last_remote_sql;
 \d+ t301;
 \d+ t3;
+
 --DDL_STATEMENT_BEGIN--
 create table t303 partition of t3 for values from ('2020-01-01') to ('2029-12-31');
 --DDL_STATEMENT_END--
@@ -142,6 +151,7 @@ create table t302 partition of t3 for values from ('2010-01-01') to ('2019-12-31
 \d+ t302;
 \d+ t301;
 \d+ t303;
+
 --DDL_STATEMENT_BEGIN--
 create table t304 partition of t3 for values from ('2030-01-01') to ('2049-12-31');
 --DDL_STATEMENT_END--
@@ -181,6 +191,7 @@ create index t3_e_idx on t3(e);
 \d+ t3;
 insert into t3 values(2, '2025-01-16 11:25:09', '2015-01-16 11:25:09', '2015-01-16 11:25:09', 'abc'),(3, '2015-01-16 11:25:09', '2020-01-16 11:25:09', '2015-01-16 11:25:09', 'def'), (4, '2000-01-16 11:25:09', '2020-01-16 11:25:10', '2015-01-16 11:25:09', 'xyz'),(5, '2035-01-16 11:25:09', '2020-01-16 11:25:11', '2015-01-16 11:25:09', 'spider');
 
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists t1;
 --DDL_STATEMENT_END--
@@ -205,6 +216,7 @@ create table t102 partition of t1 for values with (modulus 4, remainder 2);
 create table t103 partition of t1 for values with (modulus 4, remainder 3);
 --DDL_STATEMENT_END--
 --show last_remote_sql;
+
 
 --DDL_STATEMENT_BEGIN--
 drop table if exists t2;
@@ -235,6 +247,7 @@ set log_min_messages=debug5;
 --DDL_STATEMENT_BEGIN--
 create index t2_c_d on t2(d desc, c);
 --DDL_STATEMENT_END--
+
 -- only the last index's remote sql is printed,others are overwritten, but
 -- it's OK, this is only for debugging. all remote sql will be sent to remote
 -- targets properly. debug5 is turned on so you can check the log file for all
@@ -246,6 +259,7 @@ create index t2_c_d on t2(d desc, c);
 \d+ t201_d_c_idx;
 \d+ t202_d_c_idx;
 \d+ t203_d_c_idx;
+
 
 --DDL_STATEMENT_BEGIN--
 drop table if exists t1;
@@ -316,6 +330,7 @@ create index t2_d_g on t2(d,g desc);
 --show last_remote_sql;
 \d+ t2;
 \d+ t200;
+
 --DDL_STATEMENT_BEGIN--
 create table t201 partition of t2 for values in (5,6,7);
 --DDL_STATEMENT_END----show last_remote_sql;
@@ -336,6 +351,7 @@ create unique index t201_c_a on t201(c,a desc);
 --DDL_STATEMENT_BEGIN--
 create table t202 partition of t2 for values in (8,9,10)
 --DDL_STATEMENT_END--
+
 --show last_remote_sql;
 \d+ t202;
 --DDL_STATEMENT_BEGIN--
@@ -354,6 +370,7 @@ create index on t2(g desc,f);
 --DDL_STATEMENT_BEGIN--
 create table t10 (a decimal(10,31));
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create table t10(a decimal, b decimal(12), c decimal(20, 10), d real, e float(10), f float(30), g bit(11), h money, i timestamptz, j timestamp(6), k time(6), l date,primary key(a), unique(b,d), unique(g,j), unique(c,k));
 --DDL_STATEMENT_END--
@@ -363,4 +380,5 @@ create unique index t10ei on t10(e,i);
 --DDL_STATEMENT_BEGIN--
 create index t10fh on t10(f,h,k);
 --DDL_STATEMENT_END--
+
 

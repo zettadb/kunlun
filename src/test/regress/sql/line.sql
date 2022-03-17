@@ -7,6 +7,7 @@
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE LINE_TBL (s line);
 --DDL_STATEMENT_END--
+
 INSERT INTO LINE_TBL VALUES ('{1,-1,1}');
 INSERT INTO LINE_TBL VALUES ('(0,0),(6,6)');
 INSERT INTO LINE_TBL VALUES ('10,-10 ,-5,-4');
@@ -86,6 +87,7 @@ SELECT line(point '(1,2)', point '(3,4)');
 
 SELECT line '[(1,2),(3,4)]' = line '[(3,4),(4,5)]';  -- true
 SELECT line '[(1,2),(3,4)]' = line '[(3,4),(4,4)]';  -- false
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE LINE_TBL;
 --DDL_STATEMENT_END--

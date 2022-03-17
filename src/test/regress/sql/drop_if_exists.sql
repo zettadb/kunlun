@@ -3,138 +3,186 @@
 --
 
 -- table (will be really dropped at the end)
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE test_exists;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE IF EXISTS test_exists;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE test_exists (a int, b text);
 --DDL_STATEMENT_END--
+
 -- view
-@@
+
+--DDL_STATEMENT_BEGIN--
 DROP VIEW test_view_exists;
-!!
-@@
+--DDL_STATEMENT_END--
+
+--DDL_STATEMENT_BEGIN--
 DROP VIEW IF EXISTS test_view_exists;
-!!
-@@
+--DDL_STATEMENT_END--
+
+--DDL_STATEMENT_BEGIN--
 CREATE VIEW test_view_exists AS select * from test_exists;
-!!
-@@
+--DDL_STATEMENT_END--
+
+--DDL_STATEMENT_BEGIN--
 DROP VIEW IF EXISTS test_view_exists;
-!!
-@@
+--DDL_STATEMENT_END--
+
+--DDL_STATEMENT_BEGIN--
 DROP VIEW test_view_exists;
-!!
+--DDL_STATEMENT_END--
+
 -- index
+
 --DDL_STATEMENT_BEGIN--
 DROP INDEX test_index_exists;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP INDEX IF EXISTS test_index_exists;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX test_index_exists on test_exists(a);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP INDEX IF EXISTS test_index_exists;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP INDEX test_index_exists;
 --DDL_STATEMENT_END--
+
 -- sequence
+
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE test_sequence_exists;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE IF EXISTS test_sequence_exists;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE test_sequence_exists;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE IF EXISTS test_sequence_exists;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP SEQUENCE test_sequence_exists;
 --DDL_STATEMENT_END--
+
 -- schema
+
 --DDL_STATEMENT_BEGIN--
 DROP SCHEMA test_schema_exists;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP SCHEMA IF EXISTS test_schema_exists;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE SCHEMA test_schema_exists;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP SCHEMA IF EXISTS test_schema_exists;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP SCHEMA test_schema_exists;
 --DDL_STATEMENT_END--
+
 -- type
+
 --DDL_STATEMENT_BEGIN--
 DROP TYPE test_type_exists;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TYPE IF EXISTS test_type_exists;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE type test_type_exists as (a int, b text);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TYPE IF EXISTS test_type_exists;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TYPE test_type_exists;
 --DDL_STATEMENT_END--
+
 ---
 --- role/user/group
 ---
+
 --DDL_STATEMENT_BEGIN--
-CREATE USER regress_test_u1;\
+CREATE USER regress_test_u1;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE ROLE regress_test_r1;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE GROUP regress_test_g1;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP USER regress_test_u2;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP USER IF EXISTS regress_test_u1, regress_test_u2;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP USER regress_test_u1;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP ROLE regress_test_r2;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP ROLE IF EXISTS regress_test_r1, regress_test_r2;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP ROLE regress_test_r1;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP GROUP regress_test_g2;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP GROUP IF EXISTS regress_test_g1, regress_test_g2;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP GROUP regress_test_g1;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 -- collation
 DROP COLLATION IF EXISTS test_collation_exists;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 -- conversion
 DROP CONVERSION test_conversion_exists;
@@ -175,6 +223,7 @@ CREATE TEXT SEARCH DICTIONARY test_tsdict_exists (
 --DDL_STATEMENT_BEGIN--
 DROP TEXT SEARCH DICTIONARY test_tsdict_exists;
 --DDL_STATEMENT_END--
+
 -- test search template
 --DDL_STATEMENT_BEGIN--
 DROP TEXT SEARCH TEMPLATE test_tstemplate_exists;
@@ -182,12 +231,13 @@ DROP TEXT SEARCH TEMPLATE test_tstemplate_exists;
 --DDL_STATEMENT_BEGIN--
 DROP TEXT SEARCH TEMPLATE IF EXISTS test_tstemplate_exists;
 --DDL_STATEMENT_END--
+
 -- text search configuration
 --DDL_STATEMENT_BEGIN--
 DROP TEXT SEARCH CONFIGURATION test_tsconfig_exists;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-DROP TEXT SEARCH CONFIGURATION IF EXISTS test_tsconfig_exists;\
+DROP TEXT SEARCH CONFIGURATION IF EXISTS test_tsconfig_exists;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE TEXT SEARCH CONFIGURATION test_tsconfig_exists (COPY=english);
@@ -211,6 +261,7 @@ DROP FUNCTION test_function_exists();
 --DDL_STATEMENT_BEGIN--
 DROP FUNCTION IF EXISTS test_function_exists();
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP FUNCTION test_function_exists(int, text, int[]);
 --DDL_STATEMENT_END--
@@ -225,6 +276,7 @@ DROP AGGREGATE test_aggregate_exists(*);
 --DDL_STATEMENT_BEGIN--
 DROP AGGREGATE IF EXISTS test_aggregate_exists(*);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP AGGREGATE test_aggregate_exists(int);
 --DDL_STATEMENT_END--
@@ -286,6 +338,7 @@ DROP OPERATOR CLASS test_operator_class USING btree;
 --DDL_STATEMENT_BEGIN--
 DROP OPERATOR CLASS IF EXISTS test_operator_class USING btree;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP OPERATOR CLASS test_operator_class USING no_such_am;
 --DDL_STATEMENT_END--
@@ -300,6 +353,7 @@ DROP OPERATOR FAMILY test_operator_family USING btree;
 --DDL_STATEMENT_BEGIN--
 DROP OPERATOR FAMILY IF EXISTS test_operator_family USING btree;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP OPERATOR FAMILY test_operator_family USING no_such_am;
 --DDL_STATEMENT_END--
@@ -316,13 +370,17 @@ DROP ACCESS METHOD IF EXISTS no_such_am;
 --DDL_STATEMENT_END--
 
 -- drop the table
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE IF EXISTS test_exists;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE test_exists;
 --DDL_STATEMENT_END--
+
 -- be tolerant with missing schemas, types, etc
+
 --DDL_STATEMENT_BEGIN--
 DROP AGGREGATE IF EXISTS no_such_schema.foo(int);
 --DDL_STATEMENT_END--

@@ -93,7 +93,7 @@ SELECT CAST(name 'namefield' AS varchar) AS "varchar(name)";
 
 --
 -- test SQL string functions
--- E--DDL_STATEMENT_END--# and T--DDL_STATEMENT_END--# are feature reference numbers from SQL99
+-- E### and T### are feature reference numbers from SQL99
 --
 
 -- E021-09 trim function
@@ -391,15 +391,18 @@ INSERT INTO toasttest values (repeat('1234567890',300));
 INSERT INTO toasttest values (repeat('1234567890',300));
 INSERT INTO toasttest values (repeat('1234567890',300));
 -- expect 0 blocks
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE toasttest;
 --DDL_STATEMENT_END--
+
 --
 -- test substr with toasted bytea values
 --
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE toasttest(f1 bytea);
 --DDL_STATEMENT_END--
+
 insert into toasttest values(decode(repeat('1234567890',10000),'escape'));
 insert into toasttest values(decode(repeat('1234567890',10000),'escape'));
 
@@ -425,9 +428,11 @@ SELECT substr(f1, 99995) from toasttest;
 -- If start plus length is > string length, the result is truncated to
 -- string length
 SELECT substr(f1, 99995, 10) from toasttest;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE toasttest;
 --DDL_STATEMENT_END--
+
 -- test internally compressing datums
 
 -- this tests compressing a datum to a very small size which exercises a
@@ -444,6 +449,7 @@ SELECT c FROM toasttest;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE toasttest;
 --DDL_STATEMENT_END--
+
 --
 -- test length
 --

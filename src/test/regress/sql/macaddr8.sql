@@ -30,12 +30,14 @@ SELECT '08:00:2b:01.02:03:04:05'::macaddr8; -- invalid
 -- test converting a MAC address to modified EUI-64 for inclusion
 -- in an ipv6 address
 SELECT macaddr8_set7bit('00:08:2b:01:02:03'::macaddr8);
+
 --DDL_STATEMENT_BEGIN--
 drop table if exists macaddr8_data;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE macaddr8_data (a int, b macaddr8);
 --DDL_STATEMENT_END--
+
 INSERT INTO macaddr8_data VALUES (1, '08:00:2b:01:02:03');
 INSERT INTO macaddr8_data VALUES (2, '08-00-2b-01-02-03');
 INSERT INTO macaddr8_data VALUES (3, '08002b:010203');
@@ -61,6 +63,7 @@ INSERT INTO macaddr8_data VALUES (20, '08002b01:02030405');
 INSERT INTO macaddr8_data VALUES (21, '08002b0102030405');
 
 SELECT * FROM macaddr8_data ORDER BY 1;
+
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX macaddr8_data_btree ON macaddr8_data USING btree (b);
 --DDL_STATEMENT_END--
@@ -91,6 +94,7 @@ SELECT b <> '08:00:2b:01:02:03:04:05' FROM macaddr8_data WHERE a = 15; -- false
 SELECT ~b                       FROM macaddr8_data order by 1;
 SELECT  b & '00:00:00:ff:ff:ff' FROM macaddr8_data order by 1;
 SELECT  b | '01:02:03:04:05:06' FROM macaddr8_data order by 1;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE macaddr8_data;
 --DDL_STATEMENT_END--

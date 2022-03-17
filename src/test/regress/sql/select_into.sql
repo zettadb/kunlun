@@ -6,16 +6,20 @@ SELECT *
    INTO TABLE sitmp1
    FROM onek
    WHERE onek.unique1 < 2;
+   
 --DDL_STATEMENT_BEGIN--
 DROP TABLE sitmp1;
 --DDL_STATEMENT_END--
+
 SELECT *
    INTO TABLE sitmp1
    FROM onek2
    WHERE onek2.unique1 < 2;
+   
 --DDL_STATEMENT_BEGIN--
 DROP TABLE sitmp1;
 --DDL_STATEMENT_END--
+
 --
 -- SELECT INTO and INSERT permission, if owner is not allowed to insert.
 --
@@ -49,6 +53,7 @@ RESET SESSION AUTHORIZATION;
 ALTER DEFAULT PRIVILEGES FOR ROLE regress_selinto_user
 	  GRANT INSERT ON TABLES TO regress_selinto_user;
 --DDL_STATEMENT_END--
+
 SET SESSION AUTHORIZATION regress_selinto_user;
 SELECT * INTO TABLE selinto_schema.tmp1
 	  FROM pg_class WHERE relname like '%a%';	-- OK
@@ -61,6 +66,7 @@ CREATE TABLE selinto_schema.tmp3 (a,b,c)
 	   WHERE relname like '%c%';	-- OK
 --DDL_STATEMENT_END--
 RESET SESSION AUTHORIZATION;
+
 --DDL_STATEMENT_BEGIN--
 DROP SCHEMA selinto_schema CASCADE;
 --DDL_STATEMENT_END--
@@ -121,6 +127,7 @@ AS $$
   CREATE TABLE created_table AS SELECT * FROM int8_tbl;
 $$ LANGUAGE SQL;
 --DDL_STATEMENT_END--
+
 SELECT make_table();
 
 SELECT * FROM created_table;
@@ -131,12 +138,14 @@ DO $$
 BEGIN
 	EXECUTE 'EXPLAIN ANALYZE SELECT * INTO TABLE easi FROM int8_tbl';
 END$$;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE created_table;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 DROP TABLE easi;
 --DDL_STATEMENT_END--
+
 --
 -- Disallowed uses of SELECT ... INTO.  All should fail
 --

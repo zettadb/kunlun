@@ -4,11 +4,13 @@
 --DDL_STATEMENT_BEGIN--
 CREATE ROLE regress_alice;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION f_leak (text)
        RETURNS bool LANGUAGE 'plpgsql' COST 0.0000001
        AS 'BEGIN RAISE NOTICE ''f_leak => %'', $1; RETURN true; END';
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE if exists customer cascade;
 --DDL_STATEMENT_END--
@@ -20,6 +22,7 @@ CREATE TABLE customer (
        passwd	text
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE if exists credit_card cascade;
 --DDL_STATEMENT_END--
@@ -30,6 +33,7 @@ CREATE TABLE credit_card (
        climit   int
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE if exists credit_usage cascade;
 --DDL_STATEMENT_END--
@@ -40,6 +44,7 @@ CREATE TABLE credit_usage (
        usage1    int
 );
 --DDL_STATEMENT_END--
+
 INSERT INTO customer
        VALUES (101, 'regress_alice', '+81-12-3456-7890', 'passwd123'),
               (102, 'regress_bob',   '+01-234-567-8901', 'beafsteak'),
@@ -59,6 +64,7 @@ INSERT INTO credit_usage
 	      (102, '2011-10-28', 200),
 	      (103, '2011-10-15', 480);
 --DDL_STATEMENT_BEGIN--
+
 CREATE VIEW my_property_normal AS
        SELECT * FROM customer WHERE name = current_user;
 --DDL_STATEMENT_END--
@@ -66,6 +72,7 @@ CREATE VIEW my_property_normal AS
 CREATE VIEW my_property_secure WITH (security_barrier) AS
        SELECT * FROM customer WHERE name = current_user;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW my_credit_card_normal AS
        SELECT * FROM customer l NATURAL JOIN credit_card r
@@ -76,6 +83,7 @@ CREATE VIEW my_credit_card_secure WITH (security_barrier) AS
        SELECT * FROM customer l NATURAL JOIN credit_card r
        WHERE l.name = current_user;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW my_credit_card_usage_normal AS
        SELECT * FROM my_credit_card_secure l NATURAL JOIN credit_usage r;
@@ -84,6 +92,7 @@ CREATE VIEW my_credit_card_usage_normal AS
 CREATE VIEW my_credit_card_usage_secure WITH (security_barrier) AS
        SELECT * FROM my_credit_card_secure l NATURAL JOIN credit_usage r;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 GRANT SELECT ON my_property_normal TO public;
 --DDL_STATEMENT_END--
@@ -102,6 +111,7 @@ GRANT SELECT ON my_credit_card_usage_normal TO public;
 --DDL_STATEMENT_BEGIN--
 GRANT SELECT ON my_credit_card_usage_secure TO public;
 --DDL_STATEMENT_END--
+
 --
 -- Run leaky view scenarios
 --

@@ -175,6 +175,7 @@ INSERT INTO hash_split_heap SELECT a/2 FROM generate_series(1, 25000) a;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE hash_split_heap;
 --DDL_STATEMENT_END--
+
 -- Index on temp table.
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE hash_temp_heap (x int, y int);

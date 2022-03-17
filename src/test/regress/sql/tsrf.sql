@@ -24,6 +24,7 @@ SELECT generate_series(generate_series(1,3), generate_series(2, 4));
 explain (verbose, costs off)
 SELECT generate_series(1, generate_series(1, 3)), generate_series(2, 4);
 SELECT generate_series(1, generate_series(1, 3)), generate_series(2, 4);
+
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE few(id int, dataa text, datab text);
 --DDL_STATEMENT_END--

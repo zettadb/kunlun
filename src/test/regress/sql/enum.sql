@@ -1,6 +1,7 @@
 --
 -- Enum tests
 --
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE if exists enumtest_child;
 --DDL_STATEMENT_END--
@@ -35,6 +36,7 @@ SELECT 'mauve'::rainbow;
 --
 -- adding new values
 --
+
 --DDL_STATEMENT_BEGIN--
 drop type if exists planets;
 --DDL_STATEMENT_END--
@@ -46,6 +48,7 @@ SELECT enumlabel, enumsortorder
 FROM pg_enum
 WHERE enumtypid = 'planets'::regtype
 ORDER BY 2;
+
 --DDL_STATEMENT_BEGIN--
 ALTER TYPE planets ADD VALUE 'uranus';
 --DDL_STATEMENT_END--
@@ -77,9 +80,11 @@ ORDER BY enumlabel::planets;
 ALTER TYPE planets ADD VALUE
   'plutoplutoplutoplutoplutoplutoplutoplutoplutoplutoplutoplutoplutopluto';
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER TYPE planets ADD VALUE 'pluto' AFTER 'zeus';
 --DDL_STATEMENT_END--
+
 -- if not exists tests
 
 --  existing value gives error
@@ -94,6 +99,7 @@ ALTER TYPE planets ADD VALUE IF NOT EXISTS 'mercury';
 
 -- should be neptune, not mercury
 SELECT enum_last(NULL::planets);
+
 --DDL_STATEMENT_BEGIN--
 ALTER TYPE planets ADD VALUE IF NOT EXISTS 'pluto';
 --DDL_STATEMENT_END--
@@ -104,6 +110,7 @@ SELECT enum_last(NULL::planets);
 --
 -- Test inserting so many values that we have to renumber
 --
+
 --DDL_STATEMENT_BEGIN--
 drop type if exists insenum;
 --DDL_STATEMENT_END--
@@ -347,6 +354,7 @@ BEGIN;
 ALTER TYPE bogus ADD VALUE 'bad';
 COMMIT;
 --DDL_STATEMENT_END--
+
 -- check that we recognize the case where the enum already existed but was
 -- modified in the current txn
 --DDL_STATEMENT_BEGIN--
@@ -355,15 +363,17 @@ BEGIN;
 ALTER TYPE bogon ADD VALUE 'bad';
 ROLLBACK;
 --DDL_STATEMENT_END--
--- but ALTER TYPE RENAME VALUE is safe in a transaction
 
+-- but ALTER TYPE RENAME VALUE is safe in a transaction
 BEGIN;
 -- not supported: ALTER TYPE bogus RENAME VALUE 'good' to 'bad';
 SELECT 'bad'::bogus;
 ROLLBACK;
+
 --DDL_STATEMENT_BEGIN--
 DROP TYPE bogus;
 --DDL_STATEMENT_END--
+
 -- check that we *can* add new values to existing enums in a transaction,
 -- if the type is new as well
 --DDL_STATEMENT_BEGIN--
@@ -377,6 +387,7 @@ ALTER TYPE bogus ADD VALUE 'good';
 ALTER TYPE bogus ADD VALUE 'ugly';
 ROLLBACK;
 --DDL_STATEMENT_END--
+
 --
 -- Cleanup
 --

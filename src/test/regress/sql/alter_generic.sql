@@ -4,6 +4,7 @@
 
 -- Clean up in case a prior regression run failed
 SET client_min_messages TO 'warning';
+
 --DDL_STATEMENT_BEGIN--
 DROP ROLE IF EXISTS regress_alter_generic_user1;
 --DDL_STATEMENT_END--
@@ -15,6 +16,7 @@ DROP ROLE IF EXISTS regress_alter_generic_user3;
 --DDL_STATEMENT_END--
 
 RESET client_min_messages;
+
 --DDL_STATEMENT_BEGIN--
 CREATE USER regress_alter_generic_user3;
 --DDL_STATEMENT_END--
@@ -24,15 +26,18 @@ CREATE USER regress_alter_generic_user2;
 --DDL_STATEMENT_BEGIN--
 CREATE USER regress_alter_generic_user1 IN ROLE regress_alter_generic_user3;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE SCHEMA alt_nsp1;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE SCHEMA alt_nsp2;
+
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 GRANT ALL ON SCHEMA alt_nsp1, alt_nsp2 TO public;
 --DDL_STATEMENT_END--
+
 SET search_path = alt_nsp1, public;
 
 --
@@ -85,6 +90,7 @@ ALTER FUNCTION alt_func2(int) SET SCHEMA alt_nsp1;  -- OK, already there
 --DDL_STATEMENT_BEGIN--
 ALTER FUNCTION alt_func2(int) SET SCHEMA alt_nsp2;  -- OK
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER AGGREGATE alt_agg1(int) RENAME TO alt_agg2;   -- failed (name conflict)
 --DDL_STATEMENT_END--
@@ -120,6 +126,7 @@ CREATE AGGREGATE alt_agg2 (
   sfunc1 = int4mi, basetype = int4, stype1 = int4, initcond = -100
 );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER FUNCTION alt_func3(int) RENAME TO alt_func4;	-- failed (not owner)
 --DDL_STATEMENT_END--
@@ -138,6 +145,7 @@ ALTER FUNCTION alt_func3(int) SET SCHEMA alt_nsp2;      -- failed (not owner)
 --DDL_STATEMENT_BEGIN--
 ALTER FUNCTION alt_func2(int) SET SCHEMA alt_nsp2;	-- failed (name conflicts)
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER AGGREGATE alt_agg3(int) RENAME TO alt_agg4;   -- failed (not owner)
 --DDL_STATEMENT_END--
@@ -156,6 +164,7 @@ ALTER AGGREGATE alt_agg3(int) SET SCHEMA alt_nsp2;  -- failed (not owner)
 --DDL_STATEMENT_BEGIN--
 ALTER AGGREGATE alt_agg2(int) SET SCHEMA alt_nsp2;  -- failed (name conflict)
 --DDL_STATEMENT_END--
+
 RESET SESSION AUTHORIZATION;
 
 SELECT n.nspname, proname, prorettype::regtype, prokind, a.rolname
@@ -179,6 +188,7 @@ CREATE CONVERSION alt_conv1 FOR 'LATIN1' TO 'UTF8' FROM iso8859_1_to_utf8;
 --DDL_STATEMENT_BEGIN--
 CREATE CONVERSION alt_conv2 FOR 'LATIN1' TO 'UTF8' FROM iso8859_1_to_utf8;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER CONVERSION alt_conv1 RENAME TO alt_conv2;  -- failed (name conflict)
 --DDL_STATEMENT_END--
@@ -194,6 +204,7 @@ ALTER CONVERSION alt_conv2 OWNER TO regress_alter_generic_user3;  -- OK
 --DDL_STATEMENT_BEGIN--
 ALTER CONVERSION alt_conv2 SET SCHEMA alt_nsp2;  -- OK
 --DDL_STATEMENT_END--
+
 SET SESSION AUTHORIZATION regress_alter_generic_user2;
 --DDL_STATEMENT_BEGIN--
 CREATE CONVERSION alt_conv1 FOR 'LATIN1' TO 'UTF8' FROM iso8859_1_to_utf8;
@@ -219,6 +230,7 @@ ALTER CONVERSION alt_conv3 SET SCHEMA alt_nsp2;  -- failed (not owner)
 --DDL_STATEMENT_BEGIN--
 ALTER CONVERSION alt_conv2 SET SCHEMA alt_nsp2;  -- failed (name conflict)
 --DDL_STATEMENT_END--
+
 RESET SESSION AUTHORIZATION;
 
 SELECT n.nspname, c.conname, a.rolname
@@ -236,24 +248,28 @@ CREATE FOREIGN DATA WRAPPER alt_fdw1;
 --DDL_STATEMENT_BEGIN--
 CREATE FOREIGN DATA WRAPPER alt_fdw2;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE SERVER alt_fserv1 FOREIGN DATA WRAPPER alt_fdw1;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE SERVER alt_fserv2 FOREIGN DATA WRAPPER alt_fdw2;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER FOREIGN DATA WRAPPER alt_fdw1 RENAME TO alt_fdw2;  -- failed (name conflict)
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 ALTER FOREIGN DATA WRAPPER alt_fdw1 RENAME TO alt_fdw3;  -- OK
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER SERVER alt_fserv1 RENAME TO alt_fserv2;   -- failed (name conflict)
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 ALTER SERVER alt_fserv1 RENAME TO alt_fserv3;   -- OK
 --DDL_STATEMENT_END--
+
 SELECT fdwname FROM pg_foreign_data_wrapper WHERE fdwname like 'alt_fdw%';
 SELECT srvname FROM pg_foreign_server WHERE srvname like 'alt_fserv%';
 
@@ -266,6 +282,7 @@ CREATE LANGUAGE alt_lang1 HANDLER plpgsql_call_handler;
 --DDL_STATEMENT_BEGIN--
 CREATE LANGUAGE alt_lang2 HANDLER plpgsql_call_handler;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER LANGUAGE alt_lang1 OWNER TO regress_alter_generic_user1;  -- OK
 --DDL_STATEMENT_END--
@@ -283,6 +300,7 @@ ALTER LANGUAGE alt_lang2 RENAME TO alt_lang3;   -- failed (not owner)
 --DDL_STATEMENT_BEGIN--
 ALTER LANGUAGE alt_lang1 RENAME TO alt_lang3;   -- OK
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER LANGUAGE alt_lang2 OWNER TO regress_alter_generic_user3;  -- failed (not owner)
 --DDL_STATEMENT_END--
@@ -292,6 +310,7 @@ ALTER LANGUAGE alt_lang3 OWNER TO regress_alter_generic_user2;  -- failed (no ro
 --DDL_STATEMENT_BEGIN--
 ALTER LANGUAGE alt_lang3 OWNER TO regress_alter_generic_user3;  -- OK
 --DDL_STATEMENT_END--
+
 RESET SESSION AUTHORIZATION;
 SELECT lanname, a.rolname
   FROM pg_language l, pg_authid a
@@ -302,12 +321,14 @@ SELECT lanname, a.rolname
 -- Operator
 --
 SET SESSION AUTHORIZATION regress_alter_generic_user1;
+
 --DDL_STATEMENT_BEGIN--
 CREATE OPERATOR @-@ ( leftarg = int4, rightarg = int4, procedure = int4mi );
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE OPERATOR @+@ ( leftarg = int4, rightarg = int4, procedure = int4pl );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER OPERATOR @+@(int4, int4) OWNER TO regress_alter_generic_user2;  -- failed (no role membership)
 --DDL_STATEMENT_END--
@@ -317,10 +338,13 @@ ALTER OPERATOR @+@(int4, int4) OWNER TO regress_alter_generic_user3;  -- OK
 --DDL_STATEMENT_BEGIN--
 ALTER OPERATOR @-@(int4, int4) SET SCHEMA alt_nsp2;           -- OK
 --DDL_STATEMENT_END--
+
 SET SESSION AUTHORIZATION regress_alter_generic_user2;
+
 --DDL_STATEMENT_BEGIN--
 CREATE OPERATOR @-@ ( leftarg = int4, rightarg = int4, procedure = int4mi );
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER OPERATOR @+@(int4, int4) OWNER TO regress_alter_generic_user2;  -- failed (not owner)
 --DDL_STATEMENT_END--
@@ -357,6 +381,7 @@ ALTER OPERATOR FAMILY alt_opf1 USING hash OWNER TO regress_alter_generic_user1;
 --DDL_STATEMENT_BEGIN--
 ALTER OPERATOR FAMILY alt_opf2 USING hash OWNER TO regress_alter_generic_user1;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE OPERATOR CLASS alt_opc1 FOR TYPE uuid USING hash AS STORAGE uuid;
 --DDL_STATEMENT_END--
@@ -369,7 +394,9 @@ ALTER OPERATOR CLASS alt_opc1 USING hash OWNER TO regress_alter_generic_user1;
 --DDL_STATEMENT_BEGIN--
 ALTER OPERATOR CLASS alt_opc2 USING hash OWNER TO regress_alter_generic_user1;
 --DDL_STATEMENT_END--
+
 SET SESSION AUTHORIZATION regress_alter_generic_user1;
+
 --DDL_STATEMENT_BEGIN--
 ALTER OPERATOR FAMILY alt_opf1 USING hash RENAME TO alt_opf2;  -- failed (name conflict)
 --DDL_STATEMENT_END--
@@ -385,6 +412,7 @@ ALTER OPERATOR FAMILY alt_opf2 USING hash OWNER TO regress_alter_generic_user3; 
 --DDL_STATEMENT_BEGIN--
 ALTER OPERATOR FAMILY alt_opf2 USING hash SET SCHEMA alt_nsp2;  -- OK
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER OPERATOR CLASS alt_opc1 USING hash RENAME TO alt_opc2;  -- failed (name conflict)
 --DDL_STATEMENT_END--
@@ -400,7 +428,9 @@ ALTER OPERATOR CLASS alt_opc2 USING hash OWNER TO regress_alter_generic_user3;  
 --DDL_STATEMENT_BEGIN--
 ALTER OPERATOR CLASS alt_opc2 USING hash SET SCHEMA alt_nsp2;  -- OK
 --DDL_STATEMENT_END--
+
 RESET SESSION AUTHORIZATION;
+
 --DDL_STATEMENT_BEGIN--
 CREATE OPERATOR FAMILY alt_opf1 USING hash;
 --DDL_STATEMENT_END--
@@ -413,6 +443,7 @@ ALTER OPERATOR FAMILY alt_opf1 USING hash OWNER TO regress_alter_generic_user2;
 --DDL_STATEMENT_BEGIN--
 ALTER OPERATOR FAMILY alt_opf2 USING hash OWNER TO regress_alter_generic_user2;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE OPERATOR CLASS alt_opc1 FOR TYPE macaddr USING hash AS STORAGE macaddr;
 --DDL_STATEMENT_END--
@@ -425,7 +456,9 @@ ALTER OPERATOR CLASS alt_opc1 USING hash OWNER TO regress_alter_generic_user2;
 --DDL_STATEMENT_BEGIN--
 ALTER OPERATOR CLASS alt_opc2 USING hash OWNER TO regress_alter_generic_user2;
 --DDL_STATEMENT_END--
+
 SET SESSION AUTHORIZATION regress_alter_generic_user2;
+
 --DDL_STATEMENT_BEGIN--
 ALTER OPERATOR FAMILY alt_opf3 USING hash RENAME TO alt_opf4;	-- failed (not owner)
 --DDL_STATEMENT_END--
@@ -444,6 +477,7 @@ ALTER OPERATOR FAMILY alt_opf3 USING hash SET SCHEMA alt_nsp2;  -- failed (not o
 --DDL_STATEMENT_BEGIN--
 ALTER OPERATOR FAMILY alt_opf2 USING hash SET SCHEMA alt_nsp2;  -- failed (name conflict)
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER OPERATOR CLASS alt_opc3 USING hash RENAME TO alt_opc4;	-- failed (not owner)
 --DDL_STATEMENT_END--
@@ -462,6 +496,7 @@ ALTER OPERATOR CLASS alt_opc3 USING hash SET SCHEMA alt_nsp2;  -- failed (not ow
 --DDL_STATEMENT_BEGIN--
 ALTER OPERATOR CLASS alt_opc2 USING hash SET SCHEMA alt_nsp2;  -- failed (name conflict)
 --DDL_STATEMENT_END--
+
 RESET SESSION AUTHORIZATION;
 
 SELECT nspname, opfname, amname, rolname
@@ -496,6 +531,7 @@ ALTER OPERATOR FAMILY alt_opf4 USING btree ADD
   OPERATOR 4 >= (int4, int2) ,
   OPERATOR 5 > (int4, int2) ,
   FUNCTION 1 btint42cmp(int4, int2);
+  
 --DDL_STATEMENT_BEGIN--
 ALTER OPERATOR FAMILY alt_opf4 USING btree DROP
 --DDL_STATEMENT_END--
@@ -512,6 +548,7 @@ DROP OPERATOR FAMILY alt_opf4 USING btree;
 --DDL_STATEMENT_BEGIN--
 ROLLBACK;
 --DDL_STATEMENT_END--
+
 -- Should fail. Invalid values for ALTER OPERATOR FAMILY .. ADD / DROP
 --DDL_STATEMENT_BEGIN--
 CREATE OPERATOR FAMILY alt_opf4 USING btree;
@@ -540,6 +577,7 @@ ALTER OPERATOR FAMILY alt_opf4 USING btree ADD STORAGE invalid_storage; -- Ensur
 --DDL_STATEMENT_BEGIN--
 DROP OPERATOR FAMILY alt_opf4 USING btree;
 --DDL_STATEMENT_END--
+
 -- Should fail. Need to be SUPERUSER to do ALTER OPERATOR FAMILY .. ADD / DROP
 --DDL_STATEMENT_BEGIN--
 BEGIN TRANSACTION;
@@ -561,6 +599,7 @@ DROP OPERATOR FAMILY alt_opf5 USING btree;
 --DDL_STATEMENT_BEGIN--
 ROLLBACK;
 --DDL_STATEMENT_END--
+
 -- Should fail. Need rights to namespace for ALTER OPERATOR FAMILY .. ADD / DROP
 --DDL_STATEMENT_BEGIN--
 CREATE SCHEMA alt_nsp6;
@@ -587,6 +626,7 @@ ROLLBACK;
 --DDL_STATEMENT_BEGIN--
 DROP SCHEMA alt_nsp6;
 --DDL_STATEMENT_END--
+
 -- Should fail. Only two arguments required for ALTER OPERATOR FAMILY ... DROP OPERATOR
 --DDL_STATEMENT_BEGIN--
 CREATE OPERATOR FAMILY alt_opf7 USING btree;
@@ -634,6 +674,7 @@ ALTER OPERATOR FAMILY alt_opf10 USING btree ADD OPERATOR 1 < (int4, int4) FOR OR
 --DDL_STATEMENT_BEGIN--
 DROP OPERATOR FAMILY alt_opf10 USING btree;
 --DDL_STATEMENT_END--
+
 -- Should work. Textbook case of ALTER OPERATOR FAMILY ... ADD OPERATOR with FOR ORDER BY
 --DDL_STATEMENT_BEGIN--
 CREATE OPERATOR FAMILY alt_opf11 USING gist;
@@ -667,6 +708,7 @@ DROP OPERATOR FAMILY alt_opf12 USING btree;
 --DDL_STATEMENT_BEGIN--
 ROLLBACK;
 --DDL_STATEMENT_END--
+
 -- Should fail. hash comparison functions should return INTEGER in ALTER OPERATOR FAMILY ... ADD FUNCTION
 --DDL_STATEMENT_BEGIN--
 BEGIN TRANSACTION;
@@ -706,6 +748,7 @@ DROP OPERATOR FAMILY alt_opf14 USING btree;
 --DDL_STATEMENT_BEGIN--
 ROLLBACK;
 --DDL_STATEMENT_END--
+
 -- Should fail. hash comparison functions should have one argument in ALTER OPERATOR FAMILY ... ADD FUNCTION
 --DDL_STATEMENT_BEGIN--
 BEGIN TRANSACTION;
@@ -737,6 +780,7 @@ ALTER OPERATOR FAMILY alt_opf16 USING gist ADD FUNCTION 1 btint42cmp(int4, int2)
 --DDL_STATEMENT_BEGIN--
 DROP OPERATOR FAMILY alt_opf16 USING gist;
 --DDL_STATEMENT_END--
+
 -- Should fail. duplicate operator number / function number in ALTER OPERATOR FAMILY ... ADD FUNCTION
 --DDL_STATEMENT_BEGIN--
 CREATE OPERATOR FAMILY alt_opf17 USING btree;
@@ -782,6 +826,7 @@ ALTER OPERATOR FAMILY alt_opf17 USING btree ADD
 DROP OPERATOR FAMILY alt_opf17 USING btree;
 --DDL_STATEMENT_END--
 
+
 -- Should fail. Ensure that DROP requests for missing OPERATOR / FUNCTIONS
 -- return appropriate message in ALTER OPERATOR FAMILY ... DROP OPERATOR / FUNCTION
 --DDL_STATEMENT_BEGIN--
@@ -805,6 +850,7 @@ ALTER OPERATOR FAMILY alt_opf18 USING btree DROP FUNCTION 2 (int4, int4);
 --DDL_STATEMENT_BEGIN--
 DROP OPERATOR FAMILY alt_opf18 USING btree;
 --DDL_STATEMENT_END--
+
 --
 -- Text Search Dictionary
 --
@@ -816,6 +862,7 @@ CREATE TEXT SEARCH DICTIONARY alt_ts_dict1 (template=simple);
 --DDL_STATEMENT_BEGIN--
 CREATE TEXT SEARCH DICTIONARY alt_ts_dict2 (template=simple);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER TEXT SEARCH DICTIONARY alt_ts_dict1 RENAME TO alt_ts_dict2;  -- failed (name conflict)
 --DDL_STATEMENT_END--
@@ -839,6 +886,7 @@ CREATE TEXT SEARCH DICTIONARY alt_ts_dict1 (template=simple);
 --DDL_STATEMENT_BEGIN--
 CREATE TEXT SEARCH DICTIONARY alt_ts_dict2 (template=simple);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER TEXT SEARCH DICTIONARY alt_ts_dict3 RENAME TO alt_ts_dict4;  -- failed (not owner)
 --DDL_STATEMENT_END--
@@ -857,6 +905,7 @@ ALTER TEXT SEARCH DICTIONARY alt_ts_dict3 SET SCHEMA alt_nsp2;  -- failed (not o
 --DDL_STATEMENT_BEGIN--
 ALTER TEXT SEARCH DICTIONARY alt_ts_dict2 SET SCHEMA alt_nsp2;  -- failed (name conflict)
 --DDL_STATEMENT_END--
+
 RESET SESSION AUTHORIZATION;
 
 SELECT nspname, dictname, rolname
@@ -875,6 +924,7 @@ CREATE TEXT SEARCH CONFIGURATION alt_ts_conf1 (copy=english);
 --DDL_STATEMENT_BEGIN--
 CREATE TEXT SEARCH CONFIGURATION alt_ts_conf2 (copy=english);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER TEXT SEARCH CONFIGURATION alt_ts_conf1 RENAME TO alt_ts_conf2;  -- failed (name conflict)
 --DDL_STATEMENT_END--
@@ -890,6 +940,7 @@ ALTER TEXT SEARCH CONFIGURATION alt_ts_conf2 OWNER TO regress_alter_generic_user
 --DDL_STATEMENT_BEGIN--
 ALTER TEXT SEARCH CONFIGURATION alt_ts_conf2 SET SCHEMA alt_nsp2;  -- OK
 --DDL_STATEMENT_END--
+
 SET SESSION AUTHORIZATION regress_alter_generic_user2;
 --DDL_STATEMENT_BEGIN--
 CREATE TEXT SEARCH CONFIGURATION alt_ts_conf1 (copy=english);
@@ -897,6 +948,7 @@ CREATE TEXT SEARCH CONFIGURATION alt_ts_conf1 (copy=english);
 --DDL_STATEMENT_BEGIN--
 CREATE TEXT SEARCH CONFIGURATION alt_ts_conf2 (copy=english);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER TEXT SEARCH CONFIGURATION alt_ts_conf3 RENAME TO alt_ts_conf4;  -- failed (not owner)
 --DDL_STATEMENT_END--
@@ -915,6 +967,7 @@ ALTER TEXT SEARCH CONFIGURATION alt_ts_conf3 SET SCHEMA alt_nsp2;  -- failed (no
 --DDL_STATEMENT_BEGIN--
 ALTER TEXT SEARCH CONFIGURATION alt_ts_conf2 SET SCHEMA alt_nsp2;  -- failed (name conflict)
 --DDL_STATEMENT_END--
+
 RESET SESSION AUTHORIZATION;
 
 SELECT nspname, cfgname, rolname
@@ -932,6 +985,7 @@ CREATE TEXT SEARCH TEMPLATE alt_ts_temp1 (lexize=dsimple_lexize);
 --DDL_STATEMENT_BEGIN--
 CREATE TEXT SEARCH TEMPLATE alt_ts_temp2 (lexize=dsimple_lexize);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER TEXT SEARCH TEMPLATE alt_ts_temp1 RENAME TO alt_ts_temp2; -- failed (name conflict)
 --DDL_STATEMENT_END--
@@ -941,16 +995,19 @@ ALTER TEXT SEARCH TEMPLATE alt_ts_temp1 RENAME TO alt_ts_temp3; -- OK
 --DDL_STATEMENT_BEGIN--
 ALTER TEXT SEARCH TEMPLATE alt_ts_temp2 SET SCHEMA alt_nsp2;    -- OK
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEXT SEARCH TEMPLATE alt_ts_temp2 (lexize=dsimple_lexize);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 ALTER TEXT SEARCH TEMPLATE alt_ts_temp2 SET SCHEMA alt_nsp2;    -- failed (name conflict)
 --DDL_STATEMENT_END--
+
 -- invalid: non-lowercase quoted identifiers
 --DDL_STATEMENT_BEGIN--
 CREATE TEXT SEARCH TEMPLATE tstemp_case ("Init" = init_function);
 --DDL_STATEMENT_END--
+
 SELECT nspname, tmplname
   FROM pg_ts_template t, pg_namespace n
   WHERE t.tmplnamespace = n.oid AND nspname like 'alt_nsp%'
@@ -959,6 +1016,7 @@ SELECT nspname, tmplname
 --
 -- Text Search Parser
 --
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEXT SEARCH PARSER alt_ts_prs1
     (start = prsd_start, gettoken = prsd_nexttoken, end = prsd_end, lextypes = prsd_lextype);
@@ -967,6 +1025,7 @@ CREATE TEXT SEARCH PARSER alt_ts_prs1
 CREATE TEXT SEARCH PARSER alt_ts_prs2
     (start = prsd_start, gettoken = prsd_nexttoken, end = prsd_end, lextypes = prsd_lextype);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER TEXT SEARCH PARSER alt_ts_prs1 RENAME TO alt_ts_prs2; -- failed (name conflict)
 --DDL_STATEMENT_END--
@@ -976,6 +1035,7 @@ ALTER TEXT SEARCH PARSER alt_ts_prs1 RENAME TO alt_ts_prs3; -- OK
 --DDL_STATEMENT_BEGIN--
 ALTER TEXT SEARCH PARSER alt_ts_prs2 SET SCHEMA alt_nsp2;   -- OK
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEXT SEARCH PARSER alt_ts_prs2
     (start = prsd_start, gettoken = prsd_nexttoken, end = prsd_end, lextypes = prsd_lextype);
@@ -983,10 +1043,12 @@ CREATE TEXT SEARCH PARSER alt_ts_prs2
 --DDL_STATEMENT_BEGIN--
 ALTER TEXT SEARCH PARSER alt_ts_prs2 SET SCHEMA alt_nsp2;   -- failed (name conflict)
 --DDL_STATEMENT_END--
+
 -- invalid: non-lowercase quoted identifiers
 --DDL_STATEMENT_BEGIN--
 CREATE TEXT SEARCH PARSER tspars_case ("Start" = start_function);
 --DDL_STATEMENT_END--
+
 SELECT nspname, prsname
   FROM pg_ts_parser t, pg_namespace n
   WHERE t.prsnamespace = n.oid AND nspname like 'alt_nsp%'
@@ -996,24 +1058,28 @@ SELECT nspname, prsname
 --- Cleanup resources
 ---
 \set VERBOSITY terse \\ -- suppress cascade details
+
 --DDL_STATEMENT_BEGIN--
 DROP FOREIGN DATA WRAPPER alt_fdw2 CASCADE;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 DROP FOREIGN DATA WRAPPER alt_fdw3 CASCADE;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP LANGUAGE alt_lang2 CASCADE;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 DROP LANGUAGE alt_lang3 CASCADE;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP SCHEMA alt_nsp1 CASCADE;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 DROP SCHEMA alt_nsp2 CASCADE;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 DROP USER regress_alter_generic_user1;
 --DDL_STATEMENT_END--

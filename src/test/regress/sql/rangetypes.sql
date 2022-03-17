@@ -1,10 +1,12 @@
 -- Tests for range data types.
+
 --DDL_STATEMENT_BEGIN--
 drop type if exists textrange;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 create type textrange as range (subtype=text, collation="C");
 --DDL_STATEMENT_END--
+
 --
 -- test input parser
 --
@@ -114,9 +116,11 @@ create index test_range_elem_idx on test_range_elem (i);
 insert into test_range_elem select i from generate_series(1,100) i;
 
 -- select count(*) from test_range_elem where i <@ int4range(10,50);
+
 --DDL_STATEMENT_BEGIN--
 drop table test_range_elem;
 --DDL_STATEMENT_END--
+
 -- test bigint ranges
 select int8range(10000000000::int8, 20000000000::int8,'(]');
 -- test tstz ranges
@@ -129,6 +133,7 @@ set timezone to default;
 --
 -- Test multiple range types over the same subtype
 --
+
 --DDL_STATEMENT_BEGIN--
 create type textrange1 as range(subtype=text, collation="C");
 --DDL_STATEMENT_END--
@@ -138,6 +143,7 @@ create type textrange2 as range(subtype=text, collation="C");
 
 select textrange1('a','Z') @> 'b'::text;
 select textrange2('a','z') @> 'b'::text;
+
 --DDL_STATEMENT_BEGIN--
 drop type textrange1;
 --DDL_STATEMENT_END--
@@ -148,6 +154,7 @@ drop type textrange2;
 --
 -- Test polymorphic type system
 --
+
 --DDL_STATEMENT_BEGIN--
 create function anyarray_anyrange_func(a anyarray, r anyrange)
   returns anyelement as 'select $1[1] + lower($2);' language sql;
@@ -157,19 +164,23 @@ select anyarray_anyrange_func(ARRAY[1,2], int4range(10,20));
 
 -- should fail
 select anyarray_anyrange_func(ARRAY[1,2], numrange(10,20));
+
 --DDL_STATEMENT_BEGIN--
 drop function anyarray_anyrange_func(anyarray, anyrange);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 -- should fail
 create function bogus_func(anyelement)
   returns anyrange as 'select int4range(1,10)' language sql;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 -- should fail
 create function bogus_func(int)
   returns anyrange as 'select int4range(1,10)' language sql;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create function range_add_bounds(anyrange)
   returns anyelement as 'select lower($1) + upper($1)' language sql;
@@ -186,6 +197,7 @@ create function rangetypes_sql(q anyrange, b anyarray, out c anyelement)
 
 select rangetypes_sql(int4range(1,10), ARRAY[2,20]);
 select rangetypes_sql(numrange(1,10), ARRAY[2,20]);  -- match failure
+
 --DDL_STATEMENT_BEGIN--
 drop function range_add_bounds(anyrange);
 --DDL_STATEMENT_END--
@@ -202,9 +214,11 @@ select ARRAY[numrange(1.1, 1.2), numrange(12.3, 155.5)];
 --
 -- Ranges of arrays
 --
+
 --DDL_STATEMENT_BEGIN--
 create type arrayrange as range (subtype=int4[]);
 --DDL_STATEMENT_END--
+
 select arrayrange(ARRAY[1,2], ARRAY[2,1]);
 select arrayrange(ARRAY[2,1], ARRAY[1,2]);  -- fail
 
@@ -217,6 +231,7 @@ drop type arrayrange;
 --
 -- Ranges of composites
 --
+
 --DDL_STATEMENT_BEGIN--
 create type two_ints as (a int, b int);
 --DDL_STATEMENT_END--
@@ -228,6 +243,7 @@ create type two_ints_range as range (subtype = two_ints);
 select *, row_to_json(upper(t)) as u from
   (values (two_ints_range(row(1,2), row(3,4))),
           (two_ints_range(row(5,6), row(7,8)))) v(t);
+		  
 --DDL_STATEMENT_BEGIN--
 drop type two_ints cascade;
 --DDL_STATEMENT_END--
@@ -235,9 +251,11 @@ drop type two_ints cascade;
 --
 -- Check behavior when subtype lacks a hash function
 --
+
 --DDL_STATEMENT_BEGIN--
 create type cashrange as range (subtype = money);
 --DDL_STATEMENT_END--
+
 set enable_sort = off;  -- try to make it pick a hash setop implementation
 
 select '(2,5)'::cashrange except select '(5,6)'::cashrange;
@@ -250,13 +268,13 @@ drop type cashrange;
 --
 -- OUT/INOUT/TABLE functions
 --
+
 --DDL_STATEMENT_BEGIN--
 create function outparam_succeed(i anyrange, out r anyrange, out t text)
   as $$ select $1, 'foo'::text $$ language sql;
 --DDL_STATEMENT_END--
 
 select * from outparam_succeed(int4range(1,2));
-
 --DDL_STATEMENT_BEGIN--
 drop function outparam_succeed(anyrange, anyrange, text);
 --DDL_STATEMENT_END--
@@ -275,6 +293,7 @@ drop function inoutparam_succeed(anyelement, anyrange);
 create function table_succeed(i anyelement, r anyrange) returns table(i anyelement, r anyrange)
   as $$ select $1, $2 $$ language sql;
 --DDL_STATEMENT_END--
+
 select * from table_succeed(123, int4range(1,11));
 --DDL_STATEMENT_BEGIN--
 drop function table_succeed(anyelement, anyrange);
@@ -285,16 +304,19 @@ drop function table_succeed(anyelement, anyrange);
 create function outparam_fail(i anyelement, out r anyrange, out t text)
   as $$ select '[1,10]', 'foo' $$ language sql;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 --should fail
 create function inoutparam_fail(inout i anyelement, out r anyrange)
   as $$ select $1, '[1,10]' $$ language sql;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 --should fail
 create function table_fail(i anyelement) returns table(i anyelement, r anyrange)
   as $$ select $1, '[1,10]' $$ language sql;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop type textrange;
 --DDL_STATEMENT_END--

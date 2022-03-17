@@ -235,12 +235,14 @@ FETCH FROM foo26;
 --
 
 BEGIN;
+
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION declares_cursor(text)
    RETURNS void
    AS 'DECLARE c CURSOR FOR SELECT stringu1 FROM tenk1 WHERE stringu1 LIKE $1;'
    LANGUAGE SQL;
 --DDL_STATEMENT_END--
+
 SELECT declares_cursor('AB%');
 
 FETCH ALL FROM c;
@@ -252,17 +254,21 @@ ROLLBACK;
 -- in particular we want to see what happens during commit of a holdable
 -- cursor
 --
+
 --DDL_STATEMENT_BEGIN--
 create temp table tt1(f1 int);
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create function count_tt1_v() returns int8 as
 'select count(*) from tt1' language sql volatile;
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 create function count_tt1_s() returns int8 as
 'select count(*) from tt1' language sql stable;
 --DDL_STATEMENT_END--
+
 begin;
 
 insert into tt1 values(1);
@@ -288,12 +294,14 @@ commit;
 delete from tt1;
 
 fetch all from c2;
+
 --DDL_STATEMENT_BEGIN--
 drop function count_tt1_v();
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 drop function count_tt1_s();
 --DDL_STATEMENT_END--
+
 
 -- Create a cursor with the BINARY option and check the pg_cursors view
 BEGIN;
@@ -323,6 +331,7 @@ COMMIT;
 --
 -- Tests for updatable cursors
 --
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE uctest(f1 int, f2 text);
 --DDL_STATEMENT_END--
@@ -528,6 +537,7 @@ COMMIT;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE cursor;
 --DDL_STATEMENT_END--
+
 -- Check rewinding a cursor containing a stable function in LIMIT,
 -- per bug report in 8336843.9833.1399385291498.JavaMail.root@quick
 begin;

@@ -15,6 +15,7 @@ CREATE FUNCTION fn_x_before () RETURNS TRIGGER AS '
 		return NEW;
 	END;
 ' LANGUAGE plpgsql;
+
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION fn_x_after () RETURNS TRIGGER AS '
@@ -24,6 +25,7 @@ CREATE FUNCTION fn_x_after () RETURNS TRIGGER AS '
 	END;
 ' LANGUAGE plpgsql;
 --DDL_STATEMENT_END--
+
 --CREATE TRIGGER trg_x_after AFTER INSERT ON x
 --FOR EACH ROW EXECUTE PROCEDURE fn_x_after();
 
@@ -109,6 +111,7 @@ CREATE TABLE no_oids (
 	b	int
 ) WITHOUT OIDS;
 --DDL_STATEMENT_END--
+
 INSERT INTO no_oids (a, b) VALUES (5, 10);
 INSERT INTO no_oids (a, b) VALUES (20, 30);
 
@@ -121,11 +124,13 @@ COPY x TO stdout;
 COPY x (c, e) TO stdout;
 COPY x (b, e) TO stdout WITH NULL 'I''m null';
 --DDL_STATEMENT_BEGIN--
+
 CREATE TEMP TABLE y (
 	col1 text,
 	col2 text
 );
 --DDL_STATEMENT_END--
+
 INSERT INTO y VALUES ('Jackson, Sam', E'\\h');
 INSERT INTO y VALUES ('It is "perfect".',E'\t');
 INSERT INTO y VALUES ('', NULL);
@@ -148,9 +153,11 @@ COPY y TO stdout (FORMAT CSV, FORCE_QUOTE *);
 \copy y TO stdout (FORMAT CSV, FORCE_QUOTE *)
 
 --test that we read consecutive LFs properly
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE testnl (a int, b text, c int);
 --DDL_STATEMENT_END--
+
 COPY testnl FROM stdin CSV;
 1,"a field with two LFs
 
@@ -161,6 +168,7 @@ inside",2
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE testeoc (a text);
 --DDL_STATEMENT_END--
+
 COPY testeoc FROM stdin CSV;
 a\.
 \.b
@@ -171,6 +179,7 @@ c\.d
 COPY testeoc TO stdout CSV;
 
 -- test handling of nonstandard null marker that violates escaping rules
+
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE testnull(a int, b text);
 --DDL_STATEMENT_END--
@@ -363,12 +372,14 @@ COPY rls_t1 (a, b, c) from stdin;
 --CREATE POLICY p1 ON rls_t1 FOR SELECT USING (a % 2 = 0);
 --ALTER TABLE rls_t1 ENABLE ROW LEVEL SECURITY;
 --ALTER TABLE rls_t1 FORCE ROW LEVEL SECURITY;
+
 --DDL_STATEMENT_BEGIN--
 GRANT SELECT ON TABLE rls_t1 TO regress_rls_copy_user;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 GRANT SELECT (a, b) ON TABLE rls_t1 TO regress_rls_copy_user_colperms;
 --DDL_STATEMENT_END--
+
 -- all columns
 COPY rls_t1 TO stdout;
 COPY rls_t1 (a, b, c) TO stdout;
@@ -417,9 +428,11 @@ CREATE TABLE instead_of_insert_tbl(id serial, name text);
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW instead_of_insert_tbl_view AS SELECT ''::text AS str;
 --DDL_STATEMENT_END--
+
 COPY instead_of_insert_tbl_view FROM stdin; -- fail
 test1
 \.
+
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION fun_instead_of_insert_tbl() RETURNS trigger AS $$
 BEGIN

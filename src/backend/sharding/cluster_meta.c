@@ -1030,16 +1030,22 @@ bool UpdateCurrentMetaShardMasterNodeId()
 	snprintf(strmsg, sizeof(strmsg), "Finding and updating new primary node for metadata shard.");
 	pgstat_report_activity(STATE_RUNNING, strmsg);
 	int num_masters = 0;
-	PG_TRY(); {
+	PG_TRY();
+	{
+		if (cluster_id == 0)
+			fetch_cluster_meta();
 		num_masters = FindCurrentMetaShardMasterNodeId(&master_nodeid, &old_master_nodeid);
-	} PG_CATCH(); {
+	}
+	PG_CATCH();
+	{
 		num_masters = -2;
 		HOLD_INTERRUPTS();
 		downgrade_error();
 		errfinish(0);
 		FlushErrorState();
 		RESUME_INTERRUPTS();
-	} PG_END_TRY();
+	}
+	PG_END_TRY();
 
 	if (num_masters != 1)
 		goto end;
@@ -1093,9 +1099,13 @@ bool UpdateCurrentMetaShardMasterNodeId()
 		goto end;
 	}
 
-	Datum values[5] = {0, 0, 0, 0, 0};
-	bool nulls[5] = {false, false, false, false, false};
-	bool replaces[5] = {false, false, false, false, false};
+	Datum values[Natts_pg_cluster_meta];
+	bool nulls[Natts_pg_cluster_meta];
+	bool replaces[Natts_pg_cluster_meta];
+	memset(values, 0, sizeof(values));
+	memset(nulls, 0, sizeof(nulls));
+	memset(replaces, 0, sizeof(replaces));
+
 	replaces[Anum_pg_cluster_meta_cluster_master_id - 1] = true;
 	values[Anum_pg_cluster_meta_cluster_master_id - 1] = UInt32GetDatum(master_nodeid);
 

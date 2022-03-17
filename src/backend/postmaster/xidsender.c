@@ -162,146 +162,155 @@ static MYSQL_CONN* connect_to_metadata_cluster(bool recover_txnid, bool isbg)
 	bool need_txn = false;
 	bool do_retry = false;
 	int nretries = 0;
+	int conn_fail = 0;
+	uint16_t master_port;
+	char master_ip[256];
 
 	if (!IsTransactionState())
 	{
 		need_txn = true;
 	}
 
+	PG_TRY();
+	{
 retry:
-	{
-	do_retry = false;
-	/*
-	  TODO: if there is an txn already, then in the loop are we able to see
-	  updates to below 2 meta tables? to do so we must use SnapshotNow rather
-	  than SnapshotMVCC!
-	*/
-	CHECK_FOR_INTERRUPTS();
-	if (need_txn)
-	{
-		SetCurrentStatementStartTimestamp();
-		StartTransactionCommand();
-		SPI_connect();
-		PushActiveSnapshot(GetTransactionSnapshot());
-	}
-
-	HeapTuple ctup = SearchSysCache1(CLUSTER_META, comp_node_id);
-	if (!HeapTupleIsValid(ctup))
-	{
+		do_retry = false;
 		/*
-		 * This computing node was just created, it has not been initialized
-		 * yet, or it can't see the tuples with current snapshot, so wait for
-		 * a while and retry in a new txn&snapshot.
-		 * */
-		if (nretries++ < MAX_METASHARD_MASTER_CONN_RETRIES && !got_SIGTERM)
-		{
-			wait_latch(1000);
-			do_retry = true;
-			goto end;
-		}
-
-		ereport(ERROR, 
-				(errcode(ERRCODE_INTERNAL_ERROR),
-				 errmsg("Kunlun-db: cache lookup failed for cluster meta (pg_cluster_meta) by computing node id(comp_node_id) %u", comp_node_id),
-				 errhint("comp_node_id variable must equal to pg_cluster_meta's single row's comp_node_id field.")));
-	}
-
-	Form_pg_cluster_meta cmeta = (Form_pg_cluster_meta)GETSTRUCT(ctup);
-	cluster_id = cmeta->cluster_id;
-	g_cluster_name = cmeta->cluster_name;
-
-	Oid cmid = cmeta->cluster_master_id;
-	HeapTuple cmtup = SearchSysCache1(CLUSTER_META_NODES, cmid);
-	if (!HeapTupleIsValid(cmtup))
-		elog(ERROR, "cache lookup failed for cluster meta primary node (pg_cluster_meta_node) by field server_id %u", cmid);
-	Form_pg_cluster_meta_nodes cmnode = (Form_pg_cluster_meta_nodes)GETSTRUCT(cmtup);
-
-	bool isnull = false;
-	Datum pwdfld = SysCacheGetAttr(CLUSTER_META_NODES, cmtup, Anum_pg_cluster_meta_nodes_passwd, &isnull);
-	if (isnull)
-		elog(ERROR, "Non-nullable field 'passwd' in table pg_cluster_meta_nodes has NULL value.");
-
-	Datum hostaddr_dat = SysCacheGetAttr(CLUSTER_META_NODES, cmtup, Anum_pg_cluster_meta_nodes_hostaddr, &isnull);
-	if (isnull)
-		elog(ERROR, "Non-nullable field 'hostaddr' in table pg_cluster_meta_nodes has NULL value.");
-	char *pwd = TextDatumGetCString(pwdfld);
-	char *hostaddr = TextDatumGetCString(hostaddr_dat);
-
-	int rcm = 0;
-	/*
-	  The cmnode->is_master must be true, otherwise, pg_cluster_meta and
-	  pg_cluster_meta_nodes tables have inconsistent data --- the former
-	  says a node is master but in latter's corresponding row it is not stored
-	  so. We must update the 2 tables in the same txn to achive such consistency.
-	*/
-	if (!cmnode->is_master)
-	{
-		ereport(ERROR, 
-				(errcode(ERRCODE_DATA_CORRUPTED),
-				 errmsg("Kunlun-db: Meta data inconsistent in pg_cluster_meta and pg_cluster_meta_nodes tables, pg_cluster_meta.cluster_master_id is %u but this row M in pg_cluster_meta_nodes contains inconsistent fact: M.is_master is false.", cmid)));
-		return NULL;
-	}
-	Assert(cmnode->is_master);
-
-	int conn_fail = 0;
-	uint16_t master_port;
-	char master_ip[256];
-	strncpy(master_ip, hostaddr, sizeof(master_ip) - 1);
-	master_port = cmnode->port;
-
-	if ((rcm = connect_mysql_master(&cluster_conn, hostaddr, cmnode->port, cmnode->user_name.data, pwd, isbg)))
-	{
-		if (cmnode->is_master && rcm == -2)
-		{
-			RequestShardingTopoCheck(METADATA_SHARDID);
-			conn_fail = 2;
-			/*
-			 * Connected to an old master, it's no longer master now. Wait for
-			 * master switch and meta table update to complete.
-			 * */
-			elog(LOG, "Connected to a former primary(now replica). Waiting for primary switch and meta table update to complete.");
-		}
-		else if (rcm == -1)
-		{
-			RequestShardingTopoCheck(METADATA_SHARDID);
-			conn_fail = 1;
-			/*
-			 * Master db instance doesn't exist or gone, wait longer for it to
-			 * become available.
-			 * */
-			elog(LOG, "Primary mysql instance doesn't exist or gone, waiting for a primary node to become available and reconnect.");
-		}
-
-		/*
-		  For fg stmts, throw error and let client retry the user txn/stmt;
-		  For bg ops, retry the operation in a brandnew txn in order to update the syscaches
-		if (conn_fail && isbg && nretries++ < MAX_METASHARD_MASTER_CONN_RETRIES)
-		{
-			if (!wait_latch(1000))
-				nretries--; // if waken by others, the wait isn't counted
-			do_retry = true;
-		}
+			TODO: if there is an txn already, then in the loop are we able to see
+			updates to below 2 meta tables? to do so we must use SnapshotNow rather
+			than SnapshotMVCC!
 		*/
-	}
+		CHECK_FOR_INTERRUPTS();
+		if (need_txn)
+		{
+			SetCurrentStatementStartTimestamp();
+			StartTransactionCommand();
+			SPI_connect();
+			PushActiveSnapshot(GetTransactionSnapshot());
+		}
 
-	ReleaseSysCache(cmtup);
-	ReleaseSysCache(ctup);
+		HeapTuple ctup = SearchSysCache1(CLUSTER_META, comp_node_id);
+		if (!HeapTupleIsValid(ctup))
+		{
+			/*
+			 * This computing node was just created, it has not been initialized
+			 * yet, or it can't see the tuples with current snapshot, so wait for
+			 * a while and retry in a new txn&snapshot.
+			 * */
+			if (nretries++ < MAX_METASHARD_MASTER_CONN_RETRIES && !got_SIGTERM)
+			{
+				wait_latch(1000);
+				do_retry = true;
+				goto end;
+			}
+
+			ereport(ERROR, 
+					(errcode(ERRCODE_INTERNAL_ERROR),
+					 errmsg("Kunlun-db: cache lookup failed for cluster meta (pg_cluster_meta) by computing node id(comp_node_id) %u", comp_node_id),
+					 errhint("comp_node_id variable must equal to pg_cluster_meta's single row's comp_node_id field.")));
+		}
+
+		Form_pg_cluster_meta cmeta = (Form_pg_cluster_meta)GETSTRUCT(ctup);
+		cluster_id = cmeta->cluster_id;
+		g_cluster_name = cmeta->cluster_name;
+
+		Oid cmid = cmeta->cluster_master_id;
+		HeapTuple cmtup = SearchSysCache1(CLUSTER_META_NODES, cmid);
+		if (!HeapTupleIsValid(cmtup))
+			elog(ERROR, "cache lookup failed for cluster meta primary node (pg_cluster_meta_node) by field server_id %u", cmid);
+		Form_pg_cluster_meta_nodes cmnode = (Form_pg_cluster_meta_nodes)GETSTRUCT(cmtup);
+
+		bool isnull = false;
+		Datum pwdfld = SysCacheGetAttr(CLUSTER_META_NODES, cmtup, Anum_pg_cluster_meta_nodes_passwd, &isnull);
+		if (isnull)
+			elog(ERROR, "Non-nullable field 'passwd' in table pg_cluster_meta_nodes has NULL value.");
+
+		Datum hostaddr_dat = SysCacheGetAttr(CLUSTER_META_NODES, cmtup, Anum_pg_cluster_meta_nodes_hostaddr, &isnull);
+		if (isnull)
+			elog(ERROR, "Non-nullable field 'hostaddr' in table pg_cluster_meta_nodes has NULL value.");
+		char *pwd = TextDatumGetCString(pwdfld);
+		char *hostaddr = TextDatumGetCString(hostaddr_dat);
+
+		int rcm = 0;
+		/*
+		   The cmnode->is_master must be true, otherwise, pg_cluster_meta and
+		   pg_cluster_meta_nodes tables have inconsistent data --- the former
+		   says a node is master but in latter's corresponding row it is not stored
+		   so. We must update the 2 tables in the same txn to achive such consistency.
+		   */
+		if (!cmnode->is_master)
+		{
+			ereport(ERROR, 
+					(errcode(ERRCODE_DATA_CORRUPTED),
+					 errmsg("Kunlun-db: Meta data inconsistent in pg_cluster_meta and pg_cluster_meta_nodes tables, pg_cluster_meta.cluster_master_id is %u but this row M in pg_cluster_meta_nodes contains inconsistent fact: M.is_master is false.", cmid)));
+		}
+		Assert(cmnode->is_master);
+
+		conn_fail = 0;
+		strncpy(master_ip, hostaddr, sizeof(master_ip) - 1);
+		master_port = cmnode->port;
+
+		if ((rcm = connect_mysql_master(&cluster_conn, hostaddr, cmnode->port, cmnode->user_name.data, pwd, isbg)))
+		{
+			if (cmnode->is_master && rcm == -2)
+			{
+				RequestShardingTopoCheck(METADATA_SHARDID);
+				conn_fail = 2;
+				/*
+				 * Connected to an old master, it's no longer master now. Wait for
+				 * master switch and meta table update to complete.
+				 * */
+				elog(LOG, "Connected to a former primary(now replica). Waiting for primary switch and meta table update to complete.");
+			}
+			else if (rcm == -1)
+			{
+				RequestShardingTopoCheck(METADATA_SHARDID);
+				conn_fail = 1;
+				/*
+				 * Master db instance doesn't exist or gone, wait longer for it to
+				 * become available.
+				 * */
+				elog(LOG, "Primary mysql instance doesn't exist or gone, waiting for a primary node to become available and reconnect.");
+			}
+
+			/*
+			   For fg stmts, throw error and let client retry the user txn/stmt;
+			   For bg ops, retry the operation in a brandnew txn in order to update the syscaches
+			   if (conn_fail && isbg && nretries++ < MAX_METASHARD_MASTER_CONN_RETRIES)
+			   {
+			   if (!wait_latch(1000))
+			   nretries--; // if waken by others, the wait isn't counted
+			   do_retry = true;
+			   }
+			   */
+		}
+
+		ReleaseSysCache(cmtup);
+		ReleaseSysCache(ctup);
 end:
-	/*
-	 * And finish our transaction.
-	 */
-	if (need_txn)
-	{
-		SPI_finish();
-		PopActiveSnapshot();
-		CommitTransactionCommand();
-	}
+		/*
+		 * And finish our transaction.
+		 */
+		if (need_txn)
+		{
+			SPI_finish();
+			PopActiveSnapshot();
+			CommitTransactionCommand();
+		}
 
-	if (do_retry)
-	{
-		goto retry;
+		if (do_retry)
+			goto retry;
 	}
-
+	PG_CATCH();
+	{
+		if (need_txn && IsTransactionState())
+		{
+			AbortCurrentTransaction();
+		}
+		PG_RE_THROW();
+	}
+	PG_END_TRY();
+	
 	if (conn_fail)
 	{
 		ereport(isbg ? WARNING : ERROR, 
@@ -310,9 +319,9 @@ end:
 				 conn_fail == 1 ? "node unavailable" : "node isn't primary.")));
 		return NULL;
 	}
-	}
 
-	if (recover_txnid)recover_nextXid();
+	if (recover_txnid)
+		recover_nextXid();
 	return &cluster_conn;
 }
 

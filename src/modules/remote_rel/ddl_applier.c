@@ -133,6 +133,8 @@ static void Init_ddl_log_read_context(DDL_log_read_context *context, uint64_t st
 
 static DDL_log_event *Peek_ddl_log_event(DDL_log_read_context *context)
 {
+	bool in_txn = IsTransactionState();
+
 	/* Peek event from queue */
 	if (list_head(context->eventQue))
 	{
@@ -149,20 +151,20 @@ static DDL_log_event *Peek_ddl_log_event(DDL_log_read_context *context)
 		goto end;
 
 	PG_TRY();
-	{
+	do {
 		/* Pull log event from meta server */
 		MYSQL_CONN *conn = get_metadata_cluster_conn(true);
 		char stmt[512];
 		context->startpos = get_ddl_applier_progress(false);
 		int ret = snprintf(stmt, sizeof(stmt),
-						   "select id, db_name, objname, optype, objtype, sql_src, user_name, role_name, search_path from " KUNLUN_METADATA_DBNAME ".ddl_ops_log_%s "
-						   "where id > %lu order by id limit 500;",
-						   GetClusterName2(), context->startpos);
+				"select id, db_name, objname, optype, objtype, sql_src, user_name, role_name, search_path from " KUNLUN_METADATA_DBNAME ".ddl_ops_log_%s "
+				"where id > %lu order by id limit 500;",
+				GetClusterName2(), context->startpos);
 		Assert(ret < sizeof(stmt));
 
 		if (send_stmt_to_cluster_meta(conn, stmt, ret, CMD_SELECT, true /* is bg */))
 		{
-			goto end;
+			break;
 		}
 
 		MYSQL_ROW row;
@@ -198,9 +200,15 @@ static DDL_log_event *Peek_ddl_log_event(DDL_log_read_context *context)
 
 		if (list_head(context->eventQue))
 			event = linitial(context->eventQue);
-	}
+	}while (0);
 	PG_CATCH();
 	{
+		EmitErrorReport();
+		FlushErrorState();
+
+		/* Make sure the transactions that were created temporarily in a corner are cleaned up.*/
+		if (!in_txn && IsTransactionState())
+			AbortCurrentTransaction();
 	}
 	PG_END_TRY();
 
@@ -287,15 +295,13 @@ static int switch_authorization(const char *user, const char *role)
 	{
 		SetSessionAuthorization(userid, is_superuser);
 		SetCurrentRoleId(roleid, is_superrole);
+		ret = 0;
 	}
 	PG_CATCH();
 	{
 		elog(WARNING, "DDL log event applier failed to set session authorization '%s' and role '%s'", user, role);
-		goto end;
 	}
 	PG_END_TRY();
-
-	ret = 0;
 
 end:
 	/* Commit transaction */

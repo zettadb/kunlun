@@ -1135,6 +1135,7 @@ bool RequestShardingTopoCheck(Oid shardid)
 done:
 	done = true;
 end:
+	LWLockRelease(ShardingTopoCheckLock);
 	pid = get_topo_service_pid();
 	if (done && pid != 0 && pid != MyProcPid)
 		kill(pid, SIGUSR2);
@@ -1716,13 +1717,17 @@ void TopoServiceMain(void)
 {
 	pqsignal(SIGTERM, topo_service_sigterm);
 	pqsignal(SIGUSR2, topo_service_siguser2);
+	InitializeTimeouts();
+	IsBackgroundWorker = true;
+	skip_tidsync = true;
 
 	/* We're now ready to receive signals */
 	BackgroundWorkerUnblockSignals();
 
 	/* Connect to our database */
-	BackgroundWorkerInitializeConnection("postgres", NULL, 0);
+	InitPostgres("postgres", InvalidOid, NULL, InvalidOid, NULL, false);
 	ShardCacheInit();
+	InitShardingSession();
 
 	/* Set the topo service pid */
 	(void) get_topo_service_pid();
@@ -1757,10 +1762,12 @@ void TopoServiceMain(void)
 		{
 			EmitErrorReport();
 			FlushErrorState();
+			if (IsTransactionState())
+				AbortCurrentTransaction();
 		}
 		PG_END_TRY();
 	}
 
-	proc_exit(1);
+	proc_exit(0);
 }
 

@@ -2876,6 +2876,7 @@ pgstat_bestart(void)
 				break;
 			case ClusterTopoProcess:
 				lbeentry.st_backendType = B_TOPO_SERVICE;
+				break;
 			default:
 				elog(FATAL, "unrecognized process type: %d",
 						(int) MyAuxProcType);

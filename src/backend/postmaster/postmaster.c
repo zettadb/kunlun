@@ -256,7 +256,8 @@ static pid_t StartupPID = 0,
 			PgArchPID = 0,
 			PgStatPID = 0,
 			SysLoggerPID = 0,
-			XidSenderPID = 0;
+			XidSenderPID = 0,
+			TopoServicePID = 0;
 
 /* Startup process's status */
 typedef enum
@@ -554,7 +555,7 @@ static void ShmemBackendArrayRemove(Backend *bn);
 #define StartCheckpointer()		StartChildProcess(CheckpointerProcess)
 #define StartWalWriter()		StartChildProcess(WalWriterProcess)
 #define StartWalReceiver()		StartChildProcess(WalReceiverProcess)
-
+#define StartTopoService()		StartChildProcess(ClusterTopoProcess)
 /* Macros to check exit status of a child process */
 #define EXIT_STATUS_0(st)  ((st) == 0)
 #define EXIT_STATUS_1(st)  (WIFEXITED(st) && WEXITSTATUS(st) == 1)
@@ -1784,6 +1785,9 @@ ServerLoop(void)
 		if (WalReceiverRequested)
 			MaybeStartWalReceiver();
 
+		if (TopoServicePID == 0 && pmState == PM_RUN)
+			TopoServicePID = StartTopoService();
+
 		/* Get other worker processes running, if needed */
 		if (StartWorkerNeeded || HaveCrashedWorker)
 			maybe_start_bgworkers();
@@ -2555,6 +2559,8 @@ SIGHUP_handler(SIGNAL_ARGS)
 			signal_child(PgStatPID, SIGHUP);
 		if (XidSenderPID != 0)
 			signal_child(XidSenderPID, SIGHUP);
+		if (TopoServicePID!=0)
+			signal_child(TopoServicePID, SIGHUP);
 
 		/* Reload authentication config files too */
 		if (!load_hba())
@@ -2697,6 +2703,8 @@ pmdie(SIGNAL_ARGS)
 				signal_child(WalReceiverPID, SIGTERM);
 			if (XidSenderPID != 0)
 				signal_child(XidSenderPID, SIGTERM);
+			if (TopoServicePID != 0)
+				signal_child(TopoServicePID, SIGTERM);
 			if (pmState == PM_STARTUP || pmState == PM_RECOVERY)
 			{
 				SignalSomeChildren(SIGTERM, BACKEND_TYPE_BGWORKER);
@@ -2893,6 +2901,8 @@ reaper(SIGNAL_ARGS)
 				PgStatPID = pgstat_start();
 			if (XidSenderPID == 0)
 				XidSenderPID = xidsender_start();
+			if (TopoServicePID == 0)
+				TopoServicePID = StartTopoService();
 
 			/* workers may be scheduled to start now */
 			maybe_start_bgworkers();
@@ -2980,6 +2990,14 @@ reaper(SIGNAL_ARGS)
 			continue;
 		}
 
+		if (pid == TopoServicePID)
+		{
+			TopoServicePID = 0;
+			if (!EXIT_STATUS_0(exitstatus))
+				HandleChildCrash(pid, exitstatus,
+						 _("WAL writer process"));
+			continue;
+		}
 		/*
 		 * Was it the wal writer?  Normal exit can be ignored; we'll start a
 		 * new one at the next iteration of the postmaster's main loop, if
@@ -3465,6 +3483,17 @@ HandleChildCrash(int pid, int exitstatus, const char *procname)
 		signal_child(CheckpointerPID, (SendStop ? SIGSTOP : SIGQUIT));
 	}
 
+	if (pid == TopoServicePID)
+		TopoServicePID = 0;
+	else if (TopoServicePID !=0 && take_action)
+	{
+		ereport(DEBUG2,
+				(errmsg_internal("sending %s to process %d",
+								 (SendStop ? "SIGSTOP" : "SIGQUIT"),
+								 (int) TopoServicePID)));
+		signal_child(TopoServicePID, (SendStop ? SIGSTOP : SIGQUIT));
+	}
+
 	/* Take care of the walwriter too */
 	if (pid == WalWriterPID)
 		WalWriterPID = 0;
@@ -3698,7 +3727,8 @@ PostmasterStateMachine(void)
 			 (!FatalError && Shutdown < ImmediateShutdown)) &&
 			WalWriterPID == 0 &&
 			AutoVacPID == 0 &&
-			XidSenderPID == 0)
+			XidSenderPID == 0 &&
+			TopoServicePID == 0)
 		{
 			if (Shutdown >= ImmediateShutdown || FatalError)
 			{
@@ -3990,6 +4020,8 @@ TerminateChildren(int signal)
 		signal_child(PgStatPID, signal);
 	if (XidSenderPID != 0)
 		signal_child(XidSenderPID, signal);
+	if (TopoServicePID != 0)
+		signal_child(TopoServicePID, signal);
 }
 
 /*

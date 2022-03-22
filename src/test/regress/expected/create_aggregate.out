@@ -193,7 +193,7 @@ CREATE AGGREGATE mysum (int)
 	sfunc = int4pl,
 	parallel = pear
 );
-psql:sql/create_aggregate.sql:183: ERROR:  parameter "parallel" must be SAFE, RESTRICTED, or UNSAFE
+psql:sql/create_aggregate.sql:182: ERROR:  parameter "parallel" must be SAFE, RESTRICTED, or UNSAFE
 -- invalid: nonstrict inverse with strict forward function
 CREATE FUNCTION float8mi_n(float8, float8) RETURNS float8 AS
 $$ SELECT $1 - $2; $$
@@ -207,7 +207,7 @@ CREATE AGGREGATE invalidsumdouble (float8)
     msfunc = float8pl,
     minvfunc = float8mi_n
 );
-psql:sql/create_aggregate.sql:198: ERROR:  strictness of aggregate's forward and inverse transition functions must match
+psql:sql/create_aggregate.sql:197: ERROR:  strictness of aggregate's forward and inverse transition functions must match
 -- invalid: non-matching result types
 CREATE FUNCTION float8mi_int(float8, float8) RETURNS int AS
 $$ SELECT CAST($1 - $2 AS INT); $$
@@ -221,7 +221,7 @@ CREATE AGGREGATE wrongreturntype (float8)
     msfunc = float8pl,
     minvfunc = float8mi_int
 );
-psql:sql/create_aggregate.sql:213: ERROR:  return type of inverse transition function float8mi_int is not double precision
+psql:sql/create_aggregate.sql:212: ERROR:  return type of inverse transition function float8mi_int is not double precision
 -- invalid: non-lowercase quoted identifiers
 CREATE AGGREGATE case_agg ( -- old syntax
 	"Sfunc1" = int4pl,
@@ -230,12 +230,12 @@ CREATE AGGREGATE case_agg ( -- old syntax
 	"Initcond1" = '0',
 	"Parallel" = safe
 );
-psql:sql/create_aggregate.sql:223: WARNING:  aggregate attribute "Sfunc1" not recognized
-psql:sql/create_aggregate.sql:223: WARNING:  aggregate attribute "Basetype" not recognized
-psql:sql/create_aggregate.sql:223: WARNING:  aggregate attribute "Stype1" not recognized
-psql:sql/create_aggregate.sql:223: WARNING:  aggregate attribute "Initcond1" not recognized
-psql:sql/create_aggregate.sql:223: WARNING:  aggregate attribute "Parallel" not recognized
-psql:sql/create_aggregate.sql:223: ERROR:  aggregate stype must be specified
+psql:sql/create_aggregate.sql:222: WARNING:  aggregate attribute "Sfunc1" not recognized
+psql:sql/create_aggregate.sql:222: WARNING:  aggregate attribute "Basetype" not recognized
+psql:sql/create_aggregate.sql:222: WARNING:  aggregate attribute "Stype1" not recognized
+psql:sql/create_aggregate.sql:222: WARNING:  aggregate attribute "Initcond1" not recognized
+psql:sql/create_aggregate.sql:222: WARNING:  aggregate attribute "Parallel" not recognized
+psql:sql/create_aggregate.sql:222: ERROR:  aggregate stype must be specified
 CREATE AGGREGATE case_agg(float8)
 (
 	"Stype" = internal,
@@ -245,10 +245,10 @@ CREATE AGGREGATE case_agg(float8)
 	"Finalfunc_modify" = read_write,
 	"Parallel" = safe
 );
-psql:sql/create_aggregate.sql:233: WARNING:  aggregate attribute "Stype" not recognized
-psql:sql/create_aggregate.sql:233: WARNING:  aggregate attribute "Sfunc" not recognized
-psql:sql/create_aggregate.sql:233: WARNING:  aggregate attribute "Finalfunc" not recognized
-psql:sql/create_aggregate.sql:233: WARNING:  aggregate attribute "Finalfunc_extra" not recognized
-psql:sql/create_aggregate.sql:233: WARNING:  aggregate attribute "Finalfunc_modify" not recognized
-psql:sql/create_aggregate.sql:233: WARNING:  aggregate attribute "Parallel" not recognized
-psql:sql/create_aggregate.sql:233: ERROR:  aggregate stype must be specified
+psql:sql/create_aggregate.sql:232: WARNING:  aggregate attribute "Stype" not recognized
+psql:sql/create_aggregate.sql:232: WARNING:  aggregate attribute "Sfunc" not recognized
+psql:sql/create_aggregate.sql:232: WARNING:  aggregate attribute "Finalfunc" not recognized
+psql:sql/create_aggregate.sql:232: WARNING:  aggregate attribute "Finalfunc_extra" not recognized
+psql:sql/create_aggregate.sql:232: WARNING:  aggregate attribute "Finalfunc_modify" not recognized
+psql:sql/create_aggregate.sql:232: WARNING:  aggregate attribute "Parallel" not recognized
+psql:sql/create_aggregate.sql:232: ERROR:  aggregate stype must be specified

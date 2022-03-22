@@ -162,6 +162,8 @@ EXECUTE test \gdesc
 EXPLAIN EXECUTE test \gdesc
    Column   | Type 
 ------------+------
+ QUERY PLAN | text
+(1 row)
 
 -- should fail cleanly - syntax error
 SELECT 1 + \gdesc
@@ -2774,7 +2776,7 @@ execute q;
 
 deallocate q;
 DEALLOCATE
-\pset linestyle ascii
+\pset linestyle ascii                                
 Line style is ascii.
 prepare q as select ' | = | lkjsafi\\/ /oeu rio)(!@&*#)*(!&@*) \ (&' as " | -- | 012345678 9abc def!*@#&!@(*&*~~_+-=\ \", '11' as "0123456789", 11 as int from generate_series(1,10) as n;
 PREPARE
@@ -2804,6 +2806,7 @@ execute q;
 ....
 (10 rows)
 ....
+                                       
 \pset border 1
 Border style is 1.
 execute q;

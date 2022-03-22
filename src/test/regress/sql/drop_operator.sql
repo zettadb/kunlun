@@ -1,4 +1,5 @@
 --DDL_STATEMENT_BEGIN--
+--DDL_STATEMENT_BEGIN--
 CREATE OPERATOR === (
         PROCEDURE = int8eq,
         LEFTARG = bigint,
@@ -29,8 +30,7 @@ WHERE   oprcom != 0 AND
 SELECT  ctid, oprnegate
 FROM    pg_catalog.pg_operator fk
 WHERE   oprnegate != 0 AND
-        NOT EXISTS(SELECT 1 FROM pg_catalog.pg_operator pk WHERE pk.oid = fk.oprnegate);
-		
+        NOT EXISTS(SELECT 1 FROM pg_catalog.pg_operator pk WHERE pk.oid = fk.oprnegate);		
 --DDL_STATEMENT_BEGIN--
 DROP OPERATOR ===(bigint, bigint);
 --DDL_STATEMENT_END--
@@ -65,8 +65,7 @@ WHERE   oprcom != 0 AND
 SELECT  ctid, oprnegate
 FROM    pg_catalog.pg_operator fk
 WHERE   oprnegate != 0 AND
-        NOT EXISTS(SELECT 1 FROM pg_catalog.pg_operator pk WHERE pk.oid = fk.oprnegate);
-		
+        NOT EXISTS(SELECT 1 FROM pg_catalog.pg_operator pk WHERE pk.oid = fk.oprnegate);		
 --DDL_STATEMENT_BEGIN--
 DROP OPERATOR <|(bigint, bigint);
 --DDL_STATEMENT_END--

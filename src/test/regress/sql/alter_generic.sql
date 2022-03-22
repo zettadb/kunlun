@@ -215,6 +215,7 @@ CREATE CONVERSION alt_conv2 FOR 'LATIN1' TO 'UTF8' FROM iso8859_1_to_utf8;
 --DDL_STATEMENT_BEGIN--
 ALTER CONVERSION alt_conv3 RENAME TO alt_conv4;  -- failed (not owner)
 --DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 ALTER CONVERSION alt_conv1 RENAME TO alt_conv4;  -- OK
 --DDL_STATEMENT_END--
@@ -530,8 +531,7 @@ ALTER OPERATOR FAMILY alt_opf4 USING btree ADD
   OPERATOR 3 = (int4, int2) ,
   OPERATOR 4 >= (int4, int2) ,
   OPERATOR 5 > (int4, int2) ,
-  FUNCTION 1 btint42cmp(int4, int2);
-  
+  FUNCTION 1 btint42cmp(int4, int2);  
 --DDL_STATEMENT_BEGIN--
 ALTER OPERATOR FAMILY alt_opf4 USING btree DROP
 --DDL_STATEMENT_END--

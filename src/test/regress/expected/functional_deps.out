@@ -118,6 +118,7 @@ SELECT product_id, p.name, (sum(s.units) * p.price) AS sales
 psql:sql/functional_deps.sql:96: ERROR:  column "p.name" must appear in the GROUP BY clause or be used in an aggregate function
 LINE 1: SELECT product_id, p.name, (sum(s.units) * p.price) AS sales
                            ^
+	
 ALTER TABLE products ADD PRIMARY KEY (product_id);
 ALTER TABLE
 -- OK now
@@ -174,7 +175,7 @@ CREATE TEMP VIEW fdv1 AS
 SELECT id, keywords, title, body, created
 FROM articles
 GROUP BY body;
-psql:sql/functional_deps.sql:148: ERROR:  column "articles.id" must appear in the GROUP BY clause or be used in an aggregate function
+psql:sql/functional_deps.sql:147: ERROR:  column "articles.id" must appear in the GROUP BY clause or be used in an aggregate function
 LINE 2: SELECT id, keywords, title, body, created
                ^
 -- OK
@@ -185,7 +186,7 @@ GROUP BY id;
 CREATE VIEW
 -- fail
 ALTER TABLE articles DROP CONSTRAINT articles_pkey RESTRICT;
-psql:sql/functional_deps.sql:157: ERROR:  cannot drop constraint articles_pkey on table articles because other objects depend on it
+psql:sql/functional_deps.sql:156: ERROR:  cannot drop constraint articles_pkey on table articles because other objects depend on it
 DETAIL:  view fdv1 depends on constraint articles_pkey on table articles
 HINT:  Use DROP ... CASCADE to drop the dependent objects too.
 DROP VIEW fdv1;
@@ -198,11 +199,11 @@ WHERE aic.category_id in (14,62,70,53,138)
 GROUP BY a.id, aic.category_id, aic.article_id;
 CREATE VIEW
 ALTER TABLE articles DROP CONSTRAINT articles_pkey RESTRICT; -- fail
-psql:sql/functional_deps.sql:169: ERROR:  cannot drop constraint articles_pkey on table articles because other objects depend on it
+psql:sql/functional_deps.sql:168: ERROR:  cannot drop constraint articles_pkey on table articles because other objects depend on it
 DETAIL:  view fdv2 depends on constraint articles_pkey on table articles
 HINT:  Use DROP ... CASCADE to drop the dependent objects too.
 ALTER TABLE articles_in_category DROP CONSTRAINT articles_in_category_pkey RESTRICT; --fail
-psql:sql/functional_deps.sql:170: ERROR:  cannot drop constraint articles_in_category_pkey on table articles_in_category because other objects depend on it
+psql:sql/functional_deps.sql:169: ERROR:  cannot drop constraint articles_in_category_pkey on table articles_in_category because other objects depend on it
 DETAIL:  view fdv2 depends on constraint articles_in_category_pkey on table articles_in_category
 HINT:  Use DROP ... CASCADE to drop the dependent objects too.
 DROP VIEW fdv2;
@@ -218,7 +219,7 @@ FROM articles
 GROUP BY id;
 CREATE VIEW
 ALTER TABLE articles DROP CONSTRAINT articles_pkey RESTRICT; -- fail
-psql:sql/functional_deps.sql:186: ERROR:  cannot drop constraint articles_pkey on table articles because other objects depend on it
+psql:sql/functional_deps.sql:185: ERROR:  cannot drop constraint articles_pkey on table articles because other objects depend on it
 DETAIL:  view fdv3 depends on constraint articles_pkey on table articles
 HINT:  Use DROP ... CASCADE to drop the dependent objects too.
 DROP VIEW fdv3;
@@ -227,7 +228,7 @@ CREATE TEMP VIEW fdv4 AS
 SELECT * FROM articles WHERE title IN (SELECT title FROM articles GROUP BY id);
 CREATE VIEW
 ALTER TABLE articles DROP CONSTRAINT articles_pkey RESTRICT; -- fail
-psql:sql/functional_deps.sql:194: ERROR:  cannot drop constraint articles_pkey on table articles because other objects depend on it
+psql:sql/functional_deps.sql:193: ERROR:  cannot drop constraint articles_pkey on table articles because other objects depend on it
 DETAIL:  view fdv4 depends on constraint articles_pkey on table articles
 HINT:  Use DROP ... CASCADE to drop the dependent objects too.
 DROP VIEW fdv4;
@@ -246,4 +247,4 @@ EXECUTE foo;
 ALTER TABLE articles DROP CONSTRAINT articles_pkey RESTRICT;
 ALTER TABLE
 EXECUTE foo;  -- fail
-psql:sql/functional_deps.sql:210: ERROR:  column "articles.keywords" must appear in the GROUP BY clause or be used in an aggregate function
+psql:sql/functional_deps.sql:208: ERROR:  column "articles.keywords" must appear in the GROUP BY clause or be used in an aggregate function

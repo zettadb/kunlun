@@ -5,9 +5,13 @@
 --
 -- All objects made in this test are in temp_func_test schema
 CREATE USER regress_unpriv_user;
+CREATE ROLE
 CREATE SCHEMA temp_func_test;
+CREATE SCHEMA
 GRANT ALL ON SCHEMA temp_func_test TO public;
+GRANT
 SET search_path TO temp_func_test, public;
+SET
 --
 -- Make sanity checks on the pg_proc entries created by CREATE FUNCTION
 --
@@ -16,10 +20,13 @@ SET search_path TO temp_func_test, public;
 --
 CREATE FUNCTION functest_A_1(text, date) RETURNS bool LANGUAGE 'sql'
        AS 'SELECT $1 = ''abcd'' AND $2 > ''2001-01-01''';
+CREATE FUNCTION
 CREATE FUNCTION functest_A_2(text[]) RETURNS int LANGUAGE 'sql'
        AS 'SELECT $1[0]::int';
+CREATE FUNCTION
 CREATE FUNCTION functest_A_3() RETURNS bool LANGUAGE 'sql'
        AS 'SELECT false';
+CREATE FUNCTION
 SELECT proname, prorettype::regtype, proargtypes::regtype[] FROM pg_proc
        WHERE oid in ('functest_A_1'::regproc,
                      'functest_A_2'::regproc,
@@ -36,12 +43,16 @@ SELECT proname, prorettype::regtype, proargtypes::regtype[] FROM pg_proc
 --
 CREATE FUNCTION functest_B_1(int) RETURNS bool LANGUAGE 'sql'
        AS 'SELECT $1 > 0';
+CREATE FUNCTION
 CREATE FUNCTION functest_B_2(int) RETURNS bool LANGUAGE 'sql'
        IMMUTABLE AS 'SELECT $1 > 0';
+CREATE FUNCTION
 CREATE FUNCTION functest_B_3(int) RETURNS bool LANGUAGE 'sql'
        STABLE AS 'SELECT $1 = 0';
+CREATE FUNCTION
 CREATE FUNCTION functest_B_4(int) RETURNS bool LANGUAGE 'sql'
        VOLATILE AS 'SELECT $1 < 0';
+CREATE FUNCTION
 SELECT proname, provolatile FROM pg_proc
        WHERE oid in ('functest_B_1'::regproc,
                      'functest_B_2'::regproc,
@@ -55,8 +66,11 @@ SELECT proname, provolatile FROM pg_proc
  functest_b_4 | v
 (4 rows)
 
+			 
 ALTER FUNCTION functest_B_2(int) VOLATILE;
+ALTER FUNCTION
 ALTER FUNCTION functest_B_3(int) COST 100;	-- unrelated change, no effect
+ALTER FUNCTION
 SELECT proname, provolatile FROM pg_proc
        WHERE oid in ('functest_B_1'::regproc,
                      'functest_B_2'::regproc,
@@ -75,10 +89,13 @@ SELECT proname, provolatile FROM pg_proc
 --
 CREATE FUNCTION functest_C_1(int) RETURNS bool LANGUAGE 'sql'
        AS 'SELECT $1 > 0';
+CREATE FUNCTION
 CREATE FUNCTION functest_C_2(int) RETURNS bool LANGUAGE 'sql'
        SECURITY DEFINER AS 'SELECT $1 = 0';
+CREATE FUNCTION
 CREATE FUNCTION functest_C_3(int) RETURNS bool LANGUAGE 'sql'
        SECURITY INVOKER AS 'SELECT $1 < 0';
+CREATE FUNCTION
 SELECT proname, prosecdef FROM pg_proc
        WHERE oid in ('functest_C_1'::regproc,
                      'functest_C_2'::regproc,
@@ -90,9 +107,13 @@ SELECT proname, prosecdef FROM pg_proc
  functest_c_3 | f
 (3 rows)
 
+					 
 ALTER FUNCTION functest_C_1(int) IMMUTABLE;	-- unrelated change, no effect
+ALTER FUNCTION
 ALTER FUNCTION functest_C_2(int) SECURITY INVOKER;
+ALTER FUNCTION
 ALTER FUNCTION functest_C_3(int) SECURITY DEFINER;
+ALTER FUNCTION
 SELECT proname, prosecdef FROM pg_proc
        WHERE oid in ('functest_C_1'::regproc,
                      'functest_C_2'::regproc,
@@ -109,8 +130,10 @@ SELECT proname, prosecdef FROM pg_proc
 --
 CREATE FUNCTION functest_E_1(int) RETURNS bool LANGUAGE 'sql'
        AS 'SELECT $1 > 100';
+CREATE FUNCTION
 CREATE FUNCTION functest_E_2(int) RETURNS bool LANGUAGE 'sql'
        LEAKPROOF AS 'SELECT $1 > 100';
+CREATE FUNCTION
 SELECT proname, proleakproof FROM pg_proc
        WHERE oid in ('functest_E_1'::regproc,
                      'functest_E_2'::regproc) ORDER BY proname;
@@ -120,8 +143,11 @@ SELECT proname, proleakproof FROM pg_proc
  functest_e_2 | t
 (2 rows)
 
+					 
 ALTER FUNCTION functest_E_1(int) LEAKPROOF;
+ALTER FUNCTION
 ALTER FUNCTION functest_E_2(int) STABLE;	-- unrelated change, no effect
+ALTER FUNCTION
 SELECT proname, proleakproof FROM pg_proc
        WHERE oid in ('functest_E_1'::regproc,
                      'functest_E_2'::regproc) ORDER BY proname;
@@ -131,7 +157,9 @@ SELECT proname, proleakproof FROM pg_proc
  functest_e_2 | t
 (2 rows)
 
+					 
 ALTER FUNCTION functest_E_2(int) NOT LEAKPROOF;	-- remove leakproof attribute
+ALTER FUNCTION
 SELECT proname, proleakproof FROM pg_proc
        WHERE oid in ('functest_E_1'::regproc,
                      'functest_E_2'::regproc) ORDER BY proname;
@@ -143,27 +171,37 @@ SELECT proname, proleakproof FROM pg_proc
 
 -- it takes superuser privilege to turn on leakproof, but not to turn off
 ALTER FUNCTION functest_E_1(int) OWNER TO regress_unpriv_user;
+ALTER FUNCTION
 ALTER FUNCTION functest_E_2(int) OWNER TO regress_unpriv_user;
+ALTER FUNCTION
 SET SESSION AUTHORIZATION regress_unpriv_user;
+SET
 SET search_path TO temp_func_test, public;
+SET
 ALTER FUNCTION functest_E_1(int) NOT LEAKPROOF;
+ALTER FUNCTION
 ALTER FUNCTION functest_E_2(int) LEAKPROOF;
-ERROR:  only superuser can define a leakproof function
+psql:sql/create_function_3.sql:112: ERROR:  only superuser can define a leakproof function
 CREATE FUNCTION functest_E_3(int) RETURNS bool LANGUAGE 'sql'
        LEAKPROOF AS 'SELECT $1 < 200';	-- fail
-ERROR:  only superuser can define a leakproof function
+psql:sql/create_function_3.sql:114: ERROR:  only superuser can define a leakproof function
 RESET SESSION AUTHORIZATION;
+RESET
 --
 -- CALLED ON NULL INPUT | RETURNS NULL ON NULL INPUT | STRICT
 --
 CREATE FUNCTION functest_F_1(int) RETURNS bool LANGUAGE 'sql'
        AS 'SELECT $1 > 50';
+CREATE FUNCTION
 CREATE FUNCTION functest_F_2(int) RETURNS bool LANGUAGE 'sql'
        CALLED ON NULL INPUT AS 'SELECT $1 = 50';
+CREATE FUNCTION
 CREATE FUNCTION functest_F_3(int) RETURNS bool LANGUAGE 'sql'
        RETURNS NULL ON NULL INPUT AS 'SELECT $1 < 50';
+CREATE FUNCTION
 CREATE FUNCTION functest_F_4(int) RETURNS bool LANGUAGE 'sql'
        STRICT AS 'SELECT $1 = 50';
+CREATE FUNCTION
 SELECT proname, proisstrict FROM pg_proc
        WHERE oid in ('functest_F_1'::regproc,
                      'functest_F_2'::regproc,
@@ -177,9 +215,13 @@ SELECT proname, proisstrict FROM pg_proc
  functest_f_4 | t
 (4 rows)
 
+					 
 ALTER FUNCTION functest_F_1(int) IMMUTABLE;	-- unrelated change, no effect
+ALTER FUNCTION
 ALTER FUNCTION functest_F_2(int) STRICT;
+ALTER FUNCTION
 ALTER FUNCTION functest_F_3(int) CALLED ON NULL INPUT;
+ALTER FUNCTION
 SELECT proname, proisstrict FROM pg_proc
        WHERE oid in ('functest_F_1'::regproc,
                      'functest_F_2'::regproc,
@@ -242,14 +284,18 @@ CREATE FUNCTION functest_IS_1(a int, b int default 1, c text default 'foo')
     RETURNS int
     LANGUAGE SQL
     AS 'SELECT $1 + $2';
+CREATE FUNCTION
 CREATE FUNCTION functest_IS_2(out a int, b int default 1)
     RETURNS int
     LANGUAGE SQL
     AS 'SELECT $1';
+CREATE FUNCTION
 CREATE FUNCTION functest_IS_3(a int default 1, out b int)
     RETURNS int
     LANGUAGE SQL
     AS 'SELECT $1';
+CREATE FUNCTION
+	
 SELECT routine_name, ordinal_position, parameter_name, parameter_default
     FROM information_schema.parameters JOIN information_schema.routines USING (specific_schema, specific_name)
     WHERE routine_schema = 'temp_func_test' AND routine_name ~ '^functest_is_'
@@ -265,28 +311,35 @@ SELECT routine_name, ordinal_position, parameter_name, parameter_default
  functest_is_3 |                2 | b              | 
 (7 rows)
 
+	
 DROP FUNCTION functest_IS_1(int, int, text), functest_IS_2(int), functest_IS_3(int);
+DROP FUNCTION
 -- overload
 CREATE FUNCTION functest_B_2(bigint) RETURNS bool LANGUAGE 'sql'
        IMMUTABLE AS 'SELECT $1 > 0';
+CREATE FUNCTION
 DROP FUNCTION functest_b_1;
+DROP FUNCTION
 DROP FUNCTION functest_b_1;  -- error, not found
-ERROR:  could not find a function named "functest_b_1"
+psql:sql/create_function_3.sql:182: ERROR:  could not find a function named "functest_b_1"
 DROP FUNCTION functest_b_2;  -- error, ambiguous
-ERROR:  function name "functest_b_2" is not unique
+psql:sql/create_function_3.sql:183: ERROR:  function name "functest_b_2" is not unique
 HINT:  Specify the argument list to select the function unambiguously.
 -- CREATE OR REPLACE tests
 CREATE FUNCTION functest1(a int) RETURNS int LANGUAGE SQL AS 'SELECT $1';
+CREATE FUNCTION
 CREATE OR REPLACE FUNCTION functest1(a int) RETURNS int LANGUAGE SQL WINDOW AS 'SELECT $1';
-ERROR:  cannot change routine kind
+psql:sql/create_function_3.sql:188: ERROR:  cannot change routine kind
 DETAIL:  "functest1" is a function.
 CREATE OR REPLACE PROCEDURE functest1(a int) LANGUAGE SQL AS 'SELECT $1';
-ERROR:  cannot change routine kind
+psql:sql/create_function_3.sql:189: ERROR:  cannot change routine kind
 DETAIL:  "functest1" is a function.
 DROP FUNCTION functest1(a int);
+DROP FUNCTION
 -- Check behavior of VOID-returning SQL functions
 CREATE FUNCTION voidtest1(a int) RETURNS VOID LANGUAGE SQL AS
 $$ SELECT a + 1 $$;
+CREATE FUNCTION
 SELECT voidtest1(42);
  voidtest1 
 -----------
@@ -295,6 +348,7 @@ SELECT voidtest1(42);
 
 CREATE FUNCTION voidtest2(a int, b int) RETURNS VOID LANGUAGE SQL AS
 $$ SELECT voidtest1(a + b) $$;
+CREATE FUNCTION
 SELECT voidtest2(11,22);
  voidtest2 
 -----------
@@ -305,8 +359,10 @@ SELECT voidtest2(11,22);
 EXPLAIN (verbose, costs off) SELECT voidtest2(11,22);
 
 CREATE TEMP TABLE sometable(f1 int);
+CREATE TABLE
 CREATE FUNCTION voidtest3(a int) RETURNS VOID LANGUAGE SQL AS
 $$ INSERT INTO sometable VALUES(a + 1) $$;
+CREATE FUNCTION
 SELECT voidtest3(17);
  voidtest3 
 -----------
@@ -315,6 +371,7 @@ SELECT voidtest3(17);
 
 CREATE FUNCTION voidtest4(a int) RETURNS VOID LANGUAGE SQL AS
 $$ INSERT INTO sometable VALUES(a - 1) RETURNING f1 $$;
+CREATE FUNCTION
 SELECT voidtest4(39);
  voidtest4 
 -----------
@@ -330,6 +387,7 @@ TABLE sometable;
 
 CREATE FUNCTION voidtest5(a int) RETURNS SETOF VOID LANGUAGE SQL AS
 $$ SELECT generate_series(1, a) $$ STABLE;
+CREATE FUNCTION
 SELECT * FROM voidtest5(3);
  voidtest5 
 -----------
@@ -338,7 +396,10 @@ SELECT * FROM voidtest5(3);
 -- Cleanup
 \set VERBOSITY terse \\ -- suppress cascade details
 DROP SCHEMA temp_func_test CASCADE;
-NOTICE:  drop cascades to 21 other objects
+psql:sql/create_function_3.sql:224: NOTICE:  drop cascades to 21 other objects
+DROP SCHEMA
 \set VERBOSITY default
 DROP USER regress_unpriv_user;
+DROP ROLE
 RESET search_path;
+RESET

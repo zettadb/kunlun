@@ -1,13 +1,27 @@
 drop table if exists t10 cascade;
+DROP TABLE
 drop table if exists t100 cascade;
+psql:sql/remote_opt.sql:2: NOTICE:  table "t100" does not exist, skipping
+DROP TABLE
 drop table if exists t101 cascade;
+psql:sql/remote_opt.sql:3: NOTICE:  table "t101" does not exist, skipping
+DROP TABLE
 drop table if exists t102 cascade;
+psql:sql/remote_opt.sql:4: NOTICE:  table "t102" does not exist, skipping
+DROP TABLE
 drop table if exists t103 cascade;
+psql:sql/remote_opt.sql:5: NOTICE:  table "t103" does not exist, skipping
+DROP TABLE
 create table t10(a serial primary key, b int, c int not null) partition by hash(a);
+CREATE TABLE
 create table t100 partition of t10 for values with (modulus 4, remainder 0); 
+CREATE TABLE
 create table t101 partition of t10 for values with (modulus 4, remainder 1); 
+CREATE TABLE
 create table t102 partition of t10 for values with (modulus 4, remainder 2); 
+CREATE TABLE
 create table t103 partition of t10 for values with (modulus 4, remainder 3); 
+CREATE TABLE
 insert into t10(a  , b  , c) values
 (1 , 16 , 0),
 (12 ,  3 , 4),
@@ -41,6 +55,7 @@ insert into t10(a  , b  , c) values
 (24 , NULL, 3),
 (29 , NULL, 3),
 (33 , NULL, 2);
+INSERT 0 32
 select*from t10 order by a;
  a  | b  | c 
 ----+----+---
@@ -79,9 +94,12 @@ select*from t10 order by a;
 (32 rows)
 
 drop table if exists t11 cascade;
-NOTICE:  table "t11" does not exist, skipping
+psql:sql/remote_opt.sql:48: NOTICE:  table "t11" does not exist, skipping
+DROP TABLE
 create table t11 (like t10 INCLUDING ALL);
+CREATE TABLE
 insert into t11 select*from t10;
+INSERT 0 32
 select*from t11 order by a;
  a  | b  | c 
 ----+----+---
@@ -120,13 +138,20 @@ select*from t11 order by a;
 (32 rows)
 
 drop table if exists t12 cascade;
-NOTICE:  table "t12" does not exist, skipping
+psql:sql/remote_opt.sql:53: NOTICE:  table "t12" does not exist, skipping
+DROP TABLE
 create table t12 (a int primary key, b int, c int not null) partition by range (a);
+CREATE TABLE
 create table t120 partition of t12 for values from (minvalue) to (13);
+CREATE TABLE
 create table t121 partition of t12 for values from (13) to (22);
+CREATE TABLE
 create table t122 partition of t12 for values from (22) to (44);
+CREATE TABLE
 create table t123 partition of t12 for values from (44) to (maxvalue);
+CREATE TABLE
 insert into t12 select*from t10;
+INSERT 0 32
 -- explain insert into t12 select*from t10;
 select*from t12 order by a;
  a  | b  | c 
@@ -166,12 +191,17 @@ select*from t12 order by a;
 (32 rows)
 
 delete from t12;
+DELETE 32
 insert into t12 select*from t11;
+INSERT 0 32
 -- explain insert into t12 select*from t11;
 drop table if exists t13 cascade;
-NOTICE:  table "t13" does not exist, skipping
+psql:sql/remote_opt.sql:68: NOTICE:  table "t13" does not exist, skipping
+DROP TABLE
 create table t13 (like t11 including all);
+CREATE TABLE
 insert into t13 select*from t11;
+INSERT 0 32
 -- explain insert into t13 select*from t11;
 select*from t13 order by a;
  a  | b  | c 
@@ -243,6 +273,7 @@ select*from t12 where c in (select c from t13 where a > 30) order by t12.a;
 
 -- explain select*from t12 where c in (select c from t13 where a > 30) order by t12.a;
 select*from t12 where c not in (select c from t13 where a > 30) order by t12.a;
+psql:sql/remote_opt.sql:80: WARNING:  Rescan is called unexpectedly, so reset node->will_rewind to TRUE
  a  | b  | c 
 ----+----+---
   1 | 16 | 0
@@ -256,6 +287,7 @@ select*from t12 where c not in (select c from t13 where a > 30) order by t12.a;
 explain select*from t12 where c not in (select c from t13 where a > 30) order by t12.a;
 
 select*from t12 where c not in (select c from t13 where a < 10) order by t12.a;
+psql:sql/remote_opt.sql:83: WARNING:  Rescan is called unexpectedly, so reset node->will_rewind to TRUE
  a  | b | c 
 ----+---+---
  11 | 1 | 2
@@ -290,7 +322,7 @@ select*from t12 where c not in (select c from t13 where a < 10) order by t12.a;
 explain select*from t12 where c not in (select c from t13 where a < 10) order by t12.a;
 
 select*from t12 where exists (select c from t13 where a < 10) order by t13.a;
-ERROR:  missing FROM-clause entry for table "t13"
+psql:sql/remote_opt.sql:86: ERROR:  missing FROM-clause entry for table "t13"
 LINE 1: ...here exists (select c from t13 where a < 10) order by t13.a;
                                                                  ^
 -- explain select*from t12 where exists (select c from t13 where a < 10) order by t13.a;
@@ -332,12 +364,14 @@ select*from t12 where exists (select c from t13 where a < t12.c) order by t12.a;
 
 -- explain select*from t12 where exists (select c from t13 where a < t12.c) order by t12.a;
 select*from t12 where exists (select c from t13 where a < t12.a) order by t13.a;
-ERROR:  missing FROM-clause entry for table "t13"
+psql:sql/remote_opt.sql:92: ERROR:  missing FROM-clause entry for table "t13"
 LINE 1: ...e exists (select c from t13 where a < t12.a) order by t13.a;
                                                                  ^
 -- explain select*from t12 where exists (select c from t13 where a < t12.a) order by t13.a;
 set enable_hashjoin=false;
+SET
 set enable_mergejoin=false;
+SET
 select*from t10, t12 where t10.a=t12.a order by t12.a;
  a  | b  | c | a  | b  | c 
 ----+----+---+----+----+---
@@ -453,8 +487,11 @@ select*from t11, t13 where t11.a=t13.a order by t11.a;
 
 -- explain select*from t11, t13 where t11.a=t13.a order by t11.a;
 set enable_hashjoin=true;
+SET
 set enable_nestloop=false;
+SET
 set enable_mergejoin=false;
+SET
 select*from t10, t12 where t10.a=t12.a order by t10.a;
  a  | b  | c | a  | b  | c 
 ----+----+---+----+----+---
@@ -570,8 +607,11 @@ select*from t11, t13 where t11.a=t13.a order by t13.a;
 
 -- explain select*from t11, t13 where t11.a=t13.a order by t13.a;
 set enable_hashjoin=false;
+SET
 set enable_nestloop=false;
+SET
 set enable_mergejoin=true;
+SET
 select*from t10, t12 where t10.a=t12.a order by t10.a;
  a  | b  | c | a  | b  | c 
 ----+----+---+----+----+---
@@ -687,9 +727,12 @@ select*from t11, t13 where t11.a=t13.a order by t11.a;
 
 -- explain select*from t11, t13 where t11.a=t13.a order by t11.a;
 drop table if exists t14 cascade;
-NOTICE:  table "t14" does not exist, skipping
+psql:sql/remote_opt.sql:124: NOTICE:  table "t14" does not exist, skipping
+DROP TABLE
 create table t14 (a int primary key, b varchar(32), c char(16));
+CREATE TABLE
 insert into t14 values(1, 'abc', 'def'),(2, '',''),(3, '',NULL),(4, NULL,''),(5, '','xyz'),(6,NULL, 'cbn'), (7, 'mit',''),(8, 'yale',NULL);
+INSERT 0 8
 select*from t14 order by a;
  a |  b   |        c         
 ---+------+------------------

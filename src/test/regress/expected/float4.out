@@ -2,61 +2,68 @@
 -- FLOAT4
 --
 drop table if exists FLOAT4_TBL;
-NOTICE:  table "float4_tbl" does not exist, skipping
+psql:sql/float4.sql:5: NOTICE:  table "float4_tbl" does not exist, skipping
+DROP TABLE
 CREATE TABLE FLOAT4_TBL (f1  float4);
+CREATE TABLE
 INSERT INTO FLOAT4_TBL(f1) VALUES ('    0.0');
+INSERT 0 1
 INSERT INTO FLOAT4_TBL(f1) VALUES ('1004.30   ');
+INSERT 0 1
 INSERT INTO FLOAT4_TBL(f1) VALUES ('     -34.84    ');
+INSERT 0 1
 INSERT INTO FLOAT4_TBL(f1) VALUES ('1.2345678901234e+20');
+INSERT 0 1
 INSERT INTO FLOAT4_TBL(f1) VALUES ('1.2345678901234e-20');
+INSERT 0 1
 -- test for over and under flow
 INSERT INTO FLOAT4_TBL(f1) VALUES ('10e70');
-ERROR:  value out of range: overflow
+psql:sql/float4.sql:15: ERROR:  value out of range: overflow
 LINE 1: INSERT INTO FLOAT4_TBL(f1) VALUES ('10e70');
                                            ^
 INSERT INTO FLOAT4_TBL(f1) VALUES ('-10e70');
-ERROR:  value out of range: overflow
+psql:sql/float4.sql:16: ERROR:  value out of range: overflow
 LINE 1: INSERT INTO FLOAT4_TBL(f1) VALUES ('-10e70');
                                            ^
 INSERT INTO FLOAT4_TBL(f1) VALUES ('10e-70');
-ERROR:  value out of range: underflow
+psql:sql/float4.sql:17: ERROR:  value out of range: underflow
 LINE 1: INSERT INTO FLOAT4_TBL(f1) VALUES ('10e-70');
                                            ^
 INSERT INTO FLOAT4_TBL(f1) VALUES ('-10e-70');
-ERROR:  value out of range: underflow
+psql:sql/float4.sql:18: ERROR:  value out of range: underflow
 LINE 1: INSERT INTO FLOAT4_TBL(f1) VALUES ('-10e-70');
                                            ^
 -- bad input
 INSERT INTO FLOAT4_TBL(f1) VALUES ('');
-ERROR:  invalid input syntax for type real: ""
+psql:sql/float4.sql:21: ERROR:  invalid input syntax for type real: ""
 LINE 1: INSERT INTO FLOAT4_TBL(f1) VALUES ('');
                                            ^
 INSERT INTO FLOAT4_TBL(f1) VALUES ('       ');
-ERROR:  invalid input syntax for type real: "       "
+psql:sql/float4.sql:22: ERROR:  invalid input syntax for type real: "       "
 LINE 1: INSERT INTO FLOAT4_TBL(f1) VALUES ('       ');
                                            ^
 INSERT INTO FLOAT4_TBL(f1) VALUES ('xyz');
-ERROR:  invalid input syntax for type real: "xyz"
+psql:sql/float4.sql:23: ERROR:  invalid input syntax for type real: "xyz"
 LINE 1: INSERT INTO FLOAT4_TBL(f1) VALUES ('xyz');
                                            ^
 INSERT INTO FLOAT4_TBL(f1) VALUES ('5.0.0');
-ERROR:  invalid input syntax for type real: "5.0.0"
+psql:sql/float4.sql:24: ERROR:  invalid input syntax for type real: "5.0.0"
 LINE 1: INSERT INTO FLOAT4_TBL(f1) VALUES ('5.0.0');
                                            ^
 INSERT INTO FLOAT4_TBL(f1) VALUES ('5 . 0');
-ERROR:  invalid input syntax for type real: "5 . 0"
+psql:sql/float4.sql:25: ERROR:  invalid input syntax for type real: "5 . 0"
 LINE 1: INSERT INTO FLOAT4_TBL(f1) VALUES ('5 . 0');
                                            ^
 INSERT INTO FLOAT4_TBL(f1) VALUES ('5.   0');
-ERROR:  invalid input syntax for type real: "5.   0"
+psql:sql/float4.sql:26: ERROR:  invalid input syntax for type real: "5.   0"
 LINE 1: INSERT INTO FLOAT4_TBL(f1) VALUES ('5.   0');
                                            ^
 INSERT INTO FLOAT4_TBL(f1) VALUES ('     - 3.0');
-ERROR:  invalid input syntax for type real: "     - 3.0"
+psql:sql/float4.sql:27: ERROR:  invalid input syntax for type real: "     - 3.0"
 LINE 1: INSERT INTO FLOAT4_TBL(f1) VALUES ('     - 3.0');
                                            ^
 INSERT INTO FLOAT4_TBL(f1) VALUES ('123            5');
-ERROR:  invalid input syntax for type real: "123            5"
+psql:sql/float4.sql:28: ERROR:  invalid input syntax for type real: "123            5"
 LINE 1: INSERT INTO FLOAT4_TBL(f1) VALUES ('123            5');
                                            ^
 -- special inputs
@@ -92,15 +99,15 @@ SELECT '          -INFINiTY   '::float4;
 
 -- bad special inputs
 SELECT 'N A N'::float4;
-ERROR:  invalid input syntax for type real: "N A N"
+psql:sql/float4.sql:37: ERROR:  invalid input syntax for type real: "N A N"
 LINE 1: SELECT 'N A N'::float4;
                ^
 SELECT 'NaN x'::float4;
-ERROR:  invalid input syntax for type real: "NaN x"
+psql:sql/float4.sql:38: ERROR:  invalid input syntax for type real: "NaN x"
 LINE 1: SELECT 'NaN x'::float4;
                ^
 SELECT ' INFINITY    x'::float4;
-ERROR:  invalid input syntax for type real: " INFINITY    x"
+psql:sql/float4.sql:39: ERROR:  invalid input syntax for type real: " INFINITY    x"
 LINE 1: SELECT ' INFINITY    x'::float4;
                ^
 SELECT 'Infinity'::float4 + 100.0;
@@ -127,14 +134,14 @@ SELECT 'nan'::numeric::float4;
     NaN
 (1 row)
 
-SELECT '' AS five, * FROM FLOAT4_TBL;
+SELECT '' AS five, * FROM FLOAT4_TBL  order by f1;
  five |     f1      
 ------+-------------
-      |           0
-      |      1004.3
       |      -34.84
-      | 1.23457e+20
+      |           0
       | 1.23457e-20
+      |      1004.3
+      | 1.23457e+20
 (5 rows)
 
 SELECT '' AS four, f.* FROM FLOAT4_TBL f WHERE f.f1 <> '1004.3';
@@ -233,14 +240,14 @@ SELECT '' AS bad, f.f1 / '0.0' from FLOAT4_TBL f;
      |         
 (5 rows)
 
-SELECT '' AS five, * FROM FLOAT4_TBL;
+SELECT '' AS five, * FROM FLOAT4_TBL  order by f1;
  five |     f1      
 ------+-------------
-      |           0
-      |      1004.3
       |      -34.84
-      | 1.23457e+20
+      |           0
       | 1.23457e-20
+      |      1004.3
+      | 1.23457e+20
 (5 rows)
 
 -- test the unary float4abs operator
@@ -257,14 +264,15 @@ SELECT '' AS five, f.f1, @f.f1 AS abs_f1 FROM FLOAT4_TBL f;
 UPDATE FLOAT4_TBL
    SET f1 = FLOAT4_TBL.f1 * '-1'
    WHERE FLOAT4_TBL.f1 > '0.0';
-SELECT '' AS five, * FROM FLOAT4_TBL;
+UPDATE 3
+SELECT '' AS five, * FROM FLOAT4_TBL order by f1;
  five |      f1      
 ------+--------------
-      |            0
+      | -1.23457e+20
       |      -1004.3
       |       -34.84
-      | -1.23457e+20
       | -1.23457e-20
+      |            0
 (5 rows)
 
 -- test edge-case coercions to integer
@@ -275,7 +283,7 @@ SELECT '32767.4'::float4::int2;
 (1 row)
 
 SELECT '32767.6'::float4::int2;
-ERROR:  smallint out of range
+psql:sql/float4.sql:88: ERROR:  smallint out of range
 SELECT '-32768.4'::float4::int2;
   int2  
 --------
@@ -283,7 +291,7 @@ SELECT '-32768.4'::float4::int2;
 (1 row)
 
 SELECT '-32768.6'::float4::int2;
-ERROR:  smallint out of range
+psql:sql/float4.sql:90: ERROR:  smallint out of range
 SELECT '2147483520'::float4::int4;
     int4    
 ------------
@@ -291,7 +299,7 @@ SELECT '2147483520'::float4::int4;
 (1 row)
 
 SELECT '2147483647'::float4::int4;
-ERROR:  integer out of range
+psql:sql/float4.sql:92: ERROR:  integer out of range
 SELECT '-2147483648.5'::float4::int4;
     int4     
 -------------
@@ -299,7 +307,7 @@ SELECT '-2147483648.5'::float4::int4;
 (1 row)
 
 SELECT '-2147483900'::float4::int4;
-ERROR:  integer out of range
+psql:sql/float4.sql:94: ERROR:  integer out of range
 SELECT '9223369837831520256'::float4::int8;
         int8         
 ---------------------
@@ -307,7 +315,7 @@ SELECT '9223369837831520256'::float4::int8;
 (1 row)
 
 SELECT '9223372036854775807'::float4::int8;
-ERROR:  bigint out of range
+psql:sql/float4.sql:96: ERROR:  bigint out of range
 SELECT '-9223372036854775808.5'::float4::int8;
          int8         
 ----------------------
@@ -315,5 +323,6 @@ SELECT '-9223372036854775808.5'::float4::int8;
 (1 row)
 
 SELECT '-9223380000000000000'::float4::int8;
-ERROR:  bigint out of range
+psql:sql/float4.sql:98: ERROR:  bigint out of range
 drop table FLOAT4_TBL;
+DROP TABLE

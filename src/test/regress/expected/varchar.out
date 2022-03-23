@@ -2,6 +2,7 @@
 -- VARCHAR
 --
 DROP TABLE if exists VARCHAR_TBL;
+psql:sql/varchar.sql:4: NOTICE:  table "varchar_tbl" does not exist, skipping
 DROP TABLE
 CREATE TABLE VARCHAR_TBL(f1 varchar(1));
 CREATE TABLE
@@ -99,6 +100,7 @@ SELECT '' AS two, c.*
      | c
 (3 rows)
 
+   
 DROP TABLE VARCHAR_TBL;
 DROP TABLE
 --

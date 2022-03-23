@@ -88,7 +88,7 @@ CREATE TABLE
  b      | text   |           |          | 
 
 INSERT INTO test_like_id_2 (b) VALUES ('b2');
-psql:sql/create_table_like.sql:35: ERROR:  Kunlun-db: MySQL storage node (2, 2) returned error: 1048, Column 'a' cannot be null.
+psql:sql/create_table_like.sql:35: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1048, Column 'a' cannot be null.
 SELECT * FROM test_like_id_2;  -- identity was not copied
  a | b 
 ---+---
@@ -193,6 +193,7 @@ CREATE TABLE
 Indexes:
     "ctlt_all_pkey" PRIMARY KEY, btree (a)
     "ctlt_all_b_idx" btree (b)
+Options: shard=1
 
 SELECT c.relname, objsubid, description FROM pg_description, pg_index i, pg_class c WHERE classoid = 'pg_class'::regclass AND objoid = i.indexrelid AND c.oid = i.indexrelid AND i.indrelid = 'ctlt_all'::regclass ORDER BY c.relname, objsubid;
     relname     | objsubid | description 

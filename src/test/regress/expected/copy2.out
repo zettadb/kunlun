@@ -538,6 +538,7 @@ CREATE FUNCTION
  Column |  Type   | Collation | Nullable | Default | Storage | Stats target | Description 
 --------+---------+-----------+----------+---------+---------+--------------+-------------
  f1     | integer |           |          |         | plain   |              | 
+Options: shard=2
 
 copy check_con_tbl from stdin;
 COPY 2
@@ -659,14 +660,12 @@ COPY instead_of_insert_tbl_view FROM stdin; -- fail
 psql:sql/copy2.sql:396: ERROR:  cannot copy to view "instead_of_insert_tbl_view"
 HINT:  To enable copying to a view, provide an INSTEAD OF INSERT trigger.
 CREATE FUNCTION fun_instead_of_insert_tbl() RETURNS trigger AS $$
---BEGIN
+BEGIN
   INSERT INTO instead_of_insert_tbl (name) VALUES (NEW.str);
   RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
-psql:sql/copy2.sql:403: ERROR:  syntax error at or near "INSERT"
-LINE 3:   INSERT INTO instead_of_insert_tbl (name) VALUES (NEW.str);
-          ^
+CREATE FUNCTION
 --CREATE TRIGGER trig_instead_of_insert_tbl_view
  --INSTEAD OF INSERT ON instead_of_insert_tbl_view
  -- FOR EACH ROW EXECUTE PROCEDURE fun_instead_of_insert_tbl();
@@ -722,4 +721,4 @@ DROP VIEW
 DROP VIEW instead_of_insert_tbl_view_2;
 DROP VIEW
 DROP FUNCTION fun_instead_of_insert_tbl();
-psql:sql/copy2.sql:443: ERROR:  function fun_instead_of_insert_tbl() does not exist
+DROP FUNCTION

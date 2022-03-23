@@ -1,25 +1,19 @@
 drop table if exists t4;
-NOTICE:  table "t4" does not exist, skipping
+psql:sql/remote.sql:2: NOTICE:  table "t4" does not exist, skipping
+DROP TABLE
 drop table if exists t5;
-NOTICE:  table "t5" does not exist, skipping
+psql:sql/remote.sql:3: NOTICE:  table "t5" does not exist, skipping
+DROP TABLE
 drop table if exists t6;
-NOTICE:  table "t6" does not exist, skipping
-create table t4(a int primary key, b int unique) with oids;
-ERROR:  Remote tables can't have the OID system attribute.
+psql:sql/remote.sql:4: NOTICE:  table "t6" does not exist, skipping
+DROP TABLE
+--create table t4(a int primary key, b int unique) --with oids;
 create table t4(a int primary key, b int unique, c varchar(32) not null);
-show last_remote_sql;
-                                                                                 last_remote_sql                                                                                 
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-   create table if not exists regression_$$_public.t4 (a int not null,b int,c varchar(36) not null, PRIMARY KEY  using BTREE (a ASC), UNIQUE INDEX t4_b_key using BTREE (b ASC))
-(1 row)
-
+CREATE TABLE
+--show last_remote_sql;
 create index t4_cb on t4(c desc, b);
-show last_remote_sql;
-                              last_remote_sql                               
-----------------------------------------------------------------------------
- create  index t4_cb using BTREE on regression_$$_public.t4 (c DESC, b ASC)
-(1 row)
-
+CREATE INDEX
+--show last_remote_sql;
 \d+ t4;
                                             Table "public.t4"
  Column |         Type          | Collation | Nullable | Default | Storage  | Stats target | Description 
@@ -31,6 +25,7 @@ Indexes:
     "t4_pkey" PRIMARY KEY, btree (a)
     "t4_b_key" UNIQUE CONSTRAINT, btree (b)
     "t4_cb" btree (c DESC, b)
+Options: shard=2
 
 \d+ t4_cb;
                              Index "public.t4_cb"
@@ -42,10 +37,13 @@ btree, for table "public.t4"
 
 -- foreign keys are forbidden
 create table t5(a int references t4(a));
-WARNING:  Foreign key not supported in Kunlun, it's ignored here.
+psql:sql/remote.sql:15: WARNING:  Foreign key not supported in Kunlun, it's ignored here.
+CREATE TABLE
 -- temp table exits on computing node.
 create temporary table t6(a int);
+CREATE TABLE
 insert into t6 values(1),(2),(3);
+INSERT 0 3
 select*from t6;
  a 
 ---
@@ -55,21 +53,14 @@ select*from t6;
 (3 rows)
 
 drop table if exists t7;
-NOTICE:  table "t7" does not exist, skipping
+psql:sql/remote.sql:21: NOTICE:  table "t7" does not exist, skipping
+DROP TABLE
 create table t7(a int, b varchar(16), c int not null, d varchar(16) not null, primary key(c,d),unique(a,c),unique(b,d));
-show last_remote_sql;
-                                                                                                                          last_remote_sql                                                                                                                          
--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-   create table if not exists regression_$$_public.t7 (a int,b varchar(20),c int not null,d varchar(20) not null, PRIMARY KEY  using BTREE (c ASC, d ASC), UNIQUE INDEX t7_a_c_key using BTREE (a ASC, c ASC), UNIQUE INDEX t7_b_d_key using BTREE (b ASC, d ASC))
-(1 row)
-
+CREATE TABLE
+--show last_remote_sql;
 create index t7_abc on t7(b desc, a asc, c desc);
-show last_remote_sql;
-                                   last_remote_sql                                   
--------------------------------------------------------------------------------------
- create  index t7_abc using BTREE on regression_$$_public.t7 (b DESC, a ASC, c DESC)
-(1 row)
-
+CREATE INDEX
+--show last_remote_sql;
 \d+ t7;
                                             Table "public.t7"
  Column |         Type          | Collation | Nullable | Default | Storage  | Stats target | Description 
@@ -83,6 +74,7 @@ Indexes:
     "t7_a_c_key" UNIQUE CONSTRAINT, btree (a, c)
     "t7_b_d_key" UNIQUE CONSTRAINT, btree (b, d)
     "t7_abc" btree (b DESC, a, c DESC)
+Options: shard=1
 
 \d+ t7_abc;
                             Index "public.t7_abc"
@@ -95,28 +87,23 @@ btree, for table "public.t7"
 
 -- forbidden create index clauses start
 create index t7_b on t7(b collate en_US);
-ERROR:  collation "en_us" for encoding "UTF8" does not exist
+psql:sql/remote.sql:30: ERROR:  collation "en_us" for encoding "UTF8" does not exist
 create index t7_b on t7(b collate zh_CN);
-ERROR:  collation "zh_cn" for encoding "UTF8" does not exist
-create index t7_b on t7(b ) include (c);
-ERROR:  can't specifiy INCLUDE collumns for remote relations
+psql:sql/remote.sql:31: ERROR:  collation "zh_cn" for encoding "UTF8" does not exist
+--create index t7_b on t7(b ) include (c);
 create index t7_b on t7(b zh_pinyin_cmp);
-ERROR:  operator class "zh_pinyin_cmp" does not exist for access method "btree"
+psql:sql/remote.sql:34: ERROR:  operator class "zh_pinyin_cmp" does not exist for access method "btree"
 create index t7_b on t7(b zh_stroke_cmp);
-ERROR:  operator class "zh_stroke_cmp" does not exist for access method "btree"
-create index t7_a on t7((a+c));
-ERROR:  index creation on oid system column is not supported for remote tables
-create index t7_a on t7 (a) where a between 100 and 200;
-ERROR:  partial index isn't supported for remote relations
+psql:sql/remote.sql:35: ERROR:  operator class "zh_stroke_cmp" does not exist for access method "btree"
+--create index t7_a on t7((a+c));
+--create index t7_a on t7 (a) where a between 100 and 200;
 create index t7_b on t7(b nulls first);
+CREATE INDEX
 drop index t7_b;
+DROP INDEX
 create index t7_b on t7(b nulls last);
-show last_remote_sql;
-                          last_remote_sql                          
--------------------------------------------------------------------
- create  index t7_b using BTREE on regression_$$_public.t7 (b ASC)
-(1 row)
-
+CREATE INDEX
+--show last_remote_sql;
 \d+ t7_b;
                              Index "public.t7_b"
  Column |         Type          | Key? | Definition | Storage  | Stats target 
@@ -126,15 +113,13 @@ btree, for table "public.t7"
 
 -- forbidden create index clauses end
 drop table if exists t3;
+psql:sql/remote.sql:48: NOTICE:  table "t3" does not exist, skipping
+DROP TABLE
 create table t3(a int) partition by list(a);
-show last_remote_sql;
- last_remote_sql 
------------------
- 
-(1 row)
-
+CREATE TABLE
+--show last_remote_sql;
 \d+ t3;
-                                    Table "public.t3"
+                              Partitioned table "public.t3"
  Column |  Type   | Collation | Nullable | Default | Storage | Stats target | Description 
 --------+---------+-----------+----------+---------+---------+--------------+-------------
  a      | integer |           |          |         | plain   |              | 
@@ -142,12 +127,8 @@ Partition key: LIST (a)
 Number of partitions: 0
 
 create table t301 partition of t3 for values in (1,3,5);
-show last_remote_sql;
-                        last_remote_sql                         
-----------------------------------------------------------------
-   create table if not exists regression_$$_public.t301 (a int)
-(1 row)
-
+CREATE TABLE
+--show last_remote_sql;
 \d+ t301;
                                    Table "public.t301"
  Column |  Type   | Collation | Nullable | Default | Storage | Stats target | Description 
@@ -155,14 +136,11 @@ show last_remote_sql;
  a      | integer |           |          |         | plain   |              | 
 Partition of: t3 FOR VALUES IN (1, 3, 5)
 Partition constraint: ((a IS NOT NULL) AND (a = ANY (ARRAY[1, 3, 5])))
+Options: shard=1
 
 create table t302 partition of t3 for values in (2,4,6);
-show last_remote_sql;
-                        last_remote_sql                         
-----------------------------------------------------------------
-   create table if not exists regression_$$_public.t302 (a int)
-(1 row)
-
+CREATE TABLE
+--show last_remote_sql;
 \d+ t302;
                                    Table "public.t302"
  Column |  Type   | Collation | Nullable | Default | Storage | Stats target | Description 
@@ -170,19 +148,19 @@ show last_remote_sql;
  a      | integer |           |          |         | plain   |              | 
 Partition of: t3 FOR VALUES IN (2, 4, 6)
 Partition constraint: ((a IS NOT NULL) AND (a = ANY (ARRAY[2, 4, 6])))
+Options: shard=1
 
 drop table if exists t3;
+DROP TABLE
 create table t3(a int, b date, c timestamp, d time, e varchar(64), primary key(b,d)) partition by range(b);
+CREATE TABLE
 create unique index on t3(c, b);
+CREATE INDEX
 create index on t3(c);
-show last_remote_sql;
- last_remote_sql 
------------------
- 
-(1 row)
-
+CREATE INDEX
+--show last_remote_sql;
 \d+ t3;
-                                               Table "public.t3"
+                                         Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer                     |           |          |         | plain    |              | 
@@ -198,12 +176,8 @@ Indexes:
 Number of partitions: 0
 
 create table t301 partition of t3 for values from ('2000-01-01') to ('2009-12-31');
-show last_remote_sql;
-                                                                                                                       last_remote_sql                                                                                                                        
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-   create table if not exists regression_$$_public.t301 (a int,b date not null,c datetime,d time not null,e varchar(68), PRIMARY KEY  using BTREE (b ASC, d ASC), UNIQUE INDEX t301_c_b_idx using BTREE (c ASC, b ASC), INDEX t301_c_idx using BTREE (c ASC))
-(1 row)
-
+CREATE TABLE
+--show last_remote_sql;
 \d+ t301;
                                               Table "public.t301"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
@@ -213,15 +187,16 @@ show last_remote_sql;
  c      | timestamp without time zone |           |          |         | plain    |              | 
  d      | time without time zone      |           | not null |         | plain    |              | 
  e      | character varying(64)       |           |          |         | extended |              | 
-Partition of: t3 FOR VALUES FROM ('01-01-2000') TO ('12-31-2009')
-Partition constraint: ((b IS NOT NULL) AND (b >= '01-01-2000'::date) AND (b < '12-31-2009'::date))
+Partition of: t3 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31')
+Partition constraint: ((b IS NOT NULL) AND (b >= '2000-01-01'::date) AND (b < '2009-12-31'::date))
 Indexes:
     "t301_pkey" PRIMARY KEY, btree (b, d)
     "t301_c_b_idx" UNIQUE, btree (c, b)
     "t301_c_idx" btree (c)
+Options: shard=2
 
 \d+ t3;
-                                               Table "public.t3"
+                                         Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer                     |           |          |         | plain    |              | 
@@ -234,15 +209,11 @@ Indexes:
     "t3_pkey" PRIMARY KEY, btree (b, d)
     "t3_c_b_idx" UNIQUE, btree (c, b)
     "t3_c_idx" btree (c)
-Partitions: t301 FOR VALUES FROM ('01-01-2000') TO ('12-31-2009')
+Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31')
 
 create table t303 partition of t3 for values from ('2020-01-01') to ('2029-12-31');
-show last_remote_sql;
-                                                                                                                       last_remote_sql                                                                                                                        
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-   create table if not exists regression_$$_public.t303 (a int,b date not null,c datetime,d time not null,e varchar(68), PRIMARY KEY  using BTREE (b ASC, d ASC), UNIQUE INDEX t303_c_b_idx using BTREE (c ASC, b ASC), INDEX t303_c_idx using BTREE (c ASC))
-(1 row)
-
+CREATE TABLE
+--show last_remote_sql;
 \d+ t303;
                                               Table "public.t303"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
@@ -252,15 +223,16 @@ show last_remote_sql;
  c      | timestamp without time zone |           |          |         | plain    |              | 
  d      | time without time zone      |           | not null |         | plain    |              | 
  e      | character varying(64)       |           |          |         | extended |              | 
-Partition of: t3 FOR VALUES FROM ('01-01-2020') TO ('12-31-2029')
-Partition constraint: ((b IS NOT NULL) AND (b >= '01-01-2020'::date) AND (b < '12-31-2029'::date))
+Partition of: t3 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31')
+Partition constraint: ((b IS NOT NULL) AND (b >= '2020-01-01'::date) AND (b < '2029-12-31'::date))
 Indexes:
     "t303_pkey" PRIMARY KEY, btree (b, d)
     "t303_c_b_idx" UNIQUE, btree (c, b)
     "t303_c_idx" btree (c)
+Options: shard=1
 
 \d+ t3;
-                                               Table "public.t3"
+                                         Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer                     |           |          |         | plain    |              | 
@@ -273,26 +245,16 @@ Indexes:
     "t3_pkey" PRIMARY KEY, btree (b, d)
     "t3_c_b_idx" UNIQUE, btree (c, b)
     "t3_c_idx" btree (c)
-Partitions: t301 FOR VALUES FROM ('01-01-2000') TO ('12-31-2009'),
-            t303 FOR VALUES FROM ('01-01-2020') TO ('12-31-2029')
+Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
+            t303 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31')
 
 -- create a new index t3_b_a_idx , existing leaf partitions should be given t3_b_a_idx and t3_a_idx.
 create unique index t3_b_a_idx on t3(b, a);
-show last_remote_sql;
-                                      last_remote_sql                                      
--------------------------------------------------------------------------------------------
- create unique index t301_b_a_idx using BTREE on regression_$$_public.t301 (b ASC, a ASC);+
- create unique index t303_b_a_idx using BTREE on regression_$$_public.t303 (b ASC, a ASC)
-(1 row)
-
+CREATE INDEX
+--show last_remote_sql;
 create index t3_a_idx on t3(a);
-show last_remote_sql;
-                              last_remote_sql                               
-----------------------------------------------------------------------------
- create  index t301_a_idx using BTREE on regression_$$_public.t301 (a ASC);+
- create  index t303_a_idx using BTREE on regression_$$_public.t303 (a ASC)
-(1 row)
-
+CREATE INDEX
+--show last_remote_sql;
 \d+ t301;
                                               Table "public.t301"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
@@ -302,14 +264,15 @@ show last_remote_sql;
  c      | timestamp without time zone |           |          |         | plain    |              | 
  d      | time without time zone      |           | not null |         | plain    |              | 
  e      | character varying(64)       |           |          |         | extended |              | 
-Partition of: t3 FOR VALUES FROM ('01-01-2000') TO ('12-31-2009')
-Partition constraint: ((b IS NOT NULL) AND (b >= '01-01-2000'::date) AND (b < '12-31-2009'::date))
+Partition of: t3 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31')
+Partition constraint: ((b IS NOT NULL) AND (b >= '2000-01-01'::date) AND (b < '2009-12-31'::date))
 Indexes:
     "t301_pkey" PRIMARY KEY, btree (b, d)
     "t301_b_a_idx" UNIQUE, btree (b, a)
     "t301_c_b_idx" UNIQUE, btree (c, b)
     "t301_a_idx" btree (a)
     "t301_c_idx" btree (c)
+Options: shard=2
 
 \d+ t303;
                                               Table "public.t303"
@@ -320,17 +283,18 @@ Indexes:
  c      | timestamp without time zone |           |          |         | plain    |              | 
  d      | time without time zone      |           | not null |         | plain    |              | 
  e      | character varying(64)       |           |          |         | extended |              | 
-Partition of: t3 FOR VALUES FROM ('01-01-2020') TO ('12-31-2029')
-Partition constraint: ((b IS NOT NULL) AND (b >= '01-01-2020'::date) AND (b < '12-31-2029'::date))
+Partition of: t3 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31')
+Partition constraint: ((b IS NOT NULL) AND (b >= '2020-01-01'::date) AND (b < '2029-12-31'::date))
 Indexes:
     "t303_pkey" PRIMARY KEY, btree (b, d)
     "t303_b_a_idx" UNIQUE, btree (b, a)
     "t303_c_b_idx" UNIQUE, btree (c, b)
     "t303_a_idx" btree (a)
     "t303_c_idx" btree (c)
+Options: shard=1
 
 \d+ t3;
-                                               Table "public.t3"
+                                         Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer                     |           |          |         | plain    |              | 
@@ -345,20 +309,16 @@ Indexes:
     "t3_c_b_idx" UNIQUE, btree (c, b)
     "t3_a_idx" btree (a)
     "t3_c_idx" btree (c)
-Partitions: t301 FOR VALUES FROM ('01-01-2000') TO ('12-31-2009'),
-            t303 FOR VALUES FROM ('01-01-2020') TO ('12-31-2029')
+Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
+            t303 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31')
 
 -- new leaf partitions should have t3_b_a_idx in 'create table' stmt, and also an independent
 -- 'create index t3_a_idx' stmt, because in pg non-unique index can't be created in 'create table' stmt.
 create table t302 partition of t3 for values from ('2010-01-01') to ('2019-12-31');
-show last_remote_sql;
-                                                                                                                                                                     last_remote_sql                                                                                                                                                                      
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-   create table if not exists regression_$$_public.t302 (a int,b date not null,c datetime,d time not null,e varchar(68), PRIMARY KEY  using BTREE (b ASC, d ASC), UNIQUE INDEX t302_c_b_idx using BTREE (c ASC, b ASC), INDEX t302_c_idx using BTREE (c ASC), UNIQUE INDEX t302_b_a_idx using BTREE (b ASC, a ASC), INDEX t302_a_idx using BTREE (a ASC))
-(1 row)
-
+CREATE TABLE
+--show last_remote_sql;
 \d+ t3;
-                                               Table "public.t3"
+                                         Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer                     |           |          |         | plain    |              | 
@@ -373,9 +333,9 @@ Indexes:
     "t3_c_b_idx" UNIQUE, btree (c, b)
     "t3_a_idx" btree (a)
     "t3_c_idx" btree (c)
-Partitions: t301 FOR VALUES FROM ('01-01-2000') TO ('12-31-2009'),
-            t302 FOR VALUES FROM ('01-01-2010') TO ('12-31-2019'),
-            t303 FOR VALUES FROM ('01-01-2020') TO ('12-31-2029')
+Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
+            t302 FOR VALUES FROM ('2010-01-01') TO ('2019-12-31'),
+            t303 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31')
 
 \d+ t302;
                                               Table "public.t302"
@@ -386,14 +346,15 @@ Partitions: t301 FOR VALUES FROM ('01-01-2000') TO ('12-31-2009'),
  c      | timestamp without time zone |           |          |         | plain    |              | 
  d      | time without time zone      |           | not null |         | plain    |              | 
  e      | character varying(64)       |           |          |         | extended |              | 
-Partition of: t3 FOR VALUES FROM ('01-01-2010') TO ('12-31-2019')
-Partition constraint: ((b IS NOT NULL) AND (b >= '01-01-2010'::date) AND (b < '12-31-2019'::date))
+Partition of: t3 FOR VALUES FROM ('2010-01-01') TO ('2019-12-31')
+Partition constraint: ((b IS NOT NULL) AND (b >= '2010-01-01'::date) AND (b < '2019-12-31'::date))
 Indexes:
     "t302_pkey" PRIMARY KEY, btree (b, d)
     "t302_b_a_idx" UNIQUE, btree (b, a)
     "t302_c_b_idx" UNIQUE, btree (c, b)
     "t302_a_idx" btree (a)
     "t302_c_idx" btree (c)
+Options: shard=1
 
 \d+ t301;
                                               Table "public.t301"
@@ -404,14 +365,15 @@ Indexes:
  c      | timestamp without time zone |           |          |         | plain    |              | 
  d      | time without time zone      |           | not null |         | plain    |              | 
  e      | character varying(64)       |           |          |         | extended |              | 
-Partition of: t3 FOR VALUES FROM ('01-01-2000') TO ('12-31-2009')
-Partition constraint: ((b IS NOT NULL) AND (b >= '01-01-2000'::date) AND (b < '12-31-2009'::date))
+Partition of: t3 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31')
+Partition constraint: ((b IS NOT NULL) AND (b >= '2000-01-01'::date) AND (b < '2009-12-31'::date))
 Indexes:
     "t301_pkey" PRIMARY KEY, btree (b, d)
     "t301_b_a_idx" UNIQUE, btree (b, a)
     "t301_c_b_idx" UNIQUE, btree (c, b)
     "t301_a_idx" btree (a)
     "t301_c_idx" btree (c)
+Options: shard=2
 
 \d+ t303;
                                               Table "public.t303"
@@ -422,24 +384,21 @@ Indexes:
  c      | timestamp without time zone |           |          |         | plain    |              | 
  d      | time without time zone      |           | not null |         | plain    |              | 
  e      | character varying(64)       |           |          |         | extended |              | 
-Partition of: t3 FOR VALUES FROM ('01-01-2020') TO ('12-31-2029')
-Partition constraint: ((b IS NOT NULL) AND (b >= '01-01-2020'::date) AND (b < '12-31-2029'::date))
+Partition of: t3 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31')
+Partition constraint: ((b IS NOT NULL) AND (b >= '2020-01-01'::date) AND (b < '2029-12-31'::date))
 Indexes:
     "t303_pkey" PRIMARY KEY, btree (b, d)
     "t303_b_a_idx" UNIQUE, btree (b, a)
     "t303_c_b_idx" UNIQUE, btree (c, b)
     "t303_a_idx" btree (a)
     "t303_c_idx" btree (c)
+Options: shard=1
 
 create table t304 partition of t3 for values from ('2030-01-01') to ('2049-12-31');
-show last_remote_sql;
-                                                                                                                                                                     last_remote_sql                                                                                                                                                                      
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-   create table if not exists regression_$$_public.t304 (a int,b date not null,c datetime,d time not null,e varchar(68), PRIMARY KEY  using BTREE (b ASC, d ASC), UNIQUE INDEX t304_c_b_idx using BTREE (c ASC, b ASC), INDEX t304_c_idx using BTREE (c ASC), UNIQUE INDEX t304_b_a_idx using BTREE (b ASC, a ASC), INDEX t304_a_idx using BTREE (a ASC))
-(1 row)
-
+CREATE TABLE
+--show last_remote_sql;
 \d+ t3;
-                                               Table "public.t3"
+                                         Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer                     |           |          |         | plain    |              | 
@@ -454,10 +413,10 @@ Indexes:
     "t3_c_b_idx" UNIQUE, btree (c, b)
     "t3_a_idx" btree (a)
     "t3_c_idx" btree (c)
-Partitions: t301 FOR VALUES FROM ('01-01-2000') TO ('12-31-2009'),
-            t302 FOR VALUES FROM ('01-01-2010') TO ('12-31-2019'),
-            t303 FOR VALUES FROM ('01-01-2020') TO ('12-31-2029'),
-            t304 FOR VALUES FROM ('01-01-2030') TO ('12-31-2049')
+Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
+            t302 FOR VALUES FROM ('2010-01-01') TO ('2019-12-31'),
+            t303 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31'),
+            t304 FOR VALUES FROM ('2030-01-01') TO ('2049-12-31')
 
 \d+ t304;
                                               Table "public.t304"
@@ -468,14 +427,15 @@ Partitions: t301 FOR VALUES FROM ('01-01-2000') TO ('12-31-2009'),
  c      | timestamp without time zone |           |          |         | plain    |              | 
  d      | time without time zone      |           | not null |         | plain    |              | 
  e      | character varying(64)       |           |          |         | extended |              | 
-Partition of: t3 FOR VALUES FROM ('01-01-2030') TO ('12-31-2049')
-Partition constraint: ((b IS NOT NULL) AND (b >= '01-01-2030'::date) AND (b < '12-31-2049'::date))
+Partition of: t3 FOR VALUES FROM ('2030-01-01') TO ('2049-12-31')
+Partition constraint: ((b IS NOT NULL) AND (b >= '2030-01-01'::date) AND (b < '2049-12-31'::date))
 Indexes:
     "t304_pkey" PRIMARY KEY, btree (b, d)
     "t304_b_a_idx" UNIQUE, btree (b, a)
     "t304_c_b_idx" UNIQUE, btree (c, b)
     "t304_a_idx" btree (a)
     "t304_c_idx" btree (c)
+Options: shard=2
 
 \d+ t301;
                                               Table "public.t301"
@@ -486,14 +446,15 @@ Indexes:
  c      | timestamp without time zone |           |          |         | plain    |              | 
  d      | time without time zone      |           | not null |         | plain    |              | 
  e      | character varying(64)       |           |          |         | extended |              | 
-Partition of: t3 FOR VALUES FROM ('01-01-2000') TO ('12-31-2009')
-Partition constraint: ((b IS NOT NULL) AND (b >= '01-01-2000'::date) AND (b < '12-31-2009'::date))
+Partition of: t3 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31')
+Partition constraint: ((b IS NOT NULL) AND (b >= '2000-01-01'::date) AND (b < '2009-12-31'::date))
 Indexes:
     "t301_pkey" PRIMARY KEY, btree (b, d)
     "t301_b_a_idx" UNIQUE, btree (b, a)
     "t301_c_b_idx" UNIQUE, btree (c, b)
     "t301_a_idx" btree (a)
     "t301_c_idx" btree (c)
+Options: shard=2
 
 \d+ t302;
                                               Table "public.t302"
@@ -504,14 +465,15 @@ Indexes:
  c      | timestamp without time zone |           |          |         | plain    |              | 
  d      | time without time zone      |           | not null |         | plain    |              | 
  e      | character varying(64)       |           |          |         | extended |              | 
-Partition of: t3 FOR VALUES FROM ('01-01-2010') TO ('12-31-2019')
-Partition constraint: ((b IS NOT NULL) AND (b >= '01-01-2010'::date) AND (b < '12-31-2019'::date))
+Partition of: t3 FOR VALUES FROM ('2010-01-01') TO ('2019-12-31')
+Partition constraint: ((b IS NOT NULL) AND (b >= '2010-01-01'::date) AND (b < '2019-12-31'::date))
 Indexes:
     "t302_pkey" PRIMARY KEY, btree (b, d)
     "t302_b_a_idx" UNIQUE, btree (b, a)
     "t302_c_b_idx" UNIQUE, btree (c, b)
     "t302_a_idx" btree (a)
     "t302_c_idx" btree (c)
+Options: shard=1
 
 \d+ t303;
                                               Table "public.t303"
@@ -522,23 +484,20 @@ Indexes:
  c      | timestamp without time zone |           |          |         | plain    |              | 
  d      | time without time zone      |           | not null |         | plain    |              | 
  e      | character varying(64)       |           |          |         | extended |              | 
-Partition of: t3 FOR VALUES FROM ('01-01-2020') TO ('12-31-2029')
-Partition constraint: ((b IS NOT NULL) AND (b >= '01-01-2020'::date) AND (b < '12-31-2029'::date))
+Partition of: t3 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31')
+Partition constraint: ((b IS NOT NULL) AND (b >= '2020-01-01'::date) AND (b < '2029-12-31'::date))
 Indexes:
     "t303_pkey" PRIMARY KEY, btree (b, d)
     "t303_b_a_idx" UNIQUE, btree (b, a)
     "t303_c_b_idx" UNIQUE, btree (c, b)
     "t303_a_idx" btree (a)
     "t303_c_idx" btree (c)
+Options: shard=1
 
 -- create a new idx for t302 only.
 create unique index t302_b_e_idx on t302(b,e);
-show last_remote_sql;
-                                     last_remote_sql                                      
-------------------------------------------------------------------------------------------
- create unique index t302_b_e_idx using BTREE on regression_$$_public.t302 (b ASC, e ASC)
-(1 row)
-
+CREATE INDEX
+--show last_remote_sql;
 \d+ t302;
                                               Table "public.t302"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
@@ -548,8 +507,8 @@ show last_remote_sql;
  c      | timestamp without time zone |           |          |         | plain    |              | 
  d      | time without time zone      |           | not null |         | plain    |              | 
  e      | character varying(64)       |           |          |         | extended |              | 
-Partition of: t3 FOR VALUES FROM ('01-01-2010') TO ('12-31-2019')
-Partition constraint: ((b IS NOT NULL) AND (b >= '01-01-2010'::date) AND (b < '12-31-2019'::date))
+Partition of: t3 FOR VALUES FROM ('2010-01-01') TO ('2019-12-31')
+Partition constraint: ((b IS NOT NULL) AND (b >= '2010-01-01'::date) AND (b < '2019-12-31'::date))
 Indexes:
     "t302_pkey" PRIMARY KEY, btree (b, d)
     "t302_b_a_idx" UNIQUE, btree (b, a)
@@ -557,9 +516,10 @@ Indexes:
     "t302_c_b_idx" UNIQUE, btree (c, b)
     "t302_a_idx" btree (a)
     "t302_c_idx" btree (c)
+Options: shard=1
 
 \d+ t3;
-                                               Table "public.t3"
+                                         Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer                     |           |          |         | plain    |              | 
@@ -574,19 +534,15 @@ Indexes:
     "t3_c_b_idx" UNIQUE, btree (c, b)
     "t3_a_idx" btree (a)
     "t3_c_idx" btree (c)
-Partitions: t301 FOR VALUES FROM ('01-01-2000') TO ('12-31-2009'),
-            t302 FOR VALUES FROM ('01-01-2010') TO ('12-31-2019'),
-            t303 FOR VALUES FROM ('01-01-2020') TO ('12-31-2029'),
-            t304 FOR VALUES FROM ('01-01-2030') TO ('12-31-2049')
+Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
+            t302 FOR VALUES FROM ('2010-01-01') TO ('2019-12-31'),
+            t303 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31'),
+            t304 FOR VALUES FROM ('2030-01-01') TO ('2049-12-31')
 
 -- create a new idx for t304 only.
 create index t304_b_e_idx on t304(b,e);
-show last_remote_sql;
-                                  last_remote_sql                                   
-------------------------------------------------------------------------------------
- create  index t304_b_e_idx using BTREE on regression_$$_public.t304 (b ASC, e ASC)
-(1 row)
-
+CREATE INDEX
+--show last_remote_sql;
 \d+ t304;
                                               Table "public.t304"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
@@ -596,8 +552,8 @@ show last_remote_sql;
  c      | timestamp without time zone |           |          |         | plain    |              | 
  d      | time without time zone      |           | not null |         | plain    |              | 
  e      | character varying(64)       |           |          |         | extended |              | 
-Partition of: t3 FOR VALUES FROM ('01-01-2030') TO ('12-31-2049')
-Partition constraint: ((b IS NOT NULL) AND (b >= '01-01-2030'::date) AND (b < '12-31-2049'::date))
+Partition of: t3 FOR VALUES FROM ('2030-01-01') TO ('2049-12-31')
+Partition constraint: ((b IS NOT NULL) AND (b >= '2030-01-01'::date) AND (b < '2049-12-31'::date))
 Indexes:
     "t304_pkey" PRIMARY KEY, btree (b, d)
     "t304_b_a_idx" UNIQUE, btree (b, a)
@@ -605,9 +561,10 @@ Indexes:
     "t304_a_idx" btree (a)
     "t304_b_e_idx" btree (b, e)
     "t304_c_idx" btree (c)
+Options: shard=2
 
 \d+ t3;
-                                               Table "public.t3"
+                                         Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer                     |           |          |         | plain    |              | 
@@ -622,21 +579,16 @@ Indexes:
     "t3_c_b_idx" UNIQUE, btree (c, b)
     "t3_a_idx" btree (a)
     "t3_c_idx" btree (c)
-Partitions: t301 FOR VALUES FROM ('01-01-2000') TO ('12-31-2009'),
-            t302 FOR VALUES FROM ('01-01-2010') TO ('12-31-2019'),
-            t303 FOR VALUES FROM ('01-01-2020') TO ('12-31-2029'),
-            t304 FOR VALUES FROM ('01-01-2030') TO ('12-31-2049')
+Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
+            t302 FOR VALUES FROM ('2010-01-01') TO ('2019-12-31'),
+            t303 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31'),
+            t304 FOR VALUES FROM ('2030-01-01') TO ('2049-12-31')
 
 -- create another index on t3, existing leaf partitions should all be given
 -- this idx. only the last 'create index' can be printed here.
 create index t3_e_idx on t3(e);
-show last_remote_sql;
-                                                                    last_remote_sql                                                                    
--------------------------------------------------------------------------------------------------------------------------------------------------------
- create  index t301_e_idx using BTREE on regression_$$_public.t301 (e ASC); create  index t304_e_idx using BTREE on regression_$$_public.t304 (e ASC);+
- create  index t302_e_idx using BTREE on regression_$$_public.t302 (e ASC); create  index t303_e_idx using BTREE on regression_$$_public.t303 (e ASC)
-(1 row)
-
+CREATE INDEX
+--show last_remote_sql;
 \d+ t301;
                                               Table "public.t301"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
@@ -646,8 +598,8 @@ show last_remote_sql;
  c      | timestamp without time zone |           |          |         | plain    |              | 
  d      | time without time zone      |           | not null |         | plain    |              | 
  e      | character varying(64)       |           |          |         | extended |              | 
-Partition of: t3 FOR VALUES FROM ('01-01-2000') TO ('12-31-2009')
-Partition constraint: ((b IS NOT NULL) AND (b >= '01-01-2000'::date) AND (b < '12-31-2009'::date))
+Partition of: t3 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31')
+Partition constraint: ((b IS NOT NULL) AND (b >= '2000-01-01'::date) AND (b < '2009-12-31'::date))
 Indexes:
     "t301_pkey" PRIMARY KEY, btree (b, d)
     "t301_b_a_idx" UNIQUE, btree (b, a)
@@ -655,6 +607,7 @@ Indexes:
     "t301_a_idx" btree (a)
     "t301_c_idx" btree (c)
     "t301_e_idx" btree (e)
+Options: shard=2
 
 \d+ t302;
                                               Table "public.t302"
@@ -665,8 +618,8 @@ Indexes:
  c      | timestamp without time zone |           |          |         | plain    |              | 
  d      | time without time zone      |           | not null |         | plain    |              | 
  e      | character varying(64)       |           |          |         | extended |              | 
-Partition of: t3 FOR VALUES FROM ('01-01-2010') TO ('12-31-2019')
-Partition constraint: ((b IS NOT NULL) AND (b >= '01-01-2010'::date) AND (b < '12-31-2019'::date))
+Partition of: t3 FOR VALUES FROM ('2010-01-01') TO ('2019-12-31')
+Partition constraint: ((b IS NOT NULL) AND (b >= '2010-01-01'::date) AND (b < '2019-12-31'::date))
 Indexes:
     "t302_pkey" PRIMARY KEY, btree (b, d)
     "t302_b_a_idx" UNIQUE, btree (b, a)
@@ -675,6 +628,7 @@ Indexes:
     "t302_a_idx" btree (a)
     "t302_c_idx" btree (c)
     "t302_e_idx" btree (e)
+Options: shard=1
 
 \d+ t303;
                                               Table "public.t303"
@@ -685,8 +639,8 @@ Indexes:
  c      | timestamp without time zone |           |          |         | plain    |              | 
  d      | time without time zone      |           | not null |         | plain    |              | 
  e      | character varying(64)       |           |          |         | extended |              | 
-Partition of: t3 FOR VALUES FROM ('01-01-2020') TO ('12-31-2029')
-Partition constraint: ((b IS NOT NULL) AND (b >= '01-01-2020'::date) AND (b < '12-31-2029'::date))
+Partition of: t3 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31')
+Partition constraint: ((b IS NOT NULL) AND (b >= '2020-01-01'::date) AND (b < '2029-12-31'::date))
 Indexes:
     "t303_pkey" PRIMARY KEY, btree (b, d)
     "t303_b_a_idx" UNIQUE, btree (b, a)
@@ -694,6 +648,7 @@ Indexes:
     "t303_a_idx" btree (a)
     "t303_c_idx" btree (c)
     "t303_e_idx" btree (e)
+Options: shard=1
 
 \d+ t304;
                                               Table "public.t304"
@@ -704,8 +659,8 @@ Indexes:
  c      | timestamp without time zone |           |          |         | plain    |              | 
  d      | time without time zone      |           | not null |         | plain    |              | 
  e      | character varying(64)       |           |          |         | extended |              | 
-Partition of: t3 FOR VALUES FROM ('01-01-2030') TO ('12-31-2049')
-Partition constraint: ((b IS NOT NULL) AND (b >= '01-01-2030'::date) AND (b < '12-31-2049'::date))
+Partition of: t3 FOR VALUES FROM ('2030-01-01') TO ('2049-12-31')
+Partition constraint: ((b IS NOT NULL) AND (b >= '2030-01-01'::date) AND (b < '2049-12-31'::date))
 Indexes:
     "t304_pkey" PRIMARY KEY, btree (b, d)
     "t304_b_a_idx" UNIQUE, btree (b, a)
@@ -714,9 +669,10 @@ Indexes:
     "t304_b_e_idx" btree (b, e)
     "t304_c_idx" btree (c)
     "t304_e_idx" btree (e)
+Options: shard=2
 
 \d+ t3;
-                                               Table "public.t3"
+                                         Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer                     |           |          |         | plain    |              | 
@@ -732,23 +688,20 @@ Indexes:
     "t3_a_idx" btree (a)
     "t3_c_idx" btree (c)
     "t3_e_idx" btree (e)
-Partitions: t301 FOR VALUES FROM ('01-01-2000') TO ('12-31-2009'),
-            t302 FOR VALUES FROM ('01-01-2010') TO ('12-31-2019'),
-            t303 FOR VALUES FROM ('01-01-2020') TO ('12-31-2029'),
-            t304 FOR VALUES FROM ('01-01-2030') TO ('12-31-2049')
+Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
+            t302 FOR VALUES FROM ('2010-01-01') TO ('2019-12-31'),
+            t303 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31'),
+            t304 FOR VALUES FROM ('2030-01-01') TO ('2049-12-31')
 
 insert into t3 values(2, '2025-01-16 11:25:09', '2015-01-16 11:25:09', '2015-01-16 11:25:09', 'abc'),(3, '2015-01-16 11:25:09', '2020-01-16 11:25:09', '2015-01-16 11:25:09', 'def'), (4, '2000-01-16 11:25:09', '2020-01-16 11:25:10', '2015-01-16 11:25:09', 'xyz'),(5, '2035-01-16 11:25:09', '2020-01-16 11:25:11', '2015-01-16 11:25:09', 'spider');
+INSERT 0 4
 drop table if exists t1;
-NOTICE:  table "t1" does not exist, skipping
+DROP TABLE
 create table t1(a int, b int) partition by hash(a,b);
-show last_remote_sql;
- last_remote_sql 
------------------
- 
-(1 row)
-
+CREATE TABLE
+--show last_remote_sql;
 \d+ t1;
-                                    Table "public.t1"
+                              Partitioned table "public.t1"
  Column |  Type   | Collation | Nullable | Default | Storage | Stats target | Description 
 --------+---------+-----------+----------+---------+---------+--------------+-------------
  a      | integer |           |          |         | plain   |              | 
@@ -757,44 +710,25 @@ Partition key: HASH (a, b)
 Number of partitions: 0
 
 create table t100 partition of t1 for values with (modulus 4, remainder 0);
-show last_remote_sql;
-                           last_remote_sql                            
-----------------------------------------------------------------------
-   create table if not exists regression_$$_public.t100 (a int,b int)
-(1 row)
-
+CREATE TABLE
+--show last_remote_sql;
 create table t101 partition of t1 for values with (modulus 4, remainder 1);
-show last_remote_sql;
-                           last_remote_sql                            
-----------------------------------------------------------------------
-   create table if not exists regression_$$_public.t101 (a int,b int)
-(1 row)
-
+CREATE TABLE
+--show last_remote_sql;
 create table t102 partition of t1 for values with (modulus 4, remainder 2);
-show last_remote_sql;
-                           last_remote_sql                            
-----------------------------------------------------------------------
-   create table if not exists regression_$$_public.t102 (a int,b int)
-(1 row)
-
+CREATE TABLE
+--show last_remote_sql;
 create table t103 partition of t1 for values with (modulus 4, remainder 3);
-show last_remote_sql;
-                           last_remote_sql                            
-----------------------------------------------------------------------
-   create table if not exists regression_$$_public.t103 (a int,b int)
-(1 row)
-
+CREATE TABLE
+--show last_remote_sql;
 drop table if exists t2;
-NOTICE:  table "t2" does not exist, skipping
+psql:sql/remote.sql:141: NOTICE:  table "t2" does not exist, skipping
+DROP TABLE
 create table t2(a int, b int, c varchar(32), d char(16), primary key(a,b), unique(b,c)) partition by hash(b);
-show last_remote_sql;
- last_remote_sql 
------------------
- 
-(1 row)
-
+CREATE TABLE
+--show last_remote_sql;
 \d+ t2;
-                                            Table "public.t2"
+                                      Partitioned table "public.t2"
  Column |         Type          | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer               |           | not null |         | plain    |              | 
@@ -808,48 +742,28 @@ Indexes:
 Number of partitions: 0
 
 create table t200 partition of t2 for values with (modulus 4, remainder 0);
-show last_remote_sql;
-                                                                                                last_remote_sql                                                                                                 
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-   create table if not exists regression_$$_public.t200 (a int not null,b int not null,c varchar(36),d char(20), PRIMARY KEY  using BTREE (a ASC, b ASC), UNIQUE INDEX t200_b_c_key using BTREE (b ASC, c ASC))
-(1 row)
-
+CREATE TABLE
+--show last_remote_sql;
 create table t201 partition of t2 for values with (modulus 4, remainder 1);
-show last_remote_sql;
-                                                                                                last_remote_sql                                                                                                 
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-   create table if not exists regression_$$_public.t201 (a int not null,b int not null,c varchar(36),d char(20), PRIMARY KEY  using BTREE (a ASC, b ASC), UNIQUE INDEX t201_b_c_key using BTREE (b ASC, c ASC))
-(1 row)
-
+CREATE TABLE
+--show last_remote_sql;
 create table t202 partition of t2 for values with (modulus 4, remainder 2);
-show last_remote_sql;
-                                                                                                last_remote_sql                                                                                                 
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-   create table if not exists regression_$$_public.t202 (a int not null,b int not null,c varchar(36),d char(20), PRIMARY KEY  using BTREE (a ASC, b ASC), UNIQUE INDEX t202_b_c_key using BTREE (b ASC, c ASC))
-(1 row)
-
+CREATE TABLE
+--show last_remote_sql;
 create table t203 partition of t2 for values with (modulus 4, remainder 3);
-show last_remote_sql;
-                                                                                                last_remote_sql                                                                                                 
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-   create table if not exists regression_$$_public.t203 (a int not null,b int not null,c varchar(36),d char(20), PRIMARY KEY  using BTREE (a ASC, b ASC), UNIQUE INDEX t203_b_c_key using BTREE (b ASC, c ASC))
-(1 row)
-
+CREATE TABLE
+--show last_remote_sql;
 set log_min_messages=debug5;
+SET
 create index t2_c_d on t2(d desc, c);
+CREATE INDEX
 -- only the last index's remote sql is printed,others are overwritten, but
 -- it's OK, this is only for debugging. all remote sql will be sent to remote
 -- targets properly. debug5 is turned on so you can check the log file for all
 -- four statements generated by above 'create index' stmt.
-show last_remote_sql;
-                                                                                                                        last_remote_sql                                                                                                                         
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- create  index t200_d_c_idx using BTREE on regression_$$_public.t200 (d DESC, c ASC); create  index t202_d_c_idx using BTREE on regression_$$_public.t202 (d DESC, c ASC); create  index t203_d_c_idx using BTREE on regression_$$_public.t203 (d DESC, c ASC);+
- create  index t201_d_c_idx using BTREE on regression_$$_public.t201 (d DESC, c ASC)
-(1 row)
-
+--show last_remote_sql;
 \d+ t2_c_d;
-                            Index "public.t2_c_d"
+                      Partitioned index "public.t2_c_d"
  Column |         Type          | Key? | Definition | Storage  | Stats target 
 --------+-----------------------+------+------------+----------+--------------
  d      | character(16)         | yes  | d          | extended | 
@@ -897,22 +811,15 @@ No partition constraint
 btree, for table "public.t203"
 
 drop table if exists t1;
+DROP TABLE
 create table t1(a varchar(30), b int, c date, d time, e timestamp, f char(20), primary key(a,b),unique(e,b)) partition by hash(b);
-show last_remote_sql;
- last_remote_sql 
------------------
- 
-(1 row)
-
+CREATE TABLE
+--show last_remote_sql;
 create index t1_f on t1(f);
-show last_remote_sql;
- last_remote_sql 
------------------
- 
-(1 row)
-
+CREATE INDEX
+--show last_remote_sql;
 \d+ t1;
-                                               Table "public.t1"
+                                         Partitioned table "public.t1"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | character varying(30)       |           | not null |         | extended |              | 
@@ -929,73 +836,36 @@ Indexes:
 Number of partitions: 0
 
 create table t100 partition of t1 for values with (modulus 4, remainder 0);
-show last_remote_sql;
-                                                                                                                             last_remote_sql                                                                                                                             
--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-   create table if not exists regression_$$_public.t100 (a varchar(34) not null,b int not null,c date,d time,e datetime,f char(24), PRIMARY KEY  using BTREE (a ASC, b ASC), UNIQUE INDEX t100_e_b_key using BTREE (e ASC, b ASC), INDEX t100_f_idx using BTREE (f ASC))
-(1 row)
-
+CREATE TABLE
+--show last_remote_sql;
 create table t101 partition of t1 for values with (modulus 4, remainder 1);
-show last_remote_sql;
-                                                                                                                             last_remote_sql                                                                                                                             
--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-   create table if not exists regression_$$_public.t101 (a varchar(34) not null,b int not null,c date,d time,e datetime,f char(24), PRIMARY KEY  using BTREE (a ASC, b ASC), UNIQUE INDEX t101_e_b_key using BTREE (e ASC, b ASC), INDEX t101_f_idx using BTREE (f ASC))
-(1 row)
-
+CREATE TABLE
+--show last_remote_sql;
 create unique index t1_d_b on t1(d,b desc);
-show last_remote_sql;
-                                      last_remote_sql                                       
---------------------------------------------------------------------------------------------
- create unique index t100_d_b_idx using BTREE on regression_$$_public.t100 (d ASC, b DESC);+
- create unique index t101_d_b_idx using BTREE on regression_$$_public.t101 (d ASC, b DESC)
-(1 row)
-
+CREATE INDEX
+--show last_remote_sql;
 create index t1_d on t1(d desc);
-show last_remote_sql;
-                               last_remote_sql                               
------------------------------------------------------------------------------
- create  index t100_d_idx using BTREE on regression_$$_public.t100 (d DESC);+
- create  index t101_d_idx using BTREE on regression_$$_public.t101 (d DESC)
-(1 row)
-
+CREATE INDEX
+--show last_remote_sql;
 create table t102 partition of t1 for values with (modulus 4, remainder 2);
-show last_remote_sql;
-                                                                                                                                                                            last_remote_sql                                                                                                                                                                            
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-   create table if not exists regression_$$_public.t102 (a varchar(34) not null,b int not null,c date,d time,e datetime,f char(24), PRIMARY KEY  using BTREE (a ASC, b ASC), UNIQUE INDEX t102_e_b_key using BTREE (e ASC, b ASC), INDEX t102_f_idx using BTREE (f ASC), UNIQUE INDEX t102_d_b_idx using BTREE (d ASC, b DESC), INDEX t102_d_idx using BTREE (d DESC))
-(1 row)
-
+CREATE TABLE
+--show last_remote_sql;
 create index t102_a_b on t102(a desc, b);
-show last_remote_sql;
-                                 last_remote_sql                                 
----------------------------------------------------------------------------------
- create  index t102_a_b using BTREE on regression_$$_public.t102 (a DESC, b ASC)
-(1 row)
-
+CREATE INDEX
+--show last_remote_sql;
 create table t103 partition of t1 for values with (modulus 4, remainder 3);
-show last_remote_sql;
-                                                                                                                                                                            last_remote_sql                                                                                                                                                                            
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-   create table if not exists regression_$$_public.t103 (a varchar(34) not null,b int not null,c date,d time,e datetime,f char(24), PRIMARY KEY  using BTREE (a ASC, b ASC), UNIQUE INDEX t103_e_b_key using BTREE (e ASC, b ASC), INDEX t103_f_idx using BTREE (f ASC), UNIQUE INDEX t103_d_b_idx using BTREE (d ASC, b DESC), INDEX t103_d_idx using BTREE (d DESC))
-(1 row)
-
+CREATE TABLE
+--show last_remote_sql;
 create unique index t103_a_b on t102(c, b desc, e desc);
-show last_remote_sql;
-                                        last_remote_sql                                        
------------------------------------------------------------------------------------------------
- create unique index t103_a_b using BTREE on regression_$$_public.t102 (c ASC, b DESC, e DESC)
-(1 row)
-
+CREATE INDEX
+--show last_remote_sql;
 drop table if exists t2;
+DROP TABLE
 create table t2(a int, b timestamptz, c timestamp, d money, e numeric(7,4), f real, g double precision, primary key(a,b), unique(a,b,c)) partition by list(a);
-show last_remote_sql;
- last_remote_sql 
------------------
- 
-(1 row)
-
+CREATE TABLE
+--show last_remote_sql;
 \d+ t2;
-                                              Table "public.t2"
+                                        Partitioned table "public.t2"
  Column |            Type             | Collation | Nullable | Default | Storage | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+---------+--------------+-------------
  a      | integer                     |           | not null |         | plain   |              | 
@@ -1012,12 +882,8 @@ Indexes:
 Number of partitions: 0
 
 create table t200 partition of t2 for values in (1,2,3,4);
-show last_remote_sql;
-                                                                                                                        last_remote_sql                                                                                                                         
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-   create table if not exists regression_$$_public.t200 (a int not null,b datetime not null,c datetime,d numeric(65,8),e numeric(7,4),f float,g double, PRIMARY KEY  using BTREE (a ASC, b ASC), UNIQUE INDEX t200_a_b_c_key using BTREE (a ASC, b ASC, c ASC))
-(1 row)
-
+CREATE TABLE
+--show last_remote_sql;
 \d+ t200;
                                              Table "public.t200"
  Column |            Type             | Collation | Nullable | Default | Storage | Stats target | Description 
@@ -1034,16 +900,13 @@ Partition constraint: ((a IS NOT NULL) AND (a = ANY (ARRAY[1, 2, 3, 4])))
 Indexes:
     "t200_pkey" PRIMARY KEY, btree (a, b)
     "t200_a_b_c_key" UNIQUE CONSTRAINT, btree (a, b, c)
+Options: shard=2
 
 create index t2_d_g on t2(d,g desc);
-show last_remote_sql;
-                                   last_remote_sql                                   
--------------------------------------------------------------------------------------
- create  index t200_d_g_idx using BTREE on regression_$$_public.t200 (d ASC, g DESC)
-(1 row)
-
+CREATE INDEX
+--show last_remote_sql;
 \d+ t2;
-                                              Table "public.t2"
+                                        Partitioned table "public.t2"
  Column |            Type             | Collation | Nullable | Default | Storage | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+---------+--------------+-------------
  a      | integer                     |           | not null |         | plain   |              | 
@@ -1077,14 +940,10 @@ Indexes:
     "t200_pkey" PRIMARY KEY, btree (a, b)
     "t200_a_b_c_key" UNIQUE CONSTRAINT, btree (a, b, c)
     "t200_d_g_idx" btree (d, g DESC)
+Options: shard=2
 
 create table t201 partition of t2 for values in (5,6,7);
-show last_remote_sql;
-                                                                                                                                                last_remote_sql                                                                                                                                                 
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-   create table if not exists regression_$$_public.t201 (a int not null,b datetime not null,c datetime,d numeric(65,8),e numeric(7,4),f float,g double, PRIMARY KEY  using BTREE (a ASC, b ASC), UNIQUE INDEX t201_a_b_c_key using BTREE (a ASC, b ASC, c ASC), INDEX t201_d_g_idx using BTREE (d ASC, g DESC))
-(1 row)
-
+CREATE TABLE
 \d+ t201;
                                              Table "public.t201"
  Column |            Type             | Collation | Nullable | Default | Storage | Stats target | Description 
@@ -1102,16 +961,13 @@ Indexes:
     "t201_pkey" PRIMARY KEY, btree (a, b)
     "t201_a_b_c_key" UNIQUE CONSTRAINT, btree (a, b, c)
     "t201_d_g_idx" btree (d, g DESC)
+Options: shard=1
 
 create unique index t2_c_d on t2(a,c,d desc);
-show last_remote_sql;
-                                                                                            last_remote_sql                                                                                             
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- create unique index t200_a_c_d_idx using BTREE on regression_$$_public.t200 (a ASC, c ASC, d DESC); create unique index t201_a_c_d_idx using BTREE on regression_$$_public.t201 (a ASC, c ASC, d DESC)
-(1 row)
-
+CREATE INDEX
+--show last_remote_sql;
 \d+ t2;
-                                              Table "public.t2"
+                                        Partitioned table "public.t2"
  Column |            Type             | Collation | Nullable | Default | Storage | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+---------+--------------+-------------
  a      | integer                     |           | not null |         | plain   |              | 
@@ -1148,6 +1004,7 @@ Indexes:
     "t200_a_b_c_key" UNIQUE CONSTRAINT, btree (a, b, c)
     "t200_a_c_d_idx" UNIQUE, btree (a, c, d DESC)
     "t200_d_g_idx" btree (d, g DESC)
+Options: shard=2
 
 \d+ t201;
                                              Table "public.t201"
@@ -1167,14 +1024,11 @@ Indexes:
     "t201_a_b_c_key" UNIQUE CONSTRAINT, btree (a, b, c)
     "t201_a_c_d_idx" UNIQUE, btree (a, c, d DESC)
     "t201_d_g_idx" btree (d, g DESC)
+Options: shard=1
 
 create unique index t201_c_a on t201(c,a desc);
-show last_remote_sql;
-                                    last_remote_sql                                    
----------------------------------------------------------------------------------------
- create unique index t201_c_a using BTREE on regression_$$_public.t201 (c ASC, a DESC)
-(1 row)
-
+CREATE INDEX
+--show last_remote_sql;
 \d+ t201;
                                              Table "public.t201"
  Column |            Type             | Collation | Nullable | Default | Storage | Stats target | Description 
@@ -1194,29 +1048,22 @@ Indexes:
     "t201_a_c_d_idx" UNIQUE, btree (a, c, d DESC)
     "t201_c_a" UNIQUE, btree (c, a DESC)
     "t201_d_g_idx" btree (d, g DESC)
+Options: shard=1
 
 create table t202 partition of t2 for values in (8,9,10)
-show last_remote_sql;
-ERROR:  syntax error at or near "show"
-LINE 2: show last_remote_sql;
-        ^
+--show last_remote_sql;
 \d+ t202;
+psql:sql/remote.sql:224: error: Did not find any relation named "t202".
 create index on t2(b,e);
-show last_remote_sql;
-                                                                            last_remote_sql                                                                             
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- create  index t200_b_e_idx using BTREE on regression_$$_public.t200 (b ASC, e ASC); create  index t201_b_e_idx using BTREE on regression_$$_public.t201 (b ASC, e ASC)
-(1 row)
-
+psql:sql/remote.sql:225: ERROR:  syntax error at or near "create"
+LINE 3: create index on t2(b,e);
+        ^
+--show last_remote_sql;
 create index on t2(g desc,f);
-show last_remote_sql;
-                                                                             last_remote_sql                                                                              
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- create  index t200_g_f_idx using BTREE on regression_$$_public.t200 (g DESC, f ASC); create  index t201_g_f_idx using BTREE on regression_$$_public.t201 (g DESC, f ASC)
-(1 row)
-
+CREATE INDEX
+--show last_remote_sql;
 \d+ t2;
-                                              Table "public.t2"
+                                        Partitioned table "public.t2"
  Column |            Type             | Collation | Nullable | Default | Storage | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+---------+--------------+-------------
  a      | integer                     |           | not null |         | plain   |              | 
@@ -1231,7 +1078,6 @@ Indexes:
     "t2_pkey" PRIMARY KEY, btree (a, b)
     "t2_a_b_c_key" UNIQUE CONSTRAINT, btree (a, b, c)
     "t2_c_d" UNIQUE, btree (a, c, d DESC)
-    "t2_b_e_idx" btree (b, e)
     "t2_d_g" btree (d, g DESC)
     "t2_g_f_idx" btree (g DESC, f)
 Partitions: t200 FOR VALUES IN (1, 2, 3, 4),
@@ -1255,17 +1101,20 @@ Indexes:
     "t201_a_b_c_key" UNIQUE CONSTRAINT, btree (a, b, c)
     "t201_a_c_d_idx" UNIQUE, btree (a, c, d DESC)
     "t201_c_a" UNIQUE, btree (c, a DESC)
-    "t201_b_e_idx" btree (b, e)
     "t201_d_g_idx" btree (d, g DESC)
     "t201_g_f_idx" btree (g DESC, f)
+Options: shard=1
 
 \d+ t202;
-create table t10 (a decimal(66));
-ERROR:  Kunlun-db: Remote storage node requires NUMERIC precision <= 65
+psql:sql/remote.sql:231: error: Did not find any relation named "t202".
+--create table t10 (a decimal(66));
 create table t10 (a decimal(10,31));
-ERROR:  NUMERIC scale 31 must be between 0 and precision 10
+psql:sql/remote.sql:234: ERROR:  NUMERIC scale 31 must be between 0 and precision 10
 LINE 1: create table t10 (a decimal(10,31));
                             ^
 create table t10(a decimal, b decimal(12), c decimal(20, 10), d real, e float(10), f float(30), g bit(11), h money, i timestamptz, j timestamp(6), k time(6), l date,primary key(a), unique(b,d), unique(g,j), unique(c,k));
+CREATE TABLE
 create unique index t10ei on t10(e,i);
+CREATE INDEX
 create index t10fh on t10(f,h,k);
+CREATE INDEX

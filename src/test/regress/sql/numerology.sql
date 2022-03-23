@@ -95,8 +95,7 @@ SELECT f1 AS two,
        min(f3) - 1 AS min_minus_1
   FROM TEMP_GROUP
   GROUP BY f1
-  ORDER BY two, min_minus_1;
-  
+  ORDER BY two, min_minus_1;  
 --DDL_STATEMENT_BEGIN--
 DROP TABLE TEMP_INT2;
 --DDL_STATEMENT_END--

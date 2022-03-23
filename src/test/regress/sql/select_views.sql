@@ -176,7 +176,7 @@ PREPARE p2 AS SELECT * FROM my_property_secure WHERE f_leak(passwd);
 EXECUTE p1;
 EXECUTE p2;
 RESET SESSION AUTHORIZATION;
---ALTER VIEW my_property_normal SET (securiyty_barrier=true);
+--ALTER VIEW my_property_normal SET (security_barrier=true);
 --ALTER VIEW my_property_secure SET (security_barrier=false);
 SET SESSION AUTHORIZATION regress_alice;
 EXECUTE p1;		-- To be perform as a view with security-barrier

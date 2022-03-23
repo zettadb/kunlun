@@ -1,10 +1,10 @@
 --
 -- AGGREGATES
 --
-COPY aggtest FROM '/home/dzw/work/kunlun-enterprise/postgresql-11.5/src/test/regress/data/agg.data';
-COPY student FROM '/home/dzw/work/kunlun-enterprise/postgresql-11.5/src/test/regress/data/student.data';
-COPY tenk1 FROM '/home/dzw/work/kunlun-enterprise/postgresql-11.5/src/test/regress/data/tenk.data';
-COPY onek FROM '/home/dzw/work/kunlun-enterprise/postgresql-11.5/src/test/regress/data/onek.data';
+COPY aggtest FROM '/home/kunlun/pgregressdata/agg.data';
+COPY student FROM '/home/kunlun/pgregressdata/student.data';
+COPY tenk1 FROM '/home/kunlun/pgregressdata/tenk.data';
+COPY onek FROM '/home/kunlun/pgregressdata/onek.data';
 
 SELECT avg(four) AS avg_1 FROM onek;
 

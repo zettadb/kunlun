@@ -1725,6 +1725,7 @@ void TopoServiceMain(void)
 	BackgroundWorkerUnblockSignals();
 
 	/* Connect to our database */
+	on_exit_reset();
 	InitPostgres("postgres", InvalidOid, NULL, InvalidOid, NULL, false);
 	ShardCacheInit();
 	InitShardingSession();

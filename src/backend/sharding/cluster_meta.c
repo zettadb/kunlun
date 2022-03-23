@@ -1291,6 +1291,13 @@ Storage_HA_Mode storage_ha_mode()
 	}
 
 	HeapTuple ctup = SearchSysCache1(CLUSTER_META, comp_node_id);
+	if (!HeapTupleIsValid(ctup))
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_INTERNAL_ERROR),
+				 errmsg("Kunlun-db: Cache lookup failed for pg_cluster_meta by comp_node_id %u", comp_node_id),
+				 errhint("comp_node_id variable must equal to pg_cluster_meta's single row's comp_node_id field.")));
+	}
 	Form_pg_cluster_meta cmeta = (Form_pg_cluster_meta)GETSTRUCT(ctup);
 	Storage_HA_Mode ret = cmeta ? cmeta->ha_mode : HA_NO_REP;
 	if (ctup) ReleaseSysCache(ctup);

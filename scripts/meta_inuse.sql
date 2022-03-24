@@ -163,13 +163,15 @@ CREATE TABLE `ddl_ops_log_template_table` (
   `schema_name` varchar(64) NOT NULL,
   `user_name` varchar(64) NOT NULL,
   `role_name` varchar(64) NOT NULL,
-  `optype` enum('create','drop','rename','alter','replace','others') NOT NULL,
+  `search_path` text NOT NULL,
+  `optype` enum('create','drop','rename','alter','replace', 'remap_shardid', 'others') NOT NULL,
   `objtype` enum('db','index','matview','partition','schema','seq','table','func','role_or_group','proc','stats','user','view', 'others') NOT NULL,
   `when_logged` timestamp(6) NULL DEFAULT current_timestamp(6),
   `sql_src` text NOT NULL,
   `sql_storage_node` text NOT NULL,
   `target_shard_id` int unsigned NOT NULL, -- no FK for perf, references shards.id
   `initiator` int unsigned NOT NULL, -- no FK for perf, references comp_nodes.id
+  `txn_id` bigint unsigned NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -334,17 +336,32 @@ CREATE TABLE `shard_nodes` (
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
--- DELIMITER ;;
-CREATE PROCEDURE `append_ddl_log_entry`(tblname varchar(256), dbname varchar(64), schema_name varchar(64), role_name varchar(64), user_name varchar(64), objname varchar(64), obj_type varchar(16), op_type varchar(16), cur_opid bigint unsigned, sql_src text, sql_src_sn text, target_shardid int unsigned, initiator_id int unsigned, OUT my_opid bigint unsigned)
+CREATE PROCEDURE `append_ddl_log_entry`(
+  tblname varchar(256),
+  dbname varchar(64),
+  schema_name varchar(64),
+  role_name varchar(64),
+  user_name varchar(64),
+  search_path text,
+  objname varchar(64),
+  obj_type varchar(16),
+  op_type varchar(16),
+  cur_opid bigint unsigned,
+  sql_src text,
+  sql_src_sn text,
+  target_shardid int unsigned,
+  initiator_id int unsigned,
+  txn_id bigint unsigned,
+  OUT my_opid bigint unsigned
+)
     MODIFIES SQL DATA
     SQL SECURITY INVOKER
 BEGIN
-    DECLARE conflicts INT DEFAULT 0;
-
     set @dbname = dbname;
     set @schema_name = schema_name;
-	set @role_name = role_name;
-	set @user_name = user_name;
+	  set @role_name = role_name;
+	  set @user_name = user_name;
+	  set @search_path = search_path;
     set @objname = objname;
     set @obj_type = obj_type;
     set @op_type = op_type;
@@ -352,20 +369,23 @@ BEGIN
     set @sql_src_sn = sql_src_sn;
     set @target_shardid = target_shardid;
     set @initiator_id = initiator_id;
-	
-	if COALESCE(IS_USED_LOCK('DDL'), 0) != CONNECTION_ID() then
-		SIGNAL SQLSTATE '45000'
-		SET MESSAGE_TEXT = 'The DDL lock held by the current session may have been lost.';
+    set @txn_id = txn_id;
+
+    if COALESCE(IS_USED_LOCK('DDL'), 0) != CONNECTION_ID() then
+      SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'DDL lock is hold by current session';
     end if;
 
-    SET @sql = CONCAT('INSERT INTO ', tblname, '(db_name, schema_name, role_name, user_name, objname, objtype, optype, sql_src, sql_storage_node, target_shard_id, initiator)values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    SET @sql = CONCAT(
+        'INSERT INTO ',
+        tblname,
+        '(db_name, schema_name, role_name, user_name, search_path, objname, objtype, optype, sql_src, sql_storage_node, target_shard_id, initiator, txn_id)values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      );
     PREPARE stmt FROM @sql;
-    EXECUTE stmt USING @dbname, @schema_name, @role_name, @user_name, @objname, @obj_type, @op_type, @sql_src, @sql_src_sn, @target_shardid, @initiator_id;
+    EXECUTE stmt USING @dbname, @schema_name, @role_name, @user_name, @search_path, @objname, @obj_type, @op_type, @sql_src, @sql_src_sn, @target_shardid, @initiator_id, @txn_id;
     set my_opid = LAST_INSERT_ID();
     DEALLOCATE PREPARE stmt;
 END ;
--- ;;
--- delimiter ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;

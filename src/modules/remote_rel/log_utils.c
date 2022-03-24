@@ -297,7 +297,7 @@ bool log_ddl_skip()
 static inline void
 make_append_ddl_log_entry_procedure(StringInfo sql, const char *cluster, const char *database, const char *schema, const char *role,
 									const char *user, const char *search_path, const char *object, const char *object_type, const char *op_type, uint64_t cur_opid,
-									const char *client_sql, const char *remote_sqls, uint32_t shardid, uint32_t initiator_id, const char *logid_var)
+									const char *client_sql, const char *remote_sqls, uint32_t shardid, uint32_t initiator_id, uint64_t txn_id, const char *logid_var)
 {
 	/**
 	 *  CREATE PROCEDURE `append_ddl_log_entry`(
@@ -315,10 +315,11 @@ make_append_ddl_log_entry_procedure(StringInfo sql, const char *cluster, const c
 	 *		sql_src_sn text,
 	 *		target_shardid int unsigned,
 	 *		initiator_id int unsigned,
+	 * 		txn_id  bigint unsigned,
 	 *		OUT my_opid bigint unsigned)
 	 */
 	appendStringInfo(sql, "CALL " KUNLUN_METADATA_DBNAME ".append_ddl_log_entry('ddl_ops_log_%s', "
-						  "'%s', '%s', '%s', '%s','%s', '%s', '%s', '%s', %lu, '%s', '%s', %u, %u,  %s);",
+						  "'%s', '%s', '%s', '%s','%s', '%s', '%s', '%s', %lu, '%s', '%s', %u, %u, %lu,   %s);",
 					 cluster,
 					 database,
 					 schema,
@@ -333,6 +334,7 @@ make_append_ddl_log_entry_procedure(StringInfo sql, const char *cluster, const c
 					 remote_sqls,
 					 shardid,
 					 initiator_id,
+					 txn_id,
 					 logid_var);
 }
 
@@ -361,6 +363,7 @@ uint64_t log_ddl_prepare(void)
 					 g_remote_ddl_trans->xa_txnid);
 
 	ListCell *lc;
+	uint64_t txnid = GetCurrentGlobalTransactionId();
 	foreach (lc, g_remote_ddl_trans->ddl_context_list)
 	{
 		Remote_ddl_context *rcontext = (Remote_ddl_context *)lfirst(lc);
@@ -380,7 +383,9 @@ uint64_t log_ddl_prepare(void)
 											context->query,
 											context->sql_storage,
 											context->shardid,
-											comp_node_id, "@my_opid");
+											comp_node_id, 
+											txnid,
+											"@my_opid");
 	}
 	appendStringInfo(&str,
 					 "XA END '%s'; XA PREPARE '%s'; select @my_opid",

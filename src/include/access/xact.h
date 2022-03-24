@@ -437,4 +437,5 @@ extern void ExitParallelMode(void);
 extern bool IsInParallelMode(void);
 extern bool IsExplicitTxn(void);
 extern const char *GetCurrentTransactionName(void);
+extern uint64_t GetCurrentGlobalTransactionId(void);
 #endif							/* XACT_H */

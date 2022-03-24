@@ -472,6 +472,14 @@ const char *GetCurrentTransactionName(void)
 	return CurrentTransactionState->name;
 }
 
+uint64_t
+GetCurrentGlobalTransactionId()
+{
+	TransactionState s = &TopTransactionStateData;
+	if (s->startTime == 0)
+		s->startTime = time(0);
+	return (((uint64_t)s->startTime) << 32 | (uint64_t)s->transactionId);
+}
 /*
  *	MarkCurrentTransactionIdLoggedIfAny
  *
@@ -2124,7 +2132,7 @@ CommitTransaction(void)
 			const bool do_2pc = Send1stPhaseRemote(s->name);
 			if (do_2pc)
 			{
-				uint64_t gtrxid = (s->startTime << 32 | s->transactionId);
+				uint64_t gtrxid = GetCurrentGlobalTransactionId();
 				time_t deadline = global_txn_commit_log_wait_max_secs + time(0);
 
 				tc_phase = 2;

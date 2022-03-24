@@ -1,8 +1,9 @@
 --
 -- \crosstabview
 --
-CREATE TABLE ctv_data (v, h, c, i, d) AS
-VALUES
+CREATE TABLE ctv_data (v varchar(30), h varchar(30), c varchar(30), i int, d date); 
+CREATE TABLE
+insert into ctv_data VALUES
    ('v1','h2','foo', 3, '2015-04-01'::date),
    ('v2','h1','bar', 3, '2015-01-02'),
    ('v1','h0','baz', NULL, '2015-07-12'),
@@ -10,8 +11,7 @@ VALUES
    ('v0','h4','dbl', -3, '2014-12-15'),
    ('v0',NULL,'qux', 5, '2014-07-15'),
    ('v1','h2','quux',7, '2015-04-04');
--- make plans more stable
-ANALYZE ctv_data;
+INSERT 0 7
 -- running \crosstabview after query uses query in buffer
 SELECT v, EXTRACT(year FROM d), count(*)
  FROM ctv_data
@@ -114,7 +114,7 @@ FROM ctv_data GROUP BY v, h ORDER BY 1,3,2
 
 -- only null, no column name, 2 columns: error
 SELECT null,null \crosstabview
-\crosstabview: query must return at least three columns
+psql:sql/psql_crosstab.sql:57: error: \crosstabview: query must return at least three columns
 -- only null, no column name, 3 columns: works
 SELECT null,null,null \crosstabview
  ?column? |  
@@ -124,45 +124,47 @@ SELECT null,null,null \crosstabview
 
 -- null display
 \pset null '#null#'
+Null display is "#null#".
 SELECT v,h, string_agg(i::text, E'\n') AS i FROM ctv_data
 GROUP BY v, h ORDER BY h,v
  \crosstabview v h i
- v  |   h0   | h1 | h2 | h4 | #null# 
-----+--------+----+----+----+--------
- v1 | #null# |    | 3 +|    | 
-    |        |    | 7  |    | 
- v2 |        | 3  |    |    | 
- v0 |        |    |    | 4 +| 5
-    |        |    |    | -3 | 
+ v  | #null# |   h0   | h1 | h2 | h4 
+----+--------+--------+----+----+----
+ v0 | 5      |        |    |    | 4 +
+    |        |        |    |    | -3
+ v1 |        | #null# |    | 3 +| 
+    |        |        |    | 7  | 
+ v2 |        |        | 3  |    | 
 (3 rows)
 
 \pset null ''
+Null display is "".
 -- refer to columns by position
 SELECT v,h,string_agg(i::text, E'\n'), string_agg(c, E'\n')
 FROM ctv_data GROUP BY v, h ORDER BY h,v
  \crosstabview 2 1 4
- h  |  v1  | v2  | v0  
-----+------+-----+-----
- h0 | baz  |     | 
- h1 |      | bar | 
- h2 | foo +|     | 
-    | quux |     | 
- h4 |      |     | qux+
-    |      |     | dbl
-    |      |     | qux
+ h  | v0  |  v1  | v2  
+----+-----+------+-----
+    | qux |      | 
+ h0 |     | baz  | 
+ h1 |     |      | bar
+ h2 |     | foo +| 
+    |     | quux | 
+ h4 | qux+|      | 
+    | dbl |      | 
 (5 rows)
 
 -- refer to columns by positions and names mixed
 SELECT v,h, string_agg(i::text, E'\n') AS i, string_agg(c, E'\n') AS c
 FROM ctv_data GROUP BY v, h ORDER BY h,v
  \crosstabview 1 "h" 4
- v  | h0  | h1  |  h2  | h4  |     
-----+-----+-----+------+-----+-----
- v1 | baz |     | foo +|     | 
-    |     |     | quux |     | 
- v2 |     | bar |      |     | 
- v0 |     |     |      | qux+| qux
-    |     |     |      | dbl | 
+ v  |     | h0  | h1  |  h2  | h4  
+----+-----+-----+-----+------+-----
+ v0 | qux |     |     |      | qux+
+    |     |     |     |      | dbl
+ v1 |     | baz |     | foo +| 
+    |     |     |     | quux | 
+ v2 |     |     | bar |      | 
 (3 rows)
 
 -- refer to columns by quoted names, check downcasing of unquoted name
@@ -176,34 +178,37 @@ SELECT 1 as "22", 2 as b, 3 as "Foo"
 -- error: bad column name
 SELECT v,h,c,i FROM ctv_data
  \crosstabview v h j
-\crosstabview: column name not found: "j"
+psql:sql/psql_crosstab.sql:85: error: \crosstabview: column name not found: "j"
 -- error: need to quote name
 SELECT 1 as "22", 2 as b, 3 as "Foo"
  \crosstabview 1 2 Foo
-\crosstabview: column name not found: "foo"
+psql:sql/psql_crosstab.sql:89: error: \crosstabview: column name not found: "foo"
 -- error: need to not quote name
 SELECT 1 as "22", 2 as b, 3 as "Foo"
  \crosstabview 1 "B" "Foo"
-\crosstabview: column name not found: "B"
+psql:sql/psql_crosstab.sql:93: error: \crosstabview: column name not found: "B"
 -- error: bad column number
 SELECT v,h,i,c FROM ctv_data
  \crosstabview 2 1 5
-\crosstabview: column number 5 is out of range 1..4
+psql:sql/psql_crosstab.sql:97: error: \crosstabview: column number 5 is out of range 1..4
 -- error: same H and V columns
 SELECT v,h,i,c FROM ctv_data
  \crosstabview 2 h 4
-\crosstabview: vertical and horizontal headers must be different columns
+psql:sql/psql_crosstab.sql:101: error: \crosstabview: vertical and horizontal headers must be different columns
 -- error: too many columns
 SELECT a,a,1 FROM generate_series(1,3000) AS a
  \crosstabview
-\crosstabview: maximum number of columns (1600) exceeded
+psql:sql/psql_crosstab.sql:105: error: \crosstabview: maximum number of columns (1600) exceeded
 -- error: only one column
 SELECT 1 \crosstabview
-\crosstabview: query must return at least three columns
+psql:sql/psql_crosstab.sql:108: error: \crosstabview: query must return at least three columns
 DROP TABLE ctv_data;
+DROP TABLE
 -- check error reporting (bug #14476)
 CREATE TABLE ctv_data (x int, y int, v text);
+CREATE TABLE
 INSERT INTO ctv_data SELECT 1, x, '*' || x FROM generate_series(1,10) x;
+INSERT 0 10
 SELECT * FROM ctv_data \crosstabview
  x | 1  | 2  | 3  | 4  | 5  | 6  | 7  | 8  | 9  | 10  
 ---+----+----+----+----+----+----+----+----+----+-----
@@ -211,6 +216,8 @@ SELECT * FROM ctv_data \crosstabview
 (1 row)
 
 INSERT INTO ctv_data VALUES (1, 10, '*'); -- duplicate data to cause error
+INSERT 0 1
 SELECT * FROM ctv_data \crosstabview
-\crosstabview: query result contains multiple data values for row "1", column "10"
+psql:sql/psql_crosstab.sql:119: error: \crosstabview: query result contains multiple data values for row "1", column "10"
 DROP TABLE ctv_data;
+DROP TABLE

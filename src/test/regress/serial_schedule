@@ -181,7 +181,7 @@ test: with
 # test: xml - libxml is not built, so skip it currently.
 test: identity
 test: partition_join
-test: partition_prune, skip it currently, and rerun it after fixing the ticket-24
+test: partition_prune
 # test: reloptions - reloptions is not supported, so skip it currently.
 test: hash_part
 test: indexing

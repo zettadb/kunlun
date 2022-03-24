@@ -14,7 +14,7 @@ LANGUAGE SQL
 AS $$
 INSERT INTO cp_test VALUES (1, x);
 $$;
---DDL_STATEMNT_END--
+--DDL_STATEMENT_END--
 
 \df ptest1
 SELECT pg_get_functiondef('ptest1'::regproc);

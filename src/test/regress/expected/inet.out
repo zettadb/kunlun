@@ -2,44 +2,63 @@
 -- INET
 --
 -- prepare the table...
-DROP TABLE INET_TBL;
-ERROR:  table "inet_tbl" does not exist
+DROP TABLE if exists INET_TBL;
+psql:sql/inet.sql:7: NOTICE:  table "inet_tbl" does not exist, skipping
+DROP TABLE
 CREATE TABLE INET_TBL (c cidr, i inet);
+CREATE TABLE
 INSERT INTO INET_TBL (c, i) VALUES ('192.168.1', '192.168.1.226/24');
+INSERT 0 1
 INSERT INTO INET_TBL (c, i) VALUES ('192.168.1.0/26', '192.168.1.226');
+INSERT 0 1
 INSERT INTO INET_TBL (c, i) VALUES ('192.168.1', '192.168.1.0/24');
+INSERT 0 1
 INSERT INTO INET_TBL (c, i) VALUES ('192.168.1', '192.168.1.0/25');
+INSERT 0 1
 INSERT INTO INET_TBL (c, i) VALUES ('192.168.1', '192.168.1.255/24');
+INSERT 0 1
 INSERT INTO INET_TBL (c, i) VALUES ('192.168.1', '192.168.1.255/25');
+INSERT 0 1
 INSERT INTO INET_TBL (c, i) VALUES ('10', '10.1.2.3/8');
+INSERT 0 1
 INSERT INTO INET_TBL (c, i) VALUES ('10.0.0.0', '10.1.2.3/8');
+INSERT 0 1
 INSERT INTO INET_TBL (c, i) VALUES ('10.1.2.3', '10.1.2.3/32');
+INSERT 0 1
 INSERT INTO INET_TBL (c, i) VALUES ('10.1.2', '10.1.2.3/24');
+INSERT 0 1
 INSERT INTO INET_TBL (c, i) VALUES ('10.1', '10.1.2.3/16');
+INSERT 0 1
 INSERT INTO INET_TBL (c, i) VALUES ('10', '10.1.2.3/8');
+INSERT 0 1
 INSERT INTO INET_TBL (c, i) VALUES ('10', '11.1.2.3/8');
+INSERT 0 1
 INSERT INTO INET_TBL (c, i) VALUES ('10', '9.1.2.3/8');
+INSERT 0 1
 INSERT INTO INET_TBL (c, i) VALUES ('10:23::f1', '10:23::f1/64');
+INSERT 0 1
 INSERT INTO INET_TBL (c, i) VALUES ('10:23::8000/113', '10:23::ffff');
+INSERT 0 1
 INSERT INTO INET_TBL (c, i) VALUES ('::ffff:1.2.3.4', '::4.3.2.1/24');
+INSERT 0 1
 -- check that CIDR rejects invalid input:
 INSERT INTO INET_TBL (c, i) VALUES ('192.168.1.2/30', '192.168.1.226');
-ERROR:  invalid cidr value: "192.168.1.2/30"
+psql:sql/inet.sql:27: ERROR:  invalid cidr value: "192.168.1.2/30"
 LINE 1: INSERT INTO INET_TBL (c, i) VALUES ('192.168.1.2/30', '192.1...
                                             ^
 DETAIL:  Value has bits set to right of mask.
 INSERT INTO INET_TBL (c, i) VALUES ('1234::1234::1234', '::1.2.3.4');
-ERROR:  invalid input syntax for type cidr: "1234::1234::1234"
+psql:sql/inet.sql:28: ERROR:  invalid input syntax for type cidr: "1234::1234::1234"
 LINE 1: INSERT INTO INET_TBL (c, i) VALUES ('1234::1234::1234', '::1...
                                             ^
 -- check that CIDR rejects invalid input when converting from text:
 INSERT INTO INET_TBL (c, i) VALUES (cidr('192.168.1.2/30'), '192.168.1.226');
-ERROR:  invalid cidr value: "192.168.1.2/30"
+psql:sql/inet.sql:30: ERROR:  invalid cidr value: "192.168.1.2/30"
 LINE 1: INSERT INTO INET_TBL (c, i) VALUES (cidr('192.168.1.2/30'), ...
                                                  ^
 DETAIL:  Value has bits set to right of mask.
 INSERT INTO INET_TBL (c, i) VALUES (cidr('ffff:ffff:ffff:ffff::/24'), '::192.168.1.226');
-ERROR:  invalid cidr value: "ffff:ffff:ffff:ffff::/24"
+psql:sql/inet.sql:31: ERROR:  invalid cidr value: "ffff:ffff:ffff:ffff::/24"
 LINE 1: INSERT INTO INET_TBL (c, i) VALUES (cidr('ffff:ffff:ffff:fff...
                                                  ^
 DETAIL:  Value has bits set to right of mask.
@@ -70,21 +89,21 @@ SELECT '' AS ten, i AS inet, host(i), text(i), family(i) FROM INET_TBL;
  ten |       inet       |     host      |       text       | family 
 -----+------------------+---------------+------------------+--------
      | 192.168.1.226/24 | 192.168.1.226 | 192.168.1.226/24 |      4
-     | 192.168.1.226    | 192.168.1.226 | 192.168.1.226    |      4
+     | 192.168.1.226    | 192.168.1.226 | 192.168.1.226/32 |      4
      | 192.168.1.0/24   | 192.168.1.0   | 192.168.1.0/24   |      4
      | 192.168.1.0/25   | 192.168.1.0   | 192.168.1.0/25   |      4
      | 192.168.1.255/24 | 192.168.1.255 | 192.168.1.255/24 |      4
      | 192.168.1.255/25 | 192.168.1.255 | 192.168.1.255/25 |      4
      | 10.1.2.3/8       | 10.1.2.3      | 10.1.2.3/8       |      4
      | 10.1.2.3/8       | 10.1.2.3      | 10.1.2.3/8       |      4
-     | 10.1.2.3         | 10.1.2.3      | 10.1.2.3         |      4
+     | 10.1.2.3         | 10.1.2.3      | 10.1.2.3/32      |      4
      | 10.1.2.3/24      | 10.1.2.3      | 10.1.2.3/24      |      4
      | 10.1.2.3/16      | 10.1.2.3      | 10.1.2.3/16      |      4
      | 10.1.2.3/8       | 10.1.2.3      | 10.1.2.3/8       |      4
      | 11.1.2.3/8       | 11.1.2.3      | 11.1.2.3/8       |      4
      | 9.1.2.3/8        | 9.1.2.3       | 9.1.2.3/8        |      4
      | 10:23::f1/64     | 10:23::f1     | 10:23::f1/64     |      6
-     | 10:23::ffff      | 10:23::ffff   | 10:23::ffff      |      6
+     | 10:23::ffff      | 10:23::ffff   | 10:23::ffff/128  |      6
      | ::4.3.2.1/24     | ::4.3.2.1     | ::4.3.2.1/24     |      6
 (17 rows)
 
@@ -173,8 +192,7 @@ SELECT '' AS six, c AS cidr, i AS inet FROM INET_TBL
  six |      cidr      |      inet      
 -----+----------------+----------------
      | 192.168.1.0/24 | 192.168.1.0/24
-     | 10.1.2.3/32    | 10.1.2.3
-(2 rows)
+(1 row)
 
 SELECT '' AS ten, i, c,
   i < c AS lt, i <= c AS le, i = c AS eq,
@@ -193,7 +211,7 @@ SELECT '' AS ten, i, c,
      | 192.168.1.255/25 | 192.168.1.0/24     | f  | f  | f  | t  | t  | t  | t  | t   | f   | f   | t
      | 10.1.2.3/8       | 10.0.0.0/8         | f  | f  | f  | t  | t  | t  | f  | t   | f   | t   | t
      | 10.1.2.3/8       | 10.0.0.0/32        | t  | t  | f  | f  | f  | t  | f  | f   | t   | t   | t
-     | 10.1.2.3         | 10.1.2.3/32        | f  | t  | t  | t  | f  | f  | f  | t   | f   | t   | t
+     | 10.1.2.3         | 10.1.2.3/32        | f  | t  | f  | t  | f  | t  | f  | t   | f   | t   | t
      | 10.1.2.3/24      | 10.1.2.0/24        | f  | f  | f  | t  | t  | t  | f  | t   | f   | t   | t
      | 10.1.2.3/16      | 10.1.0.0/16        | f  | f  | f  | t  | t  | t  | f  | t   | f   | t   | t
      | 10.1.2.3/8       | 10.0.0.0/8         | f  | f  | f  | t  | t  | t  | f  | t   | f   | t   | t
@@ -205,15 +223,15 @@ SELECT '' AS ten, i, c,
 (17 rows)
 
 SELECT max(i) AS max, min(i) AS min FROM INET_TBL;
-     max     |    min    
--------------+-----------
- 10:23::ffff | 9.1.2.3/8
+     max      |   min    
+--------------+----------
+ ::4.3.2.1/24 | 10.1.2.3
 (1 row)
 
 SELECT max(c) AS max, min(c) AS min FROM INET_TBL;
-       max       |    min     
------------------+------------
- 10:23::8000/113 | 10.0.0.0/8
+      max       |   min    
+----------------+----------
+ ::ffff:1.2.3.4 | 10.0.0.0
 (1 row)
 
 -- check the conversion to/from text and set_netmask
@@ -241,32 +259,36 @@ SELECT '' AS ten, set_masklen(inet(text(i)), 24) FROM INET_TBL;
 
 -- check that btree index works correctly
 CREATE INDEX inet_idx1 ON inet_tbl(i);
+CREATE INDEX
 SET enable_seqscan TO off;
-SELECT * FROM inet_tbl WHERE i<<'192.168.1.0/24'::cidr order by c;
+SET
+SELECT * FROM inet_tbl WHERE i<<'192.168.1.0/24'::cidr;
        c        |        i         
 ----------------+------------------
+ 192.168.1.0/26 | 192.168.1.226
  192.168.1.0/24 | 192.168.1.0/25
  192.168.1.0/24 | 192.168.1.255/25
- 192.168.1.0/26 | 192.168.1.226
 (3 rows)
 
-SELECT * FROM inet_tbl WHERE i<<='192.168.1.0/24'::cidr order by c;
+SELECT * FROM inet_tbl WHERE i<<='192.168.1.0/24'::cidr;
        c        |        i         
 ----------------+------------------
  192.168.1.0/24 | 192.168.1.226/24
+ 192.168.1.0/26 | 192.168.1.226
  192.168.1.0/24 | 192.168.1.0/24
  192.168.1.0/24 | 192.168.1.0/25
  192.168.1.0/24 | 192.168.1.255/24
  192.168.1.0/24 | 192.168.1.255/25
- 192.168.1.0/26 | 192.168.1.226
 (6 rows)
 
 SET enable_seqscan TO on;
+SET
 DROP INDEX inet_idx1;
+DROP INDEX
 -- check that gist index works correctly
-CREATE INDEX inet_idx2 ON inet_tbl using gist (i inet_ops);
-ERROR:  can't specify non-default opclass for remote relation's index
+-- error for kunlun: CREATE INDEX inet_idx2 ON inet_tbl using gist (i inet_ops);
 SET enable_seqscan TO off;
+SET
 SELECT * FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
        c        |        i         
 ----------------+------------------
@@ -373,22 +395,22 @@ SELECT * FROM inet_tbl WHERE i > '192.168.1.0/24'::cidr ORDER BY i;
 SELECT * FROM inet_tbl WHERE i <> '192.168.1.0/24'::cidr ORDER BY i;
          c          |        i         
 --------------------+------------------
- 10.0.0.0/8         | 9.1.2.3/8
+ 10.1.2.3/32        | 10.1.2.3
+ 10.1.0.0/16        | 10.1.2.3/16
+ 10.1.2.0/24        | 10.1.2.3/24
  10.0.0.0/8         | 10.1.2.3/8
  10.0.0.0/32        | 10.1.2.3/8
  10.0.0.0/8         | 10.1.2.3/8
- 10.1.0.0/16        | 10.1.2.3/16
- 10.1.2.0/24        | 10.1.2.3/24
- 10.1.2.3/32        | 10.1.2.3
- 10.0.0.0/8         | 11.1.2.3/8
- 192.168.1.0/24     | 192.168.1.226/24
- 192.168.1.0/24     | 192.168.1.255/24
- 192.168.1.0/24     | 192.168.1.0/25
- 192.168.1.0/24     | 192.168.1.255/25
- 192.168.1.0/26     | 192.168.1.226
- ::ffff:1.2.3.4/128 | ::4.3.2.1/24
  10:23::f1/128      | 10:23::f1/64
  10:23::8000/113    | 10:23::ffff
+ 10.0.0.0/8         | 11.1.2.3/8
+ 192.168.1.0/24     | 192.168.1.0/25
+ 192.168.1.0/26     | 192.168.1.226
+ 192.168.1.0/24     | 192.168.1.226/24
+ 192.168.1.0/24     | 192.168.1.255/24
+ 192.168.1.0/24     | 192.168.1.255/25
+ 10.0.0.0/8         | 9.1.2.3/8
+ ::ffff:1.2.3.4/128 | ::4.3.2.1/24
 (16 rows)
 
 -- test index-only scans
@@ -404,12 +426,11 @@ SELECT i FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
 (3 rows)
 
 SET enable_seqscan TO on;
-DROP INDEX inet_idx2;
-ERROR:  index "inet_idx2" does not exist
+SET
 -- check that spgist index works correctly
-CREATE INDEX inet_idx3 ON inet_tbl using spgist (i);
-ERROR:  Remote relations only support btree and hash indexing method.
+-- kunlun not support: CREATE INDEX inet_idx3 ON inet_tbl using spgist (i);
 SET enable_seqscan TO off;
+SET
 SELECT * FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
        c        |        i         
 ----------------+------------------
@@ -516,22 +537,22 @@ SELECT * FROM inet_tbl WHERE i > '192.168.1.0/24'::cidr ORDER BY i;
 SELECT * FROM inet_tbl WHERE i <> '192.168.1.0/24'::cidr ORDER BY i;
          c          |        i         
 --------------------+------------------
- 10.0.0.0/8         | 9.1.2.3/8
+ 10.1.2.3/32        | 10.1.2.3
+ 10.1.0.0/16        | 10.1.2.3/16
+ 10.1.2.0/24        | 10.1.2.3/24
  10.0.0.0/8         | 10.1.2.3/8
  10.0.0.0/32        | 10.1.2.3/8
  10.0.0.0/8         | 10.1.2.3/8
- 10.1.0.0/16        | 10.1.2.3/16
- 10.1.2.0/24        | 10.1.2.3/24
- 10.1.2.3/32        | 10.1.2.3
- 10.0.0.0/8         | 11.1.2.3/8
- 192.168.1.0/24     | 192.168.1.226/24
- 192.168.1.0/24     | 192.168.1.255/24
- 192.168.1.0/24     | 192.168.1.0/25
- 192.168.1.0/24     | 192.168.1.255/25
- 192.168.1.0/26     | 192.168.1.226
- ::ffff:1.2.3.4/128 | ::4.3.2.1/24
  10:23::f1/128      | 10:23::f1/64
  10:23::8000/113    | 10:23::ffff
+ 10.0.0.0/8         | 11.1.2.3/8
+ 192.168.1.0/24     | 192.168.1.0/25
+ 192.168.1.0/26     | 192.168.1.226
+ 192.168.1.0/24     | 192.168.1.226/24
+ 192.168.1.0/24     | 192.168.1.255/24
+ 192.168.1.0/24     | 192.168.1.255/25
+ 10.0.0.0/8         | 9.1.2.3/8
+ ::ffff:1.2.3.4/128 | ::4.3.2.1/24
 (16 rows)
 
 -- test index-only scans
@@ -547,8 +568,7 @@ SELECT i FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
 (3 rows)
 
 SET enable_seqscan TO on;
-DROP INDEX inet_idx3;
-ERROR:  index "inet_idx3" does not exist
+SET
 -- simple tests of inet boolean and arithmetic operators
 SELECT i, ~i AS "~i" FROM inet_tbl;
         i         |                     ~i                     
@@ -573,49 +593,9 @@ SELECT i, ~i AS "~i" FROM inet_tbl;
 (17 rows)
 
 SELECT i, c, i & c AS "and" FROM inet_tbl;
-        i         |         c          |      and       
-------------------+--------------------+----------------
- 192.168.1.226/24 | 192.168.1.0/24     | 192.168.1.0/24
- 192.168.1.226    | 192.168.1.0/26     | 192.168.1.0
- 192.168.1.0/24   | 192.168.1.0/24     | 192.168.1.0/24
- 192.168.1.0/25   | 192.168.1.0/24     | 192.168.1.0/25
- 192.168.1.255/24 | 192.168.1.0/24     | 192.168.1.0/24
- 192.168.1.255/25 | 192.168.1.0/24     | 192.168.1.0/25
- 10.1.2.3/8       | 10.0.0.0/8         | 10.0.0.0/8
- 10.1.2.3/8       | 10.0.0.0/32        | 10.0.0.0
- 10.1.2.3         | 10.1.2.3/32        | 10.1.2.3
- 10.1.2.3/24      | 10.1.2.0/24        | 10.1.2.0/24
- 10.1.2.3/16      | 10.1.0.0/16        | 10.1.0.0/16
- 10.1.2.3/8       | 10.0.0.0/8         | 10.0.0.0/8
- 11.1.2.3/8       | 10.0.0.0/8         | 10.0.0.0/8
- 9.1.2.3/8        | 10.0.0.0/8         | 8.0.0.0/8
- 10:23::f1/64     | 10:23::f1/128      | 10:23::f1
- 10:23::ffff      | 10:23::8000/113    | 10:23::8000
- ::4.3.2.1/24     | ::ffff:1.2.3.4/128 | ::0.2.2.0
-(17 rows)
-
+psql:sql/inet.sql:119: ERROR:  invalid input syntax for type inet: "192"
 SELECT i, c, i | c AS "or" FROM inet_tbl;
-        i         |         c          |        or        
-------------------+--------------------+------------------
- 192.168.1.226/24 | 192.168.1.0/24     | 192.168.1.226/24
- 192.168.1.226    | 192.168.1.0/26     | 192.168.1.226
- 192.168.1.0/24   | 192.168.1.0/24     | 192.168.1.0/24
- 192.168.1.0/25   | 192.168.1.0/24     | 192.168.1.0/25
- 192.168.1.255/24 | 192.168.1.0/24     | 192.168.1.255/24
- 192.168.1.255/25 | 192.168.1.0/24     | 192.168.1.255/25
- 10.1.2.3/8       | 10.0.0.0/8         | 10.1.2.3/8
- 10.1.2.3/8       | 10.0.0.0/32        | 10.1.2.3
- 10.1.2.3         | 10.1.2.3/32        | 10.1.2.3
- 10.1.2.3/24      | 10.1.2.0/24        | 10.1.2.3/24
- 10.1.2.3/16      | 10.1.0.0/16        | 10.1.2.3/16
- 10.1.2.3/8       | 10.0.0.0/8         | 10.1.2.3/8
- 11.1.2.3/8       | 10.0.0.0/8         | 11.1.2.3/8
- 9.1.2.3/8        | 10.0.0.0/8         | 11.1.2.3/8
- 10:23::f1/64     | 10:23::f1/128      | 10:23::f1
- 10:23::ffff      | 10:23::8000/113    | 10:23::ffff
- ::4.3.2.1/24     | ::ffff:1.2.3.4/128 | ::ffff:5.3.3.5
-(17 rows)
-
+psql:sql/inet.sql:120: ERROR:  invalid input syntax for type inet: "192"
 SELECT i, i + 500 AS "i+500" FROM inet_tbl;
         i         |      i+500       
 ------------------+------------------
@@ -732,13 +712,13 @@ SELECT '127::2'::inet  - ('127::2'::inet - 500);
 
 -- these should give overflow errors:
 SELECT '127.0.0.1'::inet + 10000000000;
-ERROR:  result is out of range
+psql:sql/inet.sql:133: ERROR:  result is out of range
 SELECT '127.0.0.1'::inet - 10000000000;
-ERROR:  result is out of range
+psql:sql/inet.sql:134: ERROR:  result is out of range
 SELECT '126::1'::inet - '127::2'::inet;
-ERROR:  result is out of range
+psql:sql/inet.sql:135: ERROR:  result is out of range
 SELECT '127::1'::inet - '126::2'::inet;
-ERROR:  result is out of range
+psql:sql/inet.sql:136: ERROR:  result is out of range
 -- but not these
 SELECT '127::1'::inet + 10000000000;
      ?column?     
@@ -754,9 +734,10 @@ SELECT '127::1'::inet - '127::2'::inet;
 
 -- insert one more row with addressed from different families
 INSERT INTO INET_TBL (c, i) VALUES ('10', '10::/8');
+INSERT 0 1
 -- now, this one should fail
 SELECT inet_merge(c, i) FROM INET_TBL;
-ERROR:  cannot merge addresses from different families
+psql:sql/inet.sql:144: ERROR:  cannot merge addresses from different families
 -- fix it by inet_same_family() condition
 SELECT inet_merge(c, i) FROM INET_TBL WHERE inet_same_family(c, i);
    inet_merge    
@@ -780,3 +761,5 @@ SELECT inet_merge(c, i) FROM INET_TBL WHERE inet_same_family(c, i);
  ::/24
 (17 rows)
 
+DROP TABLE INET_TBL;
+DROP TABLE

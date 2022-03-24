@@ -83,8 +83,7 @@ create operator = (
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 alter operator family integer_ops using btree add
-  operator 3 = (int8alias1, int8alias1);
-  
+  operator 3 = (int8alias1, int8alias1);  
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 create function int8alias2eq(int8alias2, int8alias2) returns bool

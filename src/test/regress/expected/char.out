@@ -13,6 +13,7 @@ SELECT char 'c' = char 'c' AS true;
 -- Build a table for testing
 --
 DROP TABLE if exists CHAR_TBL;
+psql:sql/char.sql:13: NOTICE:  table "char_tbl" does not exist, skipping
 DROP TABLE
 CREATE TABLE CHAR_TBL(f1 char);
 CREATE TABLE
@@ -110,6 +111,7 @@ SELECT '' AS two, c.*
      | c
 (3 rows)
 
+   
 DROP TABLE CHAR_TBL;
 DROP TABLE
 --

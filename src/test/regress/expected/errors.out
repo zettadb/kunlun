@@ -71,37 +71,37 @@ LINE 1: drop table;
                   ^
 -- no such relation
 drop table nonesuch;
-psql:sql/errors.sql:58: ERROR:  table "nonesuch" does not exist
+psql:sql/errors.sql:57: ERROR:  table "nonesuch" does not exist
 --
 -- ALTER TABLE
 -- relation renaming
 -- missing relation name
 alter table rename;
-psql:sql/errors.sql:67: ERROR:  syntax error at or near ";"
+psql:sql/errors.sql:66: ERROR:  syntax error at or near ";"
 LINE 1: alter table rename;
                           ^
 -- no such relation
 alter table nonesuch rename to newnonesuch;
-psql:sql/errors.sql:70: ERROR:  relation "nonesuch" does not exist
+psql:sql/errors.sql:69: ERROR:  relation "nonesuch" does not exist
 -- no such relation
 alter table nonesuch rename to stud_emp;
-psql:sql/errors.sql:73: ERROR:  relation "nonesuch" does not exist
+psql:sql/errors.sql:72: ERROR:  relation "nonesuch" does not exist
 -- conflict
 alter table stud_emp rename to aggtest;
-psql:sql/errors.sql:76: ERROR:  relation "stud_emp" does not exist
+psql:sql/errors.sql:75: ERROR:  relation "stud_emp" does not exist
 -- self-conflict
 alter table stud_emp rename to stud_emp;
-psql:sql/errors.sql:79: ERROR:  relation "stud_emp" does not exist
+psql:sql/errors.sql:78: ERROR:  relation "stud_emp" does not exist
 -- attribute renaming
 -- no such relation
 alter table nonesuchrel rename column nonesuchatt to newnonesuchatt;
-psql:sql/errors.sql:85: ERROR:  relation "nonesuchrel" does not exist
+psql:sql/errors.sql:84: ERROR:  relation "nonesuchrel" does not exist
 -- no such attribute
 alter table emp rename column nonesuchatt to newnonesuchatt;
-psql:sql/errors.sql:88: ERROR:  column "nonesuchatt" does not exist
+psql:sql/errors.sql:87: ERROR:  column "nonesuchatt" does not exist
 -- conflict
 alter table emp rename column salary to manager;
-psql:sql/errors.sql:91: ERROR:  column "manager" of relation "emp" already exists
+psql:sql/errors.sql:90: ERROR:  column "manager" of relation "emp" already exists
 -- conflict
 alter table emp rename column salary to oid;
 ALTER TABLE
@@ -109,11 +109,11 @@ ALTER TABLE
 -- TRANSACTION STUFF
 -- not in a xact
 abort;
-psql:sql/errors.sql:101: WARNING:  there is no transaction in progress
+psql:sql/errors.sql:100: WARNING:  there is no transaction in progress
 ROLLBACK
 -- not in a xact
 end;
-psql:sql/errors.sql:104: WARNING:  there is no transaction in progress
+psql:sql/errors.sql:103: WARNING:  there is no transaction in progress
 COMMIT
 --
 -- CREATE AGGREGATE
@@ -123,27 +123,28 @@ create aggregate newavg2 (sfunc = int4pl,
 			  stype = int4,
 			  finalfunc = int2um,
 			  initcond = '0');
-psql:sql/errors.sql:115: ERROR:  function int2um(integer) does not exist
+psql:sql/errors.sql:114: ERROR:  function int2um(integer) does not exist
 -- left out basetype
 create aggregate newcnt1 (sfunc = int4inc,
 			  stype = int4,
 			  initcond = '0');
-psql:sql/errors.sql:120: ERROR:  aggregate input type must be specified
+psql:sql/errors.sql:119: ERROR:  aggregate input type must be specified
+			  
 --
 -- DROP INDEX
 -- missing index name
 drop index;
-psql:sql/errors.sql:127: ERROR:  syntax error at or near ";"
+psql:sql/errors.sql:126: ERROR:  syntax error at or near ";"
 LINE 1: drop index;
                   ^
 -- bad index name
 drop index 314159;
-psql:sql/errors.sql:130: ERROR:  syntax error at or near "314159"
+psql:sql/errors.sql:129: ERROR:  syntax error at or near "314159"
 LINE 1: drop index 314159;
                    ^
 -- no such index
 drop index nonesuch;
-psql:sql/errors.sql:133: ERROR:  index "nonesuch" does not exist
+psql:sql/errors.sql:132: ERROR:  index "nonesuch" does not exist
 --
 -- DROP AGGREGATE
 -- missing aggregate name
@@ -267,88 +268,88 @@ LINE 1: drop operator = (int4, );
 -- DROP RULE
 -- missing rule name
 drop rule;
-psql:sql/errors.sql:231: ERROR:  syntax error at or near ";"
+psql:sql/errors.sql:230: ERROR:  syntax error at or near ";"
 LINE 1: drop rule;
                  ^
 -- bad rule name
 drop rule 314159;
-psql:sql/errors.sql:234: ERROR:  syntax error at or near "314159"
+psql:sql/errors.sql:233: ERROR:  syntax error at or near "314159"
 LINE 1: drop rule 314159;
                   ^
 -- no such rule
 drop rule nonesuch on noplace;
-psql:sql/errors.sql:237: ERROR:  relation "noplace" does not exist
+psql:sql/errors.sql:236: ERROR:  relation "noplace" does not exist
 -- these postquel variants are no longer supported
 drop tuple rule nonesuch;
-psql:sql/errors.sql:240: ERROR:  syntax error at or near "tuple"
+psql:sql/errors.sql:239: ERROR:  syntax error at or near "tuple"
 LINE 1: drop tuple rule nonesuch;
              ^
 drop instance rule nonesuch on noplace;
-psql:sql/errors.sql:241: ERROR:  syntax error at or near "instance"
+psql:sql/errors.sql:240: ERROR:  syntax error at or near "instance"
 LINE 1: drop instance rule nonesuch on noplace;
              ^
 drop rewrite rule nonesuch;
-psql:sql/errors.sql:242: ERROR:  syntax error at or near "rewrite"
+psql:sql/errors.sql:241: ERROR:  syntax error at or near "rewrite"
 LINE 1: drop rewrite rule nonesuch;
              ^
 --
 -- Check that division-by-zero is properly caught.
 --
 select 1/0;
-psql:sql/errors.sql:248: ERROR:  division by zero
+psql:sql/errors.sql:247: ERROR:  division by zero
 select 1::int8/0;
-psql:sql/errors.sql:250: ERROR:  division by zero
+psql:sql/errors.sql:249: ERROR:  division by zero
 select 1/0::int8;
-psql:sql/errors.sql:252: ERROR:  division by zero
+psql:sql/errors.sql:251: ERROR:  division by zero
 select 1::int2/0;
-psql:sql/errors.sql:254: ERROR:  division by zero
+psql:sql/errors.sql:253: ERROR:  division by zero
 select 1/0::int2;
-psql:sql/errors.sql:256: ERROR:  division by zero
+psql:sql/errors.sql:255: ERROR:  division by zero
 select 1::numeric/0;
-psql:sql/errors.sql:258: ERROR:  division by zero
+psql:sql/errors.sql:257: ERROR:  division by zero
 select 1/0::numeric;
-psql:sql/errors.sql:260: ERROR:  division by zero
+psql:sql/errors.sql:259: ERROR:  division by zero
 select 1::float8/0;
-psql:sql/errors.sql:262: ERROR:  division by zero
+psql:sql/errors.sql:261: ERROR:  division by zero
 select 1/0::float8;
-psql:sql/errors.sql:264: ERROR:  division by zero
+psql:sql/errors.sql:263: ERROR:  division by zero
 select 1::float4/0;
-psql:sql/errors.sql:266: ERROR:  division by zero
+psql:sql/errors.sql:265: ERROR:  division by zero
 select 1/0::float4;
-psql:sql/errors.sql:268: ERROR:  division by zero
+psql:sql/errors.sql:267: ERROR:  division by zero
 --
 -- Test psql's reporting of syntax error location
 --
 xxx;
-psql:sql/errors.sql:275: ERROR:  syntax error at or near "xxx"
+psql:sql/errors.sql:274: ERROR:  syntax error at or near "xxx"
 LINE 1: xxx;
         ^
 CREATE foo;
-psql:sql/errors.sql:277: ERROR:  syntax error at or near "foo"
+psql:sql/errors.sql:276: ERROR:  syntax error at or near "foo"
 LINE 1: CREATE foo;
                ^
 CREATE TABLE ;
-psql:sql/errors.sql:279: ERROR:  syntax error at or near ";"
+psql:sql/errors.sql:278: ERROR:  syntax error at or near ";"
 LINE 1: CREATE TABLE ;
                      ^
 CREATE TABLE
 \g
-psql:sql/errors.sql:282: ERROR:  syntax error at end of input
+psql:sql/errors.sql:281: ERROR:  syntax error at end of input
 LINE 1: CREATE TABLE
                     ^
 INSERT INTO foo VALUES(123) foo;
-psql:sql/errors.sql:284: ERROR:  syntax error at or near "foo"
+psql:sql/errors.sql:283: ERROR:  syntax error at or near "foo"
 LINE 1: INSERT INTO foo VALUES(123) foo;
                                     ^
 INSERT INTO 123
 VALUES(123);
-psql:sql/errors.sql:287: ERROR:  syntax error at or near "123"
+psql:sql/errors.sql:286: ERROR:  syntax error at or near "123"
 LINE 1: INSERT INTO 123
                     ^
 INSERT INTO foo
 VALUES(123) 123
 ;
-psql:sql/errors.sql:291: ERROR:  syntax error at or near "123"
+psql:sql/errors.sql:290: ERROR:  syntax error at or near "123"
 LINE 2: VALUES(123) 123
                     ^
 -- with a tab
@@ -356,24 +357,24 @@ CREATE TABLE foo
   (id INT4 UNIQUE NOT NULL, id2 varchar(50) NOT NULL PRIMARY KEY,
 	id3 INTEGER NOT NUL,
    id4 INT4 UNIQUE NOT NULL, id5 varchar(50) UNIQUE NOT NULL);
-psql:sql/errors.sql:297: ERROR:  syntax error at or near "NUL"
+psql:sql/errors.sql:296: ERROR:  syntax error at or near "NUL"
 LINE 3:  id3 INTEGER NOT NUL,
                          ^
 -- long line to be truncated on the left
 CREATE TABLE foo(id INT4 UNIQUE NOT NULL, id2 varchar(50) NOT NULL PRIMARY KEY, id3 INTEGER NOT NUL,
 id4 INT4 UNIQUE NOT NULL, id5 varchar(50) UNIQUE NOT NULL);
-psql:sql/errors.sql:301: ERROR:  syntax error at or near "NUL"
+psql:sql/errors.sql:300: ERROR:  syntax error at or near "NUL"
 LINE 1: ..., id2 varchar(50) NOT NULL PRIMARY KEY, id3 INTEGER NOT NUL,
                                                                    ^
 -- long line to be truncated on the right
 CREATE TABLE foo(
 id3 INTEGER NOT NUL, id4 INT4 UNIQUE NOT NULL, id5 varchar(50) UNIQUE NOT NULL, id INT4 UNIQUE NOT NULL, id2 varchar(50) NOT NULL PRIMARY KEY);
-psql:sql/errors.sql:305: ERROR:  syntax error at or near "NUL"
+psql:sql/errors.sql:304: ERROR:  syntax error at or near "NUL"
 LINE 2: id3 INTEGER NOT NUL, id4 INT4 UNIQUE NOT NULL, id5 varchar(5...
                         ^
 -- long line to be truncated both ways
 CREATE TABLE foo(id INT4 UNIQUE NOT NULL, id2 varchar(50) NOT NULL PRIMARY KEY, id3 INTEGER NOT NUL, id4 INT4 UNIQUE NOT NULL, id5 varchar(50) UNIQUE NOT NULL);
-psql:sql/errors.sql:308: ERROR:  syntax error at or near "NUL"
+psql:sql/errors.sql:307: ERROR:  syntax error at or near "NUL"
 LINE 1: ...varchar(50) NOT NULL PRIMARY KEY, id3 INTEGER NOT NUL, id4 I...
                                                              ^
 -- long line to be truncated on the left, many lines
@@ -390,7 +391,7 @@ UNIQUE
 NOT
 NULL)
 ;
-psql:sql/errors.sql:323: ERROR:  syntax error at or near "NUL"
+psql:sql/errors.sql:322: ERROR:  syntax error at or near "NUL"
 LINE 4: ..., id2 varchar(50) NOT NULL PRIMARY KEY, id3 INTEGER NOT NUL,
                                                                    ^
 -- long line to be truncated on the right, many lines
@@ -400,7 +401,7 @@ TABLE
 foo(
 id3 INTEGER NOT NUL, id4 INT4 UNIQUE NOT NULL, id5 varchar(50) UNIQUE NOT NULL, id INT4 UNIQUE NOT NULL, id2 varchar(50) NOT NULL PRIMARY KEY)
 ;
-psql:sql/errors.sql:331: ERROR:  syntax error at or near "NUL"
+psql:sql/errors.sql:330: ERROR:  syntax error at or near "NUL"
 LINE 5: id3 INTEGER NOT NUL, id4 INT4 UNIQUE NOT NULL, id5 varchar(5...
                         ^
 -- long line to be truncated both ways, many lines
@@ -413,7 +414,7 @@ INT4
 UNIQUE NOT NULL, idx INT4 UNIQUE NOT NULL, idy INT4 UNIQUE NOT NULL, id2 varchar(50) NOT NULL PRIMARY KEY, id3 INTEGER NOT NUL, id4 INT4 UNIQUE NOT NULL, id5 varchar(50) UNIQUE NOT NULL,
 idz INT4 UNIQUE NOT NULL,
 idv INT4 UNIQUE NOT NULL);
-psql:sql/errors.sql:342: ERROR:  syntax error at or near "NUL"
+psql:sql/errors.sql:341: ERROR:  syntax error at or near "NUL"
 LINE 7: ...varchar(50) NOT NULL PRIMARY KEY, id3 INTEGER NOT NUL, id4 I...
                                                              ^
 -- more than 10 lines...
@@ -439,7 +440,7 @@ INT4
 UNIQUE
 NOT
 NULL);
-psql:sql/errors.sql:366: ERROR:  syntax error at or near "NUL"
+psql:sql/errors.sql:365: ERROR:  syntax error at or near "NUL"
 LINE 16: ...varchar(50) NOT NULL PRIMARY KEY, id3 INTEGER NOT NUL, id4 I...
                                                               ^
 -- Check that stack depth detection mechanism works and
@@ -449,4 +450,4 @@ create function infinite_recurse() returns int as
 CREATE FUNCTION
 \set VERBOSITY terse
 select infinite_recurse();
-psql:sql/errors.sql:373: ERROR:  stack depth limit exceeded
+psql:sql/errors.sql:372: ERROR:  stack depth limit exceeded

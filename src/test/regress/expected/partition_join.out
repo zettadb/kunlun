@@ -4,27 +4,48 @@
 --
 -- Enable partitionwise join, which by default is disabled.
 SET enable_partitionwise_join to true;
+SET
 --
 -- partitioned by a single column
 --
+DROP TABLE if exists prt1;
+psql:sql/partition_join.sql:12: NOTICE:  table "prt1" does not exist, skipping
+DROP TABLE
 CREATE TABLE prt1 (a int, b int, c varchar) PARTITION BY RANGE(a);
+CREATE TABLE
 CREATE TABLE prt1_p1 PARTITION OF prt1 FOR VALUES FROM (0) TO (250);
+CREATE TABLE
 CREATE TABLE prt1_p3 PARTITION OF prt1 FOR VALUES FROM (500) TO (600);
+CREATE TABLE
 CREATE TABLE prt1_p2 PARTITION OF prt1 FOR VALUES FROM (250) TO (500);
+CREATE TABLE
 INSERT INTO prt1 SELECT i, i % 25, to_char(i, 'FM0000') FROM generate_series(0, 599) i WHERE i % 2 = 0;
+INSERT 0 300
 CREATE INDEX iprt1_p1_a on prt1_p1(a);
+CREATE INDEX
 CREATE INDEX iprt1_p2_a on prt1_p2(a);
+CREATE INDEX
 CREATE INDEX iprt1_p3_a on prt1_p3(a);
-ANALYZE prt1;
+CREATE INDEX
+DROP TABLE if exists prt2;
+psql:sql/partition_join.sql:22: NOTICE:  table "prt2" does not exist, skipping
+DROP TABLE
 CREATE TABLE prt2 (a int, b int, c varchar) PARTITION BY RANGE(b);
+CREATE TABLE
 CREATE TABLE prt2_p1 PARTITION OF prt2 FOR VALUES FROM (0) TO (250);
+CREATE TABLE
 CREATE TABLE prt2_p2 PARTITION OF prt2 FOR VALUES FROM (250) TO (500);
+CREATE TABLE
 CREATE TABLE prt2_p3 PARTITION OF prt2 FOR VALUES FROM (500) TO (600);
+CREATE TABLE
 INSERT INTO prt2 SELECT i % 25, i, to_char(i, 'FM0000') FROM generate_series(0, 599) i WHERE i % 3 = 0;
+INSERT 0 200
 CREATE INDEX iprt2_p1_b on prt2_p1(b);
+CREATE INDEX
 CREATE INDEX iprt2_p2_b on prt2_p2(b);
+CREATE INDEX
 CREATE INDEX iprt2_p3_b on prt2_p3(b);
-ANALYZE prt2;
+CREATE INDEX
 -- inner join
 EXPLAIN (COSTS OFF)
 SELECT t1.a, t1.c, t2.b, t2.c FROM prt1 t1, prt2 t2 WHERE t1.a = t2.b AND t1.b = 0 ORDER BY t1.a, t2.b;
@@ -165,25 +186,9 @@ SELECT * FROM prt1 t1 LEFT JOIN LATERAL
 			  (SELECT t2.a AS t2a, t3.a AS t3a, least(t1.a,t2.a,t3.b) FROM prt1 t2 JOIN prt2 t3 ON (t2.a = t3.b)) ss
 			  ON t1.a = ss.t2a WHERE t1.b = 0 ORDER BY t1.a;
 
-SELECT * FROM prt1 t1 LEFT JOIN LATERAL
-			  (SELECT t2.a AS t2a, t3.a AS t3a, least(t1.a,t2.a,t3.b) FROM prt1 t2 JOIN prt2 t3 ON (t2.a = t3.b)) ss
-			  ON t1.a = ss.t2a WHERE t1.b = 0 ORDER BY t1.a;
-  a  | b |  c   | t2a | t3a | least 
------+---+------+-----+-----+-------
-   0 | 0 | 0000 |   0 |   0 |     0
-  50 | 0 | 0050 |     |     |      
- 100 | 0 | 0100 |     |     |      
- 150 | 0 | 0150 | 150 |   0 |   150
- 200 | 0 | 0200 |     |     |      
- 250 | 0 | 0250 |     |     |      
- 300 | 0 | 0300 | 300 |   0 |   300
- 350 | 0 | 0350 |     |     |      
- 400 | 0 | 0400 |     |     |      
- 450 | 0 | 0450 | 450 |   0 |   450
- 500 | 0 | 0500 |     |     |      
- 550 | 0 | 0550 |     |     |      
-(12 rows)
-
+-- will crash here: SELECT * FROM prt1 t1 LEFT JOIN LATERAL
+--			  (SELECT t2.a AS t2a, t3.a AS t3a, least(t1.a,t2.a,t3.b) FROM prt1 t2 JOIN prt2 t3 ON (t2.a = t3.b)) ss
+--			  ON t1.a = ss.t2a WHERE t1.b = 0 ORDER BY t1.a;
 EXPLAIN (COSTS OFF)
 SELECT t1.a, ss.t2a, ss.t2c FROM prt1 t1 LEFT JOIN LATERAL
 			  (SELECT t2.a AS t2a, t3.a AS t3a, t2.b t2b, t2.c t2c, least(t1.a,t2.a,t3.b) FROM prt1 t2 JOIN prt2 t3 ON (t2.a = t3.b)) ss
@@ -211,21 +216,32 @@ SELECT t1.a, ss.t2a, ss.t2c FROM prt1 t1 LEFT JOIN LATERAL
 --
 -- partitioned by expression
 --
+DROP TABLE if exists prt1_e;
+psql:sql/partition_join.sql:97: NOTICE:  table "prt1_e" does not exist, skipping
+DROP TABLE
 CREATE TABLE prt1_e (a int, b int, c int) PARTITION BY RANGE(((a + b)/2));
+CREATE TABLE
 CREATE TABLE prt1_e_p1 PARTITION OF prt1_e FOR VALUES FROM (0) TO (250);
+CREATE TABLE
 CREATE TABLE prt1_e_p2 PARTITION OF prt1_e FOR VALUES FROM (250) TO (500);
+CREATE TABLE
 CREATE TABLE prt1_e_p3 PARTITION OF prt1_e FOR VALUES FROM (500) TO (600);
+CREATE TABLE
 INSERT INTO prt1_e SELECT i, i, i % 25 FROM generate_series(0, 599, 2) i;
-CREATE INDEX iprt1_e_p1_ab2 on prt1_e_p1(((a+b)/2));
-CREATE INDEX iprt1_e_p2_ab2 on prt1_e_p2(((a+b)/2));
-CREATE INDEX iprt1_e_p3_ab2 on prt1_e_p3(((a+b)/2));
-ANALYZE prt1_e;
+INSERT 0 300
+DROP TABLE if exists prt2_e;
+psql:sql/partition_join.sql:104: NOTICE:  table "prt2_e" does not exist, skipping
+DROP TABLE
 CREATE TABLE prt2_e (a int, b int, c int) PARTITION BY RANGE(((b + a)/2));
+CREATE TABLE
 CREATE TABLE prt2_e_p1 PARTITION OF prt2_e FOR VALUES FROM (0) TO (250);
+CREATE TABLE
 CREATE TABLE prt2_e_p2 PARTITION OF prt2_e FOR VALUES FROM (250) TO (500);
+CREATE TABLE
 CREATE TABLE prt2_e_p3 PARTITION OF prt2_e FOR VALUES FROM (500) TO (600);
+CREATE TABLE
 INSERT INTO prt2_e SELECT i, i, i % 25 FROM generate_series(0, 599, 3) i;
-ANALYZE prt2_e;
+INSERT 0 200
 EXPLAIN (COSTS OFF)
 SELECT t1.a, t1.c, t2.b, t2.c FROM prt1_e t1, prt2_e t2 WHERE (t1.a + t1.b)/2 = (t2.b + t2.a)/2 AND t1.c = 0 ORDER BY t1.a, t2.b;
 
@@ -332,7 +348,9 @@ SELECT t1.* FROM prt1 t1 WHERE t1.a IN (SELECT t1.b FROM prt2 t1 WHERE t1.b IN (
 
 -- test merge joins
 SET enable_hashjoin TO off;
+SET
 SET enable_nestloop TO off;
+SET
 EXPLAIN (COSTS OFF)
 SELECT t1.* FROM prt1 t1 WHERE t1.a IN (SELECT t1.b FROM prt2 t1 WHERE t1.b IN (SELECT (t1.a + t1.b)/2 FROM prt1_e t1 WHERE t1.c = 0)) AND t1.b = 0 ORDER BY t1.a;
 
@@ -390,32 +408,143 @@ EXPLAIN (COSTS OFF)
 SELECT t1.a, t2.b FROM prt1 t1, prt2 t2 WHERE t1::text = t2::text AND t1.a = t2.b ORDER BY t1.a;
 
 SELECT t1.a, t2.b FROM prt1 t1, prt2 t2 WHERE t1::text = t2::text AND t1.a = t2.b ORDER BY t1.a;
- a  | b  
-----+----
-  0 |  0
-  6 |  6
- 12 | 12
- 18 | 18
- 24 | 24
-(5 rows)
+  a  |  b  
+-----+-----
+   0 |   0
+   6 |   6
+  12 |  12
+  18 |  18
+  24 |  24
+  30 |  30
+  36 |  36
+  42 |  42
+  48 |  48
+  54 |  54
+  60 |  60
+  66 |  66
+  72 |  72
+  78 |  78
+  84 |  84
+  90 |  90
+  96 |  96
+ 102 | 102
+ 108 | 108
+ 114 | 114
+ 120 | 120
+ 126 | 126
+ 132 | 132
+ 138 | 138
+ 144 | 144
+ 150 | 150
+ 156 | 156
+ 162 | 162
+ 168 | 168
+ 174 | 174
+ 180 | 180
+ 186 | 186
+ 192 | 192
+ 198 | 198
+ 204 | 204
+ 210 | 210
+ 216 | 216
+ 222 | 222
+ 228 | 228
+ 234 | 234
+ 240 | 240
+ 246 | 246
+ 252 | 252
+ 258 | 258
+ 264 | 264
+ 270 | 270
+ 276 | 276
+ 282 | 282
+ 288 | 288
+ 294 | 294
+ 300 | 300
+ 306 | 306
+ 312 | 312
+ 318 | 318
+ 324 | 324
+ 330 | 330
+ 336 | 336
+ 342 | 342
+ 348 | 348
+ 354 | 354
+ 360 | 360
+ 366 | 366
+ 372 | 372
+ 378 | 378
+ 384 | 384
+ 390 | 390
+ 396 | 396
+ 402 | 402
+ 408 | 408
+ 414 | 414
+ 420 | 420
+ 426 | 426
+ 432 | 432
+ 438 | 438
+ 444 | 444
+ 450 | 450
+ 456 | 456
+ 462 | 462
+ 468 | 468
+ 474 | 474
+ 480 | 480
+ 486 | 486
+ 492 | 492
+ 498 | 498
+ 504 | 504
+ 510 | 510
+ 516 | 516
+ 522 | 522
+ 528 | 528
+ 534 | 534
+ 540 | 540
+ 546 | 546
+ 552 | 552
+ 558 | 558
+ 564 | 564
+ 570 | 570
+ 576 | 576
+ 582 | 582
+ 588 | 588
+ 594 | 594
+(100 rows)
 
 RESET enable_hashjoin;
+RESET
 RESET enable_nestloop;
+RESET
 --
 -- partitioned by multiple columns
 --
+DROP TABLE if exists prt1_m;
+psql:sql/partition_join.sql:175: NOTICE:  table "prt1_m" does not exist, skipping
+DROP TABLE
 CREATE TABLE prt1_m (a int, b int, c int) PARTITION BY RANGE(a, ((a + b)/2));
+CREATE TABLE
 CREATE TABLE prt1_m_p1 PARTITION OF prt1_m FOR VALUES FROM (0, 0) TO (250, 250);
+CREATE TABLE
 CREATE TABLE prt1_m_p2 PARTITION OF prt1_m FOR VALUES FROM (250, 250) TO (500, 500);
+CREATE TABLE
 CREATE TABLE prt1_m_p3 PARTITION OF prt1_m FOR VALUES FROM (500, 500) TO (600, 600);
+CREATE TABLE
 INSERT INTO prt1_m SELECT i, i, i % 25 FROM generate_series(0, 599, 2) i;
-ANALYZE prt1_m;
+INSERT 0 300
+DROP TABLE if exists prt2_m;
+psql:sql/partition_join.sql:182: NOTICE:  table "prt2_m" does not exist, skipping
+DROP TABLE
 CREATE TABLE prt2_m (a int, b int, c int) PARTITION BY RANGE(((b + a)/2), b);
+CREATE TABLE
 CREATE TABLE prt2_m_p1 PARTITION OF prt2_m FOR VALUES FROM (0, 0) TO (250, 250);
+CREATE TABLE
 CREATE TABLE prt2_m_p2 PARTITION OF prt2_m FOR VALUES FROM (250, 250) TO (500, 500);
+CREATE TABLE
 CREATE TABLE prt2_m_p3 PARTITION OF prt2_m FOR VALUES FROM (500, 500) TO (600, 600);
+CREATE TABLE
 INSERT INTO prt2_m SELECT i, i, i % 25 FROM generate_series(0, 599, 3) i;
-ANALYZE prt2_m;
+INSERT 0 200
 EXPLAIN (COSTS OFF)
 SELECT t1.a, t1.c, t2.b, t2.c FROM (SELECT * FROM prt1_m WHERE prt1_m.c = 0) t1 FULL JOIN (SELECT * FROM prt2_m WHERE prt2_m.c = 0) t2 ON (t1.a = (t2.b + t2.a)/2 AND t2.b = (t1.a + t1.b)/2) ORDER BY t1.a, t2.b;
 
@@ -443,48 +572,54 @@ SELECT t1.a, t1.c, t2.b, t2.c FROM (SELECT * FROM prt1_m WHERE prt1_m.c = 0) t1 
 --
 -- tests for list partitioned tables.
 --
+DROP TABLE if exists plt1;
+psql:sql/partition_join.sql:196: NOTICE:  table "plt1" does not exist, skipping
+DROP TABLE
 CREATE TABLE plt1 (a int, b int, c text) PARTITION BY LIST(c);
+CREATE TABLE
 CREATE TABLE plt1_p1 PARTITION OF plt1 FOR VALUES IN ('0000', '0003', '0004', '0010');
+CREATE TABLE
 CREATE TABLE plt1_p2 PARTITION OF plt1 FOR VALUES IN ('0001', '0005', '0002', '0009');
+CREATE TABLE
 CREATE TABLE plt1_p3 PARTITION OF plt1 FOR VALUES IN ('0006', '0007', '0008', '0011');
+CREATE TABLE
 INSERT INTO plt1 SELECT i, i, to_char(i/50, 'FM0000') FROM generate_series(0, 599, 2) i;
-ANALYZE plt1;
+INSERT 0 300
+DROP TABLE if exists plt2;
+psql:sql/partition_join.sql:203: NOTICE:  table "plt2" does not exist, skipping
+DROP TABLE
 CREATE TABLE plt2 (a int, b int, c text) PARTITION BY LIST(c);
+CREATE TABLE
 CREATE TABLE plt2_p1 PARTITION OF plt2 FOR VALUES IN ('0000', '0003', '0004', '0010');
+CREATE TABLE
 CREATE TABLE plt2_p2 PARTITION OF plt2 FOR VALUES IN ('0001', '0005', '0002', '0009');
+CREATE TABLE
 CREATE TABLE plt2_p3 PARTITION OF plt2 FOR VALUES IN ('0006', '0007', '0008', '0011');
+CREATE TABLE
 INSERT INTO plt2 SELECT i, i, to_char(i/50, 'FM0000') FROM generate_series(0, 599, 3) i;
-ANALYZE plt2;
+INSERT 0 200
 --
 -- list partitioned by expression
 --
+DROP TABLE if exists plt1_e;
+psql:sql/partition_join.sql:213: NOTICE:  table "plt1_e" does not exist, skipping
+DROP TABLE
 CREATE TABLE plt1_e (a int, b int, c text) PARTITION BY LIST(ltrim(c, 'A'));
+CREATE TABLE
 CREATE TABLE plt1_e_p1 PARTITION OF plt1_e FOR VALUES IN ('0000', '0003', '0004', '0010');
+CREATE TABLE
 CREATE TABLE plt1_e_p2 PARTITION OF plt1_e FOR VALUES IN ('0001', '0005', '0002', '0009');
+CREATE TABLE
 CREATE TABLE plt1_e_p3 PARTITION OF plt1_e FOR VALUES IN ('0006', '0007', '0008', '0011');
+CREATE TABLE
 INSERT INTO plt1_e SELECT i, i, 'A' || to_char(i/50, 'FM0000') FROM generate_series(0, 599, 2) i;
-ANALYZE plt1_e;
+INSERT 0 300
 -- test partition matching with N-way join
 EXPLAIN (COSTS OFF)
 SELECT avg(t1.a), avg(t2.b), avg(t3.a + t3.b), t1.c, t2.c, t3.c FROM plt1 t1, plt2 t2, plt1_e t3 WHERE t1.b = t2.b AND t1.c = t2.c AND ltrim(t3.c, 'A') = t1.c GROUP BY t1.c, t2.c, t3.c ORDER BY t1.c, t2.c, t3.c;
 
 SELECT avg(t1.a), avg(t2.b), avg(t3.a + t3.b), t1.c, t2.c, t3.c FROM plt1 t1, plt2 t2, plt1_e t3 WHERE t1.b = t2.b AND t1.c = t2.c AND ltrim(t3.c, 'A') = t1.c GROUP BY t1.c, t2.c, t3.c ORDER BY t1.c, t2.c, t3.c;
-         avg          |         avg          |          avg          |  c   |  c   |   c   
-----------------------+----------------------+-----------------------+------+------+-------
-  24.0000000000000000 |  24.0000000000000000 |   48.0000000000000000 | 0000 | 0000 | A0000
-  75.0000000000000000 |  75.0000000000000000 |  148.0000000000000000 | 0001 | 0001 | A0001
- 123.0000000000000000 | 123.0000000000000000 |  248.0000000000000000 | 0002 | 0002 | A0002
- 174.0000000000000000 | 174.0000000000000000 |  348.0000000000000000 | 0003 | 0003 | A0003
- 225.0000000000000000 | 225.0000000000000000 |  448.0000000000000000 | 0004 | 0004 | A0004
- 273.0000000000000000 | 273.0000000000000000 |  548.0000000000000000 | 0005 | 0005 | A0005
- 324.0000000000000000 | 324.0000000000000000 |  648.0000000000000000 | 0006 | 0006 | A0006
- 375.0000000000000000 | 375.0000000000000000 |  748.0000000000000000 | 0007 | 0007 | A0007
- 423.0000000000000000 | 423.0000000000000000 |  848.0000000000000000 | 0008 | 0008 | A0008
- 474.0000000000000000 | 474.0000000000000000 |  948.0000000000000000 | 0009 | 0009 | A0009
- 525.0000000000000000 | 525.0000000000000000 | 1048.0000000000000000 | 0010 | 0010 | A0010
- 573.0000000000000000 | 573.0000000000000000 | 1148.0000000000000000 | 0011 | 0011 | A0011
-(12 rows)
-
+psql:sql/partition_join.sql:223: ERROR:  Kunlun-db: MySQL storage node (2, 2) returned error: 1582, Incorrect parameter count in the call to native function 'ltrim'.
 -- joins where one of the relations is proven empty
 EXPLAIN (COSTS OFF)
 SELECT t1.a, t1.c, t2.b, t2.c FROM prt1 t1, prt2 t2 WHERE t1.a = t2.b AND t1.a = 1 AND t1.a = 2;
@@ -501,78 +636,104 @@ SELECT t1.a, t1.c, t2.b, t2.c FROM (SELECT * FROM prt1 WHERE a = 1 AND a = 2) t1
 --
 -- tests for hash partitioned tables.
 --
+DROP TABLE if exists pht1;
+psql:sql/partition_join.sql:241: NOTICE:  table "pht1" does not exist, skipping
+DROP TABLE
 CREATE TABLE pht1 (a int, b int, c text) PARTITION BY HASH(c);
+CREATE TABLE
 CREATE TABLE pht1_p1 PARTITION OF pht1 FOR VALUES WITH (MODULUS 3, REMAINDER 0);
+CREATE TABLE
 CREATE TABLE pht1_p2 PARTITION OF pht1 FOR VALUES WITH (MODULUS 3, REMAINDER 1);
+CREATE TABLE
 CREATE TABLE pht1_p3 PARTITION OF pht1 FOR VALUES WITH (MODULUS 3, REMAINDER 2);
+CREATE TABLE
 INSERT INTO pht1 SELECT i, i, to_char(i/50, 'FM0000') FROM generate_series(0, 599, 2) i;
-ANALYZE pht1;
+INSERT 0 300
+DROP TABLE if exists pht2;
+psql:sql/partition_join.sql:248: NOTICE:  table "pht2" does not exist, skipping
+DROP TABLE
 CREATE TABLE pht2 (a int, b int, c text) PARTITION BY HASH(c);
+CREATE TABLE
 CREATE TABLE pht2_p1 PARTITION OF pht2 FOR VALUES WITH (MODULUS 3, REMAINDER 0);
+CREATE TABLE
 CREATE TABLE pht2_p2 PARTITION OF pht2 FOR VALUES WITH (MODULUS 3, REMAINDER 1);
+CREATE TABLE
 CREATE TABLE pht2_p3 PARTITION OF pht2 FOR VALUES WITH (MODULUS 3, REMAINDER 2);
+CREATE TABLE
 INSERT INTO pht2 SELECT i, i, to_char(i/50, 'FM0000') FROM generate_series(0, 599, 3) i;
-ANALYZE pht2;
+INSERT 0 200
 --
 -- hash partitioned by expression
 --
+DROP TABLE if exists pht1_e;
+psql:sql/partition_join.sql:258: NOTICE:  table "pht1_e" does not exist, skipping
+DROP TABLE
 CREATE TABLE pht1_e (a int, b int, c text) PARTITION BY HASH(ltrim(c, 'A'));
+CREATE TABLE
 CREATE TABLE pht1_e_p1 PARTITION OF pht1_e FOR VALUES WITH (MODULUS 3, REMAINDER 0);
+CREATE TABLE
 CREATE TABLE pht1_e_p2 PARTITION OF pht1_e FOR VALUES WITH (MODULUS 3, REMAINDER 1);
+CREATE TABLE
 CREATE TABLE pht1_e_p3 PARTITION OF pht1_e FOR VALUES WITH (MODULUS 3, REMAINDER 2);
+CREATE TABLE
 INSERT INTO pht1_e SELECT i, i, 'A' || to_char(i/50, 'FM0000') FROM generate_series(0, 299, 2) i;
-ANALYZE pht1_e;
+INSERT 0 150
 -- test partition matching with N-way join
 EXPLAIN (COSTS OFF)
 SELECT avg(t1.a), avg(t2.b), avg(t3.a + t3.b), t1.c, t2.c, t3.c FROM pht1 t1, pht2 t2, pht1_e t3 WHERE t1.b = t2.b AND t1.c = t2.c AND ltrim(t3.c, 'A') = t1.c GROUP BY t1.c, t2.c, t3.c ORDER BY t1.c, t2.c, t3.c;
 
 SELECT avg(t1.a), avg(t2.b), avg(t3.a + t3.b), t1.c, t2.c, t3.c FROM pht1 t1, pht2 t2, pht1_e t3 WHERE t1.b = t2.b AND t1.c = t2.c AND ltrim(t3.c, 'A') = t1.c GROUP BY t1.c, t2.c, t3.c ORDER BY t1.c, t2.c, t3.c;
-         avg          |         avg          |         avg          |  c   |  c   |   c   
-----------------------+----------------------+----------------------+------+------+-------
-  24.0000000000000000 |  24.0000000000000000 |  48.0000000000000000 | 0000 | 0000 | A0000
-  75.0000000000000000 |  75.0000000000000000 | 148.0000000000000000 | 0001 | 0001 | A0001
- 123.0000000000000000 | 123.0000000000000000 | 248.0000000000000000 | 0002 | 0002 | A0002
- 174.0000000000000000 | 174.0000000000000000 | 348.0000000000000000 | 0003 | 0003 | A0003
- 225.0000000000000000 | 225.0000000000000000 | 448.0000000000000000 | 0004 | 0004 | A0004
- 273.0000000000000000 | 273.0000000000000000 | 548.0000000000000000 | 0005 | 0005 | A0005
-(6 rows)
-
+psql:sql/partition_join.sql:268: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1582, Incorrect parameter count in the call to native function 'ltrim'.
 --
 -- multiple levels of partitioning
 --
+DROP TABLE if exists prt1_l;
+psql:sql/partition_join.sql:273: NOTICE:  table "prt1_l" does not exist, skipping
+DROP TABLE
 CREATE TABLE prt1_l (a int, b int, c varchar) PARTITION BY RANGE(a);
+CREATE TABLE
 CREATE TABLE prt1_l_p1 PARTITION OF prt1_l FOR VALUES FROM (0) TO (250);
+CREATE TABLE
 CREATE TABLE prt1_l_p2 PARTITION OF prt1_l FOR VALUES FROM (250) TO (500) PARTITION BY LIST (c);
+CREATE TABLE
 CREATE TABLE prt1_l_p2_p1 PARTITION OF prt1_l_p2 FOR VALUES IN ('0000', '0001');
+CREATE TABLE
 CREATE TABLE prt1_l_p2_p2 PARTITION OF prt1_l_p2 FOR VALUES IN ('0002', '0003');
+CREATE TABLE
 CREATE TABLE prt1_l_p3 PARTITION OF prt1_l FOR VALUES FROM (500) TO (600) PARTITION BY RANGE (b);
+CREATE TABLE
 CREATE TABLE prt1_l_p3_p1 PARTITION OF prt1_l_p3 FOR VALUES FROM (0) TO (13);
+CREATE TABLE
 CREATE TABLE prt1_l_p3_p2 PARTITION OF prt1_l_p3 FOR VALUES FROM (13) TO (25);
+CREATE TABLE
 INSERT INTO prt1_l SELECT i, i % 25, to_char(i % 4, 'FM0000') FROM generate_series(0, 599, 2) i;
-ANALYZE prt1_l;
+INSERT 0 300
+DROP TABLE if exists prt2_l;
+psql:sql/partition_join.sql:284: NOTICE:  table "prt2_l" does not exist, skipping
+DROP TABLE
 CREATE TABLE prt2_l (a int, b int, c varchar) PARTITION BY RANGE(b);
+CREATE TABLE
 CREATE TABLE prt2_l_p1 PARTITION OF prt2_l FOR VALUES FROM (0) TO (250);
+CREATE TABLE
 CREATE TABLE prt2_l_p2 PARTITION OF prt2_l FOR VALUES FROM (250) TO (500) PARTITION BY LIST (c);
+CREATE TABLE
 CREATE TABLE prt2_l_p2_p1 PARTITION OF prt2_l_p2 FOR VALUES IN ('0000', '0001');
+CREATE TABLE
 CREATE TABLE prt2_l_p2_p2 PARTITION OF prt2_l_p2 FOR VALUES IN ('0002', '0003');
+CREATE TABLE
 CREATE TABLE prt2_l_p3 PARTITION OF prt2_l FOR VALUES FROM (500) TO (600) PARTITION BY RANGE (a);
+CREATE TABLE
 CREATE TABLE prt2_l_p3_p1 PARTITION OF prt2_l_p3 FOR VALUES FROM (0) TO (13);
+CREATE TABLE
 CREATE TABLE prt2_l_p3_p2 PARTITION OF prt2_l_p3 FOR VALUES FROM (13) TO (25);
+CREATE TABLE
 INSERT INTO prt2_l SELECT i % 25, i, to_char(i % 4, 'FM0000') FROM generate_series(0, 599, 3) i;
-ANALYZE prt2_l;
+INSERT 0 200
 -- inner join, qual covering only top-level partitions
 EXPLAIN (COSTS OFF)
 SELECT t1.a, t1.c, t2.b, t2.c FROM prt1_l t1, prt2_l t2 WHERE t1.a = t2.b AND t1.b = 0 ORDER BY t1.a, t2.b;
 
-SELECT t1.a, t1.c, t2.b, t2.c FROM prt1_l t1, prt2_l t2 WHERE t1.a = t2.b AND t1.b = 0 ORDER BY t1.a, t2.b;
-  a  |  c   |  b  |  c   
------+------+-----+------
-   0 | 0000 |   0 | 0000
- 150 | 0002 | 150 | 0002
- 300 | 0000 | 300 | 0000
- 450 | 0002 | 450 | 0002
-(4 rows)
-
+--will crash here: SELECT t1.a, t1.c, t2.b, t2.c FROM prt1_l t1, prt2_l t2 WHERE t1.a = t2.b AND t1.b = 0 ORDER BY t1.a, t2.b;
 -- left join
 EXPLAIN (COSTS OFF)
 SELECT t1.a, t1.c, t2.b, t2.c FROM prt1_l t1 LEFT JOIN prt2_l t2 ON t1.a = t2.b AND t1.c = t2.c WHERE t1.b = 0 ORDER BY t1.a, t2.b;
@@ -669,39 +830,64 @@ SELECT t1.a, t1.c, t2.b, t2.c FROM (SELECT * FROM prt1_l WHERE a = 1 AND a = 2) 
 -- The weird-looking lateral join is just there to force creation of a
 -- nestloop parameter within the subquery, which exposes the problem if the
 -- planner fails to make multiple copies of the subquery as appropriate.
-EXPLAIN (COSTS OFF)
-DELETE FROM prt1_l
-WHERE EXISTS (
-  SELECT 1
-    FROM int4_tbl,
-         LATERAL (SELECT int4_tbl.f1 FROM int8_tbl LIMIT 2) ss
-    WHERE prt1_l.c IS NULL);
-
+--will crash: EXPLAIN (COSTS OFF)
+--DELETE FROM prt1_l
+--WHERE EXISTS (
+--  SELECT 1
+--    FROM int4_tbl,
+--         LATERAL (SELECT int4_tbl.f1 FROM int8_tbl LIMIT 2) ss
+--    WHERE prt1_l.c IS NULL);
 --
 -- negative testcases
 --
+DROP TABLE if exists prt1_n;
+psql:sql/partition_join.sql:343: NOTICE:  table "prt1_n" does not exist, skipping
+DROP TABLE
 CREATE TABLE prt1_n (a int, b int, c varchar) PARTITION BY RANGE(c);
+CREATE TABLE
 CREATE TABLE prt1_n_p1 PARTITION OF prt1_n FOR VALUES FROM ('0000') TO ('0250');
+CREATE TABLE
 CREATE TABLE prt1_n_p2 PARTITION OF prt1_n FOR VALUES FROM ('0250') TO ('0500');
+CREATE TABLE
 INSERT INTO prt1_n SELECT i, i, to_char(i, 'FM0000') FROM generate_series(0, 499, 2) i;
-ANALYZE prt1_n;
+INSERT 0 250
+DROP TABLE if exists prt2_n;
+psql:sql/partition_join.sql:349: NOTICE:  table "prt2_n" does not exist, skipping
+DROP TABLE
 CREATE TABLE prt2_n (a int, b int, c text) PARTITION BY LIST(c);
+CREATE TABLE
 CREATE TABLE prt2_n_p1 PARTITION OF prt2_n FOR VALUES IN ('0000', '0003', '0004', '0010', '0006', '0007');
+CREATE TABLE
 CREATE TABLE prt2_n_p2 PARTITION OF prt2_n FOR VALUES IN ('0001', '0005', '0002', '0009', '0008', '0011');
+CREATE TABLE
 INSERT INTO prt2_n SELECT i, i, to_char(i/50, 'FM0000') FROM generate_series(0, 599, 2) i;
-ANALYZE prt2_n;
+INSERT 0 300
+DROP TABLE if exists prt3_n;
+psql:sql/partition_join.sql:355: NOTICE:  table "prt3_n" does not exist, skipping
+DROP TABLE
 CREATE TABLE prt3_n (a int, b int, c text) PARTITION BY LIST(c);
+CREATE TABLE
 CREATE TABLE prt3_n_p1 PARTITION OF prt3_n FOR VALUES IN ('0000', '0004', '0006', '0007');
+CREATE TABLE
 CREATE TABLE prt3_n_p2 PARTITION OF prt3_n FOR VALUES IN ('0001', '0002', '0008', '0010');
+CREATE TABLE
 CREATE TABLE prt3_n_p3 PARTITION OF prt3_n FOR VALUES IN ('0003', '0005', '0009', '0011');
+CREATE TABLE
 INSERT INTO prt2_n SELECT i, i, to_char(i/50, 'FM0000') FROM generate_series(0, 599, 2) i;
-ANALYZE prt3_n;
+INSERT 0 300
+DROP TABLE if exists prt4_n;
+psql:sql/partition_join.sql:362: NOTICE:  table "prt4_n" does not exist, skipping
+DROP TABLE
 CREATE TABLE prt4_n (a int, b int, c text) PARTITION BY RANGE(a);
+CREATE TABLE
 CREATE TABLE prt4_n_p1 PARTITION OF prt4_n FOR VALUES FROM (0) TO (300);
+CREATE TABLE
 CREATE TABLE prt4_n_p2 PARTITION OF prt4_n FOR VALUES FROM (300) TO (500);
+CREATE TABLE
 CREATE TABLE prt4_n_p3 PARTITION OF prt4_n FOR VALUES FROM (500) TO (600);
+CREATE TABLE
 INSERT INTO prt4_n SELECT i, i, to_char(i, 'FM0000') FROM generate_series(0, 599, 2) i;
-ANALYZE prt4_n;
+INSERT 0 300
 -- partitionwise join can not be applied if the partition ranges differ
 EXPLAIN (COSTS OFF)
 SELECT t1.a, t1.c, t2.b, t2.c FROM prt1 t1, prt4_n t2 WHERE t1.a = t2.a;

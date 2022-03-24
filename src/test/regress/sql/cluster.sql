@@ -7,7 +7,7 @@ CREATE TABLE clstr_tst_s (rf_a SERIAL PRIMARY KEY,
 --DDL_STATEMENT_END--
 
 --DDL_STATEMENT_BEGIN--
-drop table if exists clst _tst;
+drop table if exists clstr_tst;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE clstr_tst (a SERIAL PRIMARY KEY,

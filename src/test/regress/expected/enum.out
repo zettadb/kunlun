@@ -2,16 +2,22 @@
 -- Enum tests
 --
 DROP TABLE if exists enumtest_child;
-NOTICE:  table "enumtest_child" does not exist, skipping
+psql:sql/enum.sql:5: NOTICE:  table "enumtest_child" does not exist, skipping
+DROP TABLE
 DROP TABLE if exists enumtest_parent;
-NOTICE:  table "enumtest_parent" does not exist, skipping
+psql:sql/enum.sql:6: NOTICE:  table "enumtest_parent" does not exist, skipping
+DROP TABLE
 DROP TABLE if exists enumtest;
-NOTICE:  table "enumtest" does not exist, skipping
+psql:sql/enum.sql:7: NOTICE:  table "enumtest" does not exist, skipping
+DROP TABLE
 DROP TABLE if exists enumtest_bogus_child;
-NOTICE:  table "enumtest_bogus_child" does not exist, skipping
+psql:sql/enum.sql:8: NOTICE:  table "enumtest_bogus_child" does not exist, skipping
+DROP TABLE
 drop type if exists rainbow;
-NOTICE:  type "rainbow" does not exist, skipping
+psql:sql/enum.sql:10: NOTICE:  type "rainbow" does not exist, skipping
+DROP TYPE
 CREATE TYPE rainbow AS ENUM ('red', 'orange', 'yellow', 'green', 'blue', 'purple');
+CREATE TYPE
 --
 -- Did it create the right number of rows?
 --
@@ -31,15 +37,17 @@ SELECT 'red'::rainbow;
 (1 row)
 
 SELECT 'mauve'::rainbow;
-ERROR:  invalid input value for enum rainbow: "mauve"
+psql:sql/enum.sql:22: ERROR:  invalid input value for enum rainbow: "mauve"
 LINE 1: SELECT 'mauve'::rainbow;
                ^
 --
 -- adding new values
 --
 drop type if exists planets;
-NOTICE:  type "planets" does not exist, skipping
+psql:sql/enum.sql:28: NOTICE:  type "planets" does not exist, skipping
+DROP TYPE
 CREATE TYPE planets AS ENUM ( 'venus', 'earth', 'mars' );
+CREATE TYPE
 SELECT enumlabel, enumsortorder
 FROM pg_enum
 WHERE enumtypid = 'planets'::regtype
@@ -52,6 +60,7 @@ ORDER BY 2;
 (3 rows)
 
 ALTER TYPE planets ADD VALUE 'uranus';
+ALTER TYPE
 SELECT enumlabel, enumsortorder
 FROM pg_enum
 WHERE enumtypid = 'planets'::regtype
@@ -68,6 +77,7 @@ ORDER BY 2;
 --not supported: ALTER TYPE planets ADD VALUE 'saturn' BEFORE 'uranus';
 --not supported: ALTER TYPE planets ADD VALUE 'jupiter' AFTER 'mars';
 ALTER TYPE planets ADD VALUE 'neptune' AFTER 'uranus';
+ALTER TYPE
 SELECT enumlabel, enumsortorder
 FROM pg_enum
 WHERE enumtypid = 'planets'::regtype
@@ -97,16 +107,18 @@ ORDER BY enumlabel::planets;
 -- errors for adding labels
 ALTER TYPE planets ADD VALUE
   'plutoplutoplutoplutoplutoplutoplutoplutoplutoplutoplutoplutoplutopluto';
-ERROR:  invalid enum label "plutoplutoplutoplutoplutoplutoplutoplutoplutoplutoplutoplutoplutopluto"
+psql:sql/enum.sql:60: ERROR:  invalid enum label "plutoplutoplutoplutoplutoplutoplutoplutoplutoplutoplutoplutoplutopluto"
 DETAIL:  Labels must be 63 characters or less.
 ALTER TYPE planets ADD VALUE 'pluto' AFTER 'zeus';
-ERROR:  "zeus" is not an existing enum label
+psql:sql/enum.sql:62: ERROR:  "zeus" is not an existing enum label
 -- if not exists tests
 --  existing value gives error
 ALTER TYPE planets ADD VALUE 'mercury';
+ALTER TYPE
 -- unless IF NOT EXISTS is specified
 ALTER TYPE planets ADD VALUE IF NOT EXISTS 'mercury';
-NOTICE:  enum label "mercury" already exists, skipping
+psql:sql/enum.sql:70: NOTICE:  enum label "mercury" already exists, skipping
+ALTER TYPE
 -- should be neptune, not mercury
 SELECT enum_last(NULL::planets);
  enum_last 
@@ -115,6 +127,7 @@ SELECT enum_last(NULL::planets);
 (1 row)
 
 ALTER TYPE planets ADD VALUE IF NOT EXISTS 'pluto';
+ALTER TYPE
 -- should be pluto, i.e. the new value
 SELECT enum_last(NULL::planets);
  enum_last 
@@ -126,8 +139,10 @@ SELECT enum_last(NULL::planets);
 -- Test inserting so many values that we have to renumber
 --
 drop type if exists insenum;
-NOTICE:  type "insenum" does not exist, skipping
+psql:sql/enum.sql:84: NOTICE:  type "insenum" does not exist, skipping
+DROP TYPE
 create type insenum as enum ('L1', 'L2');
+CREATE TYPE
 --not supported:alter type insenum add value 'i1' before 'L2';
 --alter type insenum add value 'i2' before 'L2';
 --alter type insenum add value 'i3' before 'L2';
@@ -176,8 +191,11 @@ ORDER BY enumsortorder;
 -- Basic table creation, row selection
 --
 CREATE TABLE enumtest (col rainbow);
+CREATE TABLE
 INSERT INTO enumtest values ('red'), ('orange'), ('yellow'), ('green');
+INSERT 0 4
 COPY enumtest FROM stdin;
+COPY 2
 SELECT * FROM enumtest;
   col   
 --------
@@ -261,9 +279,17 @@ SELECT 'red'::text::rainbow = 'red'::rainbow;
 -- Aggregates
 --
 SELECT min(col) FROM enumtest;
-ERROR:  cannot accept a value of type anyenum
+ min  
+------
+ blue
+(1 row)
+
 SELECT max(col) FROM enumtest;
-ERROR:  cannot accept a value of type anyenum
+  max   
+--------
+ yellow
+(1 row)
+
 SELECT max(col) FROM enumtest WHERE col < 'green';
   max   
 --------
@@ -274,11 +300,14 @@ SELECT max(col) FROM enumtest WHERE col < 'green';
 -- Index tests, force use of index
 --
 SET enable_seqscan = off;
+SET
 SET enable_bitmapscan = off;
+SET
 --
 -- Btree index / opclass with the various operators
 --
 CREATE UNIQUE INDEX enumtest_btree ON enumtest USING btree (col);
+CREATE INDEX
 SELECT * FROM enumtest WHERE col = 'orange';
   col   
 --------
@@ -330,9 +359,17 @@ SELECT * FROM enumtest WHERE col <= 'green' ORDER BY col;
 (4 rows)
 
 SELECT min(col) FROM enumtest;
-ERROR:  cannot accept a value of type anyenum
+ min 
+-----
+ red
+(1 row)
+
 SELECT max(col) FROM enumtest;
-ERROR:  cannot accept a value of type anyenum
+  max   
+--------
+ purple
+(1 row)
+
 SELECT max(col) FROM enumtest WHERE col < 'green';
   max   
 --------
@@ -340,10 +377,12 @@ SELECT max(col) FROM enumtest WHERE col < 'green';
 (1 row)
 
 DROP INDEX enumtest_btree;
+DROP INDEX
 --
 -- Hash index / opclass with the = operator
 --
 CREATE INDEX enumtest_hash ON enumtest USING hash (col);
+CREATE INDEX
 SELECT * FROM enumtest WHERE col = 'orange';
   col   
 --------
@@ -351,11 +390,14 @@ SELECT * FROM enumtest WHERE col = 'orange';
 (1 row)
 
 DROP INDEX enumtest_hash;
+DROP INDEX
 --
 -- End index tests
 --
 RESET enable_seqscan;
+RESET
 RESET enable_bitmapscan;
+RESET
 --
 -- Domains over enums, not supported in Kunlun
 --
@@ -456,6 +498,7 @@ BEGIN
 RETURN $1::text || 'omg';
 END
 $$ LANGUAGE plpgsql;
+CREATE FUNCTION
 SELECT echo_me('red'::rainbow);
  echo_me 
 ---------
@@ -470,6 +513,7 @@ BEGIN
 RETURN $1::text || 'wtf';
 END
 $$ LANGUAGE plpgsql;
+CREATE FUNCTION
 SELECT echo_me('red'::rainbow);
  echo_me 
 ---------
@@ -481,6 +525,7 @@ SELECT echo_me('red'::rainbow);
 -- anymore, since there's only one match
 --
 DROP FUNCTION echo_me(anyenum);
+DROP FUNCTION
 SELECT echo_me('red');
  echo_me 
 ---------
@@ -488,24 +533,34 @@ SELECT echo_me('red');
 (1 row)
 
 DROP FUNCTION echo_me(rainbow);
+DROP FUNCTION
 --
 -- RI triggers on enum types
 --
 CREATE TABLE enumtest_parent (id rainbow PRIMARY KEY);
+CREATE TABLE
 CREATE TABLE enumtest_child (parent rainbow);
+CREATE TABLE
 INSERT INTO enumtest_parent VALUES ('red');
+INSERT 0 1
 INSERT INTO enumtest_child VALUES ('red');
+INSERT 0 1
 INSERT INTO enumtest_child VALUES ('blue');
+INSERT 0 1
 DELETE FROM enumtest_parent;
+DELETE 1
 --
 -- cross-type RI should fail
 --
 drop type if exists bogus;
-NOTICE:  type "bogus" does not exist, skipping
+psql:sql/enum.sql:264: NOTICE:  type "bogus" does not exist, skipping
+DROP TYPE
 CREATE TYPE bogus AS ENUM('good', 'bad', 'ugly');
+CREATE TYPE
 CREATE TABLE enumtest_bogus_child(parent bogus);
+CREATE TABLE
 DROP TYPE bogus;
-ERROR:  cannot drop type bogus because other objects depend on it
+psql:sql/enum.sql:267: ERROR:  cannot drop type bogus because other objects depend on it
 DETAIL:  column parent of table enumtest_bogus_child depends on type bogus
 HINT:  Use DROP ... CASCADE to drop the dependent objects too.
 -- check renaming a value
@@ -532,21 +587,26 @@ ORDER BY 2;
 -- check transactional behaviour of ALTER TYPE ... ADD VALUE
 --
 CREATE TYPE bogus AS ENUM('good');
-ERROR:  type "bogus" already exists
+psql:sql/enum.sql:283: ERROR:  type "bogus" already exists
 -- check that we can't add new values to existing enums in a transaction
 BEGIN;
+BEGIN
 ALTER TYPE bogus ADD VALUE 'bad';
-ERROR:  ALTER TYPE ... ADD cannot run inside a transaction block
+psql:sql/enum.sql:287: ERROR:  ALTER TYPE ... ADD cannot run inside a transaction block
 COMMIT;
+ROLLBACK
 -- check that we recognize the case where the enum already existed but was
 -- modified in the current txn
 BEGIN;
+BEGIN
 -- not supported: ALTER TYPE bogus RENAME TO bogon;
 ALTER TYPE bogon ADD VALUE 'bad';
-ERROR:  type "bogon" does not exist
+psql:sql/enum.sql:294: ERROR:  type "bogon" does not exist
 ROLLBACK;
+ROLLBACK
 -- but ALTER TYPE RENAME VALUE is safe in a transaction
 BEGIN;
+BEGIN
 -- not supported: ALTER TYPE bogus RENAME VALUE 'good' to 'bad';
 SELECT 'bad'::bogus;
  bogus 
@@ -555,28 +615,36 @@ SELECT 'bad'::bogus;
 (1 row)
 
 ROLLBACK;
+ROLLBACK
 DROP TYPE bogus;
-ERROR:  cannot drop type bogus because other objects depend on it
+psql:sql/enum.sql:303: ERROR:  cannot drop type bogus because other objects depend on it
 DETAIL:  column parent of table enumtest_bogus_child depends on type bogus
 HINT:  Use DROP ... CASCADE to drop the dependent objects too.
 -- check that we *can* add new values to existing enums in a transaction,
 -- if the type is new as well
 BEGIN;
+BEGIN
 CREATE TYPE bogus AS ENUM();
-ERROR:  type "bogus" already exists
+psql:sql/enum.sql:308: ERROR:  type "bogus" already exists
 ALTER TYPE bogus ADD VALUE 'good';
-ERROR:  current transaction is aborted, commands ignored until end of transaction block
+psql:sql/enum.sql:309: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 ALTER TYPE bogus ADD VALUE 'ugly';
-ERROR:  current transaction is aborted, commands ignored until end of transaction block
+psql:sql/enum.sql:310: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 ROLLBACK;
+ROLLBACK
 --
 -- Cleanup
 --
 DROP TABLE enumtest_child;
+DROP TABLE
 DROP TABLE enumtest_parent;
+DROP TABLE
 DROP TABLE enumtest;
+DROP TABLE
 DROP TABLE enumtest_bogus_child;
+DROP TABLE
 DROP TYPE rainbow;
+DROP TYPE
 --
 -- Verify properly cleaned up
 --

@@ -30,6 +30,7 @@ INSERT INTO test_ns_schema_1.abc DEFAULT VALUES;
 SELECT * FROM test_ns_schema_1.abc;
 SELECT * FROM test_ns_schema_1.abc_view;
 
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE test_ns_schema_1.abc cascade;
 --DDL_STATEMENT_END--

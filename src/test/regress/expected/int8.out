@@ -2,39 +2,48 @@
 -- INT8
 -- Test int8 64-bit integers.
 --
+drop table if exists INT8_TBL;
+psql:sql/int8.sql:5: NOTICE:  table "int8_tbl" does not exist, skipping
+DROP TABLE
 CREATE TABLE INT8_TBL(q1 int8, q2 int8);
+CREATE TABLE
 INSERT INTO INT8_TBL VALUES('  123   ','  456');
+INSERT 0 1
 INSERT INTO INT8_TBL VALUES('123   ','4567890123456789');
+INSERT 0 1
 INSERT INTO INT8_TBL VALUES('4567890123456789','123');
+INSERT 0 1
 INSERT INTO INT8_TBL VALUES(+4567890123456789,'4567890123456789');
+INSERT 0 1
 INSERT INTO INT8_TBL VALUES('+4567890123456789','-4567890123456789');
+INSERT 0 1
 -- bad inputs
 INSERT INTO INT8_TBL(q1) VALUES ('      ');
-ERROR:  invalid input syntax for integer: "      "
+psql:sql/int8.sql:15: ERROR:  invalid input syntax for integer: "      "
 LINE 1: INSERT INTO INT8_TBL(q1) VALUES ('      ');
                                          ^
 INSERT INTO INT8_TBL(q1) VALUES ('xxx');
-ERROR:  invalid input syntax for integer: "xxx"
+psql:sql/int8.sql:16: ERROR:  invalid input syntax for integer: "xxx"
 LINE 1: INSERT INTO INT8_TBL(q1) VALUES ('xxx');
                                          ^
 INSERT INTO INT8_TBL(q1) VALUES ('3908203590239580293850293850329485');
-ERROR:  value "3908203590239580293850293850329485" is out of range for type bigint
+psql:sql/int8.sql:17: ERROR:  value "3908203590239580293850293850329485" is out of range for type bigint
 LINE 1: INSERT INTO INT8_TBL(q1) VALUES ('39082035902395802938502938...
                                          ^
 INSERT INTO INT8_TBL(q1) VALUES ('-1204982019841029840928340329840934');
-ERROR:  value "-1204982019841029840928340329840934" is out of range for type bigint
+psql:sql/int8.sql:18: ERROR:  value "-1204982019841029840928340329840934" is out of range for type bigint
 LINE 1: INSERT INTO INT8_TBL(q1) VALUES ('-1204982019841029840928340...
                                          ^
 INSERT INTO INT8_TBL(q1) VALUES ('- 123');
-ERROR:  invalid input syntax for integer: "- 123"
+psql:sql/int8.sql:19: ERROR:  invalid input syntax for integer: "- 123"
 LINE 1: INSERT INTO INT8_TBL(q1) VALUES ('- 123');
                                          ^
 INSERT INTO INT8_TBL(q1) VALUES ('  345     5');
-ERROR:  invalid input syntax for integer: "  345     5"
+psql:sql/int8.sql:20: ERROR:  invalid input syntax for integer: "  345     5"
 LINE 1: INSERT INTO INT8_TBL(q1) VALUES ('  345     5');
                                          ^
 INSERT INTO INT8_TBL(q1) VALUES ('');
-ERROR:  invalid input syntax for integer: ""
+psql:sql/int8.sql:21: ERROR:  invalid input syntax for integer: ""
 LINE 1: INSERT INTO INT8_TBL(q1) VALUES ('');
                                          ^
 SELECT * FROM INT8_TBL;
@@ -308,7 +317,7 @@ SELECT '' AS five, q1, q2, q1 - q2 AS minus FROM INT8_TBL;
 (5 rows)
 
 SELECT '' AS three, q1, q2, q1 * q2 AS multiply FROM INT8_TBL;
-ERROR:  Kunlun-db: MySQL storage node (4, 8) returned error: 1690, BIGINT value is out of range in '(`regression_$$_public`.`int8_tbl`.`q1` * `regression_$$_public`.`int8_tbl`.`q2`)'.
+psql:sql/int8.sql:70: ERROR:  Kunlun-db: Shard (1) primary node(1) encountered error (1690, BIGINT value is out of range in '(`regress_$$_public`.`int8_tbl`.`q1` * `regress_$$_public`.`int8_tbl`.`q2`)') while fetching result rows.
 SELECT '' AS three, q1, q2, q1 * q2 AS multiply FROM INT8_TBL
  WHERE q1 < 1000 or (q2 > 0 and q2 < 1000);
  three |        q1        |        q2        |      multiply      
@@ -583,11 +592,11 @@ SELECT '' AS to_char_12, to_char(q2, 'FM9999999999999999.000') FROM INT8_TBL;
 SELECT '' AS to_char_13, to_char(q2, 'L9999999999999999.000')  FROM INT8_TBL;
  to_char_13 |        to_char         
 ------------+------------------------
-            |                456.000
-            |   4567890123456789.000
-            |                123.000
-            |   4567890123456789.000
-            |  -4567890123456789.000
+            | $              456.000
+            | $ 4567890123456789.000
+            | $              123.000
+            | $ 4567890123456789.000
+            | $-4567890123456789.000
 (5 rows)
 
 SELECT '' AS to_char_14, to_char(q2, 'FM9999999999999999.999') FROM INT8_TBL;
@@ -638,7 +647,7 @@ select '-9223372036854775808'::int8;
 (1 row)
 
 select '-9223372036854775809'::int8;
-ERROR:  value "-9223372036854775809" is out of range for type bigint
+psql:sql/int8.sql:129: ERROR:  value "-9223372036854775809" is out of range for type bigint
 LINE 1: select '-9223372036854775809'::int8;
                ^
 select '9223372036854775807'::int8;
@@ -648,7 +657,7 @@ select '9223372036854775807'::int8;
 (1 row)
 
 select '9223372036854775808'::int8;
-ERROR:  value "9223372036854775808" is out of range for type bigint
+psql:sql/int8.sql:131: ERROR:  value "9223372036854775808" is out of range for type bigint
 LINE 1: select '9223372036854775808'::int8;
                ^
 select -('-9223372036854775807'::int8);
@@ -658,51 +667,51 @@ select -('-9223372036854775807'::int8);
 (1 row)
 
 select -('-9223372036854775808'::int8);
-ERROR:  bigint out of range
+psql:sql/int8.sql:134: ERROR:  bigint out of range
 select '9223372036854775800'::int8 + '9223372036854775800'::int8;
-ERROR:  bigint out of range
+psql:sql/int8.sql:136: ERROR:  bigint out of range
 select '-9223372036854775800'::int8 + '-9223372036854775800'::int8;
-ERROR:  bigint out of range
+psql:sql/int8.sql:137: ERROR:  bigint out of range
 select '9223372036854775800'::int8 - '-9223372036854775800'::int8;
-ERROR:  bigint out of range
+psql:sql/int8.sql:139: ERROR:  bigint out of range
 select '-9223372036854775800'::int8 - '9223372036854775800'::int8;
-ERROR:  bigint out of range
+psql:sql/int8.sql:140: ERROR:  bigint out of range
 select '9223372036854775800'::int8 * '9223372036854775800'::int8;
-ERROR:  bigint out of range
+psql:sql/int8.sql:142: ERROR:  bigint out of range
 select '9223372036854775800'::int8 / '0'::int8;
-ERROR:  division by zero
+psql:sql/int8.sql:144: ERROR:  division by zero
 select '9223372036854775800'::int8 % '0'::int8;
-ERROR:  division by zero
+psql:sql/int8.sql:145: ERROR:  division by zero
 select abs('-9223372036854775808'::int8);
-ERROR:  bigint out of range
+psql:sql/int8.sql:147: ERROR:  bigint out of range
 select '9223372036854775800'::int8 + '100'::int4;
-ERROR:  bigint out of range
+psql:sql/int8.sql:149: ERROR:  bigint out of range
 select '-9223372036854775800'::int8 - '100'::int4;
-ERROR:  bigint out of range
+psql:sql/int8.sql:150: ERROR:  bigint out of range
 select '9223372036854775800'::int8 * '100'::int4;
-ERROR:  bigint out of range
+psql:sql/int8.sql:151: ERROR:  bigint out of range
 select '100'::int4 + '9223372036854775800'::int8;
-ERROR:  bigint out of range
+psql:sql/int8.sql:153: ERROR:  bigint out of range
 select '-100'::int4 - '9223372036854775800'::int8;
-ERROR:  bigint out of range
+psql:sql/int8.sql:154: ERROR:  bigint out of range
 select '100'::int4 * '9223372036854775800'::int8;
-ERROR:  bigint out of range
+psql:sql/int8.sql:155: ERROR:  bigint out of range
 select '9223372036854775800'::int8 + '100'::int2;
-ERROR:  bigint out of range
+psql:sql/int8.sql:157: ERROR:  bigint out of range
 select '-9223372036854775800'::int8 - '100'::int2;
-ERROR:  bigint out of range
+psql:sql/int8.sql:158: ERROR:  bigint out of range
 select '9223372036854775800'::int8 * '100'::int2;
-ERROR:  bigint out of range
+psql:sql/int8.sql:159: ERROR:  bigint out of range
 select '-9223372036854775808'::int8 / '0'::int2;
-ERROR:  division by zero
+psql:sql/int8.sql:160: ERROR:  division by zero
 select '100'::int2 + '9223372036854775800'::int8;
-ERROR:  bigint out of range
+psql:sql/int8.sql:162: ERROR:  bigint out of range
 select '-100'::int2 - '9223372036854775800'::int8;
-ERROR:  bigint out of range
+psql:sql/int8.sql:163: ERROR:  bigint out of range
 select '100'::int2 * '9223372036854775800'::int8;
-ERROR:  bigint out of range
+psql:sql/int8.sql:164: ERROR:  bigint out of range
 select '100'::int2 / '0'::int8;
-ERROR:  division by zero
+psql:sql/int8.sql:165: ERROR:  division by zero
 SELECT CAST(q1 AS int4) FROM int8_tbl WHERE q2 = 456;
  q1  
 -----
@@ -710,7 +719,7 @@ SELECT CAST(q1 AS int4) FROM int8_tbl WHERE q2 = 456;
 (1 row)
 
 SELECT CAST(q1 AS int4) FROM int8_tbl WHERE q2 <> 456;
-ERROR:  value "4567890123456789" is out of range for type integer
+psql:sql/int8.sql:168: ERROR:  value "4567890123456789" is out of range for type integer
 SELECT CAST(q1 AS int2) FROM int8_tbl WHERE q2 = 456;
  q1  
 -----
@@ -718,7 +727,7 @@ SELECT CAST(q1 AS int2) FROM int8_tbl WHERE q2 = 456;
 (1 row)
 
 SELECT CAST(q1 AS int2) FROM int8_tbl WHERE q2 <> 456;
-ERROR:  value "4567890123456789" is out of range for type smallint
+psql:sql/int8.sql:171: ERROR:  value "4567890123456789" is out of range for type smallint
 SELECT CAST('42'::int2 AS int8), CAST('-37'::int2 AS int8);
  int8 | int8 
 ------+------
@@ -742,9 +751,9 @@ SELECT CAST('36854775807.0'::float4 AS int8);
 (1 row)
 
 SELECT CAST('922337203685477580700.0'::float8 AS int8);
-ERROR:  bigint out of range
+psql:sql/int8.sql:177: ERROR:  bigint out of range
 SELECT CAST(q1 AS oid) FROM INT8_TBL;
-ERROR:  value "4567890123456789" is out of range for type oid
+psql:sql/int8.sql:179: ERROR:  value "4567890123456789" is out of range for type oid
 SELECT oid::int8 FROM pg_class WHERE relname = 'pg_class';
  oid  
 ------
@@ -753,7 +762,7 @@ SELECT oid::int8 FROM pg_class WHERE relname = 'pg_class';
 
 -- bit operations
 SELECT q1, q2, q1 & q2 AS "and", q1 | q2 AS "or", q1 # q2 AS "xor", ~q1 AS "not" FROM INT8_TBL;
-ERROR:  value "18446744073709551492" is out of range for type bigint
+psql:sql/int8.sql:185: ERROR:  value "18446744073709551492" is out of range for type bigint
 SELECT q1, q1 << 2 AS "shl", q1 >> 3 AS "shr" FROM INT8_TBL;
         q1        |        shl        |       shr       
 ------------------+-------------------+-----------------
@@ -782,7 +791,7 @@ SELECT * FROM generate_series('+4567890123456789'::int8, '+4567890123456799'::in
 (11 rows)
 
 SELECT * FROM generate_series('+4567890123456789'::int8, '+4567890123456799'::int8, 0);
-ERROR:  step size cannot equal zero
+psql:sql/int8.sql:192: ERROR:  step size cannot equal zero
 SELECT * FROM generate_series('+4567890123456789'::int8, '+4567890123456799'::int8, 2);
  generate_series  
 ------------------
@@ -809,9 +818,9 @@ SELECT ((-1::int8<<63)+1)::text;
 
 -- check sane handling of INT64_MIN overflow cases
 SELECT (-9223372036854775808)::int8 * (-1)::int8;
-ERROR:  bigint out of range
+psql:sql/int8.sql:200: ERROR:  bigint out of range
 SELECT (-9223372036854775808)::int8 / (-1)::int8;
-ERROR:  bigint out of range
+psql:sql/int8.sql:201: ERROR:  bigint out of range
 SELECT (-9223372036854775808)::int8 % (-1)::int8;
  ?column? 
 ----------
@@ -819,9 +828,9 @@ SELECT (-9223372036854775808)::int8 % (-1)::int8;
 (1 row)
 
 SELECT (-9223372036854775808)::int8 * (-1)::int4;
-ERROR:  bigint out of range
+psql:sql/int8.sql:203: ERROR:  bigint out of range
 SELECT (-9223372036854775808)::int8 / (-1)::int4;
-ERROR:  bigint out of range
+psql:sql/int8.sql:204: ERROR:  bigint out of range
 SELECT (-9223372036854775808)::int8 % (-1)::int4;
  ?column? 
 ----------
@@ -829,9 +838,9 @@ SELECT (-9223372036854775808)::int8 % (-1)::int4;
 (1 row)
 
 SELECT (-9223372036854775808)::int8 * (-1)::int2;
-ERROR:  bigint out of range
+psql:sql/int8.sql:206: ERROR:  bigint out of range
 SELECT (-9223372036854775808)::int8 / (-1)::int2;
-ERROR:  bigint out of range
+psql:sql/int8.sql:207: ERROR:  bigint out of range
 SELECT (-9223372036854775808)::int8 % (-1)::int2;
  ?column? 
 ----------

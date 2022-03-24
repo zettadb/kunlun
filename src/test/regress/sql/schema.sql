@@ -47,7 +47,7 @@ CREATE INDEX test_index2 on testschema.test_default_tab (id);
 SELECT * FROM testschema.test_default_tab;
 -- ALTER TABLE testschema.test_default_tab ALTER id TYPE int;
 SELECT * FROM testschema.test_default_tab;
--- ALTER TABLE testschema.test_default_tab ALTER id TYPE bigint
+-- ALTER TABLE testschema.test_default_tab ALTER id TYPE bigint;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE testschema.test_default_tab;
 --DDL_STATEMENT_END--

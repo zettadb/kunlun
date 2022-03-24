@@ -96,6 +96,7 @@ SELECT rolname, regexp_replace(rolpassword, '(SCRAM-SHA-256)\$(\d+):([a-zA-Z0-9+
     WHERE rolname LIKE 'regress_passwd%'
     ORDER BY rolname, rolpassword;
 
+
 -- An empty password is not allowed, in any form
 --DDL_STATEMENT_BEGIN--
 CREATE ROLE regress_passwd_empty PASSWORD '';
@@ -127,8 +128,7 @@ CREATE ROLE regress_passwd_sha_len2 PASSWORD 'SCRAM-SHA-256$4096:A6xHKoH/494E941
 SELECT rolname, rolpassword not like '%A6xHKoH/494E941doaPOYg==%' as is_rolpassword_rehashed
     FROM pg_authid
     WHERE rolname LIKE 'regress_passwd_sha_len%'
-    ORDER BY rolname;
-	
+    ORDER BY rolname;	
 --DDL_STATEMENT_BEGIN--
 DROP ROLE regress_passwd1;
 --DDL_STATEMENT_END--

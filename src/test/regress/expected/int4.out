@@ -2,6 +2,7 @@
 -- INT4
 --
 DROP table if exists INT4_TBL;
+psql:sql/int4.sql:5: NOTICE:  table "int4_tbl" does not exist, skipping
 DROP TABLE
 CREATE TABLE INT4_TBL(f1 int4);
 CREATE TABLE

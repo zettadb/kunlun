@@ -15,19 +15,19 @@ GRANT ALL on database  星际穿越 TO 月亮;
 --DDL_STATEMENT_BEGIN--
 ALTER USER 月亮 RENAME TO 太阳;
 --DDL_STATEMENT_END--
-select * from pg_user;
+--select * from pg_user;
 --DDL_STATEMENT_BEGIN--
 revoke  ALL on database  星际穿越 from 太阳;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 drop user 太阳;
 --DDL_STATEMENT_END--
-select * from pg_user;
+--select * from pg_user;
 
 --DDL_STATEMENT_BEGIN--
 CREATE SCHEMA 地球;
 --DDL_STATEMENT_END--
-SELECT * FROM pg_namespace;
+--SELECT * FROM pg_namespace;
 --DDL_STATEMENT_BEGIN--
 create table 地球.中国(编号 int primary key ,城市 text not NULL,省会 text not null);
 --DDL_STATEMENT_END--
@@ -36,7 +36,7 @@ select * from 地球.中国;
 --DDL_STATEMENT_BEGIN--
 drop schema 地球  CASCADE;
 --DDL_STATEMENT_END--
-SELECT * FROM pg_namespace;
+--SELECT * FROM pg_namespace;
 
 --CREATE TABLE--
 --DDL_STATEMENT_BEGIN--

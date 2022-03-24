@@ -14,6 +14,7 @@ SELECT text 'this is a text string' = text 'this is a text strin' AS false;
 (1 row)
 
 DROP TABLE if exists TEXT_TBL;
+psql:sql/text.sql:9: NOTICE:  table "text_tbl" does not exist, skipping
 DROP TABLE
 CREATE TABLE TEXT_TBL (f1 text);
 CREATE TABLE

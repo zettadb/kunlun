@@ -15,20 +15,25 @@
 --	0 1 2 3
 --
 -- boxes are specified by two points, given by four floats x1,y1,x2,y2
-CREATE TABLE BOX_TBL (f1 box);
+CREATE TEMP TABLE BOX_TBL (f1 box);
+CREATE TABLE
 INSERT INTO BOX_TBL (f1) VALUES ('(2.0,2.0,0.0,0.0)');
+INSERT 0 1
 INSERT INTO BOX_TBL (f1) VALUES ('(1.0,1.0,3.0,3.0)');
+INSERT 0 1
 -- degenerate cases where the box is a line or a point
 -- note that lines and points boxes all have zero area
 INSERT INTO BOX_TBL (f1) VALUES ('(2.5, 2.5, 2.5,3.5)');
+INSERT 0 1
 INSERT INTO BOX_TBL (f1) VALUES ('(3.0, 3.0,3.0,3.0)');
+INSERT 0 1
 -- badly formatted box inputs
 INSERT INTO BOX_TBL (f1) VALUES ('(2.3, 4.5)');
-ERROR:  invalid input syntax for type box: "(2.3, 4.5)"
+psql:sql/box.sql:35: ERROR:  invalid input syntax for type box: "(2.3, 4.5)"
 LINE 1: INSERT INTO BOX_TBL (f1) VALUES ('(2.3, 4.5)');
                                          ^
 INSERT INTO BOX_TBL (f1) VALUES ('asdfasdf(ad');
-ERROR:  invalid input syntax for type box: "asdfasdf(ad"
+psql:sql/box.sql:37: ERROR:  invalid input syntax for type box: "asdfasdf(ad"
 LINE 1: INSERT INTO BOX_TBL (f1) VALUES ('asdfasdf(ad');
                                          ^
 SELECT '' AS four, * FROM BOX_TBL;
@@ -189,14 +194,9 @@ SELECT '' AS one, b.f1
 -- center of box, left unary operator
 SELECT '' AS four, @@(b1.f1) AS p
    FROM BOX_TBL b1;
- four |    p    
-------+---------
-      | (1,1)
-      | (2,2)
-      | (2.5,3)
-      | (3,3)
-(4 rows)
-
+psql:sql/box.sql:112: ERROR:  syntax error at or near "@@"
+LINE 1: SELECT '' AS four, @@(b1.f1) AS p
+                           ^
 -- wholly-contained
 SELECT '' AS one, b1.*, b2.*
    FROM BOX_TBL b1, BOX_TBL b2
@@ -219,10 +219,14 @@ SELECT '' AS four, height(f1), width(f1) FROM BOX_TBL;
 -- Test the SP-GiST index
 --
 CREATE TEMPORARY TABLE box_temp (f1 box);
+CREATE TABLE
 INSERT INTO box_temp
 	SELECT box(point(i, i), point(i * 2, i * 2))
 	FROM generate_series(1, 50) AS i;
+INSERT 0 50
+	
 CREATE INDEX box_spgist ON box_temp USING spgist (f1);
+CREATE INDEX
 INSERT INTO box_temp
 	VALUES (NULL),
 		   ('(0,0)(0,100)'),
@@ -230,7 +234,9 @@ INSERT INTO box_temp
 		   ('(0,100)(0,infinity)'),
 		   ('(-infinity,0)(0,infinity)'),
 		   ('(-infinity,-infinity)(infinity,infinity)');
+INSERT 0 6
 SET enable_seqscan = false;
+SET
 SELECT * FROM box_temp WHERE f1 << '(10,20),(30,40)';
              f1             
 ----------------------------
@@ -394,19 +400,24 @@ SELECT * FROM box_temp WHERE f1 ~= '(20,20),(40,40)';
 EXPLAIN (COSTS OFF) SELECT * FROM box_temp WHERE f1 ~= '(20,20),(40,40)';
 
 RESET enable_seqscan;
+RESET
 DROP INDEX box_spgist;
+DROP INDEX
 --
 -- Test the SP-GiST index on the larger volume of data
 --
-CREATE TABLE quad_box_tbl (b box);
+CREATE TEMP TABLE quad_box_tbl (b box);
+CREATE TABLE
 INSERT INTO quad_box_tbl
 	SELECT box(point(x * 10, y * 10), point(x * 10 + 5, y * 10 + 5))
 	FROM generate_series(1, 100) x,
 		 generate_series(1, 100) y;
+INSERT 0 10000
 -- insert repeating data to test allTheSame
 INSERT INTO quad_box_tbl
 	SELECT '((200, 300),(210, 310))'
 	FROM generate_series(1, 1000);
+INSERT 0 1000
 INSERT INTO quad_box_tbl
 	VALUES
 		(NULL),
@@ -414,10 +425,16 @@ INSERT INTO quad_box_tbl
 		('((-infinity,-infinity),(infinity,infinity))'),
 		('((-infinity,100),(-infinity,500))'),
 		('((-infinity,-infinity),(700,infinity))');
+INSERT 0 5
+		
 CREATE INDEX quad_box_tbl_idx ON quad_box_tbl USING spgist(b);
+CREATE INDEX
 SET enable_seqscan = OFF;
+SET
 SET enable_indexscan = ON;
+SET
 SET enable_bitmapscan = ON;
+SET
 SELECT count(*) FROM quad_box_tbl WHERE b <<  box '((100,200),(300,500))';
  count 
 -------
@@ -497,5 +514,8 @@ SELECT count(*) FROM quad_box_tbl WHERE b ~=  box '((200,300),(205,305))';
 (1 row)
 
 RESET enable_seqscan;
+RESET
 RESET enable_indexscan;
+RESET
 RESET enable_bitmapscan;
+RESET

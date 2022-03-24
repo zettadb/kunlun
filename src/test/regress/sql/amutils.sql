@@ -88,8 +88,7 @@ select col, prop, pg_index_column_has_property(o, col, prop)
                (4,'nulls_first'),(5,'nulls_last'),
                (6, 'bogus')) v2(idx,prop),
        generate_series(1,4) col
- order by col, idx;
- 
+ order by col, idx; 
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX foocover ON foo (f1) INCLUDE (f2,f3);
 --DDL_STATEMENT_END--

@@ -442,12 +442,12 @@ CREATE TABLE
  b      | text    |           |          |         | extended |              | 
 Partition of: partitioned2 FOR VALUES FROM ('-1', 'aaaaa') TO (100, 'ccccc')
 Partition constraint: (((a + 1) IS NOT NULL) AND (substr(b, 1, 5) IS NOT NULL) AND (((a + 1) > '-1'::integer) OR (((a + 1) = '-1'::integer) AND (substr(b, 1, 5) >= 'aaaaa'::text))) AND (((a + 1) < 100) OR (((a + 1) = 100) AND (substr(b, 1, 5) < 'ccccc'::text))))
+Options: shard=2
 
-DROP TABLE partitioned
+DROP TABLE partitioned;
+DROP TABLE
 DROP TABLE partitioned2;
-psql:sql/create_table.sql:335: ERROR:  syntax error at or near "DROP"
-LINE 2: DROP TABLE partitioned2;
-        ^
+DROP TABLE
 --
 -- Partitions
 --
@@ -643,6 +643,7 @@ CREATE TABLE
  a      | integer |           |          |         | plain   |              | 
 Partition of: oids_parted FOR VALUES FROM (1) TO (10)
 Partition constraint: ((a IS NOT NULL) AND (a >= 1) AND (a < 10))
+Options: shard=1
 
 DROP TABLE oids_parted;
 DROP TABLE
@@ -715,7 +716,7 @@ CREATE TABLE
 CREATE TABLE part00 PARTITION OF range_parted3 FOR VALUES FROM (0, minvalue) TO (0, maxvalue);
 CREATE TABLE
 CREATE TABLE fail_part PARTITION OF range_parted3 FOR VALUES FROM (0, minvalue) TO (0, 1);
-psql:sql/create_table.sql:516: ERROR:  relation "fail_part" already exists
+psql:sql/create_table.sql:515: ERROR:  relation "fail_part" already exists
 CREATE TABLE part10 PARTITION OF range_parted3 FOR VALUES FROM (1, minvalue) TO (1, 1);
 CREATE TABLE
 CREATE TABLE part11 PARTITION OF range_parted3 FOR VALUES FROM (1, 1) TO (1, 10);
@@ -723,13 +724,13 @@ CREATE TABLE
 CREATE TABLE part12 PARTITION OF range_parted3 FOR VALUES FROM (1, 10) TO (1, maxvalue);
 CREATE TABLE
 CREATE TABLE fail_part PARTITION OF range_parted3 FOR VALUES FROM (1, 10) TO (1, 20);
-psql:sql/create_table.sql:521: ERROR:  relation "fail_part" already exists
+psql:sql/create_table.sql:520: ERROR:  relation "fail_part" already exists
 --CREATE TABLE range3_default PARTITION OF range_parted3 DEFAULT;
 -- cannot create a partition that says column b is allowed to range
 -- from -infinity to +infinity, while there exist partitions that have
 -- more specific ranges
 CREATE TABLE fail_part PARTITION OF range_parted3 FOR VALUES FROM (1, minvalue) TO (1, maxvalue);
-psql:sql/create_table.sql:527: ERROR:  relation "fail_part" already exists
+psql:sql/create_table.sql:526: ERROR:  relation "fail_part" already exists
 -- check for partition bound overlap and other invalid specifications for the hash partition
 CREATE TABLE hash_parted2 (
 	a varchar
@@ -745,13 +746,13 @@ CREATE TABLE h2part_4 PARTITION OF hash_parted2 FOR VALUES WITH (MODULUS 8, REMA
 CREATE TABLE
 -- overlap with part_4
 CREATE TABLE fail_part PARTITION OF hash_parted2 FOR VALUES WITH (MODULUS 2, REMAINDER 1);
-psql:sql/create_table.sql:538: ERROR:  relation "fail_part" already exists
+psql:sql/create_table.sql:537: ERROR:  relation "fail_part" already exists
 -- modulus must be greater than zero
 CREATE TABLE fail_part PARTITION OF hash_parted2 FOR VALUES WITH (MODULUS 0, REMAINDER 1);
-psql:sql/create_table.sql:540: ERROR:  relation "fail_part" already exists
+psql:sql/create_table.sql:539: ERROR:  relation "fail_part" already exists
 -- remainder must be greater than or equal to zero and less than modulus
 CREATE TABLE fail_part PARTITION OF hash_parted2 FOR VALUES WITH (MODULUS 8, REMAINDER 8);
-psql:sql/create_table.sql:542: ERROR:  relation "fail_part" already exists
+psql:sql/create_table.sql:541: ERROR:  relation "fail_part" already exists
 -- check schema propagation from parent
 CREATE TABLE parted (
 	a text,
@@ -776,7 +777,7 @@ CREATE TABLE part_b PARTITION OF parted (
 	b NOT NULL,
 	b DEFAULT 1
 ) FOR VALUES IN ('b');
-psql:sql/create_table.sql:564: ERROR:  column "b" specified more than once
+psql:sql/create_table.sql:563: ERROR:  column "b" specified more than once
 CREATE TABLE part_b PARTITION OF parted (
 	b NOT NULL DEFAULT 1
 ) FOR VALUES IN ('b');
@@ -789,7 +790,7 @@ SELECT conislocal, coninhcount FROM pg_constraint WHERE conrelid = 'part_b'::reg
 
 -- specify PARTITION BY for a partition
 CREATE TABLE fail_part_col_not_found PARTITION OF parted FOR VALUES IN ('c') PARTITION BY RANGE (c);
-psql:sql/create_table.sql:573: ERROR:  column "c" named in partition key does not exist
+psql:sql/create_table.sql:572: ERROR:  column "c" named in partition key does not exist
 CREATE TABLE part_c PARTITION OF parted (b WITH OPTIONS NOT NULL DEFAULT 0) FOR VALUES IN ('c') PARTITION BY RANGE ((b));
 CREATE TABLE
 -- create a level-2 partition
@@ -801,7 +802,7 @@ CREATE TABLE
 create table parted_notnull_inh_test1 partition of parted_notnull_inh_test (a not null, b default 1) for values in (1);
 CREATE TABLE
 insert into parted_notnull_inh_test (b) values (null);
-psql:sql/create_table.sql:582: ERROR:  Kunlun-db: MySQL storage node (2, 2) returned error: 1048, Column 'b' cannot be null.
+psql:sql/create_table.sql:581: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1048, Column 'b' cannot be null.
 -- note that while b's default is overriden, a's default is preserved
 \d parted_notnull_inh_test1
       Table "public.parted_notnull_inh_test1"
@@ -836,6 +837,7 @@ DROP TABLE
  b      | integer |           | not null | 1       | plain    |              | 
 Partition of: parted FOR VALUES IN ('b')
 Partition constraint: ((a IS NOT NULL) AND (a = 'b'::text))
+Options: shard=2
 
 -- Both partition bound and partition key in describe output
 \d+ part_c
@@ -858,6 +860,7 @@ Partitions: part_c_1_10 FOR VALUES FROM (1) TO (10)
  b      | integer |           | not null | 0       | plain    |              | 
 Partition of: part_c FOR VALUES FROM (1) TO (10)
 Partition constraint: ((a IS NOT NULL) AND (a = 'c'::text) AND (b IS NOT NULL) AND (b >= 1) AND (b < 10))
+Options: shard=1
 
 -- Show partition count in the parent's describe output
 -- Tempted to include \d+ output listing partitions with bound info but
@@ -894,6 +897,7 @@ CREATE TABLE
  c      | integer |           |          |         | plain   |              | 
 Partition of: range_parted4 FOR VALUES FROM (MINVALUE, MINVALUE, MINVALUE) TO (MAXVALUE, MAXVALUE, MAXVALUE)
 Partition constraint: ((abs(a) IS NOT NULL) AND (abs(b) IS NOT NULL) AND (c IS NOT NULL))
+Options: shard=1
 
 DROP TABLE unbounded_range_part;
 DROP TABLE
@@ -908,6 +912,7 @@ CREATE TABLE
  c      | integer |           |          |         | plain   |              | 
 Partition of: range_parted4 FOR VALUES FROM (MINVALUE, MINVALUE, MINVALUE) TO (1, MAXVALUE, MAXVALUE)
 Partition constraint: ((abs(a) IS NOT NULL) AND (abs(b) IS NOT NULL) AND (c IS NOT NULL) AND (abs(a) <= 1))
+Options: shard=1
 
 CREATE TABLE range_parted4_2 PARTITION OF range_parted4 FOR VALUES FROM (3, 4, 5) TO (6, 7, MAXVALUE);
 CREATE TABLE
@@ -920,6 +925,7 @@ CREATE TABLE
  c      | integer |           |          |         | plain   |              | 
 Partition of: range_parted4 FOR VALUES FROM (3, 4, 5) TO (6, 7, MAXVALUE)
 Partition constraint: ((abs(a) IS NOT NULL) AND (abs(b) IS NOT NULL) AND (c IS NOT NULL) AND ((abs(a) > 3) OR ((abs(a) = 3) AND (abs(b) > 4)) OR ((abs(a) = 3) AND (abs(b) = 4) AND (c >= 5))) AND ((abs(a) < 6) OR ((abs(a) = 6) AND (abs(b) <= 7))))
+Options: shard=1
 
 CREATE TABLE range_parted4_3 PARTITION OF range_parted4 FOR VALUES FROM (6, 8, MINVALUE) TO (9, MAXVALUE, MAXVALUE);
 CREATE TABLE
@@ -932,6 +938,7 @@ CREATE TABLE
  c      | integer |           |          |         | plain   |              | 
 Partition of: range_parted4 FOR VALUES FROM (6, 8, MINVALUE) TO (9, MAXVALUE, MAXVALUE)
 Partition constraint: ((abs(a) IS NOT NULL) AND (abs(b) IS NOT NULL) AND (c IS NOT NULL) AND ((abs(a) > 6) OR ((abs(a) = 6) AND (abs(b) >= 8))) AND (abs(a) <= 9))
+Options: shard=2
 
 DROP TABLE range_parted4;
 DROP TABLE

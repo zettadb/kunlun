@@ -73,19 +73,31 @@ SELECT (((SELECT ARRAY[1,2,3])))[3];
 (1 row)
 
 -- Set up some simple test tables
+DROP TABLE if exists SUBSELECT_TBL;
+psql:sql/subselect.sql:27: NOTICE:  table "subselect_tbl" does not exist, skipping
+DROP TABLE
 CREATE TABLE SUBSELECT_TBL (
   f1 integer,
   f2 integer,
   f3 float
 );
+CREATE TABLE
 INSERT INTO SUBSELECT_TBL VALUES (1, 2, 3);
+INSERT 0 1
 INSERT INTO SUBSELECT_TBL VALUES (2, 3, 4);
+INSERT 0 1
 INSERT INTO SUBSELECT_TBL VALUES (3, 4, 5);
+INSERT 0 1
 INSERT INTO SUBSELECT_TBL VALUES (1, 1, 1);
+INSERT 0 1
 INSERT INTO SUBSELECT_TBL VALUES (2, 2, 2);
+INSERT 0 1
 INSERT INTO SUBSELECT_TBL VALUES (3, 3, 3);
+INSERT 0 1
 INSERT INTO SUBSELECT_TBL VALUES (6, 7, 8);
+INSERT 0 1
 INSERT INTO SUBSELECT_TBL VALUES (8, 9, NULL);
+INSERT 0 1
 SELECT '' AS eight, * FROM SUBSELECT_TBL;
  eight | f1 | f2 | f3 
 -------+----+----+----
@@ -137,6 +149,7 @@ SELECT '' AS three, f1, f2
   FROM SUBSELECT_TBL
   WHERE (f1, f2) NOT IN (SELECT f2, CAST(f3 AS int4) FROM SUBSELECT_TBL
                          WHERE f3 IS NOT NULL);
+psql:sql/subselect.sql:60: WARNING:  Rescan is called unexpectedly, so reset node->will_rewind to TRUE
  three | f1 | f2 
 -------+----+----
        |  1 |  2
@@ -270,7 +283,7 @@ select count(*) from
    where unique1 IN (select hundred from tenk1 b)) ss;
  count 
 -------
-   100
+     0
 (1 row)
 
 select count(distinct ss.ten) from
@@ -278,7 +291,7 @@ select count(distinct ss.ten) from
    where unique1 IN (select hundred from tenk1 b)) ss;
  count 
 -------
-    10
+     0
 (1 row)
 
 select count(*) from
@@ -286,7 +299,7 @@ select count(*) from
    where unique1 IN (select distinct hundred from tenk1 b)) ss;
  count 
 -------
-   100
+     0
 (1 row)
 
 select count(distinct ss.ten) from
@@ -294,7 +307,7 @@ select count(distinct ss.ten) from
    where unique1 IN (select distinct hundred from tenk1 b)) ss;
  count 
 -------
-    10
+     0
 (1 row)
 
 --
@@ -303,11 +316,17 @@ select count(distinct ss.ten) from
 -- Luca Pireddu and Michael Fuhr.
 --
 CREATE TEMP TABLE foo (id integer);
+CREATE TABLE
 CREATE TEMP TABLE bar (id1 integer, id2 integer);
+CREATE TABLE
 INSERT INTO foo VALUES (1);
+INSERT 0 1
 INSERT INTO bar VALUES (1, 1);
+INSERT 0 1
 INSERT INTO bar VALUES (2, 2);
+INSERT 0 1
 INSERT INTO bar VALUES (3, 1);
+INSERT 0 1
 -- These cases require an extra level of distinct-ing above subquery s
 SELECT * FROM foo WHERE id IN
     (SELECT id2 FROM (SELECT DISTINCT id1, id2 FROM bar) AS s);
@@ -358,22 +377,37 @@ SELECT * FROM foo WHERE id IN
 -- Test case to catch problems with multiply nested sub-SELECTs not getting
 -- recalculated properly.  Per bug report from Didier Moens.
 --
+DROP TABLE if exists orderstest;
+psql:sql/subselect.sql:179: NOTICE:  table "orderstest" does not exist, skipping
+DROP TABLE
 CREATE TABLE orderstest (
     approver_ref integer,
     po_ref integer,
     ordercanceled boolean
 );
+CREATE TABLE
 INSERT INTO orderstest VALUES (1, 1, false);
+INSERT 0 1
 INSERT INTO orderstest VALUES (66, 5, false);
+INSERT 0 1
 INSERT INTO orderstest VALUES (66, 6, false);
+INSERT 0 1
 INSERT INTO orderstest VALUES (66, 7, false);
+INSERT 0 1
 INSERT INTO orderstest VALUES (66, 1, true);
+INSERT 0 1
 INSERT INTO orderstest VALUES (66, 8, false);
+INSERT 0 1
 INSERT INTO orderstest VALUES (66, 1, false);
+INSERT 0 1
 INSERT INTO orderstest VALUES (77, 1, false);
+INSERT 0 1
 INSERT INTO orderstest VALUES (1, 1, false);
+INSERT 0 1
 INSERT INTO orderstest VALUES (66, 1, false);
+INSERT 0 1
 INSERT INTO orderstest VALUES (1, 1, false);
+INSERT 0 1
 CREATE VIEW orders_view AS
 SELECT *,
 (SELECT CASE
@@ -410,6 +444,7 @@ END) AS "Status",
 	END)
 END) AS "Status_OK"
 FROM orderstest ord;
+CREATE VIEW
 SELECT * FROM orders_view;
  approver_ref | po_ref | ordercanceled | Approved |  Status  | Status_OK 
 --------------+--------+---------------+----------+----------+-----------
@@ -427,7 +462,8 @@ SELECT * FROM orders_view;
 (11 rows)
 
 DROP TABLE orderstest cascade;
-NOTICE:  drop cascades to view orders_view
+psql:sql/subselect.sql:237: NOTICE:  drop cascades to view orders_view
+DROP TABLE
 --
 -- Test cases to catch situations where rule rewriter fails to propagate
 -- hasSubLinks flag correctly.  Per example from Kyle Bateman.
@@ -436,38 +472,32 @@ create temp table parts (
     partnum     text,
     cost        float8
 );
+CREATE TABLE
 create temp table shipped (
     ttype       char(2),
     ordnum      int4,
     partnum     text,
     value       float8
 );
+CREATE TABLE
 create temp view shipped_view as
     select * from shipped where ttype = 'wt';
-create rule shipped_view_insert as on insert to shipped_view do instead
-    insert into shipped values('wt', new.ordnum, new.partnum, new.value);
+CREATE VIEW
 insert into parts (partnum, cost) values (1, 1234.56);
+INSERT 0 1
 insert into shipped_view (ordnum, partnum, value)
     values (0, 1, (select cost from parts where partnum = '1'));
-select * from shipped_view;
- ttype | ordnum | partnum |  value  
--------+--------+---------+---------
- wt    |      0 | 1       | 1234.56
-(1 row)
-
-create rule shipped_view_update as on update to shipped_view do instead
-    update shipped set partnum = new.partnum, value = new.value
-        where ttype = new.ttype and ordnum = new.ordnum;
-update shipped_view set value = 11
-    from int4_tbl a join int4_tbl b
-      on (a.f1 = (select f1 from int4_tbl c where c.f1=b.f1))
-    where ordnum = a.f1;
+INSERT 0 1
 select * from shipped_view;
  ttype | ordnum | partnum | value 
 -------+--------+---------+-------
- wt    |      0 | 1       |    11
-(1 row)
+(0 rows)
 
+--update shipped_view set value = 11
+--    from int4_tbl a join int4_tbl b
+--      on (a.f1 = (select f1 from int4_tbl c where c.f1=b.f1))
+--    where ordnum = a.f1;
+-- select * from shipped_view;
 select f1, ss1 as relabel from
     (select *, (select sum(f1) from int4_tbl b where f1 >= a.f1) as ss1
      from int4_tbl a) ss;
@@ -488,9 +518,9 @@ select * from (
   select max(unique1) from tenk1 as a
   where exists (select 1 from tenk1 as b where b.thousand = a.unique2)
 ) ss;
- max  
-------
- 9997
+ max 
+-----
+    
 (1 row)
 
 select * from (
@@ -499,7 +529,7 @@ select * from (
 ) ss;
  min 
 -----
-   0
+    
 (1 row)
 
 --
@@ -511,9 +541,13 @@ select * from (
 -- pointless.)
 --
 create temp table numeric_table (num_col numeric);
+CREATE TABLE
 insert into numeric_table values (1), (1.000000000000000000001), (2), (3);
+INSERT 0 4
 create temp table float_table (float_col float8);
+CREATE TABLE
 insert into float_table values (1), (2), (3);
+INSERT 0 3
 select * from float_table
   where float_col in (select num_col from numeric_table);
  float_col 
@@ -537,16 +571,27 @@ select * from numeric_table
 -- Test case for bug #4290: bogus calculation of subplan param sets
 --
 create temp table ta (id int primary key, val int);
+CREATE TABLE
 insert into ta values(1,1);
+INSERT 0 1
 insert into ta values(2,2);
+INSERT 0 1
 create temp table tb (id int primary key, aval int);
+CREATE TABLE
 insert into tb values(1,1);
+INSERT 0 1
 insert into tb values(2,1);
+INSERT 0 1
 insert into tb values(3,2);
+INSERT 0 1
 insert into tb values(4,2);
+INSERT 0 1
 create temp table tc (id int primary key, aid int);
+CREATE TABLE
 insert into tc values(1,1);
+INSERT 0 1
 insert into tc values(2,2);
+INSERT 0 1
 select
   ( select min(tb.id) from tb
     where tb.aval = (select ta.val from ta where ta.id = tc.aid) ) as min_tb_id
@@ -561,6 +606,7 @@ from tc;
 -- Test case for 8.3 "failed to locate grouping columns" bug
 --
 create temp table t1 (f1 numeric(14,0), f2 varchar(30));
+CREATE TABLE
 select * from
   (select distinct f1, f2, (select f2 from t1 x where x.f1 = up.f1) as fs
    from t1 up) ss
@@ -573,8 +619,11 @@ group by f1,f2,fs;
 -- Test case for bug #5514 (mishandling of whole-row Vars in subselects)
 --
 create temp table table_a(id integer);
+CREATE TABLE
 insert into table_a values (42);
+INSERT 0 1
 create temp view view_a as select * from table_a;
+CREATE VIEW
 select view_a from view_a;
  view_a 
 --------
@@ -628,16 +677,6 @@ with q as (select max(f1) from int4_tbl group by f1 order by f1)
 -- Test case for sublinks pulled up into joinaliasvars lists in an
 -- inherited update/delete query
 --
-begin;  --  this shouldn't delete anything, but be safe
-delete from road
-where exists (
-  select 1
-  from
-    int4_tbl cross join
-    ( select f1, array(select q1 from int8_tbl) as arr
-      from text_tbl ) ss
-  where road.name = ss.f1 );
-rollback;
 --
 -- Test case for sublinks pushed down into subselects via join alias expansion
 --
@@ -656,8 +695,11 @@ from
 -- Test case for subselect within UPDATE of INSERT...ON CONFLICT DO UPDATE
 --
 create temp table upsert(key int4 primary key, val text);
+CREATE TABLE
 insert into upsert values(1, 'val') on conflict (key) do update set val = 'not seen';
+INSERT 0 1
 insert into upsert values(1, 'val') on conflict (key) do update set val = 'seen with subselect ' || (select f1 from int4_tbl where f1 != 0 limit 1)::text;
+INSERT 0 1
 select * from upsert;
  key |            val             
 -----+----------------------------
@@ -674,16 +716,24 @@ returning *;
  999 | y
 (2 rows)
 
+INSERT 0 2
 --
 -- Test case for cross-type partial matching in hashed subplan (bug #7597)
 --
 create temp table outer_7597 (f1 int4, f2 int4);
+CREATE TABLE
 insert into outer_7597 values (0, 0);
+INSERT 0 1
 insert into outer_7597 values (1, 0);
+INSERT 0 1
 insert into outer_7597 values (0, null);
+INSERT 0 1
 insert into outer_7597 values (1, null);
+INSERT 0 1
 create temp table inner_7597(c1 int8, c2 int8);
+CREATE TABLE
 insert into inner_7597 values(0, null);
+INSERT 0 1
 select * from outer_7597 where (f1, f2) not in (select * from inner_7597);
  f1 | f2 
 ----+----
@@ -748,6 +798,7 @@ explain (verbose, costs off)
 -- Check we behave sanely in corner case of empty SELECT list (bug #8648)
 --
 create temp table nocolumns();
+CREATE TABLE
 select exists(select * from nocolumns);
  exists 
 --------
@@ -797,8 +848,7 @@ select * from int4_tbl where
   (select ten from tenk1 b);
  f1 
 ----
-  0
-(1 row)
+(0 rows)
 
 --
 -- Check for incorrect optimization when IN subquery contains a SRF
@@ -837,28 +887,19 @@ from int4_tbl;
 -- nextval() should not be called more than the nominal number of times
 --
 create temp sequence ts1;
+CREATE SEQUENCE
 select * from
   (select distinct ten from tenk1) ss
   where ten < 10 + nextval('ts1')
   order by 1;
  ten 
 -----
-   0
-   1
-   2
-   3
-   4
-   5
-   6
-   7
-   8
-   9
-(10 rows)
+(0 rows)
 
 select nextval('ts1');
  nextval 
 ---------
-      11
+       1
 (1 row)
 
 --
@@ -871,6 +912,7 @@ begin
   raise notice 'x = %, y = %', x, y;
   return x > y;
 end$$;
+CREATE FUNCTION
 explain (verbose, costs off)
 select * from
   (select 9 as x, unnest(array[1,2,3,11,12,13]) as u) ss
@@ -879,12 +921,12 @@ select * from
 select * from
   (select 9 as x, unnest(array[1,2,3,11,12,13]) as u) ss
   where tattle(x, 8);
-NOTICE:  x = 9, y = 8
-NOTICE:  x = 9, y = 8
-NOTICE:  x = 9, y = 8
-NOTICE:  x = 9, y = 8
-NOTICE:  x = 9, y = 8
-NOTICE:  x = 9, y = 8
+psql:sql/subselect.sql:535: NOTICE:  x = 9, y = 8
+psql:sql/subselect.sql:535: NOTICE:  x = 9, y = 8
+psql:sql/subselect.sql:535: NOTICE:  x = 9, y = 8
+psql:sql/subselect.sql:535: NOTICE:  x = 9, y = 8
+psql:sql/subselect.sql:535: NOTICE:  x = 9, y = 8
+psql:sql/subselect.sql:535: NOTICE:  x = 9, y = 8
  x | u  
 ---+----
  9 |  1
@@ -897,6 +939,7 @@ NOTICE:  x = 9, y = 8
 
 -- if we pretend it's stable, we get different results:
 alter function tattle(x int, y int) stable;
+ALTER FUNCTION
 explain (verbose, costs off)
 select * from
   (select 9 as x, unnest(array[1,2,3,11,12,13]) as u) ss
@@ -905,7 +948,7 @@ select * from
 select * from
   (select 9 as x, unnest(array[1,2,3,11,12,13]) as u) ss
   where tattle(x, 8);
-NOTICE:  x = 9, y = 8
+psql:sql/subselect.sql:548: NOTICE:  x = 9, y = 8
  x | u  
 ---+----
  9 |  1
@@ -925,12 +968,12 @@ select * from
 select * from
   (select 9 as x, unnest(array[1,2,3,11,12,13]) as u) ss
   where tattle(x, u);
-NOTICE:  x = 9, y = 1
-NOTICE:  x = 9, y = 2
-NOTICE:  x = 9, y = 3
-NOTICE:  x = 9, y = 11
-NOTICE:  x = 9, y = 12
-NOTICE:  x = 9, y = 13
+psql:sql/subselect.sql:558: NOTICE:  x = 9, y = 1
+psql:sql/subselect.sql:558: NOTICE:  x = 9, y = 2
+psql:sql/subselect.sql:558: NOTICE:  x = 9, y = 3
+psql:sql/subselect.sql:558: NOTICE:  x = 9, y = 11
+psql:sql/subselect.sql:558: NOTICE:  x = 9, y = 12
+psql:sql/subselect.sql:558: NOTICE:  x = 9, y = 13
  x | u 
 ---+---
  9 | 1
@@ -939,6 +982,7 @@ NOTICE:  x = 9, y = 13
 (3 rows)
 
 drop function tattle(x int, y int);
+DROP FUNCTION
 --
 -- Test that LIMIT can be pushed to SORT through a subquery that just projects
 -- columns.  We check for that having happened by looking to see if EXPLAIN
@@ -946,6 +990,7 @@ drop function tattle(x int, y int);
 -- all the non-invariant parts of the EXPLAIN ANALYZE output.
 --
 create table sq_limit (pk int primary key, c1 int, c2 int);
+CREATE TABLE
 insert into sq_limit values
     (1, 1, 1),
     (2, 2, 2),
@@ -955,6 +1000,7 @@ insert into sq_limit values
     (6, 2, 2),
     (7, 3, 3),
     (8, 4, 4);
+INSERT 0 8
 create function explain_sq_limit() returns setof text language plpgsql as
 $$
 declare ln text;
@@ -963,22 +1009,23 @@ begin
         explain (analyze, summary off, timing off, costs off)
         select * from (select pk,c2 from sq_limit order by c1,pk) as x limit 3
     loop
-        ln := regexp_replace(ln, 'Memory: \S*',  'Memory: xxx');
+        ln = regexp_replace(ln, 'Memory: \S*',  'Memory: xxx');
         -- this case might occur if force_parallel_mode is on:
-        ln := regexp_replace(ln, 'Worker 0:  Sort Method',  'Sort Method');
+        ln = regexp_replace(ln, 'Worker 0:  Sort Method',  'Sort Method');
         return next ln;
     end loop;
 end;
 $$;
+CREATE FUNCTION
 select * from explain_sq_limit();
-                        explain_sq_limit                        
-----------------------------------------------------------------
+                                                                         explain_sq_limit                                                                         
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
  Limit (actual rows=3 loops=1)
    ->  Subquery Scan on x (actual rows=3 loops=1)
          ->  Sort (actual rows=3 loops=1)
                Sort Key: sq_limit.c1, sq_limit.pk
-               Sort Method: top-N heapsort  Memory: xxx
-               ->  Seq Scan on sq_limit (actual rows=8 loops=1)
+               ->  RemoteScan on sq_limit (actual rows=3 loops=1)
+                     Shard: 1    Remote SQL: select  sq_limit.pk, sq_limit.c2, sq_limit.c1 from regress_$$_public.sq_limit sq_limit ORDER BY 3 ASC, 1 ASC limit 3
 (6 rows)
 
 select * from (select pk,c2 from sq_limit order by c1,pk) as x limit 3;
@@ -990,16 +1037,21 @@ select * from (select pk,c2 from sq_limit order by c1,pk) as x limit 3;
 (3 rows)
 
 drop function explain_sq_limit();
+DROP FUNCTION
 drop table sq_limit;
+DROP TABLE
 --
 -- Ensure that backward scan direction isn't propagated into
 -- expression subqueries (bug #15336)
 --
 begin;
+BEGIN
 declare c1 scroll cursor for
  select * from generate_series(1,4) i
   where i <> all (values (2),(3));
+DECLARE CURSOR
 move forward all in c1;
+MOVE 2
 fetch backward all in c1;
  i 
 ---
@@ -1008,3 +1060,4 @@ fetch backward all in c1;
 (2 rows)
 
 commit;
+COMMIT

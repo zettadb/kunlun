@@ -252,6 +252,7 @@ INSERT INTO quad_poly_tbl
 		(11002, NULL),
 		(11003, NULL);
 INSERT 0 3
+		
 CREATE INDEX quad_poly_tbl_idx ON quad_poly_tbl USING spgist(p);
 CREATE INDEX
 EXPLAIN (COSTS OFF)

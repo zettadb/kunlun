@@ -154,68 +154,68 @@ CREATE AGGREGATE
 -- should ERROR: tf1p(int[],anyelement) not matched by tf1p(anyarray,int)
 CREATE AGGREGATE myaggp11a(BASETYPE = anyelement, SFUNC = tf1p, STYPE = int[],
   FINALFUNC = ffp, INITCOND = '{}');
-psql:sql/polymorphism.sql:150: ERROR:  function tf1p(integer[], anyelement) does not exist
+psql:sql/polymorphism.sql:151: ERROR:  function tf1p(integer[], anyelement) does not exist
 CREATE AGGREGATE myaggp11b(BASETYPE = anyelement, SFUNC = tf1p, STYPE = int[],
   INITCOND = '{}');
-psql:sql/polymorphism.sql:152: ERROR:  function tf1p(integer[], anyelement) does not exist
+psql:sql/polymorphism.sql:153: ERROR:  function tf1p(integer[], anyelement) does not exist
 --    N    P        P    P
 -- should ERROR: tfp(int[],anyelement) not matched by tfp(anyarray,anyelement)
 CREATE AGGREGATE myaggp12a(BASETYPE = anyelement, SFUNC = tfp, STYPE = int[],
   FINALFUNC = ffp, INITCOND = '{}');
-psql:sql/polymorphism.sql:157: ERROR:  function tfp(integer[], anyelement) does not exist
+psql:sql/polymorphism.sql:158: ERROR:  function tfp(integer[], anyelement) does not exist
 CREATE AGGREGATE myaggp12b(BASETYPE = anyelement, SFUNC = tfp, STYPE = int[],
   INITCOND = '{}');
-psql:sql/polymorphism.sql:159: ERROR:  function tfp(integer[], anyelement) does not exist
+psql:sql/polymorphism.sql:160: ERROR:  function tfp(integer[], anyelement) does not exist
 --    P    N        N    N
 -- should ERROR: tfnp(anyarray, int) not matched by tfnp(int[],int)
 CREATE AGGREGATE myaggp13a(BASETYPE = int, SFUNC = tfnp, STYPE = anyarray,
   FINALFUNC = ffp, INITCOND = '{}');
-psql:sql/polymorphism.sql:164: ERROR:  cannot determine transition data type
+psql:sql/polymorphism.sql:165: ERROR:  cannot determine transition data type
 DETAIL:  An aggregate using a polymorphic transition type must have at least one polymorphic argument.
 --    P    N        N    P
 -- should ERROR: tf2p(anyarray, int) not matched by tf2p(int[],anyelement)
 CREATE AGGREGATE myaggp14a(BASETYPE = int, SFUNC = tf2p, STYPE = anyarray,
   FINALFUNC = ffp, INITCOND = '{}');
-psql:sql/polymorphism.sql:169: ERROR:  cannot determine transition data type
+psql:sql/polymorphism.sql:170: ERROR:  cannot determine transition data type
 DETAIL:  An aggregate using a polymorphic transition type must have at least one polymorphic argument.
 --    P    N        P    N
 -- should ERROR: tfnp(anyarray, anyelement) not matched by tfnp(int[],int)
 CREATE AGGREGATE myaggp15a(BASETYPE = anyelement, SFUNC = tfnp,
   STYPE = anyarray, FINALFUNC = ffp, INITCOND = '{}');
-psql:sql/polymorphism.sql:174: ERROR:  function tfnp(anyarray, anyelement) does not exist
+psql:sql/polymorphism.sql:175: ERROR:  function tfnp(anyarray, anyelement) does not exist
 --    P    N        P    P
 -- should ERROR: tf2p(anyarray, anyelement) not matched by tf2p(int[],anyelement)
 CREATE AGGREGATE myaggp16a(BASETYPE = anyelement, SFUNC = tf2p,
   STYPE = anyarray, FINALFUNC = ffp, INITCOND = '{}');
-psql:sql/polymorphism.sql:179: ERROR:  function tf2p(anyarray, anyelement) does not exist
+psql:sql/polymorphism.sql:180: ERROR:  function tf2p(anyarray, anyelement) does not exist
 --    P    P        N    N
 -- should ERROR: we have no way to resolve S
 CREATE AGGREGATE myaggp17a(BASETYPE = int, SFUNC = tf1p, STYPE = anyarray,
   FINALFUNC = ffp, INITCOND = '{}');
-psql:sql/polymorphism.sql:184: ERROR:  cannot determine transition data type
+psql:sql/polymorphism.sql:185: ERROR:  cannot determine transition data type
 DETAIL:  An aggregate using a polymorphic transition type must have at least one polymorphic argument.
 CREATE AGGREGATE myaggp17b(BASETYPE = int, SFUNC = tf1p, STYPE = anyarray,
   INITCOND = '{}');
-psql:sql/polymorphism.sql:186: ERROR:  cannot determine transition data type
+psql:sql/polymorphism.sql:187: ERROR:  cannot determine transition data type
 DETAIL:  An aggregate using a polymorphic transition type must have at least one polymorphic argument.
 --    P    P        N    P
 -- should ERROR: tfp(anyarray, int) not matched by tfp(anyarray, anyelement)
 CREATE AGGREGATE myaggp18a(BASETYPE = int, SFUNC = tfp, STYPE = anyarray,
   FINALFUNC = ffp, INITCOND = '{}');
-psql:sql/polymorphism.sql:191: ERROR:  cannot determine transition data type
+psql:sql/polymorphism.sql:192: ERROR:  cannot determine transition data type
 DETAIL:  An aggregate using a polymorphic transition type must have at least one polymorphic argument.
 CREATE AGGREGATE myaggp18b(BASETYPE = int, SFUNC = tfp, STYPE = anyarray,
   INITCOND = '{}');
-psql:sql/polymorphism.sql:193: ERROR:  cannot determine transition data type
+psql:sql/polymorphism.sql:194: ERROR:  cannot determine transition data type
 DETAIL:  An aggregate using a polymorphic transition type must have at least one polymorphic argument.
 --    P    P        P    N
 -- should ERROR: tf1p(anyarray, anyelement) not matched by tf1p(anyarray, int)
 CREATE AGGREGATE myaggp19a(BASETYPE = anyelement, SFUNC = tf1p,
   STYPE = anyarray, FINALFUNC = ffp, INITCOND = '{}');
-psql:sql/polymorphism.sql:198: ERROR:  function tf1p(anyarray, anyelement) does not exist
+psql:sql/polymorphism.sql:199: ERROR:  function tf1p(anyarray, anyelement) does not exist
 CREATE AGGREGATE myaggp19b(BASETYPE = anyelement, SFUNC = tf1p,
   STYPE = anyarray, INITCOND = '{}');
-psql:sql/polymorphism.sql:200: ERROR:  function tf1p(anyarray, anyelement) does not exist
+psql:sql/polymorphism.sql:201: ERROR:  function tf1p(anyarray, anyelement) does not exist
 --    P    P        P    P
 -- should CREATE
 CREATE AGGREGATE myaggp20a(BASETYPE = anyelement, SFUNC = tfp,
@@ -240,11 +240,11 @@ CREATE AGGREGATE
 -- should ERROR: stfnp(anyarray) not matched by stfnp(int[])
 CREATE AGGREGATE myaggn02a(*) (SFUNC = stfnp, STYPE = anyarray,
   FINALFUNC = ffnp, INITCOND = '{}');
-psql:sql/polymorphism.sql:223: ERROR:  cannot determine transition data type
+psql:sql/polymorphism.sql:224: ERROR:  cannot determine transition data type
 DETAIL:  An aggregate using a polymorphic transition type must have at least one polymorphic argument.
 CREATE AGGREGATE myaggn02b(*) (SFUNC = stfnp, STYPE = anyarray,
   INITCOND = '{}');
-psql:sql/polymorphism.sql:225: ERROR:  cannot determine transition data type
+psql:sql/polymorphism.sql:226: ERROR:  cannot determine transition data type
 DETAIL:  An aggregate using a polymorphic transition type must have at least one polymorphic argument.
 --     N    P
 -- should CREATE
@@ -255,7 +255,7 @@ CREATE AGGREGATE
 -- should ERROR: ffnp(anyarray) not matched by ffnp(int[])
 CREATE AGGREGATE myaggn04a(*) (SFUNC = stfp, STYPE = anyarray,
   FINALFUNC = ffnp, INITCOND = '{}');
-psql:sql/polymorphism.sql:235: ERROR:  cannot determine transition data type
+psql:sql/polymorphism.sql:236: ERROR:  cannot determine transition data type
 DETAIL:  An aggregate using a polymorphic transition type must have at least one polymorphic argument.
 --    Case4 (R = N) && ((B = P) || (B = N))
 --    -------------------------------------
@@ -281,10 +281,10 @@ CREATE AGGREGATE
 -- should ERROR: tfnp(int[], anyelement) not matched by tfnp(int[], int)
 CREATE AGGREGATE myaggn07a(BASETYPE = anyelement, SFUNC = tfnp, STYPE = int[],
   FINALFUNC = ffnp, INITCOND = '{}');
-psql:sql/polymorphism.sql:259: ERROR:  function tfnp(integer[], anyelement) does not exist
+psql:sql/polymorphism.sql:260: ERROR:  function tfnp(integer[], anyelement) does not exist
 CREATE AGGREGATE myaggn07b(BASETYPE = anyelement, SFUNC = tfnp, STYPE = int[],
   INITCOND = '{}');
-psql:sql/polymorphism.sql:261: ERROR:  function tfnp(integer[], anyelement) does not exist
+psql:sql/polymorphism.sql:262: ERROR:  function tfnp(integer[], anyelement) does not exist
 --    N    N        P    P
 -- should CREATE
 CREATE AGGREGATE myaggn08a(BASETYPE = anyelement, SFUNC = tf2p, STYPE = int[],
@@ -307,70 +307,70 @@ CREATE AGGREGATE
 -- should ERROR: tf1p(int[],anyelement) not matched by tf1p(anyarray,int)
 CREATE AGGREGATE myaggn11a(BASETYPE = anyelement, SFUNC = tf1p, STYPE = int[],
   FINALFUNC = ffnp, INITCOND = '{}');
-psql:sql/polymorphism.sql:283: ERROR:  function tf1p(integer[], anyelement) does not exist
+psql:sql/polymorphism.sql:284: ERROR:  function tf1p(integer[], anyelement) does not exist
 --    N    P        P    P
 -- should ERROR: tfp(int[],anyelement) not matched by tfp(anyarray,anyelement)
 CREATE AGGREGATE myaggn12a(BASETYPE = anyelement, SFUNC = tfp, STYPE = int[],
   FINALFUNC = ffnp, INITCOND = '{}');
-psql:sql/polymorphism.sql:288: ERROR:  function tfp(integer[], anyelement) does not exist
+psql:sql/polymorphism.sql:289: ERROR:  function tfp(integer[], anyelement) does not exist
 --    P    N        N    N
 -- should ERROR: tfnp(anyarray, int) not matched by tfnp(int[],int)
 CREATE AGGREGATE myaggn13a(BASETYPE = int, SFUNC = tfnp, STYPE = anyarray,
   FINALFUNC = ffnp, INITCOND = '{}');
-psql:sql/polymorphism.sql:293: ERROR:  cannot determine transition data type
+psql:sql/polymorphism.sql:294: ERROR:  cannot determine transition data type
 DETAIL:  An aggregate using a polymorphic transition type must have at least one polymorphic argument.
 CREATE AGGREGATE myaggn13b(BASETYPE = int, SFUNC = tfnp, STYPE = anyarray,
   INITCOND = '{}');
-psql:sql/polymorphism.sql:295: ERROR:  cannot determine transition data type
+psql:sql/polymorphism.sql:296: ERROR:  cannot determine transition data type
 DETAIL:  An aggregate using a polymorphic transition type must have at least one polymorphic argument.
 --    P    N        N    P
 -- should ERROR: tf2p(anyarray, int) not matched by tf2p(int[],anyelement)
 CREATE AGGREGATE myaggn14a(BASETYPE = int, SFUNC = tf2p, STYPE = anyarray,
   FINALFUNC = ffnp, INITCOND = '{}');
-psql:sql/polymorphism.sql:300: ERROR:  cannot determine transition data type
+psql:sql/polymorphism.sql:301: ERROR:  cannot determine transition data type
 DETAIL:  An aggregate using a polymorphic transition type must have at least one polymorphic argument.
 CREATE AGGREGATE myaggn14b(BASETYPE = int, SFUNC = tf2p, STYPE = anyarray,
   INITCOND = '{}');
-psql:sql/polymorphism.sql:302: ERROR:  cannot determine transition data type
+psql:sql/polymorphism.sql:303: ERROR:  cannot determine transition data type
 DETAIL:  An aggregate using a polymorphic transition type must have at least one polymorphic argument.
 --    P    N        P    N
 -- should ERROR: tfnp(anyarray, anyelement) not matched by tfnp(int[],int)
 CREATE AGGREGATE myaggn15a(BASETYPE = anyelement, SFUNC = tfnp,
   STYPE = anyarray, FINALFUNC = ffnp, INITCOND = '{}');
-psql:sql/polymorphism.sql:307: ERROR:  function tfnp(anyarray, anyelement) does not exist
+psql:sql/polymorphism.sql:308: ERROR:  function tfnp(anyarray, anyelement) does not exist
 CREATE AGGREGATE myaggn15b(BASETYPE = anyelement, SFUNC = tfnp,
   STYPE = anyarray, INITCOND = '{}');
-psql:sql/polymorphism.sql:309: ERROR:  function tfnp(anyarray, anyelement) does not exist
+psql:sql/polymorphism.sql:310: ERROR:  function tfnp(anyarray, anyelement) does not exist
 --    P    N        P    P
 -- should ERROR: tf2p(anyarray, anyelement) not matched by tf2p(int[],anyelement)
 CREATE AGGREGATE myaggn16a(BASETYPE = anyelement, SFUNC = tf2p,
   STYPE = anyarray, FINALFUNC = ffnp, INITCOND = '{}');
-psql:sql/polymorphism.sql:314: ERROR:  function tf2p(anyarray, anyelement) does not exist
+psql:sql/polymorphism.sql:315: ERROR:  function tf2p(anyarray, anyelement) does not exist
 CREATE AGGREGATE myaggn16b(BASETYPE = anyelement, SFUNC = tf2p,
   STYPE = anyarray, INITCOND = '{}');
-psql:sql/polymorphism.sql:316: ERROR:  function tf2p(anyarray, anyelement) does not exist
+psql:sql/polymorphism.sql:317: ERROR:  function tf2p(anyarray, anyelement) does not exist
 --    P    P        N    N
 -- should ERROR: ffnp(anyarray) not matched by ffnp(int[])
 CREATE AGGREGATE myaggn17a(BASETYPE = int, SFUNC = tf1p, STYPE = anyarray,
   FINALFUNC = ffnp, INITCOND = '{}');
-psql:sql/polymorphism.sql:321: ERROR:  cannot determine transition data type
+psql:sql/polymorphism.sql:322: ERROR:  cannot determine transition data type
 DETAIL:  An aggregate using a polymorphic transition type must have at least one polymorphic argument.
 --    P    P        N    P
 -- should ERROR: tfp(anyarray, int) not matched by tfp(anyarray, anyelement)
 CREATE AGGREGATE myaggn18a(BASETYPE = int, SFUNC = tfp, STYPE = anyarray,
   FINALFUNC = ffnp, INITCOND = '{}');
-psql:sql/polymorphism.sql:326: ERROR:  cannot determine transition data type
+psql:sql/polymorphism.sql:327: ERROR:  cannot determine transition data type
 DETAIL:  An aggregate using a polymorphic transition type must have at least one polymorphic argument.
 --    P    P        P    N
 -- should ERROR: tf1p(anyarray, anyelement) not matched by tf1p(anyarray, int)
 CREATE AGGREGATE myaggn19a(BASETYPE = anyelement, SFUNC = tf1p,
   STYPE = anyarray, FINALFUNC = ffnp, INITCOND = '{}');
-psql:sql/polymorphism.sql:331: ERROR:  function tf1p(anyarray, anyelement) does not exist
+psql:sql/polymorphism.sql:332: ERROR:  function tf1p(anyarray, anyelement) does not exist
 --    P    P        P    P
 -- should ERROR: ffnp(anyarray) not matched by ffnp(int[])
 CREATE AGGREGATE myaggn20a(BASETYPE = anyelement, SFUNC = tfp,
   STYPE = anyarray, FINALFUNC = ffnp, INITCOND = '{}');
-psql:sql/polymorphism.sql:336: ERROR:  function ffnp(anyarray) does not exist
+psql:sql/polymorphism.sql:337: ERROR:  function ffnp(anyarray) does not exist
 -- multi-arg polymorphic
 CREATE AGGREGATE mysum2(anyelement,anyelement) (SFUNC = sum3,
   STYPE = anyelement, INITCOND = '0');
@@ -598,11 +598,11 @@ CREATE FUNCTION
 -- Note this would fail with integer overflow, never mind wrong bleat() output,
 -- if the CASE expression were not successfully inlined
 select f1, sql_if(f1 > 0, bleat(f1), bleat(f1 + 1)) from int4_tbl;
-psql:sql/polymorphism.sql:391: NOTICE:  bleat 1
-psql:sql/polymorphism.sql:391: NOTICE:  bleat 123456
-psql:sql/polymorphism.sql:391: NOTICE:  bleat -123455
-psql:sql/polymorphism.sql:391: NOTICE:  bleat 2147483647
-psql:sql/polymorphism.sql:391: NOTICE:  bleat -2147483646
+psql:sql/polymorphism.sql:392: NOTICE:  bleat 1
+psql:sql/polymorphism.sql:392: NOTICE:  bleat 123456
+psql:sql/polymorphism.sql:392: NOTICE:  bleat -123455
+psql:sql/polymorphism.sql:392: NOTICE:  bleat 2147483647
+psql:sql/polymorphism.sql:392: NOTICE:  bleat -2147483646
      f1      |   sql_if    
 -------------+-------------
            0 |           1
@@ -649,7 +649,7 @@ create function add_group(grp anyarray, ad anyelement, size integer)
   returns anyarray
   as $$
 begin
-  if grp is null then
+	if grp is null then
     return array[ad];
   end if;
   if array_upper(grp, 1) < size then
@@ -676,7 +676,7 @@ create aggregate build_group(int8, integer) (
   SFUNC = add_group,
   STYPE = int2[]
 );
-psql:sql/polymorphism.sql:438: ERROR:  function add_group(smallint[], bigint, integer) does not exist
+psql:sql/polymorphism.sql:439: ERROR:  function add_group(smallint[], bigint, integer) does not exist
 -- but we can make a non-poly agg from a poly sfunc if types are OK
 create aggregate build_group(int8, integer) (
   SFUNC = add_group,
@@ -752,7 +752,7 @@ where histogram_bounds is not null;
 -- such functions must protect themselves if varying element type isn't OK
 -- (WHERE clause here is to avoid possibly getting a collation error instead)
 select max(histogram_bounds) from pg_stats where tablename = 'pg_am';
-psql:sql/polymorphism.sql:474: ERROR:  cannot compare arrays of different element types
+psql:sql/polymorphism.sql:475: ERROR:  cannot compare arrays of different element types
 -- test variadic polymorphic functions
 create function myleast(variadic anyarray) returns anyelement as $$
   select min($1[i]) from generate_subscripts($1,1) g(i)
@@ -777,7 +777,7 @@ select myleast('z'::text);
 (1 row)
 
 select myleast(); -- fail
-psql:sql/polymorphism.sql:485: ERROR:  function myleast() does not exist
+psql:sql/polymorphism.sql:486: ERROR:  function myleast() does not exist
 LINE 1: select myleast();
                ^
 HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
@@ -850,17 +850,17 @@ select formarray(1.1, variadic array[1.2,55.5]);
 (1 row)
 
 select formarray(1.1, array[1.2,55.5]); -- fail without variadic
-psql:sql/polymorphism.sql:513: ERROR:  function formarray(numeric, numeric[]) does not exist
+psql:sql/polymorphism.sql:514: ERROR:  function formarray(numeric, numeric[]) does not exist
 LINE 1: select formarray(1.1, array[1.2,55.5]);
                ^
 HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
 select formarray(1, 'x'::text); -- fail, type mismatch
-psql:sql/polymorphism.sql:514: ERROR:  function formarray(integer, text) does not exist
+psql:sql/polymorphism.sql:515: ERROR:  function formarray(integer, text) does not exist
 LINE 1: select formarray(1, 'x'::text);
                ^
 HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
 select formarray(1, variadic array['x'::text]); -- fail, type mismatch
-psql:sql/polymorphism.sql:515: ERROR:  function formarray(integer, text[]) does not exist
+psql:sql/polymorphism.sql:516: ERROR:  function formarray(integer, text[]) does not exist
 LINE 1: select formarray(1, variadic array['x'::text]);
                ^
 HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
@@ -946,21 +946,21 @@ select dfunc(10, 20);
 (1 row)
 
 select dfunc(10, 20, 30);  -- fail
-psql:sql/polymorphism.sql:540: ERROR:  function dfunc(integer, integer, integer) does not exist
+psql:sql/polymorphism.sql:541: ERROR:  function dfunc(integer, integer, integer) does not exist
 LINE 1: select dfunc(10, 20, 30);
                ^
 HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
 drop function dfunc();  -- fail
-psql:sql/polymorphism.sql:542: ERROR:  function dfunc() does not exist
+psql:sql/polymorphism.sql:543: ERROR:  function dfunc() does not exist
 drop function dfunc(int);  -- fail
-psql:sql/polymorphism.sql:543: ERROR:  function dfunc(integer) does not exist
+psql:sql/polymorphism.sql:544: ERROR:  function dfunc(integer) does not exist
 drop function dfunc(int, int);  -- ok
 DROP FUNCTION
 -- fail: defaults must be at end of argument list
 create function dfunc(a int = 1, b int) returns int as $$
   select $1 + $2;
 $$ language sql;
-psql:sql/polymorphism.sql:549: ERROR:  input parameters after one with a default value must also have defaults
+psql:sql/polymorphism.sql:550: ERROR:  input parameters after one with a default value must also have defaults
 -- however, this should work:
 create function dfunc(a int = 1, out sum int, b int = 2) as $$
   select $1 + $2;
@@ -1178,7 +1178,7 @@ $$ language sql;
 CREATE FUNCTION
 -- dfunc(narg=2) and dfunc(narg=3) are ambiguous
 select dfunc(1);  -- fail
-psql:sql/polymorphism.sql:658: ERROR:  function dfunc(integer) is not unique
+psql:sql/polymorphism.sql:657: ERROR:  function dfunc(integer) is not unique
 LINE 1: select dfunc(1);
                ^
 HINT:  Could not choose a best candidate function. You might need to add explicit type casts.
@@ -1210,19 +1210,19 @@ select (dfunc(10,20,30)).*;
 (1 row)
 
 select (dfunc(a = 10, b = 20, c = 30)).*;
-psql:sql/polymorphism.sql:677: ERROR:  column "a" does not exist
+psql:sql/polymorphism.sql:676: ERROR:  column "a" does not exist
 LINE 1: select (dfunc(a = 10, b = 20, c = 30)).*;
                       ^
 select * from dfunc(a = 10, b = 20);
-psql:sql/polymorphism.sql:678: ERROR:  column "a" does not exist
+psql:sql/polymorphism.sql:677: ERROR:  column "a" does not exist
 LINE 1: select * from dfunc(a = 10, b = 20);
                             ^
 select * from dfunc(b = 10, a = 20);
-psql:sql/polymorphism.sql:679: ERROR:  column "b" does not exist
+psql:sql/polymorphism.sql:678: ERROR:  column "b" does not exist
 LINE 1: select * from dfunc(b = 10, a = 20);
                             ^
 select * from dfunc(0);  -- fail
-psql:sql/polymorphism.sql:680: ERROR:  function dfunc(integer) does not exist
+psql:sql/polymorphism.sql:679: ERROR:  function dfunc(integer) does not exist
 LINE 1: select * from dfunc(0);
                       ^
 HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
@@ -1233,31 +1233,31 @@ select * from dfunc(1,2);
 (1 row)
 
 select * from dfunc(1,2,c = 3);
-psql:sql/polymorphism.sql:682: ERROR:  column "c" does not exist
+psql:sql/polymorphism.sql:681: ERROR:  column "c" does not exist
 LINE 1: select * from dfunc(1,2,c = 3);
                                 ^
 select * from dfunc(1,2,d = 3);
-psql:sql/polymorphism.sql:683: ERROR:  column "d" does not exist
+psql:sql/polymorphism.sql:682: ERROR:  column "d" does not exist
 LINE 1: select * from dfunc(1,2,d = 3);
                                 ^
 select * from dfunc(x = 20, b = 10, x = 30);  -- fail, duplicate name
-psql:sql/polymorphism.sql:685: ERROR:  column "x" does not exist
+psql:sql/polymorphism.sql:684: ERROR:  column "x" does not exist
 LINE 1: select * from dfunc(x = 20, b = 10, x = 30);
                             ^
 select * from dfunc(10, b = 20, 30);  -- fail, named args must be last
-psql:sql/polymorphism.sql:686: ERROR:  column "b" does not exist
+psql:sql/polymorphism.sql:685: ERROR:  column "b" does not exist
 LINE 1: select * from dfunc(10, b = 20, 30);
                                 ^
 select * from dfunc(x = 10, b = 20, c = 30);  -- fail, unknown param
-psql:sql/polymorphism.sql:687: ERROR:  column "x" does not exist
+psql:sql/polymorphism.sql:686: ERROR:  column "x" does not exist
 LINE 1: select * from dfunc(x = 10, b = 20, c = 30);
                             ^
 select * from dfunc(10, 10, a = 20);  -- fail, a overlaps positional parameter
-psql:sql/polymorphism.sql:688: ERROR:  column "a" does not exist
+psql:sql/polymorphism.sql:687: ERROR:  column "a" does not exist
 LINE 1: select * from dfunc(10, 10, a = 20);
                                     ^
 select * from dfunc(1,c = 2,d = 3); -- fail, no value for b
-psql:sql/polymorphism.sql:689: ERROR:  column "c" does not exist
+psql:sql/polymorphism.sql:688: ERROR:  column "c" does not exist
 LINE 1: select * from dfunc(1,c = 2,d = 3);
                               ^
 drop function dfunc(int, int, int, int);
@@ -1281,19 +1281,19 @@ select * from dfunc('Hello World', 20, '2009-07-25'::date);
 (1 row)
 
 select * from dfunc(c = '2009-07-25'::date, a = 'Hello World', b = 20);
-psql:sql/polymorphism.sql:701: ERROR:  column "c" does not exist
+psql:sql/polymorphism.sql:700: ERROR:  column "c" does not exist
 LINE 1: select * from dfunc(c = '2009-07-25'::date, a = 'Hello World...
                             ^
 select * from dfunc('Hello World', b = 20, c = '2009-07-25'::date);
-psql:sql/polymorphism.sql:702: ERROR:  column "b" does not exist
+psql:sql/polymorphism.sql:701: ERROR:  column "b" does not exist
 LINE 1: select * from dfunc('Hello World', b = 20, c = '2009-07-25':...
                                            ^
 select * from dfunc('Hello World', c = '2009-07-25'::date, b = 20);
-psql:sql/polymorphism.sql:703: ERROR:  column "c" does not exist
+psql:sql/polymorphism.sql:702: ERROR:  column "c" does not exist
 LINE 1: select * from dfunc('Hello World', c = '2009-07-25'::date, b...
                                            ^
 select * from dfunc('Hello World', c = 20, b = '2009-07-25'::date);  -- fail
-psql:sql/polymorphism.sql:704: ERROR:  column "c" does not exist
+psql:sql/polymorphism.sql:703: ERROR:  column "c" does not exist
 LINE 1: select * from dfunc('Hello World', c = 20, b = '2009-07-25':...
                                            ^
 drop function dfunc(varchar, numeric, date);
@@ -1323,11 +1323,11 @@ select * from dfunc('Hello', 100);
 (1 row)
 
 select * from dfunc(a = 'Hello', c = 100);
-psql:sql/polymorphism.sql:717: ERROR:  column "a" does not exist
+psql:sql/polymorphism.sql:716: ERROR:  column "a" does not exist
 LINE 1: select * from dfunc(a = 'Hello', c = 100);
                             ^
 select * from dfunc(c = 100, a = 'Hello');
-psql:sql/polymorphism.sql:718: ERROR:  column "c" does not exist
+psql:sql/polymorphism.sql:717: ERROR:  column "c" does not exist
 LINE 1: select * from dfunc(c = 100, a = 'Hello');
                             ^
 select * from dfunc('Hello');
@@ -1337,11 +1337,11 @@ select * from dfunc('Hello');
 (1 row)
 
 select * from dfunc('Hello', c = 100);
-psql:sql/polymorphism.sql:720: ERROR:  column "c" does not exist
+psql:sql/polymorphism.sql:719: ERROR:  column "c" does not exist
 LINE 1: select * from dfunc('Hello', c = 100);
                                      ^
 select * from dfunc(c = 100);
-psql:sql/polymorphism.sql:721: ERROR:  column "c" does not exist
+psql:sql/polymorphism.sql:720: ERROR:  column "c" does not exist
 LINE 1: select * from dfunc(c = 100);
                             ^
 -- fail, can no longer change an input parameter's name
@@ -1349,25 +1349,25 @@ create or replace function dfunc(a varchar = 'def a', out _a varchar, x numeric 
 returns record as $$
   select $1, $2;
 $$ language sql;
-psql:sql/polymorphism.sql:727: ERROR:  cannot change name of input parameter "c"
+psql:sql/polymorphism.sql:726: ERROR:  cannot change name of input parameter "c"
 HINT:  Use DROP FUNCTION dfunc(character varying,numeric) first.
 create or replace function dfunc(a varchar = 'def a', out _a varchar, numeric = NULL, out _c numeric)
 returns record as $$
   select $1, $2;
 $$ language sql;
-psql:sql/polymorphism.sql:732: ERROR:  cannot change name of input parameter "c"
+psql:sql/polymorphism.sql:731: ERROR:  cannot change name of input parameter "c"
 HINT:  Use DROP FUNCTION dfunc(character varying,numeric) first.
 drop function dfunc(varchar, numeric);
 DROP FUNCTION
 --fail, named parameters are not unique
 create function testpolym(a int, a int) returns int as $$ select 1;$$ language sql;
-psql:sql/polymorphism.sql:737: ERROR:  parameter name "a" used more than once
+psql:sql/polymorphism.sql:736: ERROR:  parameter name "a" used more than once
 create function testpolym(int, out a int, out a int) returns int as $$ select 1;$$ language sql;
-psql:sql/polymorphism.sql:738: ERROR:  parameter name "a" used more than once
+psql:sql/polymorphism.sql:737: ERROR:  parameter name "a" used more than once
 create function testpolym(out a int, inout a int) returns int as $$ select 1;$$ language sql;
-psql:sql/polymorphism.sql:739: ERROR:  parameter name "a" used more than once
+psql:sql/polymorphism.sql:738: ERROR:  parameter name "a" used more than once
 create function testpolym(a int, inout a int) returns int as $$ select 1;$$ language sql;
-psql:sql/polymorphism.sql:740: ERROR:  parameter name "a" used more than once
+psql:sql/polymorphism.sql:739: ERROR:  parameter name "a" used more than once
 -- valid
 create function testpolym(a int, out a int) returns int as $$ select $1;$$ language sql;
 CREATE FUNCTION
@@ -1408,31 +1408,31 @@ select dfunc('a'::text, 'b'); -- positional notation with default
 (1 row)
 
 select dfunc(a = 1, b = 2);
-psql:sql/polymorphism.sql:759: ERROR:  column "a" does not exist
+psql:sql/polymorphism.sql:758: ERROR:  column "a" does not exist
 LINE 1: select dfunc(a = 1, b = 2);
                      ^
 select dfunc(a = 'a'::text, b = 'b');
-psql:sql/polymorphism.sql:760: ERROR:  column "a" does not exist
+psql:sql/polymorphism.sql:759: ERROR:  column "a" does not exist
 LINE 1: select dfunc(a = 'a'::text, b = 'b');
                      ^
 select dfunc(a = 'a'::text, b = 'b', flag = false); -- named notation
-psql:sql/polymorphism.sql:761: ERROR:  column "a" does not exist
+psql:sql/polymorphism.sql:760: ERROR:  column "a" does not exist
 LINE 1: select dfunc(a = 'a'::text, b = 'b', flag = false);
                      ^
 select dfunc(b = 'b'::text, a = 'a'); -- named notation with default
-psql:sql/polymorphism.sql:763: ERROR:  column "b" does not exist
+psql:sql/polymorphism.sql:762: ERROR:  column "b" does not exist
 LINE 1: select dfunc(b = 'b'::text, a = 'a');
                      ^
 select dfunc(a = 'a'::text, flag = true); -- named notation with default
-psql:sql/polymorphism.sql:764: ERROR:  column "a" does not exist
+psql:sql/polymorphism.sql:763: ERROR:  column "a" does not exist
 LINE 1: select dfunc(a = 'a'::text, flag = true);
                      ^
 select dfunc(a = 'a'::text, flag = false); -- named notation with default
-psql:sql/polymorphism.sql:765: ERROR:  column "a" does not exist
+psql:sql/polymorphism.sql:764: ERROR:  column "a" does not exist
 LINE 1: select dfunc(a = 'a'::text, flag = false);
                      ^
 select dfunc(b = 'b'::text, a = 'a', flag = true); -- named notation
-psql:sql/polymorphism.sql:766: ERROR:  column "b" does not exist
+psql:sql/polymorphism.sql:765: ERROR:  column "b" does not exist
 LINE 1: select dfunc(b = 'b'::text, a = 'a', flag = true);
                      ^
 select dfunc('a'::text, 'b', false); -- full positional notation
@@ -1442,7 +1442,7 @@ select dfunc('a'::text, 'b', false); -- full positional notation
 (1 row)
 
 select dfunc('a'::text, 'b', flag = false); -- mixed notation
-psql:sql/polymorphism.sql:769: ERROR:  column "flag" does not exist
+psql:sql/polymorphism.sql:768: ERROR:  column "flag" does not exist
 LINE 1: select dfunc('a'::text, 'b', flag = false);
                                      ^
 select dfunc('a'::text, 'b', true); -- full positional notation
@@ -1452,7 +1452,7 @@ select dfunc('a'::text, 'b', true); -- full positional notation
 (1 row)
 
 select dfunc('a'::text, 'b', flag = true); -- mixed notation
-psql:sql/polymorphism.sql:771: ERROR:  column "flag" does not exist
+psql:sql/polymorphism.sql:770: ERROR:  column "flag" does not exist
 LINE 1: select dfunc('a'::text, 'b', flag = true);
                                      ^
 -- ansi/sql syntax
@@ -1557,7 +1557,7 @@ do $$
     raise info 'r = %', r;
   end;
 $$;
-psql:sql/polymorphism.sql:802: INFO:  r = 1
+psql:sql/polymorphism.sql:801: INFO:  r = 1
 DO
 -- check reverse-listing of named-arg calls
 CREATE VIEW dfview AS
@@ -1565,16 +1565,17 @@ CREATE VIEW dfview AS
      dfunc(q1,q2, flag = q1>q2) as c3,
      dfunc(q1, flag = q1<q2, b = q2) as c4
      FROM int8_tbl;
-psql:sql/polymorphism.sql:809: ERROR:  syntax error at or near ">"
+psql:sql/polymorphism.sql:808: ERROR:  syntax error at or near ">"
 LINE 3:      dfunc(q1,q2, flag = q1>q2) as c3,
                                    ^
+ 
 select * from dfview;
-psql:sql/polymorphism.sql:811: ERROR:  relation "dfview" does not exist
+psql:sql/polymorphism.sql:810: ERROR:  relation "dfview" does not exist
 LINE 1: select * from dfview;
                       ^
 \d+ dfview
-psql:sql/polymorphism.sql:813: error: Did not find any relation named "dfview".
+psql:sql/polymorphism.sql:812: error: Did not find any relation named "dfview".
 drop view dfview;
-psql:sql/polymorphism.sql:815: ERROR:  view "dfview" does not exist
+psql:sql/polymorphism.sql:814: ERROR:  view "dfview" does not exist
 drop function dfunc(anyelement, anyelement, bool);
 DROP FUNCTION

@@ -2,349 +2,521 @@
 -- ALTER TABLE ADD COLUMN DEFAULT test
 --
 SET search_path = fast_default;
-SET
 CREATE SCHEMA fast_default;
-CREATE SCHEMA
-drop table if exists has_volatile;
-psql:sql/fast_default.sql:8: NOTICE:  table "has_volatile" does not exist, skipping
-DROP TABLE
-CREATE TABLE has_volatile(id int);
-CREATE TABLE
-insert into has_volatile SELECT * FROM generate_series(1,10) id;
-INSERT 0 10
+CREATE TABLE m(id OID);
+INSERT INTO m VALUES (NULL::OID);
+CREATE FUNCTION set(tabname name) RETURNS VOID
+AS $$
+BEGIN
+  UPDATE m
+  SET id = (SELECT c.relfilenode
+            FROM pg_class AS c, pg_namespace AS s
+            WHERE c.relname = tabname
+                AND c.relnamespace = s.oid
+                AND s.nspname = 'fast_default');
+END;
+$$ LANGUAGE 'plpgsql';
+CREATE FUNCTION comp() RETURNS TEXT
+AS $$
+BEGIN
+  RETURN (SELECT CASE
+               WHEN m.id = c.relfilenode THEN 'Unchanged'
+               ELSE 'Rewritten'
+               END
+           FROM m, pg_class AS c, pg_namespace AS s
+           WHERE c.relname = 't'
+               AND c.relnamespace = s.oid
+               AND s.nspname = 'fast_default');
+END;
+$$ LANGUAGE 'plpgsql';
+CREATE FUNCTION log_rewrite() RETURNS event_trigger
+LANGUAGE plpgsql as
+$func$
+
+declare
+   this_schema text;
+begin
+    select into this_schema relnamespace::regnamespace::text
+    from pg_class
+    where oid = pg_event_trigger_table_rewrite_oid();
+    if this_schema = 'fast_default'
+    then
+        RAISE NOTICE 'rewriting table % for reason %',
+          pg_event_trigger_table_rewrite_oid()::regclass,
+          pg_event_trigger_table_rewrite_reason();
+    end if;
+end;
+$func$;
+CREATE TABLE has_volatile AS
+SELECT * FROM generate_series(1,10) id;
+CREATE EVENT TRIGGER has_volatile_rewrite
+                  ON table_rewrite
+   EXECUTE PROCEDURE log_rewrite();
+-- only the last of these should trigger a rewrite
 ALTER TABLE has_volatile ADD col1 int;
-ALTER TABLE
 ALTER TABLE has_volatile ADD col2 int DEFAULT 1;
-ALTER TABLE
 ALTER TABLE has_volatile ADD col3 timestamptz DEFAULT current_timestamp;
-ALTER TABLE
 ALTER TABLE has_volatile ADD col4 int DEFAULT (random() * 10000)::int;
-ALTER TABLE
+NOTICE:  rewriting table has_volatile for reason 2
 -- Test a large sample of different datatypes
-drop table if not exists T;
-psql:sql/fast_default.sql:19: ERROR:  syntax error at or near "not"
-LINE 1: drop table if not exists T;
-                      ^
 CREATE TABLE T(pk INT NOT NULL PRIMARY KEY, c_int INT DEFAULT 1);
-CREATE TABLE
+SELECT set('t');
+ set 
+-----
+ 
+(1 row)
+
 INSERT INTO T VALUES (1), (2);
-INSERT 0 2
 ALTER TABLE T ADD COLUMN c_bpchar BPCHAR(5) DEFAULT 'hello',
-              ALTER COLUMN c_int SET DEFAULT 2;	  
-ALTER TABLE
+              ALTER COLUMN c_int SET DEFAULT 2;
 INSERT INTO T VALUES (3), (4);
-INSERT 0 2
-ALTER TABLE T ADD COLUMN c_text TEXT,
-              ALTER COLUMN c_bpchar SET DEFAULT 'dog';	  
-ALTER TABLE
+ALTER TABLE T ADD COLUMN c_text TEXT  DEFAULT 'world',
+              ALTER COLUMN c_bpchar SET DEFAULT 'dog';
 INSERT INTO T VALUES (5), (6);
-INSERT 0 2
-ALTER TABLE T ADD COLUMN c_date DATE DEFAULT '2016-06-02';
-ALTER TABLE
---             ALTER COLUMN c_text SET DEFAULT 'cat';
+ALTER TABLE T ADD COLUMN c_date DATE DEFAULT '2016-06-02',
+              ALTER COLUMN c_text SET DEFAULT 'cat';
 INSERT INTO T VALUES (7), (8);
-INSERT 0 2
 ALTER TABLE T ADD COLUMN c_timestamp TIMESTAMP DEFAULT '2016-09-01 12:00:00',
               ADD COLUMN c_timestamp_null TIMESTAMP,
               ALTER COLUMN c_date SET DEFAULT '2010-01-01';
-ALTER TABLE
 INSERT INTO T VALUES (9), (10);
-INSERT 0 2
-ALTER TABLE T ALTER COLUMN c_timestamp SET DEFAULT '1970-12-31 11:12:13',
+ALTER TABLE T ADD COLUMN c_array TEXT[]
+                  DEFAULT '{"This", "is", "the", "real", "world"}',
+              ALTER COLUMN c_timestamp SET DEFAULT '1970-12-31 11:12:13',
               ALTER COLUMN c_timestamp_null SET DEFAULT '2016-09-29 12:00:00';
-ALTER TABLE
 INSERT INTO T VALUES (11), (12);
-INSERT 0 2
 ALTER TABLE T ADD COLUMN c_small SMALLINT DEFAULT -5,
-              ADD COLUMN c_small_null SMALLINT;
-ALTER TABLE
+              ADD COLUMN c_small_null SMALLINT,
+              ALTER COLUMN c_array
+                  SET DEFAULT '{"This", "is", "no", "fantasy"}';
 INSERT INTO T VALUES (13), (14);
-INSERT 0 2
 ALTER TABLE T ADD COLUMN c_big BIGINT DEFAULT 180000000000018,
               ALTER COLUMN c_small SET DEFAULT 9,
               ALTER COLUMN c_small_null SET DEFAULT 13;
-ALTER TABLE
 INSERT INTO T VALUES (15), (16);
-INSERT 0 2
-ALTER TABLE T ADD COLUMN c_num NUMERIC(10,10) DEFAULT 1.00000000001,
+ALTER TABLE T ADD COLUMN c_num NUMERIC DEFAULT 1.00000000001,
               ALTER COLUMN c_big SET DEFAULT -9999999999999999;
-psql:sql/fast_default.sql:62: ERROR:  numeric field overflow
-DETAIL:  A field with precision 10, scale 10 must round to an absolute value less than 1.
 INSERT INTO T VALUES (17), (18);
-INSERT 0 2
 ALTER TABLE T ADD COLUMN c_time TIME DEFAULT '12:00:00',
               ALTER COLUMN c_num SET DEFAULT 2.000000000000002;
-psql:sql/fast_default.sql:67: ERROR:  column "c_num" of relation "t" does not exist
 INSERT INTO T VALUES (19), (20);
-INSERT 0 2
-ALTER TABLE T ALTER COLUMN c_time SET DEFAULT '23:59:59';
-psql:sql/fast_default.sql:71: ERROR:  column "c_time" of relation "t" does not exist
+ALTER TABLE T ADD COLUMN c_interval INTERVAL DEFAULT '1 day',
+              ALTER COLUMN c_time SET DEFAULT '23:59:59';
 INSERT INTO T VALUES (21), (22);
-INSERT 0 2
+ALTER TABLE T ADD COLUMN c_hugetext TEXT DEFAULT repeat('abcdefg',1000),
+              ALTER COLUMN c_interval SET DEFAULT '3 hours';
 INSERT INTO T VALUES (23), (24);
-INSERT 0 2
+ALTER TABLE T ALTER COLUMN c_interval DROP DEFAULT,
+              ALTER COLUMN c_hugetext SET DEFAULT repeat('poiuyt', 1000);
 INSERT INTO T VALUES (25), (26);
-INSERT 0 2
 ALTER TABLE T ALTER COLUMN c_bpchar    DROP DEFAULT,
               ALTER COLUMN c_date      DROP DEFAULT,
               ALTER COLUMN c_text      DROP DEFAULT,
               ALTER COLUMN c_timestamp DROP DEFAULT,
+              ALTER COLUMN c_array     DROP DEFAULT,
               ALTER COLUMN c_small     DROP DEFAULT,
               ALTER COLUMN c_big       DROP DEFAULT,
               ALTER COLUMN c_num       DROP DEFAULT,
-              ALTER COLUMN c_time      DROP DEFAULT;
-psql:sql/fast_default.sql:86: ERROR:  column "c_num" of relation "t" does not exist
+              ALTER COLUMN c_time      DROP DEFAULT,
+              ALTER COLUMN c_hugetext  DROP DEFAULT;
 INSERT INTO T VALUES (27), (28);
-INSERT 0 2
 SELECT pk, c_int, c_bpchar, c_text, c_date, c_timestamp,
-       c_timestamp_null, c_small, c_small_null,
-       c_big, c_num, c_time
+       c_timestamp_null, c_array, c_small, c_small_null,
+       c_big, c_num, c_time, c_interval,
+       c_hugetext = repeat('abcdefg',1000) as c_hugetext_origdef,
+       c_hugetext = repeat('poiuyt', 1000) as c_hugetext_newdef
 FROM T ORDER BY pk;
-psql:sql/fast_default.sql:93: ERROR:  column "c_num" does not exist
-LINE 3:        c_big, c_num, c_time
-                      ^
+ pk | c_int | c_bpchar | c_text |   c_date   |       c_timestamp        |     c_timestamp_null     |         c_array          | c_small | c_small_null |       c_big       |       c_num       |  c_time  | c_interval | c_hugetext_origdef | c_hugetext_newdef 
+----+-------+----------+--------+------------+--------------------------+--------------------------+--------------------------+---------+--------------+-------------------+-------------------+----------+------------+--------------------+-------------------
+  1 |     1 | hello    | world  | 06-02-2016 | Thu Sep 01 12:00:00 2016 |                          | {This,is,the,real,world} |      -5 |              |   180000000000018 |     1.00000000001 | 12:00:00 | @ 1 day    | t                  | f
+  2 |     1 | hello    | world  | 06-02-2016 | Thu Sep 01 12:00:00 2016 |                          | {This,is,the,real,world} |      -5 |              |   180000000000018 |     1.00000000001 | 12:00:00 | @ 1 day    | t                  | f
+  3 |     2 | hello    | world  | 06-02-2016 | Thu Sep 01 12:00:00 2016 |                          | {This,is,the,real,world} |      -5 |              |   180000000000018 |     1.00000000001 | 12:00:00 | @ 1 day    | t                  | f
+  4 |     2 | hello    | world  | 06-02-2016 | Thu Sep 01 12:00:00 2016 |                          | {This,is,the,real,world} |      -5 |              |   180000000000018 |     1.00000000001 | 12:00:00 | @ 1 day    | t                  | f
+  5 |     2 | dog      | world  | 06-02-2016 | Thu Sep 01 12:00:00 2016 |                          | {This,is,the,real,world} |      -5 |              |   180000000000018 |     1.00000000001 | 12:00:00 | @ 1 day    | t                  | f
+  6 |     2 | dog      | world  | 06-02-2016 | Thu Sep 01 12:00:00 2016 |                          | {This,is,the,real,world} |      -5 |              |   180000000000018 |     1.00000000001 | 12:00:00 | @ 1 day    | t                  | f
+  7 |     2 | dog      | cat    | 06-02-2016 | Thu Sep 01 12:00:00 2016 |                          | {This,is,the,real,world} |      -5 |              |   180000000000018 |     1.00000000001 | 12:00:00 | @ 1 day    | t                  | f
+  8 |     2 | dog      | cat    | 06-02-2016 | Thu Sep 01 12:00:00 2016 |                          | {This,is,the,real,world} |      -5 |              |   180000000000018 |     1.00000000001 | 12:00:00 | @ 1 day    | t                  | f
+  9 |     2 | dog      | cat    | 01-01-2010 | Thu Sep 01 12:00:00 2016 |                          | {This,is,the,real,world} |      -5 |              |   180000000000018 |     1.00000000001 | 12:00:00 | @ 1 day    | t                  | f
+ 10 |     2 | dog      | cat    | 01-01-2010 | Thu Sep 01 12:00:00 2016 |                          | {This,is,the,real,world} |      -5 |              |   180000000000018 |     1.00000000001 | 12:00:00 | @ 1 day    | t                  | f
+ 11 |     2 | dog      | cat    | 01-01-2010 | Thu Dec 31 11:12:13 1970 | Thu Sep 29 12:00:00 2016 | {This,is,the,real,world} |      -5 |              |   180000000000018 |     1.00000000001 | 12:00:00 | @ 1 day    | t                  | f
+ 12 |     2 | dog      | cat    | 01-01-2010 | Thu Dec 31 11:12:13 1970 | Thu Sep 29 12:00:00 2016 | {This,is,the,real,world} |      -5 |              |   180000000000018 |     1.00000000001 | 12:00:00 | @ 1 day    | t                  | f
+ 13 |     2 | dog      | cat    | 01-01-2010 | Thu Dec 31 11:12:13 1970 | Thu Sep 29 12:00:00 2016 | {This,is,no,fantasy}     |      -5 |              |   180000000000018 |     1.00000000001 | 12:00:00 | @ 1 day    | t                  | f
+ 14 |     2 | dog      | cat    | 01-01-2010 | Thu Dec 31 11:12:13 1970 | Thu Sep 29 12:00:00 2016 | {This,is,no,fantasy}     |      -5 |              |   180000000000018 |     1.00000000001 | 12:00:00 | @ 1 day    | t                  | f
+ 15 |     2 | dog      | cat    | 01-01-2010 | Thu Dec 31 11:12:13 1970 | Thu Sep 29 12:00:00 2016 | {This,is,no,fantasy}     |       9 |           13 |   180000000000018 |     1.00000000001 | 12:00:00 | @ 1 day    | t                  | f
+ 16 |     2 | dog      | cat    | 01-01-2010 | Thu Dec 31 11:12:13 1970 | Thu Sep 29 12:00:00 2016 | {This,is,no,fantasy}     |       9 |           13 |   180000000000018 |     1.00000000001 | 12:00:00 | @ 1 day    | t                  | f
+ 17 |     2 | dog      | cat    | 01-01-2010 | Thu Dec 31 11:12:13 1970 | Thu Sep 29 12:00:00 2016 | {This,is,no,fantasy}     |       9 |           13 | -9999999999999999 |     1.00000000001 | 12:00:00 | @ 1 day    | t                  | f
+ 18 |     2 | dog      | cat    | 01-01-2010 | Thu Dec 31 11:12:13 1970 | Thu Sep 29 12:00:00 2016 | {This,is,no,fantasy}     |       9 |           13 | -9999999999999999 |     1.00000000001 | 12:00:00 | @ 1 day    | t                  | f
+ 19 |     2 | dog      | cat    | 01-01-2010 | Thu Dec 31 11:12:13 1970 | Thu Sep 29 12:00:00 2016 | {This,is,no,fantasy}     |       9 |           13 | -9999999999999999 | 2.000000000000002 | 12:00:00 | @ 1 day    | t                  | f
+ 20 |     2 | dog      | cat    | 01-01-2010 | Thu Dec 31 11:12:13 1970 | Thu Sep 29 12:00:00 2016 | {This,is,no,fantasy}     |       9 |           13 | -9999999999999999 | 2.000000000000002 | 12:00:00 | @ 1 day    | t                  | f
+ 21 |     2 | dog      | cat    | 01-01-2010 | Thu Dec 31 11:12:13 1970 | Thu Sep 29 12:00:00 2016 | {This,is,no,fantasy}     |       9 |           13 | -9999999999999999 | 2.000000000000002 | 23:59:59 | @ 1 day    | t                  | f
+ 22 |     2 | dog      | cat    | 01-01-2010 | Thu Dec 31 11:12:13 1970 | Thu Sep 29 12:00:00 2016 | {This,is,no,fantasy}     |       9 |           13 | -9999999999999999 | 2.000000000000002 | 23:59:59 | @ 1 day    | t                  | f
+ 23 |     2 | dog      | cat    | 01-01-2010 | Thu Dec 31 11:12:13 1970 | Thu Sep 29 12:00:00 2016 | {This,is,no,fantasy}     |       9 |           13 | -9999999999999999 | 2.000000000000002 | 23:59:59 | @ 3 hours  | t                  | f
+ 24 |     2 | dog      | cat    | 01-01-2010 | Thu Dec 31 11:12:13 1970 | Thu Sep 29 12:00:00 2016 | {This,is,no,fantasy}     |       9 |           13 | -9999999999999999 | 2.000000000000002 | 23:59:59 | @ 3 hours  | t                  | f
+ 25 |     2 | dog      | cat    | 01-01-2010 | Thu Dec 31 11:12:13 1970 | Thu Sep 29 12:00:00 2016 | {This,is,no,fantasy}     |       9 |           13 | -9999999999999999 | 2.000000000000002 | 23:59:59 |            | f                  | t
+ 26 |     2 | dog      | cat    | 01-01-2010 | Thu Dec 31 11:12:13 1970 | Thu Sep 29 12:00:00 2016 | {This,is,no,fantasy}     |       9 |           13 | -9999999999999999 | 2.000000000000002 | 23:59:59 |            | f                  | t
+ 27 |     2 |          |        |            |                          | Thu Sep 29 12:00:00 2016 |                          |         |           13 |                   |                   |          |            |                    | 
+ 28 |     2 |          |        |            |                          | Thu Sep 29 12:00:00 2016 |                          |         |           13 |                   |                   |          |            |                    | 
+(28 rows)
+
+SELECT comp();
+   comp    
+-----------
+ Unchanged
+(1 row)
+
 DROP TABLE T;
-DROP TABLE
 -- Test expressions in the defaults
 CREATE OR REPLACE FUNCTION foo(a INT) RETURNS TEXT AS $$
-DECLARE res TEXT = '';
+DECLARE res TEXT := '';
         i INT;
 BEGIN
-  i = 0;
+  i := 0;
   WHILE (i < a) LOOP
-    res = res || chr(ascii('a') + i);
-    i = i + 1;
+    res := res || chr(ascii('a') + i);
+    i := i + 1;
   END LOOP;
   RETURN res;
 END; $$ LANGUAGE PLPGSQL STABLE;
-CREATE FUNCTION
 CREATE TABLE T(pk INT NOT NULL PRIMARY KEY, c_int INT DEFAULT LENGTH(foo(6)));
-CREATE TABLE
+SELECT set('t');
+ set 
+-----
+ 
+(1 row)
+
 INSERT INTO T VALUES (1), (2);
-INSERT 0 2
 ALTER TABLE T ADD COLUMN c_bpchar BPCHAR(5) DEFAULT foo(4),
               ALTER COLUMN c_int SET DEFAULT LENGTH(foo(8));
-ALTER TABLE
 INSERT INTO T VALUES (3), (4);
-INSERT 0 2
 ALTER TABLE T ADD COLUMN c_text TEXT  DEFAULT foo(6),
               ALTER COLUMN c_bpchar SET DEFAULT foo(3);
-psql:sql/fast_default.sql:120: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1101, BLOB, TEXT, GEOMETRY or JSON column 'c_text' can't have a default value.
 INSERT INTO T VALUES (5), (6);
-INSERT 0 2
 ALTER TABLE T ADD COLUMN c_date DATE
                   DEFAULT '2016-06-02'::DATE  + LENGTH(foo(10)),
               ALTER COLUMN c_text SET DEFAULT foo(12);
-psql:sql/fast_default.sql:126: ERROR:  column "c_text" of relation "t" does not exist
 INSERT INTO T VALUES (7), (8);
-INSERT 0 2
 ALTER TABLE T ADD COLUMN c_timestamp TIMESTAMP
                   DEFAULT '2016-09-01'::DATE + LENGTH(foo(10)),
               ALTER COLUMN c_date
                   SET DEFAULT '2010-01-01'::DATE - LENGTH(foo(4));
-psql:sql/fast_default.sql:133: ERROR:  column "c_date" of relation "t" does not exist
 INSERT INTO T VALUES (9), (10);
-INSERT 0 2
-ALTER TABLE T ALTER COLUMN c_timestamp
+ALTER TABLE T ADD COLUMN c_array TEXT[]
+                  DEFAULT ('{"This", "is", "' || foo(4) ||
+                           '","the", "real", "world"}')::TEXT[],
+              ALTER COLUMN c_timestamp
                   SET DEFAULT '1970-12-31'::DATE + LENGTH(foo(30));
-psql:sql/fast_default.sql:138: ERROR:  column "c_timestamp" of relation "t" does not exist
 INSERT INTO T VALUES (11), (12);
-INSERT 0 2
-ALTER TABLE T ALTER COLUMN c_int DROP DEFAULT;
-ALTER TABLE
+ALTER TABLE T ALTER COLUMN c_int DROP DEFAULT,
+              ALTER COLUMN c_array
+                  SET DEFAULT ('{"This", "is", "' || foo(1) ||
+                               '", "fantasy"}')::text[];
 INSERT INTO T VALUES (13), (14);
-INSERT 0 2
 ALTER TABLE T ALTER COLUMN c_bpchar    DROP DEFAULT,
               ALTER COLUMN c_date      DROP DEFAULT,
               ALTER COLUMN c_text      DROP DEFAULT,
-              ALTER COLUMN c_timestamp DROP DEFAULT;
-psql:sql/fast_default.sql:149: ERROR:  column "c_date" of relation "t" does not exist
+              ALTER COLUMN c_timestamp DROP DEFAULT,
+              ALTER COLUMN c_array     DROP DEFAULT;
 INSERT INTO T VALUES (15), (16);
-INSERT 0 2
 SELECT * FROM T;
- pk | c_int | c_bpchar 
-----+-------+----------
-  1 |     6 | abcd 
-  2 |     6 | abcd 
-  3 |     8 | abcd 
-  4 |     8 | abcd 
-  5 |     8 | abcd 
-  6 |     8 | abcd 
-  7 |     8 | abcd 
-  8 |     8 | abcd 
-  9 |     8 | abcd 
- 10 |     8 | abcd 
- 11 |     8 | abcd 
- 12 |     8 | abcd 
- 13 |       | abcd 
- 14 |       | abcd 
- 15 |       | abcd 
- 16 |       | abcd 
+ pk | c_int | c_bpchar |    c_text    |   c_date   |       c_timestamp        |            c_array            
+----+-------+----------+--------------+------------+--------------------------+-------------------------------
+  1 |     6 | abcd     | abcdef       | 06-12-2016 | Sun Sep 11 00:00:00 2016 | {This,is,abcd,the,real,world}
+  2 |     6 | abcd     | abcdef       | 06-12-2016 | Sun Sep 11 00:00:00 2016 | {This,is,abcd,the,real,world}
+  3 |     8 | abcd     | abcdef       | 06-12-2016 | Sun Sep 11 00:00:00 2016 | {This,is,abcd,the,real,world}
+  4 |     8 | abcd     | abcdef       | 06-12-2016 | Sun Sep 11 00:00:00 2016 | {This,is,abcd,the,real,world}
+  5 |     8 | abc      | abcdef       | 06-12-2016 | Sun Sep 11 00:00:00 2016 | {This,is,abcd,the,real,world}
+  6 |     8 | abc      | abcdef       | 06-12-2016 | Sun Sep 11 00:00:00 2016 | {This,is,abcd,the,real,world}
+  7 |     8 | abc      | abcdefghijkl | 06-12-2016 | Sun Sep 11 00:00:00 2016 | {This,is,abcd,the,real,world}
+  8 |     8 | abc      | abcdefghijkl | 06-12-2016 | Sun Sep 11 00:00:00 2016 | {This,is,abcd,the,real,world}
+  9 |     8 | abc      | abcdefghijkl | 12-28-2009 | Sun Sep 11 00:00:00 2016 | {This,is,abcd,the,real,world}
+ 10 |     8 | abc      | abcdefghijkl | 12-28-2009 | Sun Sep 11 00:00:00 2016 | {This,is,abcd,the,real,world}
+ 11 |     8 | abc      | abcdefghijkl | 12-28-2009 | Sat Jan 30 00:00:00 1971 | {This,is,abcd,the,real,world}
+ 12 |     8 | abc      | abcdefghijkl | 12-28-2009 | Sat Jan 30 00:00:00 1971 | {This,is,abcd,the,real,world}
+ 13 |       | abc      | abcdefghijkl | 12-28-2009 | Sat Jan 30 00:00:00 1971 | {This,is,a,fantasy}
+ 14 |       | abc      | abcdefghijkl | 12-28-2009 | Sat Jan 30 00:00:00 1971 | {This,is,a,fantasy}
+ 15 |       |          |              |            |                          | 
+ 16 |       |          |              |            |                          | 
 (16 rows)
 
+SELECT comp();
+   comp    
+-----------
+ Unchanged
+(1 row)
+
 DROP TABLE T;
-DROP TABLE
 DROP FUNCTION foo(INT);
-DROP FUNCTION
 -- Fall back to full rewrite for volatile expressions
 CREATE TABLE T(pk INT NOT NULL PRIMARY KEY);
-CREATE TABLE
 INSERT INTO T VALUES (1);
-INSERT 0 1
+SELECT set('t');
+ set 
+-----
+ 
+(1 row)
+
 -- now() is stable, because it returns the transaction timestamp
 ALTER TABLE T ADD COLUMN c1 TIMESTAMP DEFAULT now();
-ALTER TABLE
+SELECT comp();
+   comp    
+-----------
+ Unchanged
+(1 row)
+
 -- clock_timestamp() is volatile
 ALTER TABLE T ADD COLUMN c2 TIMESTAMP DEFAULT clock_timestamp();
-ALTER TABLE
+NOTICE:  rewriting table t for reason 2
+SELECT comp();
+   comp    
+-----------
+ Rewritten
+(1 row)
+
 DROP TABLE T;
-DROP TABLE
 -- Simple querie
 CREATE TABLE T (pk INT NOT NULL PRIMARY KEY);
-CREATE TABLE
+SELECT set('t');
+ set 
+-----
+ 
+(1 row)
+
 INSERT INTO T SELECT * FROM generate_series(1, 10) a;
-INSERT 0 10
 ALTER TABLE T ADD COLUMN c_bigint BIGINT NOT NULL DEFAULT -1;
-ALTER TABLE
 INSERT INTO T SELECT b, b - 10 FROM generate_series(11, 20) a(b);
-INSERT 0 10
 ALTER TABLE T ADD COLUMN c_text TEXT DEFAULT 'hello';
-psql:sql/fast_default.sql:181: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1101, BLOB, TEXT, GEOMETRY or JSON column 'c_text' can't have a default value.
 INSERT INTO T SELECT b, b - 10, (b + 10)::text FROM generate_series(21, 30) a(b);
-psql:sql/fast_default.sql:183: ERROR:  INSERT has more expressions than target columns
-LINE 1: INSERT INTO T SELECT b, b - 10, (b + 10)::text FROM generate...
-                                         ^
 -- WHERE clause
 SELECT c_bigint, c_text FROM T WHERE c_bigint = -1 LIMIT 1;
-psql:sql/fast_default.sql:186: ERROR:  column "c_text" does not exist
-LINE 1: SELECT c_bigint, c_text FROM T WHERE c_bigint = -1 LIMIT 1;
-                         ^
+ c_bigint | c_text 
+----------+--------
+       -1 | hello
+(1 row)
+
 EXPLAIN (VERBOSE TRUE, COSTS FALSE)
 SELECT c_bigint, c_text FROM T WHERE c_bigint = -1 LIMIT 1;
-psql:sql/fast_default.sql:189: ERROR:  column "c_text" does not exist
-LINE 2: SELECT c_bigint, c_text FROM T WHERE c_bigint = -1 LIMIT 1;
-                         ^
+
 SELECT c_bigint, c_text FROM T WHERE c_text = 'hello' LIMIT 1;
-psql:sql/fast_default.sql:191: ERROR:  column "c_text" does not exist
-LINE 1: SELECT c_bigint, c_text FROM T WHERE c_text = 'hello' LIMIT ...
-                         ^
+ c_bigint | c_text 
+----------+--------
+       -1 | hello
+(1 row)
+
 EXPLAIN (VERBOSE TRUE, COSTS FALSE) SELECT c_bigint, c_text FROM T WHERE c_text = 'hello' LIMIT 1;
-psql:sql/fast_default.sql:193: ERROR:  column "c_text" does not exist
-LINE 1: ...LAIN (VERBOSE TRUE, COSTS FALSE) SELECT c_bigint, c_text FRO...
-                                                             ^
+
 -- COALESCE
 SELECT COALESCE(c_bigint, pk), COALESCE(c_text, pk::text)
 FROM T
 ORDER BY pk LIMIT 10;
-psql:sql/fast_default.sql:199: ERROR:  column "c_text" does not exist
-LINE 1: SELECT COALESCE(c_bigint, pk), COALESCE(c_text, pk::text)
-                                                ^
+ coalesce | coalesce 
+----------+----------
+       -1 | hello
+       -1 | hello
+       -1 | hello
+       -1 | hello
+       -1 | hello
+       -1 | hello
+       -1 | hello
+       -1 | hello
+       -1 | hello
+       -1 | hello
+(10 rows)
+
 -- Aggregate function
 SELECT SUM(c_bigint), MAX(c_text COLLATE "C" ), MIN(c_text COLLATE "C") FROM T;
-psql:sql/fast_default.sql:202: ERROR:  column "c_text" does not exist
-LINE 1: SELECT SUM(c_bigint), MAX(c_text COLLATE "C" ), MIN(c_text C...
-                                  ^
+ sum |  max  | min 
+-----+-------+-----
+ 200 | hello | 31
+(1 row)
+
 -- ORDER BY
 SELECT * FROM T ORDER BY c_bigint, c_text, pk LIMIT 10;
-psql:sql/fast_default.sql:205: ERROR:  column "c_text" does not exist
-LINE 1: SELECT * FROM T ORDER BY c_bigint, c_text, pk LIMIT 10;
-                                           ^
+ pk | c_bigint | c_text 
+----+----------+--------
+  1 |       -1 | hello
+  2 |       -1 | hello
+  3 |       -1 | hello
+  4 |       -1 | hello
+  5 |       -1 | hello
+  6 |       -1 | hello
+  7 |       -1 | hello
+  8 |       -1 | hello
+  9 |       -1 | hello
+ 10 |       -1 | hello
+(10 rows)
+
 EXPLAIN (VERBOSE TRUE, COSTS FALSE)
 SELECT * FROM T ORDER BY c_bigint, c_text, pk LIMIT 10;
-psql:sql/fast_default.sql:208: ERROR:  column "c_text" does not exist
-LINE 2: SELECT * FROM T ORDER BY c_bigint, c_text, pk LIMIT 10;
-                                           ^
+
 -- LIMIT
 SELECT * FROM T WHERE c_bigint > -1 ORDER BY c_bigint, c_text, pk LIMIT 10;
-psql:sql/fast_default.sql:211: ERROR:  column "c_text" does not exist
-LINE 1: ...T * FROM T WHERE c_bigint > -1 ORDER BY c_bigint, c_text, pk...
-                                                             ^
+ pk | c_bigint | c_text 
+----+----------+--------
+ 11 |        1 | hello
+ 12 |        2 | hello
+ 13 |        3 | hello
+ 14 |        4 | hello
+ 15 |        5 | hello
+ 16 |        6 | hello
+ 17 |        7 | hello
+ 18 |        8 | hello
+ 19 |        9 | hello
+ 20 |       10 | hello
+(10 rows)
+
 EXPLAIN (VERBOSE TRUE, COSTS FALSE)
 SELECT * FROM T WHERE c_bigint > -1 ORDER BY c_bigint, c_text, pk LIMIT 10;
-psql:sql/fast_default.sql:214: ERROR:  column "c_text" does not exist
-LINE 2: ...T * FROM T WHERE c_bigint > -1 ORDER BY c_bigint, c_text, pk...
-                                                             ^
+
 --  DELETE with RETURNING
 DELETE FROM T WHERE pk BETWEEN 10 AND 20 RETURNING *;
- pk | c_bigint 
-----+----------
- 10 |       -1
- 11 |        1
- 12 |        2
- 13 |        3
- 14 |        4
- 15 |        5
- 16 |        6
- 17 |        7
- 18 |        8
- 19 |        9
- 20 |       10
+ pk | c_bigint | c_text 
+----+----------+--------
+ 10 |       -1 | hello
+ 11 |        1 | hello
+ 12 |        2 | hello
+ 13 |        3 | hello
+ 14 |        4 | hello
+ 15 |        5 | hello
+ 16 |        6 | hello
+ 17 |        7 | hello
+ 18 |        8 | hello
+ 19 |        9 | hello
+ 20 |       10 | hello
 (11 rows)
 
-DELETE 4294967295
--- will crash: EXPLAIN (VERBOSE TRUE, COSTS FALSE)
--- DELETE FROM T WHERE pk BETWEEN 10 AND 20 RETURNING *;
+EXPLAIN (VERBOSE TRUE, COSTS FALSE)
+DELETE FROM T WHERE pk BETWEEN 10 AND 20 RETURNING *;
+
 -- UPDATE
 UPDATE T SET c_text = '"' || c_text || '"'  WHERE pk < 10;
-psql:sql/fast_default.sql:222: ERROR:  column "c_text" does not exist
-LINE 1: UPDATE T SET c_text = '"' || c_text || '"'  WHERE pk < 10;
-                                     ^
 SELECT * FROM T WHERE c_text LIKE '"%"' ORDER BY PK;
-psql:sql/fast_default.sql:223: ERROR:  column "c_text" does not exist
-LINE 1: SELECT * FROM T WHERE c_text LIKE '"%"' ORDER BY PK;
-                              ^
+ pk | c_bigint | c_text  
+----+----------+---------
+  1 |       -1 | "hello"
+  2 |       -1 | "hello"
+  3 |       -1 | "hello"
+  4 |       -1 | "hello"
+  5 |       -1 | "hello"
+  6 |       -1 | "hello"
+  7 |       -1 | "hello"
+  8 |       -1 | "hello"
+  9 |       -1 | "hello"
+(9 rows)
+
+SELECT comp();
+   comp    
+-----------
+ Unchanged
+(1 row)
+
 DROP TABLE T;
-DROP TABLE
 -- Combine with other DDL
 CREATE TABLE T(pk INT NOT NULL PRIMARY KEY);
-CREATE TABLE
+SELECT set('t');
+ set 
+-----
+ 
+(1 row)
+
 INSERT INTO T VALUES (1), (2);
-INSERT 0 2
 ALTER TABLE T ADD COLUMN c_int INT NOT NULL DEFAULT -1;
-ALTER TABLE
 INSERT INTO T VALUES (3), (4);
-INSERT 0 2
 ALTER TABLE T ADD COLUMN c_text TEXT DEFAULT 'Hello';
-psql:sql/fast_default.sql:237: ERROR:  Kunlun-db: MySQL storage node (2, 2) returned error: 1101, BLOB, TEXT, GEOMETRY or JSON column 'c_text' can't have a default value.
 INSERT INTO T VALUES (5), (6);
-INSERT 0 2
 ALTER TABLE T ALTER COLUMN c_text SET DEFAULT 'world',
               ALTER COLUMN c_int  SET DEFAULT 1;
-psql:sql/fast_default.sql:242: ERROR:  column "c_text" of relation "t" does not exist
 INSERT INTO T VALUES (7), (8);
-INSERT 0 2
 SELECT * FROM T ORDER BY pk;
- pk | c_int 
-----+-------
-  1 |    -1
-  2 |    -1
-  3 |    -1
-  4 |    -1
-  5 |    -1
-  6 |    -1
-  7 |    -1
-  8 |    -1
+ pk | c_int | c_text 
+----+-------+--------
+  1 |    -1 | Hello
+  2 |    -1 | Hello
+  3 |    -1 | Hello
+  4 |    -1 | Hello
+  5 |    -1 | Hello
+  6 |    -1 | Hello
+  7 |     1 | world
+  8 |     1 | world
 (8 rows)
 
 -- Add an index
 CREATE INDEX i ON T(c_int, c_text);
-psql:sql/fast_default.sql:249: ERROR:  column "c_text" does not exist
 SELECT c_text FROM T WHERE c_int = -1;
-psql:sql/fast_default.sql:251: ERROR:  column "c_text" does not exist
-LINE 1: SELECT c_text FROM T WHERE c_int = -1;
-               ^
-HINT:  Perhaps you meant to reference the column "t.c_int".
+ c_text 
+--------
+ Hello
+ Hello
+ Hello
+ Hello
+ Hello
+ Hello
+(6 rows)
+
+SELECT comp();
+   comp    
+-----------
+ Unchanged
+(1 row)
+
+-- query to exercise expand_tuple function
+CREATE TABLE t1 AS
+SELECT 1::int AS a , 2::int AS b
+FROM generate_series(1,20) q;
+ALTER TABLE t1 ADD COLUMN c text;
+SELECT a,
+       stddev(cast((SELECT sum(1) FROM generate_series(1,20) x) AS float4))
+          OVER (PARTITION BY a,b,c ORDER BY b)
+       AS z
+FROM t1;
+ a | z 
+---+---
+ 1 | 0
+ 1 | 0
+ 1 | 0
+ 1 | 0
+ 1 | 0
+ 1 | 0
+ 1 | 0
+ 1 | 0
+ 1 | 0
+ 1 | 0
+ 1 | 0
+ 1 | 0
+ 1 | 0
+ 1 | 0
+ 1 | 0
+ 1 | 0
+ 1 | 0
+ 1 | 0
+ 1 | 0
+ 1 | 0
+(20 rows)
+
 DROP TABLE T;
-DROP TABLE
+-- test that we account for missing columns without defaults correctly
+-- in expand_tuple, and that rows are correctly expanded for triggers
+CREATE FUNCTION test_trigger()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+
+begin
+    raise notice 'old tuple: %', to_json(OLD)::text;
+    if TG_OP = 'DELETE'
+    then
+       return OLD;
+    else
+       return NEW;
+    end if;
+end;
+
+$$;
 -- 2 new columns, both have defaults
 CREATE TABLE t (id serial PRIMARY KEY, a int, b int, c int);
-CREATE TABLE
 INSERT INTO t (a,b,c) VALUES (1,2,3);
-INSERT 0 1
 ALTER TABLE t ADD COLUMN x int NOT NULL DEFAULT 4;
-ALTER TABLE
 ALTER TABLE t ADD COLUMN y int NOT NULL DEFAULT 5;
-ALTER TABLE
+CREATE TRIGGER a BEFORE UPDATE ON t FOR EACH ROW EXECUTE PROCEDURE test_trigger();
 SELECT * FROM t;
  id | a | b | c | x | y 
 ----+---+---+---+---+---
@@ -352,7 +524,7 @@ SELECT * FROM t;
 (1 row)
 
 UPDATE t SET y = 2;
-UPDATE 1
+NOTICE:  old tuple: {"id":1,"a":1,"b":2,"c":3,"x":4,"y":5}
 SELECT * FROM t;
  id | a | b | c | x | y 
 ----+---+---+---+---+---
@@ -360,16 +532,12 @@ SELECT * FROM t;
 (1 row)
 
 DROP TABLE t;
-DROP TABLE
 -- 2 new columns, first has default
 CREATE TABLE t (id serial PRIMARY KEY, a int, b int, c int);
-CREATE TABLE
 INSERT INTO t (a,b,c) VALUES (1,2,3);
-INSERT 0 1
 ALTER TABLE t ADD COLUMN x int NOT NULL DEFAULT 4;
-ALTER TABLE
 ALTER TABLE t ADD COLUMN y int;
-ALTER TABLE
+CREATE TRIGGER a BEFORE UPDATE ON t FOR EACH ROW EXECUTE PROCEDURE test_trigger();
 SELECT * FROM t;
  id | a | b | c | x | y 
 ----+---+---+---+---+---
@@ -377,7 +545,7 @@ SELECT * FROM t;
 (1 row)
 
 UPDATE t SET y = 2;
-UPDATE 1
+NOTICE:  old tuple: {"id":1,"a":1,"b":2,"c":3,"x":4,"y":null}
 SELECT * FROM t;
  id | a | b | c | x | y 
 ----+---+---+---+---+---
@@ -385,16 +553,12 @@ SELECT * FROM t;
 (1 row)
 
 DROP TABLE t;
-DROP TABLE
 -- 2 new columns, second has default
 CREATE TABLE t (id serial PRIMARY KEY, a int, b int, c int);
-CREATE TABLE
 INSERT INTO t (a,b,c) VALUES (1,2,3);
-INSERT 0 1
 ALTER TABLE t ADD COLUMN x int;
-ALTER TABLE
 ALTER TABLE t ADD COLUMN y int NOT NULL DEFAULT 5;
-ALTER TABLE
+CREATE TRIGGER a BEFORE UPDATE ON t FOR EACH ROW EXECUTE PROCEDURE test_trigger();
 SELECT * FROM t;
  id | a | b | c | x | y 
 ----+---+---+---+---+---
@@ -402,7 +566,7 @@ SELECT * FROM t;
 (1 row)
 
 UPDATE t SET y = 2;
-UPDATE 1
+NOTICE:  old tuple: {"id":1,"a":1,"b":2,"c":3,"x":null,"y":5}
 SELECT * FROM t;
  id | a | b | c | x | y 
 ----+---+---+---+---+---
@@ -410,16 +574,12 @@ SELECT * FROM t;
 (1 row)
 
 DROP TABLE t;
-DROP TABLE
 -- 2 new columns, neither has default
 CREATE TABLE t (id serial PRIMARY KEY, a int, b int, c int);
-CREATE TABLE
 INSERT INTO t (a,b,c) VALUES (1,2,3);
-INSERT 0 1
 ALTER TABLE t ADD COLUMN x int;
-ALTER TABLE
 ALTER TABLE t ADD COLUMN y int;
-ALTER TABLE
+CREATE TRIGGER a BEFORE UPDATE ON t FOR EACH ROW EXECUTE PROCEDURE test_trigger();
 SELECT * FROM t;
  id | a | b | c | x | y 
 ----+---+---+---+---+---
@@ -427,7 +587,7 @@ SELECT * FROM t;
 (1 row)
 
 UPDATE t SET y = 2;
-UPDATE 1
+NOTICE:  old tuple: {"id":1,"a":1,"b":2,"c":3,"x":null,"y":null}
 SELECT * FROM t;
  id | a | b | c | x | y 
 ----+---+---+---+---+---
@@ -435,17 +595,13 @@ SELECT * FROM t;
 (1 row)
 
 DROP TABLE t;
-DROP TABLE
 -- same as last 4 tests but here the last original column has a NULL value
 -- 2 new columns, both have defaults
 CREATE TABLE t (id serial PRIMARY KEY, a int, b int, c int);
-CREATE TABLE
 INSERT INTO t (a,b,c) VALUES (1,2,NULL);
-INSERT 0 1
 ALTER TABLE t ADD COLUMN x int NOT NULL DEFAULT 4;
-ALTER TABLE
 ALTER TABLE t ADD COLUMN y int NOT NULL DEFAULT 5;
-ALTER TABLE
+CREATE TRIGGER a BEFORE UPDATE ON t FOR EACH ROW EXECUTE PROCEDURE test_trigger();
 SELECT * FROM t;
  id | a | b | c | x | y 
 ----+---+---+---+---+---
@@ -453,7 +609,7 @@ SELECT * FROM t;
 (1 row)
 
 UPDATE t SET y = 2;
-UPDATE 1
+NOTICE:  old tuple: {"id":1,"a":1,"b":2,"c":null,"x":4,"y":5}
 SELECT * FROM t;
  id | a | b | c | x | y 
 ----+---+---+---+---+---
@@ -461,16 +617,12 @@ SELECT * FROM t;
 (1 row)
 
 DROP TABLE t;
-DROP TABLE
 -- 2 new columns, first has default
 CREATE TABLE t (id serial PRIMARY KEY, a int, b int, c int);
-CREATE TABLE
 INSERT INTO t (a,b,c) VALUES (1,2,NULL);
-INSERT 0 1
 ALTER TABLE t ADD COLUMN x int NOT NULL DEFAULT 4;
-ALTER TABLE
 ALTER TABLE t ADD COLUMN y int;
-ALTER TABLE
+CREATE TRIGGER a BEFORE UPDATE ON t FOR EACH ROW EXECUTE PROCEDURE test_trigger();
 SELECT * FROM t;
  id | a | b | c | x | y 
 ----+---+---+---+---+---
@@ -478,7 +630,7 @@ SELECT * FROM t;
 (1 row)
 
 UPDATE t SET y = 2;
-UPDATE 1
+NOTICE:  old tuple: {"id":1,"a":1,"b":2,"c":null,"x":4,"y":null}
 SELECT * FROM t;
  id | a | b | c | x | y 
 ----+---+---+---+---+---
@@ -486,16 +638,12 @@ SELECT * FROM t;
 (1 row)
 
 DROP TABLE t;
-DROP TABLE
 -- 2 new columns, second has default
 CREATE TABLE t (id serial PRIMARY KEY, a int, b int, c int);
-CREATE TABLE
 INSERT INTO t (a,b,c) VALUES (1,2,NULL);
-INSERT 0 1
 ALTER TABLE t ADD COLUMN x int;
-ALTER TABLE
 ALTER TABLE t ADD COLUMN y int NOT NULL DEFAULT 5;
-ALTER TABLE
+CREATE TRIGGER a BEFORE UPDATE ON t FOR EACH ROW EXECUTE PROCEDURE test_trigger();
 SELECT * FROM t;
  id | a | b | c | x | y 
 ----+---+---+---+---+---
@@ -503,7 +651,7 @@ SELECT * FROM t;
 (1 row)
 
 UPDATE t SET y = 2;
-UPDATE 1
+NOTICE:  old tuple: {"id":1,"a":1,"b":2,"c":null,"x":null,"y":5}
 SELECT * FROM t;
  id | a | b | c | x | y 
 ----+---+---+---+---+---
@@ -511,16 +659,12 @@ SELECT * FROM t;
 (1 row)
 
 DROP TABLE t;
-DROP TABLE
 -- 2 new columns, neither has default
 CREATE TABLE t (id serial PRIMARY KEY, a int, b int, c int);
-CREATE TABLE
 INSERT INTO t (a,b,c) VALUES (1,2,NULL);
-INSERT 0 1
 ALTER TABLE t ADD COLUMN x int;
-ALTER TABLE
 ALTER TABLE t ADD COLUMN y int;
-ALTER TABLE
+CREATE TRIGGER a BEFORE UPDATE ON t FOR EACH ROW EXECUTE PROCEDURE test_trigger();
 SELECT * FROM t;
  id | a | b | c | x | y 
 ----+---+---+---+---+---
@@ -528,7 +672,7 @@ SELECT * FROM t;
 (1 row)
 
 UPDATE t SET y = 2;
-UPDATE 1
+NOTICE:  old tuple: {"id":1,"a":1,"b":2,"c":null,"x":null,"y":null}
 SELECT * FROM t;
  id | a | b | c | x | y 
 ----+---+---+---+---+---
@@ -536,28 +680,19 @@ SELECT * FROM t;
 (1 row)
 
 DROP TABLE t;
-DROP TABLE
+-- make sure expanded tuple has correct self pointer
+-- it will be required by the RI trigger doing the cascading delete
 CREATE TABLE leader (a int PRIMARY KEY, b int);
-CREATE TABLE
-CREATE TABLE follower (a int, b int);
-CREATE TABLE
+CREATE TABLE follower (a int REFERENCES leader ON DELETE CASCADE, b int);
 INSERT INTO leader VALUES (1, 1), (2, 2);
-INSERT 0 2
 ALTER TABLE leader ADD c int;
-ALTER TABLE
 ALTER TABLE leader DROP c;
-ALTER TABLE
 DELETE FROM leader;
-DELETE 2
 -- check that ALTER TABLE ... ALTER TYPE does the right thing
 CREATE TABLE vtype( a integer);
-CREATE TABLE
 INSERT INTO vtype VALUES (1);
-INSERT 0 1
 ALTER TABLE vtype ADD COLUMN b DOUBLE PRECISION DEFAULT 0.2;
-ALTER TABLE
 ALTER TABLE vtype ADD COLUMN c BOOLEAN DEFAULT true;
-ALTER TABLE
 SELECT * FROM vtype;
  a |  b  | c 
 ---+-----+---
@@ -567,26 +702,20 @@ SELECT * FROM vtype;
 ALTER TABLE vtype
       ALTER b TYPE text USING b::text,
       ALTER c TYPE text USING c::text;
-ALTER TABLE
+NOTICE:  rewriting table vtype for reason 4
 SELECT * FROM vtype;
- a |  b  | c 
----+-----+---
- 1 | 0.2 | 1
+ a |  b  |  c   
+---+-----+------
+ 1 | 0.2 | true
 (1 row)
 
 -- also check the case that doesn't rewrite the table
 CREATE TABLE vtype2 (a int);
-CREATE TABLE
 INSERT INTO vtype2 VALUES (1);
-INSERT 0 1
 ALTER TABLE vtype2 ADD COLUMN b varchar(10) DEFAULT 'xxx';
-ALTER TABLE
 ALTER TABLE vtype2 ALTER COLUMN b SET DEFAULT 'yyy';
-ALTER TABLE
 INSERT INTO vtype2 VALUES (2);
-INSERT 0 1
 ALTER TABLE vtype2 ALTER COLUMN b TYPE varchar(20) USING b::varchar(20);
-ALTER TABLE
 SELECT * FROM vtype2;
  a |  b  
 ---+-----
@@ -594,37 +723,55 @@ SELECT * FROM vtype2;
  2 | yyy
 (2 rows)
 
+-- Ensure that defaults are checked when evaluating whether HOT update
+-- is possible, this was broken for a while:
+-- https://postgr.es/m/20190202133521.ylauh3ckqa7colzj%40alap3.anarazel.de
+BEGIN;
+CREATE TABLE t();
+INSERT INTO t DEFAULT VALUES;
+ALTER TABLE t ADD COLUMN a int DEFAULT 1;
+CREATE INDEX ON t(a);
+-- set column with a default 1 to NULL, due to a bug that wasn't
+-- noticed has heap_getattr buggily returned NULL for default columns
+UPDATE t SET a = NULL;
+-- verify that index and non-index scans show the same result
+SET LOCAL enable_seqscan = true;
+SELECT * FROM t WHERE a IS NULL;
+ a 
+---
+  
+(1 row)
+
+SET LOCAL enable_seqscan = false;
+SELECT * FROM t WHERE a IS NULL;
+ a 
+---
+  
+(1 row)
+
+ROLLBACK;
 -- cleanup
 DROP TABLE vtype;
-DROP TABLE
 DROP TABLE vtype2;
-DROP TABLE
 DROP TABLE follower;
-DROP TABLE
 DROP TABLE leader;
-DROP TABLE
+DROP FUNCTION test_trigger();
 DROP TABLE t1;
-psql:sql/fast_default.sql:371: ERROR:  table "t1" does not exist
+DROP FUNCTION set(name);
+DROP FUNCTION comp();
+DROP TABLE m;
 DROP TABLE has_volatile;
-DROP TABLE
+DROP EVENT TRIGGER has_volatile_rewrite;
 DROP FUNCTION log_rewrite;
-psql:sql/fast_default.sql:373: ERROR:  could not find a function named "log_rewrite"
 DROP SCHEMA fast_default;
-DROP SCHEMA
 -- Leave a table with an active fast default in place, for pg_upgrade testing
 set search_path = public;
-SET
 create table has_fast_default(f1 int);
-CREATE TABLE
 insert into has_fast_default values(1);
-INSERT 0 1
 alter table has_fast_default add column f2 int default 42;
-ALTER TABLE
 table has_fast_default;
  f1 | f2 
 ----+----
   1 | 42
 (1 row)
 
-drop table has_fast_default;
-DROP TABLE

@@ -1,33 +1,19 @@
 -- regression test cases from all bug reports in trac.
 -- bug 17 The command does not return the number of affected records 
-drop table if exists tx1 cascade;
-psql:sql/remote_dml2.sql:4: NOTICE:  table "tx1" does not exist, skipping
-DROP TABLE
 create table tx1(id int primary key, c char(50));
-CREATE TABLE
 insert into tx1 values(1,'1');
-INSERT 0 1
 insert into tx1 values(2, '2');
-INSERT 0 1
 insert into tx1 values(3, '3');
-INSERT 0 1
 delete from tx1;
-DELETE 3
+drop table tx1;
 -- bug 30
-drop table if exists uv_iocu_tab cascade;
-psql:sql/remote_dml2.sql:12: NOTICE:  table "uv_iocu_tab" does not exist, skipping
-DROP TABLE
 create table uv_iocu_tab (a serial primary key, b varchar(50));
-CREATE TABLE
 insert into uv_iocu_tab (b) values('abc'),('bcd'),('xyz');
-INSERT 0 3
 create view uv_iocu_view as select b as bb, a as aa, uv_iocu_tab::varchar(50) as cc from uv_iocu_tab;
-CREATE VIEW
---select * from uv_iocu_view;
+select * from uv_iocu_view;
+ERROR:  Kunlun-db: Must specify whole-row target left-most.
 drop view uv_iocu_view;
-DROP VIEW
 create view uv_iocu_view as select a as aa, b as bb, uv_iocu_tab::varchar(50) as cc from uv_iocu_tab;
-CREATE VIEW
 select * from uv_iocu_view;
  aa | bb  |   cc    
 ----+-----+---------
@@ -36,21 +22,16 @@ select * from uv_iocu_view;
   3 | xyz | (3,xyz)
 (3 rows)
 
+drop table uv_iocu_tab cascade;
+NOTICE:  drop cascades to view uv_iocu_view
 -- bug 31
-drop table if exists base_tbl cascade;
-psql:sql/remote_dml2.sql:23: NOTICE:  table "base_tbl" does not exist, skipping
-DROP TABLE
 CREATE TABLE base_tbl(id serial primary key, a float);
-CREATE TABLE
 INSERT INTO base_tbl (a) SELECT i/10.0 FROM generate_series(1,10) g(i);
-INSERT 0 10
 CREATE VIEW rw_view1 AS SELECT ctid, sin(a) s, a, cos(a) c FROM base_tbl WHERE a != 0 ORDER BY abs(a);
-CREATE VIEW
---select*from rw_view1;
+select*from rw_view1;
+ERROR:  Kunlun-db: Can't access system attribute(ctid) from remote relation base_tbl.
 drop view rw_view1;
-DROP VIEW
 CREATE VIEW rw_view1 AS SELECT sin(a) s, a, cos(a) c FROM base_tbl WHERE a != 0 ORDER BY abs(a);
-CREATE VIEW
 select*from rw_view1;
          s          |  a  |         c         
 --------------------+-----+-------------------
@@ -72,7 +53,6 @@ INSERT INTO rw_view1 (a) VALUES (1.1) RETURNING a, s, c;
  1.1 | 0.891207360061435 | 0.453596121425577
 (1 row)
 
-INSERT 0 1
 select*from rw_view1;
          s          |  a  |         c         
 --------------------+-----+-------------------
@@ -89,20 +69,14 @@ select*from rw_view1;
   0.891207360061435 | 1.1 | 0.453596121425577
 (11 rows)
 
+drop table base_tbl cascade;
+NOTICE:  drop cascades to view rw_view1
 -- bug 29
-drop table if exists base_tbl cascade;
-psql:sql/remote_dml2.sql:35: NOTICE:  drop cascades to view rw_view1
-DROP TABLE
 CREATE TABLE base_tbl (a int PRIMARY KEY, b varchar(50) DEFAULT 'Unspecified');
-CREATE TABLE
 INSERT INTO base_tbl SELECT i, 'Row ' i FROM generate_series(-2, 2) g(i);
-INSERT 0 5
 CREATE VIEW rw_view16 AS SELECT a, b, a AS aa FROM base_tbl;
-CREATE VIEW
 UPDATE rw_view16 SET aa=-3 WHERE a=3;
-UPDATE 0
 UPDATE rw_view16 SET aa=-5 WHERE a=5;
-UPDATE 0
 select*from rw_view16;
  a  |  b   | aa 
 ----+------+----
@@ -114,12 +88,9 @@ select*from rw_view16;
 (5 rows)
 
 delete from rw_view16 where aa=2;
-DELETE 1
 insert into rw_view16 values(4,'new row');
-INSERT 0 1
 UPDATE rw_view16 SET aa=-4 WHERE a=4;
-UPDATE 1
-select*from rw_view16 order by a;
+select*from rw_view16;
  a  |    b    | aa 
 ----+---------+----
  -4 | new row | -4
@@ -129,19 +100,14 @@ select*from rw_view16 order by a;
   1 | Row     |  1
 (5 rows)
 
-drop table if exists base_tbl cascade;
-psql:sql/remote_dml2.sql:47: NOTICE:  drop cascades to view rw_view16
-DROP TABLE
+drop table base_tbl cascade;
+NOTICE:  drop cascades to view rw_view16
 CREATE TABLE base_tbl(a int primary key, b varchar(50), c float);
-CREATE TABLE
 CREATE VIEW rw_view2 AS SELECT b AS bb, c AS cc, a AS aa FROM base_tbl;
-CREATE VIEW
 UPDATE base_tbl SET a=a, c=c;
-psql:sql/remote_dml2.sql:50: NOTICE:  Kunlun-db: No target columns found in update statement UPDATE base_tbl SET a=a, c=c;, query execution skipped.
-UPDATE 0
+NOTICE:  Kunlun-db: No target columns found in update statement UPDATE base_tbl SET a=a, c=c;, query execution skipped.
 UPDATE rw_view2 SET bb=bb, cc=cc;
-psql:sql/remote_dml2.sql:51: NOTICE:  Kunlun-db: No target columns found in update statement UPDATE rw_view2 SET bb=bb, cc=cc;, query execution skipped.
-UPDATE 0
+NOTICE:  Kunlun-db: No target columns found in update statement UPDATE rw_view2 SET bb=bb, cc=cc;, query execution skipped.
 select*from base_tbl;
  a | b | c 
 ---+---+---
@@ -152,51 +118,75 @@ select*from rw_view2;
 ----+----+----
 (0 rows)
 
+drop table base_tbl cascade;
+NOTICE:  drop cascades to view rw_view2
+-- bug 39
+drop table if exists SUBSELECT_TBL cascade;
+CREATE TABLE SUBSELECT_TBL ( id serial primary key, f1 integer, f2 integer, f3 float );
+INSERT INTO SUBSELECT_TBL (f1, f2, f3) VALUES (1, 2, 3), (2, 3, 4), (3, 4, 5), (1, 1, 1), (2, 2, 2), (3, 3, 3), (6, 7, 8), (8, 9, NULL);
+SELECT f1 AS "Correlated Field", f2 AS "Second Field" FROM SUBSELECT_TBL upper WHERE f1 IN (SELECT f2 FROM SUBSELECT_TBL WHERE f1 = upper.f1);
+ Correlated Field | Second Field 
+------------------+--------------
+                1 |            2
+                2 |            3
+                3 |            4
+                1 |            1
+                2 |            2
+                3 |            3
+(6 rows)
+
+drop table SUBSELECT_TBL;
+create temp table rngfunc(f1 int8, f2 int8);
+create function testrngfunc() returns record as $$
+
+    insert into rngfunc values (1,2) returning *;
+
+$$ language sql;
+select testrngfunc();
+ testrngfunc 
+-------------
+ (1,2)
+(1 row)
+
+select * from testrngfunc() as t(f1 int8,f2 int8);
+ f1 | f2 
+----+----
+  1 |  2
+(1 row)
+
+select * from testrngfunc() as t(f1 int8,f2 int8);
+ f1 | f2 
+----+----
+  1 |  2
+(1 row)
+
 -- bug 48
 create user userw;
-CREATE ROLE
+ERROR:  role "userw" already exists
 SELECT SESSION_USER, CURRENT_USER;
  session_user | current_user 
 --------------+--------------
- abc          | abc
+ dzw          | dzw
 (1 row)
 
 SET SESSION AUTHORIZATION userw;
-SET
-drop table if exists testu1 cascade;
-psql:sql/remote_dml2.sql:59: NOTICE:  table "testu1" does not exist, skipping
-DROP TABLE
 create table testu1(id integer primary key, name varchar(50));
-CREATE TABLE
 insert into testu1 values(1, 'userx');
-INSERT 0 1
 insert into testu1 values(2, 'userw');
-INSERT 0 1
 SELECT SESSION_USER, CURRENT_USER;
  session_user | current_user 
 --------------+--------------
  userw        | userw
 (1 row)
 
-SET SESSION AUTHORIZATION abc;
-SET
+drop table testu1;
+SET SESSION AUTHORIZATION dzw;
 -- bug 51
-drop table if exists r1 cascade;
-psql:sql/remote_dml2.sql:67: NOTICE:  table "r1" does not exist, skipping
-DROP TABLE
-drop table if exists r2 cascade;
-psql:sql/remote_dml2.sql:68: NOTICE:  table "r2" does not exist, skipping
-DROP TABLE
 CREATE TABLE r1 (id serial primary key, a int);
-CREATE TABLE
 CREATE TABLE r2 (id serial primary key, a int);
-CREATE TABLE
 INSERT INTO r1 (a) VALUES (10), (20);
-INSERT 0 2
 INSERT INTO r2 (a) VALUES (10), (20);
-INSERT 0 2
 INSERT INTO r1 (a) SELECT a + 1 FROM r2;
-INSERT 0 2
 INSERT INTO r1 (a) SELECT a + 1 FROM r2 RETURNING *;
  id | a  
 ----+----
@@ -204,7 +194,6 @@ INSERT INTO r1 (a) SELECT a + 1 FROM r2 RETURNING *;
   6 | 21
 (2 rows)
 
-INSERT 0 2
 select*from r1;
  id | a  
 ----+----
@@ -223,18 +212,13 @@ select*from r2;
   2 | 20
 (2 rows)
 
+drop table r1;
+drop table r2;
 -- bug 60
-drop table if exists at_base_table cascade;
-psql:sql/remote_dml2.sql:79: NOTICE:  table "at_base_table" does not exist, skipping
-DROP TABLE
 create table at_base_table(id int primary key, stuff text);
-CREATE TABLE
 insert into at_base_table values (23, 'skidoo');
-INSERT 0 1
 create view at_view_1 as select * from at_base_table bt;
-CREATE VIEW
 create view at_view_2 as select *, to_json(v1) as j from at_view_1 v1;
-CREATE VIEW
 explain (verbose, costs off) select * from at_view_2;
 
 explain (verbose, costs off) select * from at_view_1;
@@ -251,19 +235,18 @@ select * from at_view_1;
  23 | skidoo
 (1 row)
 
+drop table at_base_table cascade;
+NOTICE:  drop cascades to 2 other objects
+DETAIL:  drop cascades to view at_view_1
+drop cascades to view at_view_2
 -- bug 69
-drop table if exists pagg_tab_m cascade;
-DROP TABLE
+drop table if exists pagg_tab_m;
+NOTICE:  table "pagg_tab_m" does not exist, skipping
 CREATE TABLE pagg_tab_m (id serial , a int, b int, c int, primary key(id, a,b)) PARTITION BY RANGE(a, b);
-CREATE TABLE
 CREATE TABLE pagg_tab_m_p1 PARTITION OF pagg_tab_m FOR VALUES FROM (0, 0) TO (10, 10);
-CREATE TABLE
 CREATE TABLE pagg_tab_m_p2 PARTITION OF pagg_tab_m FOR VALUES FROM (10, 10) TO (20, 20);
-CREATE TABLE
 CREATE TABLE pagg_tab_m_p3 PARTITION OF pagg_tab_m FOR VALUES FROM (20, 20) TO (30, 30);
-CREATE TABLE
 INSERT INTO pagg_tab_m(a,b,c) SELECT i % 30, i % 40, i % 50 FROM generate_series(0, 2999) i;
-INSERT 0 3000
 EXPLAIN (COSTS OFF)
 SELECT a, sum(b), avg(c), count(*) FROM pagg_tab_m GROUP BY a, (a+b)/2 HAVING sum(b) < 50 ORDER BY 1, 2, 3;
 
@@ -293,45 +276,42 @@ SELECT a, c, sum(b), avg(c), count(*) FROM pagg_tab_m GROUP BY (a+b)/2, 2, 1 HAV
 (6 rows)
 
 SELECT a, sum(b), avg(c), count(*) FROM pagg_tab_m GROUP BY a,b HAVING sum(b) < 2000 and avg(c) > 27;
- a  | sum | avg | count 
-----+-----+-----+-------
-  8 | 200 |  28 |    25
-  8 | 450 |  28 |    25
-  8 | 700 |  28 |    25
-  8 | 950 |  28 |    25
-  9 | 225 |  29 |    25
-  9 | 475 |  29 |    25
-  9 | 725 |  29 |    25
-  9 | 975 |  29 |    25
- 18 | 200 |  28 |    25
- 18 | 450 |  28 |    25
- 18 | 700 |  28 |    25
- 18 | 950 |  28 |    25
- 19 | 225 |  29 |    25
- 19 | 475 |  29 |    25
- 19 | 725 |  29 |    25
- 19 | 975 |  29 |    25
- 28 | 200 |  28 |    25
- 28 | 450 |  28 |    25
- 28 | 700 |  28 |    25
- 28 | 950 |  28 |    25
- 29 | 225 |  29 |    25
- 29 | 475 |  29 |    25
- 29 | 725 |  29 |    25
- 29 | 975 |  29 |    25
+ a  | sum |         avg         | count 
+----+-----+---------------------+-------
+ 18 | 700 | 28.0000000000000000 |    25
+ 18 | 950 | 28.0000000000000000 |    25
+  8 | 950 | 28.0000000000000000 |    25
+ 19 | 725 | 29.0000000000000000 |    25
+ 28 | 950 | 28.0000000000000000 |    25
+ 18 | 450 | 28.0000000000000000 |    25
+  8 | 200 | 28.0000000000000000 |    25
+ 29 | 975 | 29.0000000000000000 |    25
+ 28 | 700 | 28.0000000000000000 |    25
+ 18 | 200 | 28.0000000000000000 |    25
+ 28 | 450 | 28.0000000000000000 |    25
+  9 | 725 | 29.0000000000000000 |    25
+  9 | 225 | 29.0000000000000000 |    25
+  8 | 700 | 28.0000000000000000 |    25
+ 28 | 200 | 28.0000000000000000 |    25
+  8 | 450 | 28.0000000000000000 |    25
+ 19 | 475 | 29.0000000000000000 |    25
+ 29 | 225 | 29.0000000000000000 |    25
+ 29 | 475 | 29.0000000000000000 |    25
+  9 | 975 | 29.0000000000000000 |    25
+ 29 | 725 | 29.0000000000000000 |    25
+ 19 | 225 | 29.0000000000000000 |    25
+  9 | 475 | 29.0000000000000000 |    25
+ 19 | 975 | 29.0000000000000000 |    25
 (24 rows)
 
 explain (verbose)
 SELECT a, sum(b), avg(c), count(*) FROM pagg_tab_m GROUP BY a,b HAVING sum(b) < 2000 and avg(c) > 27;
 
 -- bug 53
-drop table if exists trunc_stats_test1 cascade;
-psql:sql/remote_dml2.sql:107: NOTICE:  table "trunc_stats_test1" does not exist, skipping
-DROP TABLE
+drop table if exists trunc_stats_test1;
+NOTICE:  table "trunc_stats_test1" does not exist, skipping
 CREATE TABLE trunc_stats_test1(id serial primary key, stuff text);
-CREATE TABLE
 insert into trunc_stats_test1 (stuff) values('abc'), ('xyz');
-INSERT 0 2
 select*from trunc_stats_test1;
  id | stuff 
 ----+-------
@@ -340,7 +320,6 @@ select*from trunc_stats_test1;
 (2 rows)
 
 UPDATE trunc_stats_test1 SET id = id + 10 WHERE id IN (1, 2);
-UPDATE 2
 select*from trunc_stats_test1;
  id | stuff 
 ----+-------
@@ -348,22 +327,16 @@ select*from trunc_stats_test1;
  12 | xyz
 (2 rows)
 
-drop table if exists itest1 cascade;
-psql:sql/remote_dml2.sql:114: NOTICE:  table "itest1" does not exist, skipping
-DROP TABLE
+drop table if exists itest1;
+NOTICE:  table "itest1" does not exist, skipping
 CREATE TABLE itest1 (a int generated by default as identity primary key, b text);
-CREATE TABLE
 INSERT INTO itest1 DEFAULT VALUES;
-INSERT 0 1
 insert into itest1 values(DEFAULT, 'bbb');
-INSERT 0 1
 INSERT INTO itest1 VALUES (2, 'b');
-psql:sql/remote_dml2.sql:118: ERROR:  Kunlun-db: MySQL storage node (2, 2) returned error: 1062, Duplicate entry '2' for key 'itest1.PRIMARY'.
+ERROR:  Kunlun-db: MySQL storage node (2, 2) returned error: 1062, Duplicate entry '2' for key 'PRIMARY'.
 INSERT INTO itest1 VALUES (10, 'xyz');
-INSERT 0 1
 UPDATE itest1 SET a = DEFAULT WHERE a = 2;
-UPDATE 1
-select*from itest1 order by a;
+select*from itest1;
  a  |  b  
 ----+-----
   1 | 
@@ -372,10 +345,8 @@ select*from itest1 order by a;
 (3 rows)
 
 alter table itest1 add column c int default 3;
-ALTER TABLE
 UPDATE itest1 SET c = DEFAULT WHERE a = 2;
-UPDATE 0
-select*from itest1 order by a;
+select*from itest1;
  a  |  b  | c 
 ----+-----+---
   1 |     | 3
@@ -384,8 +355,7 @@ select*from itest1 order by a;
 (3 rows)
 
 insert into itest1(b,c) values('aaa', 44);
-INSERT 0 1
-select*from itest1 order by a;
+select*from itest1;
  a  |  b  | c  
 ----+-----+----
   1 |     |  3
@@ -395,8 +365,7 @@ select*from itest1 order by a;
 (4 rows)
 
 UPDATE itest1 SET c = DEFAULT WHERE a = 2;
-UPDATE 0
-select*from itest1 order by a;
+select*from itest1;
  a  |  b  | c  
 ----+-----+----
   1 |     |  3
@@ -406,8 +375,7 @@ select*from itest1 order by a;
 (4 rows)
 
 insert into itest1(b,c) values('aaa', 44);
-INSERT 0 1
-select*from itest1 order by a ;
+select*from itest1;
  a  |  b  | c  
 ----+-----+----
   1 |     |  3
@@ -418,8 +386,7 @@ select*from itest1 order by a ;
 (5 rows)
 
 UPDATE itest1 SET c = DEFAULT WHERE a = 3;
-UPDATE 0
-select*from itest1 order by a;
+select*from itest1;
  a  |  b  | c  
 ----+-----+----
   1 |     |  3
@@ -430,8 +397,7 @@ select*from itest1 order by a;
 (5 rows)
 
 UPDATE itest1 SET a = DEFAULT WHERE a = 3;
-UPDATE 1
-select*from itest1 order by a;
+select*from itest1;
  a  |  b  | c  
 ----+-----+----
   1 |     |  3
@@ -442,8 +408,7 @@ select*from itest1 order by a;
 (5 rows)
 
 insert into itest1 values(DEFAULT, 'xxx', 333), (DEFAULT, 'yyy', 444);
-INSERT 0 2
-select*from itest1 order by a;
+select*from itest1;
  a  |  b  |  c  
 ----+-----+-----
   1 |     |   3
@@ -456,51 +421,32 @@ select*from itest1 order by a;
 (7 rows)
 
 -- bug 28
-DROP table if exists base_tbl cascade;
-psql:sql/remote_dml2.sql:140: NOTICE:  drop cascades to view rw_view2
-DROP TABLE
 CREATE TABLE base_tbl (a int PRIMARY KEY, b varchar(50) DEFAULT 'Unspecified');
-CREATE TABLE
 INSERT INTO base_tbl SELECT i, 'Row ' i FROM generate_series(-2, 2) g(i);
-INSERT 0 5
 CREATE VIEW rw_view1 AS SELECT * FROM base_tbl WHERE a>0;
-CREATE VIEW
 EXPLAIN (costs off) UPDATE rw_view1 SET a=6 WHERE a=5;
 
 EXPLAIN (costs off) DELETE FROM rw_view1 WHERE a=5;
 
-DROP table if exists T cascade;
-psql:sql/remote_dml2.sql:147: NOTICE:  table "t" does not exist, skipping
-DROP TABLE
+DROP table if exists T;
+NOTICE:  table "t" does not exist, skipping
 CREATE TABLE T (pk INT NOT NULL PRIMARY KEY);
-CREATE TABLE
 INSERT INTO T SELECT * FROM generate_series(1, 10) a;
-INSERT 0 10
 EXPLAIN (VERBOSE TRUE, COSTS FALSE) DELETE FROM T WHERE pk BETWEEN 10 AND 20 RETURNING *;
 
-drop table if exists mvtest_t cascade;
-psql:sql/remote_dml2.sql:152: NOTICE:  table "mvtest_t" does not exist, skipping
-DROP TABLE
+drop table if exists mvtest_t;
+NOTICE:  table "mvtest_t" does not exist, skipping
 CREATE TABLE mvtest_t (id int NOT NULL PRIMARY KEY, type varchar(50) NOT NULL, amt numeric NOT NULL);
-CREATE TABLE
 EXPLAIN (costs off)
 	CREATE MATERIALIZED VIEW mvtest_tm AS SELECT type, sum(amt) AS totamt FROM mvtest_t GROUP BY type WITH NO DATA;
 
 -- bug 36
-DROP table if exists parted_conflict cascade;
-psql:sql/remote_dml2.sql:159: NOTICE:  table "parted_conflict" does not exist, skipping
-DROP TABLE
 create table parted_conflict (a int primary key, b text) partition by range (a);
-CREATE TABLE
 create table parted_conflict_1 partition of parted_conflict for values from (0) to (1000) partition by range (a);
-CREATE TABLE
 create table parted_conflict_1_1 partition of parted_conflict_1 for values from (0) to (500);
-CREATE TABLE
 insert into parted_conflict values (40, 'forty'), (30, 'thirty');
-INSERT 0 2
 alter table parted_conflict add column c int default 3;
-ALTER TABLE
-select*from parted_conflict order by a;
+select*from parted_conflict;
  a  |   b    | c 
 ----+--------+---
  30 | thirty | 3
@@ -508,38 +454,25 @@ select*from parted_conflict order by a;
 (2 rows)
 
 delete from parted_conflict where a = 30;
-DELETE 1
 update parted_conflict set c=c+10 where a=40;
-UPDATE 1
 select*from parted_conflict;
  a  |   b   | c  
 ----+-------+----
  40 | forty | 13
 (1 row)
 
+drop table parted_conflict;
 -- bug 43 
 drop table if exists int4_tbl cascade;
-DROP TABLE
 drop table if exists int8_tbl cascade;
-psql:sql/remote_dml2.sql:172: NOTICE:  drop cascades to 3 other objects
-DETAIL:  drop cascades to function extractq2(int8_tbl)
-drop cascades to function extractq2_2(int8_tbl)
-drop cascades to function extractq2_2_opt(int8_tbl)
-DROP TABLE
+NOTICE:  drop cascades to view tt18v
 drop table if exists text_tbl cascade;
-DROP TABLE
 CREATE TABLE INT4_TBL(id serial primary key, f1 int4);
-CREATE TABLE
 CREATE TABLE INT8_TBL(id serial primary key, q1 int8, q2 int8);
-CREATE TABLE
 CREATE TABLE TEXT_TBL (id serial primary key, f1 text);
-CREATE TABLE
 insert into int4_tbl(f1) values(1),(2),(3),(4);
-INSERT 0 4
 insert into int8_tbl(q1, q2) values(1,2),(2,3),(3,4),(4,5);
-INSERT 0 4
 insert into text_tbl(f1) values('1'),('2'),('3'),('4'),('5');
-INSERT 0 5
 explain (verbose, costs off)
 select * from
     text_tbl t1
@@ -593,21 +526,14 @@ where ss1.c2 = 2;
 
 -----------------------------
 drop table if exists rngfunc2 cascade;
-psql:sql/remote_dml2.sql:239: NOTICE:  table "rngfunc2" does not exist, skipping
-DROP TABLE
+NOTICE:  table "rngfunc2" does not exist, skipping
 CREATE TABLE rngfunc2(id serial primary key, rngfuncid int, f2 int);
-CREATE TABLE
 INSERT INTO rngfunc2(rngfuncid, f2) VALUES(1, 11);
-INSERT 0 1
 INSERT INTO rngfunc2(rngfuncid, f2) VALUES(2, 22);
-INSERT 0 1
 INSERT INTO rngfunc2(rngfuncid, f2) VALUES(1, 111);
-INSERT 0 1
 drop function if exists rngfunct;
-psql:sql/remote_dml2.sql:244: NOTICE:  function rngfunct() does not exist, skipping
-DROP FUNCTION
+NOTICE:  function rngfunct() does not exist, skipping
 CREATE FUNCTION rngfunct(int) returns setof rngfunc2 as 'SELECT * FROM rngfunc2 WHERE rngfuncid = $1 ORDER BY f2;' LANGUAGE SQL;
-CREATE FUNCTION
 select * from rngfunc2, rngfunct(rngfunc2.rngfuncid) z where rngfunc2.f2 = z.f2;
  id | rngfuncid | f2  | id | rngfuncid | f2  
 ----+-----------+-----+----+-----------+-----
@@ -644,45 +570,27 @@ select * from rngfunc2 where f2 in (select f2 from rngfunct(rngfunc2.rngfuncid) 
 (2 rows)
 
 DROP TABLE if exists prt1_l cascade;
-DROP TABLE
+NOTICE:  table "prt1_l" does not exist, skipping
 CREATE TABLE prt1_l (a int , b int, c varchar, primary key(a,c,b)) PARTITION BY RANGE(a);
-CREATE TABLE
 CREATE TABLE prt1_l_p1 PARTITION OF prt1_l FOR VALUES FROM (0) TO (250);
-CREATE TABLE
 CREATE TABLE prt1_l_p2 PARTITION OF prt1_l FOR VALUES FROM (250) TO (500) PARTITION BY LIST (c);
-CREATE TABLE
 CREATE TABLE prt1_l_p2_p1 PARTITION OF prt1_l_p2 FOR VALUES IN ('0000', '0001');
-CREATE TABLE
 CREATE TABLE prt1_l_p2_p2 PARTITION OF prt1_l_p2 FOR VALUES IN ('0002', '0003');
-CREATE TABLE
 CREATE TABLE prt1_l_p3 PARTITION OF prt1_l FOR VALUES FROM (500) TO (600) PARTITION BY RANGE (b);
-CREATE TABLE
 CREATE TABLE prt1_l_p3_p1 PARTITION OF prt1_l_p3 FOR VALUES FROM (0) TO (13);
-CREATE TABLE
 CREATE TABLE prt1_l_p3_p2 PARTITION OF prt1_l_p3 FOR VALUES FROM (13) TO (25);
-CREATE TABLE
 INSERT INTO prt1_l SELECT i, i % 25, to_char(i % 4, 'FM0000') FROM generate_series(0, 599, 2) i;
-INSERT 0 300
-DROP TABLE if exists prt2_l cascade;
-DROP TABLE
+DROP TABLE if exists prt2_l;
+NOTICE:  table "prt2_l" does not exist, skipping
 CREATE TABLE prt2_l (a int, b int , c varchar, primary key(b,c,a)) PARTITION BY RANGE(b);
-CREATE TABLE
 CREATE TABLE prt2_l_p1 PARTITION OF prt2_l FOR VALUES FROM (0) TO (250);
-CREATE TABLE
 CREATE TABLE prt2_l_p2 PARTITION OF prt2_l FOR VALUES FROM (250) TO (500) PARTITION BY LIST (c);
-CREATE TABLE
 CREATE TABLE prt2_l_p2_p1 PARTITION OF prt2_l_p2 FOR VALUES IN ('0000', '0001');
-CREATE TABLE
 CREATE TABLE prt2_l_p2_p2 PARTITION OF prt2_l_p2 FOR VALUES IN ('0002', '0003');
-CREATE TABLE
 CREATE TABLE prt2_l_p3 PARTITION OF prt2_l FOR VALUES FROM (500) TO (600) PARTITION BY RANGE (a);
-CREATE TABLE
 CREATE TABLE prt2_l_p3_p1 PARTITION OF prt2_l_p3 FOR VALUES FROM (0) TO (13);
-CREATE TABLE
 CREATE TABLE prt2_l_p3_p2 PARTITION OF prt2_l_p3 FOR VALUES FROM (13) TO (25);
-CREATE TABLE
 INSERT INTO prt2_l SELECT i % 25, i, to_char(i % 4, 'FM0000') FROM generate_series(0, 599, 3) i;
-INSERT 0 200
 SELECT * FROM prt1_l t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t2.c AS t2c, t2.b AS t2b, t3.b AS t3b, least(t1.a,t2.a,t3.b) FROM prt1_l t2 JOIN prt2_l t3 ON (t2.a = t3.b AND t2.c = t3.c)) ss ON t1.a = ss.t2a AND t1.c = ss.t2c WHERE t1.b = 0 ORDER BY t1.a;
   a  | b |  c   | t2a | t2c  | t2b | t3b | least 
 -----+---+------+-----+------+-----+-----+-------
@@ -704,30 +612,18 @@ EXPLAIN(verbose)
 SELECT * FROM prt1_l t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t2.c AS t2c, t2.b AS t2b, t3.b AS t3b, least(t1.a,t2.a,t3.b) FROM prt1_l t2 JOIN prt2_l t3 ON (t2.a = t3.b AND t2.c = t3.c)) ss ON t1.a = ss.t2a AND t1.c = ss.t2c WHERE t1.b = 0 ORDER BY t1.a;
 
 -- bug 66 
-DROP TABLE if exists prt1 cascade;
-DROP TABLE
-DROP TABLE if exists prt2 cascade;
-DROP TABLE
+DROP TABLE if exists prt1;
+DROP TABLE if exists prt2;
 CREATE TABLE prt1 (a int primary key, b int, c varchar) PARTITION BY RANGE(a);
-CREATE TABLE
 CREATE TABLE prt1_p1 PARTITION OF prt1 FOR VALUES FROM (0) TO (250);
-CREATE TABLE
 CREATE TABLE prt1_p3 PARTITION OF prt1 FOR VALUES FROM (500) TO (600);
-CREATE TABLE
 CREATE TABLE prt1_p2 PARTITION OF prt1 FOR VALUES FROM (250) TO (500);
-CREATE TABLE
 INSERT INTO prt1 SELECT i, i % 25, to_char(i, 'FM0000') FROM generate_series(0, 599) i WHERE i % 2 = 0;
-INSERT 0 300
 CREATE TABLE prt2 (a int, b int primary key, c varchar) PARTITION BY RANGE(b);
-CREATE TABLE
 CREATE TABLE prt2_p1 PARTITION OF prt2 FOR VALUES FROM (0) TO (250);
-CREATE TABLE
 CREATE TABLE prt2_p2 PARTITION OF prt2 FOR VALUES FROM (250) TO (500);
-CREATE TABLE
 CREATE TABLE prt2_p3 PARTITION OF prt2 FOR VALUES FROM (500) TO (600);
-CREATE TABLE
 INSERT INTO prt2 SELECT i % 25, i, to_char(i, 'FM0000') FROM generate_series(0, 599) i WHERE i % 3 = 0;
-INSERT 0 200
 SELECT t1, t2 FROM prt1 t1 LEFT JOIN prt2 t2 ON t1.a = t2.b WHERE t1.b = 0 ORDER BY t1.a, t2.b;
       t1      |      t2      
 --------------+--------------
@@ -748,9 +644,11 @@ SELECT t1, t2 FROM prt1 t1 LEFT JOIN prt2 t2 ON t1.a = t2.b WHERE t1.b = 0 ORDER
 EXPLAIN(verbose)
 SELECT t1, t2 FROM prt1 t1 LEFT JOIN prt2 t2 ON t1.a = t2.b WHERE t1.b = 0 ORDER BY t1.a, t2.b;
 
---SELECT t1.a, t2.b FROM prt1 t1, prt2 t2 WHERE t1::text = --t2::text AND t1.a = t2.b ORDER BY t1.a;
---EXPLAIN(verbose)
---SELECT t1.a, t2.b FROM prt1 t1, prt2 t2 WHERE t1::text = --t2::text AND t1.a = t2.b ORDER BY t1.a;
+SELECT t1.a, t2.b FROM prt1 t1, prt2 t2 WHERE t1::text = t2::text AND t1.a = t2.b ORDER BY t1.a;
+ERROR:  Kunlun-db: Must specify whole-row target left-most.
+EXPLAIN(verbose)
+SELECT t1.a, t2.b FROM prt1 t1, prt2 t2 WHERE t1::text = t2::text AND t1.a = t2.b ORDER BY t1.a;
+ERROR:  Kunlun-db: Must specify whole-row target left-most.
 SELECT * FROM prt1 t1 LEFT JOIN  (SELECT t2.a AS t2a, t3.a AS t3a, least(t2.a,t3.b) FROM prt1 t2 JOIN prt2 t3 ON (t2.a = t3.b)) ss ON t1.a = ss.t2a WHERE t1.b = 0 ORDER BY t1.a;
   a  | b |  c   | t2a | t3a | least 
 -----+---+------+-----+-----+-------
@@ -792,7 +690,6 @@ EXPLAIN(verbose)
 SELECT * FROM prt1 t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t3.a AS t3a, least(t1.a,t2.a,t3.b) FROM prt1 t2 JOIN prt2 t3 ON (t2.a = t3.b)) ss ON t1.a = ss.t2a WHERE t1.b = 0 ORDER BY t1.a;
 
 SET enable_partitionwise_join to true;
-SET
 SELECT t1, t2 FROM prt1 t1 LEFT JOIN prt2 t2 ON t1.a = t2.b WHERE t1.b = 0 ORDER BY t1.a, t2.b;
       t1      |      t2      
 --------------+--------------
@@ -813,9 +710,11 @@ SELECT t1, t2 FROM prt1 t1 LEFT JOIN prt2 t2 ON t1.a = t2.b WHERE t1.b = 0 ORDER
 EXPLAIN(verbose)
 SELECT t1, t2 FROM prt1 t1 LEFT JOIN prt2 t2 ON t1.a = t2.b WHERE t1.b = 0 ORDER BY t1.a, t2.b;
 
---SELECT t1.a, t2.b FROM prt1 t1, prt2 t2 WHERE t1::text = --t2::text AND t1.a = t2.b ORDER BY t1.a;
---EXPLAIN(verbose)
---SELECT t1.a, t2.b FROM prt1 t1, prt2 t2 WHERE t1::text = --t2::text AND t1.a = t2.b ORDER BY t1.a;
+SELECT t1.a, t2.b FROM prt1 t1, prt2 t2 WHERE t1::text = t2::text AND t1.a = t2.b ORDER BY t1.a;
+ERROR:  Kunlun-db: Must specify whole-row target left-most.
+EXPLAIN(verbose)
+SELECT t1.a, t2.b FROM prt1 t1, prt2 t2 WHERE t1::text = t2::text AND t1.a = t2.b ORDER BY t1.a;
+ERROR:  Kunlun-db: Must specify whole-row target left-most.
 SELECT * FROM prt1 t1 LEFT JOIN  (SELECT t2.a AS t2a, t3.a AS t3a, least(t2.a,t3.b) FROM prt1 t2 JOIN prt2 t3 ON (t2.a = t3.b)) ss ON t1.a = ss.t2a WHERE t1.b = 0 ORDER BY t1.a;
   a  | b |  c   | t2a | t3a | least 
 -----+---+------+-----+-----+-------
@@ -858,47 +757,26 @@ SELECT * FROM prt1 t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t3.a AS t3a, least(
 
 -- bug 67
 SET enable_partitionwise_join to true;
-SET
-DROP TABLE if exists prt1_l cascade;
-DROP TABLE
+DROP TABLE if exists prt1_l;
 CREATE TABLE prt1_l (a int, b int, c varchar, primary key(a,b,c)) PARTITION BY RANGE(a);
-CREATE TABLE
 CREATE TABLE prt1_l_p1 PARTITION OF prt1_l FOR VALUES FROM (0) TO (250);
-CREATE TABLE
 CREATE TABLE prt1_l_p2 PARTITION OF prt1_l FOR VALUES FROM (250) TO (500) PARTITION BY LIST (c);
-CREATE TABLE
 CREATE TABLE prt1_l_p2_p1 PARTITION OF prt1_l_p2 FOR VALUES IN ('0000', '0001');
-CREATE TABLE
 CREATE TABLE prt1_l_p2_p2 PARTITION OF prt1_l_p2 FOR VALUES IN ('0002', '0003');
-CREATE TABLE
 CREATE TABLE prt1_l_p3 PARTITION OF prt1_l FOR VALUES FROM (500) TO (600) PARTITION BY RANGE (b);
-CREATE TABLE
 CREATE TABLE prt1_l_p3_p1 PARTITION OF prt1_l_p3 FOR VALUES FROM (0) TO (13);
-CREATE TABLE
 CREATE TABLE prt1_l_p3_p2 PARTITION OF prt1_l_p3 FOR VALUES FROM (13) TO (25);
-CREATE TABLE
 INSERT INTO prt1_l SELECT i, i % 25, to_char(i % 4, 'FM0000') FROM generate_series(0, 599, 2) i;
-INSERT 0 300
-DROP TABLE if exists prt2_l cascade;
-DROP TABLE
+DROP TABLE if exists prt2_l;
 CREATE TABLE prt2_l (a int, b int, c varchar, primary key(a,b,c)) PARTITION BY RANGE(b);
-CREATE TABLE
 CREATE TABLE prt2_l_p1 PARTITION OF prt2_l FOR VALUES FROM (0) TO (250);
-CREATE TABLE
 CREATE TABLE prt2_l_p2 PARTITION OF prt2_l FOR VALUES FROM (250) TO (500) PARTITION BY LIST (c);
-CREATE TABLE
 CREATE TABLE prt2_l_p2_p1 PARTITION OF prt2_l_p2 FOR VALUES IN ('0000', '0001');
-CREATE TABLE
 CREATE TABLE prt2_l_p2_p2 PARTITION OF prt2_l_p2 FOR VALUES IN ('0002', '0003');
-CREATE TABLE
 CREATE TABLE prt2_l_p3 PARTITION OF prt2_l FOR VALUES FROM (500) TO (600) PARTITION BY RANGE (a);
-CREATE TABLE
 CREATE TABLE prt2_l_p3_p1 PARTITION OF prt2_l_p3 FOR VALUES FROM (0) TO (13);
-CREATE TABLE
 CREATE TABLE prt2_l_p3_p2 PARTITION OF prt2_l_p3 FOR VALUES FROM (13) TO (25);
-CREATE TABLE
 INSERT INTO prt2_l SELECT i % 25, i, to_char(i % 4, 'FM0000') FROM generate_series(0, 599, 3) i;
-INSERT 0 200
 EXPLAIN (COSTS OFF) SELECT t1.a, t1.c, t2.b, t2.c FROM prt1_l t1, prt2_l t2 WHERE t1.a = t2.b AND t1.b = 0 ORDER BY t1.a, t2.b;
 
 SELECT t1.a, t1.c, t2.b, t2.c FROM prt1_l t1, prt2_l t2 WHERE t1.a = t2.b AND t1.b = 0 ORDER BY t1.a, t2.b;
@@ -911,7 +789,6 @@ SELECT t1.a, t1.c, t2.b, t2.c FROM prt1_l t1, prt2_l t2 WHERE t1.a = t2.b AND t1
 (4 rows)
 
 SET enable_partitionwise_join to false;
-SET
 EXPLAIN (COSTS OFF) SELECT t1.a, t1.c, t2.b, t2.c FROM prt1_l t1, prt2_l t2 WHERE t1.a = t2.b AND t1.b = 0 ORDER BY t1.a, t2.b;
 
 SELECT t1.a, t1.c, t2.b, t2.c FROM prt1_l t1, prt2_l t2 WHERE t1.a = t2.b AND t1.b = 0 ORDER BY t1.a, t2.b;
@@ -924,20 +801,13 @@ SELECT t1.a, t1.c, t2.b, t2.c FROM prt1_l t1, prt2_l t2 WHERE t1.a = t2.b AND t1
 (4 rows)
 
 -- bug 16
-DROP TABLE if exists insertconflicttest1 cascade;
-psql:sql/remote_dml2.sql:354: NOTICE:  table "insertconflicttest1" does not exist, skipping
-DROP TABLE
 create table insertconflicttest1(key1 int4, fruit text);
-CREATE TABLE
 create index idx1 on insertconflicttest1(fruit);
-CREATE INDEX
 -- bug 40 
-drop table if exists SUBSELECT_TBL cascade;
-DROP TABLE
+drop table SUBSELECT_TBL cascade;
+ERROR:  table "subselect_tbl" does not exist
 CREATE TABLE SUBSELECT_TBL ( id serial primary key, f1 integer, f2 integer, f3 float );
-CREATE TABLE
 INSERT INTO SUBSELECT_TBL (f1, f2, f3) VALUES (1, 2, 3), (2, 3, 4), (3, 4, 5), (1, 1, 1), (2, 2, 2), (3, 3, 3), (6, 7, 8), (8, 9, NULL);
-INSERT 0 8
 SELECT f1 AS "Correlated Field", f3 AS "Second Field" FROM SUBSELECT_TBL upper WHERE f3 IN (SELECT upper.f1 + f2 FROM SUBSELECT_TBL WHERE f2 = CAST(f3 AS integer));
  Correlated Field | Second Field 
 ------------------+--------------
@@ -949,20 +819,15 @@ SELECT f1 AS "Correlated Field", f3 AS "Second Field" FROM SUBSELECT_TBL upper W
 
 -- bug 33
 begin;
-BEGIN
 savepoint sa;
-SAVEPOINT
 release savepoint sa;
-RELEASE
 commit;
-COMMIT
 -- bug 42
-drop table if exists tenk1 cascade;
-DROP TABLE
-drop table if exists INT4_TBL cascade;
-DROP TABLE
-drop table if exists FLOAT8_TBL cascade;
-DROP TABLE
+drop table if exists tenk1;
+NOTICE:  table "tenk1" does not exist, skipping
+drop table if exists INT4_TBL;
+drop table if exists FLOAT8_TBL;
+NOTICE:  table "float8_tbl" does not exist, skipping
  CREATE TABLE tenk1 (
     unique1 int4,
     unique2 int4,
@@ -981,36 +846,9 @@ DROP TABLE
     stringu2 name,
     string4 name
 );
-CREATE TABLE
-COPY tenk1 FROM '/home/kunlun/pgregressdata/tenk.data';
-psql:sql/remote_dml2.sql:395: ERROR:  could not open file "/home/kunlun/pgregressdata/tenk.data" for reading: No such file or directory
-HINT:  COPY FROM instructs the PostgreSQL server process to read a file. You may want a client-side facility such as psql's \copy.
 CREATE TABLE INT4_TBL(f1 int4);
-CREATE TABLE
-INSERT INTO INT4_TBL(f1) VALUES ('   0  ');
-INSERT 0 1
-INSERT INTO INT4_TBL(f1) VALUES ('123456     ');
-INSERT 0 1
-INSERT INTO INT4_TBL(f1) VALUES ('    -123456');
-INSERT 0 1
-INSERT INTO INT4_TBL(f1) VALUES ('34.5');
-psql:sql/remote_dml2.sql:403: ERROR:  invalid input syntax for integer: "34.5"
-LINE 1: INSERT INTO INT4_TBL(f1) VALUES ('34.5');
-                                         ^
 CREATE TABLE FLOAT8_TBL(f1 float8);
-CREATE TABLE
-INSERT INTO FLOAT8_TBL(f1) VALUES ('    0.0   ');
-INSERT 0 1
-INSERT INTO FLOAT8_TBL(f1) VALUES ('1004.30  ');
-INSERT 0 1
-INSERT INTO FLOAT8_TBL(f1) VALUES ('   -34.84');
-INSERT 0 1
-INSERT INTO FLOAT8_TBL(f1) VALUES ('1.2345678901234e+200');
-INSERT 0 1
-INSERT INTO FLOAT8_TBL(f1) VALUES ('1.2345678901234e-200');
-INSERT 0 1
 begin;
-BEGIN
 select count(*) from tenk1 x where x.unique1 in (select a.f1 from int4_tbl a,float8_tbl b where a.f1=b.f1) and
     x.unique1 = 0 and x.unique1 in (select aa.f1 from int4_tbl aa,float8_tbl bb where aa.f1=bb.f1);
  count 
@@ -1019,22 +857,14 @@ select count(*) from tenk1 x where x.unique1 in (select a.f1 from int4_tbl a,flo
 (1 row)
 
 rollback;
-ROLLBACK
 -- bug 81
-drop table if exists INT8_TBL cascade;
-DROP TABLE
+drop table if exists INT8_TBL;
 CREATE TABLE INT8_TBL(id serial primary key, q1 int8, q2 int8);
-CREATE TABLE
 INSERT INTO INT8_TBL(q1, q2)  VALUES(' 123 ',' 456');
-INSERT 0 1
 INSERT INTO INT8_TBL(q1, q2)  VALUES('123 ','4567890123456789');
-INSERT 0 1
 INSERT INTO INT8_TBL(q1, q2)  VALUES('4567890123456789','123');
-INSERT 0 1
 INSERT INTO INT8_TBL(q1, q2)  VALUES(+4567890123456789,'4567890123456789');
-INSERT 0 1
 INSERT INTO INT8_TBL(q1, q2)  VALUES('+4567890123456789','-4567890123456789');
-INSERT 0 1
 select t1.q2, count(t2.*) from int8_tbl t1 left join (select * from int8_tbl) t2 on (t1.q2 = t2.q1) group by t1.q2 order by 1;
         q2         | count 
 -------------------+-------
@@ -1121,30 +951,26 @@ select t1.q2, count(*) from int8_tbl t1 left join int8_tbl t2 on (t1.q2 = t2.q1)
 
 -- bug 71
 DROP table if exists T;
-DROP TABLE
 CREATE TABLE T(pk INT NOT NULL PRIMARY KEY);
-CREATE TABLE
 INSERT INTO T VALUES (1);
-INSERT 0 1
 ALTER TABLE T ADD COLUMN c1 TIMESTAMP DEFAULT now();
-ALTER TABLE
 select*from T;
- pk |         c1          
-----+---------------------
-  1 | 2022-03-22 03:24:52
+ pk |            c1            
+----+--------------------------
+  1 | Tue Nov 30 18:59:53 2021
 (1 row)
 
 insert into T values(2);
-INSERT 0 1
 select*from T;
- pk |         c1          
-----+---------------------
-  1 | 2022-03-22 03:24:52
-  2 | 2022-03-22 11:24:52
+ pk |            c1            
+----+--------------------------
+  1 | Tue Nov 30 18:59:53 2021
+  2 | Tue Nov 30 02:59:54 2021
 (2 rows)
 
  CREATE OR REPLACE FUNCTION foo(a INT) RETURNS TEXT AS $$
 DECLARE res TEXT = 'xyz';
+
     i INT;
 
 BEGIN
@@ -1160,13 +986,9 @@ BEGIN
     RETURN res;
 
 END; $$ LANGUAGE PLPGSQL STABLE;
-CREATE FUNCTION
 DROP table if exists T;
-DROP TABLE
 CREATE TABLE T(pk INT NOT NULL PRIMARY KEY, c_int INT DEFAULT LENGTH(foo(6)));
-CREATE TABLE
 INSERT INTO T VALUES (1), (2);
-INSERT 0 2
 select*from t;
  pk | c_int 
 ----+-------
@@ -1174,41 +996,39 @@ select*from t;
   2 |     9
 (2 rows)
 
---ALTER TABLE T ADD COLUMN c_bpchar BPCHAR(50) DEFAULT --foo(4), ALTER COLUMN c_int SET DEFAULT LENGTH(foo(8));
---elect*from t;
+ALTER TABLE T ADD COLUMN c_bpchar BPCHAR(50) DEFAULT foo(4), ALTER COLUMN c_int SET DEFAULT LENGTH(foo(8));
+ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1064, You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'foo(4)' at line 1.
+select*from t;
+ pk | c_int 
+----+-------
+  1 |     9
+  2 |     9
+(2 rows)
+
 -- bug 21
-drop table if exists mlparted cascade;
-psql:sql/remote_dml2.sql:490: NOTICE:  table "mlparted" does not exist, skipping
-DROP TABLE
-drop table if exists mlparted1 cascade;
-psql:sql/remote_dml2.sql:491: NOTICE:  table "mlparted1" does not exist, skipping
-DROP TABLE
+drop table if exists mlparted;
+NOTICE:  table "mlparted" does not exist, skipping
+drop table if exists mlparted1;
+NOTICE:  table "mlparted1" does not exist, skipping
 create table mlparted(id integer primary key);
-CREATE TABLE
 create table mlparted1(id integer primary key);
-CREATE TABLE
 select attrelid::regclass, attname, attnum from pg_attribute where attname = 'a' and (attrelid = 'mlparted'::regclass or attrelid = 'mlparted1'::regclass);
  attrelid | attname | attnum 
 ----------+---------+--------
 (0 rows)
 
 insert into mlparted values(1),(2),(3),(4);
-INSERT 0 4
 insert into mlparted1 values(5),(2),(3),(4);
-INSERT 0 4
 select attrelid::regclass, attname, attnum from pg_attribute where attname = 'a' and (attrelid = 'mlparted'::regclass or attrelid = 'mlparted1'::regclass);
  attrelid | attname | attnum 
 ----------+---------+--------
 (0 rows)
 
 -- bug 32
-drop table if exists test_missing_target cascade;
-psql:sql/remote_dml2.sql:501: NOTICE:  table "test_missing_target" does not exist, skipping
-DROP TABLE
+drop table if exists test_missing_target;
+NOTICE:  table "test_missing_target" does not exist, skipping
 CREATE TABLE test_missing_target (a int primary key, b int, c char(8), d char);
-CREATE TABLE
 INSERT INTO test_missing_target VALUES (0, 1, 'XXXX', 'A'), (1, 2, 'ABAB', 'b'), (2, 2, 'ABAB', 'c'), (3, 3, 'BBBB', 'D'), (4, 3, 'BBBB', 'e'), (5, 3, 'bbbb', 'F'), (6, 4, 'cccc', 'g'), (7, 4, 'cccc', 'h'), (8, 4, 'CCCC', 'I'), (9, 4, 'CCCC', 'j');
-INSERT 0 10
 SELECT x.b, count(*) FROM test_missing_target x, test_missing_target y WHERE x.a = y.a GROUP BY x.b ORDER BY x.b;
  b | count 
 ---+-------
@@ -1245,15 +1065,12 @@ explain (verbose)
 SELECT x.b/2, count(x.b) FROM test_missing_target x, test_missing_target y WHERE x.a = y.a GROUP BY x.b/2 ORDER BY x.b/2;
 
 -- bug 64
-drop table if exists itest7 cascade;
-psql:sql/remote_dml2.sql:518: NOTICE:  table "itest7" does not exist, skipping
-DROP TABLE
+drop table if exists itest7;
+NOTICE:  table "itest7" does not exist, skipping
 CREATE TABLE itest7 (id int primary key, a int GENERATED ALWAYS AS IDENTITY);
-CREATE TABLE
 insert into itest7 (id) values(1),(2),(3);
-INSERT 0 3
 insert into itest7 values(4, 40),(5, 50);
-psql:sql/remote_dml2.sql:521: ERROR:  cannot insert into column "a"
+ERROR:  cannot insert into column "a"
 DETAIL:  Column "a" is an identity column defined as GENERATED ALWAYS.
 HINT:  Use OVERRIDING SYSTEM VALUE to override.
 select*from itest7;
@@ -1265,9 +1082,7 @@ select*from itest7;
 (3 rows)
 
 ALTER TABLE itest7 ALTER COLUMN a SET GENERATED BY DEFAULT;
-ALTER TABLE
 insert into itest7 values(6, 60),(7, 70);
-INSERT 0 2
 select*from itest7;
  id | a  
 ----+----
@@ -1279,42 +1094,33 @@ select*from itest7;
 (5 rows)
 
 -- bug 65
-drop table if exists itest13 cascade;
-psql:sql/remote_dml2.sql:528: NOTICE:  table "itest13" does not exist, skipping
-DROP TABLE
+drop table if exists itest13;
+NOTICE:  table "itest13" does not exist, skipping
 CREATE TABLE itest13 (a int primary key);
-CREATE TABLE
 ALTER TABLE itest13 ADD COLUMN b int GENERATED BY DEFAULT AS IDENTITY;
-psql:sql/remote_dml2.sql:530: ERROR:  no owned sequence found
 INSERT INTO itest13 VALUES (1), (2), (3);
-INSERT 0 3
 SELECT * FROM itest13;
- a 
----
- 1
- 2
- 3
+ a | b 
+---+---
+ 1 | 1
+ 2 | 2
+ 3 | 3
 (3 rows)
 
 ALTER TABLE itest13 ADD COLUMN c int GENERATED BY DEFAULT AS IDENTITY;
-psql:sql/remote_dml2.sql:533: ERROR:  no owned sequence found
 SELECT * FROM itest13;
- a 
----
- 1
- 2
- 3
+ a | b | c 
+---+---+---
+ 1 | 1 | 0
+ 2 | 2 | 0
+ 3 | 3 | 0
 (3 rows)
 
-drop table if exists itest6 cascade;
-psql:sql/remote_dml2.sql:536: NOTICE:  table "itest6" does not exist, skipping
-DROP TABLE
+drop table if exists itest6;
+NOTICE:  table "itest6" does not exist, skipping
 CREATE TABLE itest6 (a int GENERATED ALWAYS AS IDENTITY primary key, b text);
-CREATE TABLE
 INSERT INTO itest6 DEFAULT VALUES;
-INSERT 0 1
 ALTER TABLE itest6 ALTER COLUMN a SET GENERATED BY DEFAULT SET INCREMENT BY 2 SET START WITH 100 RESTART;
-ALTER TABLE
 SELECT * FROM itest6;
  a | b 
 ---+---
@@ -1322,32 +1128,26 @@ SELECT * FROM itest6;
 (1 row)
 
 INSERT INTO itest6 DEFAULT VALUES;
-INSERT 0 1
 INSERT INTO itest6 DEFAULT VALUES;
-INSERT 0 1
 SELECT * FROM itest6;
   a  | b 
 -----+---
    1 | 
- 101 | 
- 103 | 
+ 102 | 
+ 104 | 
 (3 rows)
 
 -- bug 68
-drop table  if exists t2 cascade;
-psql:sql/remote_dml2.sql:546: NOTICE:  table "t2" does not exist, skipping
-DROP TABLE
+drop table  if exists t2;
+NOTICE:  table "t2" does not exist, skipping
 create table t2(a int);
-CREATE TABLE
---create index on t2(a,a);
+create index on t2(a,a);
+ERROR:  Kunlun-db: MySQL storage node (2, 2) returned error: 1060, Duplicate column name 'a'.
 -- bug 83
-drop table if exists revalidate_bug cascade cascade;
-psql:sql/remote_dml2.sql:551: ERROR:  syntax error at or near "cascade"
-LINE 1: drop table if exists revalidate_bug cascade cascade;
-                                                    ^
+drop table if exists revalidate_bug cascade;
+NOTICE:  table "revalidate_bug" does not exist, skipping
 drop function if exists inverse(int);
-psql:sql/remote_dml2.sql:552: NOTICE:  function inverse(pg_catalog.int4) does not exist, skipping
-DROP FUNCTION
+NOTICE:  function inverse(pg_catalog.int4) does not exist, skipping
 create function inverse(int) returns float8 as
 $$
 begin
@@ -1359,42 +1159,29 @@ exception
     when division_by_zero then return 0;
 
 end$$ language plpgsql volatile;
-CREATE FUNCTION
 create table revalidate_bug (id serial primary key, c float8 unique);
-CREATE TABLE
 insert into revalidate_bug (c) values (1);
-INSERT 0 1
 insert into revalidate_bug (c) values (inverse(0));
-INSERT 0 1
-select*from revalidate_bug order by id;
+select*from revalidate_bug ;
  id | c 
 ----+---
-  1 | 1
   2 | 0
+  1 | 1
 (2 rows)
 
 -- bug 61
 drop schema if exists s1 cascade;
-psql:sql/remote_dml2.sql:570: NOTICE:  schema "s1" does not exist, skipping
-DROP SCHEMA
+NOTICE:  schema "s1" does not exist, skipping
 create schema s1;
-CREATE SCHEMA
 create table s1.t1(id int);
-CREATE TABLE
 alter table s1.t1 set schema s1;
-ALTER TABLE
 drop schema if exists s1 cascade;
-psql:sql/remote_dml2.sql:574: NOTICE:  drop cascades to table s1.t1
-DROP SCHEMA
+NOTICE:  drop cascades to table s1.t1
 --bug 80
-drop table if exists SUBSELECT_TBL cascade;
-DROP TABLE
+drop table if exists SUBSELECT_TBL;
 CREATE TABLE SUBSELECT_TBL ( id serial primary key, f1 integer, f2 integer, f3 float );
-CREATE TABLE
 INSERT INTO SUBSELECT_TBL (f1, f2, f3) VALUES (1, 2, 3), (2, 3, 4), (3, 4, 5), (1, 1, 1), (2, 2, 2), (3, 3, 3), (6, 7, 8), (8, 9, NULL);
-INSERT 0 8
 SELECT f1, f2 FROM SUBSELECT_TBL WHERE (f1, f2) NOT IN (SELECT f2, CAST(f3 AS int4) FROM SUBSELECT_TBL WHERE f3 IS NOT NULL);
-psql:sql/remote_dml2.sql:580: WARNING:  Rescan is called unexpectedly, so reset node->will_rewind to TRUE
  f1 | f2 
 ----+----
   1 |  2
@@ -1404,45 +1191,32 @@ psql:sql/remote_dml2.sql:580: WARNING:  Rescan is called unexpectedly, so reset 
 
 -- bug 33
 begin;
-BEGIN
 savepoint sa;
-SAVEPOINT
 release savepoint sa;
-RELEASE
 commit;
-COMMIT
 begin;
-BEGIN
 savepoint sa;
-SAVEPOINT
 release savepoint sa;
-RELEASE
 rollback;
-ROLLBACK
 -- bug 13
 SELECT SESSION_USER, CURRENT_USER;
  session_user | current_user 
 --------------+--------------
- abc          | abc
+ dzw          | dzw
 (1 row)
 
 drop schema if exists testschema cascade;
-psql:sql/remote_dml2.sql:595: NOTICE:  schema "testschema" does not exist, skipping
-DROP SCHEMA
+NOTICE:  schema "testschema" does not exist, skipping
 CREATE SCHEMA if not exists testschema;
-CREATE SCHEMA
 SELECT SESSION_USER, CURRENT_USER;
  session_user | current_user 
 --------------+--------------
- abc          | abc
+ dzw          | dzw
 (1 row)
 
 CREATE TABLE testschema.foo (i serial primary key, j serial);
-CREATE TABLE
 insert into testschema.foo default values;
-INSERT 0 1
 insert into testschema.foo default values;
-INSERT 0 1
 select*from  testschema.foo;
  i | j 
 ---+---
@@ -1451,18 +1225,19 @@ select*from  testschema.foo;
 (2 rows)
 
 create sequence testschema.seq1;
-CREATE SEQUENCE
---select testschema.seq1.nextval, nextval('testschema.seq1');
+select testschema.seq1.nextval, nextval('testschema.seq1');
+ nextval | nextval 
+---------+---------
+       1 |       2
+(1 row)
+
 drop schema testschema cascade;
-psql:sql/remote_dml2.sql:604: NOTICE:  drop cascades to 2 other objects
+NOTICE:  drop cascades to 2 other objects
 DETAIL:  drop cascades to table testschema.foo
 drop cascades to sequence testschema.seq1
-DROP SCHEMA
 -- bug 44 todo
-drop table if exists tenk1 cascade;
-DROP TABLE
-drop table if exists INT4_TBL cascade;
-DROP TABLE
+drop table if exists tenk1;
+drop table if exists INT4_TBL;
  CREATE TABLE tenk1 (
  	id serial primary key,
     unique1 int4,
@@ -1482,15 +1257,10 @@ DROP TABLE
     stringu2 name,
     string4 name
 );
-CREATE TABLE
 -- unique1, unique2, two, four, ten, twenty, hundred, thousand, twothousand, fivethous, tenthous, odd, even, stringu1 , stringu2 ,string4 
 CREATE TABLE INT4_TBL(id serial primary key, f1 int4);
-CREATE TABLE
-COPY tenk1(unique1, unique2, two, four, ten, twenty, hundred, thousand, twothousand, fivethous, tenthous, odd, even, stringu1 , stringu2 ,string4) FROM '/home/kunlun/pgregressdata/tenk.data';
-psql:sql/remote_dml2.sql:631: ERROR:  could not open file "/home/kunlun/pgregressdata/tenk.data" for reading: No such file or directory
-HINT:  COPY FROM instructs the PostgreSQL server process to read a file. You may want a client-side facility such as psql's \copy.
+COPY tenk1(unique1, unique2, two, four, ten, twenty, hundred, thousand, twothousand, fivethous, tenthous, odd, even, stringu1 , stringu2 ,string4) FROM '/home/dzw/work/postgresql-11.5/src/test/regress/data/tenk.data';
 insert into int4_tbl (f1) select generate_series(1,13);
-INSERT 0 13
 explain (verbose, costs off)
     select b.unique1 from
         tenk1 a join tenk1 b on a.unique1 = b.unique2
@@ -1498,16 +1268,15 @@ explain (verbose, costs off)
         join int4_tbl i1 on b.thousand = f1
         right join int4_tbl i2 on i2.f1 = b.tenthous
         order by 1;
-
+ERROR:  bogus varattno for OUTER_VAR var: 3
 explain (verbose, costs off)
     select b.unique1 from
         tenk1 a join tenk1 b on a.unique1 = b.unique2
         join int4_tbl i1 on b.thousand = f1
         right join int4_tbl i2 on i2.f1 = b.tenthous
         order by 1;
-
+ERROR:  bogus varattno for OUTER_VAR var: 3
 set enable_nestloop=false;
-SET
     select b.unique1 from
         tenk1 a join tenk1 b on a.unique1 = b.unique2
         left join tenk1 c on b.unique1 = 42 and c.thousand = a.thousand
@@ -1516,23 +1285,22 @@ SET
         order by 1;
  unique1 
 ---------
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
+       1
+       2
+       3
+       4
+       5
+       6
+       7
+       8
+       9
+      10
+      11
+      12
+      13
 (13 rows)
 
 set enable_nestloop=false;
-SET
     select b.unique1 from
         tenk1 a join tenk1 b on a.unique1 = b.unique2
         join int4_tbl i1 on b.thousand = f1
@@ -1540,22 +1308,23 @@ SET
         order by 1;
  unique1 
 ---------
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
+       1
+       2
+       3
+       4
+       5
+       6
+       7
+       8
+       9
+      10
+      11
+      12
+      13
 (13 rows)
 
---set enable_remote_join_pushdown = false;
+set enable_remote_join_pushdown = false;
+ERROR:  unrecognized mysql configuration parameter "enable_remote_join_pushdown"
 explain (costs off)
     select b.unique1 from
         tenk1 a join tenk1 b on a.unique1 = b.unique2
@@ -1572,7 +1341,6 @@ explain (costs off)
         order by 1;
 
 set enable_nestloop=false;
-SET
     select b.unique1 from
         tenk1 a join tenk1 b on a.unique1 = b.unique2
         left join tenk1 c on b.unique1 = 42 and c.thousand = a.thousand
@@ -1581,23 +1349,22 @@ SET
         order by 1;
  unique1 
 ---------
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
+       1
+       2
+       3
+       4
+       5
+       6
+       7
+       8
+       9
+      10
+      11
+      12
+      13
 (13 rows)
 
 set enable_nestloop=false;
-SET
     select b.unique1 from
         tenk1 a join tenk1 b on a.unique1 = b.unique2
         join int4_tbl i1 on b.thousand = f1
@@ -1605,60 +1372,47 @@ SET
         order by 1;
  unique1 
 ---------
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
+       1
+       2
+       3
+       4
+       5
+       6
+       7
+       8
+       9
+      10
+      11
+      12
+      13
 (13 rows)
 
 -- below portion is fixed, above portion not yet. TODO
- drop table if exists mlparted cascade;
-DROP TABLE
-drop table if exists mlparted1 cascade;
-DROP TABLE
-drop table if exists mlparted11 cascade;
-psql:sql/remote_dml2.sql:697: NOTICE:  table "mlparted11" does not exist, skipping
-DROP TABLE
+ drop table if exists mlparted;
+drop table if exists mlparted1;
+drop table if exists mlparted11;
+NOTICE:  table "mlparted11" does not exist, skipping
 create table mlparted (a int, b int) partition by range (a, b);
-CREATE TABLE
 create table mlparted1 (b int not null, a int not null) partition by range ((b+0));
-CREATE TABLE
 create table mlparted11 (like mlparted1);
-CREATE TABLE
 alter table mlparted1 attach partition mlparted11 for values from (2) to (5);
-ALTER TABLE
+WARNING:  Alter Table command ATTACH PARTITION not supported and skipped.
 alter table mlparted attach partition mlparted1 for values from (1, 2) to (1, 10);
-ALTER TABLE
+WARNING:  Alter Table command ATTACH PARTITION not supported and skipped.
 with ins (a, b, c) as (insert into mlparted (b, a) select s.a, 1 from generate_series(2, 39) s(a) returning tableoid::regclass, *) select a, b, min(c), max(c) from ins group by a, b order by 1;
-psql:sql/remote_dml2.sql:703: ERROR:  no partition of relation "mlparted1" found for row
-DETAIL:  Partition key of the failing row contains ((b + 0)) = (5).
+ERROR:  no partition of relation "mlparted" found for row
+DETAIL:  Partition key of the failing row contains (a, b) = (1, 2).
 with ins (a, b, c) as (insert into mlparted (b, a) select s.a, 1 from generate_series(2, 39) s(a) returning tableoid::regclass, *) select a, b, min(c), max(c) from ins group by a, b order by 1;
-psql:sql/remote_dml2.sql:704: ERROR:  no partition of relation "mlparted1" found for row
-DETAIL:  Partition key of the failing row contains ((b + 0)) = (5).
+ERROR:  no partition of relation "mlparted" found for row
+DETAIL:  Partition key of the failing row contains (a, b) = (1, 2).
 -- bug 41
- drop table if exists INT8_TBL cascade;
-DROP TABLE
+ drop table if exists INT8_TBL;
 CREATE TABLE INT8_TBL(id serial primary key, q1 int8, q2 int8);
-CREATE TABLE
 INSERT INTO INT8_TBL (q1, q2) VALUES(' 123 ',' 456');
-INSERT 0 1
 INSERT INTO INT8_TBL (q1, q2) VALUES('123 ','4567890123456789');
-INSERT 0 1
 INSERT INTO INT8_TBL (q1, q2) VALUES('4567890123456789','123');
-INSERT 0 1
 INSERT INTO INT8_TBL (q1, q2) VALUES(+4567890123456789,'4567890123456789');
-INSERT 0 1
 INSERT INTO INT8_TBL (q1, q2) VALUES('+4567890123456789','-4567890123456789');
-INSERT 0 1
 select q1, float8(count(*)) / (select count(*) from int8_tbl) from int8_tbl group by q1 order by q1;
         q1        | ?column? 
 ------------------+----------
@@ -1670,43 +1424,41 @@ explain (verbose)
 select q1, float8(count(*)) / (select count(*) from int8_tbl) from int8_tbl group by q1 order by q1;
 
 -- bug 78
---create table b1(v box);
+create table b1(v box);
+ERROR:  Kunlun-db: Not supported type (603).
 -- bug 50 THIS BUG Is postponed
 create user user1;
-CREATE ROLE
+ERROR:  role "user1" already exists
 SET SESSION AUTHORIZATION user1;
-SET
 SET row_security = on;
-SET
-drop table if exists r1 cascade;
-psql:sql/remote_dml2.sql:730: ERROR:  must be owner of table r1
+drop table if exists r1;
+NOTICE:  table "r1" does not exist, skipping
 CREATE TABLE r1 (a int primary key);
-psql:sql/remote_dml2.sql:731: ERROR:  relation "r1" already exists
 INSERT INTO r1 VALUES (10), (20);
-psql:sql/remote_dml2.sql:732: ERROR:  permission denied for table r1
---CREATE POLICY p1 ON r1 USING (false);
---ALTER TABLE r1 ENABLE ROW LEVEL SECURITY;
---ALTER TABLE r1 FORCE ROW LEVEL SECURITY;
+CREATE POLICY p1 ON r1 USING (false);
+ERROR:  Statement 'CREATE POLICY' is not supported in Kunlun.
+ALTER TABLE r1 ENABLE ROW LEVEL SECURITY;
+WARNING:  Alter Table command ENABLE ROW SECURITY not supported and skipped.
+ALTER TABLE r1 FORCE ROW LEVEL SECURITY;
+WARNING:  Alter Table command FORCE ROW SECURITY not supported and skipped.
 TABLE r1;
-psql:sql/remote_dml2.sql:736: ERROR:  permission denied for table r1
+ a  
+----
+ 10
+ 20
+(2 rows)
+
 INSERT INTO r1 VALUES (1);
-psql:sql/remote_dml2.sql:737: ERROR:  permission denied for table r1
 UPDATE r1 SET a = 1;
-psql:sql/remote_dml2.sql:738: ERROR:  permission denied for table r1
+ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '1' for key 'PRIMARY'.
 DELETE FROM r1;
-psql:sql/remote_dml2.sql:739: ERROR:  permission denied for table r1
-SET SESSION AUTHORIZATION abc;
-SET
+SET SESSION AUTHORIZATION dzw;
 -- bug 57
-drop table if exists temptest1 cascade;
-psql:sql/remote_dml2.sql:743: NOTICE:  table "temptest1" does not exist, skipping
-DROP TABLE
+drop table if exists temptest1;
+NOTICE:  table "temptest1" does not exist, skipping
 begin;
-BEGIN
 CREATE TEMP TABLE temptest1(col int PRIMARY KEY);
-CREATE TABLE
 insert into temptest1 values (1),(2);
-INSERT 0 2
 select*from temptest1;
  col 
 -----
@@ -1715,16 +1467,11 @@ select*from temptest1;
 (2 rows)
 
 commit;
-COMMIT
-drop table if exists temptest2 cascade;
-psql:sql/remote_dml2.sql:750: NOTICE:  table "temptest2" does not exist, skipping
-DROP TABLE
+drop table if exists temptest2;
+NOTICE:  table "temptest2" does not exist, skipping
 begin;
-BEGIN
 CREATE TEMP TABLE temptest2(col int PRIMARY KEY) ON COMMIT DELETE ROWS;
-CREATE TABLE
 insert into temptest2 values (1),(2);
-INSERT 0 2
 select*from temptest2;
  col 
 -----
@@ -1733,34 +1480,30 @@ select*from temptest2;
 (2 rows)
 
 commit;
-COMMIT
 -- bug 84
-drop table if exists collate_test10 cascade;
-psql:sql/remote_dml2.sql:758: NOTICE:  table "collate_test10" does not exist, skipping
-DROP TABLE
+drop table if exists collate_test10;
+NOTICE:  table "collate_test10" does not exist, skipping
  CREATE TABLE collate_test10 (
     a int primary key,
     x varchar(50) COLLATE "C",
     y varchar(50) COLLATE "POSIX"
 );
-CREATE TABLE
 INSERT INTO collate_test10 VALUES (1, 'hij', 'hij'), (2, 'HIJ', 'HIJ');
-INSERT 0 2
---select x < y from collate_test10;
-drop table if exists collate_test1 cascade;
-psql:sql/remote_dml2.sql:769: NOTICE:  table "collate_test1" does not exist, skipping
-DROP TABLE
-drop table if exists collate_test2 cascade;
-psql:sql/remote_dml2.sql:770: NOTICE:  table "collate_test2" does not exist, skipping
-DROP TABLE
+select x < y from collate_test10;
+ ?column? 
+----------
+ f
+ f
+(2 rows)
+
+drop table if exists collate_test1;
+NOTICE:  table "collate_test1" does not exist, skipping
+drop table if exists collate_test2;
+NOTICE:  table "collate_test2" does not exist, skipping
 CREATE TABLE collate_test1 (id serial primary key, a int, b varchar(50) COLLATE "C" NOT NULL);
-CREATE TABLE
 CREATE TABLE collate_test2 (id serial primary key,  a int, b varchar(50) COLLATE "POSIX" );
-CREATE TABLE
 INSERT INTO collate_test1 (a,b) VALUES (1, 'abc'), (2, 'Abc'), (3, 'bbc'), (4, 'ABD');
-INSERT 0 4
 INSERT INTO collate_test2 (a,b) SELECT a,b FROM collate_test1;
-INSERT 0 4
 SELECT a, b FROM collate_test2 WHERE a < 4 INTERSECT SELECT a, b FROM collate_test2 WHERE a > 1 ORDER BY 2;
  a |  b  
 ---+-----
@@ -1770,31 +1513,26 @@ SELECT a, b FROM collate_test2 WHERE a < 4 INTERSECT SELECT a, b FROM collate_te
 
 -- bug 37
 CREATE TABLE moneyp (a money) PARTITION BY LIST (a);
-CREATE TABLE
 CREATE TABLE moneyp_10 PARTITION OF moneyp FOR VALUES IN (10);
-psql:sql/remote_dml2.sql:780: ERROR:  specified value cannot be cast to type money for column "a"
+ERROR:  specified value cannot be cast to type money for column "a"
 LINE 1: ...EATE TABLE moneyp_10 PARTITION OF moneyp FOR VALUES IN (10);
                                                                    ^
 DETAIL:  The cast requires a non-immutable conversion.
 HINT:  Try putting the literal value in single quotes.
-drop table if exists list_parted cascade;
-psql:sql/remote_dml2.sql:781: NOTICE:  table "list_parted" does not exist, skipping
-DROP TABLE
+drop table if exists list_parted;
+NOTICE:  table "list_parted" does not exist, skipping
 CREATE TABLE list_parted (a int) PARTITION BY LIST (a);
-CREATE TABLE
 CREATE TABLE part_1 PARTITION OF list_parted FOR VALUES IN ('1');
-CREATE TABLE
 CREATE TABLE fail_part PARTITION OF list_parted FOR VALUES IN (int '1');
-psql:sql/remote_dml2.sql:784: ERROR:  syntax error at or near "int"
+ERROR:  syntax error at or near "int"
 LINE 1: ... fail_part PARTITION OF list_parted FOR VALUES IN (int '1');
                                                               ^
 CREATE TABLE fail_part PARTITION OF list_parted FOR VALUES IN ('1'::int);
-psql:sql/remote_dml2.sql:785: ERROR:  syntax error at or near "::"
+ERROR:  syntax error at or near "::"
 LINE 1: ...fail_part PARTITION OF list_parted FOR VALUES IN ('1'::int);
                                                                 ^
 -- bug 72
-drop table if exists onek cascade;
-DROP TABLE
+drop table if exists onek;
 CREATE TABLE onek (
     unique1 int4,
     unique2 int4,
@@ -1813,63 +1551,38 @@ CREATE TABLE onek (
     stringu2 name,
     string4 name
 );
-CREATE TABLE
 CREATE UNIQUE INDEX onek_idx ON onek (unique2 nulls first,unique1);
-CREATE INDEX
 -- bug 34
 drop table if exists part_attmp cascade;
-psql:sql/remote_dml2.sql:811: NOTICE:  table "part_attmp" does not exist, skipping
-DROP TABLE
+NOTICE:  table "part_attmp" does not exist, skipping
 CREATE TABLE part_attmp (a int primary key) partition by range (a);
-CREATE TABLE
 CREATE TABLE part_attmp1 PARTITION OF part_attmp FOR VALUES FROM (0) TO (100);
-CREATE TABLE
 ALTER INDEX part_attmp_pkey RENAME TO part_attmp_index;
-ALTER INDEX
 ALTER INDEX part_attmp1_pkey RENAME TO part_attmp1_index;
-ALTER INDEX
 alter table part_attmp add column b int;
-ALTER TABLE
 create index part_attmp_b_idx on part_attmp(b);
-CREATE INDEX
 ALTER INDEX part_attmp_b_idx RENAME TO part_attmp_b_index;
-ALTER INDEX
 ALTER INDEX part_attmp1_b_idx RENAME TO part_attmp1_b_index;
-ALTER INDEX
 -- bug 14
 drop table if exists test_default_tab cascade;
-psql:sql/remote_dml2.sql:823: NOTICE:  table "test_default_tab" does not exist, skipping
-DROP TABLE
+NOTICE:  table "test_default_tab" does not exist, skipping
 CREATE TABLE test_default_tab(pk serial primary key, id int);
-CREATE TABLE
 CREATE INDEX test_index1 on test_default_tab (id);
-CREATE INDEX
 ALTER TABLE test_default_tab ALTER id TYPE bigint;
-ALTER TABLE
 drop table if exists anothertab cascade;
-psql:sql/remote_dml2.sql:828: NOTICE:  table "anothertab" does not exist, skipping
-DROP TABLE
+NOTICE:  table "anothertab" does not exist, skipping
 create table anothertab(f1 int primary key, f2 int unique,f3 int, f4 int, f5 int);
-CREATE TABLE
 alter table anothertab add unique(f1,f4);
-ALTER TABLE
 create index on anothertab(f2,f3);
-CREATE INDEX
 create unique index on anothertab(f4);
-CREATE INDEX
 alter table anothertab alter column f1 type bigint;
-ALTER TABLE
 alter table anothertab
     alter column f2 type bigint,
     alter column f3 type bigint,
     alter column f4 type bigint;
-ALTER TABLE
 create table at_partitioned(id int primary key, name varchar(64), unique (id, name)) partition by hash(id);
-CREATE TABLE
 create table at_partitioned_1 partition of at_partitioned for values with (modulus 2, remainder 1);
-CREATE TABLE
 alter table at_partitioned alter column name type varchar(127);
-ALTER TABLE
 -- bug 24 this doesn't pass now. we have to disable DEFAULT partitions now.
 -- drop table if exists range_parted2 cascade;
 --  CREATE TABLE range_parted2 (a int primary key) PARTITION BY RANGE (a);
@@ -1906,27 +1619,19 @@ ALTER TABLE
 --
 -- bug 56
 drop table if exists pc_list_parted  cascade;
-psql:sql/remote_dml2.sql:881: NOTICE:  table "pc_list_parted" does not exist, skipping
-DROP TABLE
+NOTICE:  table "pc_list_parted" does not exist, skipping
 create table pc_list_parted (a int primary key) partition by list(a);
-CREATE TABLE
 create table pc_list_part_null partition of pc_list_parted for values in (null);
-CREATE TABLE
 create table pc_list_part_1 partition of pc_list_parted for values in (1);
-CREATE TABLE
 insert into pc_list_part_1 values(2);
-psql:sql/remote_dml2.sql:885: ERROR:  new row for relation "pc_list_part_1" violates partition constraint
+ERROR:  new row for relation "pc_list_part_1" violates partition constraint
 DETAIL:  Failing row contains (2).
 -- bug 25
-drop table if exists concur_heap cascade;
-psql:sql/remote_dml2.sql:888: NOTICE:  table "concur_heap" does not exist, skipping
-DROP TABLE
+drop table if exists concur_heap;
+NOTICE:  table "concur_heap" does not exist, skipping
 CREATE TABLE concur_heap (id serial primary key, f1 int, f2 int);
-CREATE TABLE
 insert into concur_heap (f1, f2) values(2,3),(3,5),(5,7),(7,11);
-INSERT 0 4
 CREATE INDEX CONCURRENTLY concur_index1 ON concur_heap(f2,f1);
-CREATE INDEX
 select*from concur_heap;
  id | f1 | f2 
 ----+----+----
@@ -1938,21 +1643,13 @@ select*from concur_heap;
 
 -- bug 110
 drop table if exists INT8_TBL cascade;
-DROP TABLE
 CREATE TABLE INT8_TBL(q1 int8, q2 int8);
-CREATE TABLE
 INSERT INTO INT8_TBL VALUES(' 123 ',' 456');
-INSERT 0 1
 INSERT INTO INT8_TBL VALUES('123 ','4567890123456789');
-INSERT 0 1
 INSERT INTO INT8_TBL VALUES('4567890123456789','123');
-INSERT 0 1
 INSERT INTO INT8_TBL VALUES(+4567890123456789,'4567890123456789');
-INSERT 0 1
 INSERT INTO INT8_TBL VALUES('+4567890123456789','-4567890123456789');
-INSERT 0 1
 create view tt17v as select * from int8_tbl i where i in (values(i));
-CREATE VIEW
 select * from tt17v;
         q1        |        q2         
 ------------------+-------------------
@@ -1964,51 +1661,39 @@ select * from tt17v;
 (5 rows)
 
 -- bug 111
-drop table if exists persons cascade;
-psql:sql/remote_dml2.sql:906: NOTICE:  table "persons" does not exist, skipping
-DROP TABLE
+drop table if exists persons;
+NOTICE:  table "persons" does not exist, skipping
 drop type if exists person_type cascade;
-psql:sql/remote_dml2.sql:907: NOTICE:  type "person_type" does not exist, skipping
-DROP TYPE
+NOTICE:  type "person_type" does not exist, skipping
 CREATE TYPE person_type AS (id int, name varchar(50));
-CREATE TYPE
 CREATE TABLE persons OF person_type;
-CREATE TABLE
+ERROR:  Kunlun-db: The way of creating a table not supported.
 -- bug 112
 drop table if exists base_tbl cascade;
-psql:sql/remote_dml2.sql:912: NOTICE:  drop cascades to view rw_view1
-DROP TABLE
+NOTICE:  drop cascades to view rw_view1
 drop view if existrs rw_view1;
-psql:sql/remote_dml2.sql:913: ERROR:  syntax error at or near "existrs"
+ERROR:  syntax error at or near "existrs"
 LINE 1: drop view if existrs rw_view1;
                      ^
 CREATE TABLE base_tbl (a int, b int DEFAULT 10);
-CREATE TABLE
 INSERT INTO base_tbl VALUES (1,2), (2,3), (1,-1);
-INSERT 0 3
---CREATE VIEW rw_view1 AS SELECT * FROM base_tbl WHERE a < b --WITH LOCAL CHECK OPTION;
---INSERT INTO rw_view1 values(3,2),(4,3), (3,4);
+CREATE VIEW rw_view1 AS SELECT * FROM base_tbl WHERE a < b WITH LOCAL CHECK OPTION;
+WARNING:  views with CHECK options are not supported, the view will be created but the check constraints will be ignored silently.
+INSERT INTO rw_view1 values(3,2),(4,3), (3,4);
 -- bug 114
-drop table if exists update_test cascade;
-psql:sql/remote_dml2.sql:920: NOTICE:  table "update_test" does not exist, skipping
-DROP TABLE
+drop table if exists update_test;
+NOTICE:  table "update_test" does not exist, skipping
 CREATE TABLE update_test (a INT DEFAULT 10, b INT, c TEXT);
-CREATE TABLE
 INSERT INTO update_test VALUES (5, 10, 'foo');
-INSERT 0 1
 INSERT INTO update_test(b, a) VALUES (15, 10);
-INSERT 0 1
---UPDATE update_test t SET (a, b) = (SELECT b, a FROM --update_test s WHERE s.a = t.a) WHERE CURRENT_USER = --SESSION_USER;
+UPDATE update_test t SET (a, b) = (SELECT b, a FROM update_test s WHERE s.a = t.a) WHERE CURRENT_USER = SESSION_USER;
+ERROR:  Kunlun-db: Can't access system attribute(ctid) from remote tables.
 -- bug 116
-drop table if exists t1 cascade;
-psql:sql/remote_dml2.sql:927: NOTICE:  table "t1" does not exist, skipping
-DROP TABLE
+drop table if exists t1;
+NOTICE:  table "t1" does not exist, skipping
 create table t1(pk int not null primary key);
-CREATE TABLE
 ALTER TABLE t1 ADD COLUMN c_num NUMERIC DEFAULT 1.00000000001;
-ALTER TABLE
 insert into t1 values(1),(2),(3),(4),(5);
-INSERT 0 5
 select * from t1;
  pk |         c_num          
 ----+------------------------
@@ -2020,12 +1705,9 @@ select * from t1;
 (5 rows)
 
 -- bug 126
-drop table if exists t1 cascade;
-DROP TABLE
+drop table if exists t1;
 create table t1(a int);
-CREATE TABLE
 insert into t1 values(1),(2),(3);
-INSERT 0 3
 update t1 set a=3 returning *;
  a 
 ---
@@ -2033,7 +1715,6 @@ update t1 set a=3 returning *;
  3
 (2 rows)
 
-UPDATE 4294967295
 delete from t1 returning *;
  a 
 ---
@@ -2042,28 +1723,18 @@ delete from t1 returning *;
  3
 (3 rows)
 
-DELETE 4294967295
 -- bug 127
 -- TODO: verify the stmt is sent to ddl log after each ddl stmt. so far we don't have such test facility.
 DROP SCHEMA if exists testschema cascade;
-psql:sql/remote_dml2.sql:942: NOTICE:  schema "testschema" does not exist, skipping
-DROP SCHEMA
+NOTICE:  schema "testschema" does not exist, skipping
 CREATE SCHEMA testschema;
-CREATE SCHEMA
 CREATE TABLE testschema.part0 (a int) PARTITION BY LIST (a);
-CREATE TABLE
-drop table testschema.part0 cascade;
-DROP TABLE
+drop table testschema.part0;
 CREATE TABLE testschema.part1 (a serial primary key, b int, c varchar(32), unique (b,a)) PARTITION BY LIST (a);
-CREATE TABLE
 create index part1_b_c2 on testschema.part1(b,c);
-CREATE INDEX
 create table testschema.part1_0 partition of testschema.part1 for values in (1,2,3,4);
-CREATE TABLE
 create table testschema.part1_1 partition of testschema.part1 for values in (5,6,7,8);
-CREATE TABLE
 insert into testschema.part1 (b,c) values(14, 'def'),(15,'efg'),(16,'fgh');
-INSERT 0 3
 select*from testschema.part1 ;
  a | b  |  c  
 ---+----+-----
@@ -2073,9 +1744,7 @@ select*from testschema.part1 ;
 (3 rows)
 
 create index part1_b_c on testschema.part1(b,c);
-CREATE INDEX
 insert into testschema.part1 (b,c) values(17, 'ghi'),(18,'hij'),(19,'ijk');
-INSERT 0 3
 select*from testschema.part1 ;
  a | b  |  c  
 ---+----+-----
@@ -2088,9 +1757,8 @@ select*from testschema.part1 ;
 (6 rows)
 
 drop index testschema.part1_b_c;
-DROP INDEX
 insert into testschema.part1 (b,c) values(11, 'abc'),(12,'bcd'),(13,'cde');
-psql:sql/remote_dml2.sql:956: ERROR:  no partition of relation "part1" found for row
+ERROR:  no partition of relation "part1" found for row
 DETAIL:  Partition key of the failing row contains (a) = (9).
 select*from testschema.part1 ;
  a | b  |  c  
@@ -2104,26 +1772,17 @@ select*from testschema.part1 ;
 (6 rows)
 
 drop schema testschema cascade;
-psql:sql/remote_dml2.sql:958: NOTICE:  drop cascades to table testschema.part1
-DROP SCHEMA
+NOTICE:  drop cascades to table testschema.part1
 -- bug 121
-drop table if exists indext1 cascade;
-psql:sql/remote_dml2.sql:961: NOTICE:  table "indext1" does not exist, skipping
-DROP TABLE
+drop table if exists indext1;
+NOTICE:  table "indext1" does not exist, skipping
 create table indext1(id integer);
-CREATE TABLE
 ALTER TABLE indext1 ADD CONSTRAINT oindext1_id_constraint UNIQUE (id);
-ALTER TABLE
 ALTER TABLE indext1 DROP CONSTRAINT oindext1_id_constraint;
-ALTER TABLE
 CREATE TABLE part1 (a serial primary key, b int, c varchar(32), unique (b,a)) PARTITION BY LIST (a);
-CREATE TABLE
 create index part1_b_c2 on part1(b,c);
-CREATE INDEX
 create table part1_0 partition of part1 for values in (1,2,3,4);
-CREATE TABLE
 insert into part1 (b,c) values(11, 'abc'),(12,'bcd'),(13,'cde');
-INSERT 0 3
 select*from part1;
  a | b  |  c  
 ---+----+-----
@@ -2133,67 +1792,49 @@ select*from part1;
 (3 rows)
 
 ALTER TABLE part1 ADD CONSTRAINT opart1_c_constraint UNIQUE (c,a);
-ALTER TABLE
 create table part1_1 partition of part1 for values in (5,6,7,8);
-CREATE TABLE
 insert into part1 (b,c) values(14, 'def'),(15,'efg'),(16,'fgh');
-INSERT 0 3
-alter table part1 add column d int;
-ALTER TABLE
+alter table part1 add column d int not null;
 select*from part1;
  a | b  |  c  | d 
 ---+----+-----+---
- 1 | 11 | abc |  
- 2 | 12 | bcd |  
- 3 | 13 | cde |  
- 4 | 14 | def |  
- 5 | 15 | efg |  
- 6 | 16 | fgh |  
+ 1 | 11 | abc | 0
+ 2 | 12 | bcd | 0
+ 3 | 13 | cde | 0
+ 4 | 14 | def | 0
+ 5 | 15 | efg | 0
+ 6 | 16 | fgh | 0
 (6 rows)
 
 create table part1_2 partition of part1 for values in (9,10,11,12);
-CREATE TABLE
 insert into part1 (b,c,d) values(17, 'ghi', 21),(18,'hij',22),(19,'ijk',23);
-INSERT 0 3
 select*from part1;
  a | b  |  c  | d  
 ---+----+-----+----
- 1 | 11 | abc |   
- 2 | 12 | bcd |   
- 3 | 13 | cde |   
- 4 | 14 | def |   
- 5 | 15 | efg |   
- 6 | 16 | fgh |   
+ 1 | 11 | abc |  0
+ 2 | 12 | bcd |  0
+ 3 | 13 | cde |  0
+ 4 | 14 | def |  0
+ 5 | 15 | efg |  0
+ 6 | 16 | fgh |  0
  7 | 17 | ghi | 21
  8 | 18 | hij | 22
  9 | 19 | ijk | 23
 (9 rows)
 
 ALTER TABLE part1 ADD CONSTRAINT opart1_b_constraint UNIQUE (b,a);
-ALTER TABLE
 create table part1_3 partition of part1 for values in (13,14,15,16);
-CREATE TABLE
 insert into part1 (b,c,d) values(20, 'jkl', 24),(21,'klm',25),(22,'lmn',26);
-INSERT 0 3
 ALTER TABLE part1 ADD CONSTRAINT opart1_d_constraint UNIQUE (d,a);
-ALTER TABLE
 ALTER TABLE part1 DROP CONSTRAINT opart1_c_constraint;
-ALTER TABLE
 ALTER TABLE part1 DROP CONSTRAINT opart1_d_constraint;
-ALTER TABLE
 ALTER TABLE part1 DROP CONSTRAINT opart1_b_constraint;
-ALTER TABLE
 drop index part1_b_c2;
-DROP INDEX
-drop table part1 cascade;
-DROP TABLE
+drop table part1;
 -- bug 135
 drop table if exists t1 cascade;
-DROP TABLE
 create table t1(v1 decimal(10,2));
-CREATE TABLE
 insert into t1 values(1.1), (2.2);
-INSERT 0 2
 select*from t1;
   v1  
 ------
@@ -2202,7 +1843,6 @@ select*from t1;
 (2 rows)
 
 update t1 set v1 = v1 + 1;
-UPDATE 2
 select*from t1;
   v1  
 ------
@@ -2211,7 +1851,6 @@ select*from t1;
 (2 rows)
 
 PREPARE pq1(int, int) AS SELECT * FROM t1 WHERE v1 between $1 and $2;
-PREPARE
 EXECUTE pq1(-4, 4);
   v1  
 ------
@@ -2220,9 +1859,7 @@ EXECUTE pq1(-4, 4);
 (2 rows)
 
 PREPARE pq2(int) AS update t1 set v1=v1+$1;
-PREPARE
 EXECUTE pq2(1);
-UPDATE 2
 select*from t1;
   v1  
 ------
@@ -2231,11 +1868,8 @@ select*from t1;
 (2 rows)
 
 PREPARE pq3(float) AS update t1 set v1=v1+$1;
-PREPARE
 EXECUTE pq3(2.0);
-UPDATE 2
 PREPARE pq4(float, float) AS SELECT * FROM t1 WHERE v1 between $1 and $2;
-PREPARE
 EXECUTE pq4(-8.0, 8.0);
   v1  
 ------
@@ -2245,29 +1879,18 @@ EXECUTE pq4(-8.0, 8.0);
 
 -- bug 190
 drop table if exists t2 cascade;
-DROP TABLE
 create table t2(id int primary key, good boolean);
-CREATE TABLE
 insert into t2 values(1, true);
-INSERT 0 1
 insert into t2 values(2, false);
-INSERT 0 1
 update t2 set good = false where id = 1;
-UPDATE 1
 -- bug 199
 drop table if exists t4 cascade;
-psql:sql/remote_dml2.sql:1016: NOTICE:  table "t4" does not exist, skipping
-DROP TABLE
+NOTICE:  table "t4" does not exist, skipping
 create table t4(a money);
-CREATE TABLE
 insert into t4 values(999);
-INSERT 0 1
 insert into t4 values(1000);
-INSERT 0 1
 insert into t4 values (-92233720368547758.08);
-INSERT 0 1
 insert into t4 values (+92233720368547758.07);
-INSERT 0 1
 select*from t4;
               a              
 -----------------------------
@@ -2278,11 +1901,10 @@ select*from t4;
 (4 rows)
 
 insert into t4 values (-92233720368547758.09); -- bigint out of range
-psql:sql/remote_dml2.sql:1024: ERROR:  bigint out of range
+ERROR:  bigint out of range
 insert into t4 values (+92233720368547758.08); -- bigint out of range
-psql:sql/remote_dml2.sql:1025: ERROR:  bigint out of range
+ERROR:  bigint out of range
 insert into t4 values (-1111);
-INSERT 0 1
 select*from t4;
               a              
 -----------------------------
@@ -2295,20 +1917,13 @@ select*from t4;
 
 -- bug 94
  drop table if exists FLOAT4_TBL cascade;
-psql:sql/remote_dml2.sql:1031: NOTICE:  table "float4_tbl" does not exist, skipping
-DROP TABLE
+NOTICE:  table "float4_tbl" does not exist, skipping
 CREATE TABLE FLOAT4_TBL (f1 float4);
-CREATE TABLE
 INSERT INTO FLOAT4_TBL(f1) VALUES (' 0.0');
-INSERT 0 1
 INSERT INTO FLOAT4_TBL(f1) VALUES ('1004.30 ');
-INSERT 0 1
 INSERT INTO FLOAT4_TBL(f1) VALUES (' -34.84 ');
-INSERT 0 1
 INSERT INTO FLOAT4_TBL(f1) VALUES ('1.2345678901234e+20');
-INSERT 0 1
 INSERT INTO FLOAT4_TBL(f1) VALUES ('1.2345678901234e-20');
-INSERT 0 1
 select f1 from float4_tbl;
      f1      
 -------------
@@ -2336,85 +1951,49 @@ SELECT f.* FROM FLOAT4_TBL f WHERE f.f1 <> '1004.3';
 
 -- bug 118 Bad results for partition join query when SET enable_partitionwise_join to true
 SET enable_partitionwise_join TO true;
-SET
-drop table if exists pagg_tab1 cascade;
-DROP TABLE
+drop table if exists pagg_tab1;
+NOTICE:  table "pagg_tab1" does not exist, skipping
 CREATE TABLE pagg_tab1(x int, y int) PARTITION BY RANGE(x);
-CREATE TABLE
 CREATE TABLE pagg_tab1_p1 PARTITION OF pagg_tab1 FOR VALUES FROM (0) TO (10);
-CREATE TABLE
 CREATE TABLE pagg_tab1_p2 PARTITION OF pagg_tab1 FOR VALUES FROM (10) TO (20);
-CREATE TABLE
 CREATE TABLE pagg_tab1_p3 PARTITION OF pagg_tab1 FOR VALUES FROM (20) TO (30);
-CREATE TABLE
-drop table if exists pagg_tab2 cascade;
-DROP TABLE
+drop table if exists pagg_tab2;
+NOTICE:  table "pagg_tab2" does not exist, skipping
 CREATE TABLE pagg_tab2(x int, y int) PARTITION BY RANGE(y);
-CREATE TABLE
 CREATE TABLE pagg_tab2_p1 PARTITION OF pagg_tab2 FOR VALUES FROM (0) TO (10);
-CREATE TABLE
 CREATE TABLE pagg_tab2_p2 PARTITION OF pagg_tab2 FOR VALUES FROM (10) TO (20);
-CREATE TABLE
 CREATE TABLE pagg_tab2_p3 PARTITION OF pagg_tab2 FOR VALUES FROM (20) TO (30);
-CREATE TABLE
 INSERT INTO pagg_tab1 SELECT i % 30, i % 20 FROM generate_series(0, 299, 2) i;
-INSERT 0 150
 INSERT INTO pagg_tab2 SELECT i % 20, i % 30 FROM generate_series(0, 299, 3) i;
-INSERT 0 100
 DROP TABLE if exists prt1 cascade;
-DROP TABLE
 CREATE TABLE prt1 (a int, b int, c varchar) PARTITION BY RANGE(a);
-CREATE TABLE
 CREATE TABLE prt1_p1 PARTITION OF prt1 FOR VALUES FROM (0) TO (250);
-CREATE TABLE
 CREATE TABLE prt1_p3 PARTITION OF prt1 FOR VALUES FROM (500) TO (600);
-CREATE TABLE
 CREATE TABLE prt1_p2 PARTITION OF prt1 FOR VALUES FROM (250) TO (500);
-CREATE TABLE
 INSERT INTO prt1 SELECT i, i % 25, to_char(i, 'FM0000') FROM generate_series(0, 599) i WHERE i % 2 = 0;
-INSERT 0 300
 DROP TABLE if exists prt2 cascade;
-DROP TABLE
 CREATE TABLE prt2 (a int, b int, c varchar) PARTITION BY RANGE(b);
-CREATE TABLE
 CREATE TABLE prt2_p1 PARTITION OF prt2 FOR VALUES FROM (0) TO (250);
-CREATE TABLE
 CREATE TABLE prt2_p2 PARTITION OF prt2 FOR VALUES FROM (250) TO (500);
-CREATE TABLE
 CREATE TABLE prt2_p3 PARTITION OF prt2 FOR VALUES FROM (500) TO (600);
-CREATE TABLE
 INSERT INTO prt2 SELECT i % 25, i, to_char(i, 'FM0000') FROM generate_series(0, 599) i WHERE i % 3 = 0;
-INSERT 0 200
-DROP TABLE if exists prt1_e cascade;
-DROP TABLE
+DROP TABLE if exists prt1_e;
+NOTICE:  table "prt1_e" does not exist, skipping
 CREATE TABLE prt1_e (a int, b int, c int) PARTITION BY RANGE(((a + b)/2));
-CREATE TABLE
 CREATE TABLE prt1_e_p1 PARTITION OF prt1_e FOR VALUES FROM (0) TO (250);
-CREATE TABLE
 CREATE TABLE prt1_e_p2 PARTITION OF prt1_e FOR VALUES FROM (250) TO (500);
-CREATE TABLE
 CREATE TABLE prt1_e_p3 PARTITION OF prt1_e FOR VALUES FROM (500) TO (600);
-CREATE TABLE
 INSERT INTO prt1_e SELECT i, i, i % 25 FROM generate_series(0, 599, 2) i;
-INSERT 0 300
-DROP TABLE if exists prt2_e cascade;
-DROP TABLE
+DROP TABLE if exists prt2_e;
+NOTICE:  table "prt2_e" does not exist, skipping
 CREATE TABLE prt2_e (a int, b int, c int) PARTITION BY RANGE(((b + a)/2));
-CREATE TABLE
 CREATE TABLE prt2_e_p1 PARTITION OF prt2_e FOR VALUES FROM (0) TO (250);
-CREATE TABLE
 CREATE TABLE prt2_e_p2 PARTITION OF prt2_e FOR VALUES FROM (250) TO (500);
-CREATE TABLE
 CREATE TABLE prt2_e_p3 PARTITION OF prt2_e FOR VALUES FROM (500) TO (600);
-CREATE TABLE
 INSERT INTO prt2_e SELECT i, i, i % 25 FROM generate_series(0, 599, 3) i;
-INSERT 0 200
 set enable_hashjoin=false;
-SET
 set enable_mergejoin=false;
-SET
 set enable_nestloop=true;
-SET
 SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x ORDER BY 1, 2, 3;
  x  | sum  | count 
 ----+------+-------
@@ -2445,12 +2024,12 @@ SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2
 SELECT b.y, sum(a.y) FROM pagg_tab1 a LEFT JOIN pagg_tab2 b ON a.x = b.y GROUP BY b.y ORDER BY 1 NULLS LAST;
  y  | sum  
 ----+------
-    |  900
   0 |  500
   6 | 1100
  12 |  700
  18 | 1300
  24 |  900
+    |  900
 (6 rows)
 
 EXPLAIN (verbose, COSTS OFF)
@@ -2477,14 +2056,14 @@ SELECT b.y, sum(a.y) FROM pagg_tab1 a RIGHT JOIN pagg_tab2 b ON a.x = b.y GROUP 
 SELECT t1.a, t1.c, t2.b, t2.c FROM prt1 t1 RIGHT JOIN prt2 t2 ON t1.a = t2.b WHERE t2.a = 0 ORDER BY t1.a, t2.b;
   a  |  c   |  b  |  c   
 -----+------+-----+------
-     |      |  75 | 0075
-     |      | 225 | 0225
-     |      | 375 | 0375
-     |      | 525 | 0525
    0 | 0000 |   0 | 0000
  150 | 0150 | 150 | 0150
  300 | 0300 | 300 | 0300
  450 | 0450 | 450 | 0450
+     |      |  75 | 0075
+     |      | 225 | 0225
+     |      | 375 | 0375
+     |      | 525 | 0525
 (8 rows)
 
 EXPLAIN (verbose, COSTS OFF)
@@ -2564,11 +2143,8 @@ EXPLAIN (verbose, COSTS OFF)
 SELECT t1.* FROM prt1 t1 WHERE t1.a IN (SELECT t1.b FROM prt2 t1, prt1_e t2 WHERE t1.a = 0 AND t1.b = (t2.a + t2.b)/2) AND t1.b = 0 ORDER BY t1.a;
 
 set enable_hashjoin=true;
-SET
 set enable_mergejoin=false;
-SET
 set enable_nestloop=false;
-SET
 SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x ORDER BY 1, 2, 3;
  x  | sum  | count 
 ----+------+-------
@@ -2599,12 +2175,12 @@ SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2
 SELECT b.y, sum(a.y) FROM pagg_tab1 a LEFT JOIN pagg_tab2 b ON a.x = b.y GROUP BY b.y ORDER BY 1 NULLS LAST;
  y  | sum  
 ----+------
-    |  900
   0 |  500
   6 | 1100
  12 |  700
  18 | 1300
  24 |  900
+    |  900
 (6 rows)
 
 EXPLAIN (verbose, COSTS OFF)
@@ -2631,14 +2207,14 @@ SELECT b.y, sum(a.y) FROM pagg_tab1 a RIGHT JOIN pagg_tab2 b ON a.x = b.y GROUP 
 SELECT t1.a, t1.c, t2.b, t2.c FROM prt1 t1 RIGHT JOIN prt2 t2 ON t1.a = t2.b WHERE t2.a = 0 ORDER BY t1.a, t2.b;
   a  |  c   |  b  |  c   
 -----+------+-----+------
-     |      |  75 | 0075
-     |      | 225 | 0225
-     |      | 375 | 0375
-     |      | 525 | 0525
    0 | 0000 |   0 | 0000
  150 | 0150 | 150 | 0150
  300 | 0300 | 300 | 0300
  450 | 0450 | 450 | 0450
+     |      |  75 | 0075
+     |      | 225 | 0225
+     |      | 375 | 0375
+     |      | 525 | 0525
 (8 rows)
 
 EXPLAIN (verbose, COSTS OFF)
@@ -2718,11 +2294,8 @@ EXPLAIN (verbose, COSTS OFF)
 SELECT t1.* FROM prt1 t1 WHERE t1.a IN (SELECT t1.b FROM prt2 t1, prt1_e t2 WHERE t1.a = 0 AND t1.b = (t2.a + t2.b)/2) AND t1.b = 0 ORDER BY t1.a;
 
 set enable_hashjoin=false;
-SET
 set enable_mergejoin=true;
-SET
 set enable_nestloop=false;
-SET
 SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x ORDER BY 1, 2, 3;
  x  | sum  | count 
 ----+------+-------
@@ -2753,12 +2326,12 @@ SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2
 SELECT b.y, sum(a.y) FROM pagg_tab1 a LEFT JOIN pagg_tab2 b ON a.x = b.y GROUP BY b.y ORDER BY 1 NULLS LAST;
  y  | sum  
 ----+------
-    |  900
   0 |  500
   6 | 1100
  12 |  700
  18 | 1300
  24 |  900
+    |  900
 (6 rows)
 
 EXPLAIN (verbose, COSTS OFF)
@@ -2785,14 +2358,14 @@ SELECT b.y, sum(a.y) FROM pagg_tab1 a RIGHT JOIN pagg_tab2 b ON a.x = b.y GROUP 
 SELECT t1.a, t1.c, t2.b, t2.c FROM prt1 t1 RIGHT JOIN prt2 t2 ON t1.a = t2.b WHERE t2.a = 0 ORDER BY t1.a, t2.b;
   a  |  c   |  b  |  c   
 -----+------+-----+------
-     |      |  75 | 0075
-     |      | 225 | 0225
-     |      | 375 | 0375
-     |      | 525 | 0525
    0 | 0000 |   0 | 0000
  150 | 0150 | 150 | 0150
  300 | 0300 | 300 | 0300
  450 | 0450 | 450 | 0450
+     |      |  75 | 0075
+     |      | 225 | 0225
+     |      | 375 | 0375
+     |      | 525 | 0525
 (8 rows)
 
 EXPLAIN (verbose, COSTS OFF)
@@ -2872,44 +2445,27 @@ EXPLAIN (verbose, COSTS OFF)
 SELECT t1.* FROM prt1 t1 WHERE t1.a IN (SELECT t1.b FROM prt2 t1, prt1_e t2 WHERE t1.a = 0 AND t1.b = (t2.a + t2.b)/2) AND t1.b = 0 ORDER BY t1.a;
 
 -- bug 226 Wrong Assert causing failure when an expression target is pushed down
-DROP TABLE if exists SUBSELECT_TBL cascade;
-DROP TABLE
+DROP TABLE if exists SUBSELECT_TBL;
 CREATE TABLE SUBSELECT_TBL (
     f1 integer,
     f2 integer,
     f3 float
 );
-CREATE TABLE
 INSERT INTO SUBSELECT_TBL VALUES (1, 2, 3);
-INSERT 0 1
 INSERT INTO SUBSELECT_TBL VALUES (2, 3, 4);
-INSERT 0 1
 INSERT INTO SUBSELECT_TBL VALUES (3, 4, 5);
-INSERT 0 1
 INSERT INTO SUBSELECT_TBL VALUES (1, 1, 1);
-INSERT 0 1
 INSERT INTO SUBSELECT_TBL VALUES (2, 2, 2);
-INSERT 0 1
 INSERT INTO SUBSELECT_TBL VALUES (3, 3, 3);
-INSERT 0 1
 INSERT INTO SUBSELECT_TBL VALUES (6, 7, 8);
-INSERT 0 1
 INSERT INTO SUBSELECT_TBL VALUES (8, 9, NULL);
-INSERT 0 1
 DROP table if exists INT4_TBL;
-DROP TABLE
 CREATE TABLE INT4_TBL(f1 int4);
-CREATE TABLE
 INSERT INTO INT4_TBL(f1) VALUES (' 0 ');
-INSERT 0 1
 INSERT INTO INT4_TBL(f1) VALUES ('123456 ');
-INSERT 0 1
 INSERT INTO INT4_TBL(f1) VALUES (' -123456');
-INSERT 0 1
 INSERT INTO INT4_TBL(f1) VALUES ('2147483647');
-INSERT 0 1
 INSERT INTO INT4_TBL(f1) VALUES ('-2147483647');
-INSERT 0 1
 SELECT ss.f1 AS "Correlated Field", ss.f3 AS "Second Field"
     FROM SUBSELECT_TBL ss
     WHERE f1 NOT IN (SELECT f1+1 FROM INT4_TBL
@@ -2926,19 +2482,12 @@ SELECT ss.f1 AS "Correlated Field", ss.f3 AS "Second Field"
 
 -- bug #236 Error about 'distinct on'
 DROP table if exists INT4_TBL;
-DROP TABLE
 CREATE TABLE INT4_TBL(f1 int4);
-CREATE TABLE
 INSERT INTO INT4_TBL(f1) VALUES (' 0 ');
-INSERT 0 1
 INSERT INTO INT4_TBL(f1) VALUES ('123456 ');
-INSERT 0 1
 INSERT INTO INT4_TBL(f1) VALUES (' -123456');
-INSERT 0 1
 INSERT INTO INT4_TBL(f1) VALUES ('2147483647');
-INSERT 0 1
 INSERT INTO INT4_TBL(f1) VALUES ('-2147483647');
-INSERT 0 1
 select distinct on (1) floor(random()) as r, f1 from int4_tbl order by 1,2;
  r |     f1      
 ---+-------------

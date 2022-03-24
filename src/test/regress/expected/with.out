@@ -54,7 +54,6 @@ CREATE RECURSIVE VIEW nums (n) AS
     VALUES (1)
 UNION ALL
     SELECT n+1 FROM nums WHERE n < 5;
-CREATE VIEW
 SELECT * FROM nums;
  n 
 ---
@@ -69,8 +68,6 @@ CREATE OR REPLACE RECURSIVE VIEW nums (n) AS
     VALUES (1)
 UNION ALL
     SELECT n+1 FROM nums WHERE n < 6;
-CREATE VIEW
-	
 SELECT * FROM nums;
  n 
 ---
@@ -166,7 +163,7 @@ UNION ALL
     SELECT n+1 FROM t WHERE n < 10
 )
 SELECT n, n IS OF (int) AS is_int FROM t;
-psql:sql/with.sql:88: ERROR:  operator does not exist: text + integer
+ERROR:  operator does not exist: text + integer
 LINE 4:     SELECT n+1 FROM t WHERE n < 10
                     ^
 HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.
@@ -181,26 +178,17 @@ HINT:  No operator matches the given name and argument types. You might need to 
 --      +->E-+->G
 CREATE TEMP TABLE department (
 	id INTEGER PRIMARY KEY,  -- department ID
-	parent_department INTEGER, -- upper department ID
+	parent_department INTEGER REFERENCES department, -- upper department ID
 	name TEXT -- department name
 );
-CREATE TABLE
 INSERT INTO department VALUES (0, NULL, 'ROOT');
-INSERT 0 1
 INSERT INTO department VALUES (1, 0, 'A');
-INSERT 0 1
 INSERT INTO department VALUES (2, 1, 'B');
-INSERT 0 1
 INSERT INTO department VALUES (3, 2, 'C');
-INSERT 0 1
 INSERT INTO department VALUES (4, 2, 'D');
-INSERT 0 1
 INSERT INTO department VALUES (5, 0, 'E');
-INSERT 0 1
 INSERT INTO department VALUES (6, 4, 'F');
-INSERT 0 1
 INSERT INTO department VALUES (7, 5, 'G');
-INSERT 0 1
 -- extract all departments under 'A'. Result should be A, B, C, D and F
 WITH RECURSIVE subdepartment AS
 (
@@ -297,7 +285,7 @@ WITH q1(x,y) AS (
 SELECT count(*) FROM q1 WHERE y > (SELECT sum(y)/100 FROM q1 qsub);
  count 
 -------
-     0
+    50
 (1 row)
 
 -- via a VIEW
@@ -312,7 +300,6 @@ CREATE TEMPORARY VIEW vsubdepartment AS
 			WHERE d.parent_department = sd.id
 	)
 	SELECT * FROM subdepartment;
-CREATE VIEW
 SELECT * FROM vsubdepartment ORDER BY name;
  id | parent_department | name 
 ----+-------------------+------
@@ -378,7 +365,6 @@ UNION ALL
     SELECT n+1 FROM t WHERE n < 100
 )
 SELECT sum(n) FROM t;
-CREATE VIEW
 \d+ sums_1_100
                          View "public.sums_1_100"
  Column |  Type  | Collation | Nullable | Default | Storage | Description 
@@ -498,13 +484,11 @@ WITH RECURSIVE t(i,j) AS (
 --
 CREATE TEMPORARY TABLE tree(
     id INTEGER PRIMARY KEY,
-    parent_id INTEGER
+    parent_id INTEGER REFERENCES tree(id)
 );
-CREATE TABLE
 INSERT INTO tree
 VALUES (1, NULL), (2, 1), (3,1), (4,2), (5,2), (6,2), (7,3), (8,3),
        (9,4), (10,4), (11,7), (12,7), (13,7), (14, 9), (15,11), (16,11);
-INSERT 0 16
 --
 -- get all paths from "second level" nodes to leaf nodes
 --
@@ -588,7 +572,6 @@ SELECT t1.id, t2.path, t2 FROM t AS t1 JOIN t AS t2 ON
 -- test cycle detection
 --
 create temp table graph( f int, t int, label text );
-CREATE TABLE
 insert into graph values
 	(1, 2, 'arc 1 -> 2'),
 	(1, 3, 'arc 1 -> 3'),
@@ -596,7 +579,6 @@ insert into graph values
 	(1, 4, 'arc 1 -> 4'),
 	(4, 5, 'arc 4 -> 5'),
 	(5, 1, 'arc 5 -> 1');
-INSERT 0 6
 with recursive search_graph(f, t, label, path, cycle) as (
 	select *, array[row(g.f, g.t)], false from graph g
 	union all
@@ -847,9 +829,7 @@ WITH RECURSIVE
 -- Test WITH attached to a data-modifying statement
 --
 CREATE TEMPORARY TABLE y (a INTEGER);
-CREATE TABLE
 INSERT INTO y SELECT generate_series(1, 10);
-INSERT 0 10
 WITH t AS (
 	SELECT a FROM y
 )
@@ -869,7 +849,6 @@ SELECT a+20 FROM t RETURNING *;
  30
 (10 rows)
 
-INSERT 0 10
 SELECT * FROM y;
  a  
 ----
@@ -913,7 +892,6 @@ UPDATE y SET a = y.a-10 FROM t WHERE y.a > 20 AND t.a = y.a RETURNING y.a;
  20
 (10 rows)
 
-UPDATE 0
 SELECT * FROM y;
  a  
 ----
@@ -959,7 +937,6 @@ DELETE FROM y USING t WHERE t.a = y.a RETURNING y.a;
  20
 (10 rows)
 
-DELETE 0
 SELECT * FROM y;
  a  
 ----
@@ -976,55 +953,51 @@ SELECT * FROM y;
 (10 rows)
 
 DROP TABLE y;
-DROP TABLE
 --
 -- error cases
 --
 -- INTERSECT
 WITH RECURSIVE x(n) AS (SELECT 1 INTERSECT SELECT n+1 FROM x)
 	SELECT * FROM x;
-psql:sql/with.sql:415: ERROR:  recursive query "x" does not have the form non-recursive-term UNION [ALL] recursive-term
+ERROR:  recursive query "x" does not have the form non-recursive-term UNION [ALL] recursive-term
 LINE 1: WITH RECURSIVE x(n) AS (SELECT 1 INTERSECT SELECT n+1 FROM x...
                        ^
 WITH RECURSIVE x(n) AS (SELECT 1 INTERSECT ALL SELECT n+1 FROM x)
 	SELECT * FROM x;
-psql:sql/with.sql:418: ERROR:  recursive query "x" does not have the form non-recursive-term UNION [ALL] recursive-term
+ERROR:  recursive query "x" does not have the form non-recursive-term UNION [ALL] recursive-term
 LINE 1: WITH RECURSIVE x(n) AS (SELECT 1 INTERSECT ALL SELECT n+1 FR...
                        ^
 -- EXCEPT
 WITH RECURSIVE x(n) AS (SELECT 1 EXCEPT SELECT n+1 FROM x)
 	SELECT * FROM x;
-psql:sql/with.sql:422: ERROR:  recursive query "x" does not have the form non-recursive-term UNION [ALL] recursive-term
+ERROR:  recursive query "x" does not have the form non-recursive-term UNION [ALL] recursive-term
 LINE 1: WITH RECURSIVE x(n) AS (SELECT 1 EXCEPT SELECT n+1 FROM x)
                        ^
 WITH RECURSIVE x(n) AS (SELECT 1 EXCEPT ALL SELECT n+1 FROM x)
 	SELECT * FROM x;
-psql:sql/with.sql:425: ERROR:  recursive query "x" does not have the form non-recursive-term UNION [ALL] recursive-term
+ERROR:  recursive query "x" does not have the form non-recursive-term UNION [ALL] recursive-term
 LINE 1: WITH RECURSIVE x(n) AS (SELECT 1 EXCEPT ALL SELECT n+1 FROM ...
                        ^
 -- no non-recursive term
 WITH RECURSIVE x(n) AS (SELECT n FROM x)
 	SELECT * FROM x;
-psql:sql/with.sql:429: ERROR:  recursive query "x" does not have the form non-recursive-term UNION [ALL] recursive-term
+ERROR:  recursive query "x" does not have the form non-recursive-term UNION [ALL] recursive-term
 LINE 1: WITH RECURSIVE x(n) AS (SELECT n FROM x)
                        ^
 -- recursive term in the left hand side (strictly speaking, should allow this)
 WITH RECURSIVE x(n) AS (SELECT n FROM x UNION ALL SELECT 1)
 	SELECT * FROM x;
-psql:sql/with.sql:433: ERROR:  recursive reference to query "x" must not appear within its non-recursive term
+ERROR:  recursive reference to query "x" must not appear within its non-recursive term
 LINE 1: WITH RECURSIVE x(n) AS (SELECT n FROM x UNION ALL SELECT 1)
                                               ^
-	
 CREATE TEMPORARY TABLE y (a INTEGER);
-CREATE TABLE
 INSERT INTO y SELECT generate_series(1, 10);
-INSERT 0 10
 -- LEFT JOIN
 WITH RECURSIVE x(n) AS (SELECT a FROM y WHERE a = 1
 	UNION ALL
 	SELECT x.n+1 FROM y LEFT JOIN x ON x.n = y.a WHERE n < 10)
 SELECT * FROM x;
-psql:sql/with.sql:443: ERROR:  recursive reference to query "x" must not appear within an outer join
+ERROR:  recursive reference to query "x" must not appear within an outer join
 LINE 3:  SELECT x.n+1 FROM y LEFT JOIN x ON x.n = y.a WHERE n < 10)
                                        ^
 -- RIGHT JOIN
@@ -1032,7 +1005,7 @@ WITH RECURSIVE x(n) AS (SELECT a FROM y WHERE a = 1
 	UNION ALL
 	SELECT x.n+1 FROM x RIGHT JOIN y ON x.n = y.a WHERE n < 10)
 SELECT * FROM x;
-psql:sql/with.sql:449: ERROR:  recursive reference to query "x" must not appear within an outer join
+ERROR:  recursive reference to query "x" must not appear within an outer join
 LINE 3:  SELECT x.n+1 FROM x RIGHT JOIN y ON x.n = y.a WHERE n < 10)
                            ^
 -- FULL JOIN
@@ -1040,49 +1013,49 @@ WITH RECURSIVE x(n) AS (SELECT a FROM y WHERE a = 1
 	UNION ALL
 	SELECT x.n+1 FROM x FULL JOIN y ON x.n = y.a WHERE n < 10)
 SELECT * FROM x;
-psql:sql/with.sql:455: ERROR:  recursive reference to query "x" must not appear within an outer join
+ERROR:  recursive reference to query "x" must not appear within an outer join
 LINE 3:  SELECT x.n+1 FROM x FULL JOIN y ON x.n = y.a WHERE n < 10)
                            ^
 -- subquery
 WITH RECURSIVE x(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM x
                           WHERE n IN (SELECT * FROM x))
   SELECT * FROM x;
-psql:sql/with.sql:460: ERROR:  recursive reference to query "x" must not appear within a subquery
+ERROR:  recursive reference to query "x" must not appear within a subquery
 LINE 2:                           WHERE n IN (SELECT * FROM x))
                                                             ^
 -- aggregate functions
 WITH RECURSIVE x(n) AS (SELECT 1 UNION ALL SELECT count(*) FROM x)
   SELECT * FROM x;
-psql:sql/with.sql:464: ERROR:  aggregate functions are not allowed in a recursive query's recursive term
+ERROR:  aggregate functions are not allowed in a recursive query's recursive term
 LINE 1: WITH RECURSIVE x(n) AS (SELECT 1 UNION ALL SELECT count(*) F...
                                                           ^
 WITH RECURSIVE x(n) AS (SELECT 1 UNION ALL SELECT sum(n) FROM x)
   SELECT * FROM x;
-psql:sql/with.sql:467: ERROR:  aggregate functions are not allowed in a recursive query's recursive term
+ERROR:  aggregate functions are not allowed in a recursive query's recursive term
 LINE 1: WITH RECURSIVE x(n) AS (SELECT 1 UNION ALL SELECT sum(n) FRO...
                                                           ^
 -- ORDER BY
 WITH RECURSIVE x(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM x ORDER BY 1)
   SELECT * FROM x;
-psql:sql/with.sql:471: ERROR:  ORDER BY in a recursive query is not implemented
+ERROR:  ORDER BY in a recursive query is not implemented
 LINE 1: ...VE x(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM x ORDER BY 1)
                                                                      ^
 -- LIMIT/OFFSET
 WITH RECURSIVE x(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM x LIMIT 10 OFFSET 1)
   SELECT * FROM x;
-psql:sql/with.sql:475: ERROR:  OFFSET in a recursive query is not implemented
+ERROR:  OFFSET in a recursive query is not implemented
 LINE 1: ... AS (SELECT 1 UNION ALL SELECT n+1 FROM x LIMIT 10 OFFSET 1)
                                                                      ^
 -- FOR UPDATE
 WITH RECURSIVE x(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM x FOR UPDATE)
   SELECT * FROM x;
-psql:sql/with.sql:479: ERROR:  FOR UPDATE/SHARE in a recursive query is not implemented
+ERROR:  FOR UPDATE/SHARE in a recursive query is not implemented
 -- target list has a recursive query name
 WITH RECURSIVE x(id) AS (values (1)
     UNION ALL
     SELECT (SELECT * FROM x) FROM x WHERE id < 5
 ) SELECT * FROM x;
-psql:sql/with.sql:485: ERROR:  recursive reference to query "x" must not appear within a subquery
+ERROR:  recursive reference to query "x" must not appear within a subquery
 LINE 3:     SELECT (SELECT * FROM x) FROM x WHERE id < 5
                                   ^
 -- mutual recursive query (not implemented)
@@ -1090,7 +1063,7 @@ WITH RECURSIVE
   x (id) AS (SELECT 1 UNION ALL SELECT id+1 FROM y WHERE id < 5),
   y (id) AS (SELECT 1 UNION ALL SELECT id+1 FROM x WHERE id < 5)
 SELECT * FROM x;
-psql:sql/with.sql:491: ERROR:  mutual recursion between WITH items is not implemented
+ERROR:  mutual recursion between WITH items is not implemented
 LINE 2:   x (id) AS (SELECT 1 UNION ALL SELECT id+1 FROM y WHERE id ...
           ^
 -- non-linear recursion is not allowed
@@ -1101,7 +1074,7 @@ WITH RECURSIVE foo(i) AS
           UNION ALL
        SELECT i+1 FROM foo WHERE i < 5)
 ) SELECT * FROM foo;
-psql:sql/with.sql:500: ERROR:  recursive reference to query "foo" must not appear more than once
+ERROR:  recursive reference to query "foo" must not appear more than once
 LINE 6:        SELECT i+1 FROM foo WHERE i < 5)
                                ^
 WITH RECURSIVE foo(i) AS
@@ -1112,7 +1085,7 @@ WITH RECURSIVE foo(i) AS
           UNION ALL
        SELECT i+1 FROM foo WHERE i < 5) AS t
 ) SELECT * FROM foo;
-psql:sql/with.sql:509: ERROR:  recursive reference to query "foo" must not appear more than once
+ERROR:  recursive reference to query "foo" must not appear more than once
 LINE 7:        SELECT i+1 FROM foo WHERE i < 5) AS t
                                ^
 WITH RECURSIVE foo(i) AS
@@ -1122,7 +1095,7 @@ WITH RECURSIVE foo(i) AS
           EXCEPT
        SELECT i+1 FROM foo WHERE i < 5)
 ) SELECT * FROM foo;
-psql:sql/with.sql:517: ERROR:  recursive reference to query "foo" must not appear within EXCEPT
+ERROR:  recursive reference to query "foo" must not appear within EXCEPT
 LINE 6:        SELECT i+1 FROM foo WHERE i < 5)
                                ^
 WITH RECURSIVE foo(i) AS
@@ -1132,7 +1105,7 @@ WITH RECURSIVE foo(i) AS
           INTERSECT
        SELECT i+1 FROM foo WHERE i < 5)
 ) SELECT * FROM foo;
-psql:sql/with.sql:525: ERROR:  recursive reference to query "foo" must not appear more than once
+ERROR:  recursive reference to query "foo" must not appear more than once
 LINE 6:        SELECT i+1 FROM foo WHERE i < 5)
                                ^
 -- Wrong type induced from non-recursive term
@@ -1141,7 +1114,7 @@ WITH RECURSIVE foo(i) AS
    UNION ALL
    SELECT (i+1)::numeric(10,0) FROM foo WHERE i < 10)
 SELECT * FROM foo;
-psql:sql/with.sql:532: ERROR:  recursive query "foo" column 1 has type integer in non-recursive term but type numeric overall
+ERROR:  recursive query "foo" column 1 has type integer in non-recursive term but type numeric overall
 LINE 2:    (SELECT i FROM (VALUES(1),(2)) t(i)
                    ^
 HINT:  Cast the output of the non-recursive term to the correct type.
@@ -1151,13 +1124,15 @@ WITH RECURSIVE foo(i) AS
    UNION ALL
    SELECT (i+1)::numeric(10,0) FROM foo WHERE i < 10)
 SELECT * FROM foo;
-psql:sql/with.sql:539: ERROR:  recursive query "foo" column 1 has type numeric(3,0) in non-recursive term but type numeric overall
+ERROR:  recursive query "foo" column 1 has type numeric(3,0) in non-recursive term but type numeric overall
 LINE 2:    (SELECT i::numeric(3,0) FROM (VALUES(1),(2)) t(i)
                    ^
 HINT:  Cast the output of the non-recursive term to the correct type.
 -- disallow OLD/NEW reference in CTE
 CREATE TEMPORARY TABLE x (n integer);
-CREATE TABLE
+CREATE RULE r2 AS ON UPDATE TO x DO INSTEAD
+    WITH t AS (SELECT OLD.*) UPDATE y SET a = t.n FROM t;
+ERROR:  cannot refer to OLD within WITH query
 --
 -- test for bug #4902
 --
@@ -1296,7 +1271,7 @@ WITH outermost(x) AS (
          UNION SELECT * FROM innermost)
 )
 SELECT * FROM outermost ORDER BY 1;
-psql:sql/with.sql:593: ERROR:  relation "outermost" does not exist
+ERROR:  relation "outermost" does not exist
 LINE 4:          SELECT * FROM outermost  
                                ^
 DETAIL:  There is a WITH item named "outermost", but it cannot be referenced from this part of the query.
@@ -1320,7 +1295,7 @@ WITH RECURSIVE outermost(x) AS (
     UNION SELECT * from outermost
 )
 SELECT * FROM outermost ORDER BY 1;
-psql:sql/with.sql:608: ERROR:  recursive reference to query "outermost" must not appear within a subquery
+ERROR:  recursive reference to query "outermost" must not appear within a subquery
 LINE 2:   WITH innermost as (SELECT 2 FROM outermost) 
                                            ^
 --
@@ -1622,10 +1597,19 @@ SELECT * FROM y;
  15
 (16 rows)
 
+-- unconditional DO INSTEAD rule
+CREATE RULE y_rule AS ON DELETE TO y DO INSTEAD
+  INSERT INTO y VALUES(42) RETURNING *;
 WITH t AS (
 	DELETE FROM y RETURNING *
 )
 SELECT * FROM t;
+ a  
+----
+ 42
+(1 row)
+
+SELECT * FROM y;
  a  
 ----
   0
@@ -1644,18 +1628,13 @@ SELECT * FROM t;
  14
  10
  15
-(16 rows)
+ 42
+(17 rows)
 
-SELECT * FROM y;
- a 
----
-(0 rows)
-
+DROP RULE y_rule ON y;
 -- check merging of outer CTE with CTE in a rule action
-CREATE TEMP TABLE bug6051(i int);
-CREATE TABLE
-insert into bug6051 select i from generate_series(1,3) as t(i);
-INSERT 0 3
+CREATE TEMP TABLE bug6051 AS
+  select i from generate_series(1,3) as t(i);
 SELECT * FROM bug6051;
  i 
 ---
@@ -1666,7 +1645,6 @@ SELECT * FROM bug6051;
 
 WITH t1 AS ( DELETE FROM bug6051 RETURNING * )
 INSERT INTO bug6051 SELECT * FROM t1;
-INSERT 0 3
 SELECT * FROM bug6051;
  i 
 ---
@@ -1676,22 +1654,23 @@ SELECT * FROM bug6051;
 (3 rows)
 
 CREATE TEMP TABLE bug6051_2 (i int);
-CREATE TABLE
+CREATE RULE bug6051_ins AS ON INSERT TO bug6051 DO INSTEAD
+ INSERT INTO bug6051_2
+ SELECT NEW.i;
 WITH t1 AS ( DELETE FROM bug6051 RETURNING * )
 INSERT INTO bug6051 SELECT * FROM t1;
-INSERT 0 3
 SELECT * FROM bug6051;
+ i 
+---
+(0 rows)
+
+SELECT * FROM bug6051_2;
  i 
 ---
  1
  2
  3
 (3 rows)
-
-SELECT * FROM bug6051_2;
- i 
----
-(0 rows)
 
 -- a truly recursive CTE in the same list
 WITH RECURSIVE t(a) AS (
@@ -1705,17 +1684,39 @@ WITH RECURSIVE t(a) AS (
 SELECT * FROM t2 JOIN y USING (a) ORDER BY a;
  a 
 ---
-(0 rows)
-
-SELECT * FROM y;
- a 
----
  0
  1
  2
  3
  4
 (5 rows)
+
+SELECT * FROM y;
+ a  
+----
+  0
+  1
+  2
+  3
+  4
+  5
+  6
+ 11
+  7
+ 12
+  8
+ 13
+  9
+ 14
+ 10
+ 15
+ 42
+  0
+  1
+  2
+  3
+  4
+(22 rows)
 
 -- data-modifying WITH in a modifying statement
 WITH t AS (
@@ -1724,25 +1725,52 @@ WITH t AS (
     RETURNING *
 )
 INSERT INTO y SELECT -a FROM t RETURNING *;
- a  
-----
-  0
- -1
- -2
- -3
- -4
-(5 rows)
+  a  
+-----
+   0
+  -1
+  -2
+  -3
+  -4
+  -5
+  -6
+  -7
+  -8
+  -9
+ -10
+   0
+  -1
+  -2
+  -3
+  -4
+(16 rows)
 
-INSERT 0 5
 SELECT * FROM y;
- a  
-----
-  0
- -1
- -2
- -3
- -4
-(5 rows)
+  a  
+-----
+  11
+  12
+  13
+  14
+  15
+  42
+   0
+  -1
+  -2
+  -3
+  -4
+  -5
+  -6
+  -7
+  -8
+  -9
+ -10
+   0
+  -1
+  -2
+  -3
+  -4
+(22 rows)
 
 -- check that WITH query is run to completion even if outer query isn't
 WITH t AS (
@@ -1751,58 +1779,135 @@ WITH t AS (
 SELECT * FROM t LIMIT 10;
   a   
 ------
+ 1100
+ 1200
+ 1300
+ 1400
+ 1500
+ 4200
     0
  -100
  -200
  -300
- -400
-(5 rows)
+(10 rows)
 
 SELECT * FROM y;
-  a   
-------
-    0
- -100
- -200
- -300
- -400
-(5 rows)
+   a   
+-------
+  1100
+  1200
+  1300
+  1400
+  1500
+  4200
+     0
+  -100
+  -200
+  -300
+  -400
+  -500
+  -600
+  -700
+  -800
+  -900
+ -1000
+     0
+  -100
+  -200
+  -300
+  -400
+(22 rows)
 
-CREATE TABLE withz(k int, v text);
-CREATE TABLE
-insert into withz SELECT i AS k, (i || ' v')::text v FROM generate_series(1, 16, 3) i;
-INSERT 0 6
+-- data-modifying WITH containing INSERT...ON CONFLICT DO UPDATE
+CREATE TABLE withz AS SELECT i AS k, (i || ' v')::text v FROM generate_series(1, 16, 3) i;
 ALTER TABLE withz ADD UNIQUE (k);
-ALTER TABLE
+WITH t AS (
+    INSERT INTO withz SELECT i, 'insert'
+    FROM generate_series(0, 16) i
+    ON CONFLICT (k) DO UPDATE SET v = withz.v || ', now update'
+    RETURNING *
+)
 SELECT * FROM t JOIN y ON t.k = y.a ORDER BY a, k;
-psql:sql/with.sql:799: ERROR:  relation "t" does not exist
-LINE 1: SELECT * FROM t JOIN y ON t.k = y.a ORDER BY a, k;
-                      ^
+ k |   v    | a 
+---+--------+---
+ 0 | insert | 0
+ 0 | insert | 0
+(2 rows)
+
+-- Test EXCLUDED.* reference within CTE
+WITH aa AS (
+    INSERT INTO withz VALUES(1, 5) ON CONFLICT (k) DO UPDATE SET v = EXCLUDED.v
+    WHERE withz.k != EXCLUDED.k
+    RETURNING *
+)
 SELECT * FROM aa;
-psql:sql/with.sql:801: ERROR:  relation "aa" does not exist
-LINE 1: SELECT * FROM aa;
-                      ^
+ k | v 
+---+---
+(0 rows)
+
 -- New query/snapshot demonstrates side-effects of previous query.
 SELECT * FROM withz ORDER BY k;
- k  |  v   
-----+------
-  1 | 1 v
-  4 | 4 v
-  7 | 7 v
- 10 | 10 v
- 13 | 13 v
- 16 | 16 v
-(6 rows)
+ k  |        v         
+----+------------------
+  0 | insert
+  1 | 1 v, now update
+  2 | insert
+  3 | insert
+  4 | 4 v, now update
+  5 | insert
+  6 | insert
+  7 | 7 v, now update
+  8 | insert
+  9 | insert
+ 10 | 10 v, now update
+ 11 | insert
+ 12 | insert
+ 13 | 13 v, now update
+ 14 | insert
+ 15 | insert
+ 16 | 16 v, now update
+(17 rows)
+
+--
+-- Ensure subqueries within the update clause work, even if they
+-- reference outside values
+--
+WITH aa AS (SELECT 1 a, 2 b)
+INSERT INTO withz VALUES(1, 'insert')
+ON CONFLICT (k) DO UPDATE SET v = (SELECT b || ' update' FROM aa WHERE a = 1 LIMIT 1);
+WITH aa AS (SELECT 1 a, 2 b)
+INSERT INTO withz VALUES(1, 'insert')
+ON CONFLICT (k) DO UPDATE SET v = ' update' WHERE withz.k = (SELECT a FROM aa);
+WITH aa AS (SELECT 1 a, 2 b)
+INSERT INTO withz VALUES(1, 'insert')
+ON CONFLICT (k) DO UPDATE SET v = (SELECT b || ' update' FROM aa WHERE a = 1 LIMIT 1);
+WITH aa AS (SELECT 'a' a, 'b' b UNION ALL SELECT 'a' a, 'b' b)
+INSERT INTO withz VALUES(1, 'insert')
+ON CONFLICT (k) DO UPDATE SET v = (SELECT b || ' update' FROM aa WHERE a = 'a' LIMIT 1);
+WITH aa AS (SELECT 1 a, 2 b)
+INSERT INTO withz VALUES(1, (SELECT b || ' insert' FROM aa WHERE a = 1 ))
+ON CONFLICT (k) DO UPDATE SET v = (SELECT b || ' update' FROM aa WHERE a = 1 LIMIT 1);
+-- Update a row more than once, in different parts of a wCTE. That is
+-- an allowed, presumably very rare, edge case, but since it was
+-- broken in the past, having a test seems worthwhile.
+WITH simpletup AS (
+  SELECT 2 k, 'Green' v),
+upsert_cte AS (
+  INSERT INTO withz VALUES(2, 'Blue') ON CONFLICT (k) DO
+    UPDATE SET (k, v) = (SELECT k, v FROM simpletup WHERE simpletup.k = withz.k)
+    RETURNING k, v)
+INSERT INTO withz VALUES(2, 'Red') ON CONFLICT (k) DO
+UPDATE SET (k, v) = (SELECT k, v FROM upsert_cte WHERE upsert_cte.k = withz.k)
+RETURNING k, v;
+ k | v 
+---+---
+(0 rows)
 
 DROP TABLE withz;
-DROP TABLE
 -- check that run to completion happens in proper ordering
-delete from y;
-DELETE 0
+TRUNCATE TABLE y;
 INSERT INTO y SELECT generate_series(1, 3);
-INSERT 0 3
 CREATE TEMPORARY TABLE yy (a INTEGER);
-CREATE TABLE
 WITH RECURSIVE t1 AS (
   INSERT INTO y SELECT * FROM y RETURNING *
 ), t2 AS (
@@ -1875,10 +1980,17 @@ SELECT * FROM yy;
  3
 (9 rows)
 
-delete from y;
-DELETE 0
+-- triggers
+TRUNCATE TABLE y;
 INSERT INTO y SELECT generate_series(1, 10);
-INSERT 0 10
+CREATE FUNCTION y_trigger() RETURNS trigger AS $$
+begin
+  raise notice 'y_trigger: a = %', new.a;
+  return new;
+end;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER y_trig BEFORE INSERT ON y FOR EACH ROW
+    EXECUTE PROCEDURE y_trigger();
 WITH t AS (
     INSERT INTO y
     VALUES
@@ -1888,6 +2000,9 @@ WITH t AS (
     RETURNING *
 )
 SELECT * FROM t;
+NOTICE:  y_trigger: a = 21
+NOTICE:  y_trigger: a = 22
+NOTICE:  y_trigger: a = 23
  a  
 ----
  21
@@ -1913,6 +2028,9 @@ SELECT * FROM y;
  23
 (13 rows)
 
+DROP TRIGGER y_trig ON y;
+CREATE TRIGGER y_trig AFTER INSERT ON y FOR EACH ROW
+    EXECUTE PROCEDURE y_trigger();
 WITH t AS (
     INSERT INTO y
     VALUES
@@ -1922,6 +2040,9 @@ WITH t AS (
     RETURNING *
 )
 SELECT * FROM t LIMIT 1;
+NOTICE:  y_trigger: a = 31
+NOTICE:  y_trigger: a = 32
+NOTICE:  y_trigger: a = 33
  a  
 ----
  31
@@ -1948,6 +2069,15 @@ SELECT * FROM y;
  33
 (16 rows)
 
+DROP TRIGGER y_trig ON y;
+CREATE OR REPLACE FUNCTION y_trigger() RETURNS trigger AS $$
+begin
+  raise notice 'y_trigger';
+  return null;
+end;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER y_trig AFTER INSERT ON y FOR EACH STATEMENT
+    EXECUTE PROCEDURE y_trigger();
 WITH t AS (
     INSERT INTO y
     VALUES
@@ -1957,6 +2087,7 @@ WITH t AS (
     RETURNING *
 )
 SELECT * FROM t;
+NOTICE:  y_trigger
  a  
 ----
  41
@@ -1988,33 +2119,69 @@ SELECT * FROM y;
  43
 (19 rows)
 
+DROP TRIGGER y_trig ON y;
+DROP FUNCTION y_trigger();
 -- WITH attached to inherited UPDATE or DELETE
 CREATE TEMP TABLE parent ( id int, val text );
-CREATE TABLE
+CREATE TEMP TABLE child1 ( ) INHERITS ( parent );
+CREATE TEMP TABLE child2 ( ) INHERITS ( parent );
 INSERT INTO parent VALUES ( 1, 'p1' );
-INSERT 0 1
+INSERT INTO child1 VALUES ( 11, 'c11' ),( 12, 'c12' );
+INSERT INTO child2 VALUES ( 23, 'c21' ),( 24, 'c22' );
 WITH rcte AS ( SELECT sum(id) AS totalid FROM parent )
 UPDATE parent SET id = id + totalid FROM rcte;
-UPDATE 0
 SELECT * FROM parent;
  id | val 
 ----+-----
-  2 | p1
-(1 row)
+ 72 | p1
+ 82 | c11
+ 83 | c12
+ 94 | c21
+ 95 | c22
+(5 rows)
+
+WITH wcte AS ( INSERT INTO child1 VALUES ( 42, 'new' ) RETURNING id AS newid )
+UPDATE parent SET id = id + newid FROM wcte;
+SELECT * FROM parent;
+ id  | val 
+-----+-----
+ 114 | p1
+  42 | new
+ 124 | c11
+ 125 | c12
+ 136 | c21
+ 137 | c22
+(6 rows)
 
 WITH rcte AS ( SELECT max(id) AS maxid FROM parent )
 DELETE FROM parent USING rcte WHERE id = maxid;
-DELETE 0
 SELECT * FROM parent;
- id | val 
-----+-----
-(0 rows)
+ id  | val 
+-----+-----
+ 114 | p1
+  42 | new
+ 124 | c11
+ 125 | c12
+ 136 | c21
+(5 rows)
+
+WITH wcte AS ( INSERT INTO child2 VALUES ( 42, 'new2' ) RETURNING id AS newid )
+DELETE FROM parent USING wcte WHERE id = newid;
+SELECT * FROM parent;
+ id  | val  
+-----+------
+ 114 | p1
+ 124 | c11
+ 125 | c12
+ 136 | c21
+  42 | new2
+(5 rows)
 
 -- check EXPLAIN VERBOSE for a wCTE with RETURNING
 EXPLAIN (VERBOSE, COSTS OFF)
 WITH wcte AS ( INSERT INTO int8_tbl VALUES ( 42, 47 ) RETURNING q2 )
 DELETE FROM a USING wcte WHERE aa = q2;
-psql:sql/with.sql:893: ERROR:  No other tables than the update target table are allowed when updating a remote relation.
+
 -- error cases
 -- data-modifying WITH tries to use its own output
 WITH RECURSIVE t AS (
@@ -2022,7 +2189,7 @@ WITH RECURSIVE t AS (
 		SELECT * FROM t
 )
 VALUES(FALSE);
-psql:sql/with.sql:902: ERROR:  recursive query "t" must not contain data-modifying statements
+ERROR:  recursive query "t" must not contain data-modifying statements
 LINE 1: WITH RECURSIVE t AS (
                        ^
 -- no RETURNING in a referenced data-modifying WITH
@@ -2030,7 +2197,7 @@ WITH t AS (
 	INSERT INTO y VALUES(0)
 )
 SELECT * FROM t;
-psql:sql/with.sql:908: ERROR:  WITH query "t" does not have a RETURNING clause
+ERROR:  WITH query "t" does not have a RETURNING clause
 LINE 4: SELECT * FROM t;
                       ^
 -- data-modifying WITH allowed only at the top level
@@ -2038,29 +2205,24 @@ SELECT * FROM (
 	WITH t AS (UPDATE y SET a=a+1 RETURNING *)
 	SELECT * FROM t
 ) ss;
-psql:sql/with.sql:914: ERROR:  WITH clause containing a data-modifying statement must be at the top level
+ERROR:  WITH clause containing a data-modifying statement must be at the top level
 LINE 2:  WITH t AS (UPDATE y SET a=a+1 RETURNING *)
               ^
 -- most variants of rules aren't allowed
+CREATE RULE y_rule AS ON INSERT TO y WHERE a=0 DO INSTEAD DELETE FROM y;
 WITH t AS (
 	INSERT INTO y VALUES(0)
 )
 VALUES(FALSE);
- column1 
----------
- f
-(1 row)
-
+ERROR:  conditional DO INSTEAD rules are not supported for data-modifying statements in WITH
+DROP RULE y_rule ON y;
 -- check that parser lookahead for WITH doesn't cause any odd behavior
-drop table if exists foo;
-psql:sql/with.sql:923: NOTICE:  table "foo" does not exist, skipping
-DROP TABLE
 create table foo (with baz);  -- fail, WITH is a reserved word
-psql:sql/with.sql:924: ERROR:  syntax error at or near "with"
+ERROR:  syntax error at or near "with"
 LINE 1: create table foo (with baz);
                           ^
 create table foo (with ordinality);  -- fail, WITH is a reserved word
-psql:sql/with.sql:925: ERROR:  syntax error at or near "with"
+ERROR:  syntax error at or near "with"
 LINE 1: create table foo (with ordinality);
                           ^
 with ordinality as (select 1 as x) select * from ordinality;
@@ -2071,16 +2233,14 @@ with ordinality as (select 1 as x) select * from ordinality;
 
 -- check sane response to attempt to modify CTE relation
 WITH test AS (SELECT 42) INSERT INTO test VALUES (1);
-psql:sql/with.sql:929: ERROR:  relation "test" does not exist
+ERROR:  relation "test" does not exist
 LINE 1: WITH test AS (SELECT 42) INSERT INTO test VALUES (1);
                                              ^
 -- check response to attempt to modify table with same name as a CTE (perhaps
 -- surprisingly it works, because CTEs don't hide tables from data-modifying
 -- statements)
 create temp table test (i int);
-CREATE TABLE
 with test as (select 42) insert into test select * from test;
-INSERT 0 1
 select * from test;
  i  
 ----
@@ -2088,4 +2248,3 @@ select * from test;
 (1 row)
 
 drop table test;
-DROP TABLE

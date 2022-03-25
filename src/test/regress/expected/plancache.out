@@ -185,7 +185,7 @@ CREATE VIEW
 select cache_test_2();
  cache_test_2 
 --------------
-             
+        10007
 (1 row)
 
 --- Check that change of search_path is honored when re-using cached plan

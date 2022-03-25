@@ -1,10 +1,14 @@
 --
 -- AGGREGATES
 --
-COPY aggtest FROM '/home/kunlun/pgregressdata/agg.data';
-COPY student FROM '/home/kunlun/pgregressdata/student.data';
-COPY tenk1 FROM '/home/kunlun/pgregressdata/tenk.data';
-COPY onek FROM '/home/kunlun/pgregressdata/onek.data';
+DELETE from aggtest;
+COPY aggtest FROM '/home/vito/pgregressdata/data/agg.data';
+DELETE from student;
+COPY student FROM '/home/vito/pgregressdata/data/student.data';
+DELETE from tenk1;
+COPY tenk1 FROM '/home/vito/pgregressdata/data/tenk.data';
+DELETE from onek;
+COPY onek FROM '/home/vito/pgregressdata/data/onek.data';
 
 SELECT avg(four) AS avg_1 FROM onek;
 
@@ -125,6 +129,23 @@ select array(select sum(x+y) s
             from generate_series(1,3) y group by y order by s)
   from generate_series(1,3) x;
   
+  
+  
+--
+-- test for bitwise integer aggregates
+--
+
+--DDL_STATEMENT_BEGIN--
+CREATE TEMPORARY TABLE bitwise_test(
+  i2 INT2,
+  i4 INT4,
+  i8 INT8,
+  i INTEGER,
+  x INT2,
+  y BIT(4)
+);
+--DDL_STATEMENT_END--
+
   -- empty case
 SELECT
   BIT_AND(i2) AS "?",
@@ -186,7 +207,14 @@ SELECT
   boolor_statefunc(FALSE, TRUE) AS "t",
   NOT boolor_statefunc(FALSE, FALSE) AS "t";
   
-  
+--DDL_STATEMENT_BEGIN-- 
+  CREATE TEMPORARY TABLE bool_test(
+  b1 BOOL,
+  b2 BOOL,
+  b3 BOOL,
+  b4 BOOL);
+--DDL_STATEMENT_END--
+
   -- empty case
 SELECT
   BOOL_AND(b1)   AS "n",

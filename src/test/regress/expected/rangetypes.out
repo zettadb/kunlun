@@ -617,7 +617,7 @@ CREATE TYPE
 -- with force_parallel_mode on, this exercises tqueue.c's range remapping
 select *, row_to_json(upper(t)) as u from
   (values (two_ints_range(row(1,2), row(3,4))),
-          (two_ints_range(row(5,6), row(7,8)))) v(t);
+          (two_ints_range(row(5,6), row(7,8)))) v(t);  
          t         |       u       
 -------------------+---------------
  ["(1,2)","(3,4)") | {"a":3,"b":4}
@@ -625,7 +625,7 @@ select *, row_to_json(upper(t)) as u from
 (2 rows)
 
 drop type two_ints cascade;
-psql:sql/rangetypes.sql:205: NOTICE:  drop cascades to type two_ints_range
+psql:sql/rangetypes.sql:204: NOTICE:  drop cascades to type two_ints_range
 DROP TYPE
 --
 -- Check behavior when subtype lacks a hash function
@@ -657,7 +657,7 @@ select * from outparam_succeed(int4range(1,2));
 (1 row)
 
 drop function outparam_succeed(anyrange, anyrange, text);
-psql:sql/rangetypes.sql:228: ERROR:  function outparam_succeed(anyrange, anyrange, text) does not exist
+psql:sql/rangetypes.sql:227: ERROR:  function outparam_succeed(anyrange, anyrange, text) does not exist
 create function inoutparam_succeed(out i anyelement, inout r anyrange)
   as $$ select upper($1), $1 $$ language sql;
 CREATE FUNCTION
@@ -668,7 +668,7 @@ select * from inoutparam_succeed(int4range(1,2));
 (1 row)
 
 drop function inoutparam_succeed(anyelement, anyrange);
-psql:sql/rangetypes.sql:234: ERROR:  function inoutparam_succeed(anyelement, anyrange) does not exist
+psql:sql/rangetypes.sql:233: ERROR:  function inoutparam_succeed(anyelement, anyrange) does not exist
 create function table_succeed(i anyelement, r anyrange) returns table(i anyelement, r anyrange)
   as $$ select $1, $2 $$ language sql;
 CREATE FUNCTION
@@ -683,17 +683,17 @@ DROP FUNCTION
 -- should fail
 create function outparam_fail(i anyelement, out r anyrange, out t text)
   as $$ select '[1,10]', 'foo' $$ language sql;
-psql:sql/rangetypes.sql:244: ERROR:  cannot determine result data type
+psql:sql/rangetypes.sql:243: ERROR:  cannot determine result data type
 DETAIL:  A function returning "anyrange" must have at least one "anyrange" argument.
 --should fail
 create function inoutparam_fail(inout i anyelement, out r anyrange)
   as $$ select $1, '[1,10]' $$ language sql;
-psql:sql/rangetypes.sql:248: ERROR:  cannot determine result data type
+psql:sql/rangetypes.sql:247: ERROR:  cannot determine result data type
 DETAIL:  A function returning "anyrange" must have at least one "anyrange" argument.
 --should fail
 create function table_fail(i anyelement) returns table(i anyelement, r anyrange)
   as $$ select $1, '[1,10]' $$ language sql;
-psql:sql/rangetypes.sql:252: ERROR:  cannot determine result data type
+psql:sql/rangetypes.sql:251: ERROR:  cannot determine result data type
 DETAIL:  A function returning "anyrange" must have at least one "anyrange" argument.
 drop type textrange;
 DROP TYPE

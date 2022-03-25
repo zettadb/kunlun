@@ -29,7 +29,7 @@ CREATE TABLE collate_test_fail (
     a int COLLATE "C",
     b varchar(50)
 );
-psql:sql/collate.sql:26: ERROR:  collations are not supported by type integer
+psql:sql/collate.sql:25: ERROR:  collations are not supported by type integer
 LINE 2:     a int COLLATE "C",
                   ^
 CREATE TABLE collate_test_like (
@@ -74,7 +74,7 @@ SELECT * FROM collate_test1 WHERE b COLLATE "C" >= 'abc' COLLATE "C";
 (2 rows)
 
 SELECT * FROM collate_test1 WHERE b COLLATE "C" >= 'bbc' COLLATE "POSIX"; -- fail
-psql:sql/collate.sql:45: ERROR:  collation mismatch between explicit collations "C" and "POSIX"
+psql:sql/collate.sql:44: ERROR:  collation mismatch between explicit collations "C" and "POSIX"
 LINE 1: ...* FROM collate_test1 WHERE b COLLATE "C" >= 'bbc' COLLATE "P...
                                                              ^
 SELECT a, b FROM collate_test1 ORDER BY b;
@@ -310,7 +310,7 @@ SELECT array_agg(b ORDER BY b) FROM collate_test2;
 
 -- In aggregates, ORDER BY expressions don't affect aggregate's collation
 SELECT string_agg(x COLLATE "C", y COLLATE "POSIX") FROM collate_test10;  -- fail
-psql:sql/collate.sql:109: ERROR:  collation mismatch between explicit collations "C" and "POSIX"
+psql:sql/collate.sql:108: ERROR:  collation mismatch between explicit collations "C" and "POSIX"
 LINE 1: SELECT string_agg(x COLLATE "C", y COLLATE "POSIX") FROM col...
                                            ^
 SELECT array_agg(x COLLATE "C" ORDER BY y COLLATE "POSIX") FROM collate_test10;
@@ -326,7 +326,7 @@ SELECT array_agg(a ORDER BY x COLLATE "C", y COLLATE "POSIX") FROM collate_test1
 (1 row)
 
 SELECT array_agg(a ORDER BY x||y) FROM collate_test10;  -- fail
-psql:sql/collate.sql:112: ERROR:  collation mismatch between implicit collations "C" and "POSIX"
+psql:sql/collate.sql:111: ERROR:  collation mismatch between implicit collations "C" and "POSIX"
 LINE 1: SELECT array_agg(a ORDER BY x||y) FROM collate_test10;
                                        ^
 HINT:  You can choose the collation by applying the COLLATE clause to one or both expressions.
@@ -368,7 +368,7 @@ SELECT a, b FROM collate_test2 EXCEPT SELECT a, b FROM collate_test2 WHERE a < 2
 (3 rows)
 
 SELECT a, b FROM collate_test1 UNION ALL SELECT a, b FROM collate_test2 ORDER BY 2; -- fail
-psql:sql/collate.sql:119: ERROR:  could not determine which collation to use for string comparison
+psql:sql/collate.sql:118: ERROR:  could not determine which collation to use for string comparison
 HINT:  Use the COLLATE clause to set the collation explicitly.
 SELECT a, b FROM collate_test1 UNION ALL SELECT a, b FROM collate_test2; -- ok
  a |  b  
@@ -384,7 +384,7 @@ SELECT a, b FROM collate_test1 UNION ALL SELECT a, b FROM collate_test2; -- ok
 (8 rows)
 
 SELECT a, b FROM collate_test1 UNION SELECT a, b FROM collate_test2 ORDER BY 2; -- fail
-psql:sql/collate.sql:121: ERROR:  collation mismatch between implicit collations "C" and "POSIX"
+psql:sql/collate.sql:120: ERROR:  collation mismatch between implicit collations "C" and "POSIX"
 LINE 1: SELECT a, b FROM collate_test1 UNION SELECT a, b FROM collat...
                                                        ^
 HINT:  You can choose the collation by applying the COLLATE clause to one or both expressions.
@@ -398,12 +398,12 @@ SELECT a, b COLLATE "C" FROM collate_test1 UNION SELECT a, b FROM collate_test2 
 (4 rows)
 
 SELECT a, b FROM collate_test1 INTERSECT SELECT a, b FROM collate_test2 ORDER BY 2; -- fail
-psql:sql/collate.sql:123: ERROR:  collation mismatch between implicit collations "C" and "POSIX"
+psql:sql/collate.sql:122: ERROR:  collation mismatch between implicit collations "C" and "POSIX"
 LINE 1: ...ELECT a, b FROM collate_test1 INTERSECT SELECT a, b FROM col...
                                                              ^
 HINT:  You can choose the collation by applying the COLLATE clause to one or both expressions.
 SELECT a, b FROM collate_test1 EXCEPT SELECT a, b FROM collate_test2 ORDER BY 2; -- fail
-psql:sql/collate.sql:124: ERROR:  collation mismatch between implicit collations "C" and "POSIX"
+psql:sql/collate.sql:123: ERROR:  collation mismatch between implicit collations "C" and "POSIX"
 LINE 1: SELECT a, b FROM collate_test1 EXCEPT SELECT a, b FROM colla...
                                                         ^
 HINT:  You can choose the collation by applying the COLLATE clause to one or both expressions.
@@ -417,7 +417,7 @@ select x || y from collate_test10; -- ok, because || is not collation aware
 (2 rows)
 
 select x, y from collate_test10 order by x || y; -- not so ok
-psql:sql/collate.sql:129: ERROR:  collation mismatch between implicit collations "C" and "POSIX"
+psql:sql/collate.sql:128: ERROR:  collation mismatch between implicit collations "C" and "POSIX"
 LINE 1: select x, y from collate_test10 order by x || y;
                                                       ^
 HINT:  You can choose the collation by applying the COLLATE clause to one or both expressions.
@@ -427,7 +427,7 @@ WITH RECURSIVE foo(x) AS
    UNION ALL
    SELECT (x || 'c') COLLATE "POSIX" FROM foo WHERE length(x) < 10)
 SELECT * FROM foo;
-psql:sql/collate.sql:136: ERROR:  recursive query "foo" column 1 has collation "C" in non-recursive term but collation "POSIX" overall
+psql:sql/collate.sql:135: ERROR:  recursive query "foo" column 1 has collation "C" in non-recursive term but collation "POSIX" overall
 LINE 2:    (SELECT x FROM (VALUES('a' COLLATE "C"),('b')) t(x)
                    ^
 HINT:  Use the COLLATE clause to set the collation of the non-recursive term.
@@ -441,7 +441,7 @@ SELECT a, b, a < b as lt FROM
 
 -- casting
 SELECT CAST('42' AS varchar(50) COLLATE "C");
-psql:sql/collate.sql:144: ERROR:  syntax error at or near "COLLATE"
+psql:sql/collate.sql:143: ERROR:  syntax error at or near "COLLATE"
 LINE 1: SELECT CAST('42' AS varchar(50) COLLATE "C");
                                         ^
 SELECT a, CAST(b AS varchar) FROM collate_test1 ORDER BY 2;
@@ -508,9 +508,9 @@ CREATE INDEX
 CREATE INDEX collate_test1_idx3 ON collate_test1 ((b COLLATE "POSIX")); -- this is different grammatically
 CREATE INDEX
 CREATE INDEX collate_test1_idx5 ON collate_test1 (a COLLATE "POSIX"); -- fail
-psql:sql/collate.sql:166: ERROR:  collations are not supported by type integer
+psql:sql/collate.sql:165: ERROR:  collations are not supported by type integer
 CREATE INDEX collate_test1_idx6 ON collate_test1 ((a COLLATE "POSIX")); -- fail
-psql:sql/collate.sql:167: ERROR:  collations are not supported by type integer
+psql:sql/collate.sql:166: ERROR:  collations are not supported by type integer
 LINE 1: ...ATE INDEX collate_test1_idx6 ON collate_test1 ((a COLLATE "P...
                                                              ^
 SELECT relname, pg_get_indexdef(oid) FROM pg_class WHERE relname LIKE 'collate_test%_idx%' ORDER BY 1;
@@ -554,9 +554,19 @@ RESET
 -- EXPLAIN
 EXPLAIN (COSTS OFF)
   SELECT * FROM collate_test10 ORDER BY x, y;
+                                                                                 QUERY PLAN                                                                                 
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ RemoteScan on collate_test10
+   Shard: 2      Remote SQL: select  collate_test10.a, collate_test10.x, collate_test10.y from regress_$$_collate_tests.collate_test10 collate_test10 ORDER BY 2 ASC, 3 ASC
+(2 rows)
 
 EXPLAIN (COSTS OFF)
   SELECT * FROM collate_test10 ORDER BY x DESC, y COLLATE "C" ASC NULLS FIRST;
+                                                                                          QUERY PLAN                                                                                           
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ RemoteScan on collate_test10
+   Shard: 2      Remote SQL: select  collate_test10.a, collate_test10.x, collate_test10.y, collate_test10.y from regress_$$_collate_tests.collate_test10 collate_test10 ORDER BY 2 DESC, 3 ASC
+(2 rows)
 
 -- CREATE/DROP COLLATION
 CREATE COLLATION mycoll1 FROM "C";
@@ -564,18 +574,18 @@ CREATE COLLATION
 CREATE COLLATION mycoll2 ( LC_COLLATE = "POSIX", LC_CTYPE = "POSIX" );
 CREATE COLLATION
 CREATE COLLATION mycoll3 FROM "default";  -- intentionally unsupported
-psql:sql/collate.sql:206: ERROR:  collation "default" cannot be copied
+psql:sql/collate.sql:205: ERROR:  collation "default" cannot be copied
 DROP COLLATION mycoll1;
 DROP COLLATION
 CREATE TABLE collate_test23 (f1 varchar(50) collate mycoll2);
 CREATE TABLE
 DROP COLLATION mycoll2;  -- fail
-psql:sql/collate.sql:210: ERROR:  cannot drop collation mycoll2 because other objects depend on it
+psql:sql/collate.sql:209: ERROR:  cannot drop collation mycoll2 because other objects depend on it
 DETAIL:  column f1 of table collate_test23 depends on collation mycoll2
 HINT:  Use DROP ... CASCADE to drop the dependent objects too.
 -- invalid: non-lowercase quoted identifiers
 CREATE COLLATION case_coll ("Lc_Collate" = "POSIX", "Lc_Ctype" = "POSIX");
-psql:sql/collate.sql:213: ERROR:  collation attribute "Lc_Collate" not recognized
+psql:sql/collate.sql:212: ERROR:  collation attribute "Lc_Collate" not recognized
 LINE 1: CREATE COLLATION case_coll ("Lc_Collate" = "POSIX", "Lc_Ctyp...
                                     ^
 -- 9.1 bug with useless COLLATE in an expression subject to length coercion
@@ -596,7 +606,7 @@ SELECT collation for ('foo'::text);
 (1 row)
 
 SELECT collation for ((SELECT a FROM collate_test1 LIMIT 1)); -- non-collatable type - error
-psql:sql/collate.sql:223: ERROR:  collations are not supported by type integer
+psql:sql/collate.sql:222: ERROR:  collations are not supported by type integer
 SELECT collation for ((SELECT b FROM collate_test1 LIMIT 1));
  pg_collation_for 
 ------------------
@@ -610,12 +620,12 @@ SELECT collation for ((SELECT b FROM collate_test1 LIMIT 1));
 --
 \set VERBOSITY terse
 drop table collate_tests.collate_test1 cascade;
-psql:sql/collate.sql:233: NOTICE:  drop cascades to 2 other objects
+psql:sql/collate.sql:232: NOTICE:  drop cascades to 2 other objects
 DROP TABLE
 drop table collate_tests.collate_test2 cascade;
 DROP TABLE
 drop table collate_tests.collate_test10 cascade;
-psql:sql/collate.sql:235: NOTICE:  drop cascades to view collview3
+psql:sql/collate.sql:234: NOTICE:  drop cascades to view collview3
 DROP TABLE
 drop table collate_tests.collate_test20 cascade;
 DROP TABLE
@@ -628,5 +638,5 @@ DROP TABLE
 drop table collate_tests.collate_test_like cascade;
 DROP TABLE
 DROP SCHEMA collate_tests CASCADE;
-psql:sql/collate.sql:241: NOTICE:  drop cascades to 2 other objects
+psql:sql/collate.sql:240: NOTICE:  drop cascades to 2 other objects
 DROP SCHEMA

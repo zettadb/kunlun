@@ -13,7 +13,6 @@
 
 --Numeric Types--
 drop table if exists t1;
-psql:datatypes_simple.sql:15: NOTICE:  table "t1" does not exist, skipping
 DROP TABLE
 create table t1 (
 id serial,
@@ -116,6 +115,7 @@ DROP TABLE
 
 --Arbitrary Precision Numbers 任意精度数字
 drop table if exists t2;
+psql:sql/datatypes_simple.sql:56: NOTICE:  table "t2" does not exist, skipping
 DROP TABLE
 create table t2 (
 id smallserial,
@@ -178,6 +178,7 @@ DROP TABLE
 --Floating-Point Types and Serial Types -- 浮点和序数
 
 drop table if exists t3;
+psql:sql/datatypes_simple.sql:82: NOTICE:  table "t3" does not exist, skipping
 DROP TABLE
 create table t3(
 id bigserial,
@@ -268,6 +269,7 @@ DROP TABLE
 
 --Monetary Types--
 drop table if exists t4;
+psql:sql/datatypes_simple.sql:113: NOTICE:  table "t4" does not exist, skipping
 DROP TABLE
 create table t4(
 id int2,
@@ -313,7 +315,7 @@ DROP TABLE
 --Character Types 字符类型
 
 drop table if exists char_test;
-psql:datatypes_simple.sql:130: NOTICE:  table "char_test" does not exist, skipping
+psql:sql/datatypes_simple.sql:130: NOTICE:  table "char_test" does not exist, skipping
 DROP TABLE
 create table char_test(
 id int2,
@@ -379,7 +381,7 @@ DROP TABLE
 
 --Binary Data Types 
 drop table if exists tab_bytea;
-psql:datatypes_simple.sql:156: NOTICE:  table "tab_bytea" does not exist, skipping
+psql:sql/datatypes_simple.sql:156: NOTICE:  table "tab_bytea" does not exist, skipping
 DROP TABLE
 CREATE TABLE tab_bytea(a bytea,b bytea);
 CREATE TABLE
@@ -399,7 +401,7 @@ DROP TABLE
 --Date/Time Types 日期/时间类型
 
 drop table if exists tab_date;
-psql:datatypes_simple.sql:169: NOTICE:  table "tab_date" does not exist, skipping
+psql:sql/datatypes_simple.sql:169: NOTICE:  table "tab_date" does not exist, skipping
 DROP TABLE
 CREATE TABLE tab_date(id smallserial,a date);
 CREATE TABLE
@@ -448,7 +450,7 @@ DROP TABLE
 
 --timestamp
 drop table if exists tab_timestamp;
-psql:datatypes_simple.sql:191: NOTICE:  table "tab_timestamp" does not exist, skipping
+psql:sql/datatypes_simple.sql:191: NOTICE:  table "tab_timestamp" does not exist, skipping
 DROP TABLE
 CREATE TABLE tab_timestamp(a timestamptz,b timestamp);
 CREATE TABLE
@@ -475,7 +477,7 @@ DROP TABLE
 
 --Boolean Type-- 布尔类型
 drop table if exists tab_boolean;
-psql:datatypes_simple.sql:203: NOTICE:  table "tab_boolean" does not exist, skipping
+psql:sql/datatypes_simple.sql:203: NOTICE:  table "tab_boolean" does not exist, skipping
 DROP TABLE
 CREATE TABLE tab_boolean(a boolean,b boolean);
 CREATE TABLE
@@ -594,7 +596,7 @@ DROP TYPE
 
 --Network Address Types-- 网络地址类型
 drop table if exists tab_icm;
-psql:datatypes_simple.sql:243: NOTICE:  table "tab_icm" does not exist, skipping
+psql:sql/datatypes_simple.sql:243: NOTICE:  table "tab_icm" does not exist, skipping
 DROP TABLE
 CREATE TABLE tab_icm(a cidr,b inet,c macaddr);
 CREATE TABLE
@@ -634,7 +636,7 @@ DROP TABLE
 
 -- Bit String Types--位串类型
 drop table if exists tab_bit_string;
-psql:datatypes_simple.sql:258: NOTICE:  table "tab_bit_string" does not exist, skipping
+psql:sql/datatypes_simple.sql:258: NOTICE:  table "tab_bit_string" does not exist, skipping
 DROP TABLE
 CREATE TABLE tab_bit_string (id int2,a BIT(3), b BIT VARYING(5));
 CREATE TABLE
@@ -652,7 +654,7 @@ select * from tab_bit_string;
 
 
 UPDATE tab_bit_string set b=B'11011' where id=1; 
-psql:datatypes_simple.sql:265: ERROR:  Kunlun-db: MySQL storage node (2, 2) returned error: 1406, Data too long for column 'b' at row 1.
+psql:sql/datatypes_simple.sql:265: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1406, Data too long for column 'b' at row 1.
 select * from tab_bit_string order by id;
  id |  a  |   b   
 ----+-----+-------
@@ -677,7 +679,7 @@ DROP TABLE
 
 --JSON Types
 drop table if exists tab_json;
-psql:datatypes_simple.sql:276: NOTICE:  table "tab_json" does not exist, skipping
+psql:sql/datatypes_simple.sql:276: NOTICE:  table "tab_json" does not exist, skipping
 DROP TABLE
 CREATE TABLE tab_json(id int2,a json);
 CREATE TABLE
@@ -712,7 +714,7 @@ DROP TABLE
  
 --pg_lsn Type pg_lsn 类型
 drop table if exists tab_pg_lsn;
-psql:datatypes_simple.sql:291: NOTICE:  table "tab_pg_lsn" does not exist, skipping
+psql:sql/datatypes_simple.sql:291: NOTICE:  table "tab_pg_lsn" does not exist, skipping
 DROP TABLE
 create table tab_pg_lsn (id int2, a pg_lsn);
 CREATE TABLE
@@ -730,7 +732,7 @@ DROP TABLE
  
 --Object Identifier Types 对象标识符类型
 drop table if exists tab_oid;
-psql:datatypes_simple.sql:301: NOTICE:  table "tab_oid" does not exist, skipping
+psql:sql/datatypes_simple.sql:301: NOTICE:  table "tab_oid" does not exist, skipping
 DROP TABLE
 CREATE TABLE tab_oid(id int, a oid);
 CREATE TABLE
@@ -767,7 +769,7 @@ DROP TABLE
 
 --UUID Type-- UUID类型
 drop table if exists tab_uuid;
-psql:datatypes_simple.sql:315: NOTICE:  table "tab_uuid" does not exist, skipping
+psql:sql/datatypes_simple.sql:315: NOTICE:  table "tab_uuid" does not exist, skipping
 DROP TABLE
 create table tab_uuid(id int2, a uuid);
 CREATE TABLE

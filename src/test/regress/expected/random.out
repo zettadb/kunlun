@@ -6,7 +6,7 @@
 SELECT count(*) FROM onek;
  count 
 -------
-     0
+  1000
 (1 row)
 
 -- pick three random rows, they shouldn't match
@@ -49,13 +49,11 @@ SELECT random, count(random) FROM RANDOM_TBL
   GROUP BY random HAVING count(random) > 3;
  random | count 
 --------+-------
-      0 |     4
-(1 row)
+(0 rows)
 
 SELECT AVG(random) FROM RANDOM_TBL
   HAVING AVG(random) NOT BETWEEN 80 AND 120;
-  avg   
---------
- 0.0000
-(1 row)
+ avg 
+-----
+(0 rows)
 

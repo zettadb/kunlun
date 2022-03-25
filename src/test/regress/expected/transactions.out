@@ -21,9 +21,13 @@ SELECT a FROM xacttest WHERE a > 100;
 
 -- should have members again
 SELECT * FROM aggtest;
- a | b 
----+---
-(0 rows)
+  a  |    b    
+-----+---------
+  56 |     7.8
+ 100 |  99.097
+   0 | 0.09561
+  42 |  324.78
+(4 rows)
 
 -- Read-only tests
 drop table if exists writetest;

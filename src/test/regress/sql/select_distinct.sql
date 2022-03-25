@@ -2,7 +2,7 @@
 -- SELECT_DISTINCT
 --
 
-COPY tenk1 FROM '/home/dzw/work/kunlun-enterprise/postgresql-11.5/src/test/regress/data/tenk.data';
+COPY tenk1 FROM '/home/kunlun/pgregressdata/tenk.data';
 --
 -- awk '{print $3;}' onek.data | sort -n | uniq
 --

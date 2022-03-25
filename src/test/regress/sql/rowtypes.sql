@@ -519,7 +519,7 @@ select r, r is null as isnull, r is not null as isnotnull from r;
 DROP TABLE if exists compositetable;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-CREATE TABLE compositetable(a text, b text) 
+CREATE TABLE compositetable(a text, b text);
 --DDL_STATEMENT_END--
 INSERT INTO compositetable(a, b) VALUES('fa', 'fb');
 

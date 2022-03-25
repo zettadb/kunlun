@@ -360,7 +360,7 @@ select * from y;
 select * from x left join y on (x1 = y1 and x2 is not null);
 select * from x left join y on (x1 = y1 and y2 is not null);
 
-COPY tenk1 FROM '/home/dzw/work/kunlun-enterprise/postgresql-11.5/src/test/regress/data/tenk.data';
+COPY tenk1 FROM '/home/kunlun/pgregressdata/tenk.data';
 --
 -- regression test: check for bug with propagation of implied equality
 -- to outside an IN

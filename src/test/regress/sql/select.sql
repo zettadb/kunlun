@@ -2,7 +2,7 @@
 -- SELECT
 --
 
-COPY onek FROM '/home/dzw/work/kunlun-enterprise/postgresql-11.5/src/test/regress/data/onek.data';
+COPY onek FROM '/home/kunlun/pgregressdata/onek.data';
 -- btree index
 -- awk '{if($1<10){print;}else{next;}}' onek.data | sort +0n -1
 --

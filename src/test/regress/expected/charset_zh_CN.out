@@ -1,6 +1,6 @@
 --create--
 drop DATABASE if exists 星际穿越;
-psql:charset_zh_CN.sql:2: NOTICE:  database "星际穿越" does not exist, skipping
+psql:sql/charset_zh_CN.sql:2: NOTICE:  database "星际穿越" does not exist, skipping
 DROP DATABASE
 CREATE DATABASE 星际穿越;
 CREATE DATABASE
@@ -11,7 +11,7 @@ CREATE ROLE
 GRANT ALL on database  星际穿越 TO 月亮;
 GRANT
 ALTER USER 月亮 RENAME TO 太阳;
-psql:charset_zh_CN.sql:7: NOTICE:  MD5 password cleared because of role rename
+psql:sql/charset_zh_CN.sql:7: NOTICE:  MD5 password cleared because of role rename
 ALTER ROLE
 --select * from pg_user;
 revoke  ALL on database  星际穿越 from 太阳;
@@ -31,9 +31,9 @@ select * from 地球.中国;
 (0 rows)
 
 \d
-psql:charset_zh_CN.sql:17: error: Did not find any relations.
+psql:sql/charset_zh_CN.sql:17: error: Did not find any relations.
 drop schema 地球  CASCADE;
-psql:charset_zh_CN.sql:18: NOTICE:  drop cascades to table "地球"."中国"
+psql:sql/charset_zh_CN.sql:18: NOTICE:  drop cascades to table "地球"."中国"
 DROP SCHEMA
 --SELECT * FROM pg_namespace;
 
@@ -337,7 +337,7 @@ select * from 信息表 order by 编号 desc;
 (7 rows)
 
 
-	
+
 create table 个人表(编号 integer primary key, 姓名 varchar(10),工资 integer,工作 text);
 CREATE TABLE
 
@@ -374,11 +374,11 @@ select 工作,max(工资) from 个人表 group by 工作 order by max(工资)des
 (3 rows)
 
 select 工作,min(工资) from 个人表 group by 工作order by min(工资)desc;
-psql:charset_zh_CN.sql:92: ERROR:  syntax error at or near "by"
+psql:sql/charset_zh_CN.sql:92: ERROR:  syntax error at or near "by"
 LINE 1: ...lect 工作,min(工资) from 个人表 group by 工作order by min(工...
                                                               ^
 select 工作,count(工资) from 个人表 group by 工作order by 工作 desc;
-psql:charset_zh_CN.sql:93: ERROR:  syntax error at or near "by"
+psql:sql/charset_zh_CN.sql:93: ERROR:  syntax error at or near "by"
 LINE 1: ...t 工作,count(工资) from 个人表 group by 工作order by 工作 de...
                                                              ^
 select 工资,count(工作) from 个人表 group by 工资 order by 工资 desc;
@@ -399,7 +399,7 @@ select 工资 from 个人表 group by 工资 having count(工资) > 1 order by �
 (2 rows)
 
 select 工作,count(工作) from 个人表 group by 工作 having count(工作) > 2  order by 工作desc;
-psql:charset_zh_CN.sql:96: ERROR:  column "工作desc" does not exist
+psql:sql/charset_zh_CN.sql:96: ERROR:  column "工作desc" does not exist
 LINE 1: ...表 group by 工作 having count(工作) > 2  order by 工作desc;
                                                              ^
 select 工作 from 个人表 where 工作 = '前台';

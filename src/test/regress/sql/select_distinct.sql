@@ -1,7 +1,7 @@
 --
 -- SELECT_DISTINCT
 --
-
+DELETE FROM tenk1;
 COPY tenk1 FROM '/home/kunlun/pgregressdata/tenk.data';
 --
 -- awk '{print $3;}' onek.data | sort -n | uniq

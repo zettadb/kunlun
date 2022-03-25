@@ -626,6 +626,7 @@ drop table if exists FLOAT8_TBL cascade;
 
 );
 --DDL_STATEMENT_END--
+DELETE from tenk1;
 COPY tenk1 FROM '/home/kunlun/pgregressdata/tenk.data';
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE INT4_TBL(f1 int4);

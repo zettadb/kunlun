@@ -1,7 +1,7 @@
 --
 -- SELECT_DISTINCT_ON
 --
-
+DELETE from tenk1;
 COPY tenk1 FROM '/home/kunlun/pgregressdata/tenk.data';
 SELECT DISTINCT ON (string4) string4, two, ten
    FROM tenk1

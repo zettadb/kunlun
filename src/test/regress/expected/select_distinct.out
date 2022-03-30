@@ -2,7 +2,7 @@
 -- SELECT_DISTINCT
 --
 DELETE FROM tenk1;
-DELETE 0
+DELETE 10000
 COPY tenk1 FROM '/home/vito/pgregressdata/data/tenk.data';
 COPY 10000
 --
@@ -106,7 +106,25 @@ SELECT DISTINCT two, string4, ten
 SELECT DISTINCT p.age FROM person* p ORDER BY age using >;
  age 
 -----
-(0 rows)
+  98
+  88
+  78
+  68
+  58
+  50
+  48
+  40
+  38
+  34
+  30
+  28
+  25
+  24
+  20
+  19
+  18
+   8
+(18 rows)
 
 --
 -- Check mentioning same column more than once
@@ -114,17 +132,6 @@ SELECT DISTINCT p.age FROM person* p ORDER BY age using >;
 EXPLAIN (VERBOSE, COSTS OFF)
 SELECT count(*) FROM
   (SELECT DISTINCT two, four, two FROM tenk1) ss;
-                                              QUERY PLAN                                              
-------------------------------------------------------------------------------------------------------
- Aggregate
-   Output: count(*)
-   ->  HashAggregate
-         Output: tenk1.two, tenk1.four, tenk1.two
-         Group Key: tenk1.two, tenk1.four, tenk1.two
-         ->  RemoteScan on public.tenk1
-               Output: tenk1.two, tenk1.four, tenk1.two
-               Shard: 1  Remote SQL: select  tenk1.two, tenk1.four from regress_$$_public.tenk1 tenk1
-(8 rows)
 
 SELECT count(*) FROM
   (SELECT DISTINCT two, four, two FROM tenk1) ss;

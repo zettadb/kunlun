@@ -30,21 +30,6 @@ INSERT 0 3000
 -- When GROUP BY clause matches; full aggregation is performed for each partition.
 EXPLAIN (COSTS OFF)
 SELECT c, sum(a), avg(b), count(*), min(a), max(b) FROM pagg_tab GROUP BY c HAVING avg(d) < 15 ORDER BY 1, 2, 3;
-                                                                   QUERY PLAN                                                                   
-------------------------------------------------------------------------------------------------------------------------------------------------
- Sort
-   Sort Key: pagg_tab_p1.c, (sum(pagg_tab_p1.a)), (avg(pagg_tab_p1.b))
-   ->  HashAggregate
-         Group Key: pagg_tab_p1.c
-         Filter: (avg(pagg_tab_p1.d) < '15'::numeric)
-         ->  Append
-               ->  RemoteScan on pagg_tab_p1
-                     Shard: 2    Remote SQL: select  pagg_tab.c, pagg_tab.a, pagg_tab.b, pagg_tab.d from regress_$$_public.pagg_tab_p1 pagg_tab
-               ->  RemoteScan on pagg_tab_p2
-                     Shard: 2    Remote SQL: select  pagg_tab.c, pagg_tab.a, pagg_tab.b, pagg_tab.d from regress_$$_public.pagg_tab_p2 pagg_tab
-               ->  RemoteScan on pagg_tab_p3
-                     Shard: 1    Remote SQL: select  pagg_tab.c, pagg_tab.a, pagg_tab.b, pagg_tab.d from regress_$$_public.pagg_tab_p3 pagg_tab
-(12 rows)
 
 SELECT c, sum(a), avg(b), count(*), min(a), max(b) FROM pagg_tab GROUP BY c HAVING avg(d) < 15 ORDER BY 1, 2, 3;
   c   | sum  |         avg         | count | min | max 
@@ -60,21 +45,6 @@ SELECT c, sum(a), avg(b), count(*), min(a), max(b) FROM pagg_tab GROUP BY c HAVI
 -- When GROUP BY clause does not match; partial aggregation is performed for each partition.
 EXPLAIN (COSTS OFF)
 SELECT a, sum(b), avg(b), count(*), min(a), max(b) FROM pagg_tab GROUP BY a HAVING avg(d) < 15 ORDER BY 1, 2, 3;
-                                                             QUERY PLAN                                                             
-------------------------------------------------------------------------------------------------------------------------------------
- Sort
-   Sort Key: pagg_tab_p1.a, (sum(pagg_tab_p1.b)), (avg(pagg_tab_p1.b))
-   ->  HashAggregate
-         Group Key: pagg_tab_p1.a
-         Filter: (avg(pagg_tab_p1.d) < '15'::numeric)
-         ->  Append
-               ->  RemoteScan on pagg_tab_p1
-                     Shard: 2    Remote SQL: select  pagg_tab.a, pagg_tab.b, pagg_tab.d from regress_$$_public.pagg_tab_p1 pagg_tab
-               ->  RemoteScan on pagg_tab_p2
-                     Shard: 2    Remote SQL: select  pagg_tab.a, pagg_tab.b, pagg_tab.d from regress_$$_public.pagg_tab_p2 pagg_tab
-               ->  RemoteScan on pagg_tab_p3
-                     Shard: 1    Remote SQL: select  pagg_tab.a, pagg_tab.b, pagg_tab.d from regress_$$_public.pagg_tab_p3 pagg_tab
-(12 rows)
 
 SELECT a, sum(b), avg(b), count(*), min(a), max(b) FROM pagg_tab GROUP BY a HAVING avg(d) < 15 ORDER BY 1, 2, 3;
  a  | sum  |         avg         | count | min | max 
@@ -94,55 +64,18 @@ SELECT a, sum(b), avg(b), count(*), min(a), max(b) FROM pagg_tab GROUP BY a HAVI
 -- Check with multiple columns in GROUP BY
 EXPLAIN (COSTS OFF)
 SELECT a, c, count(*) FROM pagg_tab GROUP BY a, c;
-                                                                        QUERY PLAN                                                                        
-----------------------------------------------------------------------------------------------------------------------------------------------------------
- Append
-   ->  RemoteScan on pagg_tab_p1
-         Shard: 2        Remote SQL: select  pagg_tab.a, pagg_tab.c, COUNT(*) from regress_$$_public.pagg_tab_p1 pagg_tab GROUP BY pagg_tab.a, pagg_tab.c
-   ->  RemoteScan on pagg_tab_p2
-         Shard: 2        Remote SQL: select  pagg_tab.a, pagg_tab.c, COUNT(*) from regress_$$_public.pagg_tab_p2 pagg_tab GROUP BY pagg_tab.a, pagg_tab.c
-   ->  RemoteScan on pagg_tab_p3
-         Shard: 1        Remote SQL: select  pagg_tab.a, pagg_tab.c, COUNT(*) from regress_$$_public.pagg_tab_p3 pagg_tab GROUP BY pagg_tab.a, pagg_tab.c
-(7 rows)
 
 -- Check with multiple columns in GROUP BY, order in GROUP BY is reversed
 EXPLAIN (COSTS OFF)
 SELECT a, c, count(*) FROM pagg_tab GROUP BY c, a;
-                                                                        QUERY PLAN                                                                        
-----------------------------------------------------------------------------------------------------------------------------------------------------------
- Append
-   ->  RemoteScan on pagg_tab_p1
-         Shard: 2        Remote SQL: select  pagg_tab.a, pagg_tab.c, COUNT(*) from regress_$$_public.pagg_tab_p1 pagg_tab GROUP BY pagg_tab.a, pagg_tab.c
-   ->  RemoteScan on pagg_tab_p2
-         Shard: 2        Remote SQL: select  pagg_tab.a, pagg_tab.c, COUNT(*) from regress_$$_public.pagg_tab_p2 pagg_tab GROUP BY pagg_tab.a, pagg_tab.c
-   ->  RemoteScan on pagg_tab_p3
-         Shard: 1        Remote SQL: select  pagg_tab.a, pagg_tab.c, COUNT(*) from regress_$$_public.pagg_tab_p3 pagg_tab GROUP BY pagg_tab.a, pagg_tab.c
-(7 rows)
 
 -- Check with multiple columns in GROUP BY, order in target-list is reversed
 EXPLAIN (COSTS OFF)
 SELECT c, a, count(*) FROM pagg_tab GROUP BY a, c;
-                                                                        QUERY PLAN                                                                        
-----------------------------------------------------------------------------------------------------------------------------------------------------------
- Append
-   ->  RemoteScan on pagg_tab_p1
-         Shard: 2        Remote SQL: select  pagg_tab.c, pagg_tab.a, COUNT(*) from regress_$$_public.pagg_tab_p1 pagg_tab GROUP BY pagg_tab.c, pagg_tab.a
-   ->  RemoteScan on pagg_tab_p2
-         Shard: 2        Remote SQL: select  pagg_tab.c, pagg_tab.a, COUNT(*) from regress_$$_public.pagg_tab_p2 pagg_tab GROUP BY pagg_tab.c, pagg_tab.a
-   ->  RemoteScan on pagg_tab_p3
-         Shard: 1        Remote SQL: select  pagg_tab.c, pagg_tab.a, COUNT(*) from regress_$$_public.pagg_tab_p3 pagg_tab GROUP BY pagg_tab.c, pagg_tab.a
-(7 rows)
 
 -- Test when input relation for grouping is dummy
 EXPLAIN (COSTS OFF)
 SELECT c, sum(a) FROM pagg_tab WHERE 1 = 2 GROUP BY c;
-           QUERY PLAN           
---------------------------------
- HashAggregate
-   Group Key: pagg_tab.c
-   ->  Result
-         One-Time Filter: false
-(4 rows)
 
 SELECT c, sum(a) FROM pagg_tab WHERE 1 = 2 GROUP BY c;
  c | sum 
@@ -151,13 +84,6 @@ SELECT c, sum(a) FROM pagg_tab WHERE 1 = 2 GROUP BY c;
 
 EXPLAIN (COSTS OFF)
 SELECT c, sum(a) FROM pagg_tab WHERE c = 'x' GROUP BY c;
-           QUERY PLAN           
---------------------------------
- GroupAggregate
-   Group Key: pagg_tab.c
-   ->  Result
-         One-Time Filter: false
-(4 rows)
 
 SELECT c, sum(a) FROM pagg_tab WHERE c = 'x' GROUP BY c;
  c | sum 
@@ -170,22 +96,6 @@ SET
 -- When GROUP BY clause matches full aggregation is performed for each partition.
 EXPLAIN (COSTS OFF)
 SELECT c, sum(a), avg(b), count(*) FROM pagg_tab GROUP BY 1 HAVING avg(d) < 15 ORDER BY 1, 2, 3;
-                                                                          QUERY PLAN                                                                           
----------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort
-   Sort Key: pagg_tab_p1.c, (sum(pagg_tab_p1.a)), (avg(pagg_tab_p1.b))
-   ->  GroupAggregate
-         Group Key: pagg_tab_p1.c
-         Filter: (avg(pagg_tab_p1.d) < '15'::numeric)
-         ->  Merge Append
-               Sort Key: pagg_tab_p1.c NULLS FIRST
-               ->  RemoteScan on pagg_tab_p1
-                     Shard: 2    Remote SQL: select  pagg_tab.c, pagg_tab.a, pagg_tab.b, pagg_tab.d from regress_$$_public.pagg_tab_p1 pagg_tab ORDER BY 1 ASC
-               ->  RemoteScan on pagg_tab_p2
-                     Shard: 2    Remote SQL: select  pagg_tab.c, pagg_tab.a, pagg_tab.b, pagg_tab.d from regress_$$_public.pagg_tab_p2 pagg_tab ORDER BY 1 ASC
-               ->  RemoteScan on pagg_tab_p3
-                     Shard: 1    Remote SQL: select  pagg_tab.c, pagg_tab.a, pagg_tab.b, pagg_tab.d from regress_$$_public.pagg_tab_p3 pagg_tab ORDER BY 1 ASC
-(13 rows)
 
 SELECT c, sum(a), avg(b), count(*) FROM pagg_tab GROUP BY 1 HAVING avg(d) < 15 ORDER BY 1, 2, 3;
   c   | sum  |         avg         | count 
@@ -201,22 +111,6 @@ SELECT c, sum(a), avg(b), count(*) FROM pagg_tab GROUP BY 1 HAVING avg(d) < 15 O
 -- When GROUP BY clause does not match; partial aggregation is performed for each partition.
 EXPLAIN (COSTS OFF)
 SELECT a, sum(b), avg(b), count(*) FROM pagg_tab GROUP BY 1 HAVING avg(d) < 15 ORDER BY 1, 2, 3;
-                                                                    QUERY PLAN                                                                     
----------------------------------------------------------------------------------------------------------------------------------------------------
- Sort
-   Sort Key: pagg_tab_p1.a, (sum(pagg_tab_p1.b)), (avg(pagg_tab_p1.b))
-   ->  GroupAggregate
-         Group Key: pagg_tab_p1.a
-         Filter: (avg(pagg_tab_p1.d) < '15'::numeric)
-         ->  Merge Append
-               Sort Key: pagg_tab_p1.a NULLS FIRST
-               ->  RemoteScan on pagg_tab_p1
-                     Shard: 2    Remote SQL: select  pagg_tab.a, pagg_tab.b, pagg_tab.d from regress_$$_public.pagg_tab_p1 pagg_tab ORDER BY 1 ASC
-               ->  RemoteScan on pagg_tab_p2
-                     Shard: 2    Remote SQL: select  pagg_tab.a, pagg_tab.b, pagg_tab.d from regress_$$_public.pagg_tab_p2 pagg_tab ORDER BY 1 ASC
-               ->  RemoteScan on pagg_tab_p3
-                     Shard: 1    Remote SQL: select  pagg_tab.a, pagg_tab.b, pagg_tab.d from regress_$$_public.pagg_tab_p3 pagg_tab ORDER BY 1 ASC
-(13 rows)
 
 SELECT a, sum(b), avg(b), count(*) FROM pagg_tab GROUP BY 1 HAVING avg(d) < 15 ORDER BY 1, 2, 3;
  a  | sum  |         avg         | count 
@@ -236,17 +130,6 @@ SELECT a, sum(b), avg(b), count(*) FROM pagg_tab GROUP BY 1 HAVING avg(d) < 15 O
 -- Test partitionwise grouping without any aggregates
 EXPLAIN (COSTS OFF)
 SELECT c FROM pagg_tab GROUP BY c ORDER BY 1;
-                                                              QUERY PLAN                                                               
----------------------------------------------------------------------------------------------------------------------------------------
- Merge Append
-   Sort Key: pagg_tab_p1.c NULLS FIRST
-   ->  RemoteScan on pagg_tab_p1
-         Shard: 2        Remote SQL: select  pagg_tab.c from regress_$$_public.pagg_tab_p1 pagg_tab GROUP BY pagg_tab.c ORDER BY 1 ASC
-   ->  RemoteScan on pagg_tab_p2
-         Shard: 2        Remote SQL: select  pagg_tab.c from regress_$$_public.pagg_tab_p2 pagg_tab GROUP BY pagg_tab.c ORDER BY 1 ASC
-   ->  RemoteScan on pagg_tab_p3
-         Shard: 1        Remote SQL: select  pagg_tab.c from regress_$$_public.pagg_tab_p3 pagg_tab GROUP BY pagg_tab.c ORDER BY 1 ASC
-(8 rows)
 
 SELECT c FROM pagg_tab GROUP BY c ORDER BY 1;
   c   
@@ -267,18 +150,6 @@ SELECT c FROM pagg_tab GROUP BY c ORDER BY 1;
 
 EXPLAIN (COSTS OFF)
 SELECT a FROM pagg_tab WHERE a < 3 GROUP BY a ORDER BY 1;
-                                                                            QUERY PLAN                                                                             
--------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort
-   Sort Key: pagg_tab.a
-   ->  MergeRemoteAgg
-         ->  RemoteScan on pagg_tab_p1
-               Shard: 2  Remote SQL: select  pagg_tab.a from regress_$$_public.pagg_tab_p1 pagg_tab where (pagg_tab.a < 3) GROUP BY pagg_tab.a ORDER BY pagg_tab.a
-         ->  RemoteScan on pagg_tab_p2
-               Shard: 2  Remote SQL: select  pagg_tab.a from regress_$$_public.pagg_tab_p2 pagg_tab where (pagg_tab.a < 3) GROUP BY pagg_tab.a ORDER BY pagg_tab.a
-         ->  RemoteScan on pagg_tab_p3
-               Shard: 1  Remote SQL: select  pagg_tab.a from regress_$$_public.pagg_tab_p3 pagg_tab where (pagg_tab.a < 3) GROUP BY pagg_tab.a ORDER BY pagg_tab.a
-(9 rows)
 
 SELECT a FROM pagg_tab WHERE a < 3 GROUP BY a ORDER BY 1;
  a 
@@ -293,21 +164,6 @@ RESET
 -- ROLLUP, partitionwise aggregation does not apply
 EXPLAIN (COSTS OFF)
 SELECT c, sum(a) FROM pagg_tab GROUP BY rollup(c) ORDER BY 1, 2;
-                                                       QUERY PLAN                                                       
-------------------------------------------------------------------------------------------------------------------------
- Sort
-   Sort Key: pagg_tab_p1.c, (sum(pagg_tab_p1.a))
-   ->  MixedAggregate
-         Hash Key: pagg_tab_p1.c
-         Group Key: ()
-         ->  Append
-               ->  RemoteScan on pagg_tab_p1
-                     Shard: 2    Remote SQL: select  pagg_tab.c, pagg_tab.a from regress_$$_public.pagg_tab_p1 pagg_tab
-               ->  RemoteScan on pagg_tab_p2
-                     Shard: 2    Remote SQL: select  pagg_tab.c, pagg_tab.a from regress_$$_public.pagg_tab_p2 pagg_tab
-               ->  RemoteScan on pagg_tab_p3
-                     Shard: 1    Remote SQL: select  pagg_tab.c, pagg_tab.a from regress_$$_public.pagg_tab_p3 pagg_tab
-(12 rows)
 
 -- ORDERED SET within the aggregate.
 -- Full aggregation; since all the rows that belong to the same group come
@@ -315,42 +171,12 @@ SELECT c, sum(a) FROM pagg_tab GROUP BY rollup(c) ORDER BY 1, 2;
 -- make any difference.
 EXPLAIN (COSTS OFF)
 SELECT c, sum(b order by a) FROM pagg_tab GROUP BY c ORDER BY 1, 2;
-                                                                    QUERY PLAN                                                                     
----------------------------------------------------------------------------------------------------------------------------------------------------
- Sort
-   Sort Key: pagg_tab_p1.c, (sum(pagg_tab_p1.b ORDER BY pagg_tab_p1.a))
-   ->  GroupAggregate
-         Group Key: pagg_tab_p1.c
-         ->  Merge Append
-               Sort Key: pagg_tab_p1.c NULLS FIRST
-               ->  RemoteScan on pagg_tab_p1
-                     Shard: 2    Remote SQL: select  pagg_tab.c, pagg_tab.b, pagg_tab.a from regress_$$_public.pagg_tab_p1 pagg_tab ORDER BY 1 ASC
-               ->  RemoteScan on pagg_tab_p2
-                     Shard: 2    Remote SQL: select  pagg_tab.c, pagg_tab.b, pagg_tab.a from regress_$$_public.pagg_tab_p2 pagg_tab ORDER BY 1 ASC
-               ->  RemoteScan on pagg_tab_p3
-                     Shard: 1    Remote SQL: select  pagg_tab.c, pagg_tab.b, pagg_tab.a from regress_$$_public.pagg_tab_p3 pagg_tab ORDER BY 1 ASC
-(12 rows)
 
 -- Since GROUP BY clause does not match with PARTITION KEY; we need to do
 -- partial aggregation. However, ORDERED SET are not partial safe and thus
 -- partitionwise aggregation plan is not generated.
 EXPLAIN (COSTS OFF)
 SELECT a, sum(b order by a) FROM pagg_tab GROUP BY a ORDER BY 1, 2;
-                                                              QUERY PLAN                                                               
----------------------------------------------------------------------------------------------------------------------------------------
- Sort
-   Sort Key: pagg_tab_p1.a, (sum(pagg_tab_p1.b ORDER BY pagg_tab_p1.a))
-   ->  GroupAggregate
-         Group Key: pagg_tab_p1.a
-         ->  Merge Append
-               Sort Key: pagg_tab_p1.a NULLS FIRST
-               ->  RemoteScan on pagg_tab_p1
-                     Shard: 2    Remote SQL: select  pagg_tab.a, pagg_tab.b from regress_$$_public.pagg_tab_p1 pagg_tab ORDER BY 1 ASC
-               ->  RemoteScan on pagg_tab_p2
-                     Shard: 2    Remote SQL: select  pagg_tab.a, pagg_tab.b from regress_$$_public.pagg_tab_p2 pagg_tab ORDER BY 1 ASC
-               ->  RemoteScan on pagg_tab_p3
-                     Shard: 1    Remote SQL: select  pagg_tab.a, pagg_tab.b from regress_$$_public.pagg_tab_p3 pagg_tab ORDER BY 1 ASC
-(12 rows)
 
 -- JOIN query
 drop table if exists pagg_tab1;
@@ -382,29 +208,6 @@ INSERT 0 100
 -- When GROUP BY clause matches; full aggregation is performed for each partition.
 EXPLAIN (COSTS OFF)
 SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x ORDER BY 1, 2, 3;
-                                                                               QUERY PLAN                                                                                
--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort
-   Sort Key: t1.x, (sum(t1.y)), (count(*))
-   ->  HashAggregate
-         Group Key: t1.x
-         ->  Append
-               ->  Nested Loop
-                     Join Filter: (t1.x = t2.y)
-                     ->  RemoteScan on pagg_tab1_p1 t1
-                           Shard: 2      Remote SQL: select  t1.x, t1.y from regress_$$_public.pagg_tab1_p1 t1
-                     ->  RemoteScan on pagg_tab2_p1 t2
-                           Shard: 1      Remote SQL: select  t2.y from regress_$$_public.pagg_tab2_p1 t2
-               ->  Nested Loop
-                     Join Filter: (t1_1.x = t2_1.y)
-                     ->  RemoteScan on pagg_tab1_p2 t1_1
-                           Shard: 1      Remote SQL: select  t1.x, t1.y from regress_$$_public.pagg_tab1_p2 t1
-                     ->  RemoteScan on pagg_tab2_p2 t2_1
-                           Shard: 2      Remote SQL: select  t2.y from regress_$$_public.pagg_tab2_p2 t2
-               ->  RemoteJoin Join
-                     Join Filter: (t1_2.x = t2_2.y)
-                     Shard: 2    Remote SQL: select  t1.x, t1.y from  (  regress_$$_public.pagg_tab1_p3 t1  JOIN  regress_$$_public.pagg_tab2_p3 t2   ON (t1.x = t2.y) )
-(20 rows)
 
 SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x ORDER BY 1, 2, 3;
  x  | sum  | count 
@@ -419,30 +222,6 @@ SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2
 -- Check with whole-row reference; partitionwise aggregation does not apply
 EXPLAIN (COSTS OFF)
 SELECT t1.x, sum(t1.y), count(t1) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x ORDER BY 1, 2, 3;
-                                                   QUERY PLAN                                                    
------------------------------------------------------------------------------------------------------------------
- Sort
-   Sort Key: t1.x, (sum(t1.y)), (count(((t1.*)::pagg_tab1)))
-   ->  HashAggregate
-         Group Key: t1.x
-         ->  Hash Join
-               Hash Cond: (t1.x = t2.y)
-               ->  Append
-                     ->  RemoteScan on pagg_tab1_p1 t1
-                           Shard: 2      Remote SQL: select  t1.x, t1.y from regress_$$_public.pagg_tab1_p1 t1
-                     ->  RemoteScan on pagg_tab1_p2 t1_1
-                           Shard: 1      Remote SQL: select  t1.x, t1.y from regress_$$_public.pagg_tab1_p2 t1
-                     ->  RemoteScan on pagg_tab1_p3 t1_2
-                           Shard: 2      Remote SQL: select  t1.x, t1.y from regress_$$_public.pagg_tab1_p3 t1
-               ->  Hash
-                     ->  Append
-                           ->  RemoteScan on pagg_tab2_p1 t2
-                                 Shard: 1        Remote SQL: select  t2.y from regress_$$_public.pagg_tab2_p1 t2
-                           ->  RemoteScan on pagg_tab2_p2 t2_1
-                                 Shard: 2        Remote SQL: select  t2.y from regress_$$_public.pagg_tab2_p2 t2
-                           ->  RemoteScan on pagg_tab2_p3 t2_2
-                                 Shard: 2        Remote SQL: select  t2.y from regress_$$_public.pagg_tab2_p3 t2
-(21 rows)
 
 SELECT t1.x, sum(t1.y), count(t1) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x ORDER BY 1, 2, 3;
  x  | sum  | count 
@@ -457,29 +236,6 @@ SELECT t1.x, sum(t1.y), count(t1) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t
 -- GROUP BY having other matching key
 EXPLAIN (COSTS OFF)
 SELECT t2.y, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t2.y ORDER BY 1, 2, 3;
-                                                                               QUERY PLAN                                                                                
--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort
-   Sort Key: t2.y, (sum(t1.y)), (count(*))
-   ->  HashAggregate
-         Group Key: t2.y
-         ->  Append
-               ->  Nested Loop
-                     Join Filter: (t1.x = t2.y)
-                     ->  RemoteScan on pagg_tab1_p1 t1
-                           Shard: 2      Remote SQL: select  t1.y, t1.x from regress_$$_public.pagg_tab1_p1 t1
-                     ->  RemoteScan on pagg_tab2_p1 t2
-                           Shard: 1      Remote SQL: select  t2.y from regress_$$_public.pagg_tab2_p1 t2
-               ->  Nested Loop
-                     Join Filter: (t1_1.x = t2_1.y)
-                     ->  RemoteScan on pagg_tab1_p2 t1_1
-                           Shard: 1      Remote SQL: select  t1.y, t1.x from regress_$$_public.pagg_tab1_p2 t1
-                     ->  RemoteScan on pagg_tab2_p2 t2_1
-                           Shard: 2      Remote SQL: select  t2.y from regress_$$_public.pagg_tab2_p2 t2
-               ->  RemoteJoin Join
-                     Join Filter: (t1_2.x = t2_2.y)
-                     Shard: 2    Remote SQL: select  t2.y, t1.y from  (  regress_$$_public.pagg_tab1_p3 t1  JOIN  regress_$$_public.pagg_tab2_p3 t2   ON (t1.x = t2.y) )
-(20 rows)
 
 -- When GROUP BY clause does not match; partial aggregation is performed for each partition.
 -- Also test GroupAggregate paths by disabling hash aggregates.
@@ -487,32 +243,6 @@ SET enable_hashagg TO false;
 SET
 EXPLAIN (COSTS OFF)
 SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.y HAVING avg(t1.x) > 10 ORDER BY 1, 2, 3;
-                                                                                   QUERY PLAN                                                                                    
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort
-   Sort Key: t1.y, (sum(t1.x)), (count(*))
-   ->  GroupAggregate
-         Group Key: t1.y
-         Filter: (avg(t1.x) > '10'::numeric)
-         ->  Sort
-               Sort Key: t1.y
-               ->  Append
-                     ->  Nested Loop
-                           Join Filter: (t1.x = t2.y)
-                           ->  RemoteScan on pagg_tab1_p1 t1
-                                 Shard: 2        Remote SQL: select  t1.y, t1.x from regress_$$_public.pagg_tab1_p1 t1
-                           ->  RemoteScan on pagg_tab2_p1 t2
-                                 Shard: 1        Remote SQL: select  t2.y from regress_$$_public.pagg_tab2_p1 t2
-                     ->  Nested Loop
-                           Join Filter: (t1_1.x = t2_1.y)
-                           ->  RemoteScan on pagg_tab1_p2 t1_1
-                                 Shard: 1        Remote SQL: select  t1.y, t1.x from regress_$$_public.pagg_tab1_p2 t1
-                           ->  RemoteScan on pagg_tab2_p2 t2_1
-                                 Shard: 2        Remote SQL: select  t2.y from regress_$$_public.pagg_tab2_p2 t2
-                     ->  RemoteJoin Join
-                           Join Filter: (t1_2.x = t2_2.y)
-                           Shard: 2      Remote SQL: select  t1.y, t1.x from  (  regress_$$_public.pagg_tab1_p3 t1  JOIN  regress_$$_public.pagg_tab2_p3 t2   ON (t1.x = t2.y) )
-(23 rows)
 
 SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.y HAVING avg(t1.x) > 10 ORDER BY 1, 2, 3;
  y  | sum  | count 
@@ -533,29 +263,6 @@ RESET
 -- GROUP BY is on nullable column
 EXPLAIN (COSTS OFF)
 SELECT b.y, sum(a.y) FROM pagg_tab1 a LEFT JOIN pagg_tab2 b ON a.x = b.y GROUP BY b.y ORDER BY 1 NULLS LAST;
-                                                                               QUERY PLAN                                                                               
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- GroupAggregate
-   Group Key: b.y
-   ->  Sort
-         Sort Key: b.y
-         ->  Append
-               ->  Nested Loop Left Join
-                     Join Filter: (a.x = b.y)
-                     ->  RemoteScan on pagg_tab1_p1 a
-                           Shard: 2      Remote SQL: select  a.y, a.x from regress_$$_public.pagg_tab1_p1 a
-                     ->  RemoteScan on pagg_tab2_p1 b
-                           Shard: 1      Remote SQL: select  b.y from regress_$$_public.pagg_tab2_p1 b
-               ->  Nested Loop Left Join
-                     Join Filter: (a_1.x = b_1.y)
-                     ->  RemoteScan on pagg_tab1_p2 a_1
-                           Shard: 1      Remote SQL: select  a.y, a.x from regress_$$_public.pagg_tab1_p2 a
-                     ->  RemoteScan on pagg_tab2_p2 b_1
-                           Shard: 2      Remote SQL: select  b.y from regress_$$_public.pagg_tab2_p2 b
-               ->  RemoteJoin Left Join
-                     Join Filter: (a_2.x = b_2.y)
-                     Shard: 2    Remote SQL: select  b.y, a.y from  (  regress_$$_public.pagg_tab1_p3 a  LEFT JOIN  regress_$$_public.pagg_tab2_p3 b   ON (a.x = b.y) )
-(20 rows)
 
 SELECT b.y, sum(a.y) FROM pagg_tab1 a LEFT JOIN pagg_tab2 b ON a.x = b.y GROUP BY b.y ORDER BY 1 NULLS LAST;
  y  | sum  
@@ -572,29 +279,6 @@ SELECT b.y, sum(a.y) FROM pagg_tab1 a LEFT JOIN pagg_tab2 b ON a.x = b.y GROUP B
 -- GROUP BY is on non-nullable column
 EXPLAIN (COSTS OFF)
 SELECT b.y, sum(a.y) FROM pagg_tab1 a RIGHT JOIN pagg_tab2 b ON a.x = b.y GROUP BY b.y ORDER BY 1 NULLS LAST;
-                                                                               QUERY PLAN                                                                               
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- GroupAggregate
-   Group Key: b.y
-   ->  Sort
-         Sort Key: b.y
-         ->  Append
-               ->  Nested Loop Left Join
-                     Join Filter: (a.x = b.y)
-                     ->  RemoteScan on pagg_tab2_p1 b
-                           Shard: 1      Remote SQL: select  b.y from regress_$$_public.pagg_tab2_p1 b
-                     ->  RemoteScan on pagg_tab1_p1 a
-                           Shard: 2      Remote SQL: select  a.y, a.x from regress_$$_public.pagg_tab1_p1 a
-               ->  Nested Loop Left Join
-                     Join Filter: (a_1.x = b_1.y)
-                     ->  RemoteScan on pagg_tab2_p2 b_1
-                           Shard: 2      Remote SQL: select  b.y from regress_$$_public.pagg_tab2_p2 b
-                     ->  RemoteScan on pagg_tab1_p2 a_1
-                           Shard: 1      Remote SQL: select  a.y, a.x from regress_$$_public.pagg_tab1_p2 a
-               ->  RemoteJoin Left Join
-                     Join Filter: (a_2.x = b_2.y)
-                     Shard: 2    Remote SQL: select  b.y, a.y from  (  regress_$$_public.pagg_tab2_p3 b  LEFT JOIN  regress_$$_public.pagg_tab1_p3 a   ON (a.x = b.y) )
-(20 rows)
 
 SELECT b.y, sum(a.y) FROM pagg_tab1 a RIGHT JOIN pagg_tab2 b ON a.x = b.y GROUP BY b.y ORDER BY 1 NULLS LAST;
  y  | sum  
@@ -615,35 +299,6 @@ SELECT b.y, sum(a.y) FROM pagg_tab1 a RIGHT JOIN pagg_tab2 b ON a.x = b.y GROUP 
 -- GROUP BY is on nullable column
 EXPLAIN (COSTS OFF)
 SELECT a.x, sum(b.x) FROM pagg_tab1 a FULL OUTER JOIN pagg_tab2 b ON a.x = b.y GROUP BY a.x ORDER BY 1 NULLS LAST;
-                                                     QUERY PLAN                                                     
---------------------------------------------------------------------------------------------------------------------
- GroupAggregate
-   Group Key: a.x
-   ->  Sort
-         Sort Key: a.x
-         ->  Append
-               ->  Hash Full Join
-                     Hash Cond: (a.x = b.y)
-                     ->  RemoteScan on pagg_tab1_p1 a
-                           Shard: 2      Remote SQL: select  a.x from regress_$$_public.pagg_tab1_p1 a
-                     ->  Hash
-                           ->  RemoteScan on pagg_tab2_p1 b
-                                 Shard: 1        Remote SQL: select  b.x, b.y from regress_$$_public.pagg_tab2_p1 b
-               ->  Hash Full Join
-                     Hash Cond: (a_1.x = b_1.y)
-                     ->  RemoteScan on pagg_tab1_p2 a_1
-                           Shard: 1      Remote SQL: select  a.x from regress_$$_public.pagg_tab1_p2 a
-                     ->  Hash
-                           ->  RemoteScan on pagg_tab2_p2 b_1
-                                 Shard: 2        Remote SQL: select  b.x, b.y from regress_$$_public.pagg_tab2_p2 b
-               ->  Hash Full Join
-                     Hash Cond: (a_2.x = b_2.y)
-                     ->  RemoteScan on pagg_tab1_p3 a_2
-                           Shard: 2      Remote SQL: select  a.x from regress_$$_public.pagg_tab1_p3 a
-                     ->  Hash
-                           ->  RemoteScan on pagg_tab2_p3 b_2
-                                 Shard: 2        Remote SQL: select  b.x, b.y from regress_$$_public.pagg_tab2_p3 b
-(26 rows)
 
 SELECT a.x, sum(b.x) FROM pagg_tab1 a FULL OUTER JOIN pagg_tab2 b ON a.x = b.y GROUP BY a.x ORDER BY 1 NULLS LAST;
  x  | sum  
@@ -672,27 +327,6 @@ SELECT a.x, sum(b.x) FROM pagg_tab1 a FULL OUTER JOIN pagg_tab2 b ON a.x = b.y G
 -- But right now we are unable to do partitionwise join in this case.
 EXPLAIN (COSTS OFF)
 SELECT a.x, b.y, count(*) FROM (SELECT * FROM pagg_tab1 WHERE x < 20) a LEFT JOIN (SELECT * FROM pagg_tab2 WHERE y > 10) b ON a.x = b.y WHERE a.x > 5 or b.y < 20  GROUP BY a.x, b.y ORDER BY 1, 2;
-                                                                       QUERY PLAN                                                                       
---------------------------------------------------------------------------------------------------------------------------------------------------------
- GroupAggregate
-   Group Key: pagg_tab1_p1.x, pagg_tab2_p2.y
-   ->  Sort
-         Sort Key: pagg_tab1_p1.x, pagg_tab2_p2.y
-         ->  Hash Left Join
-               Hash Cond: (pagg_tab1_p1.x = pagg_tab2_p2.y)
-               Filter: ((pagg_tab1_p1.x > 5) OR (pagg_tab2_p2.y < 20))
-               ->  Append
-                     ->  RemoteScan on pagg_tab1_p1
-                           Shard: 2      Remote SQL: select  pagg_tab1.x from regress_$$_public.pagg_tab1_p1 pagg_tab1 where (pagg_tab1.x < 20)
-                     ->  RemoteScan on pagg_tab1_p2
-                           Shard: 1      Remote SQL: select  pagg_tab1.x from regress_$$_public.pagg_tab1_p2 pagg_tab1 where (pagg_tab1.x < 20)
-               ->  Hash
-                     ->  Append
-                           ->  RemoteScan on pagg_tab2_p2
-                                 Shard: 2        Remote SQL: select  pagg_tab2.y from regress_$$_public.pagg_tab2_p2 pagg_tab2 where (pagg_tab2.y > 10)
-                           ->  RemoteScan on pagg_tab2_p3
-                                 Shard: 2        Remote SQL: select  pagg_tab2.y from regress_$$_public.pagg_tab2_p3 pagg_tab2 where (pagg_tab2.y > 10)
-(18 rows)
 
 -- will crash: SELECT a.x, b.y, count(*) FROM (SELECT * FROM pagg_tab1 WHERE x < 20) a LEFT JOIN (SELECT * FROM pagg_tab2 WHERE y > 10) b ON a.x = b.y WHERE a.x > 5 or b.y < 20  GROUP BY a.x, b.y ORDER BY 1, 2;
 -- FULL JOIN, with dummy relations on both sides, ideally
@@ -701,27 +335,6 @@ SELECT a.x, b.y, count(*) FROM (SELECT * FROM pagg_tab1 WHERE x < 20) a LEFT JOI
 -- But right now we are unable to do partitionwise join in this case.
 EXPLAIN (COSTS OFF)
 SELECT a.x, b.y, count(*) FROM (SELECT * FROM pagg_tab1 WHERE x < 20) a FULL JOIN (SELECT * FROM pagg_tab2 WHERE y > 10) b ON a.x = b.y WHERE a.x > 5 or b.y < 20  GROUP BY a.x, b.y ORDER BY 1, 2;
-                                                                       QUERY PLAN                                                                       
---------------------------------------------------------------------------------------------------------------------------------------------------------
- GroupAggregate
-   Group Key: pagg_tab1_p1.x, pagg_tab2_p2.y
-   ->  Sort
-         Sort Key: pagg_tab1_p1.x, pagg_tab2_p2.y
-         ->  Hash Full Join
-               Hash Cond: (pagg_tab1_p1.x = pagg_tab2_p2.y)
-               Filter: ((pagg_tab1_p1.x > 5) OR (pagg_tab2_p2.y < 20))
-               ->  Append
-                     ->  RemoteScan on pagg_tab1_p1
-                           Shard: 2      Remote SQL: select  pagg_tab1.x from regress_$$_public.pagg_tab1_p1 pagg_tab1 where (pagg_tab1.x < 20)
-                     ->  RemoteScan on pagg_tab1_p2
-                           Shard: 1      Remote SQL: select  pagg_tab1.x from regress_$$_public.pagg_tab1_p2 pagg_tab1 where (pagg_tab1.x < 20)
-               ->  Hash
-                     ->  Append
-                           ->  RemoteScan on pagg_tab2_p2
-                                 Shard: 2        Remote SQL: select  pagg_tab2.y from regress_$$_public.pagg_tab2_p2 pagg_tab2 where (pagg_tab2.y > 10)
-                           ->  RemoteScan on pagg_tab2_p3
-                                 Shard: 2        Remote SQL: select  pagg_tab2.y from regress_$$_public.pagg_tab2_p3 pagg_tab2 where (pagg_tab2.y > 10)
-(18 rows)
 
 SELECT a.x, b.y, count(*) FROM (SELECT * FROM pagg_tab1 WHERE x < 20) a FULL JOIN (SELECT * FROM pagg_tab2 WHERE y > 10) b ON a.x = b.y WHERE a.x > 5 or b.y < 20 GROUP BY a.x, b.y ORDER BY 1, 2;
  x  | y  | count 
@@ -739,15 +352,6 @@ SELECT a.x, b.y, count(*) FROM (SELECT * FROM pagg_tab1 WHERE x < 20) a FULL JOI
 -- Empty join relation because of empty outer side, no partitionwise agg plan
 EXPLAIN (COSTS OFF)
 SELECT a.x, a.y, count(*) FROM (SELECT * FROM pagg_tab1 WHERE x = 1 AND x = 2) a LEFT JOIN pagg_tab2 b ON a.x = b.y GROUP BY a.x, a.y ORDER BY 1, 2;
-              QUERY PLAN               
----------------------------------------
- GroupAggregate
-   Group Key: pagg_tab1.x, pagg_tab1.y
-   ->  Sort
-         Sort Key: pagg_tab1.y
-         ->  Result
-               One-Time Filter: false
-(6 rows)
 
 SELECT a.x, a.y, count(*) FROM (SELECT * FROM pagg_tab1 WHERE x = 1 AND x = 2) a LEFT JOIN pagg_tab2 b ON a.x = b.y GROUP BY a.x, a.y ORDER BY 1, 2;
  x | y | count 
@@ -771,21 +375,6 @@ INSERT 0 3000
 -- Partial aggregation as GROUP BY clause does not match with PARTITION KEY
 EXPLAIN (COSTS OFF)
 SELECT a, sum(b), avg(c), count(*) FROM pagg_tab_m GROUP BY a HAVING avg(c) < 22 ORDER BY 1, 2, 3;
-                                                                  QUERY PLAN                                                                  
-----------------------------------------------------------------------------------------------------------------------------------------------
- Sort
-   Sort Key: pagg_tab_m_p1.a, (sum(pagg_tab_m_p1.b)), (avg(pagg_tab_m_p1.c))
-   ->  HashAggregate
-         Group Key: pagg_tab_m_p1.a
-         Filter: (avg(pagg_tab_m_p1.c) < '22'::numeric)
-         ->  Append
-               ->  RemoteScan on pagg_tab_m_p1
-                     Shard: 1    Remote SQL: select  pagg_tab_m.a, pagg_tab_m.b, pagg_tab_m.c from regress_$$_public.pagg_tab_m_p1 pagg_tab_m
-               ->  RemoteScan on pagg_tab_m_p2
-                     Shard: 2    Remote SQL: select  pagg_tab_m.a, pagg_tab_m.b, pagg_tab_m.c from regress_$$_public.pagg_tab_m_p2 pagg_tab_m
-               ->  RemoteScan on pagg_tab_m_p3
-                     Shard: 2    Remote SQL: select  pagg_tab_m.a, pagg_tab_m.b, pagg_tab_m.c from regress_$$_public.pagg_tab_m_p3 pagg_tab_m
-(12 rows)
 
 SELECT a, sum(b), avg(c), count(*) FROM pagg_tab_m GROUP BY a HAVING avg(c) < 22 ORDER BY 1, 2, 3;
  a  | sum  |         avg         | count 
@@ -860,24 +449,6 @@ SET
 -- is not partial agg safe.
 EXPLAIN (COSTS OFF)
 SELECT a, sum(b), array_agg(distinct c), count(*) FROM pagg_tab_ml GROUP BY a HAVING avg(b) < 3 ORDER BY 1, 2, 3;
-                                                                             QUERY PLAN                                                                              
----------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort
-   Sort Key: pagg_tab_ml_p1.a, (sum(pagg_tab_ml_p1.b)), (array_agg(DISTINCT pagg_tab_ml_p1.c))
-   ->  GroupAggregate
-         Group Key: pagg_tab_ml_p1.a
-         Filter: (avg(pagg_tab_ml_p1.b) < '3'::numeric)
-         ->  Merge Append
-               Sort Key: pagg_tab_ml_p1.a NULLS FIRST
-               ->  RemoteScan on pagg_tab_ml_p1
-                     Shard: 1    Remote SQL: select  pagg_tab_ml.a, pagg_tab_ml.b, pagg_tab_ml.c from regress_$$_public.pagg_tab_ml_p1 pagg_tab_ml ORDER BY 1 ASC
-               ->  RemoteScan on pagg_tab_ml_p2_s1
-                     Shard: 1    Remote SQL: select  pagg_tab_ml.a, pagg_tab_ml.b, pagg_tab_ml.c from regress_$$_public.pagg_tab_ml_p2_s1 pagg_tab_ml ORDER BY 1 ASC
-               ->  RemoteScan on pagg_tab_ml_p2_s2
-                     Shard: 1    Remote SQL: select  pagg_tab_ml.a, pagg_tab_ml.b, pagg_tab_ml.c from regress_$$_public.pagg_tab_ml_p2_s2 pagg_tab_ml ORDER BY 1 ASC
-               ->  RemoteScan on pagg_tab_ml_p3_s2
-                     Shard: 2    Remote SQL: select  pagg_tab_ml.a, pagg_tab_ml.b, pagg_tab_ml.c from regress_$$_public.pagg_tab_ml_p3_s2 pagg_tab_ml ORDER BY 1 ASC
-(15 rows)
 
 SELECT a, sum(b), array_agg(distinct c), count(*) FROM pagg_tab_ml GROUP BY a HAVING avg(b) < 3 ORDER BY 1, 2, 3;
  a | sum | array_agg | count 
@@ -887,45 +458,12 @@ SELECT a, sum(b), array_agg(distinct c), count(*) FROM pagg_tab_ml GROUP BY a HA
 -- Without ORDER BY clause, to test Gather at top-most path
 EXPLAIN (COSTS OFF)
 SELECT a, sum(b), array_agg(distinct c), count(*) FROM pagg_tab_ml GROUP BY a HAVING avg(b) < 3;
-                                                                         QUERY PLAN                                                                          
--------------------------------------------------------------------------------------------------------------------------------------------------------------
- GroupAggregate
-   Group Key: pagg_tab_ml_p1.a
-   Filter: (avg(pagg_tab_ml_p1.b) < '3'::numeric)
-   ->  Merge Append
-         Sort Key: pagg_tab_ml_p1.a NULLS FIRST
-         ->  RemoteScan on pagg_tab_ml_p1
-               Shard: 1  Remote SQL: select  pagg_tab_ml.a, pagg_tab_ml.b, pagg_tab_ml.c from regress_$$_public.pagg_tab_ml_p1 pagg_tab_ml ORDER BY 1 ASC
-         ->  RemoteScan on pagg_tab_ml_p2_s1
-               Shard: 1  Remote SQL: select  pagg_tab_ml.a, pagg_tab_ml.b, pagg_tab_ml.c from regress_$$_public.pagg_tab_ml_p2_s1 pagg_tab_ml ORDER BY 1 ASC
-         ->  RemoteScan on pagg_tab_ml_p2_s2
-               Shard: 1  Remote SQL: select  pagg_tab_ml.a, pagg_tab_ml.b, pagg_tab_ml.c from regress_$$_public.pagg_tab_ml_p2_s2 pagg_tab_ml ORDER BY 1 ASC
-         ->  RemoteScan on pagg_tab_ml_p3_s2
-               Shard: 2  Remote SQL: select  pagg_tab_ml.a, pagg_tab_ml.b, pagg_tab_ml.c from regress_$$_public.pagg_tab_ml_p3_s2 pagg_tab_ml ORDER BY 1 ASC
-(13 rows)
 
 -- Full aggregation at level 1 as GROUP BY clause matches with PARTITION KEY
 -- for level 1 only. For subpartitions, GROUP BY clause does not match with
 -- PARTITION KEY, thus we will have a partial aggregation for them.
 EXPLAIN (COSTS OFF)
 SELECT a, sum(b), count(*) FROM pagg_tab_ml GROUP BY a HAVING avg(b) < 3 ORDER BY 1, 2, 3;
-                                                              QUERY PLAN                                                               
----------------------------------------------------------------------------------------------------------------------------------------
- Sort
-   Sort Key: pagg_tab_ml_p1.a, (sum(pagg_tab_ml_p1.b)), (count(*))
-   ->  HashAggregate
-         Group Key: pagg_tab_ml_p1.a
-         Filter: (avg(pagg_tab_ml_p1.b) < '3'::numeric)
-         ->  Append
-               ->  RemoteScan on pagg_tab_ml_p1
-                     Shard: 1    Remote SQL: select  pagg_tab_ml.a, pagg_tab_ml.b from regress_$$_public.pagg_tab_ml_p1 pagg_tab_ml
-               ->  RemoteScan on pagg_tab_ml_p2_s1
-                     Shard: 1    Remote SQL: select  pagg_tab_ml.a, pagg_tab_ml.b from regress_$$_public.pagg_tab_ml_p2_s1 pagg_tab_ml
-               ->  RemoteScan on pagg_tab_ml_p2_s2
-                     Shard: 1    Remote SQL: select  pagg_tab_ml.a, pagg_tab_ml.b from regress_$$_public.pagg_tab_ml_p2_s2 pagg_tab_ml
-               ->  RemoteScan on pagg_tab_ml_p3_s2
-                     Shard: 2    Remote SQL: select  pagg_tab_ml.a, pagg_tab_ml.b from regress_$$_public.pagg_tab_ml_p3_s2 pagg_tab_ml
-(14 rows)
 
 SELECT a, sum(b), count(*) FROM pagg_tab_ml GROUP BY a HAVING avg(b) < 3 ORDER BY 1, 2, 3;
  a | sum | count 
@@ -936,22 +474,6 @@ SELECT a, sum(b), count(*) FROM pagg_tab_ml GROUP BY a HAVING avg(b) < 3 ORDER B
 -- PARTITION KEY
 EXPLAIN (COSTS OFF)
 SELECT b, sum(a), count(*) FROM pagg_tab_ml GROUP BY b ORDER BY 1, 2, 3;
-                                                              QUERY PLAN                                                               
----------------------------------------------------------------------------------------------------------------------------------------
- Sort
-   Sort Key: pagg_tab_ml_p1.b, (sum(pagg_tab_ml_p1.a)), (count(*))
-   ->  HashAggregate
-         Group Key: pagg_tab_ml_p1.b
-         ->  Append
-               ->  RemoteScan on pagg_tab_ml_p1
-                     Shard: 1    Remote SQL: select  pagg_tab_ml.b, pagg_tab_ml.a from regress_$$_public.pagg_tab_ml_p1 pagg_tab_ml
-               ->  RemoteScan on pagg_tab_ml_p2_s1
-                     Shard: 1    Remote SQL: select  pagg_tab_ml.b, pagg_tab_ml.a from regress_$$_public.pagg_tab_ml_p2_s1 pagg_tab_ml
-               ->  RemoteScan on pagg_tab_ml_p2_s2
-                     Shard: 1    Remote SQL: select  pagg_tab_ml.b, pagg_tab_ml.a from regress_$$_public.pagg_tab_ml_p2_s2 pagg_tab_ml
-               ->  RemoteScan on pagg_tab_ml_p3_s2
-                     Shard: 2    Remote SQL: select  pagg_tab_ml.b, pagg_tab_ml.a from regress_$$_public.pagg_tab_ml_p3_s2 pagg_tab_ml
-(13 rows)
 
 SELECT b, sum(a), count(*) FROM pagg_tab_ml GROUP BY b HAVING avg(a) < 15 ORDER BY 1, 2, 3;
  b | sum | count 
@@ -961,32 +483,6 @@ SELECT b, sum(a), count(*) FROM pagg_tab_ml GROUP BY b HAVING avg(a) < 15 ORDER 
 -- Full aggregation at all levels as GROUP BY clause matches with PARTITION KEY
 EXPLAIN (COSTS OFF)
 SELECT a, sum(b), count(*) FROM pagg_tab_ml GROUP BY a, b, c HAVING avg(b) > 7 ORDER BY 1, 2, 3;
-                                                                      QUERY PLAN                                                                      
-------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort
-   Sort Key: pagg_tab_ml_p1.a, (sum(pagg_tab_ml_p1.b)), (count(*))
-   ->  Append
-         ->  HashAggregate
-               Group Key: pagg_tab_ml_p1.a, pagg_tab_ml_p1.b, pagg_tab_ml_p1.c
-               Filter: (avg(pagg_tab_ml_p1.b) > '7'::numeric)
-               ->  RemoteScan on pagg_tab_ml_p1
-                     Shard: 1    Remote SQL: select  pagg_tab_ml.a, pagg_tab_ml.b, pagg_tab_ml.c from regress_$$_public.pagg_tab_ml_p1 pagg_tab_ml
-         ->  HashAggregate
-               Group Key: pagg_tab_ml_p2_s1.a, pagg_tab_ml_p2_s1.b, pagg_tab_ml_p2_s1.c
-               Filter: (avg(pagg_tab_ml_p2_s1.b) > '7'::numeric)
-               ->  RemoteScan on pagg_tab_ml_p2_s1
-                     Shard: 1    Remote SQL: select  pagg_tab_ml.a, pagg_tab_ml.b, pagg_tab_ml.c from regress_$$_public.pagg_tab_ml_p2_s1 pagg_tab_ml
-         ->  HashAggregate
-               Group Key: pagg_tab_ml_p2_s2.a, pagg_tab_ml_p2_s2.b, pagg_tab_ml_p2_s2.c
-               Filter: (avg(pagg_tab_ml_p2_s2.b) > '7'::numeric)
-               ->  RemoteScan on pagg_tab_ml_p2_s2
-                     Shard: 1    Remote SQL: select  pagg_tab_ml.a, pagg_tab_ml.b, pagg_tab_ml.c from regress_$$_public.pagg_tab_ml_p2_s2 pagg_tab_ml
-         ->  HashAggregate
-               Group Key: pagg_tab_ml_p3_s2.a, pagg_tab_ml_p3_s2.b, pagg_tab_ml_p3_s2.c
-               Filter: (avg(pagg_tab_ml_p3_s2.b) > '7'::numeric)
-               ->  RemoteScan on pagg_tab_ml_p3_s2
-                     Shard: 2    Remote SQL: select  pagg_tab_ml.a, pagg_tab_ml.b, pagg_tab_ml.c from regress_$$_public.pagg_tab_ml_p3_s2 pagg_tab_ml
-(23 rows)
 
 SELECT a, sum(b), count(*) FROM pagg_tab_ml GROUP BY a, b, c HAVING avg(b) > 7 ORDER BY 1, 2, 3;
  a | sum | count 
@@ -1003,23 +499,6 @@ SET
 -- PARTITION KEY, thus we will have a partial aggregation for them.
 EXPLAIN (COSTS OFF)
 SELECT a, sum(b), count(*) FROM pagg_tab_ml GROUP BY a HAVING avg(b) < 3 ORDER BY 1, 2, 3;
-                                                              QUERY PLAN                                                               
----------------------------------------------------------------------------------------------------------------------------------------
- Sort
-   Sort Key: pagg_tab_ml_p1.a, (sum(pagg_tab_ml_p1.b)), (count(*))
-   ->  HashAggregate
-         Group Key: pagg_tab_ml_p1.a
-         Filter: (avg(pagg_tab_ml_p1.b) < '3'::numeric)
-         ->  Append
-               ->  RemoteScan on pagg_tab_ml_p1
-                     Shard: 1    Remote SQL: select  pagg_tab_ml.a, pagg_tab_ml.b from regress_$$_public.pagg_tab_ml_p1 pagg_tab_ml
-               ->  RemoteScan on pagg_tab_ml_p2_s1
-                     Shard: 1    Remote SQL: select  pagg_tab_ml.a, pagg_tab_ml.b from regress_$$_public.pagg_tab_ml_p2_s1 pagg_tab_ml
-               ->  RemoteScan on pagg_tab_ml_p2_s2
-                     Shard: 1    Remote SQL: select  pagg_tab_ml.a, pagg_tab_ml.b from regress_$$_public.pagg_tab_ml_p2_s2 pagg_tab_ml
-               ->  RemoteScan on pagg_tab_ml_p3_s2
-                     Shard: 2    Remote SQL: select  pagg_tab_ml.a, pagg_tab_ml.b from regress_$$_public.pagg_tab_ml_p3_s2 pagg_tab_ml
-(14 rows)
 
 SELECT a, sum(b), count(*) FROM pagg_tab_ml GROUP BY a HAVING avg(b) < 3 ORDER BY 1, 2, 3;
  a | sum | count 
@@ -1030,22 +509,6 @@ SELECT a, sum(b), count(*) FROM pagg_tab_ml GROUP BY a HAVING avg(b) < 3 ORDER B
 -- PARTITION KEY
 EXPLAIN (COSTS OFF)
 SELECT b, sum(a), count(*) FROM pagg_tab_ml GROUP BY b ORDER BY 1, 2, 3;
-                                                              QUERY PLAN                                                               
----------------------------------------------------------------------------------------------------------------------------------------
- Sort
-   Sort Key: pagg_tab_ml_p1.b, (sum(pagg_tab_ml_p1.a)), (count(*))
-   ->  HashAggregate
-         Group Key: pagg_tab_ml_p1.b
-         ->  Append
-               ->  RemoteScan on pagg_tab_ml_p1
-                     Shard: 1    Remote SQL: select  pagg_tab_ml.b, pagg_tab_ml.a from regress_$$_public.pagg_tab_ml_p1 pagg_tab_ml
-               ->  RemoteScan on pagg_tab_ml_p2_s1
-                     Shard: 1    Remote SQL: select  pagg_tab_ml.b, pagg_tab_ml.a from regress_$$_public.pagg_tab_ml_p2_s1 pagg_tab_ml
-               ->  RemoteScan on pagg_tab_ml_p2_s2
-                     Shard: 1    Remote SQL: select  pagg_tab_ml.b, pagg_tab_ml.a from regress_$$_public.pagg_tab_ml_p2_s2 pagg_tab_ml
-               ->  RemoteScan on pagg_tab_ml_p3_s2
-                     Shard: 2    Remote SQL: select  pagg_tab_ml.b, pagg_tab_ml.a from regress_$$_public.pagg_tab_ml_p3_s2 pagg_tab_ml
-(13 rows)
 
 SELECT b, sum(a), count(*) FROM pagg_tab_ml GROUP BY b HAVING avg(a) < 15 ORDER BY 1, 2, 3;
  b | sum | count 
@@ -1055,32 +518,6 @@ SELECT b, sum(a), count(*) FROM pagg_tab_ml GROUP BY b HAVING avg(a) < 15 ORDER 
 -- Full aggregation at all levels as GROUP BY clause matches with PARTITION KEY
 EXPLAIN (COSTS OFF)
 SELECT a, sum(b), count(*) FROM pagg_tab_ml GROUP BY a, b, c HAVING avg(b) > 7 ORDER BY 1, 2, 3;
-                                                                      QUERY PLAN                                                                      
-------------------------------------------------------------------------------------------------------------------------------------------------------
- Sort
-   Sort Key: pagg_tab_ml_p1.a, (sum(pagg_tab_ml_p1.b)), (count(*))
-   ->  Append
-         ->  HashAggregate
-               Group Key: pagg_tab_ml_p1.a, pagg_tab_ml_p1.b, pagg_tab_ml_p1.c
-               Filter: (avg(pagg_tab_ml_p1.b) > '7'::numeric)
-               ->  RemoteScan on pagg_tab_ml_p1
-                     Shard: 1    Remote SQL: select  pagg_tab_ml.a, pagg_tab_ml.b, pagg_tab_ml.c from regress_$$_public.pagg_tab_ml_p1 pagg_tab_ml
-         ->  HashAggregate
-               Group Key: pagg_tab_ml_p2_s1.a, pagg_tab_ml_p2_s1.b, pagg_tab_ml_p2_s1.c
-               Filter: (avg(pagg_tab_ml_p2_s1.b) > '7'::numeric)
-               ->  RemoteScan on pagg_tab_ml_p2_s1
-                     Shard: 1    Remote SQL: select  pagg_tab_ml.a, pagg_tab_ml.b, pagg_tab_ml.c from regress_$$_public.pagg_tab_ml_p2_s1 pagg_tab_ml
-         ->  HashAggregate
-               Group Key: pagg_tab_ml_p2_s2.a, pagg_tab_ml_p2_s2.b, pagg_tab_ml_p2_s2.c
-               Filter: (avg(pagg_tab_ml_p2_s2.b) > '7'::numeric)
-               ->  RemoteScan on pagg_tab_ml_p2_s2
-                     Shard: 1    Remote SQL: select  pagg_tab_ml.a, pagg_tab_ml.b, pagg_tab_ml.c from regress_$$_public.pagg_tab_ml_p2_s2 pagg_tab_ml
-         ->  HashAggregate
-               Group Key: pagg_tab_ml_p3_s2.a, pagg_tab_ml_p3_s2.b, pagg_tab_ml_p3_s2.c
-               Filter: (avg(pagg_tab_ml_p3_s2.b) > '7'::numeric)
-               ->  RemoteScan on pagg_tab_ml_p3_s2
-                     Shard: 2    Remote SQL: select  pagg_tab_ml.a, pagg_tab_ml.b, pagg_tab_ml.c from regress_$$_public.pagg_tab_ml_p3_s2 pagg_tab_ml
-(23 rows)
 
 SELECT a, sum(b), count(*) FROM pagg_tab_ml GROUP BY a, b, c HAVING avg(b) > 7 ORDER BY 1, 2, 3;
  a | sum | count 
@@ -1113,27 +550,6 @@ INSERT 0 30000
 -- When GROUP BY clause matches; full aggregation is performed for each partition.
 EXPLAIN (COSTS OFF)
 SELECT x, sum(y), avg(y), count(*) FROM pagg_tab_para GROUP BY x HAVING avg(y) < 7 ORDER BY 1, 2, 3;
-                                                                 QUERY PLAN                                                                 
---------------------------------------------------------------------------------------------------------------------------------------------
- Sort
-   Sort Key: pagg_tab_para_p1.x, (sum(pagg_tab_para_p1.y)), (avg(pagg_tab_para_p1.y))
-   ->  Append
-         ->  HashAggregate
-               Group Key: pagg_tab_para_p1.x
-               Filter: (avg(pagg_tab_para_p1.y) < '7'::numeric)
-               ->  RemoteScan on pagg_tab_para_p1
-                     Shard: 2    Remote SQL: select  pagg_tab_para.x, pagg_tab_para.y from regress_$$_public.pagg_tab_para_p1 pagg_tab_para
-         ->  HashAggregate
-               Group Key: pagg_tab_para_p2.x
-               Filter: (avg(pagg_tab_para_p2.y) < '7'::numeric)
-               ->  RemoteScan on pagg_tab_para_p2
-                     Shard: 2    Remote SQL: select  pagg_tab_para.x, pagg_tab_para.y from regress_$$_public.pagg_tab_para_p2 pagg_tab_para
-         ->  HashAggregate
-               Group Key: pagg_tab_para_p3.x
-               Filter: (avg(pagg_tab_para_p3.y) < '7'::numeric)
-               ->  RemoteScan on pagg_tab_para_p3
-                     Shard: 1    Remote SQL: select  pagg_tab_para.x, pagg_tab_para.y from regress_$$_public.pagg_tab_para_p3 pagg_tab_para
-(18 rows)
 
 SELECT x, sum(y), avg(y), count(*) FROM pagg_tab_para GROUP BY x HAVING avg(y) < 7 ORDER BY 1, 2, 3;
  x  | sum  |        avg         | count 
@@ -1149,21 +565,6 @@ SELECT x, sum(y), avg(y), count(*) FROM pagg_tab_para GROUP BY x HAVING avg(y) <
 -- When GROUP BY clause does not match; partial aggregation is performed for each partition.
 EXPLAIN (COSTS OFF)
 SELECT y, sum(x), avg(x), count(*) FROM pagg_tab_para GROUP BY y HAVING avg(x) < 12 ORDER BY 1, 2, 3;
-                                                                 QUERY PLAN                                                                 
---------------------------------------------------------------------------------------------------------------------------------------------
- Sort
-   Sort Key: pagg_tab_para_p1.y, (sum(pagg_tab_para_p1.x)), (avg(pagg_tab_para_p1.x))
-   ->  HashAggregate
-         Group Key: pagg_tab_para_p1.y
-         Filter: (avg(pagg_tab_para_p1.x) < '12'::numeric)
-         ->  Append
-               ->  RemoteScan on pagg_tab_para_p1
-                     Shard: 2    Remote SQL: select  pagg_tab_para.y, pagg_tab_para.x from regress_$$_public.pagg_tab_para_p1 pagg_tab_para
-               ->  RemoteScan on pagg_tab_para_p2
-                     Shard: 2    Remote SQL: select  pagg_tab_para.y, pagg_tab_para.x from regress_$$_public.pagg_tab_para_p2 pagg_tab_para
-               ->  RemoteScan on pagg_tab_para_p3
-                     Shard: 1    Remote SQL: select  pagg_tab_para.y, pagg_tab_para.x from regress_$$_public.pagg_tab_para_p3 pagg_tab_para
-(12 rows)
 
 SELECT y, sum(x), avg(x), count(*) FROM pagg_tab_para GROUP BY y HAVING avg(x) < 12 ORDER BY 1, 2, 3;
  y  |  sum  |         avg         | count 
@@ -1176,27 +577,6 @@ SELECT y, sum(x), avg(x), count(*) FROM pagg_tab_para GROUP BY y HAVING avg(x) <
 
 EXPLAIN (COSTS OFF)
 SELECT x, sum(y), avg(y), count(*) FROM pagg_tab_para GROUP BY x HAVING avg(y) < 7 ORDER BY 1, 2, 3;
-                                                                 QUERY PLAN                                                                 
---------------------------------------------------------------------------------------------------------------------------------------------
- Sort
-   Sort Key: pagg_tab_para_p1.x, (sum(pagg_tab_para_p1.y)), (avg(pagg_tab_para_p1.y))
-   ->  Append
-         ->  HashAggregate
-               Group Key: pagg_tab_para_p1.x
-               Filter: (avg(pagg_tab_para_p1.y) < '7'::numeric)
-               ->  RemoteScan on pagg_tab_para_p1
-                     Shard: 2    Remote SQL: select  pagg_tab_para.x, pagg_tab_para.y from regress_$$_public.pagg_tab_para_p1 pagg_tab_para
-         ->  HashAggregate
-               Group Key: pagg_tab_para_p2.x
-               Filter: (avg(pagg_tab_para_p2.y) < '7'::numeric)
-               ->  RemoteScan on pagg_tab_para_p2
-                     Shard: 2    Remote SQL: select  pagg_tab_para.x, pagg_tab_para.y from regress_$$_public.pagg_tab_para_p2 pagg_tab_para
-         ->  HashAggregate
-               Group Key: pagg_tab_para_p3.x
-               Filter: (avg(pagg_tab_para_p3.y) < '7'::numeric)
-               ->  RemoteScan on pagg_tab_para_p3
-                     Shard: 1    Remote SQL: select  pagg_tab_para.x, pagg_tab_para.y from regress_$$_public.pagg_tab_para_p3 pagg_tab_para
-(18 rows)
 
 SELECT x, sum(y), avg(y), count(*) FROM pagg_tab_para GROUP BY x HAVING avg(y) < 7 ORDER BY 1, 2, 3;
  x  | sum  |        avg         | count 
@@ -1211,27 +591,6 @@ SELECT x, sum(y), avg(y), count(*) FROM pagg_tab_para GROUP BY x HAVING avg(y) <
 
 EXPLAIN (COSTS OFF)
 SELECT x, sum(y), avg(y), count(*) FROM pagg_tab_para GROUP BY x HAVING avg(y) < 7 ORDER BY 1, 2, 3;
-                                                                 QUERY PLAN                                                                 
---------------------------------------------------------------------------------------------------------------------------------------------
- Sort
-   Sort Key: pagg_tab_para_p1.x, (sum(pagg_tab_para_p1.y)), (avg(pagg_tab_para_p1.y))
-   ->  Append
-         ->  HashAggregate
-               Group Key: pagg_tab_para_p1.x
-               Filter: (avg(pagg_tab_para_p1.y) < '7'::numeric)
-               ->  RemoteScan on pagg_tab_para_p1
-                     Shard: 2    Remote SQL: select  pagg_tab_para.x, pagg_tab_para.y from regress_$$_public.pagg_tab_para_p1 pagg_tab_para
-         ->  HashAggregate
-               Group Key: pagg_tab_para_p2.x
-               Filter: (avg(pagg_tab_para_p2.y) < '7'::numeric)
-               ->  RemoteScan on pagg_tab_para_p2
-                     Shard: 2    Remote SQL: select  pagg_tab_para.x, pagg_tab_para.y from regress_$$_public.pagg_tab_para_p2 pagg_tab_para
-         ->  HashAggregate
-               Group Key: pagg_tab_para_p3.x
-               Filter: (avg(pagg_tab_para_p3.y) < '7'::numeric)
-               ->  RemoteScan on pagg_tab_para_p3
-                     Shard: 1    Remote SQL: select  pagg_tab_para.x, pagg_tab_para.y from regress_$$_public.pagg_tab_para_p3 pagg_tab_para
-(18 rows)
 
 SELECT x, sum(y), avg(y), count(*) FROM pagg_tab_para GROUP BY x HAVING avg(y) < 7 ORDER BY 1, 2, 3;
  x  | sum  |        avg         | count 
@@ -1251,27 +610,6 @@ RESET parallel_setup_cost;
 RESET
 EXPLAIN (COSTS OFF)
 SELECT x, sum(y), avg(y), count(*) FROM pagg_tab_para GROUP BY x HAVING avg(y) < 7 ORDER BY 1, 2, 3;
-                                                                 QUERY PLAN                                                                 
---------------------------------------------------------------------------------------------------------------------------------------------
- Sort
-   Sort Key: pagg_tab_para_p1.x, (sum(pagg_tab_para_p1.y)), (avg(pagg_tab_para_p1.y))
-   ->  Append
-         ->  HashAggregate
-               Group Key: pagg_tab_para_p1.x
-               Filter: (avg(pagg_tab_para_p1.y) < '7'::numeric)
-               ->  RemoteScan on pagg_tab_para_p1
-                     Shard: 2    Remote SQL: select  pagg_tab_para.x, pagg_tab_para.y from regress_$$_public.pagg_tab_para_p1 pagg_tab_para
-         ->  HashAggregate
-               Group Key: pagg_tab_para_p2.x
-               Filter: (avg(pagg_tab_para_p2.y) < '7'::numeric)
-               ->  RemoteScan on pagg_tab_para_p2
-                     Shard: 2    Remote SQL: select  pagg_tab_para.x, pagg_tab_para.y from regress_$$_public.pagg_tab_para_p2 pagg_tab_para
-         ->  HashAggregate
-               Group Key: pagg_tab_para_p3.x
-               Filter: (avg(pagg_tab_para_p3.y) < '7'::numeric)
-               ->  RemoteScan on pagg_tab_para_p3
-                     Shard: 1    Remote SQL: select  pagg_tab_para.x, pagg_tab_para.y from regress_$$_public.pagg_tab_para_p3 pagg_tab_para
-(18 rows)
 
 SELECT x, sum(y), avg(y), count(*) FROM pagg_tab_para GROUP BY x HAVING avg(y) < 7 ORDER BY 1, 2, 3;
  x  | sum  |        avg         | count 

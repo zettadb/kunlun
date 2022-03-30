@@ -88,10 +88,10 @@ alter table nonesuch rename to stud_emp;
 psql:sql/errors.sql:72: ERROR:  relation "nonesuch" does not exist
 -- conflict
 alter table stud_emp rename to aggtest;
-psql:sql/errors.sql:75: ERROR:  relation "stud_emp" does not exist
+psql:sql/errors.sql:75: ERROR:  relation "aggtest" already exists
 -- self-conflict
 alter table stud_emp rename to stud_emp;
-psql:sql/errors.sql:78: ERROR:  relation "stud_emp" does not exist
+psql:sql/errors.sql:78: ERROR:  relation "stud_emp" already exists
 -- attribute renaming
 -- no such relation
 alter table nonesuchrel rename column nonesuchatt to newnonesuchatt;

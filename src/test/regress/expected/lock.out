@@ -244,7 +244,8 @@ DROP ROLE
 RESET search_path;
 RESET
 SELECT test_atomic_ops();
-psql:sql/lock.sql:135: ERROR:  function test_atomic_ops() does not exist
-LINE 1: SELECT test_atomic_ops();
-               ^
-HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
+ test_atomic_ops 
+-----------------
+ t
+(1 row)
+

@@ -14,7 +14,7 @@ CREATE TYPE widget (
    typmod_out = numerictypmodout,
    alignment = double
 );
-psql:sql/create_type.sql:17: ERROR:  function widget_in(cstring) does not exist
+CREATE TYPE
 CREATE TYPE city_budget (
    internallength = 16,
    input = int44in,
@@ -23,7 +23,7 @@ CREATE TYPE city_budget (
    category = 'x',   -- just to verify the system will take it
    preferred = true  -- ditto
 );
-psql:sql/create_type.sql:26: ERROR:  function int44in(cstring) does not exist
+CREATE TYPE
 -- Test creation and destruction of shell types
 CREATE TYPE shell;
 CREATE TYPE
@@ -175,27 +175,28 @@ DROP TYPE
 -- Check usage of typmod with a user-defined type
 -- (we have borrowed numeric's typmod functions)
 CREATE TEMP TABLE mytab (foo widget(42,13,7));     -- should fail
-psql:sql/create_type.sql:128: ERROR:  type "widget" does not exist
+psql:sql/create_type.sql:128: ERROR:  invalid NUMERIC type modifier
 LINE 1: CREATE TEMP TABLE mytab (foo widget(42,13,7));
                                      ^
 CREATE TEMP TABLE mytab (foo widget(42,13));
-psql:sql/create_type.sql:129: ERROR:  type "widget" does not exist
-LINE 1: CREATE TEMP TABLE mytab (foo widget(42,13));
-                                     ^
+CREATE TABLE
 SELECT format_type(atttypid,atttypmod) FROM pg_attribute
 WHERE attrelid = 'mytab'::regclass AND attnum > 0;
-psql:sql/create_type.sql:132: ERROR:  relation "mytab" does not exist
-LINE 2: WHERE attrelid = 'mytab'::regclass AND attnum > 0;
-                         ^
+  format_type  
+---------------
+ widget(42,13)
+(1 row)
+
 -- might as well exercise the widget type while we're here
 INSERT INTO mytab VALUES ('(1,2,3)'), ('(-44,5.5,12)');
-psql:sql/create_type.sql:135: ERROR:  relation "mytab" does not exist
-LINE 1: INSERT INTO mytab VALUES ('(1,2,3)'), ('(-44,5.5,12)');
-                    ^
+INSERT 0 2
 TABLE mytab;
-psql:sql/create_type.sql:136: ERROR:  relation "mytab" does not exist
-LINE 1: TABLE mytab;
-              ^
+     foo      
+--------------
+ (1,2,3)
+ (-44,5.5,12)
+(2 rows)
+
 -- and test format_type() a bit more, too
 select format_type('varchar'::regtype, 42);
       format_type      

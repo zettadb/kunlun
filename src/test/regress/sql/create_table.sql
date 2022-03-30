@@ -137,7 +137,7 @@ drop table if exists stud_emp;
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE stud_emp (
 	name 		text,
-	age			int4,`
+	age			int4,
 	salary 		int4,
 	manager 	name,
 	gpa 		float8,

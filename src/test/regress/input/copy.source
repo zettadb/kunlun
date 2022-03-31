@@ -17,6 +17,7 @@ COPY onek FROM '@abs_builddir@/results/onek.data';
 
 COPY tenk1 FROM '@abs_srcdir@/data/tenk.data';
 
+CREATE temp TABLE  slow_emp4000 (home_base box);
 COPY slow_emp4000 FROM '@abs_srcdir@/data/rect.data';
 
 COPY person FROM '@abs_srcdir@/data/person.data';
@@ -27,8 +28,14 @@ COPY student FROM '@abs_srcdir@/data/student.data';
 
 COPY stud_emp FROM '@abs_srcdir@/data/stud_emp.data';
 
+CREATE temp TABLE road (name	text,thepath 	path);
 COPY road FROM '@abs_srcdir@/data/streets.data';
 
+CREATE  temp TABLE real_city (
+	pop			int4,
+	cname		text,
+	outline 	path
+);
 COPY real_city FROM '@abs_srcdir@/data/real_city.data';
 
 COPY hash_i4_heap FROM '@abs_srcdir@/data/hash.data';
@@ -39,6 +46,8 @@ COPY hash_txt_heap FROM '@abs_srcdir@/data/hash.data';
 
 COPY hash_f8_heap FROM '@abs_srcdir@/data/hash.data';
 
+
+CREATE temp TABLE IF NOT EXISTS test_tsvector(t text,a tsvector);
 COPY test_tsvector FROM '@abs_srcdir@/data/tsearch.data';
 
 COPY testjsonb FROM '@abs_srcdir@/data/jsonb.data';
@@ -58,34 +67,19 @@ COPY bt_txt_heap FROM '@abs_srcdir@/data/desc.data';
 
 COPY bt_f8_heap FROM '@abs_srcdir@/data/hash.data';
 
+CREATE temp TABLE array_op_test (
+	seqno		int4,
+	i			int4[],
+	t			text[]
+);
 COPY array_op_test FROM '@abs_srcdir@/data/array.data';
 
+CREATE temp  TABLE array_index_op_test (
+	seqno		int4,
+	i			int4[],
+	t			text[]
+);
 COPY array_index_op_test FROM '@abs_srcdir@/data/array.data';
-
--- analyze all the data we just loaded, to ensure plan consistency
--- in later tests
-
-ANALYZE aggtest;
-ANALYZE onek;
-ANALYZE tenk1;
-ANALYZE slow_emp4000;
-ANALYZE person;
-ANALYZE emp;
-ANALYZE student;
-ANALYZE stud_emp;
-ANALYZE road;
-ANALYZE real_city;
-ANALYZE hash_i4_heap;
-ANALYZE hash_name_heap;
-ANALYZE hash_txt_heap;
-ANALYZE hash_f8_heap;
-ANALYZE test_tsvector;
-ANALYZE bt_i4_heap;
-ANALYZE bt_name_heap;
-ANALYZE bt_txt_heap;
-ANALYZE bt_f8_heap;
-ANALYZE array_op_test;
-ANALYZE array_index_op_test;
 
 --- test copying in CSV mode with various styles
 --- of embedded line ending characters
@@ -108,7 +102,7 @@ copy copytest2 from '@abs_builddir@/results/copytest.csv' csv;
 
 select * from copytest except select * from copytest2;
 
-truncate copytest2;
+delete from copytest2;
 
 --- same test but with an escape char different from quote char
 
@@ -141,11 +135,10 @@ create table parted_copytest (
 	c text
 ) partition by list (b);
 
-create table parted_copytest_a1 (c text, b int, a int);
-create table parted_copytest_a2 (a int, c text, b int);
-
-alter table parted_copytest attach partition parted_copytest_a1 for values in(1);
-alter table parted_copytest attach partition parted_copytest_a2 for values in(2);
+create table parted_copytest_a1 partition of parted_copytest for values in (1);
+create table parted_copytest_a2 partition of parted_copytest for values in (2);
+--alter table parted_copytest attach partition parted_copytest_a1 for values in(1);
+--alter table parted_copytest attach partition parted_copytest_a2 for values in(2);
 
 -- We must insert enough rows to trigger multi-inserts.  These are only
 -- enabled adaptively when there are few enough partition changes.
@@ -157,7 +150,7 @@ copy (select * from parted_copytest order by a) to '@abs_builddir@/results/parte
 
 -- Ensure COPY FREEZE errors for partitioned tables.
 begin;
-truncate parted_copytest;
+delete from parted_copytest;
 copy parted_copytest from '@abs_builddir@/results/parted_copytest.csv' (freeze);
 rollback;
 

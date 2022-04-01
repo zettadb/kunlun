@@ -428,9 +428,9 @@ UPDATE FLOAT8_TBL
    WHERE FLOAT8_TBL.f1 > '0.0';
 UPDATE 3
 SELECT '' AS bad, f.f1 * '1e200' from FLOAT8_TBL f;
-psql:sql/float8.sql:136: ERROR:  Kunlun-db: Shard (2) primary node(2) encountered error (1690, DOUBLE value is out of range in '(`regress_$$_public`.`f`.`f1` * 1e+200)') while fetching result rows.
+psql:sql/float8.sql:136: ERROR:  Kunlun-db: Shard (1) primary node(1) encountered error (1690, DOUBLE value is out of range in '(`regress_$$_public`.`f`.`f1` * 1e+200)') while fetching result rows.
 SELECT '' AS bad, f.f1 ^ '1e200' from FLOAT8_TBL f;
-psql:sql/float8.sql:138: ERROR:  Kunlun-db: Shard (2) primary node(2) encountered error (1690, DOUBLE value is out of range in 'pow(`regress_$$_public`.`f`.`f1`,1e+200)') while fetching result rows.
+psql:sql/float8.sql:138: ERROR:  Kunlun-db: Shard (1) primary node(1) encountered error (1690, DOUBLE value is out of range in 'pow(`regress_$$_public`.`f`.`f1`,1e+200)') while fetching result rows.
 SELECT 0 ^ 0 + 0 ^ 1 + 0 ^ 0.0 + 0 ^ 0.5;
  ?column? 
 ----------

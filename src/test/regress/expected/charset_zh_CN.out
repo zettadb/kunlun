@@ -19,7 +19,6 @@ REVOKE
 drop user 太阳;
 DROP ROLE
 --select * from pg_user;
-
 CREATE SCHEMA 地球;
 CREATE SCHEMA
 --SELECT * FROM pg_namespace;
@@ -31,16 +30,14 @@ select * from 地球.中国;
 (0 rows)
 
 \d
-psql:sql/charset_zh_CN.sql:17: error: Did not find any relations.
+psql:sql/charset_zh_CN.sql:17: Did not find any relations.
 drop schema 地球  CASCADE;
 psql:sql/charset_zh_CN.sql:18: NOTICE:  drop cascades to table "地球"."中国"
 DROP SCHEMA
 --SELECT * FROM pg_namespace;
-
 --CREATE TABLE--
 create table 个人表(编号 integer primary key, 姓名 varchar(10),年龄 serial,身高 text);
 CREATE TABLE
-
 --alter table--
 alter table 个人表  rename to 信息表;
 ALTER TABLE
@@ -83,7 +80,6 @@ ALTER TABLE
  身高   | text                  |           |          | 
 Indexes:
     "个人表_pkey" PRIMARY KEY, btree ("编号")
-
 
 alter table 信息表  add 性别 int NULL;
 ALTER TABLE
@@ -136,9 +132,7 @@ ALTER TABLE
 Indexes:
     "个人表_pkey" PRIMARY KEY, btree ("编号")
 
-
 --alter table 信息表 add constraint 性别 check(2) (性别='男' or 性别='女') (性别);  #暂时不支持check
-
 --INSERT into-- 
 insert into 信息表(编号,姓名,性别,爱好,地址) values(1,'张三','男','乒乓球','上海');
 INSERT 0 1
@@ -164,7 +158,6 @@ select * from 信息表;
     7 | 张霸 | 男   | 篮球   | 
 (7 rows)
 
-
 --noll--
 SELECT * FROM 信息表 WHERE 地址 IS   NOT NULL;
  编号 | 姓名 | 性别 |  爱好  | 地址 
@@ -183,7 +176,6 @@ SELECT * FROM 信息表 WHERE 地址 IS  NULL;
     7 | 张霸 | 男   | 篮球 | 
 (1 row)
 
-
 --UPDATE --
 update 信息表 set 爱好 ='爬山'  where 编号 = 6;
 UPDATE 1
@@ -200,7 +192,6 @@ select * from 信息表;
     6 | 李舞 | 女   | 爬山   | 重庆
     7 | 张霸 | 男   | 蹦极   | 广东
 (7 rows)
-
 
 --select--
 select 姓名,爱好 from 信息表;
@@ -292,7 +283,6 @@ select * from 信息表 where 性别='女' or 爱好='乒乓球';
     6 | 李舞 | 女   | 爬山   | 重庆
 (4 rows)
 
-
 select * from 信息表 where 姓名 like '陈%';
  编号 | 姓名 | 性别 | 爱好 | 地址 
 ------+------+------+------+------
@@ -336,15 +326,11 @@ select * from 信息表 order by 编号 desc;
     1 | 张三 | 男   | 乒乓球 | 上海
 (7 rows)
 
-
-
 create table 个人表(编号 integer primary key, 姓名 varchar(10),工资 integer,工作 text);
 CREATE TABLE
-
 insert into 个人表(编号,姓名,工资,工作) values(1,'张三',15000,'内科'),(2,'李四',18000,'内科'),(3,'王五',25000,'外科'),(4,'陈六',25000,'外科'),
 (5,'陈琪',10000,'前台'),(6,'李舞',15000,'外科'),(7,'张霸',20000 ,'内科');
 INSERT 0 7
-
 SELECT 姓名,SUM(工资) FROM 个人表 GROUP BY 姓名 ORDER BY 姓名;
  姓名 |  sum  
 ------+-------
@@ -421,11 +407,8 @@ select * from  个人表 where 编号 in (select 编号 from 个人表 where 工
     4 | 陈六 | 25000 | 外科
 (2 rows)
 
-
-
 insert into 个人表(编号,姓名,工资,工作) values(8,'王发',45000,DEFAULT);
 INSERT 0 1
-
 select * from 个人表;
  编号 | 姓名 | 工资  | 工作 
 ------+------+-------+------
@@ -439,12 +422,8 @@ select * from 个人表;
     8 | 王发 | 45000 | 
 (8 rows)
 
-
 insert into 信息表(编号,姓名,性别,爱好,地址) values(9,'李珐','女','乒乓球','上海');
 INSERT 0 1
-
-
-
 select  一.编号,一.姓名,二.性别,一.工资,一.工作,二.地址,二.爱好  
 from 个人表 as 一 inner  join 信息表 as 二 
 on 一.编号=二.编号;
@@ -458,7 +437,6 @@ on 一.编号=二.编号;
     6 | 李舞 | 女   | 15000 | 外科 | 重庆 | 爬山
     7 | 张霸 | 男   | 20000 | 内科 | 广东 | 蹦极
 (7 rows)
-
 
 select  一.编号,一.姓名,二.性别,一.工资,一.工作,二.地址,二.爱好  
 from 个人表 as 一 right outer join 信息表 as 二 
@@ -475,7 +453,6 @@ on 一.编号=二.编号;
       |      | 女   |       |      | 上海 | 乒乓球
 (8 rows)
 
-
 select  一.编号,一.姓名,二.性别,一.工资,一.工作,二.地址,二.爱好  
 from 个人表 as 一 left outer join 信息表 as 二 
 on 一.编号=二.编号;
@@ -490,8 +467,6 @@ on 一.编号=二.编号;
     7 | 张霸 | 男   | 20000 | 内科 | 广东 | 蹦极
     8 | 王发 |      | 45000 |      |      | 
 (8 rows)
-
-
 
 --CREATE INDEX--
 create index 姓名索引 on 个人表 (姓名);
@@ -552,7 +527,6 @@ DROP INDEX
 Indexes:
     "个人表_pkey1" PRIMARY KEY, btree ("编号")
 
-
 --view--
 CREATE VIEW 个人表_视图 AS select 编号,姓名,工作 from 个人表;
 CREATE VIEW
@@ -584,9 +558,7 @@ DROP VIEW
 --create table 个人表二 as select * from 个人表
 --\d 个人表二
 --select * from 个人表二;
-
 --删除--
-
 select * from 个人表;
  编号 | 姓名 | 工资  | 工作 
 ------+------+-------+------
@@ -656,7 +628,6 @@ select * from 信息表;
     9 | 李珐 | 女   | 乒乓球 | 上海
 (2 rows)
 
-
 --truncate table 信息表; 暂时不支持
 --\d 信息表
 delete from 个人表;
@@ -685,9 +656,6 @@ DELETE 2
  地址   | text                  |           |          | 
 Indexes:
     "个人表_pkey" PRIMARY KEY, btree ("编号")
-
-
-
 
 drop table 信息表;
 DROP TABLE

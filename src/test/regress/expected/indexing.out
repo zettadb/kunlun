@@ -271,7 +271,7 @@ Indexes:
     "idxpart1_a_idx" btree (a)
 
 \d idxpart2
-        Partitioned table "public.idxpart2"
+              Table "public.idxpart2"
  Column |  Type   | Collation | Nullable | Default 
 --------+---------+-----------+----------+---------
  a      | integer |           |          | 
@@ -314,7 +314,7 @@ where indexrelid::regclass::text like 'idxpart%'
 
 -- attaching idxpart22 is not enough to set idxpart22_a_idx valid ...
 \d idxpart2
-        Partitioned table "public.idxpart2"
+              Table "public.idxpart2"
  Column |  Type   | Collation | Nullable | Default 
 --------+---------+-----------+----------+---------
  a      | integer |           |          | 
@@ -328,7 +328,7 @@ Number of partitions: 2 (Use \d+ to list them.)
 create index on idxpart21 (a);
 CREATE INDEX
 \d idxpart2
-        Partitioned table "public.idxpart2"
+              Table "public.idxpart2"
  Column |  Type   | Collation | Nullable | Default 
 --------+---------+-----------+----------+---------
  a      | integer |           |          | 
@@ -722,7 +722,7 @@ DROP TABLE
 create table idxpart (a int primary key, b int) partition by range (a);
 CREATE TABLE
 \d idxpart
-        Partitioned table "public.idxpart"
+              Table "public.idxpart"
  Column |  Type   | Collation | Nullable | Default 
 --------+---------+-----------+----------+---------
  a      | integer |           | not null | 
@@ -792,7 +792,7 @@ DETAIL:  PRIMARY KEY constraint on table "idxpart" lacks column "b" which is par
 alter table idxpart add primary key (a, b);	-- this works
 ALTER TABLE
 \d idxpart
-        Partitioned table "public.idxpart"
+              Table "public.idxpart"
  Column |  Type   | Collation | Nullable | Default 
 --------+---------+-----------+----------+---------
  a      | integer |           | not null | 
@@ -827,7 +827,7 @@ DETAIL:  UNIQUE constraint on table "idxpart" lacks column "b" which is part of 
 alter table idxpart add unique (b, a);		-- this works
 ALTER TABLE
 \d idxpart
-        Partitioned table "public.idxpart"
+              Table "public.idxpart"
  Column |  Type   | Collation | Nullable | Default 
 --------+---------+-----------+----------+---------
  a      | integer |           |          | 
@@ -990,7 +990,7 @@ CREATE INDEX
 insert into fastpath values (1, 'b1', 100.00);
 INSERT 0 1
 insert into fastpath values (1, 'b1', 100.00); -- unique key check
-psql:sql/indexing.sql:426: ERROR:  Kunlun-db: MySQL storage node (2, 2) returned error: 1062, Duplicate entry '1' for key 'fastpath.fpindex1'.
+psql:sql/indexing.sql:426: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '1' for key 'fastpath.fpindex1'.
 delete from fastpath;
 DELETE 1
 insert into fastpath select generate_series(1,10000), 'b', 100;

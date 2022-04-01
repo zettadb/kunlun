@@ -4,13 +4,10 @@
 --Composite Types 组合类型
 --Arrays  数组
 --Geometric Types 几何类型
-
 --XML Type--XML类型 需要编译时,插入--with-libxml参数
 --DETAIL:  This functionality requires the server to be built with libxml support.
 --HINT:  You need to rebuild PostgreSQL using --with-libxml.
 -- ./configure --with-libxml  gmake && gmake install 
-
-
 --Numeric Types--
 drop table if exists t1;
 DROP TABLE
@@ -95,7 +92,6 @@ select * from t1;
 
 delete  from  t1 where c=56;
 DELETE 1
-
 --serial
 UPDATE t1 set id='99' where c=100;
 UPDATE 1
@@ -109,10 +105,8 @@ select * from t1 order by id ;
 
 delete  from  t1 where id=99;
 DELETE 1
-
 drop table t1;
 DROP TABLE
-
 --Arbitrary Precision Numbers 任意精度数字
 drop table if exists t2;
 psql:sql/datatypes_simple.sql:56: NOTICE:  table "t2" does not exist, skipping
@@ -174,9 +168,7 @@ delete  from  t2 where c=33;
 DELETE 1
 drop table t2;
 DROP TABLE
-
 --Floating-Point Types and Serial Types -- 浮点和序数
-
 drop table if exists t3;
 psql:sql/datatypes_simple.sql:82: NOTICE:  table "t3" does not exist, skipping
 DROP TABLE
@@ -229,8 +221,6 @@ select * from t3 order by id ;
 
 delete  from  t3 where id=4;
 DELETE 2
-
-
 --real
 UPDATE t3 set a='333' where id=1;
 UPDATE 1
@@ -265,8 +255,6 @@ delete  from  t3 where b=666;
 DELETE 1
 drop table t3;
 DROP TABLE
-
-
 --Monetary Types--
 drop table if exists t4;
 psql:sql/datatypes_simple.sql:113: NOTICE:  table "t4" does not exist, skipping
@@ -311,9 +299,7 @@ select sum(a) from t4;
 
 drop table t4;
 DROP TABLE
-
 --Character Types 字符类型
-
 drop table if exists char_test;
 psql:sql/datatypes_simple.sql:130: NOTICE:  table "char_test" does not exist, skipping
 DROP TABLE
@@ -322,7 +308,6 @@ id int2,
 a char(4),
 b varchar(4));
 CREATE TABLE
-
 insert into char_test values(1,'abcd', 'qwer');
 INSERT 0 1
 insert into char_test values(2,'a', 'b');
@@ -354,7 +339,6 @@ select * from char_test ORDER by id;
 
 delete  from  char_test  where id=3;
 DELETE 1
-
 --varchar(4)
 UPDATE char_test set b='3333' where id=4;
 UPDATE 1
@@ -367,7 +351,6 @@ select  * from char_test ORDER by id;
   2 | a    | b
 (2 rows)
 
-
 SELECT a, char_length(a),b,char_length(b) FROM char_test;
   a   | char_length |  b   | char_length 
 ------+-------------+------+-------------
@@ -375,31 +358,24 @@ SELECT a, char_length(a),b,char_length(b) FROM char_test;
  a    |           1 | b    |           1
 (2 rows)
 
-
 drop table char_test;
 DROP TABLE
-
 --Binary Data Types 
 drop table if exists tab_bytea;
 psql:sql/datatypes_simple.sql:156: NOTICE:  table "tab_bytea" does not exist, skipping
 DROP TABLE
 CREATE TABLE tab_bytea(a bytea,b bytea);
 CREATE TABLE
-
 INSERT INTO tab_bytea VALUES('\047',E'\xF');
 INSERT 0 1
 UPDATE tab_bytea set a='\134' where a='\047';
 UPDATE 1
 delete  from  tab_bytea  where a='\134';
 DELETE 1
-
 --SELECT * FROM tab_bytea;
-
 drop table tab_bytea;
 DROP TABLE
-
 --Date/Time Types 日期/时间类型
-
 drop table if exists tab_date;
 psql:sql/datatypes_simple.sql:169: NOTICE:  table "tab_date" does not exist, skipping
 DROP TABLE
@@ -419,9 +395,7 @@ SET datestyle = 'MDY';
 SET
 INSERT INTO tab_date VALUES(DEFAULT,'10-26-2020');
 INSERT 0 1
-
 --在MDY风格下，也支持YMD的输入方式，但是不支持DMY或者其它格式的输入，如下会报错
-
 INSERT INTO tab_date VALUES(DEFAULT, '2021-10-28');
 INSERT 0 1
 SET datestyle = 'DMY';
@@ -443,11 +417,8 @@ delete from tab_date where a='2021-10-27';
 DELETE 1
 delete from tab_date where id=3;
 DELETE 1
-
-
 drop table tab_date;
 DROP TABLE
-
 --timestamp
 drop table if exists tab_timestamp;
 psql:sql/datatypes_simple.sql:191: NOTICE:  table "tab_timestamp" does not exist, skipping
@@ -473,8 +444,6 @@ delete from tab_timestamp where a='2021-10-27 03:20:34+08';
 DELETE 1
 drop table tab_timestamp;
 DROP TABLE
-
-
 --Boolean Type-- 布尔类型
 drop table if exists tab_boolean;
 psql:sql/datatypes_simple.sql:203: NOTICE:  table "tab_boolean" does not exist, skipping
@@ -535,65 +504,163 @@ delete from tab_boolean where a='no';
 DELETE 9
 drop table tab_boolean;
 DROP TABLE
-
 --Enumerated Types--  枚举类型
-
 CREATE TYPE mood AS ENUM ('sad', 'ok', 'happy');
 CREATE TYPE
 drop table if exists person;
-DROP TABLE
+psql:sql/datatypes_simple.sql:224: ERROR:  cannot drop table person because other objects depend on it
+DETAIL:  function hobbies(person) depends on type person
+HINT:  Use DROP ... CASCADE to drop the dependent objects too.
 CREATE TABLE person (id int2,a text,b mood);
-CREATE TABLE
+psql:sql/datatypes_simple.sql:225: ERROR:  relation "person" already exists
 INSERT INTO person VALUES (1,'Moe', 'happy');
-INSERT 0 1
+psql:sql/datatypes_simple.sql:226: ERROR:  INSERT has more expressions than target columns
+LINE 1: INSERT INTO person VALUES (1,'Moe', 'happy');
+                                            ^
 INSERT INTO person VALUES (2,'Larry', 'sad');
-INSERT 0 1
+psql:sql/datatypes_simple.sql:227: ERROR:  INSERT has more expressions than target columns
+LINE 1: INSERT INTO person VALUES (2,'Larry', 'sad');
+                                              ^
 INSERT INTO person VALUES (3,DEFAULT, DEFAULT);
-INSERT 0 1
+psql:sql/datatypes_simple.sql:228: ERROR:  INSERT has more expressions than target columns
+LINE 1: INSERT INTO person VALUES (3,DEFAULT, DEFAULT);
+                                              ^
 select * from person;
- id |   a   |   b   
-----+-------+-------
-  1 | Moe   | happy
-  2 | Larry | sad
-  3 |       | 
-(3 rows)
+  name   | age 
+---------+-----
+ mike    |  40
+ joe     |  20
+ sally   |  34
+ sandra  |  19
+ alex    |  30
+ sue     |  50
+ denise  |  24
+ sarah   |  88
+ teresa  |  38
+ nan     |  28
+ leah    |  68
+ wendy   |  78
+ melissa |  28
+ joan    |  18
+ mary    |   8
+ jane    |  58
+ liza    |  38
+ jean    |  28
+ jenifer |  38
+ juanita |  58
+ susan   |  78
+ zena    |  98
+ martie  |  88
+ chris   |  78
+ pat     |  18
+ zola    |  58
+ louise  |  98
+ edna    |  18
+ bertha  |  88
+ sumi    |  38
+ koko    |  88
+ gina    |  18
+ rean    |  48
+ sharon  |  78
+ paula   |  68
+ julie   |  68
+ belinda |  38
+ karen   |  48
+ carina  |  58
+ diane   |  18
+ esther  |  98
+ trudy   |  88
+ fanny   |   8
+ carmen  |  78
+ lita    |  25
+ pamela  |  48
+ sandy   |  38
+ trisha  |  88
+ uma     |  78
+ velma   |  68
+(50 rows)
 
 UPDATE person set a='Curly' where id=3;
-UPDATE 1
+psql:sql/datatypes_simple.sql:230: ERROR:  column "id" does not exist
+LINE 1: UPDATE person set a='Curly' where id=3;
+                                          ^
 UPDATE person set b='ok' where id=3;
-UPDATE 1
+psql:sql/datatypes_simple.sql:231: ERROR:  column "id" does not exist
+LINE 1: UPDATE person set b='ok' where id=3;
+                                       ^
 select * from person;
- id |   a   |   b   
-----+-------+-------
-  1 | Moe   | happy
-  2 | Larry | sad
-  3 | Curly | ok
-(3 rows)
+  name   | age 
+---------+-----
+ mike    |  40
+ joe     |  20
+ sally   |  34
+ sandra  |  19
+ alex    |  30
+ sue     |  50
+ denise  |  24
+ sarah   |  88
+ teresa  |  38
+ nan     |  28
+ leah    |  68
+ wendy   |  78
+ melissa |  28
+ joan    |  18
+ mary    |   8
+ jane    |  58
+ liza    |  38
+ jean    |  28
+ jenifer |  38
+ juanita |  58
+ susan   |  78
+ zena    |  98
+ martie  |  88
+ chris   |  78
+ pat     |  18
+ zola    |  58
+ louise  |  98
+ edna    |  18
+ bertha  |  88
+ sumi    |  38
+ koko    |  88
+ gina    |  18
+ rean    |  48
+ sharon  |  78
+ paula   |  68
+ julie   |  68
+ belinda |  38
+ karen   |  48
+ carina  |  58
+ diane   |  18
+ esther  |  98
+ trudy   |  88
+ fanny   |   8
+ carmen  |  78
+ lita    |  25
+ pamela  |  48
+ sandy   |  38
+ trisha  |  88
+ uma     |  78
+ velma   |  68
+(50 rows)
 
 SELECT * FROM person WHERE b > 'sad';
- id |   a   |   b   
-----+-------+-------
-  1 | Moe   | happy
-  3 | Curly | ok
-(2 rows)
-
+psql:sql/datatypes_simple.sql:233: ERROR:  column "b" does not exist
+LINE 1: SELECT * FROM person WHERE b > 'sad';
+                                   ^
 SELECT * FROM person WHERE b > 'sad' ORDER BY b;
- id |   a   |   b   
-----+-------+-------
-  3 | Curly | ok
-  1 | Moe   | happy
-(2 rows)
-
+psql:sql/datatypes_simple.sql:234: ERROR:  column "b" does not exist
+LINE 1: SELECT * FROM person WHERE b > 'sad' ORDER BY b;
+                                   ^
 delete from person where b='ok';
-DELETE 1
-
+psql:sql/datatypes_simple.sql:235: ERROR:  column "b" does not exist
+LINE 1: delete from person where b='ok';
+                                 ^
 drop table person;
-DROP TABLE
+psql:sql/datatypes_simple.sql:237: ERROR:  cannot drop table person because other objects depend on it
+DETAIL:  function hobbies(person) depends on type person
+HINT:  Use DROP ... CASCADE to drop the dependent objects too.
 DROP TYPE mood; 
 DROP TYPE
-
-
-
 --Network Address Types-- 网络地址类型
 drop table if exists tab_icm;
 psql:sql/datatypes_simple.sql:243: NOTICE:  table "tab_icm" does not exist, skipping
@@ -632,15 +699,12 @@ delete from tab_icm where a='10/8';
 DELETE 1
 drop table tab_icm;
 DROP TABLE
-
-
 -- Bit String Types--位串类型
 drop table if exists tab_bit_string;
 psql:sql/datatypes_simple.sql:258: NOTICE:  table "tab_bit_string" does not exist, skipping
 DROP TABLE
 CREATE TABLE tab_bit_string (id int2,a BIT(3), b BIT VARYING(5));
 CREATE TABLE
-
 INSERT INTO tab_bit_string VALUES (1,B'101', B'00');
 INSERT 0 1
 INSERT INTO tab_bit_string VALUES (2,B'10'::bit(3), B'101');
@@ -651,7 +715,6 @@ select * from tab_bit_string;
   1 | 101 | 00000
   2 | 100 | 00101
 (2 rows)
-
 
 UPDATE tab_bit_string set b=B'11011' where id=1; 
 psql:sql/datatypes_simple.sql:265: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1406, Data too long for column 'b' at row 1.
@@ -664,7 +727,6 @@ select * from tab_bit_string order by id;
 
 delete from tab_bit_string where id =2;
 DELETE 1
-
 SELECT * FROM tab_bit_string;
  id |  a  |   b   
 ----+-----+-------
@@ -673,10 +735,6 @@ SELECT * FROM tab_bit_string;
 
 drop table tab_bit_string;
 DROP TABLE
-
-
-
-
 --JSON Types
 drop table if exists tab_json;
 psql:sql/datatypes_simple.sql:276: NOTICE:  table "tab_json" does not exist, skipping
@@ -688,7 +746,6 @@ INSERT 0 1
  
 INSERT INTO tab_json VALUES(2,'{"四川省": "成都市", "湖北省": "武汉市", "陕西省": "西安市"}');
 INSERT 0 1
-
 SELECT * FROM tab_json;
  id |                              a                               
 ----+--------------------------------------------------------------
@@ -709,8 +766,6 @@ delete from tab_json where id =2;
 DELETE 1
 drop table tab_json;
 DROP TABLE
-
-
  
 --pg_lsn Type pg_lsn 类型
 drop table if exists tab_pg_lsn;
@@ -728,7 +783,6 @@ delete from tab_pg_lsn where id =2;
 DELETE 1
 drop table tab_pg_lsn;
 DROP TABLE
-
  
 --Object Identifier Types 对象标识符类型
 drop table if exists tab_oid;
@@ -765,8 +819,6 @@ select * from tab_oid order by id;
 
 drop table tab_oid;
 DROP TABLE
-
-
 --UUID Type-- UUID类型
 drop table if exists tab_uuid;
 psql:sql/datatypes_simple.sql:315: NOTICE:  table "tab_uuid" does not exist, skipping
@@ -784,7 +836,6 @@ select * from tab_uuid;
   2 | a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11
 (2 rows)
 
-
 UPDATE tab_uuid set a='22222222-2222-2222-2222-222222222222' where id=1;
 UPDATE 1
 delete from tab_uuid where id =2;
@@ -797,8 +848,6 @@ select * from tab_uuid;
 
 drop table tab_uuid;
 DROP TABLE
-
-
 -- XML Type--XML类型
 --drop table if exists tab_xml;
 --create table tab_xml(id int2, a xml);
@@ -809,8 +858,6 @@ DROP TABLE
 --UPDATE tab_xml set a='<value>four</value>' where id=2;
 --delete from tab_xml where id =2;
 --drop table tab_xml;
-
-
 --Range Types  范围类型
 --drop table if exists tab_range;
 --create table tab_range(id int2,a int4range,b int8range,c numrange);
@@ -823,7 +870,6 @@ DROP TABLE
 --select * from tab_range order by id;
 --delete from tab_range where a='[1,9]';
 --drop table tab_range;
-
 --drop table if exists tab_range2;
 --create table tab_range2(id int2,a tsrange,b tstzrange,c daterange);
 --insert into tab_range2 VALUES(1,
@@ -833,8 +879,6 @@ DROP TABLE
 --UPDATE tab_range2 set c='[2020-01-01,2021-01-01]' where id=1;
 --delete from tab_range2 where id=1;
 --drop table tab_range2;
-
-
 --Domain Types 域类型
 --CREATE DOMAIN posint AS integer CHECK (VALUE > 0);
 --drop table if exists mytable;
@@ -847,8 +891,6 @@ DROP TABLE
 --delete from mytable where id =2;
 --drop table mytable;
 --drop domain posint;
-
-
 --Arrays  数组
 --drop table if exists tab_array;
 --CREATE TABLE tab_array(id int2,a text[],b integer[][],c integer ARRAY[3]);
@@ -872,22 +914,13 @@ DROP TABLE
 --    supplier_id     integer,
 --    price           numeric
 --);
-
-
 --CREATE FUNCTION price_extension(tab_com, integer) RETURNS numeric
 --AS 'SELECT $1.price * $2' LANGUAGE SQL;
-
-
 --CREATE TABLE on_hand ( item      tab_com, count     integer);
-
 --INSERT INTO on_hand VALUES (ROW('fuzzy dice', 42, 1.99), 1000);
-
 --SELECT price_extension(item, 10) FROM on_hand;
-
 --SELECT * FROM on_hand;
 --drop table on_hand;
-
-
 --Geometric Types 几何类型
 --drop table if exists tab_geometric;
 --CREATE TABLE tab_geometric(id int2,a point,b lseg,c box,d path,e path,f polygon,j circle);
@@ -899,8 +932,4 @@ DROP TABLE
 --'((1,2),(2,3),(2,4),(1,3),(0,2))',
 --'<(2,3),3>');
 --SELECT * FROM tab_geometric;
-
 --drop table tab_geometric;
-
-
-

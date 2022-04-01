@@ -247,41 +247,12 @@ SELECT *, pg_typeof(f1) FROM
 
 -- ... unless there's context to suggest differently
 explain (verbose, costs off) select '42' union all select '43';
-         QUERY PLAN         
-----------------------------
- Append
-   ->  Result
-         Output: '42'::text
-   ->  Result
-         Output: '43'::text
-(5 rows)
 
 explain (verbose, costs off) select '42' union all select 43;
-     QUERY PLAN     
---------------------
- Append
-   ->  Result
-         Output: 42
-   ->  Result
-         Output: 43
-(5 rows)
 
 -- check materialization of an initplan reference (bug #14524)
 explain (verbose, costs off)
 select 1 = all (select (select 1));
-            QUERY PLAN             
------------------------------------
- Result
-   Output: (SubPlan 2)
-   SubPlan 2
-     ->  Materialize
-           Output: ($0)
-           InitPlan 1 (returns $0)
-             ->  Result
-                   Output: 1
-           ->  Result
-                 Output: $0
-(10 rows)
 
 select 1 = all (select (select 1));
  ?column? 
@@ -295,43 +266,14 @@ select 1 = all (select (select 1));
 explain (costs off)
 select * from int4_tbl o where exists
   (select 1 from int4_tbl i where i.f1=o.f1 limit null);
-                                     QUERY PLAN                                     
-------------------------------------------------------------------------------------
- Nested Loop Semi Join
-   Join Filter: (o.f1 = i.f1)
-   ->  RemoteScan on int4_tbl o
-         Shard: 1        Remote SQL: select  o.f1 from regress_$$_public.int4_tbl o
-   ->  RemoteScan on int4_tbl i
-         Shard: 1        Remote SQL: select  i.f1 from regress_$$_public.int4_tbl i
-(6 rows)
 
 explain (costs off)
 select * from int4_tbl o where not exists
   (select 1 from int4_tbl i where i.f1=o.f1 limit 1);
-                                     QUERY PLAN                                     
-------------------------------------------------------------------------------------
- Nested Loop Anti Join
-   Join Filter: (i.f1 = o.f1)
-   ->  RemoteScan on int4_tbl o
-         Shard: 1        Remote SQL: select  o.f1 from regress_$$_public.int4_tbl o
-   ->  RemoteScan on int4_tbl i
-         Shard: 1        Remote SQL: select  i.f1 from regress_$$_public.int4_tbl i
-(6 rows)
 
 explain (costs off)
 select * from int4_tbl o where exists
   (select 1 from int4_tbl i where i.f1=o.f1 limit 0);
-                                         QUERY PLAN                                         
---------------------------------------------------------------------------------------------
- RemoteScan on int4_tbl o
-   Filter: (SubPlan 1)
-   Shard: 1      Remote SQL: select  o.f1 from regress_$$_public.int4_tbl o
-   SubPlan 1
-     ->  Limit
-           ->  RemoteScan on int4_tbl i
-                 Filter: (f1 = o.f1)
-                 Shard: 1        Remote SQL: select  i.f1 from regress_$$_public.int4_tbl i
-(8 rows)
 
 --
 -- Test cases to catch unpleasant interactions between IN-join processing
@@ -342,7 +284,7 @@ select count(*) from
    where unique1 IN (select hundred from tenk1 b)) ss;
  count 
 -------
-   100
+     0
 (1 row)
 
 select count(distinct ss.ten) from
@@ -350,7 +292,7 @@ select count(distinct ss.ten) from
    where unique1 IN (select hundred from tenk1 b)) ss;
  count 
 -------
-    10
+     0
 (1 row)
 
 select count(*) from
@@ -358,7 +300,7 @@ select count(*) from
    where unique1 IN (select distinct hundred from tenk1 b)) ss;
  count 
 -------
-   100
+     0
 (1 row)
 
 select count(distinct ss.ten) from
@@ -366,7 +308,7 @@ select count(distinct ss.ten) from
    where unique1 IN (select distinct hundred from tenk1 b)) ss;
  count 
 -------
-    10
+     0
 (1 row)
 
 --
@@ -577,9 +519,9 @@ select * from (
   select max(unique1) from tenk1 as a
   where exists (select 1 from tenk1 as b where b.thousand = a.unique2)
 ) ss;
- max  
-------
- 9997
+ max 
+-----
+    
 (1 row)
 
 select * from (
@@ -588,7 +530,7 @@ select * from (
 ) ss;
  min 
 -----
-   0
+    
 (1 row)
 
 --
@@ -806,17 +748,6 @@ select * from outer_7597 where (f1, f2) not in (select * from inner_7597);
 --
 explain (verbose, costs off)
 select 'foo'::text in (select 'bar'::name union all select 'bar'::name);
-             QUERY PLAN              
--------------------------------------
- Result
-   Output: (hashed SubPlan 1)
-   SubPlan 1
-     ->  Append
-           ->  Result
-                 Output: 'bar'::name
-           ->  Result
-                 Output: 'bar'::name
-(8 rows)
 
 select 'foo'::text in (select 'bar'::name union all select 'bar'::name);
  ?column? 
@@ -851,63 +782,18 @@ where a.thousand = b.thousand
 explain (verbose, costs off)
   select x, x from
     (select (select now()) as x from (values(1),(2)) v(y)) ss;
-        QUERY PLAN         
----------------------------
- Values Scan on "*VALUES*"
-   Output: $0, $1
-   InitPlan 1 (returns $0)
-     ->  Result
-           Output: now()
-   InitPlan 2 (returns $1)
-     ->  Result
-           Output: now()
-(8 rows)
 
 explain (verbose, costs off)
   select x, x from
     (select (select random()) as x from (values(1),(2)) v(y)) ss;
-            QUERY PLAN            
-----------------------------------
- Subquery Scan on ss
-   Output: ss.x, ss.x
-   ->  Values Scan on "*VALUES*"
-         Output: $0
-         InitPlan 1 (returns $0)
-           ->  Result
-                 Output: random()
-(7 rows)
 
 explain (verbose, costs off)
   select x, x from
     (select (select now() where y=y) as x from (values(1),(2)) v(y)) ss;
-                              QUERY PLAN                              
-----------------------------------------------------------------------
- Values Scan on "*VALUES*"
-   Output: (SubPlan 1), (SubPlan 2)
-   SubPlan 1
-     ->  Result
-           Output: now()
-           One-Time Filter: ("*VALUES*".column1 = "*VALUES*".column1)
-   SubPlan 2
-     ->  Result
-           Output: now()
-           One-Time Filter: ("*VALUES*".column1 = "*VALUES*".column1)
-(10 rows)
 
 explain (verbose, costs off)
   select x, x from
     (select (select random() where y=y) as x from (values(1),(2)) v(y)) ss;
-                                 QUERY PLAN                                 
-----------------------------------------------------------------------------
- Subquery Scan on ss
-   Output: ss.x, ss.x
-   ->  Values Scan on "*VALUES*"
-         Output: (SubPlan 1)
-         SubPlan 1
-           ->  Result
-                 Output: random()
-                 One-Time Filter: ("*VALUES*".column1 = "*VALUES*".column1)
-(8 rows)
 
 --
 -- Check we behave sanely in corner case of empty SELECT list (bug #8648)
@@ -957,31 +843,13 @@ explain (verbose, costs off)
 select * from int4_tbl where
   (case when f1 in (select unique1 from tenk1 a) then f1 else null end) in
   (select ten from tenk1 b);
-                                                                                                                    QUERY PLAN                                                                                                                    
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Nested Loop Semi Join
-   Output: int4_tbl.f1
-   Join Filter: (CASE WHEN (hashed SubPlan 1) THEN int4_tbl.f1 ELSE NULL::integer END = b.ten)
-   ->  RemoteScan on public.int4_tbl
-         Output: int4_tbl.f1
-         Shard: 1        Remote SQL: select  int4_tbl.f1 from regress_$$_public.int4_tbl int4_tbl
-   ->  RemoteScan on public.tenk1 b
-         Output: b.unique1, b.unique2, b.two, b.four, b.ten, b.twenty, b.hundred, b.thousand, b.twothousand, b.fivethous, b.tenthous, b.odd, b.even, b.stringu1, b.stringu2, b.string4
-         Shard: 1        Remote SQL: select  b.unique1, b.unique2, b.two, b.four, b.ten, b.twenty, b.hundred, b.thousand, b.twothousand, b.fivethous, b.tenthous, b.odd, b.even, b.stringu1, b.stringu2, b.string4 from regress_$$_public.tenk1 b
-   SubPlan 1
-     ->  RemoteScan on public.tenk1 a
-           Output: a.unique1
-           Shard: 1      Remote SQL: select  a.unique1 from regress_$$_public.tenk1 a
-(13 rows)
 
 select * from int4_tbl where
   (case when f1 in (select unique1 from tenk1 a) then f1 else null end) in
   (select ten from tenk1 b);
-psql:sql/subselect.sql:483: WARNING:  Rescan is called unexpectedly, so reset node->will_rewind to TRUE
  f1 
 ----
-  0
-(1 row)
+(0 rows)
 
 --
 -- Check for incorrect optimization when IN subquery contains a SRF
@@ -989,25 +857,6 @@ psql:sql/subselect.sql:483: WARNING:  Rescan is called unexpectedly, so reset no
 explain (verbose, costs off)
 select * from int4_tbl o where (f1, f1) in
   (select f1, generate_series(1,2) / 10 g from int4_tbl i group by f1);
-                                                    QUERY PLAN                                                    
-------------------------------------------------------------------------------------------------------------------
- Nested Loop Semi Join
-   Output: o.f1
-   Join Filter: (o.f1 = "ANY_subquery".f1)
-   ->  RemoteScan on public.int4_tbl o
-         Output: o.f1
-         Shard: 1        Remote SQL: select  o.f1 from regress_$$_public.int4_tbl o
-   ->  Subquery Scan on "ANY_subquery"
-         Output: "ANY_subquery".f1, "ANY_subquery".g
-         Filter: ("ANY_subquery".f1 = "ANY_subquery".g)
-         ->  Result
-               Output: i.f1, ((generate_series(1, 2)) / 10)
-               ->  ProjectSet
-                     Output: generate_series(1, 2), i.f1
-                     ->  RemoteScan on public.int4_tbl i
-                           Output: i.f1
-                           Shard: 1      Remote SQL: select  i.f1 from regress_$$_public.int4_tbl i GROUP BY i.f1
-(16 rows)
 
 select * from int4_tbl o where (f1, f1) in
   (select f1, generate_series(1,2) / 10 g from int4_tbl i group by f1);
@@ -1046,22 +895,12 @@ select * from
   order by 1;
  ten 
 -----
-   0
-   1
-   2
-   3
-   4
-   5
-   6
-   7
-   8
-   9
-(10 rows)
+(0 rows)
 
 select nextval('ts1');
  nextval 
 ---------
-      11
+       1
 (1 row)
 
 --
@@ -1079,15 +918,6 @@ explain (verbose, costs off)
 select * from
   (select 9 as x, unnest(array[1,2,3,11,12,13]) as u) ss
   where tattle(x, 8);
-                        QUERY PLAN                        
-----------------------------------------------------------
- Subquery Scan on ss
-   Output: x, u
-   Filter: tattle(ss.x, 8)
-   ->  ProjectSet
-         Output: 9, unnest('{1,2,3,11,12,13}'::integer[])
-         ->  Result
-(6 rows)
 
 select * from
   (select 9 as x, unnest(array[1,2,3,11,12,13]) as u) ss
@@ -1115,13 +945,6 @@ explain (verbose, costs off)
 select * from
   (select 9 as x, unnest(array[1,2,3,11,12,13]) as u) ss
   where tattle(x, 8);
-                     QUERY PLAN                     
-----------------------------------------------------
- ProjectSet
-   Output: 9, unnest('{1,2,3,11,12,13}'::integer[])
-   ->  Result
-         One-Time Filter: tattle(9, 8)
-(4 rows)
 
 select * from
   (select 9 as x, unnest(array[1,2,3,11,12,13]) as u) ss
@@ -1142,15 +965,6 @@ explain (verbose, costs off)
 select * from
   (select 9 as x, unnest(array[1,2,3,11,12,13]) as u) ss
   where tattle(x, u);
-                        QUERY PLAN                        
-----------------------------------------------------------
- Subquery Scan on ss
-   Output: x, u
-   Filter: tattle(ss.x, ss.u)
-   ->  ProjectSet
-         Output: 9, unnest('{1,2,3,11,12,13}'::integer[])
-         ->  Result
-(6 rows)
 
 select * from
   (select 9 as x, unnest(array[1,2,3,11,12,13]) as u) ss
@@ -1212,7 +1026,7 @@ select * from explain_sq_limit();
          ->  Sort (actual rows=3 loops=1)
                Sort Key: sq_limit.c1, sq_limit.pk
                ->  RemoteScan on sq_limit (actual rows=3 loops=1)
-                     Shard: 2    Remote SQL: select  sq_limit.pk, sq_limit.c2, sq_limit.c1 from regress_$$_public.sq_limit sq_limit ORDER BY 3 ASC, 1 ASC limit 3
+                     Shard: 1    Remote SQL: select  sq_limit.pk, sq_limit.c2, sq_limit.c1 from regress_$$_public.sq_limit sq_limit ORDER BY 3 ASC, 1 ASC limit 3
 (6 rows)
 
 select * from (select pk,c2 from sq_limit order by c1,pk) as x limit 3;

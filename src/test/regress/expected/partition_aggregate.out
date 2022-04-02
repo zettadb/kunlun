@@ -267,12 +267,12 @@ SELECT b.y, sum(a.y) FROM pagg_tab1 a LEFT JOIN pagg_tab2 b ON a.x = b.y GROUP B
 SELECT b.y, sum(a.y) FROM pagg_tab1 a LEFT JOIN pagg_tab2 b ON a.x = b.y GROUP BY b.y ORDER BY 1 NULLS LAST;
  y  | sum  
 ----+------
+    |  900
   0 |  500
   6 | 1100
  12 |  700
  18 | 1300
  24 |  900
-    |  900
 (6 rows)
 
 -- RIGHT JOIN, should produce full partitionwise aggregation plan as

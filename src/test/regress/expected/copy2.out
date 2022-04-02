@@ -538,7 +538,7 @@ CREATE FUNCTION
  Column |  Type   | Collation | Nullable | Default | Storage | Stats target | Description 
 --------+---------+-----------+----------+---------+---------+--------------+-------------
  f1     | integer |           |          |         | plain   |              | 
-Options: shard=2
+Options: shard=1
 
 copy check_con_tbl from stdin;
 COPY 2

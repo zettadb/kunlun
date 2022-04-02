@@ -349,7 +349,7 @@ INSERT 0 1
 -- test \d+ output on a table which has both partitioned and unpartitioned
 -- partitions
 \d+ list_parted
-                          Partitioned table "public.list_parted"
+                                Table "public.list_parted"
  Column |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+---------+-----------+----------+---------+----------+--------------+-------------
  a      | text    |           |          |         | extended |              | 
@@ -590,7 +590,7 @@ CREATE TABLE
 create table mcrparted8_ge_d partition of mcrparted for values from ('d', minvalue) to (maxvalue, maxvalue);
 CREATE TABLE
 \d+ mcrparted
-                           Partitioned table "public.mcrparted"
+                                 Table "public.mcrparted"
  Column |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+---------+-----------+----------+---------+----------+--------------+-------------
  a      | text    |           |          |         | extended |              | 
@@ -673,7 +673,7 @@ Options: shard=1
  b      | integer |           |          |         | plain    |              | 
 Partition of: mcrparted FOR VALUES FROM ('common', MAXVALUE) TO ('d', MINVALUE)
 Partition constraint: ((a IS NOT NULL) AND (b IS NOT NULL) AND (a > 'common'::text) AND (a < 'd'::text))
-Options: shard=2
+Options: shard=1
 
 \d+ mcrparted8_ge_d
                               Table "public.mcrparted8_ge_d"

@@ -95,7 +95,6 @@ test: case
 test: join
 test: aggregates
 test: transactions
-ignore: random
 test: random
 # test: portals
 test: arrays

@@ -23,11 +23,12 @@ explain (costs off)
 select round(avg(aa)), sum(aa) from a_star a1;
 
 -- Parallel Append with both partial and non-partial subplans
+-- Table *_star was not created in file create_table.sql
 --DDL_STATEMENT_BEGIN--
-alter table c_star set (parallel_workers = 0);
+--alter table c_star set (parallel_workers = 0);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-alter table d_star set (parallel_workers = 0);
+--alter table d_star set (parallel_workers = 0);
 --DDL_STATEMENT_END--
 explain (costs off)
   select round(avg(aa)), sum(aa) from a_star;
@@ -35,16 +36,16 @@ select round(avg(aa)), sum(aa) from a_star a2;
 
 -- Parallel Append with only non-partial subplans
 --DDL_STATEMENT_BEGIN--
-alter table a_star set (parallel_workers = 0);
+--alter table a_star set (parallel_workers = 0);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-alter table b_star set (parallel_workers = 0);
+--alter table b_star set (parallel_workers = 0);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-alter table e_star set (parallel_workers = 0);
+--alter table e_star set (parallel_workers = 0);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-alter table f_star set (parallel_workers = 0);
+--alter table f_star set (parallel_workers = 0);
 --DDL_STATEMENT_END--
 explain (costs off)
   select round(avg(aa)), sum(aa) from a_star;
@@ -52,22 +53,22 @@ select round(avg(aa)), sum(aa) from a_star a3;
 
 -- Disable Parallel Append
 --DDL_STATEMENT_BEGIN--
-alter table a_star reset (parallel_workers);
+--alter table a_star reset (parallel_workers);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-alter table b_star reset (parallel_workers);
+--alter table b_star reset (parallel_workers);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-alter table c_star reset (parallel_workers);
+--alter table c_star reset (parallel_workers);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-alter table d_star reset (parallel_workers);
+--alter table d_star reset (parallel_workers);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-alter table e_star reset (parallel_workers);
+--alter table e_star reset (parallel_workers);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-alter table f_star reset (parallel_workers);
+--alter table f_star reset (parallel_workers);
 --DDL_STATEMENT_END--
 set enable_parallel_append to off;
 explain (costs off)

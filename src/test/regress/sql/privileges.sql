@@ -999,109 +999,89 @@ SELECT has_sequence_privilege('x_seq', 'USAGE');
 SET SESSION AUTHORIZATION regress_priv_user1;
 --DDL_STATEMENT_END--
 
-SELECT lo_create(1001);
-SELECT lo_create(1002);
-SELECT lo_create(1003);
-SELECT lo_create(1004);
-SELECT lo_create(1005);
+-- kunlun-db: large object is not supported.
+--SELECT lo_create(1001);
+--SELECT lo_create(1002);
+--SELECT lo_create(1003);
+--SELECT lo_create(1004);
+--SELECT lo_create(1005);
 
---DDL_STATEMENT_BEGIN--
-GRANT ALL ON LARGE OBJECT 1001 TO PUBLIC;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-GRANT SELECT ON LARGE OBJECT 1003 TO regress_priv_user2;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-GRANT SELECT,UPDATE ON LARGE OBJECT 1004 TO regress_priv_user2;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-GRANT ALL ON LARGE OBJECT 1005 TO regress_priv_user2;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-GRANT SELECT ON LARGE OBJECT 1005 TO regress_priv_user2 WITH GRANT OPTION;
---DDL_STATEMENT_END--
 
---DDL_STATEMENT_BEGIN--
-GRANT SELECT, INSERT ON LARGE OBJECT 1001 TO PUBLIC;	-- to be failed
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-GRANT SELECT, UPDATE ON LARGE OBJECT 1001 TO nosuchuser;	-- to be failed
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-GRANT SELECT, UPDATE ON LARGE OBJECT  999 TO PUBLIC;	-- to be failed
---DDL_STATEMENT_END--
+--GRANT ALL ON LARGE OBJECT 1001 TO PUBLIC;
+--GRANT SELECT ON LARGE OBJECT 1003 TO regress_priv_user2;
+--GRANT SELECT,UPDATE ON LARGE OBJECT 1004 TO regress_priv_user2;
+--GRANT ALL ON LARGE OBJECT 1005 TO regress_priv_user2;
+--GRANT SELECT ON LARGE OBJECT 1005 TO regress_priv_user2 WITH GRANT OPTION;
+
+
+--GRANT SELECT, INSERT ON LARGE OBJECT 1001 TO PUBLIC;	-- to be failed
+--GRANT SELECT, UPDATE ON LARGE OBJECT 1001 TO nosuchuser;	-- to be failed
+--GRANT SELECT, UPDATE ON LARGE OBJECT  999 TO PUBLIC;	-- to be failed
 
 \c -
 SET SESSION AUTHORIZATION regress_priv_user2;
 
-SELECT lo_create(2001);
-SELECT lo_create(2002);
+--SELECT lo_create(2001);
+--SELECT lo_create(2002);
 
-SELECT loread(lo_open(1001, x'20000'::int), 32);	-- allowed, for now
-SELECT lowrite(lo_open(1001, x'40000'::int), 'abcd');	-- fail, wrong mode
+--SELECT loread(lo_open(1001, x'20000'::int), 32);	-- allowed, for now
+--SELECT lowrite(lo_open(1001, x'40000'::int), 'abcd');	-- fail, wrong mode
 
-SELECT loread(lo_open(1001, x'40000'::int), 32);
-SELECT loread(lo_open(1002, x'40000'::int), 32);	-- to be denied
-SELECT loread(lo_open(1003, x'40000'::int), 32);
-SELECT loread(lo_open(1004, x'40000'::int), 32);
+--SELECT loread(lo_open(1001, x'40000'::int), 32);
+--SELECT loread(lo_open(1002, x'40000'::int), 32);	-- to be denied
+--SELECT loread(lo_open(1003, x'40000'::int), 32);
+--SELECT loread(lo_open(1004, x'40000'::int), 32);
 
-SELECT lowrite(lo_open(1001, x'20000'::int), 'abcd');
-SELECT lowrite(lo_open(1002, x'20000'::int), 'abcd');	-- to be denied
-SELECT lowrite(lo_open(1003, x'20000'::int), 'abcd');	-- to be denied
-SELECT lowrite(lo_open(1004, x'20000'::int), 'abcd');
+--SELECT lowrite(lo_open(1001, x'20000'::int), 'abcd');
+--SELECT lowrite(lo_open(1002, x'20000'::int), 'abcd');	-- to be denied
+--SELECT lowrite(lo_open(1003, x'20000'::int), 'abcd');	-- to be denied
+--SELECT lowrite(lo_open(1004, x'20000'::int), 'abcd');
 
---DDL_STATEMENT_BEGIN--
-GRANT SELECT ON LARGE OBJECT 1005 TO regress_priv_user3;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-GRANT UPDATE ON LARGE OBJECT 1006 TO regress_priv_user3;	-- to be denied
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-REVOKE ALL ON LARGE OBJECT 2001, 2002 FROM PUBLIC;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-GRANT ALL ON LARGE OBJECT 2001 TO regress_priv_user3;
---DDL_STATEMENT_END--
 
-SELECT lo_unlink(1001);		-- to be denied
-SELECT lo_unlink(2002);
+--GRANT SELECT ON LARGE OBJECT 1005 TO regress_priv_user3;
+--GRANT UPDATE ON LARGE OBJECT 1006 TO regress_priv_user3;	-- to be denied
+--REVOKE ALL ON LARGE OBJECT 2001, 2002 FROM PUBLIC;
+--GRANT ALL ON LARGE OBJECT 2001 TO regress_priv_user3;
+
+--SELECT lo_unlink(1001);		-- to be denied
+--SELECT lo_unlink(2002);
 
 \c -
 -- confirm ACL setting
-SELECT oid, pg_get_userbyid(lomowner) ownername, lomacl FROM pg_largeobject_metadata WHERE oid >= 1000 AND oid < 3000 ORDER BY oid;
+--SELECT oid, pg_get_userbyid(lomowner) ownername, lomacl FROM pg_largeobject_metadata WHERE oid >= 1000 AND oid < 3000 ORDER BY oid;
 
 SET SESSION AUTHORIZATION regress_priv_user3;
 
-SELECT loread(lo_open(1001, x'40000'::int), 32);
-SELECT loread(lo_open(1003, x'40000'::int), 32);	-- to be denied
-SELECT loread(lo_open(1005, x'40000'::int), 32);
+--SELECT loread(lo_open(1001, x'40000'::int), 32);
+--SELECT loread(lo_open(1003, x'40000'::int), 32);	-- to be denied
+--SELECT loread(lo_open(1005, x'40000'::int), 32);
 
-SELECT lo_truncate(lo_open(1005, x'20000'::int), 10);	-- to be denied
-SELECT lo_truncate(lo_open(2001, x'20000'::int), 10);
+--SELECT lo_truncate(lo_open(1005, x'20000'::int), 10);	-- to be denied
+--SELECT lo_truncate(lo_open(2001, x'20000'::int), 10);
 
 -- compatibility mode in largeobject permission
 \c -
 SET lo_compat_privileges = false;	-- default setting
 SET SESSION AUTHORIZATION regress_priv_user4;
 
-SELECT loread(lo_open(1002, x'40000'::int), 32);	-- to be denied
-SELECT lowrite(lo_open(1002, x'20000'::int), 'abcd');	-- to be denied
-SELECT lo_truncate(lo_open(1002, x'20000'::int), 10);	-- to be denied
-SELECT lo_put(1002, 1, 'abcd');				-- to be denied
-SELECT lo_unlink(1002);					-- to be denied
-SELECT lo_export(1001, '/dev/null');			-- to be denied
-SELECT lo_import('/dev/null');				-- to be denied
-SELECT lo_import('/dev/null', 2003);			-- to be denied
+--SELECT loread(lo_open(1002, x'40000'::int), 32);	-- to be denied
+--SELECT lowrite(lo_open(1002, x'20000'::int), 'abcd');	-- to be denied
+--SELECT lo_truncate(lo_open(1002, x'20000'::int), 10);	-- to be denied
+--SELECT lo_put(1002, 1, 'abcd');				-- to be denied
+--SELECT lo_unlink(1002);					-- to be denied
+--SELECT lo_export(1001, '/dev/null');			-- to be denied
+--SELECT lo_import('/dev/null');				-- to be denied
+--SELECT lo_import('/dev/null', 2003);			-- to be denied
 
 \c -
 SET lo_compat_privileges = true;	-- compatibility mode
 SET SESSION AUTHORIZATION regress_priv_user4;
 
-SELECT loread(lo_open(1002, x'40000'::int), 32);
-SELECT lowrite(lo_open(1002, x'20000'::int), 'abcd');
-SELECT lo_truncate(lo_open(1002, x'20000'::int), 10);
-SELECT lo_unlink(1002);
-SELECT lo_export(1001, '/dev/null');			-- to be denied
+--SELECT loread(lo_open(1002, x'40000'::int), 32);
+--SELECT lowrite(lo_open(1002, x'20000'::int), 'abcd');
+--SELECT lo_truncate(lo_open(1002, x'20000'::int), 10);
+--SELECT lo_unlink(1002);
+--SELECT lo_export(1001, '/dev/null');			-- to be denied
 
 -- don't allow unpriv users to access pg_largeobject contents
 \c -

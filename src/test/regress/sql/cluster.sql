@@ -167,7 +167,7 @@ INSERT INTO clstr_3 VALUES (1);
 SET SESSION AUTHORIZATION regress_clstr_user;
 SELECT * FROM clstr_1 UNION ALL
   SELECT * FROM clstr_2 UNION ALL
-  SELECT * FROM clstr_3;
+  SELECT * FROM clstr_3 order by 1;
 
 -- cluster a single table using the indisclustered bit previously set
 DELETE FROM clstr_1;

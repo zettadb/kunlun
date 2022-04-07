@@ -3,7 +3,7 @@
 --
 -- Note that we assume lc_monetary has been set to C.
 --
-
+set lc_monetary='en_US.UTF-8';
 --DDL_STATEMENT_BEGIN--
 DROP TABLE if exists money_data;
 --DDL_STATEMENT_END--

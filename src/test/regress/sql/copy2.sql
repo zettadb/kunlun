@@ -111,13 +111,13 @@ CREATE TABLE no_oids (
 	b	int
 ) WITHOUT OIDS;
 --DDL_STATEMENT_END--
-
 INSERT INTO no_oids (a, b) VALUES (5, 10);
 INSERT INTO no_oids (a, b) VALUES (20, 30);
 
 -- should fail
-COPY no_oids FROM stdin WITH OIDS;
-COPY no_oids TO stdout WITH OIDS;
+-- ERROR:  COPY (query) WITH OIDS is not supported
+--COPY no_oids FROM stdin WITH OIDS;
+--COPY no_oids TO stdout WITH OIDS;
 
 -- check copy out
 COPY x TO stdout;

@@ -907,6 +907,24 @@ int append_cols_for_whole_var(Relation rel, TupleDesc *pp_typeInfo, int cur_resn
 	return cur_resno;
 }
 
+static bool
+contain_param_exec(Plan *plan)
+{
+	FindParamsContext fpc;
+	fpc.has_rescan_params = false;
+	if (plan->extParam)
+	{
+		ListCell *lc;
+		foreach (lc, plan->qual)
+		{
+			expression_tree_walker((Node *)lfirst(lc), has_dependent_params, &fpc);
+			if (fpc.has_rescan_params)
+				break;
+		}
+	}
+	return fpc.has_rescan_params;
+}
+
 void init_type_input_info(TypeInputInfo **tii, TupleTableSlot *slot,
 	EState *estate)
 {
@@ -1061,7 +1079,7 @@ end:
 	  don't modify the generic logic there. for remote scans as long as the
 	  node is not top level, assume rewinding possible.
 	*/
-	if (eflags & EXEC_FLAG_REWIND || ((Plan*)node)->extParam)	
+	if (eflags & EXEC_FLAG_REWIND || contain_param_exec((Plan*)node))
 		scanstate->will_rewind = true;
 	else
 		scanstate->will_rewind = false;

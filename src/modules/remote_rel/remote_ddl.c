@@ -346,12 +346,31 @@ void remote_drop_nonnative_sequence_in_schema(const char *db, const char *schema
   }
 }
 
+static bool
+is_alter_table_column_only(Node *node)
+{
+	if (IsA(node, AlterTableStmt))
+	{
+		ListCell *lc;
+		foreach (lc, ((AlterTableStmt *)node)->cmds)
+		{
+			AlterTableType type = lfirst_node(AlterTableCmd, lc)->subtype;
+			if (type != AT_AlterColumnType && type != AT_AlterColumnGenericOptions)
+				return false;
+		}
+		return true;
+	}
+
+	return false;
+}
+
 void remote_add_index(Relation indexrel)
 {
 	Node *top_stmt = remoteddl_top_stmt();
 	Assert(top_stmt);
 	Assert(indexrel->rd_rel->relkind == RELKIND_INDEX);
-	if (indexrel->rd_rel->relpersistence == RELPERSISTENCE_TEMP);
+	if (is_alter_table_column_only(top_stmt)) return;
+	if (indexrel->rd_rel->relpersistence == RELPERSISTENCE_TEMP) return;
 
 	/* Get the coresponding heap relation */
 	Form_pg_index indexForm;
@@ -426,6 +445,7 @@ void remote_drop_index(Relation relation)
 	Node *top_stmt = remoteddl_top_stmt();
 	Assert(top_stmt);
 	Assert(relation->rd_rel->relkind == RELKIND_INDEX);
+	if (is_alter_table_column_only(top_stmt)) return;
 
 	/* Only generate remote ddl if the orignal client sql is 'drop index' or 'alter */
 	bool generate_sql = false;

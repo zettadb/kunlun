@@ -423,6 +423,26 @@ bool is_alter_table_supported(AlterTableStmt *stmt)
 				constraint->contype == CONSTR_UNIQUE)
 				continue;
 		}
+		else if (subcmd->subtype == AT_AlterColumnType)
+		{
+			ColumnDef *columndef = (ColumnDef *)subcmd->def;
+			if (columndef->raw_default)
+			{
+				TypeCast *cast;
+				ColumnRef *column;
+				Value *value;
+
+				if (!IsA((cast = (TypeCast *)columndef->raw_default), TypeCast) ||
+						!IsA((column = (ColumnRef *)cast->arg), ColumnRef) ||
+						!IsA((value = (Value *)linitial(column->fields)), String) ||
+						strcasecmp(strVal(value), subcmd->name) != 0)
+				{
+					ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+								errmsg("Can not alter column type using non-TypeCast expression")));
+				}
+			}
+		}
+
 		for (int i = 0; i < sizeof(banned_alcmds) / sizeof(banned_alcmds[0]); i++)
 			if (subcmd->subtype == banned_alcmds[i])
 				return false;

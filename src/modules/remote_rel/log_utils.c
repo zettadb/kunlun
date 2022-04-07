@@ -596,11 +596,13 @@ bool is_ddl_query(Node *node)
 	case T_ReassignOwnedStmt:
 	case T_RefreshMatViewStmt:
 	case T_RenameStmt:
+	case T_ReindexStmt:
 	case T_ReplicaIdentityStmt:
 	case T_RuleStmt:
 	case T_SecLabelStmt:
 	case T_TruncateStmt:
 	case T_ViewStmt:
+	case T_VacuumStmt:
 		return true;
 	default:
 		return false;

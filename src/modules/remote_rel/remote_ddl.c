@@ -432,7 +432,7 @@ void remote_drop_index(Relation relation)
 	switch (nodeTag(top_stmt))
 	{
 	case T_DropStmt:
-		generate_sql = (((DropStmt *)top_stmt)->removeType != OBJECT_INDEX);
+		generate_sql = (((DropStmt *)top_stmt)->removeType == OBJECT_INDEX);
 		break;
 	case T_AlterTableStmt: /* maybe drop constraint */
 		generate_sql = true;

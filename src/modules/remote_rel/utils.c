@@ -299,6 +299,8 @@ void change_relation_shardid(Oid relid, Oid shardid)
 	systable_endscan(scan);
 
 	relation_close(pg_class_rel, RowExclusiveLock);
+
+	CommandCounterIncrement();
 }
 
 List *

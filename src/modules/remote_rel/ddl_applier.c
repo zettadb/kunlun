@@ -313,8 +313,92 @@ end:
 
 	return ret;
 }
+/**
+ * @brief  parse the remap_shardid request, for example:
+ *     {'1': '2', '2': '4' }
+ *
+ */
+#define SKIP_SPACE(p) while(*p && isspace(*p)) ++p;
+static void parse_remap_shardid_req(const char *req, List **pfrom, List **pto)
+{
+	char c;
+	char *end;
+	int shardid;
+	bool iskey = true;
+	List *from = NIL, *to = NIL;
 
-static int apply_log_internal(int id, const char *user, const char *role, const char *path, const char *sql)
+	SKIP_SPACE(req);
+	if (*req != '{')
+		goto format_error;
+
+	++req;
+	while (*req)
+	{
+		SKIP_SPACE(req);
+		c = 0;
+		if (*req == '\'' || *req == '"')
+		{
+			c = *req;
+			++req;
+		}
+
+		shardid = strtol(req, &end, 10);
+
+		if (errno == ERANGE && (shardid == LONG_MAX || shardid == LONG_MIN) && shardid < 0)
+			goto invalid_shardid;
+		if (req == end)
+			goto format_error;
+
+		req = end;
+
+		if (c)
+		{
+			if (*req != c)
+				goto format_error;
+			++req;
+		}
+
+		if (iskey)
+		{
+			from = lappend_oid(from, shardid);
+			SKIP_SPACE(req);
+			if (*req != ':')
+				goto format_error;
+			++req;
+		}
+		else
+		{
+			to = lappend_oid(to, shardid);
+			SKIP_SPACE(req);
+			/* end of request */
+			if (*req == '}')
+			{
+				++req;
+				SKIP_SPACE(req);
+				if (*req != '\0')
+					goto format_error;
+
+				*pfrom = from;
+				*pto = to;
+				return;
+			}
+
+			if (*req != ',')
+				goto format_error;
+			++req;
+		}
+
+		iskey = !iskey;
+	}
+
+format_error:
+	elog(ERROR, "The remap_shardid req is invalid");
+
+invalid_shardid:
+	elog(ERROR, "The shardid in remap_shardid req is invalid");
+}
+
+static int apply_log_internal(int id, const char *user, const char *role, const char *path, const char *op, const char *sql)
 {
 	bool end_txn = false;
 	int ret = 0;
@@ -337,21 +421,42 @@ static int apply_log_internal(int id, const char *user, const char *role, const 
 	}
 	pgstat_report_activity(STATE_RUNNING, "Applying ddl log records.");
 
-	/* We can now execute queries via SPI */
-	SPI_connect();
-	PG_TRY();
+	if (strcasecmp(op, "remap_shardid") == 0)
 	{
-		ret = SPI_execute(sql, false, 0);
+		PG_TRY();
+		{
+			List *from_shardids, *to_shardids;
+			parse_remap_shardid_req(sql, &from_shardids, &to_shardids);
+			change_cluster_shardids(from_shardids, to_shardids);
+			ret = SPI_OK_UTILITY;
+		}
+		PG_CATCH();
+		{
+			PopActiveSnapshot();
+			/* Switch back to the orignal user */
+			switch_authorization(origUser, NULL);
+			PG_RE_THROW();
+		}
+		PG_END_TRY();
 	}
-	PG_CATCH();
+	else
 	{
-		SPI_finish();
-		PopActiveSnapshot();
-		/* Switch back to the orignal user */
-		switch_authorization(origUser, NULL);
-		PG_RE_THROW();
+		/* We can now execute queries via SPI */
+		SPI_connect();
+		PG_TRY();
+		{
+			ret = SPI_execute(sql, false, 0);
+		}
+		PG_CATCH();
+		{
+			SPI_finish();
+			PopActiveSnapshot();
+			/* Switch back to the orignal user */
+			switch_authorization(origUser, NULL);
+			PG_RE_THROW();
+		}
+		PG_END_TRY();
 	}
-	PG_END_TRY();
 	SPI_finish();
 
 	PushActiveSnapshot(GetTransactionSnapshot());
@@ -380,9 +485,10 @@ apply_log_wrapper(PG_FUNCTION_ARGS)
 	const char *user = text_to_cstring(PG_GETARG_TEXT_P(1));
 	const char *role = text_to_cstring(PG_GETARG_TEXT_P(2));
 	const char *path = text_to_cstring(PG_GETARG_TEXT_P(3));
-	const char *sql  = text_to_cstring(PG_GETARG_TEXT_P(4));
+	const char *op   = text_to_cstring(PG_GETARG_TEXT_P(4));
+	const char *sql  = text_to_cstring(PG_GETARG_TEXT_P(5));
 
-	int ret = apply_log_internal(id, user, role, path, sql);
+	int ret = apply_log_internal(id, user, role, path, op, sql);
 	if (ret != SPI_OK_UTILITY) 
 	{
 		elog(ERROR, "failed to apply ddl log event, id:%lu, spi result: %d", id, ret);
@@ -400,7 +506,7 @@ static PGconn* get_applier_connection(Oid dbid)
 	static const char *sql =
 		"SET REMOTE_REL.APPLY_DDL_LOG_MODE=1;"
 		"SET LOCK_TIMEOUT = 10;"
-		"CREATE OR REPLACE FUNCTION apply_log_wrapper(INT8, TEXT, TEXT, TEXT, TEXT)"
+		"CREATE OR REPLACE FUNCTION apply_log_wrapper(INT8, TEXT, TEXT, TEXT, TEXT, TEXT)"
 		"  RETURNS INT4 STRICT AS '$libdir/remote_rel.so' LANGUAGE C;"
 		"SET check_function_bodies=off;";
 
@@ -503,9 +609,10 @@ static void free_applier_connection(Oid dbid)
 	char *role = PQescapeLiteral(conn, event->role, strlen(event->role));
 	char *path = PQescapeLiteral(conn, event->searchPath, strlen(event->searchPath));
 	char *sql  = PQescapeLiteral(conn, event->sqlsrc, strlen(event->sqlsrc));
+	const char *op = DDL_OP_TypeNames[event->optype];
 
-	appendStringInfo(&sqlstr, "SELECT public.apply_log_wrapper(%lu, %s, %s, %s, %s)",
-									 event->id, user, role, path, sql);
+	appendStringInfo(&sqlstr, "SELECT public.apply_log_wrapper(%lu, %s, %s, %s, %s, %s)",
+									 event->id, user, role, path, op, sql);
 
 	free(user), free(role), free(path), free(sql);
 
@@ -546,10 +653,12 @@ static void apply_ddl_log_local(Oid dbid, DDL_log_event *event)
 		}
 	}
 
+	const char *op = DDL_OP_TypeNames[event->optype];
 	if (apply_log_internal(event->id,
 						   event->user,
 						   event->role,
 						   event->searchPath,
+						   op,
 						   event->sqlsrc) != SPI_OK_UTILITY)
 	{
 

@@ -5,6 +5,7 @@ CREATE FUNCTION apply_log_wrapper(pg_catalog.int8,
     pg_catalog.text,
     pg_catalog.text,
     pg_catalog.text,
+	pg_catalog.text,
     pg_catalog.text)
 RETURNS pg_catalog.int4 STRICT
 AS 'MODULE_PATHNAME'

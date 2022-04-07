@@ -527,10 +527,13 @@ remoteddl_utility_command(PlannedStmt *pstmt,
 	}
 }
 
+extern bool pg_class_allow_dummy_shard;
 static void
 assign_apply_ddl_log_mode(int newval, void *extra)
 {
 	apply_ddl_log_mode = newval;
+	/* When data is restored to the new cluster, the shardid check is not needed */
+	pg_class_allow_dummy_shard = newval ? true : false;
 }
 
 static void
@@ -540,7 +543,7 @@ assign_str_key_part_len(int newval, void *extra)
 }
 
 static char*
-show_last_remote_sql()
+show_last_remote_sql(void)
 {
 	return last_remote_sql;
 }

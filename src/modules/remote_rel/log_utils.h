@@ -25,6 +25,7 @@ static const char *DDL_OP_TypeNames[] = {
 		"rename",
 		"alter",
 		"replace",
+		"remap_shardid",
 		"others" // generic.
 };
 

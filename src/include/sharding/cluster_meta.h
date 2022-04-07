@@ -89,6 +89,7 @@ typedef enum DDL_OP_Types
 	DDL_OP_Type_rename,
 	DDL_OP_Type_alter,
 	DDL_OP_Type_replace,
+	DDL_OP_Type_remap_shardid,
 	DDL_OP_Type_generic
 } DDL_OP_Types;
 

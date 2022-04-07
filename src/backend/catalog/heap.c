@@ -94,6 +94,7 @@
 /* Potentially set by pg_upgrade_support functions */
 Oid			binary_upgrade_next_heap_pg_class_oid = InvalidOid;
 Oid			binary_upgrade_next_toast_pg_class_oid = InvalidOid;
+bool		pg_class_allow_dummy_shard = false;
 
 static void AddNewRelationTuple(Relation pg_class_desc,
 					Relation new_rel_desc,
@@ -833,11 +834,23 @@ InsertPgClassTuple(Relation pg_class_desc,
 					if (target_shard_id == InvalidOid)
 						target_shard_id = relshardid;
 
-					found_shard = ShardExists(relshardid);
-					if (!found_shard)
-						ereport(ERROR,
-								(errcode(ERRCODE_INTERNAL_ERROR),
-								 errmsg("Specified shard (shard_id = %u) is not found.", relshardid)));
+					if (pg_class_allow_dummy_shard)
+					{
+						/**
+						 * When data is restored to the new cluster, the old shard
+						 * is allowed to be used for metadata restoration.
+						 * The management tool will uniformly adjust these old shards
+						 * to the correct shards after the metadata is restored.
+						 */
+					}
+					else
+					{
+						found_shard = ShardExists(relshardid);
+						if (!found_shard)
+							ereport(ERROR,
+									(errcode(ERRCODE_INTERNAL_ERROR),
+									 errmsg("Specified shard (shard_id = %u) is not found.", relshardid)));
+					}
 				}
 			}
 

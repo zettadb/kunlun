@@ -303,6 +303,72 @@ void change_relation_shardid(Oid relid, Oid shardid)
 	CommandCounterIncrement();
 }
 
+/**
+ * @brief Change all the relations with shardid=from to shardid=to.
+ *
+ *     Used to migrate the data of the entire cluster to other clusters with different shards.
+ */
+static void change_cluster_shardid(Oid from, Oid to)
+{
+	Datum values[Natts_pg_class];
+	bool nulls[Natts_pg_class];
+	bool replaces[Natts_pg_class];
+
+	ScanKeyData key;
+
+	if (from == to)
+		return;
+
+	ScanKeyInit(&key,
+			ObjectIdAttributeNumber,
+			BTGreaterEqualStrategyNumber,
+			F_OIDGE, FirstNormalObjectId);
+
+	Relation pg_class_rel = relation_open(RelationRelationId, RowExclusiveLock);
+
+	SysScanDesc scan = systable_beginscan(pg_class_rel,
+			ClassOidIndexId,
+			true,
+			NULL, 1, &key);
+	HeapTuple tuple = NULL;
+	Form_pg_class pg_class_tuple;
+	while ((tuple = systable_getnext(scan)) != NULL)
+	{
+		pg_class_tuple = ((Form_pg_class)GETSTRUCT(tuple));
+		if (pg_class_tuple->relshardid != from)
+			continue;
+
+		memset(values, 0, sizeof(values));
+		memset(nulls, 0, sizeof(nulls));
+		memset(replaces, 0, sizeof(replaces));
+
+		replaces[Anum_pg_class_relshardid - 1] = true;
+		values[Anum_pg_class_relshardid - 1] = (Datum)to;
+
+		replaces[Anum_pg_class_reloptions - 1] = true;
+		values[Anum_pg_class_reloptions - 1] = get_modified_rel_options(HeapTupleGetOid(tuple), to);
+
+		HeapTuple newtuple = heap_modify_tuple(tuple, RelationGetDescr(pg_class_rel), values, nulls, replaces);
+
+		CatalogTupleUpdate(pg_class_rel, &newtuple->t_self, newtuple);
+	}
+
+	systable_endscan(scan);
+
+	relation_close(pg_class_rel, RowExclusiveLock);
+}
+
+void change_cluster_shardids(List *from, List *to)
+{
+	Assert(list_length(from) == list_length(to));
+	ListCell *lc1, *lc2;
+	forboth(lc1, from, lc2, to)
+	{
+		change_cluster_shardid(lfirst_oid(lc1), lfirst_oid(lc2));
+	}
+	CommandCounterIncrement();
+}
+
 List *
 object_name_to_objectaddress(ObjectType objtype, List *objnames)
 {

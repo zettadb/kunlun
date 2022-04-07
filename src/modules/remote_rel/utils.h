@@ -53,4 +53,12 @@ extern void change_relation_shardid(Oid relid, Oid shardid);
  */
 extern char* get_current_username(void);
 
+
+/**
+ * @brief Change all the relations with shardid=from to shardid=to.
+ *
+ *     Used to migrate the data of the entire cluster to other clusters with different shards.
+ */
+extern void change_cluster_shardids(List *from, List *to);
+
 #endif

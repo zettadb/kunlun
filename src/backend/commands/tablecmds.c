@@ -11402,6 +11402,24 @@ ATExecSetRelOptions(Relation rel, List *defList, AlterTableType operation,
 								&isnull);
 	}
 
+	Oid remote_shardid = Invalid_shard_id;
+	if (IsRemoteRelation(rel))
+	{
+		ListCell *l;
+		foreach (l, defList)
+		{
+			DefElem *def = lfirst_node(DefElem, l);
+			if (strcasecmp(def->defname, "shard") == 0)
+			{
+				if (operation == AT_ResetRelOptions)
+					defList = list_delete(defList, def);
+				else
+					remote_shardid =  (Oid)intVal(def->arg);
+				break;
+			}
+		}
+	}
+
 	int hasPgOpts = 0;
 	/* Generate new proposed reloptions (text array) */
 	newOptions = transformRelOptions(isnull ? (Datum) 0 : datum,
@@ -11472,6 +11490,31 @@ ATExecSetRelOptions(Relation rel, List *defList, AlterTableType operation,
 	memset(repl_val, 0, sizeof(repl_val));
 	memset(repl_null, false, sizeof(repl_null));
 	memset(repl_repl, false, sizeof(repl_repl));
+
+	if (IsRemoteRelation(rel))
+	{
+		if (newOptions == (Datum)0)
+		{
+			/* make sure the shard option is not reset */
+			DefElem *defElem;
+			defElem = makeNode(DefElem);
+			defElem->location = -1;
+			defElem->defnamespace = NULL;
+			defElem->defname = "shard";
+			defElem->arg = makeInteger(rel->rd_rel->relshardid);
+
+			/* Generate new proposed reloptions (text array) */
+			newOptions = transformRelOptions((Datum)0, list_make1(defElem),
+					NULL, NULL, false, false, NULL);
+		}
+	}
+	/* Modify the shardid */
+	if (remote_shardid != Invalid_shard_id &&
+			remote_shardid != rel->rd_rel->relshardid)
+	{
+		repl_val[Anum_pg_class_relshardid - 1] = remote_shardid;
+		repl_repl[Anum_pg_class_relshardid - 1] = true;
+	}
 
 	if (newOptions != (Datum) 0)
 		repl_val[Anum_pg_class_reloptions - 1] = newOptions;

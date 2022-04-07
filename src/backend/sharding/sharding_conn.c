@@ -640,11 +640,22 @@ static void handle_backend_disconnect(AsyncStmtInfo *asi0)
 		 * */
 		if (asi == asi0 || asi->result_pending)
 		{
+			if (asi->mysql_res)
+			{
+				mysql_free_result(asi->mysql_res);
+				asi->mysql_res = NULL;
+			}
+
 			mysql_close(asi->conn);
 			MarkConnValid(asi, false);
 		}
 		else if (asi->conn)
 		{
+			if (asi->mysql_res)
+			{
+				mysql_free_result(asi->mysql_res);
+				asi->mysql_res = NULL;
+			}
 			mysql_close(asi->conn);
 			MarkConnValid(asi, false);
 		}

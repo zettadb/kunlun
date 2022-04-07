@@ -494,35 +494,36 @@ int64_t remote_fetch_nextval(Relation seqrel)
 			if (sse->need_reload)
 			{
 				need_reload = true;
-				continue;
 			}
-
-			GetTopTransactionId();
-			START_CRIT_SECTION();
+			else
 			{
-				// log the new fetched sequence in log
-				MarkBufferDirty(buf);
+				GetTopTransactionId();
+				START_CRIT_SECTION();
+				{
+					// log the new fetched sequence in log
+					MarkBufferDirty(buf);
 
-				xl_seq_rec xlrec;
-				XLogRecPtr recptr;
+					xl_seq_rec xlrec;
+					XLogRecPtr recptr;
 
-				XLogBeginInsert();
-				XLogRegisterBuffer(0, buf, REGBUF_WILL_INIT);
+					XLogBeginInsert();
+					XLogRegisterBuffer(0, buf, REGBUF_WILL_INIT);
 
-				/* set values that will be saved in xlog */
-				seq->last_value = sse->lastval;
-				seq->is_called = true;
+					/* set values that will be saved in xlog */
+					seq->last_value = sse->lastval;
+					seq->is_called = true;
 
-				xlrec.node = seqrel->rd_node;
+					xlrec.node = seqrel->rd_node;
 
-				XLogRegisterData((char *)&xlrec, sizeof(xl_seq_rec));
-				XLogRegisterData((char *)seqdatatuple.t_data, seqdatatuple.t_len);
+					XLogRegisterData((char *)&xlrec, sizeof(xl_seq_rec));
+					XLogRegisterData((char *)seqdatatuple.t_data, seqdatatuple.t_len);
 
-				recptr = XLogInsert(RM_SEQ_ID, XLOG_SEQ_LOG);
+					recptr = XLogInsert(RM_SEQ_ID, XLOG_SEQ_LOG);
 
-				PageSetLSN(page, recptr);
+					PageSetLSN(page, recptr);
+				}
+				END_CRIT_SECTION();
 			}
-			END_CRIT_SECTION();
 		}
 		PG_CATCH();
 		{

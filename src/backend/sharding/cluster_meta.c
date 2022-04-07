@@ -789,6 +789,7 @@ static int check_metashard_master(MYSQL_CONN *cnconn, CMNConnInfo *ci, CMNConnIn
 	else
 	{
 		Assert(ha_mode == HA_NO_REP);// the only master is itself.
+		close_metadata_cluster_conn(cnconn);
 		return 0;
 	}
 
@@ -940,6 +941,12 @@ int FindCurrentMetaShardMasterNodeId(Oid *pmaster_nodeid, Oid *old_master_nodeid
 		CMNConnInfo *cmn = cmnodes + i;
 
 		int master_idx = check_metashard_master(&cnconn, cmn, cmnodes, num_nodes);
+		/* If the connection is still invalid, close the connection to avoid possible link leaks.*/
+		if (cnconn.connected)
+		{
+			close_metadata_cluster_conn(&cnconn);
+		}
+
 		if (master_idx == -1) // new master
 		{
 			num_new_masters++;

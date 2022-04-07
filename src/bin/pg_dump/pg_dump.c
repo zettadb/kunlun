@@ -16803,6 +16803,22 @@ findLastBuiltinOid_V71(Archive *fout)
 	return last_oid;
 }
 
+static long
+parse_shard_option(const char *options)
+{
+	if (options)
+	{
+		char *opt = strstr(options, "shard=");
+		if (opt)
+		{
+			char *end;
+			opt += sizeof("shard=") - 1;
+			return strtol(opt, &end, 10);
+		}
+	}
+	return -1;
+}
+
 /*
  * dumpSequence
  *	  write the declaration (not data) of one user-defined sequence
@@ -16827,6 +16843,7 @@ dumpSequence(Archive *fout, TableInfo *tbinfo)
 	PQExpBuffer query = createPQExpBuffer();
 	PQExpBuffer delqry = createPQExpBuffer();
 	char	   *qseqname;
+	long        shardid = -1;
 
 	qseqname = pg_strdup(fmtId(tbinfo->dobj.name));
 
@@ -16836,7 +16853,8 @@ dumpSequence(Archive *fout, TableInfo *tbinfo)
 						  "SELECT format_type(seqtypid, NULL), "
 						  "seqstart, seqincrement, "
 						  "seqmax, seqmin, "
-						  "seqcache, seqcycle, last_fetched "
+						  "seqcache, seqcycle, last_fetched, "
+						  "(select reloptions from pg_class where oid=pg_sequence.seqrelid) as options "
 						  "FROM pg_catalog.pg_sequence "
 						  "WHERE seqrelid = '%u'::oid",
 						  tbinfo->dobj.catId.oid);
@@ -16852,7 +16870,7 @@ dumpSequence(Archive *fout, TableInfo *tbinfo)
 		appendPQExpBuffer(query,
 						  "SELECT 'bigint' AS sequence_type, "
 						  "start_value, increment_by, max_value, min_value, "
-						  "cache_value, is_cycled FROM %s",
+						  "cache_value, is_cycled, '{}' as options FROM %s",
 						  fmtQualifiedDumpable(tbinfo));
 	}
 	else
@@ -16860,7 +16878,7 @@ dumpSequence(Archive *fout, TableInfo *tbinfo)
 		appendPQExpBuffer(query,
 						  "SELECT 'bigint' AS sequence_type, "
 						  "0 AS start_value, increment_by, max_value, min_value, "
-						  "cache_value, is_cycled FROM %s",
+						  "cache_value, is_cycled, '{}' as options FROM %s",
 						  fmtQualifiedDumpable(tbinfo));
 	}
 
@@ -16882,6 +16900,7 @@ dumpSequence(Archive *fout, TableInfo *tbinfo)
 	minv = PQgetvalue(res, 0, 4);
 	cache = PQgetvalue(res, 0, 5);
 	cycled = (strcmp(PQgetvalue(res, 0, 6), "t") == 0);
+	shardid = parse_shard_option(PQgetvalue(res, 0, 8));
 
 	/* Calculate default limits for a sequence of this type */
 	is_ascending = (incby[0] != '-');
@@ -16983,6 +17002,10 @@ dumpSequence(Archive *fout, TableInfo *tbinfo)
 	appendPQExpBuffer(query,
 					  "    CACHE %s%s",
 					  cache, (cycled ? "\n    CYCLE" : ""));
+
+
+	if (shardid > 0)
+		appendPQExpBuffer(query, " \n    SHARD %ld", shardid);
 
 	if (tbinfo->is_identity_sequence)
 		appendPQExpBufferStr(query, "\n);\n");

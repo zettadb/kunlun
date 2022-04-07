@@ -162,6 +162,12 @@ bool cache_remotetup(TupleTableSlot *slot, ResultRelInfo *resultRelInfo)
 	size_t tuplen = 0, attrlen = 0, brlen;
 	StringInfo self = &myState->buf;
 
+	if (self->len > (1024*1024))
+	{
+		end_remote_insert_stmt(myState, false);
+		remotetup_prepare_info(myState, typeinfo, natts);
+	}
+
 	/* Set or update my derived attribute info, if needed */
 	if (myState->nattrs != natts || !(myState->attrinfo && typeinfo) ||
 		!equalTupleDescs(myState->attrinfo, typeinfo))

@@ -717,7 +717,7 @@ static void print_default_value(Relation rel, int attrnum, StringInfo str)
 	valstr = pg_to_mysql_const(attr->atttypid, valstr);
 	if (const_output_needs_quote(attr->atttypid))
 	{
-		appendStringInfo(str, "'%s'", escape_mysql_string(valstr));
+		appendStringInfo(str, "'%s'", valstr);
 	}
 	else
 	{

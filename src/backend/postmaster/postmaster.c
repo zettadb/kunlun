@@ -591,6 +591,9 @@ PostmasterMain(int argc, char *argv[])
 
 	IsPostmasterEnvironment = true;
 
+	/* Initialize mysql library at the first time after startup */
+	mysql_library_init(0, 0, NULL);
+
 	/*
 	 * We should not be creating any files or directories before we check the
 	 * data directory (see checkDataDir()), but just in case set the umask to

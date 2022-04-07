@@ -349,6 +349,22 @@ bool end_remote_insert_stmt(struct RemotetupCacheState *s, bool end_of_stmt)
 	return true;
 }
 
+/*
+ * See if a type is one of the string types.
+ * */
+inline static bool is_str_type(Oid typid)
+{
+	const static Oid strtypids[] = //{18, 25, 1002, 1009, 1014, 1015, 1042, 1043, 1263, 2275};
+	{CHAROID, TEXTOID, CHARARRAYOID, NAMEARRAYOID, TEXTARRAYOID, BPCHARARRAYOID,
+		VARCHARARRAYOID, CSTRINGARRAYOID, BPCHAROID, VARCHAROID, CSTRINGOID};
+	// BPCHAROID, VARCHAROID, CSTRINGOID, CHAROID, TEXTOID
+	for (int i = 0; i < sizeof(strtypids)/sizeof(Oid); i++)
+		if (typid == strtypids[i])
+			return true;
+
+	return false;
+}
+
 char *pg_to_mysql_const(Oid typid, char *c)
 {
 	static const char *bool_trues[] = {"true","on","yes","1", "t","y"};
@@ -407,6 +423,14 @@ char *pg_to_mysql_const(Oid typid, char *c)
 
 		if (cpidx > 0) c[cpidx] = '\0';
 	}
+
+	 if (is_str_type(typid))
+	 {
+		 size_t len = strlen(c);
+		 char *s = (char*)palloc(len * 2 + 1);
+		 mysql_escape_string(s, c, len);
+		 c = s;
+	 }
 
 	return c;
 }

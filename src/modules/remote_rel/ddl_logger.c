@@ -31,6 +31,7 @@
 #include "catalog/pg_am_d.h"
 #include "commands/seclabel.h"
 #include "commands/dbcommands.h"
+#include "libpq/crypt.h"
 #include "sharding/sharding_conn.h"
 #include "sharding/cluster_meta.h"
 #include "tcop/utility.h"
@@ -327,6 +328,84 @@ void log_drop_stmt(DropStmt *stmt, const char *query)
 				InvalidOid,
 				NULL);
 }
+
+static void
+log_create_alter_role(Node *stmt, const char *query)
+{
+	List *options;
+	const char *role;
+	bool iscreate = false;
+
+	if (IsA(stmt, CreateRoleStmt))
+	{
+		iscreate = true;
+		options = ((CreateRoleStmt *)stmt)->options;
+		role = ((CreateRoleStmt*)stmt)->role;
+	}
+	else
+	{
+		Assert(IsA(stmt, AlterRoleStmt));
+		options = ((AlterRoleStmt*)stmt)->options;
+		role =  ((AlterRoleStmt*)stmt)->role->rolename;
+	}
+
+	DefElem *passwd_elem;
+	int next_location = -1;
+	ListCell *lc;
+	foreach (lc, options)
+	{
+		DefElem *elem = lfirst_node(DefElem, lc);
+		if (strcmp(elem->defname, "password") == 0)
+		{
+			passwd_elem = elem;
+			if (!passwd_elem->arg)
+			{
+				/* empty password do nothing */
+				passwd_elem = NULL;
+			}
+			else if (lnext(lc))
+			{
+				/* get the location of the next option element*/
+				next_location = lfirst_node(DefElem, lnext(lc))->location;
+			}
+			break;
+		}
+	}
+
+	/* rewrite password option to encrypted password */
+	if (passwd_elem)
+	{
+		char *log = 0;
+		char *shadow_pwd;
+		StringInfoData buff;
+		initStringInfo(&buff);
+
+		shadow_pwd = get_role_password(role, &log);
+		if (log)
+		{
+			elog(WARNING, "failed to make encrypted password: %s", log);
+		}
+		else
+		{
+			appendStringInfo(&buff, "%.*s encrypted password '%s' %s",
+					passwd_elem->location, query,  /* query body before password*/
+					shadow_pwd,                            /* encrypted password */
+					(next_location > 0 ? query + next_location : "")); /* remaining options */
+
+			query = donateStringInfo(&buff);
+		}
+	}
+
+	log_ddl_add(iscreate ?  DDL_OP_Type_create : DDL_OP_Type_alter,
+			DDL_ObjType_user,
+			get_database_name(MyDatabaseId),
+			"",
+			role,
+			query,
+			InvalidOid,
+			NULL);
+}
+
 
 static
 bool is_alter_table_supported(AlterTableStmt *stmt)
@@ -751,6 +830,13 @@ void post_handle_ddl(Node *parsetree, const char *query)
 	{
 		AlterSeqStmt *alter_stmt = (AlterSeqStmt*)parsetree;
 		log_alter_seq(alter_stmt, query);
+		break;
+	}
+	case T_CreateRoleStmt:
+	case T_AlterRoleStmt:
+	{
+		/* encrypt password before write ddl query into log */
+		log_create_alter_role(parsetree, query);
 		break;
 	}
 	case T_GrantStmt:

@@ -122,6 +122,8 @@ struct SeqFetchReq
 	Oid shardid;
 	
 	PGPROC *waiter;
+
+	long fenceNo;
 }SeqFetchReq;
 
 typedef
@@ -333,6 +335,7 @@ static int append_seq_req(Oid seqrelid, int cache_times, Oid shardid)
 	req->shardid = shardid;
 	req->cache = cache_times;
 	req->waiter = MyProc;
+	req->fenceNo = MyProc->fence.fence_no;
 
 	int proc_id = seq_fetch_queue->proc_id;
 	LWLockRelease(seq_fetch_queue_lock);
@@ -342,15 +345,9 @@ static int append_seq_req(Oid seqrelid, int cache_times, Oid shardid)
 	if (proc_id)
 		kill(proc_id, SIGUSR2);
 
-	if (MyProc->last_sem_wait_timedout)
-	{
-		PGSemaphoreReset(MyProc->sem);
-		MyProc->last_sem_wait_timedout = false;
-	}
-	int ret = PGSemaphoreTimedLock(MyProc->sem, StatementTimeout);
+	int ret = PGSemaphoreTimedLockFence(MyProc->sem, StatementTimeout, &MyProc->fence);
 	if (ret == 1)
 	{
-		MyProc->last_sem_wait_timedout = true;
 		RequestShardingTopoCheckAllStorageShards();
 		ShardConnKillReq *req = makeShardConnKillReq(1 /*kill conn*/);
 		if (req)
@@ -931,7 +928,9 @@ void sequence_serivce_main()
 		for (int i = 0; i < cnt; ++i)
 		{
 			SeqFetchReq *req = reqs + i;
-			PGSemaphoreUnlock(req->waiter->sem);
+			PGSemaphoreUnlockFence(req->waiter->sem,
+					       &req->waiter->fence,
+					       req->fenceNo);
 		}
 		MemoryContextReset(loopMemContext);
 	}

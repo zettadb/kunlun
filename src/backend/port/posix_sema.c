@@ -312,14 +312,22 @@ PGSemaphoreReset(PGSemaphore sema)
   cases we want to avoid potentially permanent waiting.
   @retval 1 if timed out; 0 if lock acqured; -1 if argument error;
 */
-int
-PGSemaphoreTimedLock(PGSemaphore sema, int millisecs)
+void
+SemaFenceInitialize(SemaFence *fence)
 {
-	int			errStatus;
+	LWLockInitialize(&fence->mutex, LWLockNewTrancheId());
+	fence->fence_no = 0;
+}
+
+int
+PGSemaphoreTimedLockFence(PGSemaphore sema, int millisecs, SemaFence *fence)
+{
+	int errStatus;
 	if (millisecs < 0)
 		return -1;
-	
-	if (millisecs == 0) millisecs = 3000;
+
+	if (millisecs == 0)
+		millisecs = 3000;
 
 	struct timespec ts;
 	/*
@@ -339,8 +347,8 @@ PGSemaphoreTimedLock(PGSemaphore sema, int millisecs)
 		ts.tv_sec = time(0);
 		ts.tv_nsec = 0;
 	}
-	ts.tv_sec += millisecs/1000;
-	ts.tv_nsec += (millisecs%1000 * 1000000);
+	ts.tv_sec += millisecs / 1000;
+	ts.tv_nsec += (millisecs % 1000 * 1000000);
 	if (ts.tv_nsec < 0)
 	{
 		// if overflows, wrap around and bump sec.
@@ -356,17 +364,35 @@ PGSemaphoreTimedLock(PGSemaphore sema, int millisecs)
 
 	if (errStatus < 0 && (errno != EAGAIN && errno != ETIMEDOUT))
 		elog(FATAL, "sem_timedwait failed: %m");
-	int ret;
-	if (errStatus == 0)
-		ret = 0;
-	else if (errno == ETIMEDOUT)
+
+	/* Block semaphore with same fence */
 	{
-		ret = 1;
+		LWLockAcquire(&fence->mutex, LW_EXCLUSIVE);
+		fence->fence_no++;
+		LWLockRelease(&fence->mutex);
 	}
 
-	return ret;
+	/* Timeout, consume late semaphore */
+	if (errStatus != 0)
+	{
+		(void)PGSemaphoreTryLock(sema);
+		return 1;
+	}
+
+	return 0;
 }
 
+void
+PGSemaphoreUnlockFence(PGSemaphore sema, SemaFence *fence, long fenceNo)
+{
+	if (fence->fence_no == fenceNo)
+	{
+		LWLockAcquire(&fence->mutex, LW_EXCLUSIVE);
+		if (fence->fence_no == fenceNo)
+			PGSemaphoreUnlock(sema);
+		LWLockRelease(&fence->mutex);
+	}
+}
 
 /*
  * PGSemaphoreLock

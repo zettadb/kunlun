@@ -226,6 +226,7 @@ InitProcGlobal(void)
 		if (i < MaxBackends + NUM_AUXILIARY_PROCS)
 		{
 			procs[i].sem = PGSemaphoreCreate();
+			SemaFenceInitialize(&procs[i].fence);
 			InitSharedLatch(&(procs[i].procLatch));
 			LWLockInitialize(&(procs[i].backendLock), LWTRANCHE_PROC);
 		}

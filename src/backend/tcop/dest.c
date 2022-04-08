@@ -95,12 +95,19 @@ DestReceiver *None_Receiver = &donothingDR;
  *		BeginCommand - initialize the destination at start of command
  * ----------------
  */
+static char commandTagRewrite[COMPLETION_TAG_BUFSIZE];
 void
 BeginCommand(const char *commandTag, CommandDest dest)
 {
 	/* Nothing to do at present */
+	commandTagRewrite[0] = '\0';
 }
 
+void
+RewriteCommandTag(const char *commandTag)
+{
+	strncpy(commandTagRewrite, commandTag, sizeof(commandTagRewrite));
+}
 /* ----------------
  *		CreateDestReceiver - return appropriate receiver function set for dest
  * ----------------
@@ -156,6 +163,9 @@ CreateDestReceiver(CommandDest dest)
 void
 EndCommand(const char *commandTag, CommandDest dest)
 {
+	if (commandTagRewrite[0] != '\0')
+		commandTag = commandTagRewrite;
+
 	switch (dest)
 	{
 		case DestRemote:

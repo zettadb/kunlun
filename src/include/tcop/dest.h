@@ -138,6 +138,8 @@ extern void BeginCommand(const char *commandTag, CommandDest dest);
 extern DestReceiver *CreateDestReceiver(CommandDest dest);
 extern void EndCommand(const char *commandTag, CommandDest dest);
 
+extern void RewriteCommandTag(const char *commandTag);
+
 /* Additional functions that go with destination management, more or less. */
 
 extern void NullCommand(CommandDest dest);

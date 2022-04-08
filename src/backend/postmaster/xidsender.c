@@ -74,6 +74,13 @@ typedef struct GlobalXid
 	GlobalTrxId gtrxid;
 	PGPROC *proc;
 	char txn_action; // 1: commit; 0: abort;
+
+	/**
+	 * Used to indicate which proc is waiting for which
+	 *  object to avoid false notifications.
+	 */
+	pid_t pid;
+	long fenceNo;
 } GlobalXid;
 
 typedef struct XidGlobalInfo
@@ -393,6 +400,9 @@ char WaitForXidCommitLogWrite(Oid comp_nodeid, GlobalTrxId xid, time_t deadline,
 	slot->gtrxid = xid;
 	slot->proc = MyProc;
 	slot->txn_action = (commit_it ? 1 : 0);
+	slot->pid = MyProc->pid;
+	slot->fenceNo = MyProc->fence.fence_no;
+
 	uint64_t counter = g_xgi->counter;
 	if (g_xgi->num_used_slots >= cluster_commitlog_group_size && g_xgi->procid != 0)
 		kill(g_xgi->procid, SIGUSR2);
@@ -408,11 +418,6 @@ char WaitForXidCommitLogWrite(Oid comp_nodeid, GlobalTrxId xid, time_t deadline,
 
 	if (commit_it && g_xgi->counter == counter)
 	{
-		if (MyProc->last_sem_wait_timedout)
-		{
-			PGSemaphoreReset(MyProc->sem);
-			MyProc->last_sem_wait_timedout = false;
-		}
 		/*
 		  We read the non-atomic g_xgi->counter without holding GlobalXidSenderLock,
 		  this isn't a problem --- the worst case is that the proc isn't notified
@@ -421,11 +426,10 @@ char WaitForXidCommitLogWrite(Oid comp_nodeid, GlobalTrxId xid, time_t deadline,
 		  OTOH, we have 100% guarantee that if we don't wait here, the commit log
 		  has definitely been received by metadata shard.
 		*/
-		ret = PGSemaphoreTimedLock(MyProc->sem, StatementTimeout);
+		ret = PGSemaphoreTimedLockFence(MyProc->sem, StatementTimeout, &MyProc->fence);
 		Assert(ret == 0 || ret == 1);
 		if (ret == 1) // the wait timed out
 		{
-			MyProc->last_sem_wait_timedout = true;
 			MyProc->commit_log_append_done = -1;
 			/*
 			  Do not make/append kill meta conn req here because in backend
@@ -637,6 +641,129 @@ static inline const char *txn_action(char action)
 		return NULL;
 }
 
+static void
+check_commit_log_decision(GlobalXid *slotbuff, int *nslots)
+{
+	GlobalXid *slot;
+	GlobalTrxId gtrxid;
+	Oid comp_nodeid;
+	const char *action;
+	char *end;
+	int num = *nslots;
+	StringInfoData stmt;
+
+	/* Query the metadata server about the states of the transactions */
+	initStringInfo(&stmt);
+	appendStringInfo(&stmt, "select comp_node_id, txn_id, next_txn_cmd  from " KUNLUN_METADATA_DBNAME ".commit_log_%s where (comp_node_id, txn_id) in ",
+			 GetClusterName2());
+	{
+		appendStringInfoChar(&stmt, '(');
+		for (int i = 0; i < num; i++)
+		{
+			GlobalXid *slot = slotbuff + i;
+			appendStringInfo(&stmt, "(%u, %lu),", slot->comp_nodeid, slot->gtrxid);
+		}
+		--stmt.len;
+		appendStringInfoChar(&stmt, ')');
+	}
+
+	if (send_stmt_to_cluster_meta(&cluster_conn, stmt.data, stmt.len, CMD_SELECT, true))
+		goto end;
+
+	if (cluster_conn.result)
+	{
+		MYSQL_ROW row;
+		while ((row = mysql_fetch_row(cluster_conn.result)))
+		{
+			comp_nodeid = strtoul(row[0], &end, 10);
+			gtrxid = strtoull(row[1], &end, 10);
+			action = row[2];
+			for (int i = 0; i < num; ++i)
+			{
+				slot = slotbuff + i;
+				if (slot->comp_nodeid == comp_nodeid && slot->gtrxid == gtrxid)
+				{
+					if (strcasecmp(txn_action(slot->txn_action), action) == 0)
+					{
+						elog(LOG, "Check transaction commit log, transaction '%u-%lu' is %sed", comp_nodeid, gtrxid, action);
+						slot->proc->commit_log_append_done = 1;
+					}
+					else
+					{
+						elog(LOG, "Check transaction commit log, transcation '%u-%lu' is %sed by cluster manager", comp_nodeid, gtrxid, action);
+						slot->proc->commit_log_append_done = 0;
+					}
+
+					/* move the completed slot to the tail*/
+					if (i != num - 1)
+					{
+						GlobalXid tmp = slotbuff[num - 1];
+						slotbuff[num - 1] = *slot;
+						*slot = tmp;
+					}
+					--num;
+					break;
+				}
+			}
+		}
+		free_metadata_cluster_result(&cluster_conn);
+
+		/* Notify the waiting proc */
+		for (int i = num; i < *nslots; ++i)
+		{
+			slot = slotbuff + i;
+			if (slot->txn_action == 1 && // only commit waits
+			    slot->proc->pid == slot->pid)
+			{
+				PGSemaphoreUnlockFence(slot->proc->sem,
+						       &slot->proc->fence,
+						       slot->fenceNo);
+			}
+		}
+
+		*nslots = num;
+	}
+
+	/* check the deadline */
+	{
+		time_t now = time(NULL);
+		for (int i = 0; i < num; ++i)
+		{
+			slot = slotbuff + i;
+			if (slot->deadline < now)
+			{
+				/* mark timeout */
+				slot->proc->commit_log_append_done = -1;
+				if (i < num - 1)
+				{
+					GlobalXid tmp = slotbuff[num - 1];
+					slotbuff[num - 1] = *slot;
+					*slot = tmp;
+				}
+				--num;
+			}
+		}
+
+		/* Notify the proc ? */
+		for (int i = num; i < *nslots; ++i)
+		{
+			slot = slotbuff + i;
+			if (slot->txn_action == 1 && // only commit waits
+			    slot->proc->pid == slot->pid)
+			{
+				PGSemaphoreUnlockFence(slot->proc->sem,
+						       &slot->proc->fence,
+						       slot->fenceNo);
+			}
+		}
+
+		*nslots = num;
+	}
+end:
+	if (stmt.data)
+		pfree(stmt.data);
+}
+
 static uint64_t MAX_SIGATOMIC = 0;
 
 void XidSenderMain(int argc, char **argv)
@@ -822,7 +949,9 @@ start:
 		if (nslots == 0)
 			continue;
 
+		
 		// send the stmt.
+		int retry_count = 0;
 retry_send:
 		resetStringInfo(&stmt);
 
@@ -837,7 +966,7 @@ retry_send:
 		for (int i = 0; i < nslots; i++)
 		{
 			GlobalXid *slot = localbuf+i;
-			appendStringInfo(&stmt, "(%u, %lu, (if (unix_timestamp() > %ld, 'abort', '%s'))),",
+			appendStringInfo(&stmt, "(%u, %lu, (if (unix_timestamp() > %ld,  NULL, '%s'))),",
 				slot->comp_nodeid, slot->gtrxid, slot->deadline, txn_action(slot->txn_action));
 		}
 
@@ -845,39 +974,53 @@ retry_send:
 		stmt.len--;
 
 		{
-		CHECK_FOR_INTERRUPTS();
+			CHECK_FOR_INTERRUPTS();
 
-		bool done = !send_stmt_to_cluster_meta(&cluster_conn, stmt.data, stmt.len, CMD_INSERT, true);
-		if (!done)
-		{
-			elog(WARNING, "Failed to execute commit log insert stmt (%s) on cluster primary , retrying.", stmt.data);
-
-			if (!cluster_conn.connected)
+			bool done = !send_stmt_to_cluster_meta(&cluster_conn, stmt.data, stmt.len, CMD_INSERT, true);
+			if (!done)
 			{
-				pg_usleep(100000);// when metashard master gone, we would loop like crazy without such a sleep.
-				connect_to_metadata_cluster(true);
+				elog(WARNING, "Failed to execute commit log insert stmt (%s) on cluster primary , retrying.", stmt.data);
+
+				if (!cluster_conn.connected)
+				{
+					pg_usleep(100000); // when metashard master gone, we would loop like crazy without such a sleep.
+					connect_to_metadata_cluster(true);
+				}
+				if (got_SIGTERM)
+					break;
+
+				/* Check the commit log */
+				check_commit_log_decision(localbuf, &nslots);
+				++ retry_count;
+
+				if (nslots > 0)
+				{
+					if (retry_count > 4)
+						pg_usleep(100000);
+
+					goto retry_send;
+				}
 			}
-			if (!got_SIGTERM)
-				goto retry_send;
-			else
-				break;
-		}
 
-		when_last_send = time(0);
-		LWLockAcquire(GlobalXidSenderLock, LW_EXCLUSIVE);
-		g_xgi->counter++;
-		if (g_xgi->counter == MAX_SIGATOMIC)
-			g_xgi->counter = 0;
-		LWLockRelease(GlobalXidSenderLock);
+			when_last_send = time(0);
+			LWLockAcquire(GlobalXidSenderLock, LW_EXCLUSIVE);
+			g_xgi->counter++;
+			if (g_xgi->counter == MAX_SIGATOMIC)
+				g_xgi->counter = 0;
+			LWLockRelease(GlobalXidSenderLock);
 
-
-		for (int i = 0; i < nslots; i++)
-		{
-			GlobalXid *slot = localbuf+i;
-			slot->proc->commit_log_append_done = (done ? 1 : 0);
-			if (slot->txn_action == 1) // only commit waits
-				PGSemaphoreUnlock(slot->proc->sem);
-		}
+			for (int i = 0; i < nslots; i++)
+			{
+				GlobalXid *slot = localbuf + i;
+				slot->proc->commit_log_append_done = (done ? 1 : 0);
+				if (slot->txn_action == 1 && // only commit waits
+				    slot->proc->pid == slot->pid)
+				{
+					PGSemaphoreUnlockFence(slot->proc->sem,
+							       &slot->proc->fence,
+							       slot->fenceNo);
+				}
+			}
 		}
 	}
 out:

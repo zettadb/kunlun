@@ -2146,7 +2146,13 @@ CommitTransaction(void)
 				 DEBUG_INJECT_IF("test_2nd_phase_timeout", insert_debug_sync(1, 1, 2););
 
 				if (ret == 0)
-					SendRollbackRemote(s->name, false, true/*written only*/);
+				{
+					SendRollbackRemote(s->name, false, true /*written only*/);
+					RewriteCommandTag("ROLLBACK");
+					ereport(WARNING,
+						(errcode(ERRCODE_CONNECTION_EXCEPTION),
+						 errmsg("Kunlun-db: Failed for commit log write. This transaction (%s) was rollbacked", s->name)));
+				}
 				else if (ret == -1)
 				{
 					/*
@@ -2155,9 +2161,13 @@ CommitTransaction(void)
 					*/
 					disconnect_storage_shards();
 					ereport(WARNING,
-							(errcode(ERRCODE_CONNECTION_EXCEPTION),
-							 errmsg("Kunlun-db: Timed out waiting for commit log write. This transaction (%s) will be committed if the commit-log write succeeded, and it will be aborted if the write failed, both in a few seconds.", s->name),
-							 errhint("Search by transaction id %s in this cluster's commit log in metadata shard to see how the transaction will be ended --- it will be committed if and only if the id is found with COMMIT action.", s->name)));
+						(errcode(ERRCODE_CONNECTION_EXCEPTION),
+						 errmsg("Kunlun-db: Timeout waiting for commit log write. If the commit log write succeeds, this transaction (%s) will be committed,"
+							" if the write fails, it will be aborted within seconds.",
+							s->name),
+						 errhint("Search by transaction id %s in this cluster's commit log in metadata shard to see how the transaction will be ended "
+							 "--- it will be committed if and only if the id is found with COMMIT action.",
+							 s->name)));
 				}
 				else
 				{

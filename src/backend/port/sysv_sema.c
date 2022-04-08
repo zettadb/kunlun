@@ -30,9 +30,11 @@
 #endif
 
 #include "miscadmin.h"
+#include "port/atomics.h"
 #include "storage/ipc.h"
 #include "storage/pg_sema.h"
 #include "storage/shmem.h"
+#include "storage/lwlock.h"
 
 
 typedef struct PGSemaphoreData
@@ -410,17 +412,25 @@ PGSemaphoreReset(PGSemaphore sema)
   cases we want to avoid potentially permanent waiting.
   @retval 1 if timed out; 0 if lock acqured; -1 if argument error;
 */
-int
-PGSemaphoreTimedLock(PGSemaphore sema, int millisecs)
+void
+SemaFenceInitialize(SemaFence *fence)
 {
-	int			errStatus;
+	LWLockInitialize(&fence->mutex, LWLockNewTrancheId());
+	fence->fence_no = 0;
+}
+
+int
+PGSemaphoreTimedLockFence(PGSemaphore sema, int millisecs, SemaFence *fence)
+{
+	int errStatus;
 	struct sembuf sops;
 
-	if (millisecs < 0)
+	if (millisecs < 0 || !fence)
 		return -1;
-	if (millisecs == 0) millisecs = 3000;
+	if (millisecs == 0)
+		millisecs = 3000;
 
-	sops.sem_op = -1;			/* decrement */
+	sops.sem_op = -1; /* decrement */
 	sops.sem_flg = 0;
 	sops.sem_num = sema->semNum;
 
@@ -435,16 +445,39 @@ PGSemaphoreTimedLock(PGSemaphore sema, int millisecs)
 
 	if (errStatus < 0 && errno != EAGAIN)
 		elog(FATAL, "semop(id=%d) failed: %m", sema->semId);
-	int ret;
-	if (errStatus == 0)
-		ret = 0;
-	else
+
+	/* Block semaphore with same fence */
 	{
-		Assert(errno == EAGAIN);
-		ret = 1;
+		LWLockAcquire(&fence->mutex, LW_EXCLUSIVE);
+		fence->fence_no++;
+		LWLockRelease(&fence->mutex);
 	}
 
-	return ret;
+	/* Timeout, consume late semaphore */
+	if (errStatus != 0)
+	{
+		(void)PGSemaphoreTryLock(sema);
+		return 1;
+	}
+
+	return 0;
+}
+
+/*
+ * PGSemaphoreUnlock
+ *
+ * Unlock a semaphore (increment count)
+ */
+void
+PGSemaphoreUnlockFence(PGSemaphore sema, SemaFence *fence, long fenceNo)
+{
+	if (fence->fence_no == fenceNo)
+	{
+		LWLockAcquire(&fence->mutex, LW_EXCLUSIVE);
+		if (fence->fence_no == fenceNo)
+			PGSemaphoreUnlock(sema);
+		LWLockRelease(&fence->mutex);
+	}
 }
 
 /*

@@ -20,6 +20,8 @@
 #ifndef PG_SEMA_H
 #define PG_SEMA_H
 
+#include "storage/lwlock.h"
+
 /*
  * struct PGSemaphoreData and pointer type PGSemaphore are the data structure
  * representing an individual semaphore.  The contents of PGSemaphoreData vary
@@ -36,6 +38,11 @@ typedef struct PGSemaphoreData *PGSemaphore;
 typedef HANDLE PGSemaphore;
 #endif
 
+typedef struct SemaFence
+{
+	LWLock mutex;
+	long  fence_no;
+} SemaFence;
 
 /* Report amount of shared memory needed */
 extern Size PGSemaphoreShmemSize(int maxSemas);
@@ -51,12 +58,17 @@ extern void PGSemaphoreReset(PGSemaphore sema);
 
 /* Lock a semaphore (decrement count), blocking if count would be < 0 */
 extern void PGSemaphoreLock(PGSemaphore sema);
-extern int PGSemaphoreTimedLock(PGSemaphore sema, int millisecs);
 
 /* Unlock a semaphore (increment count) */
 extern void PGSemaphoreUnlock(PGSemaphore sema);
 
 /* Lock a semaphore only if able to do so without blocking */
 extern bool PGSemaphoreTryLock(PGSemaphore sema);
+
+extern void SemaFenceInitialize(SemaFence *fence);
+
+extern int PGSemaphoreTimedLockFence(PGSemaphore sema, int millisecs, SemaFence *fence);
+
+extern void PGSemaphoreUnlockFence(PGSemaphore sema, SemaFence *fence, long fencNo);
 
 #endif							/* PG_SEMA_H */

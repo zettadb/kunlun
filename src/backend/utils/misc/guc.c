@@ -118,7 +118,9 @@
 #define CONFIG_EXEC_PARAMS_NEW "global/config_exec_params.new"
 #endif
 
-
+int metadata_connect_timeout = 4;
+int metadata_read_timeout = 20;
+int metadata_write_timeout = 20;
 /*
  * Precision with which REAL type guc values are to be printed for GUC
  * serialization.
@@ -3168,6 +3170,30 @@ static struct config_int ConfigureNamesInt[] =
 		NULL, NULL, NULL
 	},
 
+	{
+		{"metadata_connect_timeout", PGC_USERSET, CLIENT_CONN_OTHER,
+			gettext_noop("timeout in seconds when connecting to a metadata server."),
+		},
+		&metadata_connect_timeout,
+		4, 1, 100000,
+		NULL, NULL, NULL
+	},
+	{
+		{"metadata_read_timeout", PGC_USERSET, CLIENT_CONN_OTHER,
+			gettext_noop("timeout in seconds when connecting to a metadata server."),
+		},
+		&metadata_connect_timeout,
+		20, 1, 100000,
+		NULL, NULL, NULL
+	},
+	{
+		{"metadata_write_timeout", PGC_USERSET, CLIENT_CONN_OTHER,
+			gettext_noop("timeout in seconds when connecting to a metadata server."),
+		},
+		&metadata_connect_timeout,
+		20, 1, 100000,
+		NULL, NULL, NULL
+	},
 	{
 		{"mysql_connect_timeout", PGC_USERSET, CLIENT_CONN_OTHER,
 			gettext_noop("timeout in seconds when connecting to a mysql storage node."),

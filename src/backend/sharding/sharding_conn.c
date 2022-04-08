@@ -313,7 +313,7 @@ make_conn:
 		/*
 		 * We have to send the set stmts now because immediately next stmt maybe a DDL
 		 * */
-		send_multi_stmts_to_multi();
+		send_stmt_to_multi(asi, 1);
 
 		if (want_master) check_mysql_node_status(asi, want_master);
 
@@ -1133,7 +1133,16 @@ void send_multi_stmts_to_multi()
 {
 	AsyncStmtInfo *asis = cur_session.asis;
 	size_t shard_cnt = cur_session.num_asis_used;
+	send_stmt_to_multi(asis, shard_cnt);
+}
 
+
+/**
+ * Asyncly send 'stmt' to the specified list of shards' master nodes, then wait for all replies.
+ * caller should free asis array if necessary.
+ */
+static void send_stmt_to_multi(AsyncStmtInfo *asis, size_t shard_cnt)
+{
 	PG_TRY();
 	{
 	while (true)
@@ -1216,19 +1225,6 @@ void send_multi_stmts_to_multi()
 	}
 	PG_END_TRY();
 }
-
-
-/*
- * Asyncly send 'stmt' to the specified list of shards' master nodes, then wait for all replies.
- * caller should free asis array if necessary.
- * */
-static void send_stmt_to_multi(AsyncStmtInfo *asis, size_t shard_cnt)
-{
-	//send_stmt_to_multi_start(asis, shard_cnt);
-	//send_stmt_to_multi_wait(asis, shard_cnt);
-	send_multi_stmts_to_multi();
-}
-
 
 /*
  * Start async send to multiple shards.

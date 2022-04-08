@@ -51,9 +51,9 @@
 #include "postmaster/xidsender.h"
 #include "storage/ipc.h"
 
-extern int mysql_connect_timeout;
-extern int mysql_read_timeout;
-extern int mysql_write_timeout;
+extern int metadata_connect_timeout;
+extern int metadata_read_timeout;
+extern int metadata_write_timeout;
 extern int mysql_max_packet_size;
 extern bool mysql_transmit_compress;
 
@@ -260,9 +260,9 @@ static int connect_mysql(MYSQL_CONN *mysql, const char *host, uint16_t port,
 
 	mysql_init(&mysql->conn);
 	//mysql_options(mysql, MYSQL_OPT_NONBLOCK, 0); always sync send stmts to cluster meta nodes.
-	mysql_options(&mysql->conn, MYSQL_OPT_CONNECT_TIMEOUT, &mysql_connect_timeout);
-	mysql_options(&mysql->conn, MYSQL_OPT_READ_TIMEOUT, &mysql_read_timeout);
-	mysql_options(&mysql->conn, MYSQL_OPT_WRITE_TIMEOUT, &mysql_write_timeout);
+	mysql_options(&mysql->conn, MYSQL_OPT_CONNECT_TIMEOUT, &metadata_connect_timeout);
+	mysql_options(&mysql->conn, MYSQL_OPT_READ_TIMEOUT, &metadata_read_timeout);
+	mysql_options(&mysql->conn, MYSQL_OPT_WRITE_TIMEOUT, &metadata_write_timeout);
 	mysql_options(&mysql->conn, MYSQL_OPT_MAX_ALLOWED_PACKET, &mysql_max_packet_size);
 
 	if (mysql_transmit_compress)

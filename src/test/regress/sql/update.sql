@@ -169,7 +169,7 @@ CREATE TABLE part_c_1_100 PARTITION OF part_b_10_b_20 FOR VALUES FROM (1) TO (10
 --EXPLAIN (costs off) UPDATE range_parted set c = c - 50 WHERE c > 97;
 
 -- fail, row movement happens only within the partition subtree.
-UPDATE part_c_100_200 set c = c - 20, d = c WHERE c = 105;
+--UPDATE part_c_100_200 set c = c - 20, d = c WHERE c = 105;
 -- fail, no partition key update, so no attempt to move tuple,
 -- but "a = 'a'" violates partition constraint enforced by root partition)
 UPDATE part_b_10_b_20 set a = 'a';
@@ -182,7 +182,7 @@ UPDATE range_parted set e = d;
 UPDATE part_c_1_100 set c = c + 20 WHERE c = 98;
 -- ok, row movement
 -- Can not update partition key of a remote relation.
--- UPDATE part_b_10_b_20 set c = c + 20 returning c, b, a;
+--UPDATE part_b_10_b_20 set c = c + 20 returning c, b, a;
 :show_data;
 
 -- fail, row movement happens only within the partition subtree.
@@ -212,9 +212,10 @@ CREATE VIEW upview AS SELECT * FROM range_parted WHERE (select c > c1 FROM minta
 -- fail, check option violation
 --UPDATE upview set c = 120 WHERE b = 4;
 -- fail, row movement with check option violation
----UPDATE upview set a = 'b', b = 15, c = 120 WHERE b = 4;
+--UPDATE upview set a = 'b', b = 15, c = 120 WHERE b = 4;
 -- ok, row movement, check option passes
----UPDATE upview set a = 'b', b = 15 WHERE b = 4;
+--UPDATE upview set a = 'b', b = 15 WHERE b = 4;
+
 :show_data;
 
 -- cleanup
@@ -352,13 +353,13 @@ update part_def set a = 'a' where a = 'd';
 -- fail, default partition is not under part_a_10_a_20;
 UPDATE part_a_10_a_20 set a = 'ad' WHERE a = 'a';
 -- ok
-UPDATE range_parted set a = 'ad' WHERE a = 'a';
-UPDATE range_parted set a = 'bd' WHERE a = 'b';
+--UPDATE range_parted set a = 'ad' WHERE a = 'a';
+--UPDATE range_parted set a = 'bd' WHERE a = 'b';
 :show_data;
 -- Update row movement from default to non-default partitions.
 -- ok
-UPDATE range_parted set a = 'a' WHERE a = 'ad';
-UPDATE range_parted set a = 'b' WHERE a = 'bd';
+--UPDATE range_parted set a = 'a' WHERE a = 'ad';
+--UPDATE range_parted set a = 'b' WHERE a = 'bd';
 :show_data;
 
 -- Cleanup: range_parted no longer needed.
@@ -425,9 +426,9 @@ SELECT * FROM list_parted ORDER BY 1, 2, 3;
 UPDATE list_parted set c = 70 WHERE b  = 1;
 SELECT * FROM list_parted ORDER BY 1, 2, 3;
 
-UPDATE list_parted set b = 1 WHERE c = 70;
+--UPDATE list_parted set b = 1 WHERE c = 70;
 SELECT * FROM list_parted ORDER BY 1, 2, 3;
-UPDATE list_parted set b = 1 WHERE c = 70;
+--UPDATE list_parted set b = 1 WHERE c = 70;
 SELECT * FROM list_parted ORDER BY 1, 2, 3;
 
 -- UPDATE partition-key with FROM clause. If join produces multiple output

@@ -106,9 +106,9 @@ static volatile bool got_SIGTERM = false;
 
 extern int get_topo_service_pid(void);
 extern void BackgroundWorkerInitializeConnection(const char *dbname, const char *username, uint32 flags);
-static MYSQL_CONN* connect_to_metadata_cluster(bool recover_txnid, bool isbg);
+static MYSQL_CONN* connect_to_metadata_cluster(bool isbg);
 extern const char *GetClusterName2();
-static void recover_nextXid(void);
+static void recover_nextXid_global(void);
 
 uint32_t get_cluster_conn_thread_id()
 {
@@ -137,7 +137,7 @@ MYSQL_CONN* get_metadata_cluster_conn(bool isbg)
 	 while (!cluster_conn.connected && !got_SIGTERM)
 	 {
 		CHECK_FOR_INTERRUPTS();
-		connect_to_metadata_cluster(false, isbg);
+		connect_to_metadata_cluster(isbg);
 		if (!cluster_conn.connected)
 		{
 			if (get_topo_service_pid() != MyProcPid)
@@ -157,7 +157,7 @@ MYSQL_CONN* get_metadata_cluster_conn(bool isbg)
 /*
   Connect metadata master node, and optionally recover current computing node's nextXid.
 */
-static MYSQL_CONN* connect_to_metadata_cluster(bool recover_txnid, bool isbg)
+static MYSQL_CONN* connect_to_metadata_cluster(bool isbg)
 {
 	bool need_txn = false;
 	bool do_retry = false;
@@ -320,124 +320,17 @@ end:
 		return NULL;
 	}
 
-	if (recover_txnid)
-		recover_nextXid();
 	return &cluster_conn;
 }
 
-/*
-  Connect to metadata nodes in pg_cluster_meta_nodes and see which is really
-  the master node. Connect to it and recover nextXid.
-*/
-void find_metadata_master_and_recover()
+/* True if recovering next xid for global txn */
+static bool RecoveringGlobalNextXid = false;
+
+static void 
+recover_nextXid_global()
 {
-	Oid master_nodeid = InvalidOid, old_master_nodeid = InvalidOid;
-	int nretries = 0;
-	Assert(!IsTransactionState());
-	SetCurrentStatementStartTimestamp();
-	StartTransactionCommand();
-	SPI_connect();
-	PushActiveSnapshot(GetTransactionSnapshot());
-
-retry:
-	{
-	int num_masters = FindCurrentMetaShardMasterNodeId(&master_nodeid, &old_master_nodeid);
-	/*
-	  Other errors are serious and simply end.
-	*/
-	if (num_masters != 0 && num_masters != 1)
-		goto end;
-	/*
-	  If no primary node found, the shard could be electing, wait a while and we can succeed.
-	*/
-	if (num_masters == 0)
-	{
-		/*
-		  This function is called in clas main applier, and the 'got_SIGTERM'
-		  used here is set only if the GTSS process recvs a SIGTERM signal, so
-		  if postmaster wants to only terminate the GTSS but not other processes,
-		  clas proc would be terminated unintentionally. But fortunately this
-		  doesn't happen AFAIK, postmaster always send SIGTERM to terminates all
-		  procs, so we can use the got_SIGTERM defined in this module.
-		*/
-		if (got_SIGTERM) goto end;
-
-		CHECK_FOR_INTERRUPTS();
-		wait_latch(1000);
-		goto retry;
-	}
-
-	HeapTuple cmtup = SearchSysCache1(CLUSTER_META_NODES, master_nodeid);
-	if (!HeapTupleIsValid(cmtup))
-		elog(ERROR, "cache lookup failed for cluster meta primary node (pg_cluster_meta_node) by field server_id %u", master_nodeid);
-	Form_pg_cluster_meta_nodes cmnode = (Form_pg_cluster_meta_nodes)GETSTRUCT(cmtup);
-
-	bool isnull = false;
-	Datum pwdfld = SysCacheGetAttr(CLUSTER_META_NODES, cmtup, Anum_pg_cluster_meta_nodes_passwd, &isnull);
-	if (isnull)
-		elog(ERROR, "Non-nullable field 'passwd' in table pg_cluster_meta_nodes has NULL value.");
-	Datum hostaddr_dat = SysCacheGetAttr(CLUSTER_META_NODES, cmtup, Anum_pg_cluster_meta_nodes_hostaddr, &isnull);
-	if (isnull)
-		elog(ERROR, "Non-nullable field 'hostaddr' in table pg_cluster_meta_nodes has NULL value.");
-
-	char *pwd = TextDatumGetCString(pwdfld);
-	char *hostaddr = TextDatumGetCString(hostaddr_dat);
-	int conn_fail = 0, rcm = 0;
-
-	if ((rcm = connect_mysql_master(&cluster_conn, hostaddr, cmnode->port,
-		cmnode->user_name.data, pwd, true)))
-	{
-		if (cmnode->is_master && rcm == -2)
-		{
-			conn_fail = 2;
-			/*
-			 * Connected to an old master, it's no longer master now. Wait for
-			 * master switch and meta table update to complete.
-			 this is possible because when a master node is gone, the fact is
-			 realized after a few seconds, and we can get the old master during this period.
-			 * */
-			elog(LOG, "Connected to a former primary(now replica). Waiting for primary switch and meta table update to complete.");
-		}
-		else if (rcm == -1)
-		{
-			conn_fail = 1;
-			/*
-			 * Master db instance doesn't exist or gone, wait longer for it to
-			 * become available.
-			 * */
-			elog(LOG, "Master mysql instance doesn't exist or gone, waiting for a primary node to become available and reconnect.");
-		}
-
-	}
-
-	ReleaseSysCache(cmtup);
-	if (conn_fail && nretries++ < MAX_METASHARD_MASTER_CONN_RETRIES)
-	{
-		if (got_SIGTERM) goto end;
-
-		CHECK_FOR_INTERRUPTS();
-		wait_latch(1000);
-		goto retry;
-	}
-	}
-
-	if (nretries >= MAX_METASHARD_MASTER_CONN_RETRIES)
-	{
-		elog(LOG, "Unable to connect to metadata shard master node, exiting.");
-		goto end;
-	}
-
-	recover_nextXid();
-end:
-	SPI_finish();
-	PopActiveSnapshot();
-	CommitTransactionCommand();
-	return;
-}
-
-
-static void recover_nextXid()
-{
+	if (XidSyncDone())
+		return;
 	/*
 	 * It's likely that a previous crash of all postgres backends leaked
 	 * transaction IDs that are already used and logged into metadata cluster's
@@ -446,37 +339,47 @@ static void recover_nextXid()
 	 * updated here when necessary.
 	 * */
 	Assert(g_xgi);
-	bool done = false;
-	TransactionId max_metadata_cluster_trxid = get_max_txnid_cluster_meta(&cluster_conn, &done);
-	bool recovered = false;
+	Assert(MaxBackends > 0);
+	Assert(IsTransactionBlock() == false);
+	Assert(InRecovery == false);
+	TransactionId max_metadata_cluster_trxid = ShmemVariableCache->nextXid + MaxBackends;
 	TransactionId new_start = InvalidTransactionId, old_next_xid = 0;
 
+	/* update next xid to the max xid recovered from redo log plus the max number of process */
 	LWLockAcquire(XidGenLock, LW_EXCLUSIVE);
-	g_xgi->max_trxid = max_metadata_cluster_trxid;
-	if (ShmemVariableCache->nextXid <= g_xgi->max_trxid)
-	{
-		old_next_xid = ShmemVariableCache->nextXid;
-		new_start = ShmemVariableCache->nextXid = g_xgi->max_trxid + 1;
-		recovered = true;
-	}
-	/*
-	 * Got NULL result because no rows in commit log. pMaxTrxidMetadataCluster
-	 * is only used to denote whether the ShmemVariableCache->nextXid
-	 * recovery has completed, it's OK to assign it MaxTransactionId.
-	 * */
-	if (max_metadata_cluster_trxid == InvalidTransactionId && done)
-		g_xgi->max_trxid = MaxTransactionId;
-
+	old_next_xid = ShmemVariableCache->nextXid;
+	new_start = ShmemVariableCache->nextXid = max_metadata_cluster_trxid + 1;
 	LWLockRelease(XidGenLock);
-	if (recovered)
-		elog(LOG, "Recovered ShmemVariableCache->nextXid from %u to %u.", old_next_xid, new_start);
-}
 
+	RecoveringGlobalNextXid = true;
+	/* alloc the first xid after pg startup, and flush redo log */
+	PG_TRY();
+	{
+		StartTransactionCommand();
+		GetTopTransactionId();
+		CommitTransactionCommand();
+		RecoveringGlobalNextXid = false;
+	}
+	PG_CATCH();
+	{
+		RecoveringGlobalNextXid = false;
+		/* It's ok without of lock */
+		ShmemVariableCache->nextXid = old_next_xid;
+		AbortCurrentTransaction();
+		PG_RE_THROW();
+	}
+	PG_END_TRY();
+
+	/* mark the next xid available */
+	g_xgi->max_trxid = max_metadata_cluster_trxid;
+
+	elog(LOG, "Recovered ShmemVariableCache->nextXid from %u to %u.", old_next_xid, new_start);
+}
 
 bool XidSyncDone()
 {
 	// Caller must have acquired XidGenLock already!
-	return g_xgi->max_trxid != InvalidTransactionId;
+	return g_xgi->max_trxid != InvalidTransactionId || RecoveringGlobalNextXid;
 }
 
 /*
@@ -877,12 +780,14 @@ void XidSenderMain(int argc, char **argv)
 	StringInfoData stmt;
 	initStringInfo2(&stmt, 8192, xidSenderLocalContext);
 	time_t now = 0, when_last_send = 0;
+
+	recover_nextXid_global();
 start:
 
 	now = time(0);
 	if (!cluster_conn.connected)
 	{
-		connect_to_metadata_cluster(true, true);
+		connect_to_metadata_cluster(true);
 	}
 
 	while (!got_SIGTERM)
@@ -898,7 +803,7 @@ start:
 
 		if (!cluster_conn.connected)
 		{
-			connect_to_metadata_cluster(true, true);
+			connect_to_metadata_cluster(true);
 		}
 
 		// Do an inaccurate unsynced read, wait 1s if no much work accumulated yet.
@@ -953,7 +858,7 @@ retry_send:
 			if (!cluster_conn.connected)
 			{
 				pg_usleep(100000);// when metashard master gone, we would loop like crazy without such a sleep.
-				connect_to_metadata_cluster(true, true);
+				connect_to_metadata_cluster(true);
 			}
 			if (!got_SIGTERM)
 				goto retry_send;

@@ -239,8 +239,6 @@ static int switch_authorization(const char *user, const char *role)
 		end_txn = true;
 	}
 
-	pgstat_report_activity(STATE_RUNNING, "Applying ddl log event.");
-
 	/* Look up the user */
 	HeapTuple roleTup = SearchSysCache1(AUTHNAME, PointerGetDatum(user));
 	if (!HeapTupleIsValid(roleTup))
@@ -402,15 +400,17 @@ static int apply_log_internal(int id, const char *user, const char *role, const 
 {
 	bool end_txn = false;
 	int ret = 0;
-	SetCurrentStatementStartTimestamp();
 
+	/* Current state */
+	pgstat_report_activity(STATE_RUNNING, "Applying ddl log records.");
+	
 	/* Saved the orignal User*/
 	char *origUser = get_current_username();
 
-	set_search_path(path);
-
 	/* Switch user */
 	switch_authorization(user, role);
+	
+	set_search_path(path);
 
 	Assert(!IsTransactionBlock());
 
@@ -419,45 +419,21 @@ static int apply_log_internal(int id, const char *user, const char *role, const 
 		end_txn = true;
 		StartTransactionCommand();
 	}
-	pgstat_report_activity(STATE_RUNNING, "Applying ddl log records.");
 
 	if (strcasecmp(op, "remap_shardid") == 0)
 	{
-		PG_TRY();
-		{
-			List *from_shardids, *to_shardids;
-			parse_remap_shardid_req(sql, &from_shardids, &to_shardids);
-			change_cluster_shardids(from_shardids, to_shardids);
-			ret = SPI_OK_UTILITY;
-		}
-		PG_CATCH();
-		{
-			PopActiveSnapshot();
-			/* Switch back to the orignal user */
-			switch_authorization(origUser, NULL);
-			PG_RE_THROW();
-		}
-		PG_END_TRY();
+		List *from_shardids, *to_shardids;
+		parse_remap_shardid_req(sql, &from_shardids, &to_shardids);
+		change_cluster_shardids(from_shardids, to_shardids);
+		ret = SPI_OK_UTILITY;
 	}
 	else
 	{
 		/* We can now execute queries via SPI */
 		SPI_connect();
-		PG_TRY();
-		{
-			ret = SPI_execute(sql, false, 0);
-		}
-		PG_CATCH();
-		{
-			SPI_finish();
-			PopActiveSnapshot();
-			/* Switch back to the orignal user */
-			switch_authorization(origUser, NULL);
-			PG_RE_THROW();
-		}
-		PG_END_TRY();
+		ret = SPI_execute(sql, false, 0);
+                SPI_finish();
 	}
-	SPI_finish();
 
 	PushActiveSnapshot(GetTransactionSnapshot());
 
@@ -830,7 +806,7 @@ void ddl_applier_serivce_main(void)
 	
 	while (!got_sigterm)
 	{
-		while ((event = Peek_ddl_log_event(&context)))
+		while (!got_sigterm && (event = Peek_ddl_log_event(&context)))
 		{
 			Debug_ddl_log_event(event);
 			bool done = false;
@@ -853,7 +829,8 @@ void ddl_applier_serivce_main(void)
 						done = true;
 				}
 				PG_END_TRY();
-			} while (!done);
+
+			} while (!done && !got_sigterm);
 
 			pop_ddl_log_event(&context);
 
@@ -861,6 +838,8 @@ void ddl_applier_serivce_main(void)
 			MemoryContextReset(loopMemContext);
 		}
 
+		if (got_sigterm)
+			break;
 		wait_latch(1000);
 		handle_message_queue();
 

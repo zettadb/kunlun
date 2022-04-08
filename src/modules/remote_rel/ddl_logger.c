@@ -456,7 +456,7 @@ log_create_alter_role(Node *stmt, const char *query)
 		role =  ((AlterRoleStmt*)stmt)->role->rolename;
 	}
 
-	DefElem *passwd_elem;
+	DefElem *passwd_elem = NULL;
 	int next_location = -1;
 	ListCell *lc;
 	foreach (lc, options)

@@ -165,8 +165,9 @@ inside",2
 \.
 
 -- test end of copy marker
+-- ERROR:  Kunlun: creating persistent table like temp table is not allowed, so change the table to be non-temp
 --DDL_STATEMENT_BEGIN--
-CREATE TEMP TABLE testeoc (a text);
+CREATE TABLE testeoc (a text);
 --DDL_STATEMENT_END--
 
 COPY testeoc FROM stdin CSV;
@@ -197,6 +198,9 @@ SELECT * FROM testnull;
 --BEGIN;
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE vistest (LIKE testeoc);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
+DROP TABLE testeoc;
 --DDL_STATEMENT_END--
 COPY vistest FROM stdin CSV;
 a0

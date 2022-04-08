@@ -15,7 +15,8 @@ def process_output(infile):
             if inplan:
                 if re.match(r'\s*\(\s*\d+\s*rows?\s*\)', line):
                     inplan = False
-            elif re.match(r'\s*QUERY\s*PLAN', line):
+            # expalain_sq_limit is in subselect.sql
+            elif re.match(r'\s*QUERY\s*PLAN', line) or re.match('^\s*explain_sq_limit\s*$', line) or re.match('^\s*pg_get_viewdef\s*$', line) or re.match('^\s*explain_parallel_append\s*$', line):
                 inplan = True
             else:
                 outf.write(line)

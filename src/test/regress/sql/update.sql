@@ -165,7 +165,8 @@ CREATE TABLE part_c_1_100 PARTITION OF part_b_10_b_20 FOR VALUES FROM (1) TO (10
 :show_data;
 
 -- The order of subplans should be in bound order
-EXPLAIN (costs off) UPDATE range_parted set c = c - 50 WHERE c > 97;
+-- ERROR:  Can not update partition key of a remote relation.
+--EXPLAIN (costs off) UPDATE range_parted set c = c - 50 WHERE c > 97;
 
 -- fail, row movement happens only within the partition subtree.
 UPDATE part_c_100_200 set c = c - 20, d = c WHERE c = 105;
@@ -173,22 +174,24 @@ UPDATE part_c_100_200 set c = c - 20, d = c WHERE c = 105;
 -- but "a = 'a'" violates partition constraint enforced by root partition)
 UPDATE part_b_10_b_20 set a = 'a';
 -- ok, partition key update, no constraint violation
-UPDATE range_parted set d = d - 10 WHERE d > 10;
+-- Can not update partition key of a remote relation.
+--UPDATE range_parted set d = d - 10 WHERE d > 10;
 -- ok, no partition key update, no constraint violation
 UPDATE range_parted set e = d;
 -- No row found
 UPDATE part_c_1_100 set c = c + 20 WHERE c = 98;
 -- ok, row movement
-UPDATE part_b_10_b_20 set c = c + 20 returning c, b, a;
+-- Can not update partition key of a remote relation.
+-- UPDATE part_b_10_b_20 set c = c + 20 returning c, b, a;
 :show_data;
 
 -- fail, row movement happens only within the partition subtree.
 --Crash due to unsupported functionality
 --UPDATE part_b_10_b_20 set b = b - 6 WHERE c > 116 returning *;
 -- ok, row movement, with subset of rows moved into different partition.
-UPDATE range_parted set b = b - 6 WHERE c > 116 returning a, b + c;
-
-:show_data;
+-- Can not update partition key of a remote relation.
+--UPDATE range_parted set b = b - 6 WHERE c > 116 returning a, b + c;
+--:show_data;
 
 -- Common table needed for multiple test scenarios.
 --DDL_STATEMENT_BEGIN--
@@ -200,18 +203,18 @@ CREATE TABLE mintab(c1 int);
 INSERT into mintab VALUES (120);
 
 -- update partition key using updatable view.
+-- with check option is not support, so 'with check option' is removed from the create view statement.
 --DDL_STATEMENT_BEGIN--
-CREATE VIEW upview AS SELECT * FROM range_parted WHERE (select c > c1 FROM mintab) WITH CHECK OPTION;
+CREATE VIEW upview AS SELECT * FROM range_parted WHERE (select c > c1 FROM mintab);
 --DDL_STATEMENT_END--
 -- ok
-UPDATE upview set c = 199 WHERE b = 4;
+--UPDATE upview set c = 199 WHERE b = 4;
 -- fail, check option violation
-UPDATE upview set c = 120 WHERE b = 4;
+--UPDATE upview set c = 120 WHERE b = 4;
 -- fail, row movement with check option violation
-UPDATE upview set a = 'b', b = 15, c = 120 WHERE b = 4;
+---UPDATE upview set a = 'b', b = 15, c = 120 WHERE b = 4;
 -- ok, row movement, check option passes
-UPDATE upview set a = 'b', b = 15 WHERE b = 4;
-
+---UPDATE upview set a = 'b', b = 15 WHERE b = 4;
 :show_data;
 
 -- cleanup
@@ -221,34 +224,34 @@ DROP VIEW upview;
 
 -- RETURNING having whole-row vars.
 :init_range_parted;
-UPDATE range_parted set c = 95 WHERE a = 'b' and b > 10 and c > 100 returning (range_parted), *;
-:show_data;
+--UPDATE range_parted set c = 95 WHERE a = 'b' and b > 10 and c > 100 returning (range_parted), *;
+--:show_data;
 
 
 -- Transition tables with update row movement
 :init_range_parted;
 
-UPDATE range_parted set c = (case when c = 96 then 110 else c + 1 end ) WHERE a = 'b' and b > 10 and c >= 96;
-:show_data;
+--UPDATE range_parted set c = (case when c = 96 then 110 else c + 1 end ) WHERE a = 'b' and b > 10 and c >= 96;
+--:show_data;
 :init_range_parted;
 
-UPDATE range_parted set c = c + 50 WHERE a = 'b' and b > 10 and c >= 96;
-:show_data;
+--UPDATE range_parted set c = c + 50 WHERE a = 'b' and b > 10 and c >= 96;
+--:show_data;
 -- Don't drop trans_updatetrig yet. It is required below.
 
 :init_range_parted;
-UPDATE range_parted set c = (case when c = 96 then 110 else c + 1 end) WHERE a = 'b' and b > 10 and c >= 96;
-:show_data;
+--UPDATE range_parted set c = (case when c = 96 then 110 else c + 1 end) WHERE a = 'b' and b > 10 and c >= 96;
+--:show_data;
 :init_range_parted;
-UPDATE range_parted set c = c + 50 WHERE a = 'b' and b > 10 and c >= 96;
-:show_data;
+--UPDATE range_parted set c = c + 50 WHERE a = 'b' and b > 10 and c >= 96;
+--:show_data;
 
 -- Case where per-partition tuple conversion map array is allocated, but the
 -- map is not required for the particular tuple that is routed, thanks to
 -- matching table attributes of the partition and the target table.
 :init_range_parted;
-UPDATE range_parted set b = 15 WHERE b = 1;
-:show_data;
+--UPDATE range_parted set b = 15 WHERE b = 1;
+--:show_data;
 
 -- RLS policies with update-row-movement
 -----------------------------------------
@@ -267,18 +270,18 @@ GRANT ALL ON range_parted, mintab TO regress_range_parted_user;
 SET SESSION AUTHORIZATION regress_range_parted_user;
 -- This should fail with RLS violation error while moving row from
 -- part_a_10_a_20 to part_d_1_15, because we are setting 'c' to an odd number.
-UPDATE range_parted set a = 'b', c = 151 WHERE a = 'a' and c = 200;
+--UPDATE range_parted set a = 'b', c = 151 WHERE a = 'a' and c = 200;
 
 RESET SESSION AUTHORIZATION;
 
 :init_range_parted;
 SET SESSION AUTHORIZATION regress_range_parted_user;
-UPDATE range_parted set a = 'b', c = 151 WHERE a = 'a' and c = 200;
+--UPDATE range_parted set a = 'b', c = 151 WHERE a = 'a' and c = 200;
 RESET SESSION AUTHORIZATION;
 
 :init_range_parted;
 SET SESSION AUTHORIZATION regress_range_parted_user;
-UPDATE range_parted set a = 'b', c = 150 WHERE a = 'a' and c = 200;
+--UPDATE range_parted set a = 'b', c = 150 WHERE a = 'a' and c = 200;
 
 -- Cleanup
 RESET SESSION AUTHORIZATION;
@@ -294,9 +297,9 @@ RESET SESSION AUTHORIZATION;
 --    WITH CHECK ((SELECT range_parted.c <= c1 FROM mintab));
 SET SESSION AUTHORIZATION regress_range_parted_user;
 -- fail, mintab has row with c1 = 120
-UPDATE range_parted set a = 'b', c = 122 WHERE a = 'a' and c = 200;
+--UPDATE range_parted set a = 'b', c = 122 WHERE a = 'a' and c = 200;
 -- ok
-UPDATE range_parted set a = 'b', c = 120 WHERE a = 'a' and c = 200;
+--UPDATE range_parted set a = 'b', c = 120 WHERE a = 'a' and c = 200;
 
 -- RLS policy expression contains whole row.
 
@@ -306,12 +309,12 @@ RESET SESSION AUTHORIZATION;
 --   WITH CHECK (range_parted = row('b', 10, 112, 1, NULL)::range_parted);
 SET SESSION AUTHORIZATION regress_range_parted_user;
 -- ok, should pass the RLS check
-UPDATE range_parted set a = 'b', c = 112 WHERE a = 'a' and c = 200;
+--UPDATE range_parted set a = 'b', c = 112 WHERE a = 'a' and c = 200;
 RESET SESSION AUTHORIZATION;
 :init_range_parted;
 SET SESSION AUTHORIZATION regress_range_parted_user;
 -- fail, the whole row RLS check should fail
-UPDATE range_parted set a = 'b', c = 116 WHERE a = 'a' and c = 200;
+--UPDATE range_parted set a = 'b', c = 116 WHERE a = 'a' and c = 200;
 
 -- Cleanup
 RESET SESSION AUTHORIZATION;
@@ -331,8 +334,8 @@ DROP TABLE mintab;
 
 :init_range_parted;
 
-UPDATE range_parted set c = c - 50 WHERE c > 97;
-:show_data;
+--UPDATE range_parted set c = c - 50 WHERE c > 97;
+--:show_data;
 
 -- Creating default partition for range
 :init_range_parted;

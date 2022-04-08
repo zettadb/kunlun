@@ -3,6 +3,7 @@
 --
 SET DateStyle = 'Postgres, MDY';
 
+set IntervalStyle = postgres;
 --
 -- Test various input formats
 --
@@ -220,7 +221,12 @@ SELECT (time '00:00', interval '1 hour')
 -- intervals can wrap around the day boundary - thomas 2001-09-25
 SELECT (time '00:00', interval '1 hour')
   OVERLAPS (time '01:30', interval '1 day') AS "False";
-  
+
+--[#564] This can removed after the ticket is fixed.
+SET TIME ZONE 'UTC';
+--DDL_STATEMENT_BEGIN--
+DROP TABLE IF EXISTS TEMP_TIMESTAMP;
+--DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE TEMP_TIMESTAMP (f1 timestamp with time zone);
 --DDL_STATEMENT_END--
@@ -259,6 +265,7 @@ SELECT '' AS "16", f1 AS "timestamp", date(f1) AS date
 DROP TABLE TEMP_TIMESTAMP;
 --DDL_STATEMENT_END--
 
+RESET TIME ZONE;
 --
 -- Formats
 --

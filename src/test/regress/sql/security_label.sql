@@ -33,8 +33,10 @@ CREATE VIEW seclabel_view1 AS SELECT * FROM seclabel_tbl2;
 --DDL_STATEMENT_BEGIN--
 CREATE FUNCTION seclabel_four() RETURNS integer AS $$SELECT 4$$ language sql;
 --DDL_STATEMENT_END--
+
+-- ERROR:  Statement 'CREATE DOMAIN' is not supported in Kunlun.
 --DDL_STATEMENT_BEGIN--
-CREATE DOMAIN seclabel_domain AS text;
+--CREATE DOMAIN seclabel_domain AS text;
 --DDL_STATEMENT_END--
 
 --DDL_STATEMENT_BEGIN--

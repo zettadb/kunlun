@@ -163,18 +163,23 @@ ALTER TABLE T ADD COLUMN c_bpchar BPCHAR(5) DEFAULT foo(4),
 --DDL_STATEMENT_END--
 
 INSERT INTO T VALUES (3), (4);
-
+-- MySQL storage node (1, 1) returned error: 1101, BLOB, TEXT, GEOMETRY or JSON column 'c_text' can't have a default value.
+--ALTER TABLE T ADD COLUMN c_text TEXT  DEFAULT foo(6),
+--             ALTER COLUMN c_bpchar SET DEFAULT foo(3);
 --DDL_STATEMENT_BEGIN--
-ALTER TABLE T ADD COLUMN c_text TEXT  DEFAULT foo(6),
-              ALTER COLUMN c_bpchar SET DEFAULT foo(3);
+ALTER TABLE T ALTER COLUMN c_bpchar SET DEFAULT foo(3);
 --DDL_STATEMENT_END--
 
 INSERT INTO T VALUES (5), (6);
 
 --DDL_STATEMENT_BEGIN--
+--ALTER TABLE T ADD COLUMN c_date DATE
+--                  DEFAULT '2016-06-02'::DATE  + LENGTH(foo(10)),
+--             ALTER COLUMN c_text SET DEFAULT foo(12);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
 ALTER TABLE T ADD COLUMN c_date DATE
-                  DEFAULT '2016-06-02'::DATE  + LENGTH(foo(10)),
-              ALTER COLUMN c_text SET DEFAULT foo(12);
+               DEFAULT '2016-06-02'::DATE  + LENGTH(foo(10));
 --DDL_STATEMENT_END--
 
 INSERT INTO T VALUES (7), (8);
@@ -204,7 +209,6 @@ INSERT INTO T VALUES (13), (14);
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE T ALTER COLUMN c_bpchar    DROP DEFAULT,
               ALTER COLUMN c_date      DROP DEFAULT,
-              ALTER COLUMN c_text      DROP DEFAULT,
               ALTER COLUMN c_timestamp DROP DEFAULT;
 --DDL_STATEMENT_END--
 
@@ -253,52 +257,56 @@ ALTER TABLE T ADD COLUMN c_bigint BIGINT NOT NULL DEFAULT -1;
 --DDL_STATEMENT_END--
 
 INSERT INTO T SELECT b, b - 10 FROM generate_series(11, 20) a(b);
-
+-- MySQL storage node (1, 1) returned error: 1101, BLOB, TEXT, GEOMETRY or JSON column 'c_text' can't have a default value.
 --DDL_STATEMENT_BEGIN--
-ALTER TABLE T ADD COLUMN c_text TEXT DEFAULT 'hello';
+--ALTER TABLE T ADD COLUMN c_text TEXT DEFAULT 'hello';
 --DDL_STATEMENT_END--
 
-INSERT INTO T SELECT b, b - 10, (b + 10)::text FROM generate_series(21, 30) a(b);
+--INSERT INTO T SELECT b, b - 10, (b + 10)::text FROM generate_series(21, 30) a(b);
 
 -- WHERE clause
-SELECT c_bigint, c_text FROM T WHERE c_bigint = -1 LIMIT 1;
+SELECT c_bigint FROM T WHERE c_bigint = -1 LIMIT 1;
 
 EXPLAIN (VERBOSE TRUE, COSTS FALSE)
-SELECT c_bigint, c_text FROM T WHERE c_bigint = -1 LIMIT 1;
+SELECT c_bigint FROM T WHERE c_bigint = -1 LIMIT 1;
 
-SELECT c_bigint, c_text FROM T WHERE c_text = 'hello' LIMIT 1;
+--SELECT c_bigint, c_text FROM T WHERE c_text = 'hello' LIMIT 1;
 
-EXPLAIN (VERBOSE TRUE, COSTS FALSE) SELECT c_bigint, c_text FROM T WHERE c_text = 'hello' LIMIT 1;
+--EXPLAIN (VERBOSE TRUE, COSTS FALSE) SELECT c_bigint, c_text FROM T WHERE c_text = 'hello' LIMIT 1;
 
 
 -- COALESCE
-SELECT COALESCE(c_bigint, pk), COALESCE(c_text, pk::text)
+--SELECT COALESCE(c_bigint, pk), COALESCE(c_text, pk::text)
+--FROM T
+--ORDER BY pk LIMIT 10;
+SELECT COALESCE(c_bigint, pk)
 FROM T
 ORDER BY pk LIMIT 10;
 
 -- Aggregate function
-SELECT SUM(c_bigint), MAX(c_text COLLATE "C" ), MIN(c_text COLLATE "C") FROM T;
-
+--SELECT SUM(c_bigint), MAX(c_text COLLATE "C" ), MIN(c_text COLLATE "C") FROM T;
+SELECT SUM(c_bigint) FROM T;
 -- ORDER BY
-SELECT * FROM T ORDER BY c_bigint, c_text, pk LIMIT 10;
-
+--SELECT * FROM T ORDER BY c_bigint, c_text, pk LIMIT 10;
+SELECT * FROM T ORDER BY c_bigint, pk LIMIT 10;
+--EXPLAIN (VERBOSE TRUE, COSTS FALSE)
+--ELECT * FROM T ORDER BY c_bigint, c_text, pk LIMIT 10;
 EXPLAIN (VERBOSE TRUE, COSTS FALSE)
-SELECT * FROM T ORDER BY c_bigint, c_text, pk LIMIT 10;
-
+ELECT * FROM T ORDER BY c_bigint, pk LIMIT 10;
 -- LIMIT
-SELECT * FROM T WHERE c_bigint > -1 ORDER BY c_bigint, c_text, pk LIMIT 10;
-
-EXPLAIN (VERBOSE TRUE, COSTS FALSE)
-SELECT * FROM T WHERE c_bigint > -1 ORDER BY c_bigint, c_text, pk LIMIT 10;
-
+--SELECT * FROM T WHERE c_bigint > -1 ORDER BY c_bigint, c_text, pk LIMIT 10;
+SELECT * FROM T WHERE c_bigint > -1 ORDER BY c_bigint, pk LIMIT 10;
+--EXPLAIN (VERBOSE TRUE, COSTS FALSE)
+--SELECT * FROM T WHERE c_bigint > -1 ORDER BY c_bigint, c_text, pk LIMIT 10;
+SELECT * FROM T WHERE c_bigint > -1 ORDER BY c_bigint, pk LIMIT 10;
 --  DELETE with RETURNING
 DELETE FROM T WHERE pk BETWEEN 10 AND 20 RETURNING *;
 -- will crash: EXPLAIN (VERBOSE TRUE, COSTS FALSE)
 -- DELETE FROM T WHERE pk BETWEEN 10 AND 20 RETURNING *;
 
 -- UPDATE
-UPDATE T SET c_text = '"' || c_text || '"'  WHERE pk < 10;
-SELECT * FROM T WHERE c_text LIKE '"%"' ORDER BY PK;
+--UPDATE T SET c_text = '"' || c_text || '"'  WHERE pk < 10;
+--SELECT * FROM T WHERE c_text LIKE '"%"' ORDER BY PK;
 
 --DDL_STATEMENT_BEGIN--
 DROP TABLE T;
@@ -317,28 +325,29 @@ ALTER TABLE T ADD COLUMN c_int INT NOT NULL DEFAULT -1;
 --DDL_STATEMENT_END--
 
 INSERT INTO T VALUES (3), (4);
-
+--MySQL storage node (1, 1) returned error: 1101, BLOB, TEXT, GEOMETRY or JSON column 'c_text' can't have a default value.
 --DDL_STATEMENT_BEGIN--
-ALTER TABLE T ADD COLUMN c_text TEXT DEFAULT 'Hello';
+--ALTER TABLE T ADD COLUMN c_text TEXT DEFAULT 'Hello';
 --DDL_STATEMENT_END--
 
 INSERT INTO T VALUES (5), (6);
 
 --DDL_STATEMENT_BEGIN--
-ALTER TABLE T ALTER COLUMN c_text SET DEFAULT 'world',
-              ALTER COLUMN c_int  SET DEFAULT 1;
+--ALTER TABLE T ALTER COLUMN c_text SET DEFAULT 'world',
+--              ALTER COLUMN c_int  SET DEFAULT 1;
 --DDL_STATEMENT_END--
-
+ALTER TABLE T 
+              ALTER COLUMN c_int  SET DEFAULT 1;
 INSERT INTO T VALUES (7), (8);
 
 SELECT * FROM T ORDER BY pk;
 
 -- Add an index
 --DDL_STATEMENT_BEGIN--
-CREATE INDEX i ON T(c_int, c_text);
+CREATE INDEX i ON T(c_int);
 --DDL_STATEMENT_END--
 
-SELECT c_text FROM T WHERE c_int = -1;
+--SELECT c_text FROM T WHERE c_int = -1;
 
 --DDL_STATEMENT_BEGIN--
 DROP TABLE T;

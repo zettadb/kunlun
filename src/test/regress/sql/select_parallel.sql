@@ -9,7 +9,7 @@ create function sp_parallel_restricted(int) returns int as
 
 -- Serializable isolation would disable parallel query, so explicitly use an
 -- arbitrary other level.
-begin isolation level repeatable read;
+--begin isolation level repeatable read;
 
 -- encourage use of parallel plans
 set parallel_setup_cost=0;
@@ -23,11 +23,12 @@ explain (costs off)
 select round(avg(aa)), sum(aa) from a_star a1;
 
 -- Parallel Append with both partial and non-partial subplans
+-- Table *_star was not created in file create_table.sql
 --DDL_STATEMENT_BEGIN--
-alter table c_star set (parallel_workers = 0);
+--alter table c_star set (parallel_workers = 0);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-alter table d_star set (parallel_workers = 0);
+--alter table d_star set (parallel_workers = 0);
 --DDL_STATEMENT_END--
 explain (costs off)
   select round(avg(aa)), sum(aa) from a_star;
@@ -35,16 +36,16 @@ select round(avg(aa)), sum(aa) from a_star a2;
 
 -- Parallel Append with only non-partial subplans
 --DDL_STATEMENT_BEGIN--
-alter table a_star set (parallel_workers = 0);
+--alter table a_star set (parallel_workers = 0);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-alter table b_star set (parallel_workers = 0);
+--alter table b_star set (parallel_workers = 0);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-alter table e_star set (parallel_workers = 0);
+--alter table e_star set (parallel_workers = 0);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-alter table f_star set (parallel_workers = 0);
+--alter table f_star set (parallel_workers = 0);
 --DDL_STATEMENT_END--
 explain (costs off)
   select round(avg(aa)), sum(aa) from a_star;
@@ -52,22 +53,22 @@ select round(avg(aa)), sum(aa) from a_star a3;
 
 -- Disable Parallel Append
 --DDL_STATEMENT_BEGIN--
-alter table a_star reset (parallel_workers);
+--alter table a_star reset (parallel_workers);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-alter table b_star reset (parallel_workers);
+--alter table b_star reset (parallel_workers);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-alter table c_star reset (parallel_workers);
+--alter table c_star reset (parallel_workers);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-alter table d_star reset (parallel_workers);
+--alter table d_star reset (parallel_workers);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-alter table e_star reset (parallel_workers);
+--alter table e_star reset (parallel_workers);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-alter table f_star reset (parallel_workers);
+--alter table f_star reset (parallel_workers);
 --DDL_STATEMENT_END--
 set enable_parallel_append to off;
 explain (costs off)
@@ -118,7 +119,7 @@ reset parallel_leader_participation;
 
 -- test that parallel_restricted function doesn't run in worker
 --DDL_STATEMENT_BEGIN--
-alter table tenk1 set (parallel_workers = 4);
+--alter table tenk1 set (parallel_workers = 4);
 --DDL_STATEMENT_END--
 explain (verbose, costs off)
 select sp_parallel_restricted(unique1) from tenk1
@@ -146,7 +147,7 @@ deallocate tenk1_count;
 
 -- test parallel plans for queries containing un-correlated subplans.
 --DDL_STATEMENT_BEGIN--
-alter table tenk2 set (parallel_workers = 0);
+--alter table tenk2 set (parallel_workers = 0);
 --DDL_STATEMENT_END--
 explain (costs off)
 	select count(*) from tenk1 where (two, four) not in
@@ -158,7 +159,7 @@ explain (costs off)
 	select * from tenk1 where (unique1 + random())::integer not in
 	(select ten from tenk2);
 --DDL_STATEMENT_BEGIN--
-alter table tenk2 reset (parallel_workers);
+--alter table tenk2 reset (parallel_workers);
 --DDL_STATEMENT_END--
 
 -- test parallel plan for a query containing initplan.
@@ -166,7 +167,7 @@ set enable_indexscan = off;
 set enable_indexonlyscan = off;
 set enable_bitmapscan = off;
 --DDL_STATEMENT_BEGIN--
-alter table tenk2 set (parallel_workers = 2);
+--alter table tenk2 set (parallel_workers = 2);
 --DDL_STATEMENT_END--
 
 explain (costs off)
@@ -179,7 +180,7 @@ reset enable_indexscan;
 reset enable_indexonlyscan;
 reset enable_bitmapscan;
 --DDL_STATEMENT_BEGIN--
-alter table tenk2 reset (parallel_workers);
+--alter table tenk2 reset (parallel_workers);
 --DDL_STATEMENT_END--
 
 -- test parallel index scans.
@@ -247,13 +248,13 @@ select count(*) from bmscantest where a>1;
 -- test accumulation of stats for parallel nodes
 reset enable_seqscan;
 --DDL_STATEMENT_BEGIN--
-alter table tenk2 set (parallel_workers = 0);
+--alter table tenk2 set (parallel_workers = 0);
 --DDL_STATEMENT_END--
 explain (analyze, timing off, summary off, costs off)
    select count(*) from tenk1, tenk2 where tenk1.hundred > 1
         and tenk2.thousand=0;
 --DDL_STATEMENT_BEGIN--
-alter table tenk2 reset (parallel_workers);
+--alter table tenk2 reset (parallel_workers);
 --DDL_STATEMENT_END--
 
 reset work_mem;
@@ -392,7 +393,7 @@ SAVEPOINT settings;
 SET LOCAL force_parallel_mode = 1;
 explain (costs off)
   select stringu1::int2 from tenk1 where unique1 = 1;
-ROLLBACK TO SAVEPOINT settings;
+--ROLLBACK TO SAVEPOINT settings;
 
 -- exercise record typmod remapping between backends
 --DDL_STATEMENT_BEGIN--
@@ -413,7 +414,7 @@ $$;
 SAVEPOINT settings;
 SET LOCAL force_parallel_mode = 1;
 SELECT make_record(x) FROM (SELECT generate_series(1, 5) x) ss ORDER BY x;
-ROLLBACK TO SAVEPOINT settings;
+--ROLLBACK TO SAVEPOINT settings;
 
 --DDL_STATEMENT_BEGIN--
 DROP function make_record(n int);
@@ -450,13 +451,13 @@ explain (costs off)
 SAVEPOINT settings;
 SET LOCAL force_parallel_mode = 1;
 EXPLAIN (analyze, timing off, summary off, costs off) SELECT * FROM tenk1;
-ROLLBACK TO SAVEPOINT settings;
+--ROLLBACK TO SAVEPOINT settings;
 
 -- provoke error in worker
 SAVEPOINT settings;
 SET LOCAL force_parallel_mode = 1;
 select stringu1::int2 from tenk1 where unique1 = 1;
-ROLLBACK TO SAVEPOINT settings;
+--ROLLBACK TO SAVEPOINT settings;
 
 -- test interaction with set-returning functions
 SAVEPOINT settings;
@@ -468,7 +469,7 @@ EXPLAIN (COSTS OFF)
 SELECT unique1 FROM tenk1 WHERE fivethous = tenthous + 1
 UNION ALL
 SELECT unique1 FROM tenk1 WHERE fivethous = tenthous + 1;
-ROLLBACK TO SAVEPOINT settings;
+--ROLLBACK TO SAVEPOINT settings;
 
 -- can't use multiple subqueries under a single Gather node due to initPlans
 EXPLAIN (COSTS OFF)
@@ -511,4 +512,19 @@ CREATE VIEW tenk1_vw_sec WITH (security_barrier) AS SELECT * FROM tenk1;
 EXPLAIN (COSTS OFF)
 SELECT 1 FROM tenk1_vw_sec WHERE EXISTS (SELECT 1 WHERE unique1 = 0);
 
-rollback;
+--rollback;
+--DDL_STATEMENT_BEGIN--
+drop function sp_parallel_restricted(int);
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
+drop function sp_test_func();
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
+drop FUNCTION make_some_array;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
+drop TABLE fooarr;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
+drop view tenk1_vw_sec;
+--DDL_STATEMENT_END--

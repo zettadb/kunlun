@@ -7,8 +7,9 @@ drop table if exists lp;
 --DDL_STATEMENT_BEGIN--
 create table lp (a char) partition by list (a);
 --DDL_STATEMENT_END--
+-- ERROR:  Kunlun currently doesn't support default partitions.
 --DDL_STATEMENT_BEGIN--
-create table lp_default partition of lp default;
+--create table lp_default partition of lp default;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 create table lp_ef partition of lp for values in ('e', 'f');
@@ -51,8 +52,9 @@ create table coll_pruning_a partition of coll_pruning for values in ('a');
 --DDL_STATEMENT_BEGIN--
 create table coll_pruning_b partition of coll_pruning for values in ('b');
 --DDL_STATEMENT_END--
+-- ERROR:  Kunlun currently doesn't support default partitions.
 --DDL_STATEMENT_BEGIN--
-create table coll_pruning_def partition of coll_pruning default;
+--create table coll_pruning_def partition of coll_pruning default;
 --DDL_STATEMENT_END--
 explain (costs off) select * from coll_pruning where a collate "C" = 'a' collate "C";
 -- collation doesn't match the partitioning collation, no pruning occurs
@@ -64,20 +66,21 @@ drop table if exists rlp;
 --DDL_STATEMENT_BEGIN--
 create table rlp (a int, b varchar) partition by range (a);
 --DDL_STATEMENT_END--
+--Kunlun currently doesn't support default partitions.
 --DDL_STATEMENT_BEGIN--
-create table rlp_default partition of rlp default partition by list (a);
+--create table rlp_default partition of rlp default partition by list (a);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-create table rlp_default_default partition of rlp_default default;
+--create table rlp_default_default partition of rlp_default default;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-create table rlp_default_10 partition of rlp_default for values in (10);
+--create table rlp_default_10 partition of rlp_default for values in (10);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-create table rlp_default_30 partition of rlp_default for values in (30);
+--create table rlp_default_30 partition of rlp_default for values in (30);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-create table rlp_default_null partition of rlp_default for values in (null);
+--create table rlp_default_null partition of rlp_default for values in (null);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 create table rlp1 partition of rlp for values from (minvalue) to (1);
@@ -92,8 +95,9 @@ drop table if exists rlp3;
 --DDL_STATEMENT_BEGIN--
 create table rlp3 (b varchar, a int) partition by list (b varchar_ops);
 --DDL_STATEMENT_END--
+--ERROR:  Kunlun currently doesn't support default partitions.
 --DDL_STATEMENT_BEGIN--
-create table rlp3_default partition of rlp3 default;
+--create table rlp3_default partition of rlp3 default;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 create table rlp3abcd partition of rlp3 for values in ('ab', 'cd');
@@ -111,8 +115,9 @@ alter table rlp attach partition rlp3 for values from (15) to (20);
 --DDL_STATEMENT_BEGIN--
 create table rlp4 partition of rlp for values from (20) to (30) partition by range (a);
 --DDL_STATEMENT_END--
+--ERROR:  Kunlun currently doesn't support default partitions.
 --DDL_STATEMENT_BEGIN--
-create table rlp4_default partition of rlp4 default;
+--create table rlp4_default partition of rlp4 default;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 create table rlp4_1 partition of rlp4 for values from (20) to (25);
@@ -124,8 +129,9 @@ create table rlp4_2 partition of rlp4 for values from (25) to (29);
 --DDL_STATEMENT_BEGIN--
 create table rlp5 partition of rlp for values from (31) to (maxvalue) partition by range (a);
 --DDL_STATEMENT_END--
+--ERROR:  Kunlun currently doesn't support default partitions.
 --DDL_STATEMENT_BEGIN--
-create table rlp5_default partition of rlp5 default;
+--create table rlp5_default partition of rlp5 default;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 create table rlp5_1 partition of rlp5 for values from (31) to (40);
@@ -174,8 +180,9 @@ drop table if exists mc3p;
 --DDL_STATEMENT_BEGIN--
 create table mc3p (a int, b int, c int) partition by range (a, abs(b), c);
 --DDL_STATEMENT_END--
+--ERROR:  Kunlun currently doesn't support default partitions.
 --DDL_STATEMENT_BEGIN--
-create table mc3p_default partition of mc3p default;
+--create table mc3p_default partition of mc3p default;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 create table mc3p0 partition of mc3p for values from (minvalue, minvalue, minvalue) to (1, 1, 1);
@@ -229,8 +236,9 @@ drop table if exists mc2p;
 --DDL_STATEMENT_BEGIN--
 create table mc2p (a int, b int) partition by range (a, b);
 --DDL_STATEMENT_END--
+--ERROR:  Kunlun currently doesn't support default partitions.
 --DDL_STATEMENT_BEGIN--
-create table mc2p_default partition of mc2p default;
+--create table mc2p_default partition of mc2p default;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 create table mc2p0 partition of mc2p for values from (minvalue, minvalue) to (1, minvalue);
@@ -270,8 +278,9 @@ drop table if exists boolpart;
 --DDL_STATEMENT_BEGIN--
 create table boolpart (a bool) partition by list (a);
 --DDL_STATEMENT_END--
+--ERROR:  Kunlun currently doesn't support default partitions.
 --DDL_STATEMENT_BEGIN--
-create table boolpart_default partition of boolpart default;
+--create table boolpart_default partition of boolpart default;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 create table boolpart_t partition of boolpart for values in ('true');
@@ -347,13 +356,14 @@ CREATE TABLE part (a INT, b INT) PARTITION BY LIST (a);
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE part_p1 PARTITION OF part FOR VALUES IN (-2,-1,0,1,2);
 --DDL_STATEMENT_END--
+--ERROR:  Kunlun currently doesn't support default partitions
 --DDL_STATEMENT_BEGIN--
-CREATE TABLE part_p2 PARTITION OF part DEFAULT PARTITION BY RANGE(a);
+--CREATE TABLE part_p2 PARTITION OF part DEFAULT PARTITION BY RANGE(a);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-CREATE TABLE part_p2_p1 PARTITION OF part_p2 DEFAULT;
+--CREATE TABLE part_p2_p1 PARTITION OF part_p2 DEFAULT;
 --DDL_STATEMENT_END--
-INSERT INTO part VALUES (-1,-1), (1,1), (2,NULL), (NULL,-2),(NULL,NULL);
+--INSERT INTO part VALUES (-1,-1), (1,1), (2,NULL), (NULL,-2),(NULL,NULL);
 EXPLAIN (COSTS OFF) SELECT tableoid::regclass as part, a, b FROM part WHERE a IS NULL ORDER BY 1, 2, 3;
 
 --
@@ -1366,8 +1376,9 @@ create temp table pp_temp_parent (a int) partition by list (a);
 --DDL_STATEMENT_BEGIN--
 create temp table pp_temp_part_1 partition of pp_temp_parent for values in (1);
 --DDL_STATEMENT_END--
+--Kunlun currently doesn't support default partitions.
 --DDL_STATEMENT_BEGIN--
-create temp table pp_temp_part_def partition of pp_temp_parent default;
+--create temp table pp_temp_part_def partition of pp_temp_parent default;
 --DDL_STATEMENT_END--
 explain (costs off) select * from pp_temp_parent where true;
 explain (costs off) select * from pp_temp_parent where a = 2;

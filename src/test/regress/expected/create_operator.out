@@ -15,7 +15,7 @@ CREATE OPERATOR <% (
    commutator = >% ,
    negator = >=%
 );
-psql:sql/create_operator.sql:18: ERROR:  type "widget" does not exist
+CREATE OPERATOR
 CREATE OPERATOR @#@ (
    rightarg = int8,		-- left unary
    procedure = numeric_fac
@@ -34,9 +34,11 @@ CREATE OPERATOR
 -- Test operator created above
 SELECT point '(1,2)' <% widget '(0,0,3)' AS t,
        point '(1,2)' <% widget '(0,0,1)' AS f;
-psql:sql/create_operator.sql:37: ERROR:  type "widget" does not exist
-LINE 1: SELECT point '(1,2)' <% widget '(0,0,3)' AS t,
-                                ^
+ t | f 
+---+---
+ t | f
+(1 row)
+
 -- Test comments
 COMMENT ON OPERATOR ###### (int4, NONE) IS 'bad right unary';
 psql:sql/create_operator.sql:40: ERROR:  operator does not exist: integer ######

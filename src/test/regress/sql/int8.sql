@@ -2,6 +2,7 @@
 -- INT8
 -- Test int8 64-bit integers.
 --
+set lc_monetary='en_US.UTF-8';
 --DDL_STATEMENT_BEGIN--
 drop table if exists INT8_TBL;
 --DDL_STATEMENT_END--

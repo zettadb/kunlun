@@ -360,7 +360,8 @@ select * from y;
 select * from x left join y on (x1 = y1 and x2 is not null);
 select * from x left join y on (x1 = y1 and y2 is not null);
 
-COPY tenk1 FROM '/home/dzw/work/kunlun-enterprise/postgresql-11.5/src/test/regress/data/tenk.data';
+delete from tenk1;
+COPY tenk1 FROM '/home/kunlun/pgregressdata/data/tenk.data';
 --
 -- regression test: check for bug with propagation of implied equality
 -- to outside an IN
@@ -1859,12 +1860,12 @@ select * from
   int8_tbl a left join lateral
   (select b.q1 as bq1, c.q1 as cq1, least(a.q1,b.q1,c.q1) from
    int8_tbl b cross join int8_tbl c) ss
-  on a.q2 = ss.bq1;
+  on a.q2 = ss.bq1 order by 1,2,3,4,5;
 select * from
   int8_tbl a left join lateral
   (select b.q1 as bq1, c.q1 as cq1, least(a.q1,b.q1,c.q1) from
    int8_tbl b cross join int8_tbl c) ss
-  on a.q2 = ss.bq1;
+  on a.q2 = ss.bq1 order by 1,2,3,4,5;
 
 -- case requiring nested PlaceHolderVars
 explain (verbose, costs off)

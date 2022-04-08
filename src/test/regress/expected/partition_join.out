@@ -87,14 +87,14 @@ SELECT t1.a, t1.c, t2.b, t2.c FROM prt1 t1 RIGHT JOIN prt2 t2 ON t1.a = t2.b WHE
 SELECT t1.a, t1.c, t2.b, t2.c FROM prt1 t1 RIGHT JOIN prt2 t2 ON t1.a = t2.b WHERE t2.a = 0 ORDER BY t1.a, t2.b;
   a  |  c   |  b  |  c   
 -----+------+-----+------
-   0 | 0000 |   0 | 0000
- 150 | 0150 | 150 | 0150
- 300 | 0300 | 300 | 0300
- 450 | 0450 | 450 | 0450
      |      |  75 | 0075
      |      | 225 | 0225
      |      | 375 | 0375
      |      | 525 | 0525
+   0 | 0000 |   0 | 0000
+ 150 | 0150 | 150 | 0150
+ 300 | 0300 | 300 | 0300
+ 450 | 0450 | 450 | 0450
 (8 rows)
 
 -- full outer join, with placeholder vars
@@ -619,7 +619,7 @@ EXPLAIN (COSTS OFF)
 SELECT avg(t1.a), avg(t2.b), avg(t3.a + t3.b), t1.c, t2.c, t3.c FROM plt1 t1, plt2 t2, plt1_e t3 WHERE t1.b = t2.b AND t1.c = t2.c AND ltrim(t3.c, 'A') = t1.c GROUP BY t1.c, t2.c, t3.c ORDER BY t1.c, t2.c, t3.c;
 
 SELECT avg(t1.a), avg(t2.b), avg(t3.a + t3.b), t1.c, t2.c, t3.c FROM plt1 t1, plt2 t2, plt1_e t3 WHERE t1.b = t2.b AND t1.c = t2.c AND ltrim(t3.c, 'A') = t1.c GROUP BY t1.c, t2.c, t3.c ORDER BY t1.c, t2.c, t3.c;
-psql:sql/partition_join.sql:223: ERROR:  Kunlun-db: MySQL storage node (2, 2) returned error: 1582, Incorrect parameter count in the call to native function 'ltrim'.
+psql:sql/partition_join.sql:223: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1582, Incorrect parameter count in the call to native function 'ltrim'.
 -- joins where one of the relations is proven empty
 EXPLAIN (COSTS OFF)
 SELECT t1.a, t1.c, t2.b, t2.c FROM prt1 t1, prt2 t2 WHERE t1.a = t2.b AND t1.a = 1 AND t1.a = 2;

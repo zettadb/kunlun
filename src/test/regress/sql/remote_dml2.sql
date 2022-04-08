@@ -1,6 +1,7 @@
 -- regression test cases from all bug reports in trac.
 
 -- bug 17 The command does not return the number of affected records 
+set lc_monetary='en_US.UTF-8';
 --DDL_STATEMENT_BEGIN--
 drop table if exists tx1 cascade;
 --DDL_STATEMENT_END--
@@ -167,9 +168,9 @@ SELECT a, sum(b), avg(c), count(*) FROM pagg_tab_m GROUP BY a, (a+b)/2 HAVING su
 EXPLAIN (COSTS OFF)
 SELECT a, c, sum(b), avg(c), count(*) FROM pagg_tab_m GROUP BY (a+b)/2, 2, 1 HAVING sum(b) = 50 AND avg(c) > 25 ORDER BY 1, 2, 3;
 SELECT a, c, sum(b), avg(c), count(*) FROM pagg_tab_m GROUP BY (a+b)/2, 2, 1 HAVING sum(b) = 50 AND avg(c) > 25 ORDER BY 1, 2, 3;
-SELECT a, sum(b), avg(c), count(*) FROM pagg_tab_m GROUP BY a,b HAVING sum(b) < 2000 and avg(c) > 27;
+SELECT a, sum(b), avg(c), count(*) FROM pagg_tab_m GROUP BY a,b HAVING sum(b) < 2000 and avg(c) > 27 ORDER BY 1, 2;
 explain (verbose)
-SELECT a, sum(b), avg(c), count(*) FROM pagg_tab_m GROUP BY a,b HAVING sum(b) < 2000 and avg(c) > 27;
+SELECT a, sum(b), avg(c), count(*) FROM pagg_tab_m GROUP BY a,b HAVING sum(b) < 2000 and avg(c) > 27 ORDER BY 1, 2;
 
 -- bug 53
 --DDL_STATEMENT_BEGIN--
@@ -626,6 +627,7 @@ drop table if exists FLOAT8_TBL cascade;
 
 );
 --DDL_STATEMENT_END--
+DELETE from tenk1;
 COPY tenk1 FROM '/home/kunlun/pgregressdata/tenk.data';
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE INT4_TBL(f1 int4);

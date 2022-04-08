@@ -22,8 +22,10 @@ create index t4_cb on t4(c desc, b);
 \d+ t4_cb;
 
 -- foreign keys are forbidden
+--WARNING:  Foreign key not supported in Kunlun, it's ignored here.
 --DDL_STATEMENT_BEGIN--
-create table t5(a int references t4(a));
+--create table t5(a int references t4(a));
+create table t5(a int);
 --DDL_STATEMENT_END--
 -- temp table exits on computing node.
 --DDL_STATEMENT_BEGIN--

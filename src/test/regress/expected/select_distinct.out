@@ -1,8 +1,10 @@
 --
 -- SELECT_DISTINCT
 --
-COPY tenk1 FROM '/home/dzw/work/kunlun-enterprise/postgresql-11.5/src/test/regress/data/tenk.data';
-psql:sql/select_distinct.sql:5: ERROR:  could not open file "/home/dzw/work/kunlun-enterprise/postgresql-11.5/src/test/regress/data/tenk.data" for reading: No such file or directory
+DELETE FROM tenk1;
+DELETE 10000
+COPY tenk1 FROM '/home/kunlun/pgregressdata/tenk.data';
+psql:sql/select_distinct.sql:5: ERROR:  could not open file "/home/kunlun/pgregressdata/tenk.data" for reading: No such file or directory
 HINT:  COPY FROM instructs the PostgreSQL server process to read a file. You may want a client-side facility such as psql's \copy.
 --
 -- awk '{print $3;}' onek.data | sort -n | uniq
@@ -49,7 +51,25 @@ SELECT DISTINCT two, string4, ten
 SELECT DISTINCT p.age FROM person* p ORDER BY age using >;
  age 
 -----
-(0 rows)
+  98
+  88
+  78
+  68
+  58
+  50
+  48
+  40
+  38
+  34
+  30
+  28
+  25
+  24
+  20
+  19
+  18
+   8
+(18 rows)
 
 --
 -- Check mentioning same column more than once

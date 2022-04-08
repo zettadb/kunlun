@@ -348,8 +348,10 @@ psql:sql/union.sql:113: ERROR:  FOR NO KEY UPDATE is not allowed with UNION/INTE
 -- exercise both hashed and sorted implementations of INTERSECT/EXCEPT
 set enable_hashagg to on;
 SET
-COPY tenk1 FROM '/home/dzw/work/kunlun-enterprise/postgresql-11.5/src/test/regress/data/tenk.data';
-psql:sql/union.sql:124: ERROR:  could not open file "/home/dzw/work/kunlun-enterprise/postgresql-11.5/src/test/regress/data/tenk.data" for reading: No such file or directory
+delete from tenk1;
+DELETE 0
+COPY tenk1 FROM '/home/kunlun/pgregressdata/tenk.data';
+psql:sql/union.sql:125: ERROR:  could not open file "/home/kunlun/pgregressdata/tenk.data" for reading: No such file or directory
 HINT:  COPY FROM instructs the PostgreSQL server process to read a file. You may want a client-side facility such as psql's \copy.
 explain (costs off)
 select count(*) from
@@ -485,7 +487,7 @@ ORDER BY q2,q1;
 
 -- This should fail, because q2 isn't a name of an EXCEPT output column
 SELECT q1 FROM int8_tbl EXCEPT SELECT q2 FROM int8_tbl ORDER BY q2 LIMIT 1;
-psql:sql/union.sql:183: ERROR:  column "q2" does not exist
+psql:sql/union.sql:184: ERROR:  column "q2" does not exist
 LINE 1: ... int8_tbl EXCEPT SELECT q2 FROM int8_tbl ORDER BY q2 LIMIT 1...
                                                              ^
 HINT:  There is a column named "q2" in table "*SELECT* 2", but it cannot be referenced from this part of the query.
@@ -618,7 +620,7 @@ ORDER BY 1;
 
 -- This should fail, but it should produce an error cursor
 SELECT '3.4'::numeric UNION SELECT 'foo';
-psql:sql/union.sql:249: ERROR:  invalid input syntax for type numeric: "foo"
+psql:sql/union.sql:250: ERROR:  invalid input syntax for type numeric: "foo"
 LINE 1: SELECT '3.4'::numeric UNION SELECT 'foo';
                                            ^
 --

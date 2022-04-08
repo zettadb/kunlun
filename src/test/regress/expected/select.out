@@ -1,8 +1,10 @@
 --
 -- SELECT
 --
-COPY onek FROM '/home/dzw/work/kunlun-enterprise/postgresql-11.5/src/test/regress/data/onek.data';
-psql:sql/select.sql:5: ERROR:  could not open file "/home/dzw/work/kunlun-enterprise/postgresql-11.5/src/test/regress/data/onek.data" for reading: No such file or directory
+DELETE FROM onek;
+DELETE 1000
+COPY onek FROM '/home/kunlun/pgregressdata/onek.data';
+psql:sql/select.sql:5: ERROR:  could not open file "/home/kunlun/pgregressdata/onek.data" for reading: No such file or directory
 HINT:  COPY FROM instructs the PostgreSQL server process to read a file. You may want a client-side facility such as psql's \copy.
 -- btree index
 -- awk '{if($1<10){print;}else{next;}}' onek.data | sort +0n -1
@@ -86,9 +88,59 @@ SELECT onek.unique1, onek.string4 FROM onek
 --
 -- SELECT name, age FROM person*; ??? check if different
 SELECT p.name, p.age FROM person* p;
- name | age 
-------+-----
-(0 rows)
+  name   | age 
+---------+-----
+ mike    |  40
+ joe     |  20
+ sally   |  34
+ sandra  |  19
+ alex    |  30
+ sue     |  50
+ denise  |  24
+ sarah   |  88
+ teresa  |  38
+ nan     |  28
+ leah    |  68
+ wendy   |  78
+ melissa |  28
+ joan    |  18
+ mary    |   8
+ jane    |  58
+ liza    |  38
+ jean    |  28
+ jenifer |  38
+ juanita |  58
+ susan   |  78
+ zena    |  98
+ martie  |  88
+ chris   |  78
+ pat     |  18
+ zola    |  58
+ louise  |  98
+ edna    |  18
+ bertha  |  88
+ sumi    |  38
+ koko    |  88
+ gina    |  18
+ rean    |  48
+ sharon  |  78
+ paula   |  68
+ julie   |  68
+ belinda |  38
+ karen   |  48
+ carina  |  58
+ diane   |  18
+ esther  |  98
+ trudy   |  88
+ fanny   |   8
+ carmen  |  78
+ lita    |  25
+ pamela  |  48
+ sandy   |  38
+ trisha  |  88
+ uma     |  78
+ velma   |  68
+(50 rows)
 
 --
 -- awk '{print $1,$2;}' person.data |
@@ -98,9 +150,59 @@ SELECT p.name, p.age FROM person* p;
 -- sort +1nr -2
 --
 SELECT p.name, p.age FROM person* p ORDER BY age using >, name;
- name | age 
-------+-----
-(0 rows)
+  name   | age 
+---------+-----
+ esther  |  98
+ louise  |  98
+ zena    |  98
+ bertha  |  88
+ koko    |  88
+ martie  |  88
+ sarah   |  88
+ trisha  |  88
+ trudy   |  88
+ carmen  |  78
+ chris   |  78
+ sharon  |  78
+ susan   |  78
+ uma     |  78
+ wendy   |  78
+ julie   |  68
+ leah    |  68
+ paula   |  68
+ velma   |  68
+ carina  |  58
+ jane    |  58
+ juanita |  58
+ zola    |  58
+ sue     |  50
+ karen   |  48
+ pamela  |  48
+ rean    |  48
+ mike    |  40
+ belinda |  38
+ jenifer |  38
+ liza    |  38
+ sandy   |  38
+ sumi    |  38
+ teresa  |  38
+ sally   |  34
+ alex    |  30
+ jean    |  28
+ melissa |  28
+ nan     |  28
+ lita    |  25
+ denise  |  24
+ joe     |  20
+ sandra  |  19
+ diane   |  18
+ edna    |  18
+ gina    |  18
+ joan    |  18
+ pat     |  18
+ fanny   |   8
+ mary    |   8
+(50 rows)
 
 --
 -- Test some cases involving whole-row Var referencing a subquery

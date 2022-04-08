@@ -1,7 +1,7 @@
 --
 -- NUMERIC
 --
-
+set lc_monetary='en_US.UTF-8';
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE num_data (id int4, val numeric(65,10));
 --DDL_STATEMENT_END--

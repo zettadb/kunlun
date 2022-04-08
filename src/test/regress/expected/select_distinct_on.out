@@ -1,8 +1,10 @@
 --
 -- SELECT_DISTINCT_ON
 --
-COPY tenk1 FROM '/home/dzw/work/kunlun-enterprise/postgresql-11.5/src/test/regress/data/tenk.data';
-psql:sql/select_distinct_on.sql:5: ERROR:  could not open file "/home/dzw/work/kunlun-enterprise/postgresql-11.5/src/test/regress/data/tenk.data" for reading: No such file or directory
+DELETE from tenk1;
+DELETE 0
+COPY tenk1 FROM '/home/kunlun/pgregressdata/tenk.data';
+psql:sql/select_distinct_on.sql:5: ERROR:  could not open file "/home/kunlun/pgregressdata/tenk.data" for reading: No such file or directory
 HINT:  COPY FROM instructs the PostgreSQL server process to read a file. You may want a client-side facility such as psql's \copy.
 SELECT DISTINCT ON (string4) string4, two, ten
    FROM tenk1

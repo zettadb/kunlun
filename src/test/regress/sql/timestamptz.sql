@@ -1,6 +1,8 @@
 --
 -- TIMESTAMPTZ
 --
+set IntervalStyle = postgres;
+
 --DDL_STATEMENT_BEGIN--
 DROP TABLE IF EXISTS TIMESTAMPTZ_TBL;
 --DDL_STATEMENT_END--

@@ -1,5 +1,5 @@
 -- Tests for range data types.
-
+set lc_monetary='en_US.UTF-8';
 --DDL_STATEMENT_BEGIN--
 drop type if exists textrange;
 --DDL_STATEMENT_END--

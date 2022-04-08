@@ -53,7 +53,7 @@ SELECT pg_get_functiondef('ptest1'::regproc);
 (1 row)
 
 SELECT ptest1('x');  -- error
-psql:sql/create_procedure.sql:23: ERROR:  ptest1(unknown) is a procedure
+psql:sql/create_procedure.sql:22: ERROR:  ptest1(unknown) is a procedure
 LINE 1: SELECT ptest1('x');
                ^
 HINT:  To call a procedure, use CALL.
@@ -116,7 +116,7 @@ LANGUAGE SQL
 AS $$
 CALL ptest4a(a, b);  -- error, not supported
 $$;
-psql:sql/create_procedure.sql:69: ERROR:  calling procedures with output arguments is not supported in SQL functions
+psql:sql/create_procedure.sql:68: ERROR:  calling procedures with output arguments is not supported in SQL functions
 CONTEXT:  SQL function "ptest4b"
 DROP PROCEDURE ptest4a;
 DROP PROCEDURE
@@ -171,42 +171,42 @@ CALL ptest7(least('a', 'b'), 'a');
 CALL
 -- various error cases
 CALL version();  -- error: not a procedure
-psql:sql/create_procedure.sql:117: ERROR:  version() is not a procedure
+psql:sql/create_procedure.sql:116: ERROR:  version() is not a procedure
 LINE 1: CALL version();
              ^
 HINT:  To call a function, use SELECT.
 CALL sum(1);  -- error: not a procedure
-psql:sql/create_procedure.sql:118: ERROR:  sum(integer) is not a procedure
+psql:sql/create_procedure.sql:117: ERROR:  sum(integer) is not a procedure
 LINE 1: CALL sum(1);
              ^
 HINT:  To call a function, use SELECT.
 CREATE PROCEDURE ptestx() LANGUAGE SQL WINDOW AS $$ INSERT INTO cp_test VALUES (1, 'a') $$;
-psql:sql/create_procedure.sql:120: ERROR:  invalid attribute in procedure definition
+psql:sql/create_procedure.sql:119: ERROR:  invalid attribute in procedure definition
 LINE 1: CREATE PROCEDURE ptestx() LANGUAGE SQL WINDOW AS $$ INSERT I...
                                                ^
 CREATE PROCEDURE ptestx() LANGUAGE SQL STRICT AS $$ INSERT INTO cp_test VALUES (1, 'a') $$;
-psql:sql/create_procedure.sql:121: ERROR:  invalid attribute in procedure definition
+psql:sql/create_procedure.sql:120: ERROR:  invalid attribute in procedure definition
 LINE 1: CREATE PROCEDURE ptestx() LANGUAGE SQL STRICT AS $$ INSERT I...
                                                ^
 CREATE PROCEDURE ptestx(OUT a int) LANGUAGE SQL AS $$ INSERT INTO cp_test VALUES (1, 'a') $$;
-psql:sql/create_procedure.sql:122: ERROR:  procedures cannot have OUT arguments
+psql:sql/create_procedure.sql:121: ERROR:  procedures cannot have OUT arguments
 HINT:  INOUT arguments are permitted.
 ALTER PROCEDURE ptest1(text) STRICT;
-psql:sql/create_procedure.sql:124: ERROR:  invalid attribute in procedure definition
+psql:sql/create_procedure.sql:123: ERROR:  invalid attribute in procedure definition
 LINE 1: ALTER PROCEDURE ptest1(text) STRICT;
                                      ^
 ALTER FUNCTION ptest1(text) VOLATILE;  -- error: not a function
-psql:sql/create_procedure.sql:125: ERROR:  ptest1(text) is not a function
+psql:sql/create_procedure.sql:124: ERROR:  ptest1(text) is not a function
 ALTER PROCEDURE cp_testfunc1(int) VOLATILE;  -- error: not a procedure
-psql:sql/create_procedure.sql:126: ERROR:  cp_testfunc1(integer) is not a procedure
+psql:sql/create_procedure.sql:125: ERROR:  cp_testfunc1(integer) is not a procedure
 ALTER PROCEDURE nonexistent() VOLATILE;
-psql:sql/create_procedure.sql:127: ERROR:  procedure nonexistent() does not exist
+psql:sql/create_procedure.sql:126: ERROR:  procedure nonexistent() does not exist
 DROP FUNCTION ptest1(text);  -- error: not a function
-psql:sql/create_procedure.sql:129: ERROR:  ptest1(text) is not a function
+psql:sql/create_procedure.sql:128: ERROR:  ptest1(text) is not a function
 DROP PROCEDURE cp_testfunc1(int);  -- error: not a procedure
-psql:sql/create_procedure.sql:130: ERROR:  cp_testfunc1(integer) is not a procedure
+psql:sql/create_procedure.sql:129: ERROR:  cp_testfunc1(integer) is not a procedure
 DROP PROCEDURE nonexistent();
-psql:sql/create_procedure.sql:131: ERROR:  procedure nonexistent() does not exist
+psql:sql/create_procedure.sql:130: ERROR:  procedure nonexistent() does not exist
 -- privileges
 CREATE USER regress_cp_user1;
 CREATE ROLE
@@ -217,7 +217,7 @@ REVOKE
 SET ROLE regress_cp_user1;
 SET
 CALL ptest1('a');  -- error
-psql:sql/create_procedure.sql:140: ERROR:  permission denied for procedure ptest1
+psql:sql/create_procedure.sql:139: ERROR:  permission denied for procedure ptest1
 RESET ROLE;
 RESET
 GRANT EXECUTE ON PROCEDURE ptest1(text) TO regress_cp_user1;

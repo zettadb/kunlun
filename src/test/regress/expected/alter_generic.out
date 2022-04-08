@@ -162,7 +162,7 @@ CREATE CONVERSION
 CREATE CONVERSION alt_conv2 FOR 'LATIN1' TO 'UTF8' FROM iso8859_1_to_utf8;
 CREATE CONVERSION
 ALTER CONVERSION alt_conv3 RENAME TO alt_conv4;  -- failed (not owner)
-psql:sql/alter_generic.sql:112: ERROR:  must be owner of conversion alt_conv3
+psql:sql/alter_generic.sql:111: ERROR:  must be owner of conversion alt_conv3
 ALTER CONVERSION alt_conv1 RENAME TO alt_conv4;  -- OK
 ALTER CONVERSION
 ALTER CONVERSION alt_conv3 OWNER TO regress_alter_generic_user2;  -- failed (not owner)
@@ -427,7 +427,7 @@ ALTER OPERATOR FAMILY alt_opf4 USING btree ADD
   OPERATOR 3 = (int4, int2) ,
   OPERATOR 4 >= (int4, int2) ,
   OPERATOR 5 > (int4, int2) ,
-  FUNCTION 1 btint42cmp(int4, int2);
+  FUNCTION 1 btint42cmp(int4, int2);  
 ALTER OPERATOR FAMILY
 ALTER OPERATOR FAMILY alt_opf4 USING btree DROP
   -- int4 vs int2
@@ -446,19 +446,19 @@ ROLLBACK
 CREATE OPERATOR FAMILY alt_opf4 USING btree;
 CREATE OPERATOR FAMILY
 ALTER OPERATOR FAMILY alt_opf4 USING invalid_index_method ADD  OPERATOR 1 < (int4, int2); -- invalid indexing_method
-psql:sql/alter_generic.sql:297: ERROR:  access method "invalid_index_method" does not exist
+psql:sql/alter_generic.sql:296: ERROR:  access method "invalid_index_method" does not exist
 ALTER OPERATOR FAMILY alt_opf4 USING btree ADD OPERATOR 6 < (int4, int2); -- operator number should be between 1 and 5
-psql:sql/alter_generic.sql:298: ERROR:  invalid operator number 6, must be between 1 and 5
+psql:sql/alter_generic.sql:297: ERROR:  invalid operator number 6, must be between 1 and 5
 ALTER OPERATOR FAMILY alt_opf4 USING btree ADD OPERATOR 0 < (int4, int2); -- operator number should be between 1 and 5
-psql:sql/alter_generic.sql:299: ERROR:  invalid operator number 0, must be between 1 and 5
+psql:sql/alter_generic.sql:298: ERROR:  invalid operator number 0, must be between 1 and 5
 ALTER OPERATOR FAMILY alt_opf4 USING btree ADD OPERATOR 1 < ; -- operator without argument types
-psql:sql/alter_generic.sql:300: ERROR:  operator argument types must be specified in ALTER OPERATOR FAMILY
+psql:sql/alter_generic.sql:299: ERROR:  operator argument types must be specified in ALTER OPERATOR FAMILY
 ALTER OPERATOR FAMILY alt_opf4 USING btree ADD FUNCTION 0 btint42cmp(int4, int2); -- function number should be between 1 and 5
-psql:sql/alter_generic.sql:301: ERROR:  invalid function number 0, must be between 1 and 3
+psql:sql/alter_generic.sql:300: ERROR:  invalid function number 0, must be between 1 and 3
 ALTER OPERATOR FAMILY alt_opf4 USING btree ADD FUNCTION 6 btint42cmp(int4, int2); -- function number should be between 1 and 5
-psql:sql/alter_generic.sql:302: ERROR:  invalid function number 6, must be between 1 and 3
+psql:sql/alter_generic.sql:301: ERROR:  invalid function number 6, must be between 1 and 3
 ALTER OPERATOR FAMILY alt_opf4 USING btree ADD STORAGE invalid_storage; -- Ensure STORAGE is not a part of ALTER OPERATOR FAMILY
-psql:sql/alter_generic.sql:303: ERROR:  STORAGE cannot be specified in ALTER OPERATOR FAMILY
+psql:sql/alter_generic.sql:302: ERROR:  STORAGE cannot be specified in ALTER OPERATOR FAMILY
 DROP OPERATOR FAMILY alt_opf4 USING btree;
 DROP OPERATOR FAMILY
 -- Should fail. Need to be SUPERUSER to do ALTER OPERATOR FAMILY .. ADD / DROP
@@ -471,11 +471,11 @@ CREATE OPERATOR FAMILY
 SET ROLE regress_alter_generic_user5;
 SET
 ALTER OPERATOR FAMILY alt_opf5 USING btree ADD OPERATOR 1 < (int4, int2), FUNCTION 1 btint42cmp(int4, int2);
-psql:sql/alter_generic.sql:311: ERROR:  must be superuser to alter an operator family
+psql:sql/alter_generic.sql:310: ERROR:  must be superuser to alter an operator family
 RESET ROLE;
-psql:sql/alter_generic.sql:312: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+psql:sql/alter_generic.sql:311: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 DROP OPERATOR FAMILY alt_opf5 USING btree;
-psql:sql/alter_generic.sql:313: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+psql:sql/alter_generic.sql:312: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 ROLLBACK;
 ROLLBACK
 -- Should fail. Need rights to namespace for ALTER OPERATOR FAMILY .. ADD / DROP
@@ -492,7 +492,7 @@ CREATE OPERATOR FAMILY
 SET ROLE regress_alter_generic_user6;
 SET
 ALTER OPERATOR FAMILY alt_nsp6.alt_opf6 USING btree ADD OPERATOR 1 < (int4, int2);
-psql:sql/alter_generic.sql:323: ERROR:  permission denied for schema alt_nsp6
+psql:sql/alter_generic.sql:322: ERROR:  permission denied for schema alt_nsp6
 ROLLBACK;
 ROLLBACK
 DROP SCHEMA alt_nsp6;
@@ -503,7 +503,7 @@ CREATE OPERATOR FAMILY
 ALTER OPERATOR FAMILY alt_opf7 USING btree ADD OPERATOR 1 < (int4, int2);
 ALTER OPERATOR FAMILY
 ALTER OPERATOR FAMILY alt_opf7 USING btree DROP OPERATOR 1 (int4, int2, int8);
-psql:sql/alter_generic.sql:330: ERROR:  one or two argument types must be specified
+psql:sql/alter_generic.sql:329: ERROR:  one or two argument types must be specified
 DROP OPERATOR FAMILY alt_opf7 USING btree;
 DROP OPERATOR FAMILY
 -- Should work. During ALTER OPERATOR FAMILY ... DROP OPERATOR
@@ -525,7 +525,7 @@ DROP OPERATOR FAMILY
 CREATE OPERATOR FAMILY alt_opf10 USING btree;
 CREATE OPERATOR FAMILY
 ALTER OPERATOR FAMILY alt_opf10 USING btree ADD OPERATOR 1 < (int4, int4) FOR ORDER BY float_ops;
-psql:sql/alter_generic.sql:346: ERROR:  access method "btree" does not support ordering operators
+psql:sql/alter_generic.sql:345: ERROR:  access method "btree" does not support ordering operators
 DROP OPERATOR FAMILY alt_opf10 USING btree;
 DROP OPERATOR FAMILY
 -- Should work. Textbook case of ALTER OPERATOR FAMILY ... ADD OPERATOR with FOR ORDER BY
@@ -545,9 +545,9 @@ CREATE OPERATOR FAMILY
 CREATE FUNCTION fn_opf12  (int4, int2) RETURNS BIGINT AS 'SELECT NULL::BIGINT;' LANGUAGE SQL;
 CREATE FUNCTION
 ALTER OPERATOR FAMILY alt_opf12 USING btree ADD FUNCTION 1 fn_opf12(int4, int2);
-psql:sql/alter_generic.sql:359: ERROR:  btree comparison functions must return integer
+psql:sql/alter_generic.sql:358: ERROR:  btree comparison functions must return integer
 DROP OPERATOR FAMILY alt_opf12 USING btree;
-psql:sql/alter_generic.sql:360: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+psql:sql/alter_generic.sql:359: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 ROLLBACK;
 ROLLBACK
 -- Should fail. hash comparison functions should return INTEGER in ALTER OPERATOR FAMILY ... ADD FUNCTION
@@ -558,9 +558,9 @@ CREATE OPERATOR FAMILY
 CREATE FUNCTION fn_opf13  (int4) RETURNS BIGINT AS 'SELECT NULL::BIGINT;' LANGUAGE SQL;
 CREATE FUNCTION
 ALTER OPERATOR FAMILY alt_opf13 USING hash ADD FUNCTION 1 fn_opf13(int4);
-psql:sql/alter_generic.sql:367: ERROR:  hash function 1 must return integer
+psql:sql/alter_generic.sql:366: ERROR:  hash function 1 must return integer
 DROP OPERATOR FAMILY alt_opf13 USING hash;
-psql:sql/alter_generic.sql:368: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+psql:sql/alter_generic.sql:367: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 ROLLBACK;
 ROLLBACK
 -- Should fail. btree comparison functions should have two arguments in ALTER OPERATOR FAMILY ... ADD FUNCTION
@@ -571,9 +571,9 @@ CREATE OPERATOR FAMILY
 CREATE FUNCTION fn_opf14 (int4) RETURNS BIGINT AS 'SELECT NULL::BIGINT;' LANGUAGE SQL;
 CREATE FUNCTION
 ALTER OPERATOR FAMILY alt_opf14 USING btree ADD FUNCTION 1 fn_opf14(int4);
-psql:sql/alter_generic.sql:375: ERROR:  btree comparison functions must have two arguments
+psql:sql/alter_generic.sql:374: ERROR:  btree comparison functions must have two arguments
 DROP OPERATOR FAMILY alt_opf14 USING btree;
-psql:sql/alter_generic.sql:376: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+psql:sql/alter_generic.sql:375: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 ROLLBACK;
 ROLLBACK
 -- Should fail. hash comparison functions should have one argument in ALTER OPERATOR FAMILY ... ADD FUNCTION
@@ -584,9 +584,9 @@ CREATE OPERATOR FAMILY
 CREATE FUNCTION fn_opf15 (int4, int2) RETURNS BIGINT AS 'SELECT NULL::BIGINT;' LANGUAGE SQL;
 CREATE FUNCTION
 ALTER OPERATOR FAMILY alt_opf15 USING hash ADD FUNCTION 1 fn_opf15(int4, int2);
-psql:sql/alter_generic.sql:383: ERROR:  hash function 1 must have one argument
+psql:sql/alter_generic.sql:382: ERROR:  hash function 1 must have one argument
 DROP OPERATOR FAMILY alt_opf15 USING hash;
-psql:sql/alter_generic.sql:384: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+psql:sql/alter_generic.sql:383: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 ROLLBACK;
 ROLLBACK
 -- Should fail. In gist throw an error when giving different data types for function argument
@@ -594,18 +594,18 @@ ROLLBACK
 CREATE OPERATOR FAMILY alt_opf16 USING gist;
 CREATE OPERATOR FAMILY
 ALTER OPERATOR FAMILY alt_opf16 USING gist ADD FUNCTION 1 btint42cmp(int4, int2);
-psql:sql/alter_generic.sql:390: ERROR:  associated data types must be specified for index support function
+psql:sql/alter_generic.sql:389: ERROR:  associated data types must be specified for index support function
 DROP OPERATOR FAMILY alt_opf16 USING gist;
 DROP OPERATOR FAMILY
 -- Should fail. duplicate operator number / function number in ALTER OPERATOR FAMILY ... ADD FUNCTION
 CREATE OPERATOR FAMILY alt_opf17 USING btree;
 CREATE OPERATOR FAMILY
 ALTER OPERATOR FAMILY alt_opf17 USING btree ADD OPERATOR 1 < (int4, int4), OPERATOR 1 < (int4, int4); -- operator # appears twice in same statement
-psql:sql/alter_generic.sql:395: ERROR:  operator number 1 for (integer,integer) appears more than once
+psql:sql/alter_generic.sql:394: ERROR:  operator number 1 for (integer,integer) appears more than once
 ALTER OPERATOR FAMILY alt_opf17 USING btree ADD OPERATOR 1 < (int4, int4); -- operator 1 requested first-time
 ALTER OPERATOR FAMILY
 ALTER OPERATOR FAMILY alt_opf17 USING btree ADD OPERATOR 1 < (int4, int4); -- operator 1 requested again in separate statement
-psql:sql/alter_generic.sql:397: ERROR:  operator 1(integer,integer) already exists in operator family "alt_opf17"
+psql:sql/alter_generic.sql:396: ERROR:  operator 1(integer,integer) already exists in operator family "alt_opf17"
 ALTER OPERATOR FAMILY alt_opf17 USING btree ADD
   OPERATOR 1 < (int4, int2) ,
   OPERATOR 2 <= (int4, int2) ,
@@ -614,7 +614,7 @@ ALTER OPERATOR FAMILY alt_opf17 USING btree ADD
   OPERATOR 5 > (int4, int2) ,
   FUNCTION 1 btint42cmp(int4, int2) ,
   FUNCTION 1 btint42cmp(int4, int2);    -- procedure 1 appears twice in same statement
-psql:sql/alter_generic.sql:405: ERROR:  function number 1 for (integer,smallint) appears more than once
+psql:sql/alter_generic.sql:404: ERROR:  function number 1 for (integer,smallint) appears more than once
 ALTER OPERATOR FAMILY alt_opf17 USING btree ADD
   OPERATOR 1 < (int4, int2) ,
   OPERATOR 2 <= (int4, int2) ,
@@ -630,7 +630,7 @@ ALTER OPERATOR FAMILY alt_opf17 USING btree ADD
   OPERATOR 4 >= (int4, int2) ,
   OPERATOR 5 > (int4, int2) ,
   FUNCTION 1 btint42cmp(int4, int2);    -- procedure 1 requested again in separate statement
-psql:sql/alter_generic.sql:419: ERROR:  operator 1(integer,smallint) already exists in operator family "alt_opf17"
+psql:sql/alter_generic.sql:418: ERROR:  operator 1(integer,smallint) already exists in operator family "alt_opf17"
 DROP OPERATOR FAMILY alt_opf17 USING btree;
 DROP OPERATOR FAMILY
 -- Should fail. Ensure that DROP requests for missing OPERATOR / FUNCTIONS
@@ -638,7 +638,7 @@ DROP OPERATOR FAMILY
 CREATE OPERATOR FAMILY alt_opf18 USING btree;
 CREATE OPERATOR FAMILY
 ALTER OPERATOR FAMILY alt_opf18 USING btree DROP OPERATOR 1 (int4, int4);
-psql:sql/alter_generic.sql:426: ERROR:  operator 1(integer,integer) does not exist in operator family "alt_opf18"
+psql:sql/alter_generic.sql:425: ERROR:  operator 1(integer,integer) does not exist in operator family "alt_opf18"
 ALTER OPERATOR FAMILY alt_opf18 USING btree ADD
   OPERATOR 1 < (int4, int2) ,
   OPERATOR 2 <= (int4, int2) ,
@@ -648,7 +648,7 @@ ALTER OPERATOR FAMILY alt_opf18 USING btree ADD
   FUNCTION 1 btint42cmp(int4, int2);
 ALTER OPERATOR FAMILY
 ALTER OPERATOR FAMILY alt_opf18 USING btree DROP FUNCTION 2 (int4, int4);
-psql:sql/alter_generic.sql:434: ERROR:  function 2(integer,integer) does not exist in operator family "alt_opf18"
+psql:sql/alter_generic.sql:433: ERROR:  function 2(integer,integer) does not exist in operator family "alt_opf18"
 DROP OPERATOR FAMILY alt_opf18 USING btree;
 DROP OPERATOR FAMILY
 --

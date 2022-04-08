@@ -227,6 +227,7 @@ CREATE TABLE `server_nodes` (
   `svc_since` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   -- the port number the node_mgr on this server is listening on, if not using default one. NULL: using default app defined port.
   nodemgr_port int,
+  nodemgr_tmp_data_abs_path text DEFAULT NULL,
   extra_props text,
   PRIMARY KEY (`id`),
   UNIQUE KEY `hostaddr_dcid_uniq` (`hostaddr`(512),`dc_id`),
@@ -469,15 +470,15 @@ create table cluster_shard_backup_restore_log (
 -- log them in order to recover from failures halfway.
 create table cluster_general_job_log (
 	id serial primary key,
-	job_id varchar(128) not null,
-	job_type varchar(128) not null,
+  related_id varchar(128) DEFAULT NULL,
+	job_type varchar(128) DEFAULT null,
 	-- an operation's status goes through the 3 phases: not_started -> ongoing -> done/failed
 	status enum ('not_started', 'ongoing', 'done', 'failed') not null default 'not_started',
 	-- extra info for expanding 
 	memo text default null,
 	when_started timestamp(6) not null default current_timestamp(6), -- when the operation was issued
 	when_ended timestamp(6), -- when the operation ended(either done or failed)
-	job_info varchar(256), -- optional
+	job_info text default null, -- optional
 	user_name varchar(128)
 ) ENGINE=InnoDB DEFAULT charset=utf8;
 
@@ -491,19 +492,17 @@ create table cluster_roll_back_record (
 -- table move logs, used to recover from broken procedures of a table-move operation.
 create table table_move_jobs (
 	id serial primary key,
-	table_name varchar(64) not null, -- target table to move
-	-- db name (of storage shard) which contains the target table
-	db_name varchar(150) not null,
-	src_shard int unsigned not null, -- old shard id
+	table_list text default null, -- target table to move
+	src_shard int unsigned default null, -- old shard id
 	-- data source, dumping the table in this node
-	src_shard_node int unsigned not null,
-	dest_shard int unsigned not null, -- new shard id
+	src_shard_node int unsigned default null,
+	dest_shard int unsigned default null, -- new shard id
 	-- the shard node to move into, must be dest_shard's current master
-	dest_shard_node int unsigned not null,
+	dest_shard_node int unsigned default null,
 	-- where to replay binlogs from, replication-starting-point(file)
-	snapshot_binlog_file_idx int unsigned not null,
+	snapshot_binlog_file_idx varchar(256) default null,
 	-- replication-starting-point(offset)
-	snapshot_binlog_file_offset bigint unsigned not null,
+	snapshot_binlog_file_offset bigint unsigned default null,
 
 	-- file format of the table being moved:
 	-- logical: a logical dump produced by tools like mydumper, etc;
@@ -511,7 +510,7 @@ create table table_move_jobs (
 	-- dyn_clone: produced by clone cmd(currently only available in innodb)
 	tab_file_format enum('logical', 'physical', 'dyn_clone') not null,
 	when_started timestamp(6) not null default current_timestamp(6),
-	when_ended timestamp(6),
+	when_ended timestamp(6) NULL default null,
 	status enum('not_started', 'dumped', 'transmitted', 'loaded', 'caught_up', 'renamed', 'rerouted', 'done', 'failed') not null default 'not_started',
 	-- extra info for expanding 
 	memo text default null,

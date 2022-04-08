@@ -14,8 +14,6 @@ INSERT INTO foo (f2,f3)
 
 SELECT * FROM foo;
 
-1
-
 SELECT * FROM foo;
 
 DELETE FROM foo WHERE f1 > 2 RETURNING f3, f2, f1, least(f1,f3);

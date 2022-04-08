@@ -1,8 +1,8 @@
 --
 -- SELECT_DISTINCT_ON
 --
-
-COPY tenk1 FROM '/home/dzw/work/kunlun-enterprise/postgresql-11.5/src/test/regress/data/tenk.data';
+DELETE from tenk1;
+COPY tenk1 FROM '/home/kunlun/pgregressdata/tenk.data';
 SELECT DISTINCT ON (string4) string4, two, ten
    FROM tenk1
    ORDER BY string4 using <, two using >, ten using <;

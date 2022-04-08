@@ -182,6 +182,26 @@ void log_create_stmt(CreateStmt *stmt, const char *query)
 	/* is temp table, do nothing */
 	if (rel->rd_rel->relpersistence != RELPERSISTENCE_TEMP)
 	{
+		ListCell *lc;
+		foreach (lc, stmt->tableElts)
+		{
+			/* The temp table in TableLkeClause cannot be found  by pg_depent, so check it here */
+			if (IsA(lfirst(lc), TableLikeClause))
+			{
+				RangeVar *srcRel = lfirst_node(TableLikeClause, lc)->relation;
+				Oid srcRelid = RangeVarGetRelid(srcRel, NoLock, false);
+				Relation srcRelation = relation_open(srcRelid, NoLock);
+				if (srcRelation->rd_rel->relpersistence == RELPERSISTENCE_TEMP)
+				{
+					relation_close(srcRelation, NoLock);
+
+					ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+							errmsg("Kunlun: creating persistent table like temp table is not allowed")));
+				}
+				relation_close(srcRelation, NoLock);
+			}
+		}
+
 		StringInfoData sql;
 		initStringInfo(&sql);
 		

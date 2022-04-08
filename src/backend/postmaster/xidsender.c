@@ -325,9 +325,7 @@ end:
 
 /* True if recovering next xid for global txn */
 static bool RecoveringGlobalNextXid = false;
-
-static void 
-recover_nextXid_global()
+static void recover_nextXid_global()
 {
 	if (XidSyncDone())
 		return;
@@ -342,19 +340,20 @@ recover_nextXid_global()
 	Assert(MaxBackends > 0);
 	Assert(IsTransactionBlock() == false);
 	Assert(InRecovery == false);
-	TransactionId max_metadata_cluster_trxid = ShmemVariableCache->nextXid + MaxBackends;
-	TransactionId new_start = InvalidTransactionId, old_next_xid = 0;
+	TransactionId old_nextxid = ShmemVariableCache->nextXid;
+	TransactionId new_start = old_nextxid + MaxBackends;
 
 	/* update next xid to the max xid recovered from redo log plus the max number of process */
-	LWLockAcquire(XidGenLock, LW_EXCLUSIVE);
-	old_next_xid = ShmemVariableCache->nextXid;
-	new_start = ShmemVariableCache->nextXid = max_metadata_cluster_trxid + 1;
-	LWLockRelease(XidGenLock);
+	{
+		LWLockAcquire(XidGenLock, LW_EXCLUSIVE);
+		advance_nextxid(new_start);
+		LWLockRelease(XidGenLock);
+	}
 
-	RecoveringGlobalNextXid = true;
 	/* alloc the first xid after pg startup, and flush redo log */
 	PG_TRY();
 	{
+		RecoveringGlobalNextXid = true;
 		StartTransactionCommand();
 		GetTopTransactionId();
 		CommitTransactionCommand();
@@ -363,17 +362,15 @@ recover_nextXid_global()
 	PG_CATCH();
 	{
 		RecoveringGlobalNextXid = false;
-		/* It's ok without of lock */
-		ShmemVariableCache->nextXid = old_next_xid;
 		AbortCurrentTransaction();
 		PG_RE_THROW();
 	}
 	PG_END_TRY();
 
 	/* mark the next xid available */
-	g_xgi->max_trxid = max_metadata_cluster_trxid;
+	g_xgi->max_trxid = new_start;
 
-	elog(LOG, "Recovered ShmemVariableCache->nextXid from %u to %u.", old_next_xid, new_start);
+	elog(LOG, "Recovered ShmemVariableCache->nextXid from %u to %u.", old_nextxid, new_start);
 }
 
 bool XidSyncDone()

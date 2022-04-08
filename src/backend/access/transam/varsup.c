@@ -534,3 +534,27 @@ GetNewObjectId(void)
 
 	return result;
 }
+
+void advance_nextxid(TransactionId to)
+{
+	Assert(to > ShmemVariableCache->nextXid);
+	TransactionId xid = ShmemVariableCache->nextXid;
+	while (xid < to)
+	{
+		/*
+		 * If we are allocating the first XID of a new page of the commit log,
+		 * zero out that commit-log page before returning. We must do this while
+		 * holding XidGenLock, else another xact could acquire and commit a later
+		 * XID before we zero the page.  Fortunately, a page of the commit log
+		 * holds 32K or more transactions, so we don't have to do this very often.
+		 *
+		 * Extend pg_subtrans and pg_commit_ts too.
+		 */
+		ExtendCLOG(xid);
+		ExtendCommitTs(xid);
+		ExtendSUBTRANS(xid);
+
+		TransactionIdAdvance(xid);
+	}
+	ShmemVariableCache->nextXid = to;
+}

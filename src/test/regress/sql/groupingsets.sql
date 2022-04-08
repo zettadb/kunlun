@@ -5,7 +5,12 @@
 -- test data sources
 
 --DDL_STATEMENT_BEGIN--
-create temp view gstest1(a,b,v)
+drop view if exists gstest1;
+--DDL_STATEMENT_END--
+
+-- ERROR:  Kunlun-db: Statement 'CREATE VIEW' not support temporary object mixied normal object, so we change the view from temp to non-temp
+--DDL_STATEMENT_BEGIN--
+create view gstest1(a,b,v)
   as values (1,1,10),(1,1,11),(1,2,12),(1,2,13),(1,3,14),
             (2,3,15),
             (3,3,16),(3,4,17),

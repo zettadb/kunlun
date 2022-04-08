@@ -1,6 +1,7 @@
 --
 -- WINDOW FUNCTIONS
 --
+set IntervalStyle = postgres;
 
 --DDL_STATEMENT_BEGIN--
 CREATE TEMPORARY TABLE empsalary (

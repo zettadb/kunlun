@@ -223,7 +223,7 @@ SELECT (time '00:00', interval '1 hour')
   OVERLAPS (time '01:30', interval '1 day') AS "False";
 
 --[#564] This can removed after the ticket is fixed.
-SET TIME ZONE 'UTC'
+SET TIME ZONE 'UTC';
 --DDL_STATEMENT_BEGIN--
 DROP TABLE IF EXISTS TEMP_TIMESTAMP;
 --DDL_STATEMENT_END--

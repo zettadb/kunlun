@@ -31,6 +31,7 @@
 #include "utils/rel.h"
 #include "catalog/pg_type.h"
 #include "sharding/sharding_conn.h"
+#include "utils/memutils.h"
 
 
 /* ----------------
@@ -167,27 +168,26 @@ bool cache_remotetup(TupleTableSlot *slot, ResultRelInfo *resultRelInfo)
 		end_remote_insert_stmt(myState, false);
 		remotetup_prepare_info(myState, typeinfo, natts);
 	}
-
+	
 	/* Set or update my derived attribute info, if needed */
-	if (myState->nattrs != natts || !(myState->attrinfo && typeinfo) ||
-		!equalTupleDescs(myState->attrinfo, typeinfo))
+	if (myState->nattrs != natts ||
+	    !(myState->attrinfo && typeinfo) ||
+	    !equalTupleDescs(myState->attrinfo, typeinfo))
 	{
-retry:
 		// a insert stmt could never have >1 table type.
 		Assert(myState->buf.len == 0);
 		remotetup_prepare_info(myState, typeinfo, natts);
 	}
 
+	MemoryContext mem = AllocSetContextCreate(CurrentMemoryContext,
+						  "cache remotetup context",
+						  ALLOCSET_DEFAULT_SIZES);
+	MemoryContext mem_saved =  MemoryContextSwitchTo(mem);
+
 	/* Make sure the tuple is fully deconstructed */
 	slot_getallattrs(slot);
 
-	if ((brlen = bracket_tuple(true, myState)) == 0)
-	{
-		truncateStringInfo(self, myState->last_tup_end_offset);
-		if (!end_remote_insert_stmt(myState, false))
-			grow_remote_insert_blocks(); // tuple too big
-		goto retry;
-	}
+	brlen = bracket_tuple(true, myState);
 	tuplen += brlen;
 
 	pg_tz *gmt_tz = pg_tzset("GMT"), *origtz = NULL;
@@ -209,13 +209,7 @@ retry:
 
 		if (slot->tts_isnull[i])
 		{
-			if (!(attrlen = append_value_str(myState, NULL, 0)))
-			{
-				truncateStringInfo(self, myState->last_tup_end_offset);
-				if (!end_remote_insert_stmt(myState, false))
-					grow_remote_insert_blocks(); // tuple too big
-				goto retry;
-			}
+			attrlen = append_value_str(myState, NULL, 0);
 			tuplen += attrlen;
 			continue;
 		}
@@ -254,13 +248,7 @@ retry:
 		 * when the slot is ready to be inserted to physical storage.
 		 * So the 'typeinfo' and 'slot' always contain all fields of the table.
 		 * */
-		if (!(attrlen = append_value_str(myState, outputstr, atttypid)))
-		{
-			truncateStringInfo(self, myState->last_tup_end_offset);
-			if (!end_remote_insert_stmt(myState, false))
-				grow_remote_insert_blocks(); // tuple too big
-			goto retry;
-		}
+		attrlen = append_value_str(myState, outputstr, atttypid);
 		tuplen += attrlen;
 	}
 
@@ -273,19 +261,15 @@ retry:
 	}
 
 	brlen = bracket_tuple(false, myState);
-	if (brlen == 0)
-	{
-		truncateStringInfo(self, myState->last_tup_end_offset);
-		if (!end_remote_insert_stmt(myState, false))
-			grow_remote_insert_blocks(); // tuple too big
-		goto retry;
-	}
-
 	tuplen -= 2; // the last field's trailing ", " is removed.
 	tuplen += brlen;
 
 	myState->last_tup_end_offset += tuplen;
 	Assert(myState->last_tup_end_offset == lengthStringInfo(self));
+
+	MemoryContextSwitchTo(mem_saved);
+	MemoryContextDelete(mem);
+
 	return true;
 }
 

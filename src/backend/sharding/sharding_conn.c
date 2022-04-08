@@ -235,8 +235,8 @@ AsyncStmtInfo *GetAsyncStmtInfoNode(Oid shardid, Oid shardNodeId, bool req_chk_o
 
 	bool want_master = false;
 	int newconn = 0;
-	Storage_HA_Mode ha_mode = storage_ha_mode();
 	AsyncStmtInfo *asi = NULL;
+	Storage_HA_Mode ha_mode = storage_ha_mode();
 
 	if (shardNodeId == InvalidOid)
 	{
@@ -251,16 +251,13 @@ AsyncStmtInfo *GetAsyncStmtInfoNode(Oid shardid, Oid shardNodeId, bool req_chk_o
 
 	for (int i = 0; i < cur_session.num_asis_used; i++)
 	{
-		AsyncStmtInfo *pasi = cur_session.asis + i;
-		if (pasi->shard_id == shardid && pasi->node_id == shardNodeId)
+		asi = cur_session.asis + i;
+		if (asi->shard_id == shardid && asi->node_id == shardNodeId)
 		{
-			if (pasi->conn != NULL)
-				return pasi;
+			if (asi->conn != NULL)
+				return asi;
 			else
-			{
-				asi = pasi;
 				goto make_conn;
-			}
 		}
 	}
 

@@ -215,13 +215,13 @@ SELECT '' AS to_char_4, to_char(d1, 'FMY,YYY FMYYYY FMYYY FMYY FMY FMCC FMQ FMMM
    FROM TIMESTAMP_TBL;
 
 SELECT '' AS to_char_5, to_char(d1, 'HH HH12 HH24 MI SS SSSS')
-   FROM TIMESTAMP_TBL;
+   FROM TIMESTAMP_TBL order by 1,2;
 
 SELECT '' AS to_char_6, to_char(d1, E'"HH:MI:SS is" HH:MI:SS "\\"text between quote marks\\""')
-   FROM TIMESTAMP_TBL;
+   FROM TIMESTAMP_TBL order by 1,2;
 
 SELECT '' AS to_char_7, to_char(d1, 'HH24--text--MI--text--SS')
-   FROM TIMESTAMP_TBL;
+   FROM TIMESTAMP_TBL prder by 1,2;
 
 SELECT '' AS to_char_8, to_char(d1, 'YYYYTH YYYYth Jth')
    FROM TIMESTAMP_TBL;

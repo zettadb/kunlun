@@ -471,17 +471,33 @@ create table cluster_shard_backup_restore_log (
 -- log them in order to recover from failures halfway.
 create table cluster_general_job_log (
 	id serial primary key,
-  related_id varchar(128) DEFAULT NULL,
-	job_type varchar(128) DEFAULT null,
+	job_id varchar(128) not null,
+	job_type varchar(128) not null,
 	-- an operation's status goes through the 3 phases: not_started -> ongoing -> done/failed
 	status enum ('not_started', 'ongoing', 'done', 'failed') not null default 'not_started',
 	-- extra info for expanding 
 	memo text default null,
 	when_started timestamp(6) not null default current_timestamp(6), -- when the operation was issued
 	when_ended timestamp(6), -- when the operation ended(either done or failed)
-	job_info text default null, -- optional
+	job_info varchar(256), -- optional
 	user_name varchar(128)
 ) ENGINE=InnoDB DEFAULT charset=utf8;
+
+-- general jobs including the create and drop of a cluster, a computing node, a shard and a shard node.
+-- log them in order to recover from failures halfway.
+-- create table cluster_general_job_log (
+--	id serial primary key,
+--  related_id varchar(128) DEFAULT NULL,
+--	job_type varchar(128) DEFAULT null,
+--	-- an operation's status goes through the 3 phases: not_started -> ongoing -> done/failed
+--	status enum ('not_started', 'ongoing', 'done', 'failed') not null default 'not_started',
+--	-- extra info for expanding 
+--	memo text default null,
+--	when_started timestamp(6) not null default current_timestamp(6), -- when the operation was issued
+--	when_ended timestamp(6), -- when the operation ended(either done or failed)
+--	job_info text default null, -- optional
+--	user_name varchar(128)
+-- ) ENGINE=InnoDB DEFAULT charset=utf8;
 
 -- roll back record for install error
 create table cluster_roll_back_record (

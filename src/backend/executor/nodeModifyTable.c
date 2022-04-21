@@ -2874,7 +2874,7 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 	for (int i = 0; i < nplans; i++, resultRelInfo++)
 	{
 		if ((operation == CMD_DELETE || operation == CMD_UPDATE) &&
-	    	IsRemoteRelation(resultRelInfo->ri_RelationDesc))
+		    IsRemoteRelation(resultRelInfo->ri_RelationDesc))
 		{
 			post_remote_updel_stmt(mtstate, rs_updels[i], i);
 		}

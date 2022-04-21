@@ -24,29 +24,108 @@
  *-------------------------------------------------------------------------
  */
 #include "postgres.h"
-#include "nodes/nodes.h"
-#include "nodes/pg_list.h"
-#include "nodes/primnodes.h"
-#include "nodes/print.h"
-#include "utils/memutils.h"
-#include "utils/relcache.h"
-#include "utils/rel.h"
-#include "catalog/pg_class.h"
-#include "catalog/catalog.h"
-#include "sharding/sharding_conn.h"
-#include "utils/builtins.h"
-#include "nodes/plannodes.h"
-#include "nodes/execnodes.h"
+
 #include "access/remote_dml.h"
-#include "utils/lsyscache.h"
+#include "catalog/catalog.h"
+#include "catalog/partition.h"
+#include "catalog/pg_class.h"
 #include "commands/dbcommands.h"
 #include "miscadmin.h"
+#include "nodes/execnodes.h"
+#include "nodes/nodes.h"
+#include "nodes/pg_list.h"
+#include "nodes/plannodes.h"
+#include "nodes/primnodes.h"
+#include "nodes/print.h"
+#include "optimizer/var.h"
+#include "sharding/sharding_conn.h"
+#include "utils/builtins.h"
+#include "utils/lsyscache.h"
+#include "utils/memutils.h"
+#include "utils/partcache.h"
+#include "utils/rel.h"
+#include "utils/relcache.h"
 
 void InitRemotePrintExprContext(RemotePrintExprContext *rpec, List*rtable)
 {
 	memset(rpec, 0, sizeof(*rpec));
 	rpec->rtable = rtable;
 	rpec->ignore_param_quals = true;
+}
+
+static bool
+is_partkey_modified(Relation relation, Index attrno)
+{
+	bool found = false;
+	List *ancestors;
+	Form_pg_attribute attr;
+	const char *attrname;
+	ListCell *lc;
+
+	ancestors = get_partition_ancestors(relation->rd_id);
+	ancestors = lappend_oid(ancestors, relation->rd_id);
+	attr = TupleDescAttr(RelationGetDescr(relation), attrno-1);
+	attrname = NameStr(attr->attname);
+
+	foreach (lc, ancestors)
+	{
+		Oid relid = lfirst_oid(lc);
+		Relation rel = relation_open(relid, NoLock);
+		if (rel->rd_rel->relkind == RELKIND_PARTITIONED_TABLE)
+		{
+			/*
+			 *  Found the attrno of the column in current relation. 
+			 * NOTE: The order of attributes for a partitioned table may differ from the parent table.
+			 */
+			found = false; 
+			TupleDesc desc = RelationGetDescr(rel);
+			for (int i = 0; i < desc->natts; ++i)
+			{
+				attr = TupleDescAttr(desc, attrno - 1);
+				if (strcasecmp(attrname, NameStr(attr->attname)) == 0)
+				{
+					found = true;
+					break;
+				}
+				attrno = (attrno == desc->natts) ? 1 : attrno + 1;
+			}
+			Assert (found && attrno>0);
+
+			/* Check the attributes of the partition key*/
+			found = false;
+			PartitionKey partkey = rel->rd_partkey;
+			ListCell *lc2 = list_head(partkey->partexprs);
+			ListCell *lc3;
+			for (int i = 0; !found && i < partkey->partnatts; ++i)
+			{
+				/* Partition key is a column*/
+				if (partkey->partattrs[i] != InvalidAttrNumber)
+				{
+					found = (partkey->partattrs[i] == attrno);
+				}
+				/* Partition key is a function */
+				else
+				{
+					List *used_vars = pull_var_clause(lfirst(lc2), 0);
+					foreach (lc3, used_vars)
+					{
+						if (lfirst_node(Var, lc3)->varattno == attrno)
+						{
+							found = true;
+							break;
+						}
+					}
+					list_free(used_vars);
+				}
+			}
+		}
+		relation_close(rel, NoLock);
+
+		if (found)
+			break;
+	}
+	
+	return found;
 }
 
 void post_remote_updel_stmt(ModifyTableState*mtstate, RemoteScan *rs, int i)
@@ -131,6 +210,14 @@ void post_remote_updel_stmt(ModifyTableState*mtstate, RemoteScan *rs, int i)
 			*/
 			if (tle->resname && column_name_is_dropped(tle->resname))
 				continue;
+
+			/* Check if update the partition key */
+			if (is_partkey_modified(resultRelInfo->ri_RelationDesc, tle->resno))
+			{
+				ereport(ERROR,
+					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					 errmsg("Can not update partition key of a remote relation")));
+			}
 
 			appendStringInfo(&rms->remote_dml, " %s %s= ",
 				num_tle++ == 0 ? "set":", ", tgt_attr->attname.data);

@@ -317,7 +317,7 @@ void log_alter_table(AlterTableStmt *stmt, const char *query)
 				Relation seqrel = relation_open(seqid, NoLock);
 				resetStringInfo(&extra);
 				if (!name)
-					appendStringInfo(&extra, " sequence name %s ", RelationGetRelationName(rel));
+					appendStringInfo(&extra, " sequence name %s ", RelationGetRelationName(seqrel));
 				if (!shard)
 					appendStringInfo(&extra, " shard %lu ", seqrel->rd_rel->relshardid);
 

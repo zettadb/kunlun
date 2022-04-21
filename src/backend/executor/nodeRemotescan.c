@@ -366,6 +366,8 @@ typedef struct FindParamsContext
 
 static bool has_dependent_params(Node *node, FindParamsContext*fpc)
 {
+	if (node == NULL)
+		return false;
 	if (IsA(node, Param))
 	{
 		Param *par = (Param *)node;

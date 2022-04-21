@@ -584,6 +584,13 @@ void remote_alter_sequence(Relation rel)
 	StringInfoData remote_sql;
 	initStringInfo(&remote_sql);
 	Node *top_stmt = remoteddl_top_stmt();
+	
+	Oid seq_relid = RelationGetRelid(rel);
+	HeapTuple tuple = SearchSysCache1(SEQRELID, ObjectIdGetDatum(seq_relid));
+	if (!HeapTupleIsValid(tuple))
+		elog(ERROR, "cache lookup failed for sequence %u", seq_relid);
+	Form_pg_sequence seqform = (Form_pg_sequence)GETSTRUCT(tuple);
+
 	if (nodeTag(top_stmt) == T_RenameStmt)
 	{
 		RenameStmt *stmt = (RenameStmt *)top_stmt;
@@ -629,7 +636,10 @@ void remote_alter_sequence(Relation rel)
 			}
 			else if (strcmp(defel->defname, "restart") == 0)
 			{
-				appendStringInfo(&option_update, " curval = %ld", defGetInt64(defel));
+				if (defel->arg == NULL)
+					appendStringInfo(&option_update, " curval = %ld", seqform->seqstart);
+				else
+					appendStringInfo(&option_update, " curval = %ld", defGetInt64(defel));
 			}
 			else if (strcmp(defel->defname, "maxvalue") == 0)
 			{
@@ -660,6 +670,8 @@ void remote_alter_sequence(Relation rel)
 							 RelationGetRelationName(rel));
 		}
 	}
+
+	ReleaseSysCache(tuple);
 
 	if (remote_sql.len > 0)
 		enque_remote_ddl(SQLCOM_UPDATE, rel->rd_rel->relshardid, &remote_sql, false);

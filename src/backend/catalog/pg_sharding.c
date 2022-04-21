@@ -1765,6 +1765,8 @@ void TopoServiceMain(void)
 			FlushErrorState();
 			if (IsTransactionState())
 				AbortCurrentTransaction();
+			/* in case of crazy log */
+			wait_latch(1000);
 		}
 		PG_END_TRY();
 	}

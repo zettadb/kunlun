@@ -1745,14 +1745,6 @@ expand_partitioned_rtentry(PlannerInfo *root, RangeTblEntry *parentrte,
 			expand_partitioned_rtentry(root, childrte, childRTindex,
 									   childrel, top_parentrc, lockmode,
 									   appinfos);
-		else if (IsRemoteRelation(childrel))
-		{
-		    if (root->partColsUpdated)
-				ereport(ERROR,
-						(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-						 errmsg("Can not update partition key of a remote relation.")));
-		}
-
 		/* Close child relation, but keep locks */
 		heap_close(childrel, NoLock);
 	}

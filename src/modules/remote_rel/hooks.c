@@ -88,8 +88,13 @@ remote_make_sql_delayed()
 		}
 		else if (object->classId == NamespaceRelationId)
 		{
-			remote_create_schema(get_namespace_name(object->objectId));
-			is_remote_object = true;
+			const char *ns_name = get_namespace_name(object->objectId);
+			/* skip system schema */
+			if (!IsReservedName(ns_name))
+			{
+				remote_create_schema(ns_name);
+				is_remote_object = true;
+			}
 		}
 		else if (object->classId == RelationRelationId)
 		{
@@ -222,8 +227,13 @@ remoteddl_object_access(ObjectAccessType access,
 		}
 		else if (classId == NamespaceRelationId)
 		{
-			remote_drop_schema(get_namespace_name(objectId));
-			is_remote_object = true;
+			const char *ns_name = get_namespace_name(objectId);
+			/* skip system schema */
+			if (!IsReservedName(ns_name))
+			{
+				remote_drop_schema(ns_name);
+				is_remote_object = true;
+			}
 		}
 		else if (classId == RelationRelationId)
 		{

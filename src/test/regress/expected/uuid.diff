@@ -1,5 +1,0 @@
-135c135,136
-< psql:sql/uuid.sql:65: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '11111111-1111-1111-1111-111111111111' for key 'guid1.guid1_unique_btree'.
----
-> psql:sql/uuid.sql:65: ERROR:  duplicate key value violates unique constraint "guid1_unique_btree"
-> DETAIL:  Key (guid_field)=(11111111-1111-1111-1111-111111111111) already exists.

@@ -68,10 +68,8 @@ NameData g_cluster_name = {'\0'};
 static char *cur_meta_hostaddr = NULL;
 static uint16_t cur_meta_port;
 
-static void WaitForDDLTxnCommit(uint64_t opid);
 static void fetch_cluster_meta(void);
 static bool mysql_get_next_result(MYSQL_CONN *conn, bool isbg);
-static bool check_ddl_logs_complete(bool is_recovery, uint64_t min_opid, uint64_t *apply_max, uint64_t *local_max);
 struct CMNConnInfo;
 static int FindMetaShardAllNodes(struct CMNConnInfo *cmnodes, size_t n);
 

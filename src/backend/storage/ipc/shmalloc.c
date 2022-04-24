@@ -111,7 +111,7 @@ void *shm_dynalloc(Shm_space *spc, shmsz_t sz)
 void shm_dynafree(void *ptr, Shm_space *spc)
 {
 	LWLockAcquire(DynaShmSpaceAllocLock, LW_EXCLUSIVE);
-	int ret = free_shmseg(ptr, spc);
+	free_shmseg(ptr, spc);
 	LWLockRelease(DynaShmSpaceAllocLock);
 }
 

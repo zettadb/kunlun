@@ -20,19 +20,19 @@
  */
 #include "postgres.h"
 
-#include "pgtime.h"
-#include "miscadmin.h"
 #include "access/printtup.h"
 #include "access/remotetup.h"
+#include "catalog/pg_type.h"
+#include "executor/nodeRemotescan.h"
+#include "miscadmin.h"
+#include "pgtime.h"
+#include "sharding/sharding_conn.h"
+#include "utils/algos.h"
 #include "utils/builtins.h"
 #include "utils/lsyscache.h"
 #include "utils/memdebug.h"
-#include "utils/algos.h"
-#include "utils/rel.h"
-#include "catalog/pg_type.h"
-#include "sharding/sharding_conn.h"
 #include "utils/memutils.h"
-
+#include "utils/rel.h"
 
 /* ----------------
  *		Private state for a remotetup destination object

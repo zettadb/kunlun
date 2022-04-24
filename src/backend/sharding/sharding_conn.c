@@ -70,7 +70,6 @@ static int wait_for_mysql_multi(AsyncStmtInfo *asi, size_t len, struct pollfd *p
 static void handle_mysql_result(AsyncStmtInfo *pasi);
 static void handle_mysql_error(int ret, AsyncStmtInfo *asi);
 static MYSQL *GetConnShardNode(Oid shardid, Oid nodeid, int *newconn, bool req_chk_onfail);
-static MYSQL *GetConnShardMaster(Oid shardid, int *newconn);
 static bool ConnHasFlag(AsyncStmtInfo *asi, int flagbit);
 static bool MarkConnFlag(AsyncStmtInfo *asi, int flagbit, bool b);
 
@@ -575,16 +574,6 @@ static MYSQL *GetConnShardNode(Oid shardid, Oid nodeid, int *newconn, bool req_c
 	return sconn->conns[slot];
 }
 
-/*
- * Find a ShardConnection object by (shardid, nodeid) from cur_session.
- * If not found, create a new one and cache it.
- * */
-static MYSQL *GetConnShardMaster(Oid shardid, int *newconn)
-{
-	ShardConnection*sconn = GetConnShard(shardid);
-	int slot = AllocShardConnNodeSlot(sconn, GetShardMasterNodeId(shardid), newconn, true);
-	return sconn->conns[slot];
-}
 #if 0
 /*
  * When poll() tells us a backend connection is closed(POLL_HUP), if we
@@ -782,7 +771,7 @@ static void handle_mysql_error(int ret, AsyncStmtInfo *asi)
 		 *
 		 * Request topology check to update pg_shard/pg_shard_node with latest master info.
 		 * */
-		bool req_done = RequestShardingTopoCheck(asi->shard_id);
+		RequestShardingTopoCheck(asi->shard_id);
 		handle_backend_disconnect(asi);
 		ereport(ERROR,
 				(errcode(ERRCODE_INTERNAL_ERROR),
@@ -1963,7 +1952,7 @@ make_check_mysql_node_status_stmt(AsyncStmtInfo *asi, bool want_master)
 
 	if (stmtlen == 0 && stmt) stmtlen = strlen(stmt);
 
-	if (stmt) append_async_stmt(asi, stmt, stmtlen, CMD_SELECT, false, SQLCOM_SELECT);
+	if (stmt) append_async_stmt(asi, (char*)stmt, stmtlen, CMD_SELECT, false, SQLCOM_SELECT);
 }
 
 static void

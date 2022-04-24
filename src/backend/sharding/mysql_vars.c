@@ -465,7 +465,6 @@ char *produce_set_var_stmts(int *plen)
 	Var_section *s = &all_cached_vars;
 	static StringInfoData set_var_buf;
 	const char *delim = NULL;
-	int ret;
 
 	Assert(plen);
 
@@ -487,52 +486,52 @@ char *produce_set_var_stmts(int *plen)
 				delim = "'";
 			else
 				delim = "";
-			ret = appendStringInfo(&set_var_buf, "%sset %s = %s",
+			appendStringInfo(&set_var_buf, "%sset %s = %s",
 				set_var_buf.len  > 0 ? ";" : "", def->var_name, delim);
 
 			switch (def->type)
 			{
 			  case UINT8:
-				ret = appendStringInfo(&set_var_buf, "%lu", ve->var_val.ui8);
+				appendStringInfo(&set_var_buf, "%lu", ve->var_val.ui8);
 				break;
 			  case UINT4:
-				ret = appendStringInfo(&set_var_buf, "%u", ve->var_val.ui4);
+				appendStringInfo(&set_var_buf, "%u", ve->var_val.ui4);
 				break;
 			  case UINT2:
-				ret = appendStringInfo(&set_var_buf, "%u", ve->var_val.ui2);
+				appendStringInfo(&set_var_buf, "%u", ve->var_val.ui2);
 				break;
 			  case UINT1:
-				ret = appendStringInfo(&set_var_buf, "%u", ve->var_val.ui1);
+				appendStringInfo(&set_var_buf, "%u", ve->var_val.ui1);
 				break;
 			  case INT8:
-				ret = appendStringInfo(&set_var_buf, "%ld", ve->var_val.i8);
+				appendStringInfo(&set_var_buf, "%ld", ve->var_val.i8);
 				break;
 			  case INT4:
-				ret = appendStringInfo(&set_var_buf, "%d", ve->var_val.i4);
+				appendStringInfo(&set_var_buf, "%d", ve->var_val.i4);
 				break;
 			  case INT2:
-				ret = appendStringInfo(&set_var_buf, "%d", ve->var_val.i2);
+				appendStringInfo(&set_var_buf, "%d", ve->var_val.i2);
 				break;
 			  case INT1:
-				ret = appendStringInfo(&set_var_buf, "%d", ve->var_val.i1);
+				appendStringInfo(&set_var_buf, "%d", ve->var_val.i1);
 				break;
 			  case UCHAR:
-				ret = appendStringInfo(&set_var_buf, "%c", ve->var_val.uc);
+				appendStringInfo(&set_var_buf, "%c", ve->var_val.uc);
 				break;
 			  case CHAR:
-				ret = appendStringInfo(&set_var_buf, "%c", ve->var_val.c);
+				appendStringInfo(&set_var_buf, "%c", ve->var_val.c);
 				break;
 			  case STR:
-				ret = appendStringInfo(&set_var_buf, "%s", ve->str_is_short ? ve->var_val.str : ve->var_val.pstr);
+				appendStringInfo(&set_var_buf, "%s", ve->str_is_short ? ve->var_val.str : ve->var_val.pstr);
 				break;
 			  case FLOAT:
-				ret = appendStringInfo(&set_var_buf, "%f", ve->var_val.f);
+				appendStringInfo(&set_var_buf, "%f", ve->var_val.f);
 				break;
 			  case DOUBLE:
-				ret = appendStringInfo(&set_var_buf, "%g", ve->var_val.d);
+				appendStringInfo(&set_var_buf, "%g", ve->var_val.d);
 				break;
 			  case BOOL:
-				ret = appendStringInfo(&set_var_buf, "%s", ve->var_val.b ? "true" : "false");
+				appendStringInfo(&set_var_buf, "%s", ve->var_val.b ? "true" : "false");
 				break;
 			  default:
 				Assert(false);

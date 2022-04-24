@@ -47,7 +47,7 @@
 
 #include "sequence_service.h"
 
-const static int64_t InvalidSeqVal = -9223372036854775808L;
+const int64_t InvalidSeqVal = (int64_t)0x8000000000000000;
 #define MAXSEQREQS 256
 
 typedef

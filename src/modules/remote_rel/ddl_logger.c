@@ -45,6 +45,7 @@
 #include "common.h"
 #include "log_utils.h"
 #include "remote_ddl.h"
+#include "utils.h"
 
 static void log_create_db(CreatedbStmt *stmt, const char *query);
 static void log_drop_db(DropdbStmt *stmt, const char *query);
@@ -319,7 +320,7 @@ void log_alter_table(AlterTableStmt *stmt, const char *query)
 				if (!name)
 					appendStringInfo(&extra, " sequence name %s ", RelationGetRelationName(seqrel));
 				if (!shard)
-					appendStringInfo(&extra, " shard %lu ", seqrel->rd_rel->relshardid);
+					appendStringInfo(&extra, " shard %u ", seqrel->rd_rel->relshardid);
 
 				/**
 				 * ALTER [ COLUMN ] column_name

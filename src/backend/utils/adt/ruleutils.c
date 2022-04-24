@@ -6732,7 +6732,7 @@ get_variable(Var *var, int levelsup, bool istoplevel, deparse_context *context)
 		/* System column - name is fixed, get it from the catalog */
 		attname = get_rte_attribute_name(rte, attnum);
 	}
-found:
+	
 	if (refname && (context->varprefix || attname == NULL))
 	{
 		appendStringInfoString(buf, quote_identifier(refname));
@@ -6786,7 +6786,6 @@ resolve_special_varno(Node *node, deparse_context *context, void *private,
 {
 	Var		   *var;
 	deparse_namespace *dpns;
-	RemoteScanState *prjs = NULL;
 
 	/* If it's not a Var, invoke the callback. */
 	if (!IsA(node, Var))

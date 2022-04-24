@@ -11411,18 +11411,6 @@ show_data_directory_mode(void)
 }
 
 const char *
-current_authorization()
-{
-	return session_authorization_string;
-}
-
-const char *
-current_role()
-{
-	return role_string;
-}
-
-const char *
 current_search_path()
 {
 	return namespace_search_path;

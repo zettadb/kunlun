@@ -42,10 +42,12 @@
 #include "sharding/sharding.h"
 #include "sharding/sharding_conn.h"
 #include "storage/bufmgr.h"
+#include "storage/ipc.h"
 #include "storage/lockdefs.h"
 #include "storage/lwlock.h"
 #include "storage/lwlock.h"
 #include "storage/smgr.h"
+#include "tcop/tcopprot.h"
 #include "utils/builtins.h"
 #include "utils/catcache.h"
 #include "utils/fmgroids.h"
@@ -55,6 +57,7 @@
 #include "utils/rel.h"
 #include "utils/relcache.h"
 #include "utils/snapmgr.h"
+#include "utils/timeout.h"
 
 #include <sys/types.h>
 #include <unistd.h>
@@ -846,7 +849,7 @@ static int FindCurrentMasterNodeId(Oid shardid, Oid *pmaster_nodeid)
 
 		} PG_END_TRY();
 		if (asi)
-			append_async_stmt(asi, fetch_gr_members_sql, sqllen, CMD_SELECT, false, SQLCOM_SELECT);
+			append_async_stmt(asi, (char*)fetch_gr_members_sql, sqllen, CMD_SELECT, false, SQLCOM_SELECT);
 	}
 
 	/*

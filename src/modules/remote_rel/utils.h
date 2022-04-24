@@ -61,4 +61,7 @@ extern char* get_current_username(void);
  */
 extern void change_cluster_shardids(List *from, List *to);
 
+
+extern List *object_name_to_objectaddress(ObjectType objtype, List *objnames);
+
 #endif

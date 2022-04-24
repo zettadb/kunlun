@@ -52,7 +52,7 @@
 
 extern bool use_mysql_native_seq; // guc variable
 extern int str_key_part_len;
-const static int64_t InvalidSeqVal = -9223372036854775808L;
+extern const int64_t InvalidSeqVal;
 static void generate_remote_seq_create(Relation seq_rel, Form_pg_sequence seqform);
 
 void remote_create_database(const char *dbname)
@@ -168,7 +168,6 @@ void remote_drop_schema(const char *schema)
 
 void remote_create_table(Relation rel)
 {
-	bool reopen = false;
 	Oid relid = rel->rd_id;
 	Oid shardid = rel->rd_rel->relshardid;
 

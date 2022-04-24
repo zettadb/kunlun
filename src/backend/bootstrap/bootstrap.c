@@ -468,7 +468,7 @@ AuxiliaryProcessMain(int argc, char *argv[])
 
 		case ClusterTopoProcess:
 			TopoServiceMain();
-			break;
+			proc_exit(1);		/* should never return */
 
 		default:
 			elog(PANIC, "unrecognized process type: %d", (int) MyAuxProcType);

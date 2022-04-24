@@ -6128,8 +6128,6 @@ ATExecDropNotNull(Relation rel, const char *colName, LOCKMODE lockmode)
 
 		ObjectAddressSubSet(address, RelationRelationId,
 							RelationGetRelid(rel), attnum);
-
-		Form_pg_attribute attr = (Form_pg_attribute) GETSTRUCT(tuple);
 	}
 	else
 		address = InvalidObjectAddress;
@@ -6215,7 +6213,6 @@ ATExecSetNotNull(AlteredTableInfo *tab, Relation rel,
 
 		ObjectAddressSubSet(address, RelationRelationId,
 							RelationGetRelid(rel), attnum);
-		Form_pg_attribute attr = (Form_pg_attribute) GETSTRUCT(tuple);
 	}
 	else
 		address = InvalidObjectAddress;

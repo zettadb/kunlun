@@ -28,6 +28,7 @@ extern bool replaying_ddl_log;
 extern bool enable_remote_relations;
 extern char *remote_stmt_ptr;
 
+extern Oid find_root_base_type(Oid typid0);
 extern void update_colnames_indices(Relation attrelation, Relation targetrelation,
 	int attnum, const char *oldattname, const char *newattname);
 extern const char* atsubcmd(AlterTableCmd *subcmd);

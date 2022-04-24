@@ -122,7 +122,7 @@ SELECT q1 FROM int8_tbl EXCEPT ALL SELECT q1 FROM int8_tbl FOR NO KEY UPDATE;
 
 set enable_hashagg to on;
 delete from tenk1;
-COPY tenk1 FROM '/home/kunlun/pgregressdata/tenk.data';
+COPY tenk1 FROM '@abs_srcdir@/data/tenk.data';
 
 explain (costs off)
 select count(*) from

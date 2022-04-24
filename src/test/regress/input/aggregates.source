@@ -2,13 +2,13 @@
 -- AGGREGATES
 --
 DELETE from aggtest;
-COPY aggtest FROM '/home/kunlun/pgregressdata/agg.data';
+COPY aggtest FROM '@abs_srcdir@/data/agg.data';
 DELETE from student;
-COPY student FROM '/home/kunlun/pgregressdata/student.data';
+COPY student FROM '@abs_srcdir@/data/student.data';
 DELETE from tenk1;
-COPY tenk1 FROM '/home/kunlun/pgregressdata/tenk.data';
+COPY tenk1 FROM '@abs_srcdir@/data/tenk.data';
 DELETE from onek;
-COPY onek FROM '/home/kunlun/pgregressdata/onek.data';
+COPY onek FROM '@abs_srcdir@/data/onek.data';
 
 SELECT avg(four) AS avg_1 FROM onek;
 

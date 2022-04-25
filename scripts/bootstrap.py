@@ -50,9 +50,10 @@ mysql_conn_params['database'] = 'Kunlun_Metadata_DB'
 meta_conn = mysql.connector.connect(**mysql_conn_params)
 meta_cursor = meta_conn.cursor(prepared=True)
 meta_cursor0 = meta_conn.cursor()
-stmt = "insert into meta_db_nodes(hostaddr, port, user_name, passwd) values(%s, %s, %s, %s)"
 # insert meta-cluster node info
 meta_cursor0.execute("start transaction")
+meta_cursor.execute("insert into global_configuration(name, value) values(%s, %s)", ("meta_ha_mode", args.ha_mode))
+stmt = "insert into meta_db_nodes(hostaddr, port, user_name, passwd) values(%s, %s, %s, %s)"
 for node in jscfg:
     meta_cursor.execute(stmt, (node['ip'], node['port'], node['user'], node['password']))
 meta_cursor0.execute("commit")

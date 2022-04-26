@@ -183,6 +183,7 @@ create schema scm3;
 --DDL_STATEMENT_BEGIN--
 alter table t11 set schema scm3;
 --DDL_STATEMENT_END--
+insert into scm3.t11(aa,bb) values(999,333);
 insert into scm3.t11(bb) values(333);
 select*from scm3.t11 order by aa;
 update scm3.t11 set ff=ff+1 where bb > 10;

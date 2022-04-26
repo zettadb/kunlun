@@ -1451,7 +1451,7 @@ explain (verbose, costs off)
     where coalesce(b.q1, 1) > 0;
 select a.q2, b.q1
   from int8_tbl a left join int8_tbl b on a.q2 = coalesce(b.q1, 1)
-  where coalesce(b.q1, 1) > 0;
+  where coalesce(b.q1, 1) > 0 order by 1,2;
 
 reset enable_hashjoin;
 reset enable_nestloop;

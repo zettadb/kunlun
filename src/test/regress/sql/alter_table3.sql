@@ -222,8 +222,9 @@ create schema scm3;
 --DDL_STATEMENT_BEGIN--
 alter table t11 set schema scm3;
 --DDL_STATEMENT_END--
+insert into scm3.t11(aa) values (999);
 insert into scm3.t11(bb) values(333),(334),(335),(336),(337),(338),(339),(340),(341),(342),(343),(344),(345);
-select*from scm3.t11;
+select*from scm3.t11 order by aa;
 update scm3.t11 set ff=ff+1 where bb > 10;
 select*from scm3.t11 order by aa;
 delete from scm3.t11 where bb < 10;

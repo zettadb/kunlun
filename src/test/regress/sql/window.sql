@@ -2,7 +2,7 @@
 -- WINDOW FUNCTIONS
 --
 set IntervalStyle = postgres;
-
+set lc_monetary='en_US.UTF-8';
 --DDL_STATEMENT_BEGIN--
 CREATE TEMPORARY TABLE empsalary (
     depname varchar,
@@ -76,7 +76,7 @@ SELECT lead(ten * 2, 1, -1) OVER (PARTITION BY four ORDER BY ten), ten, four FRO
 SELECT first_value(ten) OVER (PARTITION BY four ORDER BY ten), ten, four FROM tenk1 WHERE unique2 < 10;
 
 -- last_value returns the last row of the frame, which is CURRENT ROW in ORDER BY window.
-SELECT last_value(four) OVER (ORDER BY ten), ten, four FROM tenk1 WHERE unique2 < 10;
+SELECT last_value(four) OVER (ORDER BY ten), ten, four FROM tenk1 WHERE unique2 < 10 order by 1,2,3;
 
 SELECT last_value(ten) OVER (PARTITION BY four), ten, four FROM
 	(SELECT * FROM tenk1 WHERE unique2 < 10 ORDER BY four, ten)s
@@ -182,95 +182,95 @@ FROM (select distinct ten, four from tenk1) ss;
 
 SELECT sum(unique1) over (order by four range between current row and unbounded following),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (rows between current row and unbounded following),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (rows between 2 preceding and 2 following),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (rows between 2 preceding and 2 following exclude no others),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (rows between 2 preceding and 2 following exclude current row),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (rows between 2 preceding and 2 following exclude group),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (rows between 2 preceding and 2 following exclude ties),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT first_value(unique1) over (ORDER BY four rows between current row and 2 following exclude current row),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT first_value(unique1) over (ORDER BY four rows between current row and 2 following exclude group),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT first_value(unique1) over (ORDER BY four rows between current row and 2 following exclude ties),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT last_value(unique1) over (ORDER BY four rows between current row and 2 following exclude current row),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT last_value(unique1) over (ORDER BY four rows between current row and 2 following exclude group),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT last_value(unique1) over (ORDER BY four rows between current row and 2 following exclude ties),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (rows between 2 preceding and 1 preceding),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (rows between 1 following and 3 following),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (rows between unbounded preceding and 1 following),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (w range between current row and unbounded following),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10 WINDOW w AS (order by four);
+FROM tenk1 WHERE unique1 < 10 WINDOW w AS (order by four) order by 1,2,3;
 
 SELECT sum(unique1) over (w range between unbounded preceding and current row exclude current row),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10 WINDOW w AS (order by four);
+FROM tenk1 WHERE unique1 < 10 WINDOW w AS (order by four) order by 1,2,3;
 
 SELECT sum(unique1) over (w range between unbounded preceding and current row exclude group),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10 WINDOW w AS (order by four);
+FROM tenk1 WHERE unique1 < 10 WINDOW w AS (order by four) order by 1,2,3;
 
 SELECT sum(unique1) over (w range between unbounded preceding and current row exclude ties),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10 WINDOW w AS (order by four);
+FROM tenk1 WHERE unique1 < 10 WINDOW w AS (order by four) order by 1,2,3order by 1,2,3;
 
 SELECT first_value(unique1) over w,
 	nth_value(unique1, 2) over w AS nth_2,
 	last_value(unique1) over w, unique1, four
 FROM tenk1 WHERE unique1 < 10
-WINDOW w AS (order by four range between current row and unbounded following);
+WINDOW w AS (order by four range between current row and unbounded following) order by 1,2,3,4,5;
 
 SELECT sum(unique1) over
 	(order by unique1
 	 rows (SELECT unique1 FROM tenk1 ORDER BY unique1 LIMIT 1) + 1 PRECEDING),
 	unique1
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2;
 
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP VIEW v_window AS
@@ -347,35 +347,35 @@ SELECT pg_get_viewdef('v_window');
 
 SELECT sum(unique1) over (order by four range between 2::int8 preceding and 1::int2 preceding),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (order by four desc range between 2::int8 preceding and 1::int2 preceding),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (order by four range between 2::int8 preceding and 1::int2 preceding exclude no others),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (order by four range between 2::int8 preceding and 1::int2 preceding exclude current row),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (order by four range between 2::int8 preceding and 1::int2 preceding exclude group),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (order by four range between 2::int8 preceding and 1::int2 preceding exclude ties),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (order by four range between 2::int8 preceding and 6::int2 following exclude ties),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (order by four range between 2::int8 preceding and 6::int2 following exclude group),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (partition by four order by unique1 range between 5::int8 preceding and 6::int2 following),
 	unique1, four
@@ -686,55 +686,55 @@ select max(enroll_date) over (order by enroll_date range between '1 year'::inter
 
 SELECT sum(unique1) over (order by four groups between unbounded preceding and current row),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (order by four groups between unbounded preceding and unbounded following),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (order by four groups between current row and unbounded following),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (order by four groups between 1 preceding and unbounded following),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (order by four groups between 1 following and unbounded following),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (order by four groups between unbounded preceding and 2 following),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (order by four groups between 2 preceding and 1 preceding),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (order by four groups between 2 preceding and 1 following),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (order by four groups between 0 preceding and 0 following),
 	unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (order by four groups between 2 preceding and 1 following
 	exclude current row), unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (order by four groups between 2 preceding and 1 following
 	exclude group), unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (order by four groups between 2 preceding and 1 following
 	exclude ties), unique1, four
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (partition by ten
 	order by four groups between 0 preceding and 0 following),unique1, four, ten
-FROM tenk1 WHERE unique1 < 10;
+FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
 
 SELECT sum(unique1) over (partition by ten
 	order by four groups between 0 preceding and 0 following exclude current row), unique1, four, ten

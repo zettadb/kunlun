@@ -189,6 +189,14 @@ CREATE TABLE `meta_db_nodes` (
   `port` smallint unsigned NOT NULL,
   `user_name` varchar(64) NOT NULL,
   `passwd` varchar(120) NOT NULL,
+  `master_priority` smallint NOT NULL DEFAULT '1',
+  `member_state` enum('source','replica') NOT NULL,
+  `sync_state` enum('fsync','async') NOT NULL,
+  `degrade_conf_state` enum('ON','OFF') NOT NULL,
+  `degrade_run_state` enum('ON','OFF') NOT NULL,
+  `replica_delay` int NOT NULL,
+  `degrade_conf_time` int NOT NULL,
+  `sync_num` smallint unsigned NOT NULL DEFAULT '1',
   UNIQUE KEY `id` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;

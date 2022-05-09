@@ -228,8 +228,8 @@ CREATE TABLE `server_nodes` (
   `wal_log_dir` varchar(8192) character set latin1,
   -- there may be multiple storage devices, detailed stats in server_nodes_stats
   -- `total_storage` bigint unsigned NOT NULL, -- in MBs.
-  `total_mem` int unsigned NOT NULL, -- in MBs
-  `total_cpu_cores` int unsigned NOT NULL,
+  `total_mem` int unsigned DEFAULT 0,, -- in MBs
+  `total_cpu_cores` int unsigned DEFAULT 0,
   -- `network_bandwidth` int unsigned NOT NULL, -- in MBps this is often consistent in a DC
   -- when the server started to be in use
   `svc_since` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),

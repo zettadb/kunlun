@@ -1,0 +1,655 @@
+--
+-- TRANSACTIONS
+--
+drop table if exists xacttest;
+psql:sql/transactions.sql:5: NOTICE:  table "xacttest" does not exist, skipping
+DROP TABLE
+create table xacttest (like aggtest);
+CREATE TABLE
+BEGIN;
+BEGIN
+INSERT INTO xacttest (a, b) VALUES (777, 777.777);
+INSERT 0 1
+END;
+COMMIT
+-- should retrieve one value--
+SELECT a FROM xacttest WHERE a > 100;
+  a  
+-----
+ 777
+(1 row)
+
+-- should have members again
+SELECT * FROM aggtest;
+  a  |    b    
+-----+---------
+  56 |     7.8
+ 100 |  99.097
+   0 | 0.09561
+  42 |  324.78
+(4 rows)
+
+-- Read-only tests
+drop table if exists writetest;
+psql:sql/transactions.sql:19: NOTICE:  table "writetest" does not exist, skipping
+DROP TABLE
+CREATE TABLE writetest (a int);
+CREATE TABLE
+CREATE TEMPORARY TABLE temptest (a int);
+CREATE TABLE
+BEGIN;
+BEGIN
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE, READ ONLY, DEFERRABLE; -- ok
+SET
+SELECT * FROM writetest; -- ok
+ a 
+---
+(0 rows)
+
+SET TRANSACTION READ WRITE; --fail
+psql:sql/transactions.sql:26: ERROR:  transaction read-write mode must be set before any query
+COMMIT;
+ROLLBACK
+BEGIN;
+BEGIN
+SET TRANSACTION READ ONLY; -- ok
+SET
+SET TRANSACTION READ WRITE; -- ok
+SET
+SET TRANSACTION READ ONLY; -- ok
+SET
+SELECT * FROM writetest; -- ok
+ a 
+---
+(0 rows)
+
+SAVEPOINT x;
+SAVEPOINT
+SET TRANSACTION READ ONLY; -- ok
+SET
+SELECT * FROM writetest; -- ok
+ a 
+---
+(0 rows)
+
+SET TRANSACTION READ ONLY; -- ok
+SET
+SET TRANSACTION READ WRITE; --fail
+psql:sql/transactions.sql:38: ERROR:  cannot set transaction read-write mode inside a read-only transaction
+COMMIT;
+ROLLBACK
+BEGIN;
+BEGIN
+SET TRANSACTION READ WRITE; -- ok
+SET
+SAVEPOINT x;
+SAVEPOINT
+SET TRANSACTION READ WRITE; -- ok
+SET
+SET TRANSACTION READ ONLY; -- ok
+SET
+SELECT * FROM writetest; -- ok
+ a 
+---
+(0 rows)
+
+SET TRANSACTION READ ONLY; -- ok
+SET
+SET TRANSACTION READ WRITE; --fail
+psql:sql/transactions.sql:48: ERROR:  cannot set transaction read-write mode inside a read-only transaction
+COMMIT;
+ROLLBACK
+BEGIN;
+BEGIN
+SET TRANSACTION READ WRITE; -- ok
+SET
+SAVEPOINT x;
+SAVEPOINT
+SET TRANSACTION READ ONLY; -- ok
+SET
+SELECT * FROM writetest; -- ok
+ a 
+---
+(0 rows)
+
+ROLLBACK TO SAVEPOINT x;
+ROLLBACK
+SHOW transaction_read_only;  -- off
+ transaction_read_only 
+-----------------------
+ off
+(1 row)
+
+SAVEPOINT y;
+SAVEPOINT
+SET TRANSACTION READ ONLY; -- ok
+SET
+SELECT * FROM writetest; -- ok
+ a 
+---
+(0 rows)
+
+-- RELEASE SAVEPOINT y;
+SHOW transaction_read_only;  -- off
+ transaction_read_only 
+-----------------------
+ on
+(1 row)
+
+COMMIT;
+COMMIT
+SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY;
+SET
+DROP TABLE writetest; -- fail
+psql:sql/transactions.sql:67: ERROR:  cannot execute DROP TABLE in a read-only transaction
+INSERT INTO writetest VALUES (1); -- fail
+psql:sql/transactions.sql:68: ERROR:  cannot execute INSERT in a read-only transaction
+SELECT * FROM writetest; -- ok
+ a 
+---
+(0 rows)
+
+DELETE FROM temptest; -- ok
+DELETE 0
+-- not support: UPDATE temptest SET a = 0 FROM writetest WHERE temptest.a = 1 AND writetest.a = temptest.a; -- ok
+PREPARE test AS UPDATE writetest SET a = 0; -- ok
+PREPARE
+EXECUTE test; -- fail
+psql:sql/transactions.sql:73: ERROR:  cannot execute UPDATE in a read-only transaction
+SELECT * FROM writetest, temptest; -- ok
+ a | a 
+---+---
+(0 rows)
+
+SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;
+SET
+DROP TABLE writetest; -- ok
+DROP TABLE
+-- Subtransactions, basic tests
+-- create & drop tables
+SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE;
+SET
+drop table if exists trans_foo;
+psql:sql/transactions.sql:82: NOTICE:  table "trans_foo" does not exist, skipping
+DROP TABLE
+drop table if exists trans_baz;
+psql:sql/transactions.sql:83: NOTICE:  table "trans_baz" does not exist, skipping
+DROP TABLE
+drop table if exists trans_barbaz;
+psql:sql/transactions.sql:84: NOTICE:  table "trans_barbaz" does not exist, skipping
+DROP TABLE
+CREATE TABLE trans_foo (a int);
+CREATE TABLE
+CREATE TABLE trans_baz (a int);
+CREATE TABLE
+CREATE TABLE trans_barbaz (a int);
+CREATE TABLE
+-- should exist: trans_barbaz, trans_baz, trans_foo
+SELECT * FROM trans_foo;		-- should be empty
+ a 
+---
+(0 rows)
+
+SELECT * FROM trans_bar;		-- shouldn't exist
+psql:sql/transactions.sql:91: ERROR:  relation "trans_bar" does not exist
+LINE 1: SELECT * FROM trans_bar;
+                      ^
+SELECT * FROM trans_barbaz;	-- should be empty
+ a 
+---
+(0 rows)
+
+SELECT * FROM trans_baz;		-- should be empty
+ a 
+---
+(0 rows)
+
+-- inserts
+BEGIN;
+BEGIN
+	INSERT INTO trans_foo VALUES (1);
+INSERT 0 1
+	SAVEPOINT one;
+SAVEPOINT
+		INSERT into trans_bar VALUES (1);
+psql:sql/transactions.sql:99: ERROR:  relation "trans_bar" does not exist
+LINE 1: INSERT into trans_bar VALUES (1);
+                    ^
+	ROLLBACK TO one;
+ROLLBACK
+	-- RELEASE SAVEPOINT one;
+	SAVEPOINT two;
+SAVEPOINT
+		INSERT into trans_barbaz VALUES (1);
+INSERT 0 1
+	-- RELEASE two;
+	SAVEPOINT three;
+SAVEPOINT
+		SAVEPOINT four;
+SAVEPOINT
+			INSERT INTO trans_foo VALUES (2);
+INSERT 0 1
+		-- RELEASE SAVEPOINT four;
+	ROLLBACK TO SAVEPOINT three;
+ROLLBACK
+	-- RELEASE SAVEPOINT three;
+	INSERT INTO trans_foo VALUES (3);
+INSERT 0 1
+COMMIT;
+COMMIT
+SELECT * FROM trans_foo;		-- should have 1 and 3
+ a 
+---
+ 1
+ 3
+(2 rows)
+
+SELECT * FROM trans_barbaz;	-- should have 1
+ a 
+---
+ 1
+(1 row)
+
+drop table if exists savepoints;
+psql:sql/transactions.sql:116: NOTICE:  table "savepoints" does not exist, skipping
+DROP TABLE
+CREATE TABLE savepoints (a int);
+CREATE TABLE
+-- test whole-tree commit
+BEGIN;
+BEGIN
+	SAVEPOINT one;
+SAVEPOINT
+		SELECT trans_foo;
+psql:sql/transactions.sql:121: ERROR:  column "trans_foo" does not exist
+LINE 1: SELECT trans_foo;
+               ^
+	ROLLBACK TO SAVEPOINT one;
+ROLLBACK
+	-- RELEASE SAVEPOINT one;
+		SAVEPOINT three;
+SAVEPOINT
+			INSERT INTO savepoints VALUES (1);
+INSERT 0 1
+			SAVEPOINT four;
+SAVEPOINT
+				INSERT INTO savepoints VALUES (2);
+INSERT 0 1
+				SAVEPOINT five;
+SAVEPOINT
+					INSERT INTO savepoints VALUES (3);
+INSERT 0 1
+				ROLLBACK TO SAVEPOINT five;
+ROLLBACK
+COMMIT;
+COMMIT
+COMMIT;		-- should not be in a transaction block
+psql:sql/transactions.sql:132: WARNING:  there is no transaction in progress
+COMMIT
+SELECT * FROM savepoints;
+ a 
+---
+ 1
+ 2
+(2 rows)
+
+-- test whole-tree rollback
+BEGIN;
+BEGIN
+	SAVEPOINT one;
+SAVEPOINT
+		DELETE FROM savepoints WHERE a=1;
+DELETE 1
+	-- RELEASE SAVEPOINT one;
+	SAVEPOINT two;
+SAVEPOINT
+		DELETE FROM savepoints WHERE a=1;
+DELETE 0
+		SAVEPOINT three;
+SAVEPOINT
+			DELETE FROM savepoints WHERE a=2;
+DELETE 1
+ROLLBACK;
+ROLLBACK
+COMMIT;		-- should not be in a transaction block
+psql:sql/transactions.sql:145: WARNING:  there is no transaction in progress
+COMMIT
+SELECT * FROM savepoints;
+ a 
+---
+ 1
+ 2
+(2 rows)
+
+-- test whole-tree commit on an aborted subtransaction
+BEGIN;
+BEGIN
+	INSERT INTO savepoints VALUES (4);
+INSERT 0 1
+	SAVEPOINT one;
+SAVEPOINT
+		INSERT INTO savepoints VALUES (5);
+INSERT 0 1
+		SELECT trans_foo;
+psql:sql/transactions.sql:154: ERROR:  column "trans_foo" does not exist
+LINE 1: SELECT trans_foo;
+               ^
+COMMIT;
+ROLLBACK
+SELECT * FROM savepoints;
+ a 
+---
+ 1
+ 2
+(2 rows)
+
+BEGIN;
+BEGIN
+	INSERT INTO savepoints VALUES (6);
+INSERT 0 1
+	SAVEPOINT one;
+SAVEPOINT
+		INSERT INTO savepoints VALUES (7);
+INSERT 0 1
+	-- RELEASE SAVEPOINT one;
+	INSERT INTO savepoints VALUES (8);
+INSERT 0 1
+COMMIT;
+COMMIT
+-- rows 6 and 8 should have been created by the same xact
+-- SELECT a.xmin = b.xmin FROM savepoints a, savepoints b WHERE a.a=6 AND b.a=8;
+-- rows 6 and 7 should have been created by different xacts
+-- SELECT a.xmin = b.xmin FROM savepoints a, savepoints b WHERE a.a=6 AND b.a=7;
+BEGIN;
+BEGIN
+	INSERT INTO savepoints VALUES (9);
+INSERT 0 1
+	SAVEPOINT one;
+SAVEPOINT
+		INSERT INTO savepoints VALUES (10);
+INSERT 0 1
+	ROLLBACK TO SAVEPOINT one;
+ROLLBACK
+		INSERT INTO savepoints VALUES (11);
+INSERT 0 1
+COMMIT;
+COMMIT
+SELECT a FROM savepoints WHERE a in (9, 10, 11);
+ a  
+----
+  9
+ 11
+(2 rows)
+
+-- rows 9 and 11 should have been created by different xacts
+-- SELECT a.xmin = b.xmin FROM savepoints a, savepoints b WHERE a.a=9 AND b.a=11;
+BEGIN;
+BEGIN
+	INSERT INTO savepoints VALUES (12);
+INSERT 0 1
+	SAVEPOINT one;
+SAVEPOINT
+		INSERT INTO savepoints VALUES (13);
+INSERT 0 1
+		SAVEPOINT two;
+SAVEPOINT
+			INSERT INTO savepoints VALUES (14);
+INSERT 0 1
+	ROLLBACK TO SAVEPOINT one;
+ROLLBACK
+		INSERT INTO savepoints VALUES (15);
+INSERT 0 1
+		SAVEPOINT two;
+SAVEPOINT
+			INSERT INTO savepoints VALUES (16);
+INSERT 0 1
+			SAVEPOINT three;
+SAVEPOINT
+				INSERT INTO savepoints VALUES (17);
+INSERT 0 1
+COMMIT;
+COMMIT
+SELECT a FROM savepoints WHERE a BETWEEN 12 AND 17;
+ a  
+----
+ 12
+ 15
+ 16
+ 17
+(4 rows)
+
+BEGIN;
+BEGIN
+	INSERT INTO savepoints VALUES (18);
+INSERT 0 1
+	SAVEPOINT one;
+SAVEPOINT
+		INSERT INTO savepoints VALUES (19);
+INSERT 0 1
+		SAVEPOINT two;
+SAVEPOINT
+			INSERT INTO savepoints VALUES (20);
+INSERT 0 1
+	ROLLBACK TO SAVEPOINT one;
+ROLLBACK
+		INSERT INTO savepoints VALUES (21);
+INSERT 0 1
+	ROLLBACK TO SAVEPOINT one;
+ROLLBACK
+		INSERT INTO savepoints VALUES (22);
+INSERT 0 1
+COMMIT;
+COMMIT
+SELECT a FROM savepoints WHERE a BETWEEN 18 AND 22;
+ a  
+----
+ 18
+ 22
+(2 rows)
+
+DROP TABLE savepoints;
+DROP TABLE
+-- only in a transaction block:
+SAVEPOINT one;
+psql:sql/transactions.sql:212: ERROR:  SAVEPOINT can only be used in transaction blocks
+ROLLBACK TO SAVEPOINT one;
+psql:sql/transactions.sql:213: ERROR:  ROLLBACK TO SAVEPOINT can only be used in transaction blocks
+-- RELEASE SAVEPOINT one;
+-- Only "rollback to" allowed in aborted state
+BEGIN;
+BEGIN
+  SAVEPOINT one;
+SAVEPOINT
+  SELECT 0/0;
+psql:sql/transactions.sql:219: ERROR:  division by zero
+  SAVEPOINT two;    -- ignored till the end of ...
+psql:sql/transactions.sql:220: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+  -- RELEASE SAVEPOINT one;      -- ignored till the end of ...
+  ROLLBACK TO SAVEPOINT one;
+ROLLBACK
+  SELECT 1;
+ ?column? 
+----------
+        1
+(1 row)
+
+COMMIT;
+COMMIT
+SELECT 1;			-- this should work
+ ?column? 
+----------
+        1
+(1 row)
+
+--
+-- Check that "stable" functions are really stable.  They should not be
+-- able to see the partial results of the calling query.  (Ideally we would
+-- also check that they don't see commits of concurrent transactions, but
+-- that's a mite hard to do within the limitations of pg_regress.)
+--
+select * from xacttest;
+  a  |    b    
+-----+---------
+ 777 | 777.777
+(1 row)
+
+create or replace function max_xacttest() returns smallint language sql as
+'select max(a) from xacttest' stable;
+CREATE FUNCTION
+--not supported: begin;
+--update xacttest set a = max_xacttest() + 10 where a > 0;
+--select * from xacttest;
+--rollback;
+-- But a volatile function can see the partial results of the calling query
+create or replace function max_xacttest() returns smallint language sql as
+'select max(a) from xacttest' volatile;
+CREATE FUNCTION
+-- not supported: begin;
+--update xacttest set a = max_xacttest() + 10 where a > 0;
+--select * from xacttest;
+--rollback;
+-- Now the same test with plpgsql (since it depends on SPI which is different)
+create or replace function max_xacttest() returns smallint language plpgsql as
+'begin return max(a) from xacttest; end' stable;
+CREATE FUNCTION
+--not support: begin;
+--update xacttest set a = max_xacttest() + 10 where a > 0;
+--select * from xacttest;
+--rollback;
+create or replace function max_xacttest() returns smallint language plpgsql as
+'begin return max(a) from xacttest; end' volatile;
+CREATE FUNCTION
+-- not support: begin;
+--update xacttest set a = max_xacttest() + 10 where a > 0;
+--select * from xacttest;
+--rollback;
+DROP TABLE trans_foo;
+DROP TABLE
+DROP TABLE trans_baz;
+DROP TABLE
+DROP TABLE trans_barbaz;
+DROP TABLE
+-- test case for problems with revalidating an open relation during abort
+create function inverse(int) returns float8 as
+$$
+begin
+  analyze revalidate_bug;
+  return 1::float8/$1;
+exception
+  when division_by_zero then return 0;
+end$$ language plpgsql volatile;
+CREATE FUNCTION
+drop table if exists revalidate_bug;
+psql:sql/transactions.sql:284: NOTICE:  table "revalidate_bug" does not exist, skipping
+DROP TABLE
+create table revalidate_bug (c float8 unique);
+CREATE TABLE
+insert into revalidate_bug values (1);
+INSERT 0 1
+-- insert into revalidate_bug values (inverse(0)); -- crash happens --
+drop table revalidate_bug;
+DROP TABLE
+drop function inverse(int);
+DROP FUNCTION
+-- Test assorted behaviors around the implicit transaction block created
+-- when multiple SQL commands are sent in a single Query message.  These
+-- tests rely on the fact that psql will not break SQL commands apart at a
+-- backslash-quoted semicolon, but will send them as one Query.
+-- psql will show only the last result in a multi-statement Query
+SELECT 1\; SELECT 2\; SELECT 3;
+ ?column? 
+----------
+        3
+(1 row)
+
+-- this implicitly commits:
+insert into i_table values(1)\; select * from i_table;
+psql:sql/transactions.sql:301: ERROR:  relation "i_table" does not exist
+LINE 1: insert into i_table values(1); select * from i_table;
+                    ^
+-- 1/0 error will cause rolling back the whole implicit transaction
+insert into i_table values(2)\; select * from i_table\; select 1/0;
+psql:sql/transactions.sql:303: ERROR:  relation "i_table" does not exist
+LINE 1: insert into i_table values(2); select * from i_table; select...
+                    ^
+select * from i_table;
+psql:sql/transactions.sql:304: ERROR:  relation "i_table" does not exist
+LINE 1: select * from i_table;
+                      ^
+rollback;  -- we are not in a transaction at this point
+psql:sql/transactions.sql:306: WARNING:  there is no transaction in progress
+ROLLBACK
+-- can use regular begin/commit/rollback within a single Query
+begin\; insert into i_table values(3)\; commit;
+psql:sql/transactions.sql:309: ERROR:  relation "i_table" does not exist
+LINE 1: begin; insert into i_table values(3); commit;
+                           ^
+rollback;  -- we are not in a transaction at this point
+ROLLBACK
+begin\; insert into i_table values(4)\; rollback;
+psql:sql/transactions.sql:311: ERROR:  relation "i_table" does not exist
+LINE 1: begin; insert into i_table values(4); rollback;
+                           ^
+rollback;  -- we are not in a transaction at this point
+ROLLBACK
+-- begin converts implicit transaction into a regular one that
+-- can extend past the end of the Query
+select 1\; begin\; insert into i_table values(5);
+psql:sql/transactions.sql:316: ERROR:  relation "i_table" does not exist
+LINE 1: select 1; begin; insert into i_table values(5);
+                                     ^
+commit;
+ROLLBACK
+select 1\; begin\; insert into i_table values(6);
+psql:sql/transactions.sql:318: ERROR:  relation "i_table" does not exist
+LINE 1: select 1; begin; insert into i_table values(6);
+                                     ^
+rollback;
+ROLLBACK
+-- commit in implicit-transaction state commits but issues a warning.
+insert into i_table values(7)\; commit\; insert into i_table values(8)\; select 1/0;
+psql:sql/transactions.sql:322: ERROR:  relation "i_table" does not exist
+LINE 1: insert into i_table values(7); commit; insert into i_table v...
+                    ^
+-- similarly, rollback aborts but issues a warning.
+insert into i_table values(9)\; rollback\; select 2;
+psql:sql/transactions.sql:324: ERROR:  relation "i_table" does not exist
+LINE 1: insert into i_table values(9); rollback; select 2;
+                    ^
+select * from i_table;
+psql:sql/transactions.sql:326: ERROR:  relation "i_table" does not exist
+LINE 1: select * from i_table;
+                      ^
+rollback;  -- we are not in a transaction at this point
+psql:sql/transactions.sql:328: WARNING:  there is no transaction in progress
+ROLLBACK
+-- implicit transaction block is still a transaction block, for e.g. VACUUM
+SELECT 1\;
+SELECT 1\; COMMIT\;
+-- we disallow savepoint-related commands in implicit-transaction state
+SELECT 1\; SAVEPOINT sp;
+psql:sql/transactions.sql:335: WARNING:  there is no transaction in progress
+psql:sql/transactions.sql:335: ERROR:  SAVEPOINT can only be used in transaction blocks
+SELECT 1\; COMMIT\; SAVEPOINT sp;
+psql:sql/transactions.sql:336: WARNING:  there is no transaction in progress
+psql:sql/transactions.sql:336: ERROR:  SAVEPOINT can only be used in transaction blocks
+ROLLBACK TO SAVEPOINT sp\; SELECT 2;
+psql:sql/transactions.sql:337: ERROR:  ROLLBACK TO SAVEPOINT can only be used in transaction blocks
+SELECT 2\; SELECT 3;
+ ?column? 
+----------
+        3
+(1 row)
+
+-- but this is OK, because the BEGIN converts it to a regular xact
+SELECT 1\; BEGIN\; SAVEPOINT sp\; ROLLBACK TO SAVEPOINT sp\; COMMIT;
+COMMIT
+-- Test for successful cleanup of an aborted transaction at session exit.
+-- THIS MUST BE THE LAST TEST IN THIS FILE.
+begin;
+BEGIN
+select 1/0;
+psql:sql/transactions.sql:348: ERROR:  division by zero
+rollback to X;
+psql:sql/transactions.sql:349: ERROR:  savepoint "x" does not exist
+-- DO NOT ADD ANYTHING HERE.

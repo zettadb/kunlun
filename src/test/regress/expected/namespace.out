@@ -1,0 +1,49 @@
+--
+-- Regression tests for schemas (namespaces)
+--
+CREATE SCHEMA test_ns_schema_1;
+CREATE SCHEMA
+CREATE TABLE test_ns_schema_1.abc (
+              a serial,
+              b int UNIQUE
+);
+CREATE TABLE
+CREATE UNIQUE INDEX abc_a_idx ON test_ns_schema_1.abc (a);
+CREATE INDEX
+CREATE VIEW test_ns_schema_1.abc_view AS SELECT a+1 AS a, b+1 AS b FROM test_ns_schema_1.abc;
+CREATE VIEW
+-- verify that the objects were created
+SELECT COUNT(*) FROM pg_class WHERE relnamespace =
+    (SELECT oid FROM pg_namespace WHERE nspname = 'test_ns_schema_1');
+ count 
+-------
+     5
+(1 row)
+
+INSERT INTO test_ns_schema_1.abc DEFAULT VALUES;
+INSERT 0 1
+INSERT INTO test_ns_schema_1.abc DEFAULT VALUES;
+INSERT 0 1
+INSERT INTO test_ns_schema_1.abc DEFAULT VALUES;
+INSERT 0 1
+SELECT * FROM test_ns_schema_1.abc;
+ a | b 
+---+---
+ 1 |  
+ 2 |  
+ 3 |  
+(3 rows)
+
+SELECT * FROM test_ns_schema_1.abc_view;
+ a | b 
+---+---
+ 2 |  
+ 3 |  
+ 4 |  
+(3 rows)
+
+DROP TABLE test_ns_schema_1.abc cascade;
+psql:sql/namespace.sql:26: NOTICE:  drop cascades to view test_ns_schema_1.abc_view
+DROP TABLE
+DROP SCHEMA test_ns_schema_1 CASCADE;
+DROP SCHEMA

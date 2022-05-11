@@ -980,7 +980,7 @@ CREATE SCHEMA
 SET ROLE regress_testrol2;
 SET
 UPDATE pg_proc SET proacl = null WHERE proname LIKE 'testagg_';
-UPDATE 0
+UPDATE 9
 SELECT proname, proacl FROM pg_proc WHERE proname LIKE 'testagg_';
  proname  | proacl 
 ----------+--------

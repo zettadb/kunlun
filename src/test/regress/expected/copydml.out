@@ -1,0 +1,72 @@
+--
+-- Test cases for COPY (INSERT/UPDATE/DELETE) TO
+--
+create table copydml_test (id serial, t text);
+CREATE TABLE
+insert into copydml_test (t) values ('a');
+INSERT 0 1
+insert into copydml_test (t) values ('b');
+INSERT 0 1
+insert into copydml_test (t) values ('c');
+INSERT 0 1
+insert into copydml_test (t) values ('d');
+INSERT 0 1
+insert into copydml_test (t) values ('e');
+INSERT 0 1
+--
+-- Test COPY (insert/update/delete ...)
+--
+copy (insert into copydml_test (t) values ('f') returning id) to stdout;
+6
+copy (update copydml_test set t = 'g' where t = 'f' returning id) to stdout;
+6
+copy (delete from copydml_test where t = 'g' returning id) to stdout;
+6
+--
+-- Test \copy (insert/update/delete ...)
+--
+\copy (insert into copydml_test (t) values ('f') returning id) to stdout;
+7
+\copy (update copydml_test set t = 'g' where t = 'f' returning id) to stdout;
+7
+\copy (delete from copydml_test where t = 'g' returning id) to stdout;
+7
+-- Error cases
+copy (insert into copydml_test default values) to stdout;
+psql:sql/copydml.sql:26: ERROR:  COPY query must have a RETURNING clause
+copy (update copydml_test set t = 'g') to stdout;
+psql:sql/copydml.sql:27: ERROR:  COPY query must have a RETURNING clause
+copy (delete from copydml_test) to stdout;
+psql:sql/copydml.sql:28: ERROR:  COPY query must have a RETURNING clause
+copy (insert into copydml_test default values) to stdout;
+psql:sql/copydml.sql:30: ERROR:  COPY query must have a RETURNING clause
+copy (insert into copydml_test default values) to stdout;
+psql:sql/copydml.sql:31: ERROR:  COPY query must have a RETURNING clause
+copy (insert into copydml_test default values) to stdout;
+psql:sql/copydml.sql:32: ERROR:  COPY query must have a RETURNING clause
+copy (insert into copydml_test default values) to stdout;
+psql:sql/copydml.sql:33: ERROR:  COPY query must have a RETURNING clause
+copy (update copydml_test set t = 'f') to stdout;
+psql:sql/copydml.sql:35: ERROR:  COPY query must have a RETURNING clause
+copy (update copydml_test set t = 'f') to stdout;
+psql:sql/copydml.sql:36: ERROR:  COPY query must have a RETURNING clause
+copy (update copydml_test set t = 'f') to stdout;
+psql:sql/copydml.sql:37: ERROR:  COPY query must have a RETURNING clause
+copy (update copydml_test set t = 'f') to stdout;
+psql:sql/copydml.sql:38: ERROR:  COPY query must have a RETURNING clause
+copy (delete from copydml_test) to stdout;
+psql:sql/copydml.sql:40: ERROR:  COPY query must have a RETURNING clause
+copy (delete from copydml_test) to stdout;
+psql:sql/copydml.sql:41: ERROR:  COPY query must have a RETURNING clause
+copy (delete from copydml_test) to stdout;
+psql:sql/copydml.sql:42: ERROR:  COPY query must have a RETURNING clause
+copy (delete from copydml_test) to stdout;
+psql:sql/copydml.sql:43: ERROR:  COPY query must have a RETURNING clause
+copy (insert into copydml_test (t) values ('f') returning id) to stdout;
+8
+copy (update copydml_test set t = 'g' where t = 'f' returning id) to stdout;
+8
+copy (delete from copydml_test where t = 'g' returning id) to stdout;
+8
+drop table copydml_test;
+DROP TABLE

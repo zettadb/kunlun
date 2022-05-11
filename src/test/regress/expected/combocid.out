@@ -40,7 +40,7 @@ SELECT * FROM combocidtest;
 SAVEPOINT s1;
 SAVEPOINT
 UPDATE combocidtest SET foobar = foobar + 10;
-UPDATE 0
+UPDATE 2
 -- here we should see only updated tuples
 SELECT * FROM combocidtest;
  foobar 
@@ -138,7 +138,7 @@ SELECT * FROM combocidtest;
 
 -- but this does
 UPDATE combocidtest SET foobar = foobar + 10;
-UPDATE 0
+UPDATE 3
 SELECT * FROM combocidtest;
  foobar 
 --------

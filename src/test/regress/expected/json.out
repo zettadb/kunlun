@@ -490,7 +490,7 @@ SELECT json_agg(q ORDER BY x, y)
 (1 row)
 
 UPDATE rows SET x = NULL WHERE x = 1;
-UPDATE 0
+UPDATE 1
 SELECT json_agg(q ORDER BY x NULLS FIRST, y)
   FROM rows q;
          json_agg         

@@ -111,7 +111,7 @@ select * from copytest except select * from copytest2;
 (0 rows)
 
 delete from copytest2;
-DELETE 0
+DELETE 4
 --- same test but with an escape char different from quote char
 copy copytest to '/home/kunlun/pgregressdata/results/copytest.csv' csv quote '''' escape E'\\';
 COPY 4

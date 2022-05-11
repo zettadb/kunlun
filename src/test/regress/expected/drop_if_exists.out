@@ -1,0 +1,337 @@
+--
+-- IF EXISTS tests
+--
+-- table (will be really dropped at the end)
+DROP TABLE test_exists;
+psql:sql/drop_if_exists.sql:7: ERROR:  table "test_exists" does not exist
+DROP TABLE IF EXISTS test_exists;
+psql:sql/drop_if_exists.sql:9: NOTICE:  table "test_exists" does not exist, skipping
+DROP TABLE
+CREATE TABLE test_exists (a int, b text);
+CREATE TABLE
+-- view
+DROP VIEW test_view_exists;
+psql:sql/drop_if_exists.sql:15: ERROR:  view "test_view_exists" does not exist
+DROP VIEW IF EXISTS test_view_exists;
+psql:sql/drop_if_exists.sql:17: NOTICE:  view "test_view_exists" does not exist, skipping
+DROP VIEW
+CREATE VIEW test_view_exists AS select * from test_exists;
+CREATE VIEW
+DROP VIEW IF EXISTS test_view_exists;
+DROP VIEW
+DROP VIEW test_view_exists;
+psql:sql/drop_if_exists.sql:23: ERROR:  view "test_view_exists" does not exist
+-- index
+DROP INDEX test_index_exists;
+psql:sql/drop_if_exists.sql:27: ERROR:  index "test_index_exists" does not exist
+DROP INDEX IF EXISTS test_index_exists;
+psql:sql/drop_if_exists.sql:29: NOTICE:  index "test_index_exists" does not exist, skipping
+DROP INDEX
+CREATE INDEX test_index_exists on test_exists(a);
+CREATE INDEX
+DROP INDEX IF EXISTS test_index_exists;
+DROP INDEX
+DROP INDEX test_index_exists;
+psql:sql/drop_if_exists.sql:35: ERROR:  index "test_index_exists" does not exist
+-- sequence
+DROP SEQUENCE test_sequence_exists;
+psql:sql/drop_if_exists.sql:39: ERROR:  sequence "test_sequence_exists" does not exist
+DROP SEQUENCE IF EXISTS test_sequence_exists;
+psql:sql/drop_if_exists.sql:41: NOTICE:  sequence "test_sequence_exists" does not exist, skipping
+DROP SEQUENCE
+CREATE SEQUENCE test_sequence_exists;
+CREATE SEQUENCE
+DROP SEQUENCE IF EXISTS test_sequence_exists;
+DROP SEQUENCE
+DROP SEQUENCE test_sequence_exists;
+psql:sql/drop_if_exists.sql:47: ERROR:  sequence "test_sequence_exists" does not exist
+-- schema
+DROP SCHEMA test_schema_exists;
+psql:sql/drop_if_exists.sql:51: ERROR:  schema "test_schema_exists" does not exist
+DROP SCHEMA IF EXISTS test_schema_exists;
+psql:sql/drop_if_exists.sql:53: NOTICE:  schema "test_schema_exists" does not exist, skipping
+DROP SCHEMA
+CREATE SCHEMA test_schema_exists;
+CREATE SCHEMA
+DROP SCHEMA IF EXISTS test_schema_exists;
+DROP SCHEMA
+DROP SCHEMA test_schema_exists;
+psql:sql/drop_if_exists.sql:59: ERROR:  schema "test_schema_exists" does not exist
+-- type
+DROP TYPE test_type_exists;
+psql:sql/drop_if_exists.sql:63: ERROR:  type "test_type_exists" does not exist
+DROP TYPE IF EXISTS test_type_exists;
+psql:sql/drop_if_exists.sql:65: NOTICE:  type "test_type_exists" does not exist, skipping
+DROP TYPE
+CREATE type test_type_exists as (a int, b text);
+CREATE TYPE
+DROP TYPE IF EXISTS test_type_exists;
+DROP TYPE
+DROP TYPE test_type_exists;
+psql:sql/drop_if_exists.sql:71: ERROR:  type "test_type_exists" does not exist
+---
+--- role/user/group
+---
+CREATE USER regress_test_u1;
+CREATE ROLE
+CREATE ROLE regress_test_r1;
+CREATE ROLE
+CREATE GROUP regress_test_g1;
+CREATE ROLE
+DROP USER regress_test_u2;
+psql:sql/drop_if_exists.sql:83: ERROR:  role "regress_test_u2" does not exist
+DROP USER IF EXISTS regress_test_u1, regress_test_u2;
+psql:sql/drop_if_exists.sql:85: NOTICE:  role "regress_test_u2" does not exist, skipping
+DROP ROLE
+DROP USER regress_test_u1;
+psql:sql/drop_if_exists.sql:87: ERROR:  role "regress_test_u1" does not exist
+DROP ROLE regress_test_r2;
+psql:sql/drop_if_exists.sql:89: ERROR:  role "regress_test_r2" does not exist
+DROP ROLE IF EXISTS regress_test_r1, regress_test_r2;
+psql:sql/drop_if_exists.sql:91: NOTICE:  role "regress_test_r2" does not exist, skipping
+DROP ROLE
+DROP ROLE regress_test_r1;
+psql:sql/drop_if_exists.sql:93: ERROR:  role "regress_test_r1" does not exist
+DROP GROUP regress_test_g2;
+psql:sql/drop_if_exists.sql:95: ERROR:  role "regress_test_g2" does not exist
+DROP GROUP IF EXISTS regress_test_g1, regress_test_g2;
+psql:sql/drop_if_exists.sql:97: NOTICE:  role "regress_test_g2" does not exist, skipping
+DROP ROLE
+DROP GROUP regress_test_g1;
+psql:sql/drop_if_exists.sql:99: ERROR:  role "regress_test_g1" does not exist
+-- collation
+DROP COLLATION IF EXISTS test_collation_exists;
+psql:sql/drop_if_exists.sql:102: NOTICE:  collation "test_collation_exists" does not exist, skipping
+DROP COLLATION
+-- conversion
+DROP CONVERSION test_conversion_exists;
+psql:sql/drop_if_exists.sql:105: ERROR:  conversion "test_conversion_exists" does not exist
+DROP CONVERSION IF EXISTS test_conversion_exists;
+psql:sql/drop_if_exists.sql:106: NOTICE:  conversion "test_conversion_exists" does not exist, skipping
+DROP CONVERSION
+CREATE CONVERSION test_conversion_exists
+    FOR 'LATIN1' TO 'UTF8' FROM iso8859_1_to_utf8;
+CREATE CONVERSION
+DROP CONVERSION test_conversion_exists;
+DROP CONVERSION
+-- text search parser
+DROP TEXT SEARCH PARSER test_tsparser_exists;
+psql:sql/drop_if_exists.sql:112: ERROR:  text search parser "test_tsparser_exists" does not exist
+DROP TEXT SEARCH PARSER IF EXISTS test_tsparser_exists;
+psql:sql/drop_if_exists.sql:113: NOTICE:  text search parser "test_tsparser_exists" does not exist, skipping
+DROP TEXT SEARCH PARSER
+-- text search dictionary
+DROP TEXT SEARCH DICTIONARY test_tsdict_exists;
+psql:sql/drop_if_exists.sql:116: ERROR:  text search dictionary "test_tsdict_exists" does not exist
+DROP TEXT SEARCH DICTIONARY IF EXISTS test_tsdict_exists;
+psql:sql/drop_if_exists.sql:117: NOTICE:  text search dictionary "test_tsdict_exists" does not exist, skipping
+DROP TEXT SEARCH DICTIONARY
+CREATE TEXT SEARCH DICTIONARY test_tsdict_exists (
+        Template=ispell,
+        DictFile=ispell_sample,
+        AffFile=ispell_sample
+);
+CREATE TEXT SEARCH DICTIONARY
+DROP TEXT SEARCH DICTIONARY test_tsdict_exists;
+DROP TEXT SEARCH DICTIONARY
+-- test search template
+DROP TEXT SEARCH TEMPLATE test_tstemplate_exists;
+psql:sql/drop_if_exists.sql:126: ERROR:  text search template "test_tstemplate_exists" does not exist
+DROP TEXT SEARCH TEMPLATE IF EXISTS test_tstemplate_exists;
+psql:sql/drop_if_exists.sql:127: NOTICE:  text search template "test_tstemplate_exists" does not exist, skipping
+DROP TEXT SEARCH TEMPLATE
+-- text search configuration
+DROP TEXT SEARCH CONFIGURATION test_tsconfig_exists;
+psql:sql/drop_if_exists.sql:130: ERROR:  text search configuration "test_tsconfig_exists" does not exist
+DROP TEXT SEARCH CONFIGURATION IF EXISTS test_tsconfig_exists;
+psql:sql/drop_if_exists.sql:131: NOTICE:  text search configuration "test_tsconfig_exists" does not exist, skipping
+DROP TEXT SEARCH CONFIGURATION
+CREATE TEXT SEARCH CONFIGURATION test_tsconfig_exists (COPY=english);
+CREATE TEXT SEARCH CONFIGURATION
+DROP TEXT SEARCH CONFIGURATION test_tsconfig_exists;
+DROP TEXT SEARCH CONFIGURATION
+-- extension
+DROP EXTENSION test_extension_exists;
+psql:sql/drop_if_exists.sql:136: ERROR:  extension "test_extension_exists" does not exist
+DROP EXTENSION IF EXISTS test_extension_exists;
+psql:sql/drop_if_exists.sql:137: NOTICE:  extension "test_extension_exists" does not exist, skipping
+DROP EXTENSION
+-- functions
+DROP FUNCTION test_function_exists();
+psql:sql/drop_if_exists.sql:140: ERROR:  function test_function_exists() does not exist
+DROP FUNCTION IF EXISTS test_function_exists();
+psql:sql/drop_if_exists.sql:141: NOTICE:  function test_function_exists() does not exist, skipping
+DROP FUNCTION
+DROP FUNCTION test_function_exists(int, text, int[]);
+psql:sql/drop_if_exists.sql:143: ERROR:  function test_function_exists(integer, text, integer[]) does not exist
+DROP FUNCTION IF EXISTS test_function_exists(int, text, int[]);
+psql:sql/drop_if_exists.sql:144: NOTICE:  function test_function_exists(pg_catalog.int4,text,pg_catalog.int4[]) does not exist, skipping
+DROP FUNCTION
+-- aggregate
+DROP AGGREGATE test_aggregate_exists(*);
+psql:sql/drop_if_exists.sql:147: ERROR:  aggregate test_aggregate_exists(*) does not exist
+DROP AGGREGATE IF EXISTS test_aggregate_exists(*);
+psql:sql/drop_if_exists.sql:148: NOTICE:  aggregate test_aggregate_exists() does not exist, skipping
+DROP AGGREGATE
+DROP AGGREGATE test_aggregate_exists(int);
+psql:sql/drop_if_exists.sql:150: ERROR:  aggregate test_aggregate_exists(integer) does not exist
+DROP AGGREGATE IF EXISTS test_aggregate_exists(int);
+psql:sql/drop_if_exists.sql:151: NOTICE:  aggregate test_aggregate_exists(pg_catalog.int4) does not exist, skipping
+DROP AGGREGATE
+-- operator
+DROP OPERATOR @#@ (int, int);
+psql:sql/drop_if_exists.sql:154: ERROR:  operator does not exist: integer @#@ integer
+DROP OPERATOR IF EXISTS @#@ (int, int);
+psql:sql/drop_if_exists.sql:155: NOTICE:  operator @#@ does not exist, skipping
+DROP OPERATOR
+CREATE OPERATOR @#@
+        (leftarg = int8, rightarg = int8, procedure = int8xor);
+CREATE OPERATOR
+DROP OPERATOR @#@ (int8, int8);
+DROP OPERATOR
+-- language
+DROP LANGUAGE test_language_exists;
+psql:sql/drop_if_exists.sql:161: ERROR:  language "test_language_exists" does not exist
+DROP LANGUAGE IF EXISTS test_language_exists;
+psql:sql/drop_if_exists.sql:162: NOTICE:  language "test_language_exists" does not exist, skipping
+DROP LANGUAGE
+-- cast
+DROP CAST (text AS text);
+psql:sql/drop_if_exists.sql:165: ERROR:  cast from type text to type text does not exist
+DROP CAST IF EXISTS (text AS text);
+psql:sql/drop_if_exists.sql:166: NOTICE:  cast from type text to type text does not exist, skipping
+DROP CAST
+-- foreign data wrapper
+DROP FOREIGN DATA WRAPPER test_fdw_exists;
+psql:sql/drop_if_exists.sql:169: ERROR:  foreign-data wrapper "test_fdw_exists" does not exist
+DROP FOREIGN DATA WRAPPER IF EXISTS test_fdw_exists;
+psql:sql/drop_if_exists.sql:170: NOTICE:  foreign-data wrapper "test_fdw_exists" does not exist, skipping
+DROP FOREIGN DATA WRAPPER
+-- foreign server
+DROP SERVER test_server_exists;
+psql:sql/drop_if_exists.sql:173: ERROR:  server "test_server_exists" does not exist
+DROP SERVER IF EXISTS test_server_exists;
+psql:sql/drop_if_exists.sql:174: NOTICE:  server "test_server_exists" does not exist, skipping
+DROP SERVER
+-- operator class
+DROP OPERATOR CLASS test_operator_class USING btree;
+psql:sql/drop_if_exists.sql:177: ERROR:  operator class "test_operator_class" does not exist for access method "btree"
+DROP OPERATOR CLASS IF EXISTS test_operator_class USING btree;
+psql:sql/drop_if_exists.sql:178: NOTICE:  operator class "test_operator_class" does not exist for access method "btree", skipping
+DROP OPERATOR CLASS
+DROP OPERATOR CLASS test_operator_class USING no_such_am;
+psql:sql/drop_if_exists.sql:180: ERROR:  access method "no_such_am" does not exist
+DROP OPERATOR CLASS IF EXISTS test_operator_class USING no_such_am;
+psql:sql/drop_if_exists.sql:181: ERROR:  access method "no_such_am" does not exist
+-- operator family
+DROP OPERATOR FAMILY test_operator_family USING btree;
+psql:sql/drop_if_exists.sql:184: ERROR:  operator family "test_operator_family" does not exist for access method "btree"
+DROP OPERATOR FAMILY IF EXISTS test_operator_family USING btree;
+psql:sql/drop_if_exists.sql:185: NOTICE:  operator family "test_operator_family" does not exist for access method "btree", skipping
+DROP OPERATOR FAMILY
+DROP OPERATOR FAMILY test_operator_family USING no_such_am;
+psql:sql/drop_if_exists.sql:187: ERROR:  access method "no_such_am" does not exist
+DROP OPERATOR FAMILY IF EXISTS test_operator_family USING no_such_am;
+psql:sql/drop_if_exists.sql:188: ERROR:  access method "no_such_am" does not exist
+-- access method
+DROP ACCESS METHOD no_such_am;
+psql:sql/drop_if_exists.sql:191: ERROR:  access method "no_such_am" does not exist
+DROP ACCESS METHOD IF EXISTS no_such_am;
+psql:sql/drop_if_exists.sql:192: NOTICE:  access method "no_such_am" does not exist, skipping
+DROP ACCESS METHOD
+-- drop the table
+DROP TABLE IF EXISTS test_exists;
+DROP TABLE
+DROP TABLE test_exists;
+psql:sql/drop_if_exists.sql:198: ERROR:  table "test_exists" does not exist
+-- be tolerant with missing schemas, types, etc
+DROP AGGREGATE IF EXISTS no_such_schema.foo(int);
+psql:sql/drop_if_exists.sql:202: NOTICE:  schema "no_such_schema" does not exist, skipping
+DROP AGGREGATE
+DROP AGGREGATE IF EXISTS foo(no_such_type);
+psql:sql/drop_if_exists.sql:203: NOTICE:  type "no_such_type" does not exist, skipping
+DROP AGGREGATE
+DROP AGGREGATE IF EXISTS foo(no_such_schema.no_such_type);
+psql:sql/drop_if_exists.sql:204: NOTICE:  schema "no_such_schema" does not exist, skipping
+DROP AGGREGATE
+DROP CAST IF EXISTS (INTEGER AS no_such_type2);
+psql:sql/drop_if_exists.sql:205: NOTICE:  type "no_such_type2" does not exist, skipping
+DROP CAST
+DROP CAST IF EXISTS (no_such_type1 AS INTEGER);
+psql:sql/drop_if_exists.sql:206: NOTICE:  type "no_such_type1" does not exist, skipping
+DROP CAST
+DROP CAST IF EXISTS (INTEGER AS no_such_schema.bar);
+psql:sql/drop_if_exists.sql:207: NOTICE:  schema "no_such_schema" does not exist, skipping
+DROP CAST
+DROP CAST IF EXISTS (no_such_schema.foo AS INTEGER);
+psql:sql/drop_if_exists.sql:208: NOTICE:  schema "no_such_schema" does not exist, skipping
+DROP CAST
+DROP COLLATION IF EXISTS no_such_schema.foo;
+psql:sql/drop_if_exists.sql:209: NOTICE:  schema "no_such_schema" does not exist, skipping
+DROP COLLATION
+DROP CONVERSION IF EXISTS no_such_schema.foo;
+psql:sql/drop_if_exists.sql:210: NOTICE:  schema "no_such_schema" does not exist, skipping
+DROP CONVERSION
+DROP FOREIGN TABLE IF EXISTS no_such_schema.foo;
+psql:sql/drop_if_exists.sql:211: NOTICE:  schema "no_such_schema" does not exist, skipping
+DROP FOREIGN TABLE
+DROP FUNCTION IF EXISTS no_such_schema.foo();
+psql:sql/drop_if_exists.sql:212: NOTICE:  schema "no_such_schema" does not exist, skipping
+DROP FUNCTION
+DROP FUNCTION IF EXISTS foo(no_such_type);
+psql:sql/drop_if_exists.sql:213: NOTICE:  type "no_such_type" does not exist, skipping
+DROP FUNCTION
+DROP FUNCTION IF EXISTS foo(no_such_schema.no_such_type);
+psql:sql/drop_if_exists.sql:214: NOTICE:  schema "no_such_schema" does not exist, skipping
+DROP FUNCTION
+DROP INDEX IF EXISTS no_such_schema.foo;
+psql:sql/drop_if_exists.sql:215: NOTICE:  schema "no_such_schema" does not exist, skipping
+DROP INDEX
+DROP MATERIALIZED VIEW IF EXISTS no_such_schema.foo;
+psql:sql/drop_if_exists.sql:216: NOTICE:  schema "no_such_schema" does not exist, skipping
+DROP MATERIALIZED VIEW
+DROP OPERATOR IF EXISTS no_such_schema.+ (int, int);
+psql:sql/drop_if_exists.sql:217: NOTICE:  schema "no_such_schema" does not exist, skipping
+DROP OPERATOR
+DROP OPERATOR IF EXISTS + (no_such_type, no_such_type);
+psql:sql/drop_if_exists.sql:218: NOTICE:  type "no_such_type" does not exist, skipping
+DROP OPERATOR
+DROP OPERATOR IF EXISTS + (no_such_schema.no_such_type, no_such_schema.no_such_type);
+psql:sql/drop_if_exists.sql:219: NOTICE:  schema "no_such_schema" does not exist, skipping
+DROP OPERATOR
+DROP OPERATOR IF EXISTS # (NONE, no_such_schema.no_such_type);
+psql:sql/drop_if_exists.sql:220: NOTICE:  schema "no_such_schema" does not exist, skipping
+DROP OPERATOR
+DROP OPERATOR CLASS IF EXISTS no_such_schema.widget_ops USING btree;
+psql:sql/drop_if_exists.sql:221: NOTICE:  schema "no_such_schema" does not exist, skipping
+DROP OPERATOR CLASS
+DROP OPERATOR FAMILY IF EXISTS no_such_schema.float_ops USING btree;
+psql:sql/drop_if_exists.sql:222: NOTICE:  schema "no_such_schema" does not exist, skipping
+DROP OPERATOR FAMILY
+DROP RULE IF EXISTS foo ON no_such_schema.bar;
+psql:sql/drop_if_exists.sql:223: NOTICE:  schema "no_such_schema" does not exist, skipping
+DROP RULE
+DROP SEQUENCE IF EXISTS no_such_schema.foo;
+psql:sql/drop_if_exists.sql:224: NOTICE:  schema "no_such_schema" does not exist, skipping
+DROP SEQUENCE
+DROP TABLE IF EXISTS no_such_schema.foo;
+psql:sql/drop_if_exists.sql:225: NOTICE:  schema "no_such_schema" does not exist, skipping
+DROP TABLE
+DROP TEXT SEARCH CONFIGURATION IF EXISTS no_such_schema.foo;
+psql:sql/drop_if_exists.sql:226: NOTICE:  schema "no_such_schema" does not exist, skipping
+DROP TEXT SEARCH CONFIGURATION
+DROP TEXT SEARCH DICTIONARY IF EXISTS no_such_schema.foo;
+psql:sql/drop_if_exists.sql:227: NOTICE:  schema "no_such_schema" does not exist, skipping
+DROP TEXT SEARCH DICTIONARY
+DROP TEXT SEARCH PARSER IF EXISTS no_such_schema.foo;
+psql:sql/drop_if_exists.sql:228: NOTICE:  schema "no_such_schema" does not exist, skipping
+DROP TEXT SEARCH PARSER
+DROP TEXT SEARCH TEMPLATE IF EXISTS no_such_schema.foo;
+psql:sql/drop_if_exists.sql:229: NOTICE:  schema "no_such_schema" does not exist, skipping
+DROP TEXT SEARCH TEMPLATE
+DROP TYPE IF EXISTS no_such_schema.foo;
+psql:sql/drop_if_exists.sql:230: NOTICE:  schema "no_such_schema" does not exist, skipping
+DROP TYPE
+DROP VIEW IF EXISTS no_such_schema.foo;
+psql:sql/drop_if_exists.sql:231: NOTICE:  schema "no_such_schema" does not exist, skipping
+DROP VIEW

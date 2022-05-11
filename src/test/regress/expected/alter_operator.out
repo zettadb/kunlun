@@ -1,0 +1,155 @@
+CREATE FUNCTION alter_op_test_fn(boolean, boolean)
+RETURNS boolean AS $$ SELECT NULL::BOOLEAN; $$ LANGUAGE sql IMMUTABLE;
+CREATE FUNCTION
+CREATE FUNCTION customcontsel(internal, oid, internal, integer)
+RETURNS float8 AS 'contsel' LANGUAGE internal STABLE STRICT;
+CREATE FUNCTION
+CREATE OPERATOR === (
+    LEFTARG = boolean,
+    RIGHTARG = boolean,
+    PROCEDURE = alter_op_test_fn,
+    COMMUTATOR = ===,
+    NEGATOR = !==,
+    RESTRICT = customcontsel,
+    JOIN = contjoinsel,
+    HASHES, MERGES
+);
+CREATE OPERATOR
+SELECT pg_describe_object(refclassid,refobjid,refobjsubid) as ref, deptype
+FROM pg_depend
+WHERE classid = 'pg_operator'::regclass AND
+      objid = '===(bool,bool)'::regoperator
+ORDER BY 1;
+                          ref                          | deptype 
+-------------------------------------------------------+---------
+ function alter_op_test_fn(boolean,boolean)            | n
+ function customcontsel(internal,oid,internal,integer) | n
+ schema public                                         | n
+(3 rows)
+
+--
+-- Reset and set params
+--
+ALTER OPERATOR === (boolean, boolean) SET (RESTRICT = NONE);
+ALTER OPERATOR
+ALTER OPERATOR === (boolean, boolean) SET (JOIN = NONE);
+ALTER OPERATOR
+SELECT oprrest, oprjoin FROM pg_operator WHERE oprname = '==='
+  AND oprleft = 'boolean'::regtype AND oprright = 'boolean'::regtype;
+ oprrest | oprjoin 
+---------+---------
+ -       | -
+(1 row)
+
+SELECT pg_describe_object(refclassid,refobjid,refobjsubid) as ref, deptype
+FROM pg_depend
+WHERE classid = 'pg_operator'::regclass AND
+      objid = '===(bool,bool)'::regoperator
+ORDER BY 1;
+                    ref                     | deptype 
+--------------------------------------------+---------
+ function alter_op_test_fn(boolean,boolean) | n
+ schema public                              | n
+(2 rows)
+
+ALTER OPERATOR === (boolean, boolean) SET (RESTRICT = contsel);
+ALTER OPERATOR
+ALTER OPERATOR === (boolean, boolean) SET (JOIN = contjoinsel);
+ALTER OPERATOR
+SELECT oprrest, oprjoin FROM pg_operator WHERE oprname = '==='
+  AND oprleft = 'boolean'::regtype AND oprright = 'boolean'::regtype;
+ oprrest |   oprjoin   
+---------+-------------
+ contsel | contjoinsel
+(1 row)
+
+SELECT pg_describe_object(refclassid,refobjid,refobjsubid) as ref, deptype
+FROM pg_depend
+WHERE classid = 'pg_operator'::regclass AND
+      objid = '===(bool,bool)'::regoperator
+ORDER BY 1;
+                    ref                     | deptype 
+--------------------------------------------+---------
+ function alter_op_test_fn(boolean,boolean) | n
+ schema public                              | n
+(2 rows)
+
+ALTER OPERATOR === (boolean, boolean) SET (RESTRICT = NONE, JOIN = NONE);
+ALTER OPERATOR
+SELECT oprrest, oprjoin FROM pg_operator WHERE oprname = '==='
+  AND oprleft = 'boolean'::regtype AND oprright = 'boolean'::regtype;
+ oprrest | oprjoin 
+---------+---------
+ -       | -
+(1 row)
+
+SELECT pg_describe_object(refclassid,refobjid,refobjsubid) as ref, deptype
+FROM pg_depend
+WHERE classid = 'pg_operator'::regclass AND
+      objid = '===(bool,bool)'::regoperator
+ORDER BY 1;
+                    ref                     | deptype 
+--------------------------------------------+---------
+ function alter_op_test_fn(boolean,boolean) | n
+ schema public                              | n
+(2 rows)
+
+ALTER OPERATOR === (boolean, boolean) SET (RESTRICT = customcontsel, JOIN = contjoinsel);
+ALTER OPERATOR
+SELECT oprrest, oprjoin FROM pg_operator WHERE oprname = '==='
+  AND oprleft = 'boolean'::regtype AND oprright = 'boolean'::regtype;
+    oprrest    |   oprjoin   
+---------------+-------------
+ customcontsel | contjoinsel
+(1 row)
+
+SELECT pg_describe_object(refclassid,refobjid,refobjsubid) as ref, deptype
+FROM pg_depend
+WHERE classid = 'pg_operator'::regclass AND
+      objid = '===(bool,bool)'::regoperator
+ORDER BY 1;
+                          ref                          | deptype 
+-------------------------------------------------------+---------
+ function alter_op_test_fn(boolean,boolean)            | n
+ function customcontsel(internal,oid,internal,integer) | n
+ schema public                                         | n
+(3 rows)
+
+--
+-- Test invalid options.
+--
+ALTER OPERATOR === (boolean, boolean) SET (COMMUTATOR = ====);
+psql:sql/alter_operator.sql:77: ERROR:  operator attribute "commutator" cannot be changed
+ALTER OPERATOR === (boolean, boolean) SET (NEGATOR = ====);
+psql:sql/alter_operator.sql:78: ERROR:  operator attribute "negator" cannot be changed
+ALTER OPERATOR === (boolean, boolean) SET (RESTRICT = non_existent_func);
+psql:sql/alter_operator.sql:79: ERROR:  function non_existent_func(internal, oid, internal, integer) does not exist
+ALTER OPERATOR === (boolean, boolean) SET (JOIN = non_existent_func);
+psql:sql/alter_operator.sql:80: ERROR:  function non_existent_func(internal, oid, internal, smallint, internal) does not exist
+ALTER OPERATOR === (boolean, boolean) SET (COMMUTATOR = !==);
+psql:sql/alter_operator.sql:81: ERROR:  operator attribute "commutator" cannot be changed
+ALTER OPERATOR === (boolean, boolean) SET (NEGATOR = !==);
+psql:sql/alter_operator.sql:82: ERROR:  operator attribute "negator" cannot be changed
+-- invalid: non-lowercase quoted identifiers
+ALTER OPERATOR & (bit, bit) SET ("Restrict" = _int_contsel, "Join" = _int_contjoinsel);
+psql:sql/alter_operator.sql:85: ERROR:  operator attribute "Restrict" not recognized
+--
+-- Test permission check. Must be owner to ALTER OPERATOR.
+--
+CREATE USER regress_alter_op_user;
+CREATE ROLE
+SET SESSION AUTHORIZATION regress_alter_op_user;
+SET
+ALTER OPERATOR === (boolean, boolean) SET (RESTRICT = NONE);
+psql:sql/alter_operator.sql:93: ERROR:  must be owner of operator ===
+-- Clean up
+RESET SESSION AUTHORIZATION;
+RESET
+DROP USER regress_alter_op_user;
+DROP ROLE
+DROP OPERATOR === (boolean, boolean);
+DROP OPERATOR
+DROP FUNCTION customcontsel(internal, oid, internal, integer);
+DROP FUNCTION
+DROP FUNCTION alter_op_test_fn(boolean, boolean);
+DROP FUNCTION

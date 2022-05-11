@@ -601,11 +601,14 @@ psql:sql/privileges.sql:363: ERROR:  Kunlun-db: MySQL storage node (1, 1) return
 UPDATE t1 SET c2 = 1; -- fail, but row not shown
 psql:sql/privileges.sql:364: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '1-1' for key 't1.PRIMARY'.
 INSERT INTO t1 (c1, c2) VALUES (null, null); -- fail, but see columns being inserted
-psql:sql/privileges.sql:365: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1048, Column 'c1' cannot be null.
+psql:sql/privileges.sql:365: ERROR:  null value in column "c1" violates not-null constraint
+DETAIL:  Failing row contains (c1, c2) = (null, null).
 INSERT INTO t1 (c3) VALUES (null); -- fail, but see columns being inserted or have SELECT
-psql:sql/privileges.sql:366: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1048, Column 'c1' cannot be null.
+psql:sql/privileges.sql:366: ERROR:  null value in column "c1" violates not-null constraint
+DETAIL:  Failing row contains (c1, c3) = (null, null).
 INSERT INTO t1 (c1) VALUES (5); -- fail, but see columns being inserted or have SELECT
-psql:sql/privileges.sql:367: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1048, Column 'c2' cannot be null.
+psql:sql/privileges.sql:367: ERROR:  null value in column "c2" violates not-null constraint
+DETAIL:  Failing row contains (c1) = (5).
 UPDATE t1 SET c3 = 10; -- fail, but see columns with SELECT rights, or being modified
 UPDATE 5
 SET SESSION AUTHORIZATION regress_priv_user1;

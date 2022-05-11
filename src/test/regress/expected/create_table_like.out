@@ -88,7 +88,8 @@ CREATE TABLE
  b      | text   |           |          | 
 
 INSERT INTO test_like_id_2 (b) VALUES ('b2');
-psql:sql/create_table_like.sql:35: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1048, Column 'a' cannot be null.
+psql:sql/create_table_like.sql:35: ERROR:  null value in column "a" violates not-null constraint
+DETAIL:  Failing row contains (null, b2).
 SELECT * FROM test_like_id_2;  -- identity was not copied
  a | b 
 ---+---

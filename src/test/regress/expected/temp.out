@@ -1,0 +1,414 @@
+--
+-- TEMP
+-- Test temp relations and indexes
+--
+-- test temp table/index masking
+CREATE TABLE temptest(col int);
+CREATE TABLE
+CREATE INDEX i_temptest ON temptest(col);
+CREATE INDEX
+CREATE TEMP TABLE temptest(tcol int);
+CREATE TABLE
+CREATE INDEX i_temptest ON temptest(tcol);
+CREATE INDEX
+SELECT * FROM temptest;
+ tcol 
+------
+(0 rows)
+
+DROP INDEX i_temptest;
+DROP INDEX
+DROP TABLE temptest;
+DROP TABLE
+SELECT * FROM temptest;
+ col 
+-----
+(0 rows)
+
+DROP INDEX i_temptest;
+DROP INDEX
+DROP TABLE temptest;
+DROP TABLE
+-- test temp table selects
+CREATE TABLE temptest(col int);
+CREATE TABLE
+INSERT INTO temptest VALUES (1);
+INSERT 0 1
+CREATE TEMP TABLE temptest(tcol float);
+CREATE TABLE
+INSERT INTO temptest VALUES (2.1);
+INSERT 0 1
+SELECT * FROM temptest;
+ tcol 
+------
+  2.1
+(1 row)
+
+DROP TABLE temptest;
+DROP TABLE
+SELECT * FROM temptest;
+ col 
+-----
+   1
+(1 row)
+
+DROP TABLE temptest;
+DROP TABLE
+-- test temp table deletion
+CREATE TEMP TABLE temptest(col int);
+CREATE TABLE
+\c
+You are now connected to database "regress" as user "abc".
+SELECT * FROM temptest;
+psql:sql/temp.sql:51: ERROR:  relation "temptest" does not exist
+LINE 1: SELECT * FROM temptest;
+                      ^
+-- Test ON COMMIT DELETE ROWS
+CREATE TEMP TABLE temptest(col int) ON COMMIT DELETE ROWS;
+CREATE TABLE
+BEGIN;
+BEGIN
+INSERT INTO temptest VALUES (1);
+INSERT 0 1
+INSERT INTO temptest VALUES (2);
+INSERT 0 1
+SELECT * FROM temptest;
+ col 
+-----
+   1
+   2
+(2 rows)
+
+COMMIT;
+COMMIT
+SELECT * FROM temptest;
+ col 
+-----
+(0 rows)
+
+DROP TABLE temptest;
+DROP TABLE
+-- Test ON COMMIT DROP
+BEGIN;
+BEGIN
+CREATE TEMP TABLE temptest(col int) ON COMMIT DROP;
+CREATE TABLE
+INSERT INTO temptest VALUES (1);
+INSERT 0 1
+INSERT INTO temptest VALUES (2);
+INSERT 0 1
+SELECT * FROM temptest;
+ col 
+-----
+   1
+   2
+(2 rows)
+
+COMMIT;
+COMMIT
+SELECT * FROM temptest;
+psql:sql/temp.sql:80: ERROR:  relation "temptest" does not exist
+LINE 1: SELECT * FROM temptest;
+                      ^
+-- Test manipulation of temp schema's placement in search path
+create table public.whereami (f1 text);
+CREATE TABLE
+insert into public.whereami values ('public');
+INSERT 0 1
+create temp table whereami (f1 text);
+CREATE TABLE
+insert into whereami values ('temp');
+INSERT 0 1
+create function public.whoami() returns text
+  as $$select 'public'::text$$ language sql;
+CREATE FUNCTION
+create function pg_temp.whoami() returns text
+  as $$select 'temp'::text$$ language sql;
+CREATE FUNCTION
+-- default should have pg_temp implicitly first, but only for tables
+select * from whereami;
+  f1  
+------
+ temp
+(1 row)
+
+select whoami();
+ whoami 
+--------
+ public
+(1 row)
+
+-- can list temp first explicitly, but it still doesn't affect functions
+set search_path = pg_temp, public;
+SET
+select * from whereami;
+  f1  
+------
+ temp
+(1 row)
+
+select whoami();
+ whoami 
+--------
+ public
+(1 row)
+
+-- or put it last for security
+set search_path = public, pg_temp;
+SET
+select * from whereami;
+   f1   
+--------
+ public
+(1 row)
+
+select whoami();
+ whoami 
+--------
+ public
+(1 row)
+
+-- you can invoke a temp function explicitly, though
+select pg_temp.whoami();
+ whoami 
+--------
+ temp
+(1 row)
+
+drop table public.whereami;
+DROP TABLE
+reset search_path;
+RESET
+-- For partitioned temp tables, ON COMMIT actions ignore storage-less
+-- partitioned tables.
+begin;
+BEGIN
+create temp table temp_parted_oncommit (a int)
+  partition by list (a) on commit delete rows;
+CREATE TABLE
+create temp table temp_parted_oncommit_1
+  partition of temp_parted_oncommit
+  for values in (1) on commit delete rows;
+CREATE TABLE
+insert into temp_parted_oncommit values (1);
+INSERT 0 1
+commit;
+COMMIT
+-- partitions are emptied by the previous commit
+select * from temp_parted_oncommit;
+ a 
+---
+(0 rows)
+
+drop table temp_parted_oncommit;
+DROP TABLE
+-- Check dependencies between ON COMMIT actions with a partitioned
+-- table and its partitions.  Using ON COMMIT DROP on a parent removes
+-- the whole set.
+begin;
+BEGIN
+create temp table temp_parted_oncommit_test (a int)
+  partition by list (a) on commit drop;
+CREATE TABLE
+create temp table temp_parted_oncommit_test1
+  partition of temp_parted_oncommit_test
+  for values in (1) on commit delete rows;
+CREATE TABLE
+create temp table temp_parted_oncommit_test2
+  partition of temp_parted_oncommit_test
+  for values in (2) on commit drop;
+CREATE TABLE
+insert into temp_parted_oncommit_test values (1), (2);
+INSERT 0 2
+commit;
+COMMIT
+-- no relations remain in this case.
+select relname from pg_class where relname like 'temp_parted_oncommit_test%';
+ relname 
+---------
+(0 rows)
+
+-- Using ON COMMIT DELETE on a partitioned table does not remove
+-- all rows if partitions preserve their data.
+begin;
+BEGIN
+create temp table temp_parted_oncommit_test (a int)
+  partition by list (a) on commit delete rows;
+CREATE TABLE
+create temp table temp_parted_oncommit_test1
+  partition of temp_parted_oncommit_test
+  for values in (1) on commit preserve rows;
+CREATE TABLE
+create temp table temp_parted_oncommit_test2
+  partition of temp_parted_oncommit_test
+  for values in (2) on commit drop;
+CREATE TABLE
+insert into temp_parted_oncommit_test values (1), (2);
+INSERT 0 2
+commit;
+COMMIT
+-- Data from the remaining partition is still here as its rows are
+-- preserved.
+select * from temp_parted_oncommit_test;
+ a 
+---
+ 1
+(1 row)
+
+-- two relations remain in this case.
+select relname from pg_class where relname like 'temp_parted_oncommit_test%';
+          relname           
+----------------------------
+ temp_parted_oncommit_test
+ temp_parted_oncommit_test1
+(2 rows)
+
+drop table temp_parted_oncommit_test;
+DROP TABLE
+-- Check dependencies between ON COMMIT actions with inheritance trees.
+-- Using ON COMMIT DROP on a parent removes the whole set.
+begin;
+BEGIN
+create temp table temp_inh_oncommit_test (a int) on commit drop;
+CREATE TABLE
+create temp table temp_inh_oncommit_test1 ()
+  inherits(temp_inh_oncommit_test) on commit delete rows;
+CREATE TABLE
+insert into temp_inh_oncommit_test1 values (1);
+INSERT 0 1
+commit;
+COMMIT
+-- no relations remain in this case
+select relname from pg_class where relname like 'temp_inh_oncommit_test%';
+ relname 
+---------
+(0 rows)
+
+-- Data on the parent is removed, and the child goes away.
+begin;
+BEGIN
+create temp table temp_inh_oncommit_test (a int) on commit delete rows;
+CREATE TABLE
+create temp table temp_inh_oncommit_test1 ()
+  inherits(temp_inh_oncommit_test) on commit drop;
+CREATE TABLE
+insert into temp_inh_oncommit_test1 values (1);
+INSERT 0 1
+insert into temp_inh_oncommit_test values (1);
+INSERT 0 1
+commit;
+COMMIT
+select * from temp_inh_oncommit_test;
+ a 
+---
+(0 rows)
+
+-- one relation remains
+select relname from pg_class where relname like 'temp_inh_oncommit_test%';
+        relname         
+------------------------
+ temp_inh_oncommit_test
+(1 row)
+
+drop table temp_inh_oncommit_test;
+DROP TABLE
+-- Tests with two-phase commit
+-- Transactions creating objects in a temporary namespace cannot be used
+-- with two-phase commit.
+-- These cases generate errors about temporary namespace.
+-- Function creation
+begin;
+BEGIN
+create function pg_temp.twophase_func() returns void as
+  $$ select '2pc_func'::text $$ language sql;
+CREATE FUNCTION
+prepare transaction 'twophase_func';
+psql:sql/temp.sql:199: ERROR:  cannot PREPARE a transaction that has operated on temporary objects
+-- Function drop
+create function pg_temp.twophase_func() returns void as
+  $$ select '2pc_func'::text $$ language sql;
+CREATE FUNCTION
+begin;
+BEGIN
+drop function pg_temp.twophase_func();
+DROP FUNCTION
+prepare transaction 'twophase_func';
+psql:sql/temp.sql:205: ERROR:  cannot PREPARE a transaction that has operated on temporary objects
+-- Operator creation
+begin;
+BEGIN
+--create operator pg_temp.@@ (leftarg = int4, rightarg = int4, procedure = int4mi);
+prepare transaction 'twophase_operator';
+psql:sql/temp.sql:209: ERROR:  prepared transactions are disabled
+HINT:  Set max_prepared_transactions to a nonzero value.
+-- These generate errors about temporary tables.
+-- ERROR:  Kunlun-db: Statement 'CREATE TYPE' not support temporary object mixied normal object
+begin;
+BEGIN
+--create type pg_temp.twophase_type as (a int);
+--prepare transaction 'twophase_type';
+begin;
+psql:sql/temp.sql:216: WARNING:  there is already a transaction in progress
+BEGIN
+create view pg_temp.twophase_view as select 1;
+CREATE VIEW
+prepare transaction 'twophase_view';
+psql:sql/temp.sql:218: ERROR:  cannot PREPARE a transaction that has operated on temporary tables
+begin;
+BEGIN
+create sequence pg_temp.twophase_seq;
+CREATE SEQUENCE
+prepare transaction 'twophase_sequence';
+psql:sql/temp.sql:221: ERROR:  cannot PREPARE a transaction that has operated on temporary tables
+-- Temporary tables cannot be used with two-phase commit.
+create temp table twophase_tab (a int);
+CREATE TABLE
+begin;
+BEGIN
+select a from twophase_tab;
+ a 
+---
+(0 rows)
+
+prepare transaction 'twophase_tab';
+psql:sql/temp.sql:227: ERROR:  cannot PREPARE a transaction that has operated on temporary tables
+begin;
+BEGIN
+insert into twophase_tab values (1);
+INSERT 0 1
+prepare transaction 'twophase_tab';
+psql:sql/temp.sql:230: ERROR:  cannot PREPARE a transaction that has operated on temporary tables
+begin;
+BEGIN
+lock twophase_tab in access exclusive mode;
+LOCK TABLE
+prepare transaction 'twophase_tab';
+psql:sql/temp.sql:233: ERROR:  cannot PREPARE a transaction that has operated on temporary tables
+begin;
+BEGIN
+drop table twophase_tab;
+DROP TABLE
+prepare transaction 'twophase_tab';
+psql:sql/temp.sql:236: ERROR:  cannot PREPARE a transaction that has operated on temporary tables
+-- Corner case: current_schema may create a temporary schema if namespace
+-- creation is pending, so check after that.  First reset the connection
+-- to remove the temporary namespace, and make sure that non-parallel plans
+-- are used.
+\c -
+You are now connected to database "regress" as user "abc".
+SET max_parallel_workers = 0;
+SET
+SET max_parallel_workers_per_gather = 0;
+SET
+SET search_path TO 'pg_temp';
+SET
+BEGIN;
+BEGIN
+SELECT current_schema() ~ 'pg_temp' AS is_temp_schema;
+ is_temp_schema 
+----------------
+ t
+(1 row)
+
+PREPARE TRANSACTION 'twophase_search';
+psql:sql/temp.sql:248: ERROR:  cannot PREPARE a transaction that has operated on temporary objects

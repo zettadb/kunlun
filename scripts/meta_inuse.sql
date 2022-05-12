@@ -189,14 +189,15 @@ CREATE TABLE `meta_db_nodes` (
   `port` smallint unsigned NOT NULL,
   `user_name` varchar(64) NOT NULL,
   `passwd` varchar(120) NOT NULL,
-  `master_priority` smallint NOT NULL DEFAULT '1',
-  `member_state` enum('source','replica') NOT NULL,
-  `sync_state` enum('fsync','async') NOT NULL,
-  `degrade_conf_state` enum('ON','OFF') NOT NULL,
-  `degrade_run_state` enum('ON','OFF') NOT NULL,
-  `replica_delay` int NOT NULL,
-  `degrade_conf_time` int NOT NULL,
-  `sync_num` smallint unsigned NOT NULL DEFAULT '1',
+  `master_priority` smallint NOT NULL DEFAULT 1,
+  `member_state` enum('source','replica') NOT NULL DEFAULT 'replica',
+  `sync_state` enum('fsync','async') NOT NULL DEFAULT 'fsync',
+  `degrade_conf_state` enum('ON','OFF') NOT NULL DEFAULT 'OFF',
+  `degrade_run_state` enum('ON','OFF') NOT NULL DEFAULT 'OFF',
+  `replica_delay` int NOT NULL default 0,
+  `degrade_conf_time` int NOT NULL default 0,
+  `sync_num` smallint unsigned NOT NULL DEFAULT 1,
+  `datadir` varchar(8192) DEFAULT NULL,
   UNIQUE KEY `id` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -237,6 +238,7 @@ CREATE TABLE `server_nodes` (
   nodemgr_port int,
   nodemgr_tmp_data_abs_path text DEFAULT NULL,
   extra_props text,
+  `node_stats` enum('running','idle','dead') DEFAULT 'running',
   PRIMARY KEY (`id`),
   UNIQUE KEY `hostaddr_dcid_uniq` (`hostaddr`(512),`dc_id`),
   FOREIGN KEY (dc_id) references data_centers(id)
@@ -289,6 +291,10 @@ CREATE TABLE `shards` (
   `sync_num` smallint unsigned NOT NULL default 1,
   -- extra properties
   extra_props text,
+  -- fields for rbr
+  `degrade_conf_state` enum('ON','OFF') DEFAULT 'OFF',
+  `degrade_run_state` enum('ON','OFF') DEFAULT 'OFF',
+  `degrade_conf_time` int NOT NULL default 0,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (db_cluster_id, `name`),
   FOREIGN KEY (db_cluster_id)  references db_clusters(id)
@@ -325,6 +331,13 @@ CREATE TABLE `shard_nodes` (
 
   -- channel properties, such as channel name, etc.
   extra_props text,
+
+  -- fields for rbr, backup, etc.
+  `sync_state` enum('fsync','async') DEFAULT 'fsync',
+  `member_state` enum('source','replica') DEFAULT 'replica',
+  `replica_delay` int NOT NULL default 0,
+  `backup_node` enum ('OFF', 'ON') DEFAULT 'OFF',
+
   PRIMARY KEY (`id`),
   UNIQUE KEY `hostaddr_port_svrnodeid_uniq` (`hostaddr`(512),`port`,`svr_node_id`),
   FOREIGN KEY (db_cluster_id) references db_clusters(id),
@@ -527,6 +540,44 @@ create table table_move_jobs (
  	FOREIGN KEY (src_shard_node) references shard_nodes(id),
  	FOREIGN KEY (dest_shard)  references shards(id),
  	FOREIGN KEY (dest_shard_node) references shard_nodes(id)
+) ENGINE=InnoDB DEFAULT charset=utf8;
+
+-- Rbr failover table
+DROP TABLE IF EXISTS `rbr_consfailover`;
+CREATE TABLE `rbr_consfailover` (
+	`id` int unsigned NOT NULL AUTO_INCREMENT,
+	`host` varchar(8192) NOT NULL,
+	`shard_id` int unsigned NOT NULL,
+	`cluster_id` int unsigned NOT NULL,
+	`taskid` varchar(255) NOT NULL,
+	`step` varchar(255) NOT NULL,
+	`new_master_host` varchar(255) DEFAULT NULL,
+	`description` varchar(255) DEFAULT NULL,
+	`consfailover_msg` text,
+	`timestamp` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+	`err_code` int DEFAULT NULL,
+	`err_msg` varchar(255) DEFAULT NULL,
+	PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT charset=utf8;
+
+-- info for mysqld errlog
+DROP TABLE IF EXISTS `node_mgr_mysqlerr`;
+CREATE TABLE `node_mgr_mysqlerr` (
+	`hostaddr` varchar(8192) character set latin1 NOT NULL,
+	`port` int unsigned NOT NULL,
+	`err_file` varchar(8192) NOT NULL,
+	`scan_timestamp` int unsigned NOT NULL,
+	`scan_filesize` int unsigned NOT NULL,
+	PRIMARY KEY (`hostaddr`(512), `port`)
+) ENGINE=InnoDB DEFAULT charset=utf8;
+
+DROP TABLE IF EXISTS `cluster_mgr_nodes`;
+CREATE TABLE `cluster_mgr_nodes` (
+	`id` int unsigned NOT NULL AUTO_INCREMENT,
+	`hostaddr` varchar(8192) character set latin1 NOT NULL,
+	`port` int unsigned DEFAULT NULL,
+	`member_state` enum('source','replica') DEFAULT 'replica',
+	PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT charset=utf8;
 
 -- Dump completed on 2020-01-04 11:14:45

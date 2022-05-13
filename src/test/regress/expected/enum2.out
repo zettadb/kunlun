@@ -1,0 +1,105 @@
+create type vihicles as enum ('car', 'suv', 'truck', 'mpv', 'wagon', 'hatchback');
+CREATE TYPE
+drop table if exists tvehicles;
+psql:sql/enum2.sql:2: NOTICE:  table "tvehicles" does not exist, skipping
+DROP TABLE
+create table tvehicles (a int, b vihicles);
+CREATE TABLE
+insert into tvehicles values(1, 'car'),(2, 'suv'),(3, 'truck'),(4, 'hatchback'),(5, 'mpv'), (6, 'wagon');
+INSERT 0 6
+select*from tvehicles;
+ a |     b     
+---+-----------
+ 1 | car
+ 2 | suv
+ 3 | truck
+ 4 | hatchback
+ 5 | mpv
+ 6 | wagon
+(6 rows)
+
+select*from tvehicles where b > 'suv';
+ a |     b     
+---+-----------
+ 3 | truck
+ 4 | hatchback
+ 5 | mpv
+ 6 | wagon
+(4 rows)
+
+select*from tvehicles where b <= 'mpv';
+ a |   b   
+---+-------
+ 1 | car
+ 2 | suv
+ 3 | truck
+ 5 | mpv
+(4 rows)
+
+select*from tvehicles where a>2;
+ a |     b     
+---+-----------
+ 3 | truck
+ 4 | hatchback
+ 5 | mpv
+ 6 | wagon
+(4 rows)
+
+select*from tvehicles where b='suv';
+ a |  b  
+---+-----
+ 2 | suv
+(1 row)
+
+update tvehicles set b='mpv' where b='truck';
+psql:sql/enum2.sql:10: ERROR:  Kunlun-db: Some expression cannot be serialized
+select*from tvehicles order by a;
+ a |     b     
+---+-----------
+ 1 | car
+ 2 | suv
+ 3 | truck
+ 4 | hatchback
+ 5 | mpv
+ 6 | wagon
+(6 rows)
+
+delete from tvehicles where b='mpv';
+psql:sql/enum2.sql:12: ERROR:  Kunlun-db: Some expression cannot be serialized
+select*from tvehicles;
+ a |     b     
+---+-----------
+ 1 | car
+ 2 | suv
+ 3 | truck
+ 4 | hatchback
+ 5 | mpv
+ 6 | wagon
+(6 rows)
+
+delete from tvehicles where b='suv';
+psql:sql/enum2.sql:14: ERROR:  Kunlun-db: Some expression cannot be serialized
+select*from tvehicles;
+ a |     b     
+---+-----------
+ 1 | car
+ 2 | suv
+ 3 | truck
+ 4 | hatchback
+ 5 | mpv
+ 6 | wagon
+(6 rows)
+
+update tvehicles set b='mpv';
+UPDATE 5
+select*from tvehicles;
+ a |  b  
+---+-----
+ 1 | mpv
+ 2 | mpv
+ 3 | mpv
+ 4 | mpv
+ 5 | mpv
+ 6 | mpv
+(6 rows)
+

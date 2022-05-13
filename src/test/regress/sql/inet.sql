@@ -71,8 +71,8 @@ SELECT '' AS ten, set_masklen(inet(text(i)), 24) FROM INET_TBL;
 CREATE INDEX inet_idx1 ON inet_tbl(i);
 --DDL_STATEMENT_END--
 SET enable_seqscan TO off;
-SELECT * FROM inet_tbl WHERE i<<'192.168.1.0/24'::cidr;
-SELECT * FROM inet_tbl WHERE i<<='192.168.1.0/24'::cidr;
+SELECT * FROM inet_tbl WHERE i<<'192.168.1.0/24'::cidr order by 1;
+SELECT * FROM inet_tbl WHERE i<<='192.168.1.0/24'::cidr order by 1,2;
 SET enable_seqscan TO on;
 --DDL_STATEMENT_BEGIN--
 DROP INDEX inet_idx1;

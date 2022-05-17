@@ -1,6 +1,5 @@
 -- pg_regress should ensure that this default value applies; however
 -- we can't rely on any specific default value of vacuum_cost_delay
-SHOW datestyle;
 
 -- SET to some nondefault value
 SET vacuum_cost_delay TO 40;

@@ -50,7 +50,7 @@ CREATE VIEW ro_view12 AS SELECT * FROM generate_series(1, 10) AS g(a); -- SRF in
 CREATE VIEW ro_view13 AS SELECT a, b FROM (SELECT * FROM base_tbl) AS t; -- Subselect in rangetable
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-CREATE VIEW rw_view14 AS SELECT ctid, a, b FROM base_tbl; -- System columns may be part of an updatable view
+CREATE VIEW rw_view14 AS SELECT a, b FROM base_tbl; -- System columns may be part of an updatable view
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW rw_view15 AS SELECT a, upper(b) FROM base_tbl; -- Expression/function may be part of an updatable view
@@ -713,7 +713,7 @@ INSERT INTO base_tbl SELECT i/10.0 FROM generate_series(1,10) g(i);
 
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW rw_view1 AS
-  SELECT ctid, sin(a) s, a, cos(a) c
+  SELECT sin(a) s, a, cos(a) c
   FROM base_tbl
   WHERE a != 0
   ORDER BY abs(a);
@@ -728,7 +728,7 @@ DELETE FROM rw_view1 WHERE a = 1.05; -- OK
 
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW rw_view2 AS
-  SELECT s, c, s/c t, a base_a, ctid
+  SELECT s, c, s/c t, a base_a
   FROM rw_view1;
 --DDL_STATEMENT_END--
 
@@ -742,7 +742,7 @@ DELETE FROM rw_view2 WHERE base_a = 1.05 RETURNING base_a, s, c, t; -- OK
 
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW rw_view3 AS
-  SELECT s, c, s/c t, ctid
+  SELECT s, c, s/c t
   FROM rw_view1;
 --DDL_STATEMENT_END--
 

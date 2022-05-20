@@ -9,6 +9,7 @@
  * however, be more revealing when run in a database with non-C locale,
  * since any departure from C sorting behavior will show as a failure.
  */
+ set default_nulls_smallest = off;
 --DDL_STATEMENT_BEGIN--
 CREATE SCHEMA collate_tests;
 --DDL_STATEMENT_END--

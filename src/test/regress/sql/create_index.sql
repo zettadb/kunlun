@@ -2,7 +2,7 @@
 -- CREATE_INDEX
 -- Create ancillary data structures (i.e. indices)
 --
-
+set default_nulls_smallest = off;
 --
 -- BTREE
 --

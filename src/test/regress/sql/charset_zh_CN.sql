@@ -131,7 +131,7 @@ insert into 个人表(编号,姓名,工资,工作) values(1,'张三',15000,'内�
 (5,'陈琪',10000,'前台'),(6,'李舞',15000,'外科'),(7,'张霸',20000 ,'内科');
 
 SELECT 姓名,SUM(工资) FROM 个人表 GROUP BY 姓名 ORDER BY 姓名;
-SELECT 工作,avg(工资) FROM 个人表 GROUP BY 工作 order by AVG(工资);
+SELECT 工作,avg(工资)::numeric(64,4) FROM 个人表 GROUP BY 工作 order by 2;
 select 工作,max(工资) from 个人表 group by 工作 order by max(工资)desc; 
 select 工作,min(工资) from 个人表 group by 工作order by min(工资)desc;
 select 工作,count(工资) from 个人表 group by 工作order by 工作 desc;

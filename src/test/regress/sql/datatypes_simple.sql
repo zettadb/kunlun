@@ -308,17 +308,16 @@ DROP TYPE mood;
 drop table if exists tab_icm;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-CREATE TABLE tab_icm(a cidr,b inet,c macaddr);
+CREATE TABLE tab_icm(aa int,a cidr,b inet,c macaddr);
 --DDL_STATEMENT_END--
-INSERT INTO tab_icm VALUES(DEFAULT,'10.10.20.10','00-50-56-C0-00-07');
-INSERT INTO tab_icm VALUES('10.10/16',DEFAULT,'00-50-56-C0-00-08');
-INSERT INTO tab_icm VALUES('10/8','fe80::81a7:c17c:788c:7723','00-50-56-C0-00-01');
+INSERT INTO tab_icm VALUES(1,DEFAULT,'10.10.20.10','00-50-56-C0-00-07');
+INSERT INTO tab_icm VALUES(2,'10.10/16',DEFAULT,'00-50-56-C0-00-08');
+INSERT INTO tab_icm VALUES(3,'10/8','fe80::81a7:c17c:788c:7723','00-50-56-C0-00-01');
 SELECT * FROM tab_icm; 
-UPDATE tab_icm set a='10.10.20.10/32' where b='10.10.20.10';
-UPDATE tab_icm set b='::10.2.3.4' where a='10.10/16';
-UPDATE tab_icm set c='00-50-56-C0-00-09' where a='10/8';
+UPDATE tab_icm set a='10.10.20.10/32' where aa=1;
+UPDATE tab_icm set b='::10.2.3.4' where aa=2;
+UPDATE tab_icm set c='00-50-56-C0-00-09' where aa=3;
 SELECT * FROM tab_icm;
-delete from tab_icm where a='10/8';
 --DDL_STATEMENT_BEGIN--
 drop table tab_icm;
 --DDL_STATEMENT_END--

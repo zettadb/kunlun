@@ -674,9 +674,9 @@ SELECT t1.id1, t1.result, t2.expected
 -- * miscellaneous checks for things that have been broken in the past...
 -- ******************************
 -- numeric AVG used to fail on some platforms
-SELECT AVG(val) FROM num_data;
-SELECT STDDEV(val) FROM num_data;
-SELECT VARIANCE(val) FROM num_data;
+SELECT AVG(val)::numeric(65,4) FROM num_data;
+SELECT STDDEV(val)::numeric(65,4) FROM num_data;
+SELECT VARIANCE(val)::numeric(65,0) FROM num_data;
 
 -- Check for appropriate rounding and overflow
 --DDL_STATEMENT_BEGIN--

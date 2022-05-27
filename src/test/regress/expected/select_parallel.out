@@ -173,7 +173,6 @@ explain (costs off)
 
 select count(*) from tenk1 where (two, four) not in
 	(select hundred, thousand from tenk2 where thousand > 100);
-psql:sql/select_parallel.sql:116: WARNING:  Rescan is called unexpectedly, so reset node->will_rewind to TRUE
  count 
 -------
  10000
@@ -344,7 +343,6 @@ end;
 $$;
 CREATE FUNCTION
 select * from explain_parallel_sort_stats();
-psql:sql/select_parallel.sql:223: WARNING:  Rescan is called unexpectedly, so reset node->will_rewind to TRUE
 
 reset enable_indexscan;
 RESET
@@ -517,7 +515,6 @@ select * from
   (select string4, count(unique2)
    from tenk1 group by string4 order by string4) ss
   right join (values (1),(2),(3)) v(x) on true;
-psql:sql/select_parallel.sql:293: WARNING:  Rescan is called unexpectedly, so reset node->will_rewind to TRUE
  string4 | count | x 
 ---------+-------+---
  AAAAxx  |  2500 | 1

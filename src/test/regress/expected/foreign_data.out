@@ -48,7 +48,7 @@ SELECT srvname, srvoptions FROM pg_foreign_server;
 SELECT * FROM pg_user_mapping;
  umuser | umserver | umoptions 
 --------+----------+-----------
-  20191 |    20230 | 
+  20210 |    20250 | 
 (1 row)
 
 -- CREATE FOREIGN DATA WRAPPER
@@ -2013,6 +2013,6 @@ SELECT srvname, srvoptions FROM pg_foreign_server;
 SELECT * FROM pg_user_mapping;
  umuser | umserver | umoptions 
 --------+----------+-----------
-  20191 |    20230 | 
+  20210 |    20250 | 
 (1 row)
 

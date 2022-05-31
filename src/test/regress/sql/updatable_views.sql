@@ -1001,8 +1001,9 @@ LANGUAGE plpgsql STRICT IMMUTABLE LEAKPROOF;
 --DDL_STATEMENT_END--
 
 SELECT * FROM rw_view1 WHERE snoop(person);
-UPDATE rw_view1 SET person=person WHERE snoop(person);
-DELETE FROM rw_view1 WHERE NOT snoop(person);
+-- delete/update不支持用户自定义函数，或者mysql不支持的函数 #777
+--UPDATE rw_view1 SET person=person WHERE snoop(person);
+--DELETE FROM rw_view1 WHERE NOT snoop(person);
 
 -- ALTER VIEW rw_view1 SET (security_barrier = true);
 
@@ -1020,8 +1021,8 @@ SELECT table_name, column_name, is_updatable
  ORDER BY ordinal_position;
 
 SELECT * FROM rw_view1 WHERE snoop(person);
-UPDATE rw_view1 SET person=person WHERE snoop(person);
-DELETE FROM rw_view1 WHERE NOT snoop(person);
+--UPDATE rw_view1 SET person=person WHERE snoop(person);
+--DELETE FROM rw_view1 WHERE NOT snoop(person);
 
 -- EXPLAIN (costs off) SELECT * FROM rw_view1 WHERE snoop(person);
 -- EXPLAIN (costs off) UPDATE rw_view1 SET person=person WHERE snoop(person);
@@ -1046,8 +1047,8 @@ SELECT table_name, column_name, is_updatable
  ORDER BY ordinal_position;
 
 SELECT * FROM rw_view2 WHERE snoop(person);
-UPDATE rw_view2 SET person=person WHERE snoop(person);
-DELETE FROM rw_view2 WHERE NOT snoop(person);
+--UPDATE rw_view2 SET person=person WHERE snoop(person);
+--DELETE FROM rw_view2 WHERE NOT snoop(person);
 
 -- EXPLAIN (costs off) SELECT * FROM rw_view2 WHERE snoop(person);
 -- EXPLAIN (costs off) UPDATE rw_view2 SET person=person WHERE snoop(person);
@@ -1072,7 +1073,7 @@ CREATE VIEW rw_view1 WITH (security_barrier=true) AS
 SELECT * FROM rw_view1;
 
 -- EXPLAIN (costs off) DELETE FROM rw_view1 WHERE id = 1 AND snoop(data);
-DELETE FROM rw_view1 WHERE id = 1 AND snoop(data);
+--DELETE FROM rw_view1 WHERE id = 1 AND snoop(data);
 
 -- EXPLAIN (costs off) INSERT INTO rw_view1 VALUES (2, 'New row 2');
 INSERT INTO rw_view1 VALUES (2, 'New row 2');

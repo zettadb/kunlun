@@ -354,7 +354,7 @@ insert into atacc1 (test) values (4);
 -- try adding a unique oid constraint
 -- try to create duplicates via alter table using - should fail
 --DDL_STATEMENT_BEGIN--
-alter table atacc1 alter column test type integer using 0;
+-- alter table atacc1 alter column test type integer using 0;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 drop table atacc1;
@@ -498,9 +498,9 @@ create table atacc1 ( test int );
 --DDL_STATEMENT_END--
 insert into atacc1 (test) values (0);
 -- add a primary key column without a default (fails).
---DDL_STATEMENT_BEGIN--
-alter table atacc1 add column test2 int primary key;
---DDL_STATEMENT_END--
+--这个mysql和pg在行为上的差异，无法更改。建议忽略报错 #294
+--alter table atacc1 add column test2 int primary key;
+
 -- now add a primary key column with a default (succeeds).
 --DDL_STATEMENT_BEGIN--
 alter table atacc1 add column test2 int default 0 primary key;
@@ -967,24 +967,24 @@ insert into anothertab (atcol1, atcol2) values (default, null);
 
 select * from anothertab;
 
---DDL_STATEMENT_BEGIN--
-alter table anothertab alter column atcol2 type text
-      using case when atcol2 is true then 'IT WAS TRUE'
-                 when atcol2 is false then 'IT WAS FALSE'
-                 else 'IT WAS NULL!' end;
+-- 由于mysql的限制，修改列类型时，using子句目前只能使用“类型转换“
+--alter table anothertab alter column atcol2 type text
+--      using case when atcol2 is true then 'IT WAS TRUE'
+--                 when atcol2 is false then 'IT WAS FALSE'
+--                 else 'IT WAS NULL!' end;
 				 
---DDL_STATEMENT_END--
+
 select * from anothertab;
 --DDL_STATEMENT_BEGIN--
-alter table anothertab alter column atcol1 type boolean
-        using case when atcol1 % 2 = 0 then true else false end; -- fails
+-- alter table anothertab alter column atcol1 type boolean
+--        using case when atcol1 % 2 = 0 then true else false end; -- fails
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 alter table anothertab alter column atcol1 drop default;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-alter table anothertab alter column atcol1 type boolean
-        using case when atcol1 % 2 = 0 then true else false end; -- fails
+--alter table anothertab alter column atcol1 type boolean
+--        using case when atcol1 % 2 = 0 then true else false end; -- fails
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 alter table anothertab drop constraint anothertab_chk;
@@ -997,8 +997,8 @@ alter table anothertab drop constraint IF EXISTS anothertab_chk; -- succeeds
 --DDL_STATEMENT_END--
 
 --DDL_STATEMENT_BEGIN--
-alter table anothertab alter column atcol1 type boolean
-        using case when atcol1 % 2 = 0 then true else false end;
+-- alter table anothertab alter column atcol1 type boolean
+--        using case when atcol1 % 2 = 0 then true else false end;
 --DDL_STATEMENT_END--
 
 select * from anothertab;
@@ -1052,9 +1052,9 @@ insert into another values(3, 'three');
 select * from another;
 
 --DDL_STATEMENT_BEGIN--
-alter table another
-  alter f1 type text using f2 || ' more',
-  alter f2 type bigint using f1 * 10;
+--alter table another
+--  alter f1 type text using f2 || ' more',
+--  alter f2 type bigint using f1 * 10;
 --DDL_STATEMENT_END--
 
 select * from another;
@@ -1176,7 +1176,8 @@ ALTER TABLE test_type_diff2 ALTER COLUMN int_four TYPE int8 USING int_four::int8
 --DDL_STATEMENT_END--
 -- whole-row references are disallowed
 --DDL_STATEMENT_BEGIN--
-ALTER TABLE test_type_diff2 ALTER COLUMN int_four TYPE int4 USING (pg_column_size(test_type_diff2));
+--ALTER TABLE test_type_diff2 ALTER COLUMN int_four TYPE int4 
+-- USING (pg_column_size(test_type_diff2));
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 drop table test_type_diff;

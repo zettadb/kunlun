@@ -742,9 +742,11 @@ prepare foo(bool) as
   select count(*) from tenk1 a left join tenk1 b
     on (a.unique2 = b.unique1 and exists
         (select 1 from tenk1 c where c.thousand = b.unique2 and $1));
+-- 统计信息更新不及时导致的语句超时
+set enable_nestloop =off;
 execute foo(true);
 execute foo(false);
-
+set enable_nestloop =on;
 --
 -- test for sane behavior with noncanonical merge clauses, per bug #4926
 --
@@ -1758,9 +1760,10 @@ select count(*) from tenk1 a,
 explain (costs off)
   select count(*) from tenk1 a,
     tenk1 b join lateral (values(a.unique1),(-1)) ss(x) on b.unique2 = ss.x;
+set enable_nestloop =off;
 select count(*) from tenk1 a,
   tenk1 b join lateral (values(a.unique1),(-1)) ss(x) on b.unique2 = ss.x;
-
+set enable_nestloop =on;
 -- lateral injecting a strange outer join condition
 set enable_nestloop = OFF; --SHOULD BE REMOVE after [#125] is fixed.
 explain (costs off)
@@ -1823,14 +1826,14 @@ select * from
   lateral (select *, a.q2 as x from int8_tbl b) ss on a.q2 = ss.q1;
 select * from
   int8_tbl a left join
-  lateral (select *, a.q2 as x from int8_tbl b) ss on a.q2 = ss.q1;
+  lateral (select *, a.q2 as x from int8_tbl b) ss on a.q2 = ss.q1 order by 1,2,3,4,5;
 explain (verbose, costs off)
 select * from
   int8_tbl a left join
   lateral (select *, coalesce(a.q2, 42) as x from int8_tbl b) ss on a.q2 = ss.q1;
 select * from
   int8_tbl a left join
-  lateral (select *, coalesce(a.q2, 42) as x from int8_tbl b) ss on a.q2 = ss.q1;
+  lateral (select *, coalesce(a.q2, 42) as x from int8_tbl b) ss on a.q2 = ss.q1 order by 1,2,3,4,5;
 
 -- lateral can result in join conditions appearing below their
 -- real semantic level

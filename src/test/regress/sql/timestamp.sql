@@ -1,7 +1,7 @@
 --
 -- TIMESTAMP
 --
-
+set datestyle to dmy;
 set IntervalStyle = postgres;
 
 --DDL_STATEMENT_BEGIN--
@@ -54,8 +54,9 @@ COMMIT;
 DELETE FROM TIMESTAMP_TBL;
 
 -- Special values
-INSERT INTO TIMESTAMP_TBL VALUES ('-infinity');
-INSERT INTO TIMESTAMP_TBL VALUES ('infinity');
+--There is no corresponding infinity time in mysql [#18]
+--INSERT INTO TIMESTAMP_TBL VALUES ('-infinity');
+--INSERT INTO TIMESTAMP_TBL VALUES ('infinity');
 INSERT INTO TIMESTAMP_TBL VALUES ('epoch');
 -- Obsolete special values
 INSERT INTO TIMESTAMP_TBL VALUES ('invalid');
@@ -117,8 +118,8 @@ INSERT INTO TIMESTAMP_TBL VALUES ('Feb 13 17:32:01 1997');
 INSERT INTO TIMESTAMP_TBL VALUES ('Feb 14 17:32:01 1997');
 INSERT INTO TIMESTAMP_TBL VALUES ('Feb 15 17:32:01 1997');
 INSERT INTO TIMESTAMP_TBL VALUES ('Feb 16 17:32:01 1997');
-
-INSERT INTO TIMESTAMP_TBL VALUES ('Feb 16 17:32:01 0097 BC');
+--Mysql does not support BC time [#19]
+--INSERT INTO TIMESTAMP_TBL VALUES ('Feb 16 17:32:01 0097 BC');
 INSERT INTO TIMESTAMP_TBL VALUES ('Feb 16 17:32:01 0097');
 INSERT INTO TIMESTAMP_TBL VALUES ('Feb 16 17:32:01 0597');
 INSERT INTO TIMESTAMP_TBL VALUES ('Feb 16 17:32:01 1097');
@@ -221,7 +222,7 @@ SELECT '' AS to_char_6, to_char(d1, E'"HH:MI:SS is" HH:MI:SS "\\"text between qu
    FROM TIMESTAMP_TBL order by 1,2;
 
 SELECT '' AS to_char_7, to_char(d1, 'HH24--text--MI--text--SS')
-   FROM TIMESTAMP_TBL prder by 1,2;
+   FROM TIMESTAMP_TBL order by 1,2;
 
 SELECT '' AS to_char_8, to_char(d1, 'YYYYTH YYYYth Jth')
    FROM TIMESTAMP_TBL;

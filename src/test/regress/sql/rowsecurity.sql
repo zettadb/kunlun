@@ -633,8 +633,9 @@ SELECT * FROM t1 ORDER BY a,b;
 
 SET SESSION AUTHORIZATION regress_rls_bob;
 SET row_security TO ON;
-EXPLAIN (COSTS OFF) DELETE FROM only t1 WHERE f_leak(b);
-EXPLAIN (COSTS OFF) DELETE FROM t1 WHERE f_leak(b);
+--delete/update不支持用户自定义函数，或者mysql不支持的函数 #777									 
+--EXPLAIN (COSTS OFF) DELETE FROM only t1 WHERE f_leak(b);
+--EXPLAIN (COSTS OFF) DELETE FROM t1 WHERE f_leak(b);
 
 --
 -- S.b. view on top of Row-level security

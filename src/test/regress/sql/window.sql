@@ -29,7 +29,7 @@ SELECT depname, empno, salary, sum(salary) OVER (PARTITION BY depname) FROM emps
 SELECT depname, empno, salary, rank() OVER (PARTITION BY depname ORDER BY salary) FROM empsalary;
 
 -- with GROUP BY
-SELECT four, ten, SUM(SUM(four)) OVER (PARTITION BY four), AVG(ten) FROM tenk1
+SELECT four, ten, SUM(SUM(four)) OVER (PARTITION BY four), AVG(ten)::numeric(64,4) FROM tenk1
 GROUP BY four, ten ORDER BY four, ten;
 
 SELECT depname, empno, salary, sum(salary) OVER w FROM empsalary WINDOW w AS (PARTITION BY depname);

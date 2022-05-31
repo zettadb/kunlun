@@ -22,7 +22,6 @@ CREATE TABLE brintest (byteacol bytea,
 	timestamptzcol timestamp with time zone,
 	timetzcol time with time zone,
 	bitcol bit(10),
-	varbitcol bit varying(16),
 	numericcol numeric,
 	uuidcol uuid,
 	lsncol pg_lsn
@@ -37,7 +36,6 @@ INSERT INTO brintest SELECT
 	twothousand,
 	repeat(stringu1, 8),
 	unique1::oid,
-	format('(%s,%s)', tenthous, twenty)::tid,
 	(four + 1.0)/(hundred+1),
 	odd::float8 / (tenthous + 1),
 	format('%s:00:%s:00:%s:00', to_hex(odd), to_hex(even), to_hex(hundred))::macaddr,
@@ -50,7 +48,6 @@ INSERT INTO brintest SELECT
 	timestamptz '1972-10-10 03:00',
 	timetz '01:30:20+02',
 	thousand::bit(10),
-	tenthous::bit(16)::varbit,
 	tenthous::numeric(36,30) * fivethous * even / (hundred + 1),
 	format('%s%s-%s-%s-%s-%s%s%s', to_char(tenthous, 'FM0000'), to_char(tenthous, 'FM0000'), to_char(tenthous, 'FM0000'), to_char(tenthous, 'FM0000'), to_char(tenthous, 'FM0000'), to_char(tenthous, 'FM0000'), to_char(tenthous, 'FM0000'), to_char(tenthous, 'FM0000'))::uuid,
 	format('%s/%s%s', odd, even, tenthous)::pg_lsn

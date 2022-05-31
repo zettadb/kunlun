@@ -144,7 +144,7 @@ EXPLAIN (VERBOSE, COSTS OFF)
 UPDATE update_test t
   SET (a, b) = (SELECT b, a FROM update_test s WHERE s.a = t.a)
   WHERE CURRENT_USER = SESSION_USER;
-psql:sql/update.sql:78: ERROR:  Kunlun-db: Plan cannot be serialized
+
 --not support: UPDATE update_test t
 --  SET (a, b) = (SELECT b, a FROM update_test s WHERE s.a = t.a)
 --  WHERE CURRENT_USER = SESSION_USER;
@@ -195,7 +195,7 @@ CREATE TABLE
 -- Check that partition-key UPDATE works sanely on a partitioned table that
 -- does not have any child partitions.
 UPDATE part_b_10_b_20 set b = b - 6;
-psql:sql/update.sql:117: ERROR:  Kunlun-db: Plan cannot be serialized
+psql:sql/update.sql:117: ERROR:  Kunlun-db: Can not update partition key of remote relation
 -- Create some more partitions following the above pattern of descending bound
 -- order, but let's make the situation a bit more complex by having the
 -- attribute numbers of the columns vary from their parent partition.
@@ -233,7 +233,7 @@ UPDATE range_parted set e = d;
 UPDATE 6
 -- No row found
 UPDATE part_c_1_100 set c = c + 20 WHERE c = 98;
-psql:sql/update.sql:148: ERROR:  Kunlun-db: Can not update partition key of remote relation
+UPDATE 0
 -- ok, row movement
 -- Can not update partition key of a remote relation.
 --UPDATE part_b_10_b_20 set c = c + 20 returning c, b, a;
@@ -428,7 +428,7 @@ LINE 1: select * from range_parted ORDER BY 1, 2, 3, 4, 5, 6;
 -- Update row movement from non-default to default partition.
 -- fail, default partition is not under part_a_10_a_20;
 UPDATE part_a_10_a_20 set a = 'ad' WHERE a = 'a';
-psql:sql/update.sql:300: ERROR:  Kunlun-db: Can not update partition key of remote relation
+UPDATE 1
 -- ok
 --UPDATE range_parted set a = 'ad' WHERE a = 'a';
 --UPDATE range_parted set a = 'bd' WHERE a = 'b';
@@ -601,7 +601,7 @@ insert into hpart4 values (3, 4);
 INSERT 0 1
 -- fail
 update hpart1 set a = 3, b=4 where a = 1;
-psql:sql/update.sql:393: ERROR:  Kunlun-db: Can not update partition key of remote relation
+UPDATE 1
 -- ok, row movement
 update hash_parted set b = b - 1 where b = 1;
 psql:sql/update.sql:395: ERROR:  Kunlun-db: Can not update partition key of remote relation

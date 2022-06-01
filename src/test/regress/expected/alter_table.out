@@ -1,0 +1,2101 @@
+--
+-- ALTER_TABLE
+--
+-- Clean up in case a prior regression run failed
+SET client_min_messages TO 'warning';
+SET
+DROP ROLE IF EXISTS regress_alter_table_user1;
+DROP ROLE
+RESET client_min_messages;
+RESET
+CREATE USER regress_alter_table_user1;
+CREATE ROLE
+--
+-- add attribute
+--
+CREATE TABLE attmp (initial int4);
+CREATE TABLE
+COMMENT ON TABLE attmp_wrong IS 'table comment';
+psql:sql/alter_table.sql:18: ERROR:  relation "attmp_wrong" does not exist
+COMMENT ON TABLE attmp IS 'table comment';
+COMMENT
+COMMENT ON TABLE attmp IS NULL;
+COMMENT
+ALTER TABLE attmp ADD COLUMN xmin integer; -- fails
+psql:sql/alter_table.sql:22: ERROR:  column name "xmin" conflicts with a system column name
+ALTER TABLE attmp ADD COLUMN a int4 default 3;
+ALTER TABLE
+ALTER TABLE attmp ADD COLUMN b name;
+ALTER TABLE
+ALTER TABLE attmp ADD COLUMN c text;
+ALTER TABLE
+ALTER TABLE attmp ADD COLUMN d float8;
+ALTER TABLE
+ALTER TABLE attmp ADD COLUMN e float4;
+ALTER TABLE
+ALTER TABLE attmp ADD COLUMN f int2;
+ALTER TABLE
+ALTER TABLE attmp ADD COLUMN i char;
+ALTER TABLE
+ALTER TABLE attmp ADD COLUMN k int4;
+ALTER TABLE
+--ALTER TABLE attmp ADD COLUMN l tid;
+ALTER TABLE attmp ADD COLUMN m xid;
+ALTER TABLE
+ALTER TABLE attmp ADD COLUMN v timestamp;
+ALTER TABLE
+--tid value is not supported fully: INSERT INTO attmp (a, b, c, d, e, f, i, k, l, m, v)
+--   VALUES (4, 'name', 'text', 4.1, 4.1, 2, 'c', 314159, '(1,1)', '512', 'epoch');
+INSERT INTO attmp (a, b, c, d, e, f, i, k, m, v)
+   VALUES (4, 'name', 'text', 4.1, 4.1, 2, 'c', 314159, '512', 'epoch');
+INSERT 0 1
+SELECT * FROM attmp;
+ initial | a |  b   |  c   |  d  |  e  | f | i |   k    |  m  |          v          
+---------+---+------+------+-----+-----+---+---+--------+-----+---------------------
+         | 4 | name | text | 4.1 | 4.1 | 2 | c | 314159 | 512 | 1970-01-01 00:00:00
+(1 row)
+
+DROP TABLE attmp;
+DROP TABLE
+-- the wolf bug - schema mods caused inconsistent row descriptors
+CREATE TABLE attmp (
+	initial 	int4
+);
+CREATE TABLE
+ALTER TABLE attmp ADD COLUMN a int4;
+ALTER TABLE
+ALTER TABLE attmp ADD COLUMN b name;
+ALTER TABLE
+ALTER TABLE attmp ADD COLUMN c text;
+ALTER TABLE
+ALTER TABLE attmp ADD COLUMN d float8;
+ALTER TABLE
+ALTER TABLE attmp ADD COLUMN e float4;
+ALTER TABLE
+ALTER TABLE attmp ADD COLUMN f int2;
+ALTER TABLE
+ALTER TABLE attmp ADD COLUMN i char;
+ALTER TABLE
+ALTER TABLE attmp ADD COLUMN k int4;
+ALTER TABLE
+--ALTER TABLE attmp ADD COLUMN l tid;
+ALTER TABLE attmp ADD COLUMN m xid;
+ALTER TABLE
+ALTER TABLE attmp ADD COLUMN v timestamp;
+ALTER TABLE
+--INSERT INTO attmp (a, b, c, d, e, f, i, k, l, m, v)
+--   VALUES (4, 'name', 'text', 4.1, 4.1, 2, 'c', 314159, '(1,1)', '512', 'epoch');
+INSERT INTO attmp (a, b, c, d, e, f, i, k,  m, v)
+   VALUES (4, 'name', 'text', 4.1, 4.1, 2, 'c', 314159, '512', 'epoch');
+INSERT 0 1
+SELECT * FROM attmp;
+ initial | a |  b   |  c   |  d  |  e  | f | i |   k    |  m  |          v          
+---------+---+------+------+-----+-----+---+---+--------+-----+---------------------
+         | 4 | name | text | 4.1 | 4.1 | 2 | c | 314159 | 512 | 1970-01-01 00:00:00
+(1 row)
+
+DROP TABLE attmp;
+DROP TABLE
+--
+-- rename - check on both non-temp and temp tables
+--
+CREATE TABLE attmp (regtable int);
+CREATE TABLE
+CREATE TEMP TABLE attmp (attmptable int);
+CREATE TABLE
+ALTER TABLE attmp RENAME TO attmp_new;
+ALTER TABLE
+SELECT * FROM attmp;
+ regtable 
+----------
+(0 rows)
+
+SELECT * FROM attmp_new;
+ attmptable 
+------------
+(0 rows)
+
+ALTER TABLE attmp RENAME TO attmp_new2;
+ALTER TABLE
+SELECT * FROM attmp;		-- should fail
+psql:sql/alter_table.sql:105: ERROR:  relation "attmp" does not exist
+LINE 1: SELECT * FROM attmp;
+                      ^
+SELECT * FROM attmp_new;
+ attmptable 
+------------
+(0 rows)
+
+SELECT * FROM attmp_new2;
+ regtable 
+----------
+(0 rows)
+
+DROP TABLE attmp_new;
+DROP TABLE
+DROP TABLE attmp_new2;
+DROP TABLE
+-- check rename of partitioned tables and indexes also
+CREATE TABLE part_attmp (a int primary key) partition by range (a);
+CREATE TABLE
+CREATE TABLE part_attmp1 PARTITION OF part_attmp FOR VALUES FROM (0) TO (100);
+CREATE TABLE
+ALTER INDEX part_attmp_pkey RENAME TO part_attmp_index;
+ALTER INDEX
+ALTER INDEX part_attmp1_pkey RENAME TO part_attmp1_index;
+ALTER INDEX
+ALTER TABLE part_attmp RENAME TO part_at2tmp;
+ALTER TABLE
+ALTER TABLE part_attmp1 RENAME TO part_at2tmp1;
+ALTER TABLE
+SET ROLE regress_alter_table_user1;
+SET
+ALTER INDEX part_attmp_index RENAME TO fail;
+psql:sql/alter_table.sql:120: ERROR:  must be owner of index part_attmp_index
+ALTER INDEX part_attmp1_index RENAME TO fail;
+psql:sql/alter_table.sql:121: ERROR:  must be owner of index part_attmp1_index
+ALTER TABLE part_at2tmp RENAME TO fail;
+psql:sql/alter_table.sql:122: ERROR:  must be owner of table part_at2tmp
+ALTER TABLE part_at2tmp1 RENAME TO fail;
+psql:sql/alter_table.sql:123: ERROR:  must be owner of table part_at2tmp1
+RESET ROLE;
+RESET
+DROP TABLE part_at2tmp;
+DROP TABLE
+-- The original test is to use name of _attmp_array, but kunlun does not
+-- support name starting with _, so we change it.
+CREATE TABLE attmp_array (id int);
+CREATE TABLE
+ALTER TABLE attmp_array RENAME TO attmp_array_new;
+ALTER TABLE
+DROP TABLE attmp_array_new;
+DROP TABLE
+-- ALTER TABLE ... RENAME on non-table relations
+-- renaming indexes (FIXME: this should probably test the index's functionality)
+ALTER INDEX IF EXISTS __onek_unique1 RENAME TO attmp_onek_unique1;
+psql:sql/alter_table.sql:135: NOTICE:  relation "__onek_unique1" does not exist, skipping
+ALTER INDEX
+ALTER INDEX IF EXISTS __attmp_onek_unique1 RENAME TO onek_unique1;
+psql:sql/alter_table.sql:136: NOTICE:  relation "__attmp_onek_unique1" does not exist, skipping
+ALTER INDEX
+ALTER INDEX onek_unique1 RENAME TO attmp_onek_unique1;
+ALTER INDEX
+ALTER INDEX attmp_onek_unique1 RENAME TO onek_unique1;
+ALTER INDEX
+SET ROLE regress_alter_table_user1;
+SET
+ALTER INDEX onek_unique1 RENAME TO fail;  -- permission denied
+psql:sql/alter_table.sql:142: ERROR:  must be owner of index onek_unique1
+RESET ROLE;
+RESET
+-- renaming views
+CREATE VIEW attmp_view (unique1) AS SELECT unique1 FROM tenk1;
+CREATE VIEW
+ALTER TABLE attmp_view RENAME TO attmp_view_new;
+ALTER TABLE
+SET ROLE regress_alter_table_user1;
+SET
+ALTER VIEW attmp_view_new RENAME TO fail;  -- permission denied
+psql:sql/alter_table.sql:150: ERROR:  must be owner of view attmp_view_new
+RESET ROLE;
+RESET
+-- hack to ensure we get an indexscan here
+set enable_seqscan to off;
+SET
+set enable_bitmapscan to off;
+SET
+-- 5 values, sorted
+SELECT unique1 FROM tenk1 WHERE unique1 < 5;
+ unique1 
+---------
+       0
+       1
+       2
+       3
+       4
+(5 rows)
+
+reset enable_seqscan;
+RESET
+reset enable_bitmapscan;
+RESET
+DROP VIEW attmp_view_new;
+DROP VIEW
+-- toast-like relation name
+alter table stud_emp rename to pg_toast_stud_emp;
+ALTER TABLE
+alter table pg_toast_stud_emp rename to stud_emp;
+ALTER TABLE
+-- renaming index should rename constraint as well
+ALTER TABLE onek ADD CONSTRAINT onek_unique1_constraint UNIQUE (unique1);
+ALTER TABLE
+ALTER INDEX onek_unique1_constraint RENAME TO onek_unique1_constraint_foo;
+ALTER INDEX
+ALTER TABLE onek DROP CONSTRAINT onek_unique1_constraint_foo;
+ALTER TABLE
+-- renaming constraint should rename index as well
+ALTER TABLE onek ADD CONSTRAINT onek_unique1_constraint UNIQUE (unique1);
+ALTER TABLE
+DROP INDEX onek_unique1_constraint;  -- to see whether it's there
+psql:sql/alter_table.sql:173: ERROR:  cannot drop index onek_unique1_constraint because constraint onek_unique1_constraint on table onek requires it
+HINT:  You can drop constraint onek_unique1_constraint on table onek instead.
+ALTER TABLE onek RENAME CONSTRAINT onek_unique1_constraint TO onek_unique1_constraint_foo;
+ALTER TABLE
+DROP INDEX onek_unique1_constraint_foo;  -- to see whether it's there
+psql:sql/alter_table.sql:175: ERROR:  cannot drop index onek_unique1_constraint_foo because constraint onek_unique1_constraint_foo on table onek requires it
+HINT:  You can drop constraint onek_unique1_constraint_foo on table onek instead.
+ALTER TABLE onek DROP CONSTRAINT onek_unique1_constraint_foo;
+ALTER TABLE
+-- renaming constraints with cache reset of target relation
+CREATE TABLE constraint_rename_cache (a int, PRIMARY KEY (a));
+CREATE TABLE
+ALTER TABLE constraint_rename_cache
+  RENAME CONSTRAINT constraint_rename_cache_pkey TO constraint_rename_pkey_new;
+ALTER TABLE
+CREATE TABLE like_constraint_rename_cache
+  (LIKE constraint_rename_cache INCLUDING ALL);
+CREATE TABLE
+\d like_constraint_rename_cache
+    Table "public.like_constraint_rename_cache"
+ Column |  Type   | Collation | Nullable | Default 
+--------+---------+-----------+----------+---------
+ a      | integer |           | not null | 
+Indexes:
+    "like_constraint_rename_cache_pkey" PRIMARY KEY, btree (a)
+
+DROP TABLE constraint_rename_cache;
+DROP TABLE
+DROP TABLE like_constraint_rename_cache;
+DROP TABLE
+-- test unique constraint adding
+create table atacc1 ( test int );
+CREATE TABLE
+-- add a unique constraint
+alter table atacc1 add constraint atacc_test1 unique (test);
+ALTER TABLE
+-- insert first value
+insert into atacc1 (test) values (2);
+INSERT 0 1
+-- should fail
+insert into atacc1 (test) values (2);
+psql:sql/alter_table.sql:195: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '2' for key 'atacc1.atacc_test1'.
+-- should succeed
+insert into atacc1 (test) values (4);
+INSERT 0 1
+-- try adding a unique oid constraint
+-- try to create duplicates via alter table using - should fail
+-- alter table atacc1 alter column test type integer using 0;
+drop table atacc1;
+DROP TABLE
+-- let's do one where the unique constraint fails when added
+create table atacc1 ( test int );
+CREATE TABLE
+-- insert soon to be failing rows
+insert into atacc1 (test) values (2);
+INSERT 0 1
+insert into atacc1 (test) values (2);
+INSERT 0 1
+-- add a unique constraint (fails)
+alter table atacc1 add constraint atacc_test1 unique (test);
+psql:sql/alter_table.sql:209: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '2' for key 'atacc1.atacc_test1'.
+insert into atacc1 (test) values (3);
+INSERT 0 1
+drop table atacc1;
+DROP TABLE
+-- let's do one where the unique constraint fails
+-- because the column doesn't exist
+create table atacc1 ( test int );
+CREATE TABLE
+-- add a unique constraint (fails)
+alter table atacc1 add constraint atacc_test1 unique (test1);
+psql:sql/alter_table.sql:217: ERROR:  column "test1" named in key does not exist
+drop table atacc1;
+DROP TABLE
+-- something a little more complicated
+create table atacc1 ( test int, test2 int);
+CREATE TABLE
+-- add a unique constraint
+alter table atacc1 add constraint atacc_test1 unique (test, test2);
+ALTER TABLE
+-- insert initial value
+insert into atacc1 (test,test2) values (4,4);
+INSERT 0 1
+-- should fail
+insert into atacc1 (test,test2) values (4,4);
+psql:sql/alter_table.sql:226: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '4-4' for key 'atacc1.atacc_test1'.
+-- should all succeed
+insert into atacc1 (test,test2) values (4,5);
+INSERT 0 1
+insert into atacc1 (test,test2) values (5,4);
+INSERT 0 1
+insert into atacc1 (test,test2) values (5,5);
+INSERT 0 1
+drop table atacc1;
+DROP TABLE
+-- lets do some naming tests
+create table atacc1 (test int, test2 int, unique(test));
+CREATE TABLE
+alter table atacc1 add unique (test2);
+ALTER TABLE
+-- should fail for @ second one @
+insert into atacc1 (test2, test) values (3, 3);
+INSERT 0 1
+insert into atacc1 (test2, test) values (2, 3);
+psql:sql/alter_table.sql:238: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '3' for key 'atacc1.atacc1_test_key'.
+drop table atacc1;
+DROP TABLE
+-- test primary key constraint adding
+create table atacc1 ( test int );
+CREATE TABLE
+-- add a primary key constraint
+alter table atacc1 add constraint atacc_test1 primary key (test);
+ALTER TABLE
+-- insert first value
+insert into atacc1 (test) values (2);
+INSERT 0 1
+-- should fail
+insert into atacc1 (test) values (2);
+psql:sql/alter_table.sql:249: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '2' for key 'atacc1.PRIMARY'.
+-- should succeed
+insert into atacc1 (test) values (4);
+INSERT 0 1
+-- inserting NULL should fail
+insert into atacc1 (test) values(NULL);
+psql:sql/alter_table.sql:253: ERROR:  null value in column "test" violates not-null constraint
+DETAIL:  Failing row contains (null).
+-- try adding a second primary key (should fail)
+alter table atacc1 drop constraint atacc_test1 restrict;
+ALTER TABLE
+drop table atacc1;
+DROP TABLE
+-- let's do one where the primary key constraint fails when added
+create table atacc1 ( test int );
+CREATE TABLE
+-- insert soon to be failing rows
+insert into atacc1 (test) values (2);
+INSERT 0 1
+insert into atacc1 (test) values (2);
+INSERT 0 1
+-- add a primary key (fails)
+alter table atacc1 add constraint atacc_test1 primary key (test);
+psql:sql/alter_table.sql:264: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '2' for key 'atacc1.PRIMARY'.
+insert into atacc1 (test) values (3);
+INSERT 0 1
+drop table atacc1;
+DROP TABLE
+-- let's do another one where the primary key constraint fails when added
+create table atacc1 ( test int );
+CREATE TABLE
+-- insert soon to be failing row
+insert into atacc1 (test) values (NULL);
+INSERT 0 1
+-- add a primary key (fails)
+alter table atacc1 add constraint atacc_test1 primary key (test);
+psql:sql/alter_table.sql:273: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1138, Invalid use of NULL value.
+insert into atacc1 (test) values (3);
+INSERT 0 1
+drop table atacc1;
+DROP TABLE
+-- let's do one where the primary key constraint fails
+-- because the column doesn't exist
+create table atacc1 ( test int );
+CREATE TABLE
+-- add a primary key constraint (fails)
+alter table atacc1 add constraint atacc_test1 primary key (test1);
+psql:sql/alter_table.sql:281: ERROR:  column "test1" named in key does not exist
+drop table atacc1;
+DROP TABLE
+-- adding a new column as primary key to a non-empty table.
+-- should fail unless the column has a non-null default value.
+create table atacc1 ( test int );
+CREATE TABLE
+insert into atacc1 (test) values (0);
+INSERT 0 1
+-- add a primary key column without a default (fails).
+--这个mysql和pg在行为上的差异，无法更改。建议忽略报错 #294
+--alter table atacc1 add column test2 int primary key;
+-- now add a primary key column with a default (succeeds).
+alter table atacc1 add column test2 int default 0 primary key;
+ALTER TABLE
+drop table atacc1;
+DROP TABLE
+-- something a little more complicated
+create table atacc1 ( test int, test2 int);
+CREATE TABLE
+-- add a primary key constraint
+alter table atacc1 add constraint atacc_test1 primary key (test, test2);
+ALTER TABLE
+-- try adding a second primary key - should fail
+alter table atacc1 add constraint atacc_test2 primary key (test);
+psql:sql/alter_table.sql:301: ERROR:  multiple primary keys for table "atacc1" are not allowed
+-- insert initial value
+insert into atacc1 (test,test2) values (4,4);
+INSERT 0 1
+-- should fail
+insert into atacc1 (test,test2) values (4,4);
+psql:sql/alter_table.sql:305: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '4-4' for key 'atacc1.PRIMARY'.
+insert into atacc1 (test,test2) values (NULL,3);
+psql:sql/alter_table.sql:306: ERROR:  null value in column "test" violates not-null constraint
+DETAIL:  Failing row contains (null, 3).
+insert into atacc1 (test,test2) values (3, NULL);
+psql:sql/alter_table.sql:307: ERROR:  null value in column "test2" violates not-null constraint
+DETAIL:  Failing row contains (3, null).
+insert into atacc1 (test,test2) values (NULL,NULL);
+psql:sql/alter_table.sql:308: ERROR:  null value in column "test" violates not-null constraint
+DETAIL:  Failing row contains (null, null).
+-- should all succeed
+insert into atacc1 (test,test2) values (4,5);
+INSERT 0 1
+insert into atacc1 (test,test2) values (5,4);
+INSERT 0 1
+insert into atacc1 (test,test2) values (5,5);
+INSERT 0 1
+drop table atacc1;
+DROP TABLE
+-- lets do some naming tests
+create table atacc1 (test int, test2 int, primary key(test));
+CREATE TABLE
+-- only first should succeed
+insert into atacc1 (test2, test) values (3, 3);
+INSERT 0 1
+insert into atacc1 (test2, test) values (2, 3);
+psql:sql/alter_table.sql:319: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '3' for key 'atacc1.PRIMARY'.
+insert into atacc1 (test2, test) values (1, NULL);
+psql:sql/alter_table.sql:320: ERROR:  null value in column "test" violates not-null constraint
+DETAIL:  Failing row contains (null, 1).
+drop table atacc1;
+DROP TABLE
+-- alter table / alter column [set/drop] not null tests
+-- try altering system catalogs, should fail
+alter table pg_class alter column relname drop not null;
+psql:sql/alter_table.sql:325: ERROR:  permission denied: "pg_class" is a system catalog
+alter table pg_class alter relname set not null;
+psql:sql/alter_table.sql:326: ERROR:  permission denied: "pg_class" is a system catalog
+-- try altering non-existent table, should fail
+alter table non_existent alter column bar set not null;
+psql:sql/alter_table.sql:329: ERROR:  relation "non_existent" does not exist
+alter table non_existent alter column bar drop not null;
+psql:sql/alter_table.sql:330: ERROR:  relation "non_existent" does not exist
+-- test setting columns to null and not null and vice versa
+-- test checking for null values and primary key
+create table atacc1 (test int not null);
+CREATE TABLE
+alter table atacc1 add constraint "atacc1_pkey" primary key (test);
+ALTER TABLE
+alter table atacc1 alter column test drop not null;
+psql:sql/alter_table.sql:336: ERROR:  column "test" is in a primary key
+alter table atacc1 drop constraint "atacc1_pkey";
+ALTER TABLE
+alter table atacc1 alter column test drop not null;
+ALTER TABLE
+insert into atacc1 values (null);
+INSERT 0 1
+alter table atacc1 alter test set not null;
+psql:sql/alter_table.sql:340: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1138, Invalid use of NULL value.
+delete from atacc1;
+DELETE 1
+alter table atacc1 alter test set not null;
+ALTER TABLE
+-- try altering a non-existent column, should fail
+alter table atacc1 alter bar set not null;
+psql:sql/alter_table.sql:345: ERROR:  column "bar" of relation "atacc1" does not exist
+alter table atacc1 alter bar drop not null;
+psql:sql/alter_table.sql:346: ERROR:  column "bar" of relation "atacc1" does not exist
+-- try creating a view and altering that, should fail
+create view myview as select * from atacc1;
+CREATE VIEW
+alter table myview alter column test drop not null;
+psql:sql/alter_table.sql:350: ERROR:  "myview" is not a table or foreign table
+alter table myview alter column test set not null;
+psql:sql/alter_table.sql:351: ERROR:  "myview" is not a table or foreign table
+drop view myview;
+DROP VIEW
+drop table atacc1;
+DROP TABLE
+-- test setting and removing default values
+create table def_test (
+	c1	int4 default 5,
+	c2	text default 'initial_default'
+);
+CREATE TABLE
+insert into def_test default values;
+INSERT 0 1
+alter table def_test alter column c1 drop default;
+ALTER TABLE
+insert into def_test default values;
+INSERT 0 1
+alter table def_test alter column c2 drop default;
+ALTER TABLE
+insert into def_test default values;
+INSERT 0 1
+alter table def_test alter column c1 set default 10;
+ALTER TABLE
+alter table def_test alter column c2 set default 'new_default';
+ALTER TABLE
+insert into def_test default values;
+INSERT 0 1
+select * from def_test;
+ c1 |       c2        
+----+-----------------
+  5 | initial_default
+    | initial_default
+    | 
+ 10 | new_default
+(4 rows)
+
+-- set defaults to an incorrect type: this should fail
+alter table def_test alter column c1 set default 'wrong_datatype';
+psql:sql/alter_table.sql:372: ERROR:  invalid input syntax for integer: "wrong_datatype"
+alter table def_test alter column c2 set default 20;
+ALTER TABLE
+-- set defaults on a non-existent column: this should fail
+alter table def_test alter column c3 set default 30;
+psql:sql/alter_table.sql:376: ERROR:  column "c3" of relation "def_test" does not exist
+-- set defaults on views: we need to create a view, add a rule
+-- to allow insertions into it, and then alter the view to add
+-- a default
+create view def_view_test as select * from def_test;
+CREATE VIEW
+insert into def_view_test default values;
+INSERT 0 1
+alter table def_view_test alter column c1 set default 45;
+ALTER TABLE
+insert into def_view_test default values;
+INSERT 0 1
+alter table def_view_test alter column c2 set default 'view_default';
+ALTER TABLE
+insert into def_view_test default values;
+INSERT 0 1
+select * from def_view_test;
+ c1 |       c2        
+----+-----------------
+  5 | initial_default
+    | initial_default
+    | 
+ 10 | new_default
+ 10 | 20
+ 45 | 20
+ 45 | view_default
+(7 rows)
+
+drop view def_view_test;
+DROP VIEW
+drop table def_test;
+DROP TABLE
+-- alter table / drop column tests
+-- try altering system catalogs, should fail
+alter table pg_class drop column relname;
+psql:sql/alter_table.sql:394: ERROR:  permission denied: "pg_class" is a system catalog
+-- try altering non-existent table, should fail
+alter table nosuchtable drop column bar;
+psql:sql/alter_table.sql:397: ERROR:  relation "nosuchtable" does not exist
+-- test dropping columns
+create table atacc1 (a int4 not null, b int4, c int4 not null, d int4);
+CREATE TABLE
+insert into atacc1 values (1, 2, 3, 4);
+INSERT 0 1
+alter table atacc1 drop a;
+ALTER TABLE
+alter table atacc1 drop a;
+psql:sql/alter_table.sql:403: ERROR:  column "a" of relation "atacc1" does not exist
+-- SELECTs
+select * from atacc1;
+ b | c | d 
+---+---+---
+ 2 | 3 | 4
+(1 row)
+
+select * from atacc1 order by a;
+psql:sql/alter_table.sql:407: ERROR:  column "a" does not exist
+LINE 1: select * from atacc1 order by a;
+                                      ^
+select * from atacc1 order by "........pg.dropped.1........";
+psql:sql/alter_table.sql:408: ERROR:  column "........pg.dropped.1........" does not exist
+LINE 1: select * from atacc1 order by "........pg.dropped.1........"...
+                                      ^
+select * from atacc1 group by a;
+psql:sql/alter_table.sql:409: ERROR:  column "a" does not exist
+LINE 1: select * from atacc1 group by a;
+                                      ^
+select * from atacc1 group by "........pg.dropped.1........";
+psql:sql/alter_table.sql:410: ERROR:  column "........pg.dropped.1........" does not exist
+LINE 1: select * from atacc1 group by "........pg.dropped.1........"...
+                                      ^
+select atacc1.* from atacc1;
+ b | c | d 
+---+---+---
+ 2 | 3 | 4
+(1 row)
+
+select a from atacc1;
+psql:sql/alter_table.sql:412: ERROR:  column "a" does not exist
+LINE 1: select a from atacc1;
+               ^
+select atacc1.a from atacc1;
+psql:sql/alter_table.sql:413: ERROR:  column atacc1.a does not exist
+LINE 1: select atacc1.a from atacc1;
+               ^
+select b,c,d from atacc1;
+ b | c | d 
+---+---+---
+ 2 | 3 | 4
+(1 row)
+
+select a,b,c,d from atacc1;
+psql:sql/alter_table.sql:415: ERROR:  column "a" does not exist
+LINE 1: select a,b,c,d from atacc1;
+               ^
+select * from atacc1 where a = 1;
+psql:sql/alter_table.sql:416: ERROR:  column "a" does not exist
+LINE 1: select * from atacc1 where a = 1;
+                                   ^
+select "........pg.dropped.1........" from atacc1;
+psql:sql/alter_table.sql:417: ERROR:  column "........pg.dropped.1........" does not exist
+LINE 1: select "........pg.dropped.1........" from atacc1;
+               ^
+select atacc1."........pg.dropped.1........" from atacc1;
+psql:sql/alter_table.sql:418: ERROR:  column atacc1.........pg.dropped.1........ does not exist
+LINE 1: select atacc1."........pg.dropped.1........" from atacc1;
+               ^
+select "........pg.dropped.1........",b,c,d from atacc1;
+psql:sql/alter_table.sql:419: ERROR:  column "........pg.dropped.1........" does not exist
+LINE 1: select "........pg.dropped.1........",b,c,d from atacc1;
+               ^
+select * from atacc1 where "........pg.dropped.1........" = 1;
+psql:sql/alter_table.sql:420: ERROR:  column "........pg.dropped.1........" does not exist
+LINE 1: select * from atacc1 where "........pg.dropped.1........" = ...
+                                   ^
+-- UPDATEs
+update atacc1 set a = 3;
+psql:sql/alter_table.sql:423: ERROR:  column "a" of relation "atacc1" does not exist
+LINE 1: update atacc1 set a = 3;
+                          ^
+update atacc1 set b = 2 where a = 3;
+psql:sql/alter_table.sql:424: ERROR:  column "a" does not exist
+LINE 1: update atacc1 set b = 2 where a = 3;
+                                      ^
+update atacc1 set "........pg.dropped.1........" = 3;
+psql:sql/alter_table.sql:425: ERROR:  column "........pg.dropped.1........" of relation "atacc1" does not exist
+LINE 1: update atacc1 set "........pg.dropped.1........" = 3;
+                          ^
+update atacc1 set b = 2 where "........pg.dropped.1........" = 3;
+psql:sql/alter_table.sql:426: ERROR:  column "........pg.dropped.1........" does not exist
+LINE 1: update atacc1 set b = 2 where "........pg.dropped.1........"...
+                                      ^
+-- INSERTs
+insert into atacc1 values (10, 11, 12, 13);
+psql:sql/alter_table.sql:429: ERROR:  INSERT has more expressions than target columns
+LINE 1: insert into atacc1 values (10, 11, 12, 13);
+                                               ^
+insert into atacc1 values (default, 11, 12, 13);
+psql:sql/alter_table.sql:430: ERROR:  INSERT has more expressions than target columns
+LINE 1: insert into atacc1 values (default, 11, 12, 13);
+                                                    ^
+insert into atacc1 values (11, 12, 13);
+INSERT 0 1
+insert into atacc1 (a) values (10);
+psql:sql/alter_table.sql:432: ERROR:  column "a" of relation "atacc1" does not exist
+LINE 1: insert into atacc1 (a) values (10);
+                            ^
+insert into atacc1 (a) values (default);
+psql:sql/alter_table.sql:433: ERROR:  column "a" of relation "atacc1" does not exist
+LINE 1: insert into atacc1 (a) values (default);
+                            ^
+insert into atacc1 (a,b,c,d) values (10,11,12,13);
+psql:sql/alter_table.sql:434: ERROR:  column "a" of relation "atacc1" does not exist
+LINE 1: insert into atacc1 (a,b,c,d) values (10,11,12,13);
+                            ^
+insert into atacc1 (a,b,c,d) values (default,11,12,13);
+psql:sql/alter_table.sql:435: ERROR:  column "a" of relation "atacc1" does not exist
+LINE 1: insert into atacc1 (a,b,c,d) values (default,11,12,13);
+                            ^
+insert into atacc1 (b,c,d) values (11,12,13);
+INSERT 0 1
+insert into atacc1 ("........pg.dropped.1........") values (10);
+psql:sql/alter_table.sql:437: ERROR:  column "........pg.dropped.1........" of relation "atacc1" does not exist
+LINE 1: insert into atacc1 ("........pg.dropped.1........") values (...
+                            ^
+insert into atacc1 ("........pg.dropped.1........") values (default);
+psql:sql/alter_table.sql:438: ERROR:  column "........pg.dropped.1........" of relation "atacc1" does not exist
+LINE 1: insert into atacc1 ("........pg.dropped.1........") values (...
+                            ^
+insert into atacc1 ("........pg.dropped.1........",b,c,d) values (10,11,12,13);
+psql:sql/alter_table.sql:439: ERROR:  column "........pg.dropped.1........" of relation "atacc1" does not exist
+LINE 1: insert into atacc1 ("........pg.dropped.1........",b,c,d) va...
+                            ^
+insert into atacc1 ("........pg.dropped.1........",b,c,d) values (default,11,12,13);
+psql:sql/alter_table.sql:440: ERROR:  column "........pg.dropped.1........" of relation "atacc1" does not exist
+LINE 1: insert into atacc1 ("........pg.dropped.1........",b,c,d) va...
+                            ^
+-- DELETEs
+delete from atacc1 where a = 3;
+psql:sql/alter_table.sql:443: ERROR:  column "a" does not exist
+LINE 1: delete from atacc1 where a = 3;
+                                 ^
+delete from atacc1 where "........pg.dropped.1........" = 3;
+psql:sql/alter_table.sql:444: ERROR:  column "........pg.dropped.1........" does not exist
+LINE 1: delete from atacc1 where "........pg.dropped.1........" = 3;
+                                 ^
+delete from atacc1;
+DELETE 3
+-- try dropping a non-existent column, should fail
+alter table atacc1 drop bar;
+psql:sql/alter_table.sql:448: ERROR:  column "bar" of relation "atacc1" does not exist
+-- try dropping the xmin column, should fail
+alter table atacc1 drop xmin;
+psql:sql/alter_table.sql:451: ERROR:  cannot drop system column "xmin"
+-- try creating a view and altering that, should fail
+create view myview as select * from atacc1;
+CREATE VIEW
+select * from myview;
+ b | c | d 
+---+---+---
+(0 rows)
+
+alter table myview drop d;
+psql:sql/alter_table.sql:456: ERROR:  "myview" is not a table, composite type, or foreign table
+drop view myview;
+DROP VIEW
+-- test some commands to make sure they fail on the dropped column
+comment on column atacc1.a is 'testing';
+psql:sql/alter_table.sql:460: ERROR:  column "a" of relation "atacc1" does not exist
+comment on column atacc1."........pg.dropped.1........" is 'testing';
+psql:sql/alter_table.sql:461: ERROR:  column "........pg.dropped.1........" of relation "atacc1" does not exist
+--alter table atacc1 alter a set storage plain;
+--alter table atacc1 alter "........pg.dropped.1........" set storage plain;
+--alter table atacc1 alter a set statistics 0;
+--alter table atacc1 alter "........pg.dropped.1........" set statistics 0;
+alter table atacc1 alter a set default 3;
+psql:sql/alter_table.sql:466: ERROR:  column "a" of relation "atacc1" does not exist
+alter table atacc1 alter "........pg.dropped.1........" set default 3;
+psql:sql/alter_table.sql:467: ERROR:  column "........pg.dropped.1........" of relation "atacc1" does not exist
+alter table atacc1 alter a drop default;
+psql:sql/alter_table.sql:468: ERROR:  column "a" of relation "atacc1" does not exist
+alter table atacc1 alter "........pg.dropped.1........" drop default;
+psql:sql/alter_table.sql:469: ERROR:  column "........pg.dropped.1........" of relation "atacc1" does not exist
+alter table atacc1 alter a set not null;
+psql:sql/alter_table.sql:470: ERROR:  column "a" of relation "atacc1" does not exist
+alter table atacc1 alter "........pg.dropped.1........" set not null;
+psql:sql/alter_table.sql:471: ERROR:  column "........pg.dropped.1........" of relation "atacc1" does not exist
+alter table atacc1 alter a drop not null;
+psql:sql/alter_table.sql:472: ERROR:  column "a" of relation "atacc1" does not exist
+alter table atacc1 alter "........pg.dropped.1........" drop not null;
+psql:sql/alter_table.sql:473: ERROR:  column "........pg.dropped.1........" of relation "atacc1" does not exist
+alter table atacc1 rename a to x;
+psql:sql/alter_table.sql:474: ERROR:  column "a" does not exist
+alter table atacc1 rename "........pg.dropped.1........" to x;
+psql:sql/alter_table.sql:475: ERROR:  column "........pg.dropped.1........" does not exist
+alter table atacc1 add primary key(a);
+psql:sql/alter_table.sql:476: ERROR:  column "a" named in key does not exist
+alter table atacc1 add primary key("........pg.dropped.1........");
+psql:sql/alter_table.sql:477: ERROR:  column "........pg.dropped.1........" named in key does not exist
+alter table atacc1 add unique(a);
+psql:sql/alter_table.sql:478: ERROR:  column "a" named in key does not exist
+alter table atacc1 add unique("........pg.dropped.1........");
+psql:sql/alter_table.sql:479: ERROR:  column "........pg.dropped.1........" named in key does not exist
+create table atacc2 (id int4 unique);
+CREATE TABLE
+drop table atacc2;
+DROP TABLE
+create index "testing_idx" on atacc1(a);
+psql:sql/alter_table.sql:482: ERROR:  column "a" does not exist
+create index "testing_idx" on atacc1("........pg.dropped.1........");
+psql:sql/alter_table.sql:483: ERROR:  column "........pg.dropped.1........" does not exist
+-- test create as and select into
+insert into atacc1 values (21, 22, 23);
+INSERT 0 1
+-- try dropping all columns
+alter table atacc1 drop c;
+ALTER TABLE
+alter table atacc1 drop d;
+ALTER TABLE
+--not support to drop all table(by MySQL): alter table atacc1 drop b;
+select * from atacc1;
+ b  
+----
+ 21
+(1 row)
+
+drop table atacc1;
+DROP TABLE
+-- test constraint error reporting in presence of dropped columns
+create table atacc1 (id serial primary key, value int);
+CREATE TABLE
+insert into atacc1(value) values (100);
+INSERT 0 1
+alter table atacc1 drop column value;
+ALTER TABLE
+insert into atacc1(value) values (100);
+psql:sql/alter_table.sql:499: ERROR:  column "value" of relation "atacc1" does not exist
+LINE 1: insert into atacc1(value) values (100);
+                           ^
+insert into atacc1(id, value) values (null, 0);
+psql:sql/alter_table.sql:500: ERROR:  column "value" of relation "atacc1" does not exist
+LINE 1: insert into atacc1(id, value) values (null, 0);
+                               ^
+drop table atacc1;
+DROP TABLE
+create table p1(id int, name text);
+CREATE TABLE
+create table p2(id2 int, name text, height int);
+CREATE TABLE
+-- test copy in/out
+create table attest (a int4, b int4, c int4);
+CREATE TABLE
+insert into attest values (1,2,3);
+INSERT 0 1
+alter table attest drop a;
+ALTER TABLE
+copy attest to stdout;
+2	3
+copy attest(a) to stdout;
+psql:sql/alter_table.sql:511: ERROR:  column "a" of relation "attest" does not exist
+copy attest("........pg.dropped.1........") to stdout;
+psql:sql/alter_table.sql:512: ERROR:  column "........pg.dropped.1........" of relation "attest" does not exist
+copy attest from stdin;
+psql:sql/alter_table.sql:515: ERROR:  extra data after last expected column
+CONTEXT:  COPY attest, line 1: "10	11	12"
+select * from attest;
+ b | c 
+---+---
+ 2 | 3
+(1 row)
+
+copy attest from stdin;
+COPY 1
+select * from attest;
+ b  | c  
+----+----
+  2 |  3
+ 21 | 22
+(2 rows)
+
+copy attest(a) from stdin;
+psql:sql/alter_table.sql:521: ERROR:  column "a" of relation "attest" does not exist
+copy attest("........pg.dropped.1........") from stdin;
+psql:sql/alter_table.sql:522: ERROR:  column "........pg.dropped.1........" of relation "attest" does not exist
+copy attest(b,c) from stdin;
+COPY 1
+select * from attest;
+ b  | c  
+----+----
+  2 |  3
+ 21 | 22
+ 31 | 32
+(3 rows)
+
+drop table attest;
+DROP TABLE
+-- should work
+alter table only p1 drop column name;
+ALTER TABLE
+-- should work. Now c1.name is local and inhcount is 0.
+alter table p2 drop column name;
+ALTER TABLE
+-- should work and drop the attribute in all tables
+alter table p2 drop column height;
+ALTER TABLE
+-- IF EXISTS test
+--not support empty table: create table dropColumnExists ();
+--alter table dropColumnExists drop column non_existing; --fail
+--alter table dropColumnExists drop column if exists non_existing; --succeed
+drop table p1 cascade;
+DROP TABLE
+drop table p2 cascade;
+DROP TABLE
+-- test that operations with a dropped column do not try to reference
+-- its datatype
+create temp table foo (f1 text, f2 text, f3 text);
+CREATE TABLE
+insert into foo values('bb','cc','dd');
+INSERT 0 1
+select * from foo;
+ f1 | f2 | f3 
+----+----+----
+ bb | cc | dd
+(1 row)
+
+select * from foo;
+ f1 | f2 | f3 
+----+----+----
+ bb | cc | dd
+(1 row)
+
+insert into foo values('qq','rr');
+INSERT 0 1
+select * from foo;
+ f1 | f2 | f3 
+----+----+----
+ bb | cc | dd
+ qq | rr | 
+(2 rows)
+
+update foo set f3 = 'zz';
+UPDATE 2
+select * from foo;
+ f1 | f2 | f3 
+----+----+----
+ bb | cc | zz
+ qq | rr | zz
+(2 rows)
+
+select f3,max(f1) from foo group by f3;
+ f3 | max 
+----+-----
+ zz | qq
+(1 row)
+
+-- Simple tests for alter table column type
+alter table foo alter f1 TYPE integer; -- fails
+psql:sql/alter_table.sql:560: ERROR:  column "f1" cannot be cast automatically to type integer
+HINT:  You might need to specify "USING f1::integer".
+alter table foo alter f1 TYPE varchar(10);
+ALTER TABLE
+create table anothertab (atcol1 serial8, atcol2 boolean);
+CREATE TABLE
+insert into anothertab (atcol1, atcol2) values (default, true);
+INSERT 0 1
+insert into anothertab (atcol1, atcol2) values (default, false);
+INSERT 0 1
+select * from anothertab;
+ atcol1 | atcol2 
+--------+--------
+      1 | t
+      2 | f
+(2 rows)
+
+alter table anothertab alter column atcol1 type boolean; -- fails
+psql:sql/alter_table.sql:569: ERROR:  column "atcol1" cannot be cast automatically to type boolean
+HINT:  You might need to specify "USING atcol1::boolean".
+alter table anothertab alter column atcol1 type boolean using atcol1::int; -- fails
+psql:sql/alter_table.sql:570: ERROR:  result of USING clause for column "atcol1" cannot be cast automatically to type boolean
+HINT:  You might need to add an explicit cast.
+alter table anothertab alter column atcol1 type integer;
+ALTER TABLE
+select * from anothertab;
+ atcol1 | atcol2 
+--------+--------
+      1 | t
+      2 | f
+(2 rows)
+
+insert into anothertab (atcol1, atcol2) values (45, null); -- fails
+INSERT 0 1
+insert into anothertab (atcol1, atcol2) values (default, null);
+INSERT 0 1
+select * from anothertab;
+ atcol1 | atcol2 
+--------+--------
+      1 | t
+      2 | f
+     45 | 
+      3 | 
+(4 rows)
+
+-- 由于mysql的限制，修改列类型时，using子句目前只能使用“类型转换“
+--alter table anothertab alter column atcol2 type text
+--      using case when atcol2 is true then 'IT WAS TRUE'
+--                 when atcol2 is false then 'IT WAS FALSE'
+--                 else 'IT WAS NULL!' end;
+				 
+select * from anothertab;
+ atcol1 | atcol2 
+--------+--------
+      1 | t
+      2 | f
+     45 | 
+      3 | 
+(4 rows)
+
+-- alter table anothertab alter column atcol1 type boolean
+--        using case when atcol1 % 2 = 0 then true else false end; -- fails
+alter table anothertab alter column atcol1 drop default;
+ALTER TABLE
+--alter table anothertab alter column atcol1 type boolean
+--        using case when atcol1 % 2 = 0 then true else false end; -- fails
+alter table anothertab drop constraint anothertab_chk;
+psql:sql/alter_table.sql:593: ERROR:  constraint "anothertab_chk" of relation "anothertab" does not exist
+alter table anothertab drop constraint anothertab_chk; -- fails
+psql:sql/alter_table.sql:594: ERROR:  constraint "anothertab_chk" of relation "anothertab" does not exist
+alter table anothertab drop constraint IF EXISTS anothertab_chk; -- succeeds
+psql:sql/alter_table.sql:595: NOTICE:  constraint "anothertab_chk" of relation "anothertab" does not exist, skipping
+ALTER TABLE
+-- alter table anothertab alter column atcol1 type boolean
+--        using case when atcol1 % 2 = 0 then true else false end;
+select * from anothertab;
+ atcol1 | atcol2 
+--------+--------
+      1 | t
+      2 | f
+     45 | 
+      3 | 
+(4 rows)
+
+drop table anothertab;
+DROP TABLE
+-- Test index handling in alter table column type (cf. bugs #15835, #15865)
+create table anothertab(f1 int primary key, f2 int unique,
+                        f3 int, f4 int, f5 int);
+CREATE TABLE
+alter table anothertab add unique(f1,f4);
+ALTER TABLE
+create index on anothertab(f2,f3);
+CREATE INDEX
+create unique index on anothertab(f4);
+CREATE INDEX
+\d anothertab
+             Table "public.anothertab"
+ Column |  Type   | Collation | Nullable | Default 
+--------+---------+-----------+----------+---------
+ f1     | integer |           | not null | 
+ f2     | integer |           |          | 
+ f3     | integer |           |          | 
+ f4     | integer |           |          | 
+ f5     | integer |           |          | 
+Indexes:
+    "anothertab_pkey" PRIMARY KEY, btree (f1)
+    "anothertab_f1_f4_key" UNIQUE CONSTRAINT, btree (f1, f4)
+    "anothertab_f2_key" UNIQUE CONSTRAINT, btree (f2)
+    "anothertab_f4_idx" UNIQUE, btree (f4)
+    "anothertab_f2_f3_idx" btree (f2, f3)
+
+alter table anothertab alter column f1 type bigint;
+ALTER TABLE
+alter table anothertab
+  alter column f2 type bigint,
+  alter column f3 type bigint,
+  alter column f4 type bigint;
+ALTER TABLE
+alter table anothertab alter column f5 type bigint;
+ALTER TABLE
+\d anothertab
+            Table "public.anothertab"
+ Column |  Type  | Collation | Nullable | Default 
+--------+--------+-----------+----------+---------
+ f1     | bigint |           | not null | 
+ f2     | bigint |           |          | 
+ f3     | bigint |           |          | 
+ f4     | bigint |           |          | 
+ f5     | bigint |           |          | 
+Indexes:
+    "anothertab_pkey" PRIMARY KEY, btree (f1)
+    "anothertab_f1_f4_key" UNIQUE CONSTRAINT, btree (f1, f4)
+    "anothertab_f2_key" UNIQUE CONSTRAINT, btree (f2)
+    "anothertab_f4_idx" UNIQUE, btree (f4)
+    "anothertab_f2_f3_idx" btree (f2, f3)
+
+drop table anothertab;
+DROP TABLE
+create table another (f1 int, f2 text);
+CREATE TABLE
+insert into another values(1, 'one');
+INSERT 0 1
+insert into another values(2, 'two');
+INSERT 0 1
+insert into another values(3, 'three');
+INSERT 0 1
+select * from another;
+ f1 |  f2   
+----+-------
+  1 | one
+  2 | two
+  3 | three
+(3 rows)
+
+--alter table another
+--  alter f1 type text using f2 || ' more',
+--  alter f2 type bigint using f1 * 10;
+select * from another;
+ f1 |  f2   
+----+-------
+  1 | one
+  2 | two
+  3 | three
+(3 rows)
+
+drop table another;
+DROP TABLE
+-- table's row type
+create table tab1 (a int, b text);
+CREATE TABLE
+alter table tab1 alter column b type varchar; -- fails
+ALTER TABLE
+drop table tab1;
+DROP TABLE
+-- Alter column type that's part of a partitioned index
+create table at_partitioned (a int, b varchar(50)) partition by range (a);
+CREATE TABLE
+create table at_part_1 partition of at_partitioned for values from (0) to (1000);
+CREATE TABLE
+insert into at_partitioned values (512, '0.123');
+INSERT 0 1
+create index on at_partitioned (b);
+CREATE INDEX
+create index on at_partitioned (a);
+CREATE INDEX
+\d at_part_1
+                    Table "public.at_part_1"
+ Column |         Type          | Collation | Nullable | Default 
+--------+-----------------------+-----------+----------+---------
+ a      | integer               |           |          | 
+ b      | character varying(50) |           |          | 
+Partition of: at_partitioned FOR VALUES FROM (0) TO (1000)
+Indexes:
+    "at_part_1_a_idx" btree (a)
+    "at_part_1_b_idx" btree (b)
+
+alter table at_partitioned alter column b type numeric using b::numeric;
+ALTER TABLE
+\d at_part_1
+             Table "public.at_part_1"
+ Column |  Type   | Collation | Nullable | Default 
+--------+---------+-----------+----------+---------
+ a      | integer |           |          | 
+ b      | numeric |           |          | 
+Partition of: at_partitioned FOR VALUES FROM (0) TO (1000)
+Indexes:
+    "at_part_1_a_idx" btree (a)
+    "at_part_1_b_idx" btree (b)
+
+drop table at_partitioned;
+DROP TABLE
+-- Alter column type when no table rewrite is required
+-- Also check that comments are preserved
+create table at_partitioned(id int, name varchar(64), unique (id, name))
+  partition by hash(id);
+CREATE TABLE
+comment on constraint at_partitioned_id_name_key on at_partitioned is 'parent constraint';
+COMMENT
+comment on index at_partitioned_id_name_key is 'parent index';
+COMMENT
+create table at_partitioned_0 partition of at_partitioned
+  for values with (modulus 2, remainder 0);
+CREATE TABLE
+comment on constraint at_partitioned_0_id_name_key on at_partitioned_0 is 'child 0 constraint';
+COMMENT
+comment on index at_partitioned_0_id_name_key is 'child 0 index';
+COMMENT
+create table at_partitioned_1 partition of at_partitioned
+  for values with (modulus 2, remainder 1);
+CREATE TABLE
+comment on constraint at_partitioned_1_id_name_key on at_partitioned_1 is 'child 1 constraint';
+COMMENT
+comment on index at_partitioned_1_id_name_key is 'child 1 index';
+COMMENT
+insert into at_partitioned values(1, 'foo');
+INSERT 0 1
+insert into at_partitioned values(3, 'bar');
+INSERT 0 1
+select conname, obj_description(oid, 'pg_constraint') as desc
+  from pg_constraint where conname like 'at_partitioned%'
+  order by conname;
+           conname            |        desc        
+------------------------------+--------------------
+ at_partitioned_0_id_name_key | child 0 constraint
+ at_partitioned_1_id_name_key | child 1 constraint
+ at_partitioned_id_name_key   | parent constraint
+(3 rows)
+
+  
+alter table at_partitioned alter column name type varchar(127);
+ALTER TABLE
+select conname, obj_description(oid, 'pg_constraint') as desc
+  from pg_constraint where conname like 'at_partitioned%'
+  order by conname;
+           conname            |       desc        
+------------------------------+-------------------
+ at_partitioned_0_id_name_key | 
+ at_partitioned_1_id_name_key | 
+ at_partitioned_id_name_key   | parent constraint
+(3 rows)
+
+-- Don't remove this DROP, it exposes bug #15672
+drop table at_partitioned;
+DROP TABLE
+-- ALTER COLUMN TYPE with a check constraint and a child table (bug #13779)
+CREATE TABLE test_inh_check (a float , b float);
+CREATE TABLE
+\d test_inh_check
+               Table "public.test_inh_check"
+ Column |       Type       | Collation | Nullable | Default 
+--------+------------------+-----------+----------+---------
+ a      | double precision |           |          | 
+ b      | double precision |           |          | 
+
+ALTER TABLE test_inh_check ALTER COLUMN a TYPE numeric;
+ALTER TABLE
+\d test_inh_check
+               Table "public.test_inh_check"
+ Column |       Type       | Collation | Nullable | Default 
+--------+------------------+-----------+----------+---------
+ a      | numeric          |           |          | 
+ b      | double precision |           |          | 
+
+ALTER TABLE test_inh_check ALTER COLUMN b TYPE numeric;
+ALTER TABLE
+\d test_inh_check
+           Table "public.test_inh_check"
+ Column |  Type   | Collation | Nullable | Default 
+--------+---------+-----------+----------+---------
+ a      | numeric |           |          | 
+ b      | numeric |           |          | 
+
+drop table test_inh_check;
+DROP TABLE
+-- ALTER COLUMN TYPE with different schema in children
+-- Bug at https://postgr.es/m/20170102225618.GA10071@telsasoft.com
+CREATE TABLE test_type_diff (f1 int);
+CREATE TABLE
+ALTER TABLE test_type_diff ADD COLUMN f2 int;
+ALTER TABLE
+ALTER TABLE test_type_diff ALTER COLUMN f2 TYPE bigint USING f2::bigint;
+ALTER TABLE
+CREATE TABLE test_type_diff2 (int_two int2, int_four int4, int_eight int8);
+CREATE TABLE
+INSERT INTO test_type_diff2 VALUES (1, 2, 3);
+INSERT 0 1
+INSERT INTO test_type_diff2 VALUES (4, 5, 6);
+INSERT 0 1
+INSERT INTO test_type_diff2 VALUES (7, 8, 9);
+INSERT 0 1
+ALTER TABLE test_type_diff2 ALTER COLUMN int_four TYPE int8 USING int_four::int8;
+ALTER TABLE
+-- whole-row references are disallowed
+--ALTER TABLE test_type_diff2 ALTER COLUMN int_four TYPE int4 
+-- USING (pg_column_size(test_type_diff2));
+drop table test_type_diff;
+DROP TABLE
+drop table test_type_diff2;
+DROP TABLE
+-- check column addition within a view (bug #14876)
+create table at_base_table(id int, stuff text);
+CREATE TABLE
+insert into at_base_table values (23, 'skidoo');
+INSERT 0 1
+create view at_view_1 as select * from at_base_table bt;
+CREATE VIEW
+create view at_view_2 as select *, to_json(v1) as j from at_view_1 v1;
+CREATE VIEW
+\d+ at_view_1
+                          View "public.at_view_1"
+ Column |  Type   | Collation | Nullable | Default | Storage  | Description 
+--------+---------+-----------+----------+---------+----------+-------------
+ id     | integer |           |          |         | plain    | 
+ stuff  | text    |           |          |         | extended | 
+View definition:
+ SELECT bt.id,
+    bt.stuff
+   FROM at_base_table bt;
+
+\d+ at_view_2
+                          View "public.at_view_2"
+ Column |  Type   | Collation | Nullable | Default | Storage  | Description 
+--------+---------+-----------+----------+---------+----------+-------------
+ id     | integer |           |          |         | plain    | 
+ stuff  | text    |           |          |         | extended | 
+ j      | json    |           |          |         | extended | 
+View definition:
+ SELECT v1.id,
+    v1.stuff,
+    to_json(v1.*) AS j
+   FROM at_view_1 v1;
+
+explain (verbose, costs off) select * from at_view_2;
+
+select * from at_view_2;
+ id | stuff  |             j              
+----+--------+----------------------------
+ 23 | skidoo | {"id":23,"stuff":"skidoo"}
+(1 row)
+
+create or replace view at_view_1 as select *, 2+2 as more from at_base_table bt;
+CREATE VIEW
+\d+ at_view_1
+                          View "public.at_view_1"
+ Column |  Type   | Collation | Nullable | Default | Storage  | Description 
+--------+---------+-----------+----------+---------+----------+-------------
+ id     | integer |           |          |         | plain    | 
+ stuff  | text    |           |          |         | extended | 
+ more   | integer |           |          |         | plain    | 
+View definition:
+ SELECT bt.id,
+    bt.stuff,
+    2 + 2 AS more
+   FROM at_base_table bt;
+
+\d+ at_view_2
+                          View "public.at_view_2"
+ Column |  Type   | Collation | Nullable | Default | Storage  | Description 
+--------+---------+-----------+----------+---------+----------+-------------
+ id     | integer |           |          |         | plain    | 
+ stuff  | text    |           |          |         | extended | 
+ j      | json    |           |          |         | extended | 
+View definition:
+ SELECT v1.id,
+    v1.stuff,
+    to_json(v1.*) AS j
+   FROM at_view_1 v1;
+
+explain (verbose, costs off) select * from at_view_2;
+
+select * from at_view_2;
+ id | stuff  |                   j                    
+----+--------+----------------------------------------
+ 23 | skidoo | {"id":23,"stuff":"skidoo","more":null}
+(1 row)
+
+drop view at_view_2;
+DROP VIEW
+drop view at_view_1;
+DROP VIEW
+drop table at_base_table;
+DROP TABLE
+--
+-- alter function
+--
+create function test_strict(text) returns text as
+    'select coalesce($1, ''got passed a null'');'
+    language sql returns null on null input;
+CREATE FUNCTION
+select test_strict(NULL);
+ test_strict 
+-------------
+ 
+(1 row)
+
+alter function test_strict(text) called on null input;
+ALTER FUNCTION
+select test_strict(NULL);
+    test_strict    
+-------------------
+ got passed a null
+(1 row)
+
+drop function test_strict(text);
+DROP FUNCTION
+create function non_strict(text) returns text as
+    'select coalesce($1, ''got passed a null'');'
+    language sql called on null input;
+CREATE FUNCTION
+select non_strict(NULL);
+    non_strict     
+-------------------
+ got passed a null
+(1 row)
+
+alter function non_strict(text) returns null on null input;
+ALTER FUNCTION
+select non_strict(NULL);
+ non_strict 
+------------
+ 
+(1 row)
+
+drop function non_strict(text);
+DROP FUNCTION
+--
+-- alter object set schema
+--
+create schema alter1;
+CREATE SCHEMA
+create schema alter2;
+CREATE SCHEMA
+create table alter1.t1(f1 serial primary key, f2 int);
+CREATE TABLE
+create view alter1.v1 as select * from alter1.t1;
+CREATE VIEW
+create function alter1.plus1(int) returns int as 'select $1+1' language sql;
+CREATE FUNCTION
+create type alter1.ctype as (f1 int, f2 text);
+CREATE TYPE
+create function alter1.same(alter1.ctype, alter1.ctype) returns boolean language sql
+as 'select $1.f1 is not distinct from $2.f1 and $1.f2 is not distinct from $2.f2';
+CREATE FUNCTION
+create operator alter1.=(procedure = alter1.same, leftarg  = alter1.ctype, rightarg = alter1.ctype);
+CREATE OPERATOR
+create operator class alter1.ctype_hash_ops default for type alter1.ctype using hash as
+  operator 1 alter1.=(alter1.ctype, alter1.ctype);
+CREATE OPERATOR CLASS
+create conversion alter1.ascii_to_utf8 for 'sql_ascii' to 'utf8' from ascii_to_utf8;
+CREATE CONVERSION
+create text search parser alter1.prs(start = prsd_start, gettoken = prsd_nexttoken, end = prsd_end, lextypes = prsd_lextype);
+CREATE TEXT SEARCH PARSER
+create text search configuration alter1.cfg(parser = alter1.prs);
+CREATE TEXT SEARCH CONFIGURATION
+create text search template alter1.tmpl(init = dsimple_init, lexize = dsimple_lexize);
+CREATE TEXT SEARCH TEMPLATE
+create text search dictionary alter1.dict(template = alter1.tmpl);
+CREATE TEXT SEARCH DICTIONARY
+insert into alter1.t1(f2) values(11);
+INSERT 0 1
+insert into alter1.t1(f2) values(12);
+INSERT 0 1
+alter table alter1.t1 set schema alter1; -- no-op, same schema
+ALTER TABLE
+alter table alter1.t1 set schema alter2;
+ALTER TABLE
+alter table alter1.v1 set schema alter2;
+ALTER TABLE
+alter function alter1.plus1(int) set schema alter2;
+ALTER FUNCTION
+alter operator class alter1.ctype_hash_ops using hash set schema alter2;
+ALTER OPERATOR CLASS
+alter operator family alter1.ctype_hash_ops using hash set schema alter2;
+ALTER OPERATOR FAMILY
+alter operator alter1.=(alter1.ctype, alter1.ctype) set schema alter2;
+ALTER OPERATOR
+alter function alter1.same(alter1.ctype, alter1.ctype) set schema alter2;
+ALTER FUNCTION
+alter type alter1.ctype set schema alter1; -- no-op, same schema
+ALTER TYPE
+alter type alter1.ctype set schema alter2;
+ALTER TYPE
+alter conversion alter1.ascii_to_utf8 set schema alter2;
+ALTER CONVERSION
+alter text search parser alter1.prs set schema alter2;
+ALTER TEXT SEARCH PARSER
+alter text search configuration alter1.cfg set schema alter2;
+ALTER TEXT SEARCH CONFIGURATION
+alter text search template alter1.tmpl set schema alter2;
+ALTER TEXT SEARCH TEMPLATE
+alter text search dictionary alter1.dict set schema alter2;
+ALTER TEXT SEARCH DICTIONARY
+-- this should succeed because nothing is left in alter1
+drop schema alter1;
+DROP SCHEMA
+insert into alter2.t1(f2) values(13);
+INSERT 0 1
+insert into alter2.t1(f2) values(14);
+INSERT 0 1
+select * from alter2.t1;
+ f1 | f2 
+----+----
+  1 | 11
+  2 | 12
+  3 | 13
+  4 | 14
+(4 rows)
+
+select * from alter2.v1;
+ f1 | f2 
+----+----
+  1 | 11
+  2 | 12
+  3 | 13
+  4 | 14
+(4 rows)
+
+select alter2.plus1(41);
+ plus1 
+-------
+    42
+(1 row)
+
+-- clean up
+drop table alter2.t1 cascade;
+psql:sql/alter_table.sql:807: NOTICE:  drop cascades to view alter2.v1
+DROP TABLE
+drop schema alter2 cascade;
+psql:sql/alter_table.sql:808: NOTICE:  drop cascades to 10 other objects
+DETAIL:  drop cascades to function alter2.plus1(integer)
+drop cascades to operator family alter2.ctype_hash_ops for access method hash
+drop cascades to type alter2.ctype
+drop cascades to function alter2.same(alter2.ctype,alter2.ctype)
+drop cascades to operator alter2.=(alter2.ctype,alter2.ctype)
+drop cascades to conversion alter2.ascii_to_utf8
+drop cascades to text search parser alter2.prs
+drop cascades to text search configuration alter2.cfg
+drop cascades to text search template alter2.tmpl
+drop cascades to text search dictionary alter2.dict
+DROP SCHEMA
+--
+-- composite types
+--
+CREATE TYPE test_type AS (a int);
+CREATE TYPE
+\d test_type
+         Composite type "public.test_type"
+ Column |  Type   | Collation | Nullable | Default 
+--------+---------+-----------+----------+---------
+ a      | integer |           |          | 
+
+ALTER TYPE nosuchtype ADD ATTRIBUTE b text; -- fails
+psql:sql/alter_table.sql:816: ERROR:  relation "nosuchtype" does not exist
+ALTER TYPE test_type ADD ATTRIBUTE b text;
+ALTER TYPE
+\d test_type
+         Composite type "public.test_type"
+ Column |  Type   | Collation | Nullable | Default 
+--------+---------+-----------+----------+---------
+ a      | integer |           |          | 
+ b      | text    |           |          | 
+
+ALTER TYPE test_type ADD ATTRIBUTE b text; -- fails
+psql:sql/alter_table.sql:821: ERROR:  column "b" of relation "test_type" already exists
+ALTER TYPE test_type ALTER ATTRIBUTE b SET DATA TYPE varchar;
+ALTER TYPE
+\d test_type
+              Composite type "public.test_type"
+ Column |       Type        | Collation | Nullable | Default 
+--------+-------------------+-----------+----------+---------
+ a      | integer           |           |          | 
+ b      | character varying |           |          | 
+
+ALTER TYPE test_type ALTER ATTRIBUTE b SET DATA TYPE integer;
+ALTER TYPE
+\d test_type
+         Composite type "public.test_type"
+ Column |  Type   | Collation | Nullable | Default 
+--------+---------+-----------+----------+---------
+ a      | integer |           |          | 
+ b      | integer |           |          | 
+
+ALTER TYPE test_type DROP ATTRIBUTE b;
+ALTER TYPE
+\d test_type
+         Composite type "public.test_type"
+ Column |  Type   | Collation | Nullable | Default 
+--------+---------+-----------+----------+---------
+ a      | integer |           |          | 
+
+ALTER TYPE test_type DROP ATTRIBUTE c; -- fails
+psql:sql/alter_table.sql:831: ERROR:  column "c" of relation "test_type" does not exist
+ALTER TYPE test_type DROP ATTRIBUTE IF EXISTS c;
+psql:sql/alter_table.sql:832: NOTICE:  column "c" of relation "test_type" does not exist, skipping
+ALTER TYPE
+ALTER TYPE test_type DROP ATTRIBUTE a, ADD ATTRIBUTE d boolean;
+ALTER TYPE
+\d test_type
+         Composite type "public.test_type"
+ Column |  Type   | Collation | Nullable | Default 
+--------+---------+-----------+----------+---------
+ d      | boolean |           |          | 
+
+ALTER TYPE test_type RENAME ATTRIBUTE a TO aa;
+psql:sql/alter_table.sql:837: ERROR:  column "a" does not exist
+ALTER TYPE test_type RENAME ATTRIBUTE d TO dd;
+ALTER TYPE
+\d test_type
+         Composite type "public.test_type"
+ Column |  Type   | Collation | Nullable | Default 
+--------+---------+-----------+----------+---------
+ dd     | boolean |           |          | 
+
+DROP TYPE test_type;
+DROP TYPE
+CREATE TYPE test_type1 AS (a int, b text);
+CREATE TYPE
+ALTER TYPE test_type1 ALTER ATTRIBUTE b TYPE varchar; -- fails
+ALTER TYPE
+DROP TYPE test_type1;
+DROP TYPE
+CREATE TYPE test_type2 AS (a int, b text);
+CREATE TYPE
+\d test_type2
+        Composite type "public.test_type2"
+ Column |  Type   | Collation | Nullable | Default 
+--------+---------+-----------+----------+---------
+ a      | integer |           |          | 
+ b      | text    |           |          | 
+
+ALTER TYPE test_type2 ADD ATTRIBUTE c text; -- fails
+ALTER TYPE
+ALTER TYPE test_type2 ADD ATTRIBUTE c text CASCADE;
+psql:sql/alter_table.sql:851: ERROR:  column "c" of relation "test_type2" already exists
+\d test_type2
+        Composite type "public.test_type2"
+ Column |  Type   | Collation | Nullable | Default 
+--------+---------+-----------+----------+---------
+ a      | integer |           |          | 
+ b      | text    |           |          | 
+ c      | text    |           |          | 
+
+ALTER TYPE test_type2 ALTER ATTRIBUTE b TYPE varchar; -- fails
+ALTER TYPE
+ALTER TYPE test_type2 ALTER ATTRIBUTE b TYPE varchar CASCADE;
+ALTER TYPE
+\d test_type2
+             Composite type "public.test_type2"
+ Column |       Type        | Collation | Nullable | Default 
+--------+-------------------+-----------+----------+---------
+ a      | integer           |           |          | 
+ b      | character varying |           |          | 
+ c      | text              |           |          | 
+
+ALTER TYPE test_type2 DROP ATTRIBUTE b; -- fails
+ALTER TYPE
+ALTER TYPE test_type2 DROP ATTRIBUTE b CASCADE;
+psql:sql/alter_table.sql:859: ERROR:  column "b" of relation "test_type2" does not exist
+\d test_type2
+        Composite type "public.test_type2"
+ Column |  Type   | Collation | Nullable | Default 
+--------+---------+-----------+----------+---------
+ a      | integer |           |          | 
+ c      | text    |           |          | 
+
+ALTER TYPE test_type2 RENAME ATTRIBUTE a TO aa; -- fails
+ALTER TYPE
+ALTER TYPE test_type2 RENAME ATTRIBUTE a TO aa CASCADE;
+psql:sql/alter_table.sql:863: ERROR:  column "a" does not exist
+\d test_type2
+        Composite type "public.test_type2"
+ Column |  Type   | Collation | Nullable | Default 
+--------+---------+-----------+----------+---------
+ aa     | integer |           |          | 
+ c      | text    |           |          | 
+
+drop type test_type2;
+DROP TYPE
+CREATE TYPE test_typex AS (a int, b text);
+CREATE TYPE
+ALTER TYPE test_typex DROP ATTRIBUTE a; -- fails
+ALTER TYPE
+ALTER TYPE test_typex DROP ATTRIBUTE a CASCADE;
+psql:sql/alter_table.sql:869: ERROR:  column "a" of relation "test_typex" does not exist
+\d test_tblx
+psql:sql/alter_table.sql:870: Did not find any relation named "test_tblx".
+DROP TYPE test_typex;
+DROP TYPE
+--
+-- IF EXISTS test
+--
+ALTER TABLE IF EXISTS tt8 ADD COLUMN f int;
+psql:sql/alter_table.sql:876: NOTICE:  relation "tt8" does not exist, skipping
+ALTER TABLE
+ALTER TABLE IF EXISTS tt8 ADD CONSTRAINT xxx PRIMARY KEY(f);
+psql:sql/alter_table.sql:877: NOTICE:  relation "tt8" does not exist, skipping
+ALTER TABLE
+ALTER TABLE IF EXISTS tt8 ADD CHECK (f BETWEEN 0 AND 10);
+psql:sql/alter_table.sql:878: ERROR:  Kunlun-db: Alter table is not supported
+ALTER TABLE IF EXISTS tt8 ALTER COLUMN f SET DEFAULT 0;
+psql:sql/alter_table.sql:879: NOTICE:  relation "tt8" does not exist, skipping
+ALTER TABLE
+ALTER TABLE IF EXISTS tt8 RENAME COLUMN f TO f1;
+psql:sql/alter_table.sql:880: NOTICE:  relation "tt8" does not exist, skipping
+ALTER TABLE
+ALTER TABLE IF EXISTS tt8 SET SCHEMA alter2;
+psql:sql/alter_table.sql:881: NOTICE:  relation "tt8" does not exist, skipping
+ALTER TABLE
+CREATE TABLE tt8(a int);
+CREATE TABLE
+CREATE SCHEMA alter2;
+CREATE SCHEMA
+ALTER TABLE IF EXISTS tt8 ADD COLUMN f int;
+ALTER TABLE
+ALTER TABLE IF EXISTS tt8 ADD CONSTRAINT xxx PRIMARY KEY(f);
+ALTER TABLE
+ALTER TABLE IF EXISTS tt8 ALTER COLUMN f SET DEFAULT 0;
+ALTER TABLE
+ALTER TABLE IF EXISTS tt8 RENAME COLUMN f TO f1;
+ALTER TABLE
+ALTER TABLE IF EXISTS tt8 SET SCHEMA alter2;
+ALTER TABLE
+\d alter2.tt8
+                Table "alter2.tt8"
+ Column |  Type   | Collation | Nullable | Default 
+--------+---------+-----------+----------+---------
+ a      | integer |           |          | 
+ f1     | integer |           | not null | 0
+Indexes:
+    "xxx" PRIMARY KEY, btree (f1)
+
+DROP TABLE alter2.tt8;
+DROP TABLE
+DROP SCHEMA alter2;
+DROP SCHEMA
+--
+-- Check conflicts between index and CHECK constraint names
+--
+CREATE TABLE tt9(c integer);
+CREATE TABLE
+ALTER TABLE tt9 ADD UNIQUE(c);
+ALTER TABLE
+ALTER TABLE tt9 ADD UNIQUE(c);  -- picks nonconflicting name
+ALTER TABLE
+ALTER TABLE tt9 ADD CONSTRAINT tt9_c_key UNIQUE(c);  -- fail, dup name
+psql:sql/alter_table.sql:903: ERROR:  relation "tt9_c_key" already exists
+ALTER TABLE tt9 ADD CONSTRAINT foo UNIQUE(c);  -- fail, dup name
+ALTER TABLE
+ALTER TABLE tt9 ADD UNIQUE(c);  -- picks nonconflicting name
+ALTER TABLE
+\d tt9
+                Table "public.tt9"
+ Column |  Type   | Collation | Nullable | Default 
+--------+---------+-----------+----------+---------
+ c      | integer |           |          | 
+Indexes:
+    "foo" UNIQUE CONSTRAINT, btree (c)
+    "tt9_c_key" UNIQUE CONSTRAINT, btree (c)
+    "tt9_c_key1" UNIQUE CONSTRAINT, btree (c)
+    "tt9_c_key2" UNIQUE CONSTRAINT, btree (c)
+
+DROP TABLE tt9;
+DROP TABLE
+-- Check that comments on constraints and indexes are not lost at ALTER TABLE.
+CREATE TABLE comment_test (
+  id int,
+  positive_col int,
+  indexed_col int,
+  CONSTRAINT comment_test_pk PRIMARY KEY (id));
+CREATE TABLE
+CREATE INDEX comment_test_index ON comment_test(indexed_col);
+CREATE INDEX
+COMMENT ON COLUMN comment_test.id IS 'Column ''id'' on comment_test';
+COMMENT
+COMMENT ON INDEX comment_test_index IS 'Simple index on comment_test';
+COMMENT
+COMMENT ON CONSTRAINT comment_test_pk ON comment_test IS 'PRIMARY KEY constraint of comment_test';
+COMMENT
+COMMENT ON INDEX comment_test_pk IS 'Index backing the PRIMARY KEY of comment_test';
+COMMENT
+SELECT col_description('comment_test'::regclass, 1) as comment;
+           comment           
+-----------------------------
+ Column 'id' on comment_test
+(1 row)
+
+SELECT indexrelid::regclass::text as index, obj_description(indexrelid, 'pg_class') as comment FROM pg_index where indrelid = 'comment_test'::regclass ORDER BY 1, 2;
+       index        |                    comment                    
+--------------------+-----------------------------------------------
+ comment_test_index | Simple index on comment_test
+ comment_test_pk    | Index backing the PRIMARY KEY of comment_test
+(2 rows)
+
+SELECT conname as constraint, obj_description(oid, 'pg_constraint') as comment FROM pg_constraint where conrelid = 'comment_test'::regclass ORDER BY 1, 2;
+   constraint    |                comment                 
+-----------------+----------------------------------------
+ comment_test_pk | PRIMARY KEY constraint of comment_test
+(1 row)
+
+-- Change the datatype of all the columns. ALTER TABLE is optimized to not
+-- rebuild an index if the new data type is binary compatible with the old
+-- one. Check do a dummy ALTER TABLE that doesn't change the datatype
+-- first, to test that no-op codepath, and another one that does.
+ALTER TABLE comment_test ALTER COLUMN indexed_col SET DATA TYPE int;
+ALTER TABLE
+ALTER TABLE comment_test ALTER COLUMN indexed_col SET DATA TYPE varchar(50);
+ALTER TABLE
+ALTER TABLE comment_test ALTER COLUMN id SET DATA TYPE int;
+ALTER TABLE
+ALTER TABLE comment_test ALTER COLUMN id SET DATA TYPE varchar(50);
+ALTER TABLE
+ALTER TABLE comment_test ALTER COLUMN positive_col SET DATA TYPE int;
+ALTER TABLE
+ALTER TABLE comment_test ALTER COLUMN positive_col SET DATA TYPE bigint;
+ALTER TABLE
+-- Check that the comments are intact.
+SELECT col_description('comment_test'::regclass, 1) as comment;
+           comment           
+-----------------------------
+ Column 'id' on comment_test
+(1 row)
+
+SELECT indexrelid::regclass::text as index, obj_description(indexrelid, 'pg_class') as comment FROM pg_index where indrelid = 'comment_test'::regclass ORDER BY 1, 2;
+       index        |                    comment                    
+--------------------+-----------------------------------------------
+ comment_test_index | Simple index on comment_test
+ comment_test_pk    | Index backing the PRIMARY KEY of comment_test
+(2 rows)
+
+SELECT conname as constraint, obj_description(oid, 'pg_constraint') as comment FROM pg_constraint where conrelid = 'comment_test'::regclass ORDER BY 1, 2;
+   constraint    |                comment                 
+-----------------+----------------------------------------
+ comment_test_pk | PRIMARY KEY constraint of comment_test
+(1 row)
+
+-- Change column type of parent
+ALTER TABLE comment_test ALTER COLUMN id SET DATA TYPE varchar(50);
+ALTER TABLE
+ALTER TABLE comment_test ALTER COLUMN id SET DATA TYPE int USING id::integer;
+ALTER TABLE
+-- Comments should be intact
+SELECT col_description('comment_test_child'::regclass, 1) as comment;
+psql:sql/alter_table.sql:948: ERROR:  relation "comment_test_child" does not exist
+LINE 1: SELECT col_description('comment_test_child'::regclass, 1) as...
+                               ^
+SELECT indexrelid::regclass::text as index, obj_description(indexrelid, 'pg_class') as comment FROM pg_index where indrelid = 'comment_test_child'::regclass ORDER BY 1, 2;
+psql:sql/alter_table.sql:949: ERROR:  relation "comment_test_child" does not exist
+LINE 1: ...class') as comment FROM pg_index where indrelid = 'comment_t...
+                                                             ^
+SELECT conname as constraint, obj_description(oid, 'pg_constraint') as comment FROM pg_constraint where conrelid = 'comment_test_child'::regclass ORDER BY 1, 2;
+psql:sql/alter_table.sql:950: ERROR:  relation "comment_test_child" does not exist
+LINE 1: ...') as comment FROM pg_constraint where conrelid = 'comment_t...
+                                                             ^
+-- Checks on creating and manipulation of user defined relations in
+-- pg_catalog.
+--
+-- XXX: It would be useful to add checks around trying to manipulate
+-- catalog tables, but that might have ugly consequences when run
+-- against an existing server with allow_system_table_mods = on.
+SHOW allow_system_table_mods;
+ allow_system_table_mods 
+-------------------------
+ off
+(1 row)
+
+-- disallowed because of search_path issues with pg_dump
+CREATE TABLE pg_catalog.new_system_table();
+psql:sql/alter_table.sql:961: ERROR:  permission denied to create "pg_catalog.new_system_table"
+DETAIL:  System catalog modifications are currently disallowed.
+-- instead create in public first, move to catalog
+CREATE TABLE new_system_table(id serial primary key, othercol text);
+CREATE TABLE
+ALTER TABLE new_system_table SET SCHEMA pg_catalog;
+psql:sql/alter_table.sql:964: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1049, Unknown database 'regress_$$_pg_catalog'.
+-- XXX: it's currently impossible to move relations out of pg_catalog
+ALTER TABLE new_system_table SET SCHEMA public;
+ALTER TABLE
+-- move back, will be ignored -- already there
+ALTER TABLE new_system_table SET SCHEMA pg_catalog;
+psql:sql/alter_table.sql:969: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1049, Unknown database 'regress_$$_pg_catalog'.
+ALTER TABLE new_system_table RENAME TO old_system_table;
+ALTER TABLE
+INSERT INTO old_system_table(othercol) VALUES ('somedata'), ('otherdata');
+INSERT 0 2
+UPDATE old_system_table SET id = -id;
+UPDATE 2
+DELETE FROM old_system_table WHERE othercol = 'somedata';
+DELETE 1
+delete from old_system_table;
+DELETE 1
+ALTER TABLE old_system_table DROP CONSTRAINT new_system_table_pkey;
+ALTER TABLE
+ALTER TABLE old_system_table DROP COLUMN othercol;
+ALTER TABLE
+DROP TABLE old_system_table;
+DROP TABLE
+-- test ADD COLUMN IF NOT EXISTS
+CREATE TABLE test_add_column(c1 integer);
+CREATE TABLE
+\d test_add_column
+          Table "public.test_add_column"
+ Column |  Type   | Collation | Nullable | Default 
+--------+---------+-----------+----------+---------
+ c1     | integer |           |          | 
+
+ALTER TABLE test_add_column
+	ADD COLUMN c2 integer;
+ALTER TABLE
+\d test_add_column
+          Table "public.test_add_column"
+ Column |  Type   | Collation | Nullable | Default 
+--------+---------+-----------+----------+---------
+ c1     | integer |           |          | 
+ c2     | integer |           |          | 
+
+ALTER TABLE test_add_column
+	ADD COLUMN c2 integer; -- fail because c2 already exists
+psql:sql/alter_table.sql:986: ERROR:  column "c2" of relation "test_add_column" already exists
+ALTER TABLE ONLY test_add_column
+	ADD COLUMN c2 integer; -- fail because c2 already exists
+psql:sql/alter_table.sql:988: ERROR:  column "c2" of relation "test_add_column" already exists
+\d test_add_column
+          Table "public.test_add_column"
+ Column |  Type   | Collation | Nullable | Default 
+--------+---------+-----------+----------+---------
+ c1     | integer |           |          | 
+ c2     | integer |           |          | 
+
+ALTER TABLE test_add_column
+	ADD COLUMN IF NOT EXISTS c2 integer; -- skipping because c2 already exists
+psql:sql/alter_table.sql:991: NOTICE:  column "c2" of relation "test_add_column" already exists, skipping
+ALTER TABLE
+ALTER TABLE ONLY test_add_column
+	ADD COLUMN IF NOT EXISTS c2 integer; -- skipping because c2 already exists
+psql:sql/alter_table.sql:993: NOTICE:  column "c2" of relation "test_add_column" already exists, skipping
+ALTER TABLE
+\d test_add_column
+          Table "public.test_add_column"
+ Column |  Type   | Collation | Nullable | Default 
+--------+---------+-----------+----------+---------
+ c1     | integer |           |          | 
+ c2     | integer |           |          | 
+
+ALTER TABLE test_add_column
+	ADD COLUMN c2 integer, -- fail because c2 already exists
+	ADD COLUMN c3 integer;
+psql:sql/alter_table.sql:997: ERROR:  column "c2" of relation "test_add_column" already exists
+\d test_add_column
+          Table "public.test_add_column"
+ Column |  Type   | Collation | Nullable | Default 
+--------+---------+-----------+----------+---------
+ c1     | integer |           |          | 
+ c2     | integer |           |          | 
+
+ALTER TABLE test_add_column
+	ADD COLUMN IF NOT EXISTS c2 integer, -- skipping because c2 already exists
+	ADD COLUMN c3 integer; -- fail because c3 already exists
+psql:sql/alter_table.sql:1001: NOTICE:  column "c2" of relation "test_add_column" already exists, skipping
+ALTER TABLE
+\d test_add_column
+          Table "public.test_add_column"
+ Column |  Type   | Collation | Nullable | Default 
+--------+---------+-----------+----------+---------
+ c1     | integer |           |          | 
+ c2     | integer |           |          | 
+ c3     | integer |           |          | 
+
+ALTER TABLE test_add_column
+	ADD COLUMN IF NOT EXISTS c2 integer, -- skipping because c2 already exists
+	ADD COLUMN IF NOT EXISTS c3 integer; -- skipping because c3 already exists
+psql:sql/alter_table.sql:1005: NOTICE:  column "c2" of relation "test_add_column" already exists, skipping
+psql:sql/alter_table.sql:1005: NOTICE:  column "c3" of relation "test_add_column" already exists, skipping
+ALTER TABLE
+\d test_add_column
+          Table "public.test_add_column"
+ Column |  Type   | Collation | Nullable | Default 
+--------+---------+-----------+----------+---------
+ c1     | integer |           |          | 
+ c2     | integer |           |          | 
+ c3     | integer |           |          | 
+
+ALTER TABLE test_add_column
+	ADD COLUMN IF NOT EXISTS c2 integer, -- skipping because c2 already exists
+	ADD COLUMN IF NOT EXISTS c3 integer, -- skipping because c3 already exists
+	ADD COLUMN c4 integer;
+psql:sql/alter_table.sql:1010: NOTICE:  column "c2" of relation "test_add_column" already exists, skipping
+psql:sql/alter_table.sql:1010: NOTICE:  column "c3" of relation "test_add_column" already exists, skipping
+ALTER TABLE
+\d test_add_column
+          Table "public.test_add_column"
+ Column |  Type   | Collation | Nullable | Default 
+--------+---------+-----------+----------+---------
+ c1     | integer |           |          | 
+ c2     | integer |           |          | 
+ c3     | integer |           |          | 
+ c4     | integer |           |          | 
+
+DROP TABLE test_add_column;
+DROP TABLE
+-- unsupported constraint types for partitioned tables
+CREATE TABLE partitioned (
+	a int,
+	b int
+) PARTITION BY RANGE (a, (a+b+1));
+CREATE TABLE
+-- cannot drop column that is part of the partition key
+ALTER TABLE partitioned DROP COLUMN a;
+psql:sql/alter_table.sql:1021: ERROR:  cannot drop column "a" because it is part of the partition key of relation "partitioned"
+ALTER TABLE partitioned ALTER COLUMN a TYPE char(5);
+psql:sql/alter_table.sql:1022: ERROR:  cannot alter column "a" because it is part of the partition key of relation "partitioned"
+ALTER TABLE partitioned DROP COLUMN b;
+psql:sql/alter_table.sql:1023: ERROR:  cannot drop column "b" because it is part of the partition key of relation "partitioned"
+ALTER TABLE partitioned ALTER COLUMN b TYPE char(5);
+psql:sql/alter_table.sql:1024: ERROR:  cannot alter column "b" because it is part of the partition key of relation "partitioned"
+DROP TABLE partitioned;
+DROP TABLE
+--
+-- DETACH PARTITION
+--
+CREATE TABLE list_parted2 (
+        a int,
+        b char
+) PARTITION BY LIST (a);
+CREATE TABLE
+-- cannot add/drop column to/from *only* the parent
+ALTER TABLE ONLY list_parted2 ADD COLUMN c int;
+ALTER TABLE
+ALTER TABLE ONLY list_parted2 DROP COLUMN b;
+ALTER TABLE
+CREATE TABLE part_2 (LIKE list_parted2);
+CREATE TABLE
+INSERT INTO part_2 VALUES (3, 'a');
+psql:sql/alter_table.sql:1041: ERROR:  invalid input syntax for integer: "a"
+LINE 1: INSERT INTO part_2 VALUES (3, 'a');
+                                      ^
+-- cannot add a column to partition or drop an inherited one
+ALTER TABLE part_2 ADD COLUMN c text;
+psql:sql/alter_table.sql:1043: ERROR:  column "c" of relation "part_2" already exists
+ALTER TABLE part_2 DROP COLUMN b;
+psql:sql/alter_table.sql:1044: ERROR:  column "b" of relation "part_2" does not exist
+-- Nor rename, alter type
+ALTER TABLE part_2 RENAME COLUMN b to c;
+psql:sql/alter_table.sql:1047: ERROR:  column "b" does not exist
+ALTER TABLE part_2 ALTER COLUMN b TYPE text;
+psql:sql/alter_table.sql:1048: ERROR:  column "b" of relation "part_2" does not exist
+-- cannot add/drop NOT NULL or check constraints to *only* the parent, when
+-- partitions exist
+ALTER TABLE ONLY list_parted2 ALTER b SET NOT NULL;
+psql:sql/alter_table.sql:1052: ERROR:  column "b" of relation "list_parted2" does not exist
+ALTER TABLE list_parted2 ALTER b SET NOT NULL;
+psql:sql/alter_table.sql:1054: ERROR:  column "b" of relation "list_parted2" does not exist
+ALTER TABLE ONLY list_parted2 ALTER b DROP NOT NULL;
+psql:sql/alter_table.sql:1055: ERROR:  column "b" of relation "list_parted2" does not exist
+-- It's alright though, if no partitions are yet created
+CREATE TABLE parted_no_parts (a int) PARTITION BY LIST (a);
+CREATE TABLE
+ALTER TABLE ONLY parted_no_parts ALTER a SET NOT NULL;
+ALTER TABLE
+ALTER TABLE ONLY parted_no_parts ALTER a DROP NOT NULL;
+ALTER TABLE
+DROP TABLE parted_no_parts;
+DROP TABLE
+-- cannot drop inherited NOT NULL or check constraints from partition
+ALTER TABLE list_parted2 ALTER b SET NOT NULL;
+psql:sql/alter_table.sql:1064: ERROR:  column "b" of relation "list_parted2" does not exist
+ALTER TABLE part_2 ALTER b DROP NOT NULL;
+psql:sql/alter_table.sql:1065: ERROR:  column "b" of relation "part_2" does not exist
+-- cannot drop or alter type of partition key columns of lower level
+-- partitioned tables; for example, part_5, which is list_parted2's
+-- partition, is partitioned on b;
+ALTER TABLE list_parted2 DROP COLUMN b;
+psql:sql/alter_table.sql:1070: ERROR:  column "b" of relation "list_parted2" does not exist
+ALTER TABLE list_parted2 ALTER COLUMN b TYPE text;
+psql:sql/alter_table.sql:1071: ERROR:  column "b" of relation "list_parted2" does not exist
+-- dropping non-partition key columns should be allowed on the parent table.
+ALTER TABLE list_parted DROP COLUMN b;
+psql:sql/alter_table.sql:1074: ERROR:  relation "list_parted" does not exist
+SELECT * FROM list_parted;
+psql:sql/alter_table.sql:1075: ERROR:  relation "list_parted" does not exist
+LINE 1: SELECT * FROM list_parted;
+                      ^
+-- cleanup
+DROP TABLE list_parted;
+psql:sql/alter_table.sql:1078: ERROR:  table "list_parted" does not exist
+drop table list_parted2;
+DROP TABLE
+drop table range_parted;
+psql:sql/alter_table.sql:1080: ERROR:  table "range_parted" does not exist
+DROP TABLE fail_def_part;
+psql:sql/alter_table.sql:1081: ERROR:  table "fail_def_part" does not exist
+DROP TABLE hash_parted;
+psql:sql/alter_table.sql:1082: ERROR:  table "hash_parted" does not exist
+-- validate constraint on partitioned tables should only scan leaf partitions
+create table parted_validate_test (a int) partition by list (a);
+CREATE TABLE
+create table parted_validate_test_1 partition of parted_validate_test for values in (0, 1);
+CREATE TABLE
+drop table parted_validate_test;
+DROP TABLE
+-- test alter column options
+CREATE TABLE attmp(i integer);
+CREATE TABLE
+INSERT INTO attmp VALUES (1);
+INSERT 0 1
+ALTER TABLE attmp ALTER COLUMN i SET (n_distinct = 1, n_distinct_inherited = 2);
+ALTER TABLE
+ALTER TABLE attmp ALTER COLUMN i RESET (n_distinct_inherited);
+ALTER TABLE
+DROP TABLE attmp;
+DROP TABLE
+DROP USER regress_alter_table_user1;
+DROP ROLE
+-- test case where the partitioning operator is a SQL function whose
+-- evaluation results in the table's relcache being rebuilt partway through
+-- the execution of an ATTACH PARTITION command
+create function at_test_sql_partop (int4, int4) returns int language sql
+as $$ select case when $1 = $2 then 0 when $1 > $2 then 1 else -1 end; $$;
+CREATE FUNCTION
+create operator class at_test_sql_partop for type int4 using btree as
+    operator 1 < (int4, int4), operator 2 <= (int4, int4),
+    operator 3 = (int4, int4), operator 4 >= (int4, int4),
+    operator 5 > (int4, int4), function 1 at_test_sql_partop(int4, int4);
+CREATE OPERATOR CLASS
+create table at_test_sql_partop (a int) partition by range (a at_test_sql_partop);
+CREATE TABLE
+drop table at_test_sql_partop;
+DROP TABLE
+drop operator class at_test_sql_partop using btree;
+DROP OPERATOR CLASS
+drop function at_test_sql_partop;
+DROP FUNCTION

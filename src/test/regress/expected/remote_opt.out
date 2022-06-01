@@ -273,7 +273,6 @@ select*from t12 where c in (select c from t13 where a > 30) order by t12.a;
 
 -- explain select*from t12 where c in (select c from t13 where a > 30) order by t12.a;
 select*from t12 where c not in (select c from t13 where a > 30) order by t12.a;
-psql:sql/remote_opt.sql:80: WARNING:  Rescan is called unexpectedly, so reset node->will_rewind to TRUE
  a  | b  | c 
 ----+----+---
   1 | 16 | 0
@@ -287,7 +286,6 @@ psql:sql/remote_opt.sql:80: WARNING:  Rescan is called unexpectedly, so reset no
 explain select*from t12 where c not in (select c from t13 where a > 30) order by t12.a;
 
 select*from t12 where c not in (select c from t13 where a < 10) order by t12.a;
-psql:sql/remote_opt.sql:83: WARNING:  Rescan is called unexpectedly, so reset node->will_rewind to TRUE
  a  | b | c 
 ----+---+---
  11 | 1 | 2

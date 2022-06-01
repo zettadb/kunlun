@@ -714,7 +714,7 @@ INSERT INTO ceil_floor_round VALUES ('9.4999999');
 INSERT INTO ceil_floor_round VALUES ('0.0');
 INSERT INTO ceil_floor_round VALUES ('0.0000001');
 INSERT INTO ceil_floor_round VALUES ('-0.000001');
-SELECT a, ceil(a), ceiling(a), floor(a), round(a) FROM ceil_floor_round;
+SELECT a::numeric(10,7), ceil(a), ceiling(a), floor(a), round(a) FROM ceil_floor_round;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE ceil_floor_round;
 --DDL_STATEMENT_END--
@@ -772,7 +772,7 @@ COPY width_bucket_test (operand_num) FROM stdin;
 UPDATE width_bucket_test SET operand_f8 = operand_num::float8;
 
 SELECT
-    operand_num,
+    operand_num::numeric(10,4),
     width_bucket(operand_num, 0, 10, 5) AS wb_1,
     width_bucket(operand_f8, 0, 10, 5) AS wb_1f,
     width_bucket(operand_num, 10, 0, 5) AS wb_2,
@@ -900,7 +900,7 @@ INSERT INTO num_input_test(n1) VALUES ('5. 0   ');
 INSERT INTO num_input_test(n1) VALUES ('');
 INSERT INTO num_input_test(n1) VALUES (' N aN ');
 
-SELECT * FROM num_input_test;
+SELECT n1::numeric(10,1) FROM num_input_test;
 
 --
 -- Test some corner cases for multiplication

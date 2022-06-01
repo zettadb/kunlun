@@ -328,14 +328,14 @@ drop table tab_icm;
 drop table if exists tab_bit_string;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-CREATE TABLE tab_bit_string (id int2,a BIT(3), b BIT VARYING(5));
+CREATE TABLE tab_bit_string (id int2,a BIT(3));
 --DDL_STATEMENT_END--
 
-INSERT INTO tab_bit_string VALUES (1,B'101', B'00');
-INSERT INTO tab_bit_string VALUES (2,B'10'::bit(3), B'101');
+INSERT INTO tab_bit_string VALUES (1,B'101');
+INSERT INTO tab_bit_string VALUES (2,B'10'::bit(3));
 select * from tab_bit_string;
 
-UPDATE tab_bit_string set b=B'11011' where id=1; 
+UPDATE tab_bit_string set a=B'010' where id=1;
 select * from tab_bit_string order by id;
 delete from tab_bit_string where id =2;
 

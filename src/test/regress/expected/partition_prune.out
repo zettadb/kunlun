@@ -1495,7 +1495,7 @@ SET
 explain (costs off) select * from inh_lp where a = 1;
 
 explain (costs off) update inh_lp set value = 10 where a = 1;
-psql:sql/partition_prune.sql:902: ERROR:  Kunlun-db: Plan cannot be serialized
+
 explain (costs off) delete from inh_lp where a = 1;
 
 -- Ensure we don't exclude normal relations when we only expect to exclude
@@ -1605,14 +1605,14 @@ SET
 explain (costs off) select * from listp1 where a = 2;
 
 explain (costs off) update listp1 set a = 1 where a = 2;
-psql:sql/partition_prune.sql:985: ERROR:  Kunlun-db: Can not update partition key of remote relation
+
 -- constraint exclusion enabled
 set constraint_exclusion to 'on';
 SET
 explain (costs off) select * from listp1 where a = 2;
 
 explain (costs off) update listp1 set a = 1 where a = 2;
-psql:sql/partition_prune.sql:989: ERROR:  Kunlun-db: Plan cannot be serialized
+
 reset constraint_exclusion;
 RESET
 reset enable_partition_pruning;

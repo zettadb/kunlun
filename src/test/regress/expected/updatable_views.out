@@ -1,0 +1,2498 @@
+--
+-- UPDATABLE VIEWS
+--
+-- check that non-updatable views and columns are rejected with useful error
+-- messages
+CREATE TABLE base_tbl (a int PRIMARY KEY, b varchar(50) DEFAULT 'Unspecified');
+CREATE TABLE
+INSERT INTO base_tbl SELECT i, 'Row ' || i FROM generate_series(-2, 2) g(i);
+INSERT 0 5
+CREATE VIEW ro_view1 AS SELECT DISTINCT a, b FROM base_tbl; -- DISTINCT not supported
+CREATE VIEW
+CREATE VIEW ro_view2 AS SELECT a, b FROM base_tbl GROUP BY a, b; -- GROUP BY not supported
+CREATE VIEW
+CREATE VIEW ro_view3 AS SELECT 1 FROM base_tbl HAVING max(a) > 0; -- HAVING not supported
+CREATE VIEW
+CREATE VIEW ro_view4 AS SELECT count(*) FROM base_tbl; -- Aggregate functions not supported
+CREATE VIEW
+CREATE VIEW ro_view5 AS SELECT a, rank() OVER() FROM base_tbl; -- Window functions not supported
+CREATE VIEW
+CREATE VIEW ro_view6 AS SELECT a, b FROM base_tbl UNION SELECT -a, b FROM base_tbl; -- Set ops not supported
+CREATE VIEW
+CREATE VIEW ro_view7 AS WITH t AS (SELECT a, b FROM base_tbl) SELECT * FROM t; -- WITH not supported
+CREATE VIEW
+CREATE VIEW ro_view8 AS SELECT a, b FROM base_tbl ORDER BY a OFFSET 1; -- OFFSET not supported
+CREATE VIEW
+CREATE VIEW ro_view9 AS SELECT a, b FROM base_tbl ORDER BY a LIMIT 1; -- LIMIT not supported
+CREATE VIEW
+CREATE VIEW ro_view10 AS SELECT 1 AS a; -- No base relations
+CREATE VIEW
+CREATE VIEW ro_view11 AS SELECT b1.a, b2.b FROM base_tbl b1, base_tbl b2; -- Multiple base relations
+CREATE VIEW
+CREATE VIEW ro_view12 AS SELECT * FROM generate_series(1, 10) AS g(a); -- SRF in rangetable
+CREATE VIEW
+CREATE VIEW ro_view13 AS SELECT a, b FROM (SELECT * FROM base_tbl) AS t; -- Subselect in rangetable
+CREATE VIEW
+CREATE VIEW rw_view14 AS SELECT a, b FROM base_tbl; -- System columns may be part of an updatable view
+CREATE VIEW
+CREATE VIEW rw_view15 AS SELECT a, upper(b) FROM base_tbl; -- Expression/function may be part of an updatable view
+CREATE VIEW
+CREATE VIEW rw_view16 AS SELECT a, b, a AS aa FROM base_tbl; -- Repeated column may be part of an updatable view
+CREATE VIEW
+CREATE VIEW ro_view17 AS SELECT * FROM ro_view1; -- Base relation not updatable
+CREATE VIEW
+CREATE VIEW ro_view18 AS SELECT * FROM (VALUES(1)) AS tmp(a); -- VALUES in rangetable
+CREATE VIEW
+CREATE SEQUENCE uv_seq;
+CREATE SEQUENCE
+CREATE VIEW ro_view19 AS SELECT * FROM uv_seq; -- View based on a sequence
+CREATE VIEW
+CREATE VIEW ro_view20 AS SELECT a, b, generate_series(1, a) g FROM base_tbl; -- SRF in targetlist not supported
+CREATE VIEW
+SELECT table_name, is_insertable_into
+  FROM information_schema.tables
+ WHERE table_name LIKE E'r_\\_view%'
+ ORDER BY table_name;
+ table_name | is_insertable_into 
+------------+--------------------
+ ro_view1   | NO
+ ro_view10  | NO
+ ro_view11  | NO
+ ro_view12  | NO
+ ro_view13  | NO
+ ro_view17  | NO
+ ro_view18  | NO
+ ro_view19  | NO
+ ro_view2   | NO
+ ro_view20  | NO
+ ro_view3   | NO
+ ro_view4   | NO
+ ro_view5   | NO
+ ro_view6   | NO
+ ro_view7   | NO
+ ro_view8   | NO
+ ro_view9   | NO
+ rw_view14  | YES
+ rw_view15  | YES
+ rw_view16  | YES
+(20 rows)
+
+SELECT table_name, is_updatable, is_insertable_into
+  FROM information_schema.views
+ WHERE table_name LIKE E'r_\\_view%'
+ ORDER BY table_name;
+ table_name | is_updatable | is_insertable_into 
+------------+--------------+--------------------
+ ro_view1   | NO           | NO
+ ro_view10  | NO           | NO
+ ro_view11  | NO           | NO
+ ro_view12  | NO           | NO
+ ro_view13  | NO           | NO
+ ro_view17  | NO           | NO
+ ro_view18  | NO           | NO
+ ro_view19  | NO           | NO
+ ro_view2   | NO           | NO
+ ro_view20  | NO           | NO
+ ro_view3   | NO           | NO
+ ro_view4   | NO           | NO
+ ro_view5   | NO           | NO
+ ro_view6   | NO           | NO
+ ro_view7   | NO           | NO
+ ro_view8   | NO           | NO
+ ro_view9   | NO           | NO
+ rw_view14  | YES          | YES
+ rw_view15  | YES          | YES
+ rw_view16  | YES          | YES
+(20 rows)
+
+SELECT table_name, column_name, is_updatable
+  FROM information_schema.columns
+ WHERE table_name LIKE E'r_\\_view%'
+ ORDER BY table_name, ordinal_position;
+ table_name | column_name | is_updatable 
+------------+-------------+--------------
+ ro_view1   | a           | NO
+ ro_view1   | b           | NO
+ ro_view10  | a           | NO
+ ro_view11  | a           | NO
+ ro_view11  | b           | NO
+ ro_view12  | a           | NO
+ ro_view13  | a           | NO
+ ro_view13  | b           | NO
+ ro_view17  | a           | NO
+ ro_view17  | b           | NO
+ ro_view18  | a           | NO
+ ro_view19  | last_value  | NO
+ ro_view19  | log_cnt     | NO
+ ro_view19  | is_called   | NO
+ ro_view2   | a           | NO
+ ro_view2   | b           | NO
+ ro_view20  | a           | NO
+ ro_view20  | b           | NO
+ ro_view20  | g           | NO
+ ro_view3   | ?column?    | NO
+ ro_view4   | count       | NO
+ ro_view5   | a           | NO
+ ro_view5   | rank        | NO
+ ro_view6   | a           | NO
+ ro_view6   | b           | NO
+ ro_view7   | a           | NO
+ ro_view7   | b           | NO
+ ro_view8   | a           | NO
+ ro_view8   | b           | NO
+ ro_view9   | a           | NO
+ ro_view9   | b           | NO
+ rw_view14  | a           | YES
+ rw_view14  | b           | YES
+ rw_view15  | a           | YES
+ rw_view15  | upper       | NO
+ rw_view16  | a           | YES
+ rw_view16  | b           | YES
+ rw_view16  | aa          | YES
+(38 rows)
+
+-- Read-only views
+DELETE FROM ro_view1;
+psql:sql/updatable_views.sql:49: ERROR:  cannot delete from view "ro_view1"
+DETAIL:  Views containing DISTINCT are not automatically updatable.
+HINT:  To enable deleting from the view, provide an INSTEAD OF DELETE trigger or an unconditional ON DELETE DO INSTEAD rule.
+DELETE FROM ro_view2;
+psql:sql/updatable_views.sql:50: ERROR:  cannot delete from view "ro_view2"
+DETAIL:  Views containing GROUP BY are not automatically updatable.
+HINT:  To enable deleting from the view, provide an INSTEAD OF DELETE trigger or an unconditional ON DELETE DO INSTEAD rule.
+DELETE FROM ro_view3;
+psql:sql/updatable_views.sql:51: ERROR:  cannot delete from view "ro_view3"
+DETAIL:  Views containing HAVING are not automatically updatable.
+HINT:  To enable deleting from the view, provide an INSTEAD OF DELETE trigger or an unconditional ON DELETE DO INSTEAD rule.
+DELETE FROM ro_view4;
+psql:sql/updatable_views.sql:52: ERROR:  cannot delete from view "ro_view4"
+DETAIL:  Views that return aggregate functions are not automatically updatable.
+HINT:  To enable deleting from the view, provide an INSTEAD OF DELETE trigger or an unconditional ON DELETE DO INSTEAD rule.
+DELETE FROM ro_view5;
+psql:sql/updatable_views.sql:53: ERROR:  cannot delete from view "ro_view5"
+DETAIL:  Views that return window functions are not automatically updatable.
+HINT:  To enable deleting from the view, provide an INSTEAD OF DELETE trigger or an unconditional ON DELETE DO INSTEAD rule.
+DELETE FROM ro_view6;
+psql:sql/updatable_views.sql:54: ERROR:  cannot delete from view "ro_view6"
+DETAIL:  Views containing UNION, INTERSECT, or EXCEPT are not automatically updatable.
+HINT:  To enable deleting from the view, provide an INSTEAD OF DELETE trigger or an unconditional ON DELETE DO INSTEAD rule.
+UPDATE ro_view7 SET a=a+1;
+psql:sql/updatable_views.sql:55: ERROR:  cannot update view "ro_view7"
+DETAIL:  Views containing WITH are not automatically updatable.
+HINT:  To enable updating the view, provide an INSTEAD OF UPDATE trigger or an unconditional ON UPDATE DO INSTEAD rule.
+UPDATE ro_view8 SET a=a+1;
+psql:sql/updatable_views.sql:56: ERROR:  cannot update view "ro_view8"
+DETAIL:  Views containing LIMIT or OFFSET are not automatically updatable.
+HINT:  To enable updating the view, provide an INSTEAD OF UPDATE trigger or an unconditional ON UPDATE DO INSTEAD rule.
+UPDATE ro_view9 SET a=a+1;
+psql:sql/updatable_views.sql:57: ERROR:  cannot update view "ro_view9"
+DETAIL:  Views containing LIMIT or OFFSET are not automatically updatable.
+HINT:  To enable updating the view, provide an INSTEAD OF UPDATE trigger or an unconditional ON UPDATE DO INSTEAD rule.
+UPDATE ro_view10 SET a=a+1;
+psql:sql/updatable_views.sql:58: ERROR:  cannot update view "ro_view10"
+DETAIL:  Views that do not select from a single table or view are not automatically updatable.
+HINT:  To enable updating the view, provide an INSTEAD OF UPDATE trigger or an unconditional ON UPDATE DO INSTEAD rule.
+UPDATE ro_view11 SET a=a+1;
+psql:sql/updatable_views.sql:59: ERROR:  cannot update view "ro_view11"
+DETAIL:  Views that do not select from a single table or view are not automatically updatable.
+HINT:  To enable updating the view, provide an INSTEAD OF UPDATE trigger or an unconditional ON UPDATE DO INSTEAD rule.
+UPDATE ro_view12 SET a=a+1;
+psql:sql/updatable_views.sql:60: ERROR:  cannot update view "ro_view12"
+DETAIL:  Views that do not select from a single table or view are not automatically updatable.
+HINT:  To enable updating the view, provide an INSTEAD OF UPDATE trigger or an unconditional ON UPDATE DO INSTEAD rule.
+INSERT INTO ro_view13 VALUES (3, 'Row 3');
+psql:sql/updatable_views.sql:61: ERROR:  cannot insert into view "ro_view13"
+DETAIL:  Views that do not select from a single table or view are not automatically updatable.
+HINT:  To enable inserting into the view, provide an INSTEAD OF INSERT trigger or an unconditional ON INSERT DO INSTEAD rule.
+-- Partially updatable view
+INSERT INTO rw_view14 VALUES (null, 3, 'Row 3'); -- should fail
+psql:sql/updatable_views.sql:63: ERROR:  INSERT has more expressions than target columns
+LINE 1: INSERT INTO rw_view14 VALUES (null, 3, 'Row 3');
+                                               ^
+INSERT INTO rw_view14 (a, b) VALUES (3, 'Row 3'); -- should be OK
+INSERT 0 1
+UPDATE rw_view14 SET ctid=null WHERE a=3; -- should fail
+psql:sql/updatable_views.sql:65: ERROR:  cannot assign to system column "ctid"
+LINE 1: UPDATE rw_view14 SET ctid=null WHERE a=3;
+                             ^
+UPDATE rw_view14 SET b='ROW 3' WHERE a=3; -- should be OK
+UPDATE 1
+SELECT * FROM base_tbl;
+ a  |   b    
+----+--------
+ -2 | Row -2
+ -1 | Row -1
+  0 | Row 0
+  1 | Row 1
+  2 | Row 2
+  3 | ROW 3
+(6 rows)
+
+DELETE FROM rw_view14 WHERE a=3; -- should be OK
+DELETE 1
+-- Partially updatable view
+INSERT INTO rw_view15 VALUES (3, 'ROW 3'); -- should fail
+psql:sql/updatable_views.sql:70: ERROR:  cannot insert into column "upper" of view "rw_view15"
+DETAIL:  View columns that are not columns of their base relation are not updatable.
+INSERT INTO rw_view15 (a) VALUES (3); -- should be OK
+INSERT 0 1
+SELECT * FROM rw_view15;
+ a  |    upper    
+----+-------------
+ -2 | ROW -2
+ -1 | ROW -1
+  0 | ROW 0
+  1 | ROW 1
+  2 | ROW 2
+  3 | UNSPECIFIED
+(6 rows)
+
+SELECT * FROM rw_view15;
+ a  |    upper    
+----+-------------
+ -2 | ROW -2
+ -1 | ROW -1
+  0 | ROW 0
+  1 | ROW 1
+  2 | ROW 2
+  3 | UNSPECIFIED
+(6 rows)
+
+SELECT * FROM rw_view15;
+ a  |    upper    
+----+-------------
+ -2 | ROW -2
+ -1 | ROW -1
+  0 | ROW 0
+  1 | ROW 1
+  2 | ROW 2
+  3 | UNSPECIFIED
+(6 rows)
+
+SELECT * FROM rw_view15;
+ a  |    upper    
+----+-------------
+ -2 | ROW -2
+ -1 | ROW -1
+  0 | ROW 0
+  1 | ROW 1
+  2 | ROW 2
+  3 | UNSPECIFIED
+(6 rows)
+
+SELECT * FROM rw_view15;
+ a  |    upper    
+----+-------------
+ -2 | ROW -2
+ -1 | ROW -1
+  0 | ROW 0
+  1 | ROW 1
+  2 | ROW 2
+  3 | UNSPECIFIED
+(6 rows)
+
+ALTER VIEW rw_view15 ALTER COLUMN upper SET DEFAULT 'NOT SET';
+ALTER VIEW
+INSERT INTO rw_view15 (a) VALUES (4); -- should fail
+psql:sql/updatable_views.sql:78: ERROR:  cannot insert into column "upper" of view "rw_view15"
+DETAIL:  View columns that are not columns of their base relation are not updatable.
+UPDATE rw_view15 SET upper='ROW 3' WHERE a=3; -- should fail
+psql:sql/updatable_views.sql:79: ERROR:  cannot update column "upper" of view "rw_view15"
+DETAIL:  View columns that are not columns of their base relation are not updatable.
+UPDATE rw_view15 SET upper=DEFAULT WHERE a=3; -- should fail
+psql:sql/updatable_views.sql:80: ERROR:  cannot update column "upper" of view "rw_view15"
+DETAIL:  View columns that are not columns of their base relation are not updatable.
+UPDATE rw_view15 SET a=4 WHERE a=3; -- should be OK
+UPDATE 1
+SELECT * FROM base_tbl;
+ a  |      b      
+----+-------------
+ -2 | Row -2
+ -1 | Row -1
+  0 | Row 0
+  1 | Row 1
+  2 | Row 2
+  4 | Unspecified
+(6 rows)
+
+DELETE FROM rw_view15 WHERE a=4; -- should be OK
+DELETE 1
+-- Partially updatable view
+INSERT INTO rw_view16 VALUES (3, 'Row 3', 3); -- should fail
+psql:sql/updatable_views.sql:85: ERROR:  multiple assignments to same column "a"
+INSERT INTO rw_view16 (a, b) VALUES (3, 'Row 3'); -- should be OK
+INSERT 0 1
+UPDATE rw_view16 SET a=3, aa=-3 WHERE a=3; -- should fail
+psql:sql/updatable_views.sql:87: ERROR:  multiple assignments to same column "a"
+UPDATE rw_view16 SET aa=-3 WHERE a=3; -- should be OK
+UPDATE 1
+SELECT * FROM base_tbl order by 1, 2;
+ a  |   b    
+----+--------
+ -3 | Row 3
+ -2 | Row -2
+ -1 | Row -1
+  0 | Row 0
+  1 | Row 1
+  2 | Row 2
+(6 rows)
+
+DELETE FROM rw_view16 WHERE a=-3; -- should be OK
+DELETE 1
+-- Read-only views
+INSERT INTO ro_view17 VALUES (3, 'ROW 3');
+psql:sql/updatable_views.sql:92: ERROR:  cannot insert into view "ro_view1"
+DETAIL:  Views containing DISTINCT are not automatically updatable.
+HINT:  To enable inserting into the view, provide an INSTEAD OF INSERT trigger or an unconditional ON INSERT DO INSTEAD rule.
+DELETE FROM ro_view18;
+psql:sql/updatable_views.sql:93: ERROR:  cannot delete from view "ro_view18"
+DETAIL:  Views that do not select from a single table or view are not automatically updatable.
+HINT:  To enable deleting from the view, provide an INSTEAD OF DELETE trigger or an unconditional ON DELETE DO INSTEAD rule.
+UPDATE ro_view19 SET last_value=1000;
+psql:sql/updatable_views.sql:94: ERROR:  cannot update view "ro_view19"
+DETAIL:  Views that do not select from a single table or view are not automatically updatable.
+HINT:  To enable updating the view, provide an INSTEAD OF UPDATE trigger or an unconditional ON UPDATE DO INSTEAD rule.
+UPDATE ro_view20 SET b=upper(b);
+psql:sql/updatable_views.sql:95: ERROR:  cannot update view "ro_view20"
+DETAIL:  Views that return set-returning functions are not automatically updatable.
+HINT:  To enable updating the view, provide an INSTEAD OF UPDATE trigger or an unconditional ON UPDATE DO INSTEAD rule.
+DROP TABLE base_tbl CASCADE;
+psql:sql/updatable_views.sql:97: NOTICE:  drop cascades to 16 other objects
+DETAIL:  drop cascades to view ro_view1
+drop cascades to view ro_view17
+drop cascades to view ro_view2
+drop cascades to view ro_view3
+drop cascades to view ro_view5
+drop cascades to view ro_view6
+drop cascades to view ro_view7
+drop cascades to view ro_view8
+drop cascades to view ro_view9
+drop cascades to view ro_view11
+drop cascades to view ro_view13
+drop cascades to view rw_view14
+drop cascades to view rw_view15
+drop cascades to view rw_view16
+drop cascades to view ro_view20
+drop cascades to view ro_view4
+DROP TABLE
+DROP VIEW ro_view10, ro_view12, ro_view18;
+DROP VIEW
+DROP SEQUENCE uv_seq CASCADE;
+psql:sql/updatable_views.sql:99: NOTICE:  drop cascades to view ro_view19
+DROP SEQUENCE
+-- simple updatable view
+CREATE TABLE base_tbl (a int PRIMARY KEY, b varchar(50) DEFAULT 'Unspecified');
+CREATE TABLE
+INSERT INTO base_tbl SELECT i, 'Row ' || i FROM generate_series(-2, 2) g(i);
+INSERT 0 5
+CREATE VIEW rw_view1 AS SELECT * FROM base_tbl WHERE a>0;
+CREATE VIEW
+SELECT table_name, is_insertable_into
+  FROM information_schema.tables
+ WHERE table_name = 'rw_view1';
+ table_name | is_insertable_into 
+------------+--------------------
+ rw_view1   | YES
+(1 row)
+
+SELECT table_name, is_updatable, is_insertable_into
+  FROM information_schema.views
+ WHERE table_name = 'rw_view1';
+ table_name | is_updatable | is_insertable_into 
+------------+--------------+--------------------
+ rw_view1   | YES          | YES
+(1 row)
+
+SELECT table_name, column_name, is_updatable
+  FROM information_schema.columns
+ WHERE table_name = 'rw_view1'
+ ORDER BY ordinal_position;
+ table_name | column_name | is_updatable 
+------------+-------------+--------------
+ rw_view1   | a           | YES
+ rw_view1   | b           | YES
+(2 rows)
+
+INSERT INTO rw_view1 VALUES (3, 'Row 3');
+INSERT 0 1
+INSERT INTO rw_view1 (a) VALUES (4);
+INSERT 0 1
+UPDATE rw_view1 SET a=5 WHERE a=4;
+UPDATE 1
+DELETE FROM rw_view1 WHERE b='Row 2';
+DELETE 1
+SELECT * FROM base_tbl;
+ a  |      b      
+----+-------------
+ -2 | Row -2
+ -1 | Row -1
+  0 | Row 0
+  1 | Row 1
+  3 | Row 3
+  5 | Unspecified
+(6 rows)
+
+-- these two crashes kunlun
+-- EXPLAIN (costs off) UPDATE rw_view1 SET a=6 WHERE a=5;
+-- EXPLAIN (costs off) DELETE FROM rw_view1 WHERE a=5;
+DROP TABLE base_tbl CASCADE;
+psql:sql/updatable_views.sql:131: NOTICE:  drop cascades to view rw_view1
+DROP TABLE
+-- view on top of view
+CREATE TABLE base_tbl (a int PRIMARY KEY, b varchar(50) DEFAULT 'Unspecified');
+CREATE TABLE
+INSERT INTO base_tbl SELECT i, 'Row ' || i FROM generate_series(-2, 2) g(i);
+INSERT 0 5
+CREATE VIEW rw_view1 AS SELECT b AS bb, a AS aa FROM base_tbl WHERE a>0;
+CREATE VIEW
+CREATE VIEW rw_view2 AS SELECT aa AS aaa, bb AS bbb FROM rw_view1 WHERE aa<10;
+CREATE VIEW
+SELECT table_name, is_insertable_into
+  FROM information_schema.tables
+ WHERE table_name = 'rw_view2';
+ table_name | is_insertable_into 
+------------+--------------------
+ rw_view2   | YES
+(1 row)
+
+SELECT table_name, is_updatable, is_insertable_into
+  FROM information_schema.views
+ WHERE table_name = 'rw_view2';
+ table_name | is_updatable | is_insertable_into 
+------------+--------------+--------------------
+ rw_view2   | YES          | YES
+(1 row)
+
+SELECT table_name, column_name, is_updatable
+  FROM information_schema.columns
+ WHERE table_name = 'rw_view2'
+ ORDER BY ordinal_position;
+ table_name | column_name | is_updatable 
+------------+-------------+--------------
+ rw_view2   | aaa         | YES
+ rw_view2   | bbb         | YES
+(2 rows)
+
+INSERT INTO rw_view2 VALUES (3, 'Row 3');
+INSERT 0 1
+INSERT INTO rw_view2 (aaa) VALUES (4);
+INSERT 0 1
+SELECT * FROM rw_view2;
+ aaa |     bbb     
+-----+-------------
+   1 | Row 1
+   2 | Row 2
+   3 | Row 3
+   4 | Unspecified
+(4 rows)
+
+UPDATE rw_view2 SET bbb='Row 4' WHERE aaa=4;
+UPDATE 1
+DELETE FROM rw_view2 WHERE aaa=2;
+DELETE 1
+SELECT * FROM rw_view2;
+ aaa |  bbb  
+-----+-------
+   1 | Row 1
+   3 | Row 3
+   4 | Row 4
+(3 rows)
+
+-- EXPLAIN (costs off) UPDATE rw_view2 SET aaa=5 WHERE aaa=4;
+-- EXPLAIN (costs off) DELETE FROM rw_view2 WHERE aaa=4;
+DROP TABLE base_tbl CASCADE;
+psql:sql/updatable_views.sql:164: NOTICE:  drop cascades to 2 other objects
+DETAIL:  drop cascades to view rw_view1
+drop cascades to view rw_view2
+DROP TABLE
+-- view on top of view with rules
+CREATE TABLE base_tbl (a int PRIMARY KEY, b varchar(50) DEFAULT 'Unspecified');
+CREATE TABLE
+INSERT INTO base_tbl SELECT i, 'Row ' || i FROM generate_series(-2, 2) g(i);
+INSERT 0 5
+CREATE VIEW rw_view1 AS SELECT * FROM base_tbl WHERE a>0 OFFSET 0; -- not updatable without rules/triggers
+CREATE VIEW
+CREATE VIEW rw_view2 AS SELECT * FROM rw_view1 WHERE a<10;
+CREATE VIEW
+SELECT table_name, is_insertable_into
+  FROM information_schema.tables
+ WHERE table_name LIKE 'rw_view%'
+ ORDER BY table_name;
+ table_name | is_insertable_into 
+------------+--------------------
+ rw_view1   | NO
+ rw_view2   | NO
+(2 rows)
+
+SELECT table_name, is_updatable, is_insertable_into
+  FROM information_schema.views
+ WHERE table_name LIKE 'rw_view%'
+ ORDER BY table_name;
+ table_name | is_updatable | is_insertable_into 
+------------+--------------+--------------------
+ rw_view1   | NO           | NO
+ rw_view2   | NO           | NO
+(2 rows)
+
+SELECT table_name, column_name, is_updatable
+  FROM information_schema.columns
+ WHERE table_name LIKE 'rw_view%'
+ ORDER BY table_name, ordinal_position;
+ table_name | column_name | is_updatable 
+------------+-------------+--------------
+ rw_view1   | a           | NO
+ rw_view1   | b           | NO
+ rw_view2   | a           | NO
+ rw_view2   | b           | NO
+(4 rows)
+
+SELECT table_name, is_insertable_into
+  FROM information_schema.tables
+ WHERE table_name LIKE 'rw_view%'
+ ORDER BY table_name;
+ table_name | is_insertable_into 
+------------+--------------------
+ rw_view1   | NO
+ rw_view2   | NO
+(2 rows)
+
+SELECT table_name, is_updatable, is_insertable_into
+  FROM information_schema.views
+ WHERE table_name LIKE 'rw_view%'
+ ORDER BY table_name;
+ table_name | is_updatable | is_insertable_into 
+------------+--------------+--------------------
+ rw_view1   | NO           | NO
+ rw_view2   | NO           | NO
+(2 rows)
+
+SELECT table_name, column_name, is_updatable
+  FROM information_schema.columns
+ WHERE table_name LIKE 'rw_view%'
+ ORDER BY table_name, ordinal_position;
+ table_name | column_name | is_updatable 
+------------+-------------+--------------
+ rw_view1   | a           | NO
+ rw_view1   | b           | NO
+ rw_view2   | a           | NO
+ rw_view2   | b           | NO
+(4 rows)
+
+SELECT table_name, is_insertable_into
+  FROM information_schema.tables
+ WHERE table_name LIKE 'rw_view%'
+ ORDER BY table_name;
+ table_name | is_insertable_into 
+------------+--------------------
+ rw_view1   | NO
+ rw_view2   | NO
+(2 rows)
+
+SELECT table_name, is_updatable, is_insertable_into
+  FROM information_schema.views
+ WHERE table_name LIKE 'rw_view%'
+ ORDER BY table_name;
+ table_name | is_updatable | is_insertable_into 
+------------+--------------+--------------------
+ rw_view1   | NO           | NO
+ rw_view2   | NO           | NO
+(2 rows)
+
+SELECT table_name, column_name, is_updatable
+  FROM information_schema.columns
+ WHERE table_name LIKE 'rw_view%'
+ ORDER BY table_name, ordinal_position;
+ table_name | column_name | is_updatable 
+------------+-------------+--------------
+ rw_view1   | a           | NO
+ rw_view1   | b           | NO
+ rw_view2   | a           | NO
+ rw_view2   | b           | NO
+(4 rows)
+
+SELECT table_name, is_insertable_into
+  FROM information_schema.tables
+ WHERE table_name LIKE 'rw_view%'
+ ORDER BY table_name;
+ table_name | is_insertable_into 
+------------+--------------------
+ rw_view1   | NO
+ rw_view2   | NO
+(2 rows)
+
+SELECT table_name, is_updatable, is_insertable_into
+  FROM information_schema.views
+ WHERE table_name LIKE 'rw_view%'
+ ORDER BY table_name;
+ table_name | is_updatable | is_insertable_into 
+------------+--------------+--------------------
+ rw_view1   | NO           | NO
+ rw_view2   | NO           | NO
+(2 rows)
+
+SELECT table_name, column_name, is_updatable
+  FROM information_schema.columns
+ WHERE table_name LIKE 'rw_view%'
+ ORDER BY table_name, ordinal_position;
+ table_name | column_name | is_updatable 
+------------+-------------+--------------
+ rw_view1   | a           | NO
+ rw_view1   | b           | NO
+ rw_view2   | a           | NO
+ rw_view2   | b           | NO
+(4 rows)
+
+INSERT INTO rw_view2 VALUES (3, 'Row 3') RETURNING *;
+psql:sql/updatable_views.sql:234: ERROR:  cannot insert into view "rw_view1"
+DETAIL:  Views containing LIMIT or OFFSET are not automatically updatable.
+HINT:  To enable inserting into the view, provide an INSTEAD OF INSERT trigger or an unconditional ON INSERT DO INSTEAD rule.
+UPDATE rw_view2 SET b='Row three' WHERE a=3 RETURNING *;
+psql:sql/updatable_views.sql:235: ERROR:  cannot update view "rw_view1"
+DETAIL:  Views containing LIMIT or OFFSET are not automatically updatable.
+HINT:  To enable updating the view, provide an INSTEAD OF UPDATE trigger or an unconditional ON UPDATE DO INSTEAD rule.
+SELECT * FROM rw_view2;
+ a |   b   
+---+-------
+ 1 | Row 1
+ 2 | Row 2
+(2 rows)
+
+DELETE FROM rw_view2 WHERE a=3 RETURNING *;
+psql:sql/updatable_views.sql:237: ERROR:  cannot delete from view "rw_view1"
+DETAIL:  Views containing LIMIT or OFFSET are not automatically updatable.
+HINT:  To enable deleting from the view, provide an INSTEAD OF DELETE trigger or an unconditional ON DELETE DO INSTEAD rule.
+SELECT * FROM rw_view2;
+ a |   b   
+---+-------
+ 1 | Row 1
+ 2 | Row 2
+(2 rows)
+
+-- EXPLAIN (costs off) UPDATE rw_view2 SET a=3 WHERE a=2;
+-- EXPLAIN (costs off) DELETE FROM rw_view2 WHERE a=2;
+DROP TABLE base_tbl CASCADE;
+psql:sql/updatable_views.sql:243: NOTICE:  drop cascades to 2 other objects
+DETAIL:  drop cascades to view rw_view1
+drop cascades to view rw_view2
+DROP TABLE
+-- view on top of view with triggers
+CREATE TABLE base_tbl (a int PRIMARY KEY, b varchar(50) DEFAULT 'Unspecified');
+CREATE TABLE
+INSERT INTO base_tbl SELECT i, 'Row ' || i FROM generate_series(-2, 2) g(i);
+INSERT 0 5
+CREATE VIEW rw_view1 AS SELECT * FROM base_tbl WHERE a>0 OFFSET 0; -- not updatable without rules/triggers
+CREATE VIEW
+CREATE VIEW rw_view2 AS SELECT * FROM rw_view1 WHERE a<10;
+CREATE VIEW
+SELECT table_name, is_insertable_into
+  FROM information_schema.tables
+ WHERE table_name LIKE 'rw_view%'
+ ORDER BY table_name;
+ table_name | is_insertable_into 
+------------+--------------------
+ rw_view1   | NO
+ rw_view2   | NO
+(2 rows)
+
+SELECT table_name, is_updatable, is_insertable_into,
+       is_trigger_updatable, is_trigger_deletable,
+       is_trigger_insertable_into
+  FROM information_schema.views
+ WHERE table_name LIKE 'rw_view%'
+ ORDER BY table_name;
+ table_name | is_updatable | is_insertable_into | is_trigger_updatable | is_trigger_deletable | is_trigger_insertable_into 
+------------+--------------+--------------------+----------------------+----------------------+----------------------------
+ rw_view1   | NO           | NO                 | NO                   | NO                   | NO
+ rw_view2   | NO           | NO                 | NO                   | NO                   | NO
+(2 rows)
+
+SELECT table_name, column_name, is_updatable
+  FROM information_schema.columns
+ WHERE table_name LIKE 'rw_view%'
+ ORDER BY table_name, ordinal_position;
+ table_name | column_name | is_updatable 
+------------+-------------+--------------
+ rw_view1   | a           | NO
+ rw_view1   | b           | NO
+ rw_view2   | a           | NO
+ rw_view2   | b           | NO
+(4 rows)
+
+SELECT table_name, is_insertable_into
+  FROM information_schema.tables
+ WHERE table_name LIKE 'rw_view%'
+ ORDER BY table_name;
+ table_name | is_insertable_into 
+------------+--------------------
+ rw_view1   | NO
+ rw_view2   | NO
+(2 rows)
+
+SELECT table_name, is_updatable, is_insertable_into,
+       is_trigger_updatable, is_trigger_deletable,
+       is_trigger_insertable_into
+  FROM information_schema.views
+ WHERE table_name LIKE 'rw_view%'
+ ORDER BY table_name;
+ table_name | is_updatable | is_insertable_into | is_trigger_updatable | is_trigger_deletable | is_trigger_insertable_into 
+------------+--------------+--------------------+----------------------+----------------------+----------------------------
+ rw_view1   | NO           | NO                 | NO                   | NO                   | NO
+ rw_view2   | NO           | NO                 | NO                   | NO                   | NO
+(2 rows)
+
+SELECT table_name, column_name, is_updatable
+  FROM information_schema.columns
+ WHERE table_name LIKE 'rw_view%'
+ ORDER BY table_name, ordinal_position;
+ table_name | column_name | is_updatable 
+------------+-------------+--------------
+ rw_view1   | a           | NO
+ rw_view1   | b           | NO
+ rw_view2   | a           | NO
+ rw_view2   | b           | NO
+(4 rows)
+
+SELECT table_name, is_insertable_into
+  FROM information_schema.tables
+ WHERE table_name LIKE 'rw_view%'
+ ORDER BY table_name;
+ table_name | is_insertable_into 
+------------+--------------------
+ rw_view1   | NO
+ rw_view2   | NO
+(2 rows)
+
+SELECT table_name, is_updatable, is_insertable_into,
+       is_trigger_updatable, is_trigger_deletable,
+       is_trigger_insertable_into
+  FROM information_schema.views
+ WHERE table_name LIKE 'rw_view%'
+ ORDER BY table_name;
+ table_name | is_updatable | is_insertable_into | is_trigger_updatable | is_trigger_deletable | is_trigger_insertable_into 
+------------+--------------+--------------------+----------------------+----------------------+----------------------------
+ rw_view1   | NO           | NO                 | NO                   | NO                   | NO
+ rw_view2   | NO           | NO                 | NO                   | NO                   | NO
+(2 rows)
+
+SELECT table_name, column_name, is_updatable
+  FROM information_schema.columns
+ WHERE table_name LIKE 'rw_view%'
+ ORDER BY table_name, ordinal_position;
+ table_name | column_name | is_updatable 
+------------+-------------+--------------
+ rw_view1   | a           | NO
+ rw_view1   | b           | NO
+ rw_view2   | a           | NO
+ rw_view2   | b           | NO
+(4 rows)
+
+SELECT table_name, is_insertable_into
+  FROM information_schema.tables
+ WHERE table_name LIKE 'rw_view%'
+ ORDER BY table_name;
+ table_name | is_insertable_into 
+------------+--------------------
+ rw_view1   | NO
+ rw_view2   | NO
+(2 rows)
+
+SELECT table_name, is_updatable, is_insertable_into,
+       is_trigger_updatable, is_trigger_deletable,
+       is_trigger_insertable_into
+  FROM information_schema.views
+ WHERE table_name LIKE 'rw_view%'
+ ORDER BY table_name;
+ table_name | is_updatable | is_insertable_into | is_trigger_updatable | is_trigger_deletable | is_trigger_insertable_into 
+------------+--------------+--------------------+----------------------+----------------------+----------------------------
+ rw_view1   | NO           | NO                 | NO                   | NO                   | NO
+ rw_view2   | NO           | NO                 | NO                   | NO                   | NO
+(2 rows)
+
+SELECT table_name, column_name, is_updatable
+  FROM information_schema.columns
+ WHERE table_name LIKE 'rw_view%'
+ ORDER BY table_name, ordinal_position;
+ table_name | column_name | is_updatable 
+------------+-------------+--------------
+ rw_view1   | a           | NO
+ rw_view1   | b           | NO
+ rw_view2   | a           | NO
+ rw_view2   | b           | NO
+(4 rows)
+
+INSERT INTO rw_view2 VALUES (3, 'Row 3') RETURNING *;
+psql:sql/updatable_views.sql:321: ERROR:  cannot insert into view "rw_view1"
+DETAIL:  Views containing LIMIT or OFFSET are not automatically updatable.
+HINT:  To enable inserting into the view, provide an INSTEAD OF INSERT trigger or an unconditional ON INSERT DO INSTEAD rule.
+UPDATE rw_view2 SET b='Row three' WHERE a=3 RETURNING *;
+psql:sql/updatable_views.sql:322: ERROR:  cannot update view "rw_view1"
+DETAIL:  Views containing LIMIT or OFFSET are not automatically updatable.
+HINT:  To enable updating the view, provide an INSTEAD OF UPDATE trigger or an unconditional ON UPDATE DO INSTEAD rule.
+SELECT * FROM rw_view2;
+ a |   b   
+---+-------
+ 1 | Row 1
+ 2 | Row 2
+(2 rows)
+
+DELETE FROM rw_view2 WHERE a=3 RETURNING *;
+psql:sql/updatable_views.sql:324: ERROR:  cannot delete from view "rw_view1"
+DETAIL:  Views containing LIMIT or OFFSET are not automatically updatable.
+HINT:  To enable deleting from the view, provide an INSTEAD OF DELETE trigger or an unconditional ON DELETE DO INSTEAD rule.
+SELECT * FROM rw_view2;
+ a |   b   
+---+-------
+ 1 | Row 1
+ 2 | Row 2
+(2 rows)
+
+-- EXPLAIN (costs off) UPDATE rw_view2 SET a=3 WHERE a=2;
+-- EXPLAIN (costs off) DELETE FROM rw_view2 WHERE a=2;
+DROP TABLE base_tbl CASCADE;
+psql:sql/updatable_views.sql:330: NOTICE:  drop cascades to 2 other objects
+DETAIL:  drop cascades to view rw_view1
+drop cascades to view rw_view2
+DROP TABLE
+-- update using whole row from view
+CREATE TABLE base_tbl (a int PRIMARY KEY, b varchar(50) DEFAULT 'Unspecified');
+CREATE TABLE
+INSERT INTO base_tbl SELECT i, 'Row ' || i FROM generate_series(-2, 2) g(i);
+INSERT 0 5
+CREATE VIEW rw_view1 AS SELECT b AS bb, a AS aa FROM base_tbl;
+CREATE VIEW
+CREATE FUNCTION rw_view1_aa(x rw_view1)
+  RETURNS int AS $$ SELECT x.aa $$ LANGUAGE sql;
+CREATE FUNCTION
+UPDATE rw_view1 v SET bb='Updated row 2' WHERE rw_view1_aa(v)=2
+  RETURNING rw_view1_aa(v), v.bb;
+ rw_view1_aa |      bb       
+-------------+---------------
+           2 | Updated row 2
+(1 row)
+
+UPDATE 1
+SELECT * FROM base_tbl;
+ a  |       b       
+----+---------------
+ -2 | Row -2
+ -1 | Row -1
+  0 | Row 0
+  1 | Row 1
+  2 | Updated row 2
+(5 rows)
+
+-- EXPLAIN (costs off)
+-- UPDATE rw_view1 v SET bb='Updated row 2' WHERE rw_view1_aa(v)=2
+--  RETURNING rw_view1_aa(v), v.bb;
+DROP TABLE base_tbl CASCADE;
+psql:sql/updatable_views.sql:350: NOTICE:  drop cascades to 2 other objects
+DETAIL:  drop cascades to view rw_view1
+drop cascades to function rw_view1_aa(rw_view1)
+DROP TABLE
+-- permissions checks
+CREATE USER regress_view_user1;
+CREATE ROLE
+CREATE USER regress_view_user2;
+CREATE ROLE
+SET SESSION AUTHORIZATION regress_view_user1;
+SET
+CREATE TABLE base_tbl(a int, b varchar(50), c float);
+CREATE TABLE
+INSERT INTO base_tbl VALUES (1, 'Row 1', 1.0);
+INSERT 0 1
+CREATE VIEW rw_view1 AS SELECT b AS bb, c AS cc, a AS aa FROM base_tbl;
+CREATE VIEW
+INSERT INTO rw_view1 VALUES ('Row 2', 2.0, 2);
+INSERT 0 1
+GRANT SELECT ON base_tbl TO regress_view_user2;
+GRANT
+GRANT SELECT ON rw_view1 TO regress_view_user2;
+GRANT
+GRANT UPDATE (a,c) ON base_tbl TO regress_view_user2;
+GRANT
+GRANT UPDATE (bb,cc) ON rw_view1 TO regress_view_user2;
+GRANT
+RESET SESSION AUTHORIZATION;
+RESET
+SET SESSION AUTHORIZATION regress_view_user2;
+SET
+CREATE VIEW rw_view2 AS SELECT b AS bb, c AS cc, a AS aa FROM base_tbl;
+CREATE VIEW
+SELECT * FROM base_tbl; -- ok
+ a |   b   | c 
+---+-------+---
+ 1 | Row 1 | 1
+ 2 | Row 2 | 2
+(2 rows)
+
+SELECT * FROM rw_view1; -- ok
+  bb   | cc | aa 
+-------+----+----
+ Row 1 |  1 |  1
+ Row 2 |  2 |  2
+(2 rows)
+
+SELECT * FROM rw_view2; -- ok
+  bb   | cc | aa 
+-------+----+----
+ Row 1 |  1 |  1
+ Row 2 |  2 |  2
+(2 rows)
+
+INSERT INTO base_tbl VALUES (3, 'Row 3', 3.0); -- not allowed
+psql:sql/updatable_views.sql:375: ERROR:  permission denied for table base_tbl
+INSERT INTO rw_view1 VALUES ('Row 3', 3.0, 3); -- not allowed
+psql:sql/updatable_views.sql:376: ERROR:  permission denied for view rw_view1
+INSERT INTO rw_view2 VALUES ('Row 3', 3.0, 3); -- not allowed
+psql:sql/updatable_views.sql:377: ERROR:  permission denied for table base_tbl
+UPDATE base_tbl SET a=a, c=c; -- ok
+UPDATE 0
+UPDATE base_tbl SET b=b; -- not allowed
+psql:sql/updatable_views.sql:380: ERROR:  permission denied for table base_tbl
+UPDATE rw_view1 SET bb=bb, cc=cc; -- ok
+UPDATE 0
+UPDATE rw_view1 SET aa=aa; -- not allowed
+psql:sql/updatable_views.sql:382: ERROR:  permission denied for view rw_view1
+UPDATE rw_view2 SET aa=aa, cc=cc; -- ok
+UPDATE 0
+UPDATE rw_view2 SET bb=bb; -- not allowed
+psql:sql/updatable_views.sql:384: ERROR:  permission denied for table base_tbl
+DELETE FROM base_tbl; -- not allowed
+psql:sql/updatable_views.sql:386: ERROR:  permission denied for table base_tbl
+DELETE FROM rw_view1; -- not allowed
+psql:sql/updatable_views.sql:387: ERROR:  permission denied for view rw_view1
+DELETE FROM rw_view2; -- not allowed
+psql:sql/updatable_views.sql:388: ERROR:  permission denied for table base_tbl
+RESET SESSION AUTHORIZATION;
+RESET
+SET SESSION AUTHORIZATION regress_view_user1;
+SET
+GRANT INSERT, DELETE ON base_tbl TO regress_view_user2;
+GRANT
+RESET SESSION AUTHORIZATION;
+RESET
+SET SESSION AUTHORIZATION regress_view_user2;
+SET
+INSERT INTO base_tbl VALUES (3, 'Row 3', 3.0); -- ok
+INSERT 0 1
+INSERT INTO rw_view1 VALUES ('Row 4', 4.0, 4); -- not allowed
+psql:sql/updatable_views.sql:397: ERROR:  permission denied for view rw_view1
+INSERT INTO rw_view2 VALUES ('Row 4', 4.0, 4); -- ok
+INSERT 0 1
+DELETE FROM base_tbl WHERE a=1; -- ok
+DELETE 1
+DELETE FROM rw_view1 WHERE aa=2; -- not allowed
+psql:sql/updatable_views.sql:400: ERROR:  permission denied for view rw_view1
+DELETE FROM rw_view2 WHERE aa=2; -- ok
+DELETE 1
+SELECT * FROM base_tbl;
+ a |   b   | c 
+---+-------+---
+ 3 | Row 3 | 3
+ 4 | Row 4 | 4
+(2 rows)
+
+RESET SESSION AUTHORIZATION;
+RESET
+SET SESSION AUTHORIZATION regress_view_user1;
+SET
+REVOKE INSERT, DELETE ON base_tbl FROM regress_view_user2;
+REVOKE
+GRANT INSERT, DELETE ON rw_view1 TO regress_view_user2;
+GRANT
+RESET SESSION AUTHORIZATION;
+RESET
+SET SESSION AUTHORIZATION regress_view_user2;
+SET
+INSERT INTO base_tbl VALUES (5, 'Row 5', 5.0); -- not allowed
+psql:sql/updatable_views.sql:411: ERROR:  permission denied for table base_tbl
+INSERT INTO rw_view1 VALUES ('Row 5', 5.0, 5); -- ok
+INSERT 0 1
+INSERT INTO rw_view2 VALUES ('Row 6', 6.0, 6); -- not allowed
+psql:sql/updatable_views.sql:413: ERROR:  permission denied for table base_tbl
+DELETE FROM base_tbl WHERE a=3; -- not allowed
+psql:sql/updatable_views.sql:414: ERROR:  permission denied for table base_tbl
+DELETE FROM rw_view1 WHERE aa=3; -- ok
+DELETE 1
+DELETE FROM rw_view2 WHERE aa=4; -- not allowed
+psql:sql/updatable_views.sql:416: ERROR:  permission denied for table base_tbl
+SELECT * FROM base_tbl;
+ a |   b   | c 
+---+-------+---
+ 4 | Row 4 | 4
+ 5 | Row 5 | 5
+(2 rows)
+
+RESET SESSION AUTHORIZATION;
+RESET
+DROP TABLE base_tbl CASCADE;
+psql:sql/updatable_views.sql:420: NOTICE:  drop cascades to 2 other objects
+DETAIL:  drop cascades to view rw_view1
+drop cascades to view rw_view2
+DROP TABLE
+-- nested-view permissions
+CREATE TABLE base_tbl(a int, b varchar(50), c float);
+CREATE TABLE
+INSERT INTO base_tbl VALUES (1, 'Row 1', 1.0);
+INSERT 0 1
+SET SESSION AUTHORIZATION regress_view_user1;
+SET
+CREATE VIEW rw_view1 AS SELECT * FROM base_tbl;
+CREATE VIEW
+--SELECT * FROM rw_view1;  -- not allowed
+--SELECT * FROM rw_view1 FOR UPDATE;  -- not allowed
+UPDATE rw_view1 SET b = 'foo' WHERE a = 1;  -- not allowed
+psql:sql/updatable_views.sql:431: ERROR:  permission denied for table base_tbl
+SET SESSION AUTHORIZATION regress_view_user2;
+SET
+CREATE VIEW rw_view2 AS SELECT * FROM rw_view1;
+CREATE VIEW
+SELECT * FROM rw_view2;  -- not allowed
+psql:sql/updatable_views.sql:435: ERROR:  permission denied for view rw_view1
+--SELECT * FROM rw_view2 FOR UPDATE;  -- not allowed
+UPDATE rw_view2 SET b = 'bar' WHERE a = 1;  -- not allowed
+psql:sql/updatable_views.sql:437: ERROR:  permission denied for view rw_view1
+RESET SESSION AUTHORIZATION;
+RESET
+GRANT SELECT ON base_tbl TO regress_view_user1;
+GRANT
+SET SESSION AUTHORIZATION regress_view_user1;
+SET
+SELECT * FROM rw_view1;
+ a |   b   | c 
+---+-------+---
+ 1 | Row 1 | 1
+(1 row)
+
+--SELECT * FROM rw_view1 FOR UPDATE;  -- not allowed
+UPDATE rw_view1 SET b = 'foo' WHERE a = 1;  -- not allowed
+psql:sql/updatable_views.sql:445: ERROR:  permission denied for table base_tbl
+SET SESSION AUTHORIZATION regress_view_user2;
+SET
+SELECT * FROM rw_view2;  -- not allowed
+psql:sql/updatable_views.sql:448: ERROR:  permission denied for view rw_view1
+--SELECT * FROM rw_view2 FOR UPDATE;  -- not allowed
+UPDATE rw_view2 SET b = 'bar' WHERE a = 1;  -- not allowed
+psql:sql/updatable_views.sql:450: ERROR:  permission denied for view rw_view1
+SET SESSION AUTHORIZATION regress_view_user1;
+SET
+GRANT SELECT ON rw_view1 TO regress_view_user2;
+GRANT
+SET SESSION AUTHORIZATION regress_view_user2;
+SET
+SELECT * FROM rw_view2;
+ a |   b   | c 
+---+-------+---
+ 1 | Row 1 | 1
+(1 row)
+
+--SELECT * FROM rw_view2 FOR UPDATE;  -- not allowed
+UPDATE rw_view2 SET b = 'bar' WHERE a = 1;  -- not allowed
+psql:sql/updatable_views.sql:458: ERROR:  permission denied for view rw_view1
+RESET SESSION AUTHORIZATION;
+RESET
+GRANT UPDATE ON base_tbl TO regress_view_user1;
+GRANT
+SET SESSION AUTHORIZATION regress_view_user1;
+SET
+SELECT * FROM rw_view1;
+ a |   b   | c 
+---+-------+---
+ 1 | Row 1 | 1
+(1 row)
+
+--SELECT * FROM rw_view1 FOR UPDATE;
+UPDATE rw_view1 SET b = 'foo' WHERE a = 1;
+UPDATE 1
+SET SESSION AUTHORIZATION regress_view_user2;
+SET
+SELECT * FROM rw_view2;
+ a |  b  | c 
+---+-----+---
+ 1 | foo | 1
+(1 row)
+
+-- SELECT * FROM rw_view2 FOR UPDATE;  -- not allowed
+UPDATE rw_view2 SET b = 'bar' WHERE a = 1;  -- not allowed
+psql:sql/updatable_views.sql:471: ERROR:  permission denied for view rw_view1
+SET SESSION AUTHORIZATION regress_view_user1;
+SET
+GRANT UPDATE ON rw_view1 TO regress_view_user2;
+GRANT
+SET SESSION AUTHORIZATION regress_view_user2;
+SET
+SELECT * FROM rw_view2;
+ a |  b  | c 
+---+-----+---
+ 1 | foo | 1
+(1 row)
+
+-- SELECT * FROM rw_view2 FOR UPDATE;
+UPDATE rw_view2 SET b = 'bar' WHERE a = 1;
+UPDATE 1
+RESET SESSION AUTHORIZATION;
+RESET
+REVOKE UPDATE ON base_tbl FROM regress_view_user1;
+REVOKE
+SET SESSION AUTHORIZATION regress_view_user1;
+SET
+SELECT * FROM rw_view1;
+ a |  b  | c 
+---+-----+---
+ 1 | bar | 1
+(1 row)
+
+--SELECT * FROM rw_view1 FOR UPDATE;  -- not allowed
+UPDATE rw_view1 SET b = 'foo' WHERE a = 1;  -- not allowed
+psql:sql/updatable_views.sql:486: ERROR:  permission denied for table base_tbl
+SET SESSION AUTHORIZATION regress_view_user2;
+SET
+SELECT * FROM rw_view2;
+ a |  b  | c 
+---+-----+---
+ 1 | bar | 1
+(1 row)
+
+--SELECT * FROM rw_view2 FOR UPDATE;  -- not allowed
+UPDATE rw_view2 SET b = 'bar' WHERE a = 1;  -- not allowed
+psql:sql/updatable_views.sql:491: ERROR:  permission denied for table base_tbl
+RESET SESSION AUTHORIZATION;
+RESET
+DROP TABLE base_tbl CASCADE;
+psql:sql/updatable_views.sql:495: NOTICE:  drop cascades to 2 other objects
+DETAIL:  drop cascades to view rw_view1
+drop cascades to view rw_view2
+DROP TABLE
+DROP USER regress_view_user1;
+DROP ROLE
+DROP USER regress_view_user2;
+DROP ROLE
+-- column defaults
+CREATE TABLE base_tbl (a int PRIMARY KEY, b varchar(50) DEFAULT 'Unspecified', c serial);
+CREATE TABLE
+INSERT INTO base_tbl VALUES (1, 'Row 1');
+INSERT 0 1
+INSERT INTO base_tbl VALUES (2, 'Row 2');
+INSERT 0 1
+INSERT INTO base_tbl VALUES (3);
+INSERT 0 1
+CREATE VIEW rw_view1 AS SELECT a AS aa, b AS bb FROM base_tbl;
+CREATE VIEW
+ALTER VIEW rw_view1 ALTER COLUMN bb SET DEFAULT 'View default';
+ALTER VIEW
+INSERT INTO rw_view1 VALUES (4, 'Row 4');
+INSERT 0 1
+INSERT INTO rw_view1 (aa) VALUES (5);
+INSERT 0 1
+SELECT * FROM base_tbl;
+ a |      b       | c 
+---+--------------+---
+ 1 | Row 1        | 1
+ 2 | Row 2        | 2
+ 3 | Unspecified  | 3
+ 4 | Row 4        | 4
+ 5 | View default | 5
+(5 rows)
+
+DROP TABLE base_tbl CASCADE;
+psql:sql/updatable_views.sql:515: NOTICE:  drop cascades to view rw_view1
+DROP TABLE
+-- Table having triggers
+CREATE TABLE base_tbl (a int PRIMARY KEY, b varchar(50) DEFAULT 'Unspecified');
+CREATE TABLE
+INSERT INTO base_tbl VALUES (1, 'Row 1');
+INSERT 0 1
+INSERT INTO base_tbl VALUES (2, 'Row 2');
+INSERT 0 1
+CREATE VIEW rw_view1 AS SELECT a AS aa, b AS bb FROM base_tbl;
+CREATE VIEW
+INSERT INTO rw_view1 VALUES (3, 'Row 3');
+INSERT 0 1
+select * from base_tbl;
+ a |   b   
+---+-------
+ 1 | Row 1
+ 2 | Row 2
+ 3 | Row 3
+(3 rows)
+
+DROP VIEW rw_view1;
+DROP VIEW
+DROP TABLE base_tbl;
+DROP TABLE
+-- view with ORDER BY
+CREATE TABLE base_tbl (a int, b int);
+CREATE TABLE
+INSERT INTO base_tbl VALUES (1,2), (4,5), (3,-3);
+INSERT 0 3
+CREATE VIEW rw_view1 AS SELECT * FROM base_tbl ORDER BY a+b;
+CREATE VIEW
+SELECT * FROM rw_view1;
+ a | b  
+---+----
+ 3 | -3
+ 1 |  2
+ 4 |  5
+(3 rows)
+
+INSERT INTO rw_view1 VALUES (7,-8);
+INSERT 0 1
+SELECT * FROM rw_view1;
+ a | b  
+---+----
+ 7 | -8
+ 3 | -3
+ 1 |  2
+ 4 |  5
+(4 rows)
+
+-- EXPLAIN (verbose, costs off) UPDATE rw_view1 SET b = b + 1 RETURNING *;
+UPDATE rw_view1 SET b = b + 1 RETURNING *;
+ a | b  
+---+----
+ 1 |  3
+ 4 |  6
+ 3 | -2
+ 7 | -7
+(4 rows)
+
+UPDATE 4
+SELECT * FROM rw_view1;
+ a | b  
+---+----
+ 7 | -7
+ 3 | -2
+ 1 |  3
+ 4 |  6
+(4 rows)
+
+DROP TABLE base_tbl CASCADE;
+psql:sql/updatable_views.sql:546: NOTICE:  drop cascades to view rw_view1
+DROP TABLE
+-- views with updatable and non-updatable columns
+CREATE TABLE base_tbl(a float);
+CREATE TABLE
+INSERT INTO base_tbl SELECT i/10.0 FROM generate_series(1,10) g(i);
+INSERT 0 10
+CREATE VIEW rw_view1 AS
+  SELECT sin(a) s, a, cos(a) c
+  FROM base_tbl
+  WHERE a != 0
+  ORDER BY abs(a);
+CREATE VIEW
+INSERT INTO rw_view1 VALUES (null, null, 1.1, null); -- should fail
+psql:sql/updatable_views.sql:558: ERROR:  INSERT has more expressions than target columns
+LINE 1: INSERT INTO rw_view1 VALUES (null, null, 1.1, null);
+                                                      ^
+INSERT INTO rw_view1 (s, c, a) VALUES (null, null, 1.1); -- should fail
+psql:sql/updatable_views.sql:559: ERROR:  cannot insert into column "s" of view "rw_view1"
+DETAIL:  View columns that are not columns of their base relation are not updatable.
+INSERT INTO rw_view1 (a) VALUES (1.1) RETURNING a, s, c; -- OK
+  a  |         s         |         c         
+-----+-------------------+-------------------
+ 1.1 | 0.891207360061435 | 0.453596121425577
+(1 row)
+
+INSERT 0 1
+UPDATE rw_view1 SET s = s WHERE a = 1.1; -- should fail
+psql:sql/updatable_views.sql:561: ERROR:  cannot update column "s" of view "rw_view1"
+DETAIL:  View columns that are not columns of their base relation are not updatable.
+UPDATE rw_view1 SET a = 1.05 WHERE a = 1.1 RETURNING s; -- OK
+         s         
+-------------------
+ 0.867423225594017
+(1 row)
+
+UPDATE 1
+DELETE FROM rw_view1 WHERE a = 1.05; -- OK
+DELETE 1
+CREATE VIEW rw_view2 AS
+  SELECT s, c, s/c t, a base_a
+  FROM rw_view1;
+CREATE VIEW
+INSERT INTO rw_view2 VALUES (null, null, null, 1.1, null); -- should fail
+psql:sql/updatable_views.sql:569: ERROR:  INSERT has more expressions than target columns
+LINE 1: INSERT INTO rw_view2 VALUES (null, null, null, 1.1, null);
+                                                            ^
+INSERT INTO rw_view2(s, c, base_a) VALUES (null, null, 1.1); -- should fail
+psql:sql/updatable_views.sql:570: ERROR:  cannot insert into column "s" of view "rw_view1"
+DETAIL:  View columns that are not columns of their base relation are not updatable.
+INSERT INTO rw_view2(base_a) VALUES (1.1) RETURNING t; -- OK
+        t         
+------------------
+ 1.96475965724865
+(1 row)
+
+INSERT 0 1
+UPDATE rw_view2 SET s = s WHERE base_a = 1.1; -- should fail
+psql:sql/updatable_views.sql:572: ERROR:  cannot update column "s" of view "rw_view1"
+DETAIL:  View columns that are not columns of their base relation are not updatable.
+UPDATE rw_view2 SET t = t WHERE base_a = 1.1; -- should fail
+psql:sql/updatable_views.sql:573: ERROR:  cannot update column "t" of view "rw_view2"
+DETAIL:  View columns that are not columns of their base relation are not updatable.
+UPDATE rw_view2 SET base_a = 1.05 WHERE base_a = 1.1; -- OK
+UPDATE 1
+DELETE FROM rw_view2 WHERE base_a = 1.05 RETURNING base_a, s, c, t; -- OK
+ base_a |         s         |         c         |        t         
+--------+-------------------+-------------------+------------------
+   1.05 | 0.867423225594017 | 0.497571047891727 | 1.74331530998317
+(1 row)
+
+DELETE 1
+CREATE VIEW rw_view3 AS
+  SELECT s, c, s/c t
+  FROM rw_view1;
+CREATE VIEW
+INSERT INTO rw_view3 VALUES (null, null, null, null); -- should fail
+psql:sql/updatable_views.sql:581: ERROR:  INSERT has more expressions than target columns
+LINE 1: INSERT INTO rw_view3 VALUES (null, null, null, null);
+                                                       ^
+INSERT INTO rw_view3(s) VALUES (null); -- should fail
+psql:sql/updatable_views.sql:582: ERROR:  cannot insert into column "s" of view "rw_view1"
+DETAIL:  View columns that are not columns of their base relation are not updatable.
+UPDATE rw_view3 SET s = s; -- should fail
+psql:sql/updatable_views.sql:583: ERROR:  cannot update column "s" of view "rw_view1"
+DETAIL:  View columns that are not columns of their base relation are not updatable.
+DELETE FROM rw_view3 WHERE s = sin(0.1); -- should be OK
+DELETE 0
+SELECT * FROM base_tbl ORDER BY a;
+  a  
+-----
+ 0.1
+ 0.2
+ 0.3
+ 0.4
+ 0.5
+ 0.6
+ 0.7
+ 0.8
+ 0.9
+   1
+(10 rows)
+
+SELECT table_name, is_insertable_into
+  FROM information_schema.tables
+ WHERE table_name LIKE E'r_\\_view%'
+ ORDER BY table_name;
+ table_name | is_insertable_into 
+------------+--------------------
+ rw_view1   | YES
+ rw_view2   | YES
+ rw_view3   | NO
+(3 rows)
+
+SELECT table_name, is_updatable, is_insertable_into
+  FROM information_schema.views
+ WHERE table_name LIKE E'r_\\_view%'
+ ORDER BY table_name;
+ table_name | is_updatable | is_insertable_into 
+------------+--------------+--------------------
+ rw_view1   | YES          | YES
+ rw_view2   | YES          | YES
+ rw_view3   | NO           | NO
+(3 rows)
+
+SELECT table_name, column_name, is_updatable
+  FROM information_schema.columns
+ WHERE table_name LIKE E'r_\\_view%'
+ ORDER BY table_name, ordinal_position;
+ table_name | column_name | is_updatable 
+------------+-------------+--------------
+ rw_view1   | s           | NO
+ rw_view1   | a           | YES
+ rw_view1   | c           | NO
+ rw_view2   | s           | NO
+ rw_view2   | c           | NO
+ rw_view2   | t           | NO
+ rw_view2   | base_a      | YES
+ rw_view3   | s           | NO
+ rw_view3   | c           | NO
+ rw_view3   | t           | NO
+(10 rows)
+
+SELECT events & 4 != 0 AS upd,
+       events & 8 != 0 AS ins,
+       events & 16 != 0 AS del
+  FROM pg_catalog.pg_relation_is_updatable('rw_view3'::regclass, false) t(events);
+ upd | ins | del 
+-----+-----+-----
+ f   | f   | t
+(1 row)
+
+  
+DROP TABLE base_tbl CASCADE;
+psql:sql/updatable_views.sql:607: NOTICE:  drop cascades to 3 other objects
+DETAIL:  drop cascades to view rw_view1
+drop cascades to view rw_view2
+drop cascades to view rw_view3
+DROP TABLE
+CREATE TABLE base_tbl (a int, b int DEFAULT 10);
+CREATE TABLE
+INSERT INTO base_tbl VALUES (1,2), (2,3), (1,-1);
+INSERT 0 3
+CREATE VIEW rw_view1 AS SELECT * FROM base_tbl WHERE a < b;
+CREATE VIEW
+\d+ rw_view1
+                          View "public.rw_view1"
+ Column |  Type   | Collation | Nullable | Default | Storage | Description 
+--------+---------+-----------+----------+---------+---------+-------------
+ a      | integer |           |          |         | plain   | 
+ b      | integer |           |          |         | plain   | 
+View definition:
+ SELECT base_tbl.a,
+    base_tbl.b
+   FROM base_tbl
+  WHERE base_tbl.a < base_tbl.b;
+
+SELECT * FROM information_schema.views WHERE table_name = 'rw_view1';
+ table_catalog | table_schema | table_name |          view_definition           | check_option | is_updatable | is_insertable_into | is_trigger_updatable | is_trigger_deletable | is_trigger_insertable_into 
+---------------+--------------+------------+------------------------------------+--------------+--------------+--------------------+----------------------+----------------------+----------------------------
+ regress       | public       | rw_view1   |  SELECT base_tbl.a,               +| NONE         | YES          | YES                | NO                   | NO                   | NO
+               |              |            |     base_tbl.b                    +|              |              |                    |                      |                      | 
+               |              |            |    FROM base_tbl                  +|              |              |                    |                      |                      | 
+               |              |            |   WHERE (base_tbl.a < base_tbl.b); |              |              |                    |                      |                      | 
+(1 row)
+
+INSERT INTO rw_view1 VALUES(3,4); -- ok
+INSERT 0 1
+INSERT INTO rw_view1 VALUES(4,3); -- should fail
+INSERT 0 1
+INSERT INTO rw_view1 VALUES(5,null); -- should fail
+INSERT 0 1
+UPDATE rw_view1 SET b = 5 WHERE a = 3; -- ok
+UPDATE 1
+UPDATE rw_view1 SET b = -5 WHERE a = 3; -- should fail
+UPDATE 1
+INSERT INTO rw_view1(a) VALUES (9); -- ok
+INSERT 0 1
+INSERT INTO rw_view1(a) VALUES (10); -- should fail
+INSERT 0 1
+SELECT * FROM base_tbl order by 1,2;
+ a  | b  
+----+----
+  1 | -1
+  1 |  2
+  2 |  3
+  3 | -5
+  4 |  3
+  5 |   
+  9 | 10
+ 10 | 10
+(8 rows)
+
+DROP TABLE base_tbl CASCADE;
+psql:sql/updatable_views.sql:626: NOTICE:  drop cascades to view rw_view1
+DROP TABLE
+CREATE TABLE base_tbl (a int);
+CREATE TABLE
+CREATE VIEW rw_view1 AS SELECT * FROM base_tbl WHERE a > 0;
+CREATE VIEW
+CREATE VIEW rw_view2 AS SELECT * FROM rw_view1 WHERE a < 10;
+CREATE VIEW
+\d+ rw_view2
+                          View "public.rw_view2"
+ Column |  Type   | Collation | Nullable | Default | Storage | Description 
+--------+---------+-----------+----------+---------+---------+-------------
+ a      | integer |           |          |         | plain   | 
+View definition:
+ SELECT rw_view1.a
+   FROM rw_view1
+  WHERE rw_view1.a < 10;
+
+SELECT * FROM information_schema.views WHERE table_name = 'rw_view2';
+ table_catalog | table_schema | table_name |      view_definition       | check_option | is_updatable | is_insertable_into | is_trigger_updatable | is_trigger_deletable | is_trigger_insertable_into 
+---------------+--------------+------------+----------------------------+--------------+--------------+--------------------+----------------------+----------------------+----------------------------
+ regress       | public       | rw_view2   |  SELECT rw_view1.a        +| NONE         | YES          | YES                | NO                   | NO                   | NO
+               |              |            |    FROM rw_view1          +|              |              |                    |                      |                      | 
+               |              |            |   WHERE (rw_view1.a < 10); |              |              |                    |                      |                      | 
+(1 row)
+
+INSERT INTO rw_view2 VALUES (-5); -- should fail
+INSERT 0 1
+INSERT INTO rw_view2 VALUES (5); -- ok
+INSERT 0 1
+INSERT INTO rw_view2 VALUES (15); -- should fail
+INSERT 0 1
+SELECT * FROM base_tbl;
+ a  
+----
+ -5
+  5
+ 15
+(3 rows)
+
+UPDATE rw_view2 SET a = a - 10; -- should fail
+UPDATE 1
+UPDATE rw_view2 SET a = a + 10; -- should fail
+UPDATE 0
+CREATE OR REPLACE VIEW rw_view2 AS SELECT * FROM rw_view1 WHERE a < 10;
+CREATE VIEW
+\d+ rw_view2
+                          View "public.rw_view2"
+ Column |  Type   | Collation | Nullable | Default | Storage | Description 
+--------+---------+-----------+----------+---------+---------+-------------
+ a      | integer |           |          |         | plain   | 
+View definition:
+ SELECT rw_view1.a
+   FROM rw_view1
+  WHERE rw_view1.a < 10;
+
+SELECT * FROM information_schema.views WHERE table_name = 'rw_view2';
+ table_catalog | table_schema | table_name |      view_definition       | check_option | is_updatable | is_insertable_into | is_trigger_updatable | is_trigger_deletable | is_trigger_insertable_into 
+---------------+--------------+------------+----------------------------+--------------+--------------+--------------------+----------------------+----------------------+----------------------------
+ regress       | public       | rw_view2   |  SELECT rw_view1.a        +| NONE         | YES          | YES                | NO                   | NO                   | NO
+               |              |            |    FROM rw_view1          +|              |              |                    |                      |                      | 
+               |              |            |   WHERE (rw_view1.a < 10); |              |              |                    |                      |                      | 
+(1 row)
+
+INSERT INTO rw_view2 VALUES (-10); -- ok, but not in view
+INSERT 0 1
+INSERT INTO rw_view2 VALUES (20); -- should fail
+INSERT 0 1
+SELECT * FROM base_tbl order by 1;
+  a  
+-----
+ -10
+  -5
+  -5
+  15
+  20
+(5 rows)
+
+-- ALTER VIEW rw_view1 SET (check_option=here); -- invalid
+-- ALTER VIEW rw_view1 SET (check_option=local);
+INSERT INTO rw_view2 VALUES (-20); -- should fail
+INSERT 0 1
+INSERT INTO rw_view2 VALUES (30); -- should fail
+INSERT 0 1
+-- ALTER VIEW rw_view2 RESET (check_option);
+\d+ rw_view2
+                          View "public.rw_view2"
+ Column |  Type   | Collation | Nullable | Default | Storage | Description 
+--------+---------+-----------+----------+---------+---------+-------------
+ a      | integer |           |          |         | plain   | 
+View definition:
+ SELECT rw_view1.a
+   FROM rw_view1
+  WHERE rw_view1.a < 10;
+
+SELECT * FROM information_schema.views WHERE table_name = 'rw_view2';
+ table_catalog | table_schema | table_name |      view_definition       | check_option | is_updatable | is_insertable_into | is_trigger_updatable | is_trigger_deletable | is_trigger_insertable_into 
+---------------+--------------+------------+----------------------------+--------------+--------------+--------------------+----------------------+----------------------+----------------------------
+ regress       | public       | rw_view2   |  SELECT rw_view1.a        +| NONE         | YES          | YES                | NO                   | NO                   | NO
+               |              |            |    FROM rw_view1          +|              |              |                    |                      |                      | 
+               |              |            |   WHERE (rw_view1.a < 10); |              |              |                    |                      |                      | 
+(1 row)
+
+INSERT INTO rw_view2 VALUES (30); -- ok, but not in view
+INSERT 0 1
+SELECT * FROM base_tbl order by 1;
+  a  
+-----
+ -20
+ -10
+  -5
+  -5
+  15
+  20
+  30
+  30
+(8 rows)
+
+DROP TABLE base_tbl CASCADE;
+psql:sql/updatable_views.sql:663: NOTICE:  drop cascades to 2 other objects
+DETAIL:  drop cascades to view rw_view1
+drop cascades to view rw_view2
+DROP TABLE
+CREATE TABLE base_tbl (a int);
+CREATE TABLE
+CREATE VIEW rw_view1 AS SELECT * FROM base_tbl;
+CREATE VIEW
+CREATE VIEW rw_view2 AS SELECT * FROM rw_view1 WHERE a > 0;
+CREATE VIEW
+CREATE VIEW rw_view3 AS SELECT * FROM rw_view2;
+CREATE VIEW
+SELECT * FROM information_schema.views WHERE table_name LIKE E'rw\\_view_' ORDER BY table_name;
+ table_catalog | table_schema | table_name |      view_definition      | check_option | is_updatable | is_insertable_into | is_trigger_updatable | is_trigger_deletable | is_trigger_insertable_into 
+---------------+--------------+------------+---------------------------+--------------+--------------+--------------------+----------------------+----------------------+----------------------------
+ regress       | public       | rw_view1   |  SELECT base_tbl.a       +| NONE         | YES          | YES                | NO                   | NO                   | NO
+               |              |            |    FROM base_tbl;         |              |              |                    |                      |                      | 
+ regress       | public       | rw_view2   |  SELECT rw_view1.a       +| NONE         | YES          | YES                | NO                   | NO                   | NO
+               |              |            |    FROM rw_view1         +|              |              |                    |                      |                      | 
+               |              |            |   WHERE (rw_view1.a > 0); |              |              |                    |                      |                      | 
+ regress       | public       | rw_view3   |  SELECT rw_view2.a       +| NONE         | YES          | YES                | NO                   | NO                   | NO
+               |              |            |    FROM rw_view2;         |              |              |                    |                      |                      | 
+(3 rows)
+
+INSERT INTO rw_view1 VALUES (-1); -- ok
+INSERT 0 1
+INSERT INTO rw_view1 VALUES (1); -- ok
+INSERT 0 1
+INSERT INTO rw_view2 VALUES (-2); -- ok, but not in view
+INSERT 0 1
+INSERT INTO rw_view2 VALUES (2); -- ok
+INSERT 0 1
+INSERT INTO rw_view3 VALUES (-3); -- should fail
+INSERT 0 1
+INSERT INTO rw_view3 VALUES (3); -- ok
+INSERT 0 1
+DROP TABLE base_tbl CASCADE;
+psql:sql/updatable_views.sql:679: NOTICE:  drop cascades to 3 other objects
+DETAIL:  drop cascades to view rw_view1
+drop cascades to view rw_view2
+drop cascades to view rw_view3
+DROP TABLE
+--CREATE TABLE base_tbl (a int);
+--CREATE TABLE ref_tbl (a int PRIMARY KEY);
+--INSERT INTO ref_tbl SELECT * FROM generate_series(1,10);
+--CREATE VIEW rw_view1 AS
+--  SELECT * FROM base_tbl b
+--  WHERE EXISTS(SELECT 1 FROM ref_tbl r WHERE r.a = b.a);
+--INSERT INTO rw_view1 VALUES (5); -- ok
+--INSERT INTO rw_view1 VALUES (15); -- should fail
+--UPDATE rw_view1 SET a = a + 5; -- ok
+--UPDATE rw_view1 SET a = a + 5; -- should fail
+-- EXPLAIN (costs off) INSERT INTO rw_view1 VALUES (5);
+-- EXPLAIN (costs off) UPDATE rw_view1 SET a = a + 5;
+--DROP TABLE base_tbl CASCADE;
+--DROP TABLE ref_tbl CASCADE;
+CREATE TABLE base_tbl (a int, b int);
+CREATE TABLE
+CREATE VIEW rw_view1 AS SELECT * FROM base_tbl WHERE a < b;
+CREATE VIEW
+INSERT INTO rw_view1 VALUES (5,0); -- ok
+INSERT 0 1
+INSERT INTO rw_view1 VALUES (15, 20); -- should fail
+INSERT 0 1
+UPDATE rw_view1 SET a = 20, b = 30; -- should fail
+UPDATE 1
+DROP TABLE base_tbl CASCADE;
+psql:sql/updatable_views.sql:709: NOTICE:  drop cascades to view rw_view1
+DROP TABLE
+CREATE TABLE base_tbl (a int, b int);
+CREATE TABLE
+CREATE VIEW rw_view1 AS SELECT a FROM base_tbl WHERE a < b;
+CREATE VIEW
+CREATE VIEW rw_view2 AS
+  SELECT * FROM rw_view1 WHERE a > 0;
+CREATE VIEW
+INSERT INTO rw_view2 VALUES (-5); -- should fail
+INSERT 0 1
+INSERT INTO rw_view2 VALUES (5); -- ok
+INSERT 0 1
+INSERT INTO rw_view2 VALUES (50); -- ok, but not in view
+INSERT 0 1
+UPDATE rw_view2 SET a = a - 10; -- should fail
+UPDATE 0
+SELECT * FROM base_tbl;
+ a  | b 
+----+---
+ -5 |  
+  5 |  
+ 50 |  
+(3 rows)
+
+-- Check option won't cascade down to base view with INSTEAD OF triggers
+-- ALTER VIEW rw_view2 SET (check_option=cascaded);
+INSERT INTO rw_view2 VALUES (100); -- ok, but not in view (doesn't fail rw_view1's check)
+INSERT 0 1
+UPDATE rw_view2 SET a = 200 WHERE a = 5; -- ok, but not in view (doesn't fail rw_view1's check)
+UPDATE 0
+SELECT * FROM base_tbl;
+  a  | b 
+-----+---
+  -5 |  
+   5 |  
+  50 |  
+ 100 |  
+(4 rows)
+
+-- Neither local nor cascaded check options work with INSTEAD rules
+INSERT INTO rw_view2 VALUES (-10); -- ok, but not in view (doesn't fail rw_view2's check)
+INSERT 0 1
+INSERT INTO rw_view2 VALUES (5); -- ok
+INSERT 0 1
+INSERT INTO rw_view2 VALUES (20); -- ok, but not in view (doesn't fail rw_view1's check)
+INSERT 0 1
+UPDATE rw_view2 SET a = 30 WHERE a = 5; -- ok, but not in view (doesn't fail rw_view1's check)
+UPDATE 0
+INSERT INTO rw_view2 VALUES (5); -- ok
+INSERT 0 1
+UPDATE rw_view2 SET a = -5 WHERE a = 5; -- ok, but not in view (doesn't fail rw_view2's check)
+UPDATE 0
+SELECT * FROM base_tbl;
+  a  | b 
+-----+---
+  -5 |  
+   5 |  
+  50 |  
+ 100 |  
+ -10 |  
+   5 |  
+  20 |  
+   5 |  
+(8 rows)
+
+DROP TABLE base_tbl CASCADE;
+psql:sql/updatable_views.sql:741: NOTICE:  drop cascades to 2 other objects
+DETAIL:  drop cascades to view rw_view1
+drop cascades to view rw_view2
+DROP TABLE
+CREATE TABLE base_tbl (a int);
+CREATE TABLE
+CREATE VIEW rw_view1 AS SELECT a,10 AS b FROM base_tbl;
+CREATE VIEW
+CREATE VIEW rw_view2 AS
+  SELECT * FROM rw_view1 WHERE a > b;
+CREATE VIEW
+INSERT INTO rw_view2 VALUES (2,3); -- ok, but not in view (doesn't fail rw_view2's check)
+psql:sql/updatable_views.sql:747: ERROR:  cannot insert into column "b" of view "rw_view1"
+DETAIL:  View columns that are not columns of their base relation are not updatable.
+DROP TABLE base_tbl CASCADE;
+psql:sql/updatable_views.sql:748: NOTICE:  drop cascades to 2 other objects
+DETAIL:  drop cascades to view rw_view1
+drop cascades to view rw_view2
+DROP TABLE
+-- security barrier view
+CREATE TABLE base_tbl (person varchar(50), visibility varchar(50));
+CREATE TABLE
+INSERT INTO base_tbl VALUES ('Tom', 'public'),
+                            ('Dick', 'private'),
+                            ('Harry', 'public');
+INSERT 0 3
+							
+CREATE VIEW rw_view1 AS
+  SELECT person FROM base_tbl WHERE visibility = 'public';
+CREATE VIEW
+  
+CREATE FUNCTION snoop(anyelement)
+RETURNS boolean AS
+$$
+BEGIN
+  RAISE NOTICE 'snooped value: %', $1;
+  RETURN true;
+END;
+$$
+LANGUAGE plpgsql COST 0.000001;
+CREATE FUNCTION
+CREATE OR REPLACE FUNCTION leakproof(anyelement)
+RETURNS boolean AS
+$$
+BEGIN
+  RETURN true;
+END;
+$$
+LANGUAGE plpgsql STRICT IMMUTABLE LEAKPROOF;
+CREATE FUNCTION
+SELECT * FROM rw_view1 WHERE snoop(person);
+psql:sql/updatable_views.sql:779: NOTICE:  snooped value: Tom
+psql:sql/updatable_views.sql:779: NOTICE:  snooped value: Harry
+ person 
+--------
+ Tom
+ Harry
+(2 rows)
+
+-- delete/update不支持用户自定义函数，或者mysql不支持的函数 #777
+--UPDATE rw_view1 SET person=person WHERE snoop(person);
+--DELETE FROM rw_view1 WHERE NOT snoop(person);
+-- ALTER VIEW rw_view1 SET (security_barrier = true);
+SELECT table_name, is_insertable_into
+  FROM information_schema.tables
+ WHERE table_name = 'rw_view1';
+ table_name | is_insertable_into 
+------------+--------------------
+ rw_view1   | YES
+(1 row)
+
+SELECT table_name, is_updatable, is_insertable_into
+  FROM information_schema.views
+ WHERE table_name = 'rw_view1';
+ table_name | is_updatable | is_insertable_into 
+------------+--------------+--------------------
+ rw_view1   | YES          | YES
+(1 row)
+
+SELECT table_name, column_name, is_updatable
+  FROM information_schema.columns
+ WHERE table_name = 'rw_view1'
+ ORDER BY ordinal_position;
+ table_name | column_name | is_updatable 
+------------+-------------+--------------
+ rw_view1   | person      | YES
+(1 row)
+
+SELECT * FROM rw_view1 WHERE snoop(person);
+psql:sql/updatable_views.sql:799: NOTICE:  snooped value: Tom
+psql:sql/updatable_views.sql:799: NOTICE:  snooped value: Harry
+ person 
+--------
+ Tom
+ Harry
+(2 rows)
+
+--UPDATE rw_view1 SET person=person WHERE snoop(person);
+--DELETE FROM rw_view1 WHERE NOT snoop(person);
+-- EXPLAIN (costs off) SELECT * FROM rw_view1 WHERE snoop(person);
+-- EXPLAIN (costs off) UPDATE rw_view1 SET person=person WHERE snoop(person);
+-- EXPLAIN (costs off) DELETE FROM rw_view1 WHERE NOT snoop(person);
+-- security barrier view on top of security barrier view
+CREATE VIEW rw_view2 WITH (security_barrier = true) AS
+  SELECT * FROM rw_view1 WHERE snoop(person);
+CREATE VIEW
+  
+SELECT table_name, is_insertable_into
+  FROM information_schema.tables
+ WHERE table_name = 'rw_view2';
+ table_name | is_insertable_into 
+------------+--------------------
+ rw_view2   | YES
+(1 row)
+
+SELECT table_name, is_updatable, is_insertable_into
+  FROM information_schema.views
+ WHERE table_name = 'rw_view2';
+ table_name | is_updatable | is_insertable_into 
+------------+--------------+--------------------
+ rw_view2   | YES          | YES
+(1 row)
+
+SELECT table_name, column_name, is_updatable
+  FROM information_schema.columns
+ WHERE table_name = 'rw_view2'
+ ORDER BY ordinal_position;
+ table_name | column_name | is_updatable 
+------------+-------------+--------------
+ rw_view2   | person      | YES
+(1 row)
+
+SELECT * FROM rw_view2 WHERE snoop(person);
+psql:sql/updatable_views.sql:823: NOTICE:  snooped value: Tom
+psql:sql/updatable_views.sql:823: NOTICE:  snooped value: Tom
+psql:sql/updatable_views.sql:823: NOTICE:  snooped value: Harry
+psql:sql/updatable_views.sql:823: NOTICE:  snooped value: Harry
+ person 
+--------
+ Tom
+ Harry
+(2 rows)
+
+--UPDATE rw_view2 SET person=person WHERE snoop(person);
+--DELETE FROM rw_view2 WHERE NOT snoop(person);
+-- EXPLAIN (costs off) SELECT * FROM rw_view2 WHERE snoop(person);
+-- EXPLAIN (costs off) UPDATE rw_view2 SET person=person WHERE snoop(person);
+-- EXPLAIN (costs off) DELETE FROM rw_view2 WHERE NOT snoop(person);
+DROP TABLE base_tbl CASCADE;
+psql:sql/updatable_views.sql:831: NOTICE:  drop cascades to 2 other objects
+DETAIL:  drop cascades to view rw_view1
+drop cascades to view rw_view2
+DROP TABLE
+-- security barrier view on top of table with rules
+CREATE TABLE base_tbl(id int PRIMARY KEY, data varchar(50), deleted boolean);
+CREATE TABLE
+INSERT INTO base_tbl VALUES (1, 'Row 1', false), (2, 'Row 2', true);
+INSERT 0 2
+CREATE VIEW rw_view1 WITH (security_barrier=true) AS
+  SELECT id, data FROM base_tbl WHERE NOT deleted;
+CREATE VIEW
+SELECT * FROM rw_view1;
+ id | data  
+----+-------
+  1 | Row 1
+(1 row)
+
+-- EXPLAIN (costs off) DELETE FROM rw_view1 WHERE id = 1 AND snoop(data);
+--DELETE FROM rw_view1 WHERE id = 1 AND snoop(data);
+-- EXPLAIN (costs off) INSERT INTO rw_view1 VALUES (2, 'New row 2');
+INSERT INTO rw_view1 VALUES (2, 'New row 2');
+psql:sql/updatable_views.sql:847: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '2' for key 'base_tbl.PRIMARY'.
+SELECT * FROM base_tbl;
+ id | data  | deleted 
+----+-------+---------
+  1 | Row 1 | f
+  2 | Row 2 | t
+(2 rows)
+
+DROP TABLE base_tbl CASCADE;
+psql:sql/updatable_views.sql:851: NOTICE:  drop cascades to view rw_view1
+DROP TABLE
+CREATE TABLE tx1 (a integer);
+CREATE TABLE
+CREATE TABLE tx2 (b integer);
+CREATE TABLE
+CREATE TABLE tx3 (c integer);
+CREATE TABLE
+CREATE VIEW vx1 AS SELECT a FROM tx1 WHERE EXISTS(SELECT 1 FROM tx2 JOIN tx3 ON b=c);
+CREATE VIEW
+INSERT INTO vx1 values (1);
+INSERT 0 1
+SELECT * FROM tx1;
+ a 
+---
+ 1
+(1 row)
+
+SELECT * FROM vx1;
+ a 
+---
+(0 rows)
+
+DROP VIEW vx1;
+DROP VIEW
+DROP TABLE tx1;
+DROP TABLE
+DROP TABLE tx2;
+DROP TABLE
+DROP TABLE tx3;
+DROP TABLE
+CREATE TABLE tx1 (a integer);
+CREATE TABLE
+CREATE TABLE tx2 (b integer);
+CREATE TABLE
+CREATE TABLE tx3 (c integer);
+CREATE TABLE
+CREATE VIEW vx1 AS SELECT a FROM tx1 WHERE EXISTS(SELECT 1 FROM tx2 JOIN tx3 ON b=c);
+CREATE VIEW
+INSERT INTO vx1 VALUES (1);
+INSERT 0 1
+INSERT INTO vx1 VALUES (1);
+INSERT 0 1
+SELECT * FROM tx1;
+ a 
+---
+ 1
+ 1
+(2 rows)
+
+SELECT * FROM vx1;
+ a 
+---
+(0 rows)
+
+DROP VIEW vx1;
+DROP VIEW
+DROP TABLE tx1;
+DROP TABLE
+DROP TABLE tx2;
+DROP TABLE
+DROP TABLE tx3;
+DROP TABLE
+CREATE TABLE tx1 (a integer, b integer);
+CREATE TABLE
+CREATE TABLE tx2 (b integer, c integer);
+CREATE TABLE
+CREATE TABLE tx3 (c integer, d integer);
+CREATE TABLE
+ALTER TABLE tx1 DROP COLUMN b;
+ALTER TABLE
+ALTER TABLE tx2 DROP COLUMN c;
+ALTER TABLE
+ALTER TABLE tx3 DROP COLUMN d;
+ALTER TABLE
+CREATE VIEW vx1 AS SELECT a FROM tx1 WHERE EXISTS(SELECT 1 FROM tx2 JOIN tx3 ON b=c);
+CREATE VIEW
+INSERT INTO vx1 VALUES (1);
+INSERT 0 1
+INSERT INTO vx1 VALUES (1);
+INSERT 0 1
+SELECT * FROM tx1;
+ a 
+---
+ 1
+ 1
+(2 rows)
+
+SELECT * FROM vx1;
+ a 
+---
+(0 rows)
+
+DROP VIEW vx1;
+DROP VIEW
+DROP TABLE tx1;
+DROP TABLE
+DROP TABLE tx2;
+DROP TABLE
+DROP TABLE tx3;
+DROP TABLE
+--
+-- Test CREATE OR REPLACE VIEW turning a non-updatable view into an
+-- auto-updatable view and adding check options in a single step
+--
+CREATE TABLE t1 (a int, b varchar(50));
+CREATE TABLE
+CREATE VIEW v1 AS SELECT null::int AS a;
+CREATE VIEW
+-- CREATE OR REPLACE VIEW v1 AS SELECT * FROM t1 WHERE a > 0;
+CREATE OR REPLACE VIEW v1 AS SELECT * FROM t1 WHERE a > 0;
+CREATE VIEW
+INSERT INTO v1 VALUES (1, 'ok'); -- ok
+INSERT 0 1
+INSERT INTO v1 VALUES (-1, 'invalid'); -- should fail
+INSERT 0 1
+DROP VIEW v1;
+DROP VIEW
+DROP TABLE t1;
+DROP TABLE
+-- check that an auto-updatable view on a partitioned table works correctly
+drop table if exists uv_pt;
+psql:sql/updatable_views.sql:913: NOTICE:  table "uv_pt" does not exist, skipping
+DROP TABLE
+create table uv_pt (a int, b int, v varchar) partition by range (a, b);
+CREATE TABLE
+create table uv_pt1 partition of uv_pt for values from (1, 2) to (1, 10) partition by range (b);
+CREATE TABLE
+create table uv_pt11 partition of uv_pt1 for values from (2) to (5);
+CREATE TABLE
+create view uv_ptv as select * from uv_pt;
+CREATE VIEW
+select events & 4 != 0 AS upd,
+       events & 8 != 0 AS ins,
+       events & 16 != 0 AS del
+  from pg_catalog.pg_relation_is_updatable('uv_pt'::regclass, false) t(events);
+ upd | ins | del 
+-----+-----+-----
+ t   | t   | t
+(1 row)
+
+select pg_catalog.pg_column_is_updatable('uv_pt'::regclass, 1::smallint, false);
+ pg_column_is_updatable 
+------------------------
+ t
+(1 row)
+
+select pg_catalog.pg_column_is_updatable('uv_pt'::regclass, 2::smallint, false);
+ pg_column_is_updatable 
+------------------------
+ t
+(1 row)
+
+select table_name, is_updatable, is_insertable_into
+  from information_schema.views where table_name = 'uv_ptv';
+ table_name | is_updatable | is_insertable_into 
+------------+--------------+--------------------
+ uv_ptv     | YES          | YES
+(1 row)
+
+select table_name, column_name, is_updatable
+  from information_schema.columns where table_name = 'uv_ptv' order by column_name;
+ table_name | column_name | is_updatable 
+------------+-------------+--------------
+ uv_ptv     | a           | YES
+ uv_ptv     | b           | YES
+ uv_ptv     | v           | YES
+(3 rows)
+
+insert into uv_ptv values (1, 2);
+INSERT 0 1
+--select tableoid::regclass, * from uv_pt;
+create view uv_ptv_wco as select * from uv_pt where a = 0;
+CREATE VIEW
+insert into uv_ptv_wco values (1, 2);
+INSERT 0 1
+drop view uv_ptv, uv_ptv_wco;
+DROP VIEW
+drop table uv_pt;
+DROP TABLE
+drop table uv_pt1;
+psql:sql/updatable_views.sql:935: ERROR:  table "uv_pt1" does not exist
+drop table uv_pt11;
+psql:sql/updatable_views.sql:936: ERROR:  table "uv_pt11" does not exist
+-- work fine with partitioned tables
+drop table if exists wcowrtest cascade;
+psql:sql/updatable_views.sql:939: NOTICE:  table "wcowrtest" does not exist, skipping
+DROP TABLE
+create table wcowrtest (a int) partition by list (a);
+CREATE TABLE
+create table wcowrtest1 partition of wcowrtest for values in (1);
+CREATE TABLE
+create view wcowrtest_v as select * from wcowrtest where wcowrtest = '(2)'::wcowrtest;
+CREATE VIEW
+insert into wcowrtest_v values (1);
+INSERT 0 1
+alter table wcowrtest add b varchar(50);
+ALTER TABLE
+create table wcowrtest2 partition of wcowrtest for values in (2);
+CREATE TABLE
+drop table if exists sometable;
+psql:sql/updatable_views.sql:948: NOTICE:  table "sometable" does not exist, skipping
+DROP TABLE
+create table sometable (a int, b varchar(50));
+CREATE TABLE
+insert into sometable values (1, 'a'), (2, 'b');
+INSERT 0 2
+create view wcowrtest_v2 as
+    select *
+      from wcowrtest r
+      where r in (select s from sometable s where r.a = s.a);
+CREATE VIEW
+-- WITH CHECK qual will be processed with wcowrtest2's
+-- rowtype after tuple-routing
+insert into wcowrtest_v2 values (2, 'no such row in sometable');
+INSERT 0 1
+drop view wcowrtest_v, wcowrtest_v2;
+DROP VIEW
+drop table wcowrtest;
+DROP TABLE
+drop table sometable;
+DROP TABLE
+-- Check INSERT .. ON CONFLICT DO UPDATE works correctly when the view's
+-- columns are named and ordered differently than the underlying table's.
+drop table if exists uv_iocu_tab;
+psql:sql/updatable_views.sql:966: NOTICE:  table "uv_iocu_tab" does not exist, skipping
+DROP TABLE
+create table uv_iocu_tab (a varchar(50) unique, b float);
+CREATE TABLE
+insert into uv_iocu_tab values ('xyxyxy', 0);
+INSERT 0 1
+create view uv_iocu_view as
+   select b, b+1 as c, a, '2.0'::varchar(50) as two from uv_iocu_tab;
+CREATE VIEW
+select * from uv_iocu_tab;
+   a    | b 
+--------+---
+ xyxyxy | 0
+(1 row)
+
+select * from uv_iocu_tab;
+   a    | b 
+--------+---
+ xyxyxy | 0
+(1 row)
+
+-- OK to access view columns that are not present in underlying base
+-- relation in the ON CONFLICT portion of the query
+select * from uv_iocu_tab;
+   a    | b 
+--------+---
+ xyxyxy | 0
+(1 row)
+
+select * from uv_iocu_tab;
+   a    | b 
+--------+---
+ xyxyxy | 0
+(1 row)
+
+drop view uv_iocu_view;
+DROP VIEW
+drop table uv_iocu_tab;
+DROP TABLE
+-- Test whole-row references to the view
+create table uv_iocu_tab (a int unique, b varchar(50));
+CREATE TABLE
+create view uv_iocu_view as
+    select a as aa, b as bb, uv_iocu_tab::varchar(50) as cc from uv_iocu_tab;
+CREATE VIEW
+insert into uv_iocu_view (aa,bb) values (1,'x');
+INSERT 0 1
+select * from uv_iocu_view;
+ aa | bb |  cc   
+----+----+-------
+  1 | x  | (1,x)
+(1 row)
+
+-- Test omitting a column of the base relation
+delete from uv_iocu_view;
+DELETE 1
+insert into uv_iocu_view (aa,bb) values (1,'x');
+INSERT 0 1
+select * from uv_iocu_view;
+ aa | bb |  cc   
+----+----+-------
+  1 | x  | (1,x)
+(1 row)
+
+alter table uv_iocu_tab alter column b set default 'table default';
+ALTER TABLE
+select * from uv_iocu_view;
+ aa | bb |  cc   
+----+----+-------
+  1 | x  | (1,x)
+(1 row)
+
+alter view uv_iocu_view alter column bb set default 'view default';
+ALTER VIEW
+select * from uv_iocu_view;
+ aa | bb |  cc   
+----+----+-------
+  1 | x  | (1,x)
+(1 row)
+
+drop view uv_iocu_view;
+DROP VIEW
+drop table uv_iocu_tab;
+DROP TABLE
+-- ON CONFLICT DO UPDATE permissions checks
+create user regress_view_user1;
+CREATE ROLE
+create user regress_view_user2;
+CREATE ROLE
+set session authorization regress_view_user1;
+SET
+drop table if exists base_tbl;
+psql:sql/updatable_views.sql:1010: NOTICE:  table "base_tbl" does not exist, skipping
+DROP TABLE
+create table base_tbl(a int unique, b varchar(50), c float);
+CREATE TABLE
+insert into base_tbl values (1,'xxx',1.0);
+INSERT 0 1
+create view rw_view1 as select b as bb, c as cc, a as aa from base_tbl;
+CREATE VIEW
+grant select (aa,bb) on rw_view1 to regress_view_user2;
+GRANT
+grant insert on rw_view1 to regress_view_user2;
+GRANT
+grant update (bb) on rw_view1 to regress_view_user2;
+GRANT
+set session authorization regress_view_user2;
+SET
+reset session authorization;
+RESET
+select * from base_tbl;
+ a |  b  | c 
+---+-----+---
+ 1 | xxx | 1
+(1 row)
+
+set session authorization regress_view_user1;
+SET
+grant select (a,b) on base_tbl to regress_view_user2;
+GRANT
+grant insert (a,b) on base_tbl to regress_view_user2;
+GRANT
+grant update (a,b) on base_tbl to regress_view_user2;
+GRANT
+set session authorization regress_view_user2;
+SET
+create view rw_view2 as select b as bb, c as cc, a as aa from base_tbl;
+CREATE VIEW
+create view rw_view3 as select b as bb, a as aa from base_tbl;
+CREATE VIEW
+reset session authorization;
+RESET
+select * from base_tbl;
+ a |  b  | c 
+---+-----+---
+ 1 | xxx | 1
+(1 row)
+
+set session authorization regress_view_user2;
+SET
+create view rw_view4 as select aa, bb, cc FROM rw_view1;
+CREATE VIEW
+create view rw_view5 as select aa, bb FROM rw_view1;
+CREATE VIEW
+reset session authorization;
+RESET
+select * from base_tbl;
+ a |  b  | c 
+---+-----+---
+ 1 | xxx | 1
+(1 row)
+
+drop view rw_view5;
+DROP VIEW
+drop view rw_view4;
+DROP VIEW
+drop view rw_view3;
+DROP VIEW
+drop view rw_view2;
+DROP VIEW
+drop view rw_view1;
+DROP VIEW
+drop table base_tbl;
+DROP TABLE
+drop user regress_view_user1;
+DROP ROLE
+drop user regress_view_user2;
+DROP ROLE
+-- Test single- and multi-row inserts with table and view defaults.
+-- Table defaults should be used, unless overridden by view defaults.
+drop table if exists base_tab_def;
+psql:sql/updatable_views.sql:1051: NOTICE:  table "base_tab_def" does not exist, skipping
+DROP TABLE
+create table base_tab_def (a int, b varchar(50) default 'Table default',
+                           c varchar(50) default 'Table default', d varchar(50), e varchar(50));
+CREATE TABLE
+create view base_tab_def_view as select * from base_tab_def;
+CREATE VIEW
+alter view base_tab_def_view alter b set default 'View default';
+ALTER VIEW
+alter view base_tab_def_view alter d set default 'View default';
+ALTER VIEW
+insert into base_tab_def values (1);
+INSERT 0 1
+insert into base_tab_def values (2), (3);
+INSERT 0 2
+insert into base_tab_def values (4, default, default, default, default);
+INSERT 0 1
+insert into base_tab_def values (5, default, default, default, default),
+                                (6, default, default, default, default);
+INSERT 0 2
+insert into base_tab_def_view values (11);
+INSERT 0 1
+insert into base_tab_def_view values (12), (13);
+INSERT 0 2
+insert into base_tab_def_view values (14, default, default, default, default);
+INSERT 0 1
+insert into base_tab_def_view values (15, default, default, default, default),
+                                     (16, default, default, default, default);
+INSERT 0 2
+insert into base_tab_def_view values (17), (default);
+INSERT 0 2
+select * from base_tab_def order by a;
+ a  |       b       |       c       |      d       | e 
+----+---------------+---------------+--------------+---
+  1 | Table default | Table default |              | 
+  2 | Table default | Table default |              | 
+  3 | Table default | Table default |              | 
+  4 | Table default | Table default |              | 
+  5 | Table default | Table default |              | 
+  6 | Table default | Table default |              | 
+ 11 | View default  | Table default | View default | 
+ 12 | View default  | Table default | View default | 
+ 13 | View default  | Table default | View default | 
+ 14 | View default  | Table default | View default | 
+ 15 | View default  | Table default | View default | 
+ 16 | View default  | Table default | View default | 
+ 17 | View default  | Table default | View default | 
+    | View default  | Table default | View default | 
+(14 rows)
+
+delete from base_tab_def;
+DELETE 14
+insert into base_tab_def values (1);
+INSERT 0 1
+insert into base_tab_def values (2), (3);
+INSERT 0 2
+insert into base_tab_def values (4, default, default, default, default);
+INSERT 0 1
+insert into base_tab_def values (5, default, default, default, default),
+                                (6, default, default, default, default);
+INSERT 0 2
+insert into base_tab_def_view values (11);
+INSERT 0 1
+insert into base_tab_def_view values (12), (13);
+INSERT 0 2
+insert into base_tab_def_view values (14, default, default, default, default);
+INSERT 0 1
+insert into base_tab_def_view values (15, default, default, default, default),
+                                     (16, default, default, default, default);
+INSERT 0 2
+insert into base_tab_def_view values (17), (default);
+INSERT 0 2
+select * from base_tab_def order by a;
+ a  |       b       |       c       |      d       | e 
+----+---------------+---------------+--------------+---
+  1 | Table default | Table default |              | 
+  2 | Table default | Table default |              | 
+  3 | Table default | Table default |              | 
+  4 | Table default | Table default |              | 
+  5 | Table default | Table default |              | 
+  6 | Table default | Table default |              | 
+ 11 | View default  | Table default | View default | 
+ 12 | View default  | Table default | View default | 
+ 13 | View default  | Table default | View default | 
+ 14 | View default  | Table default | View default | 
+ 15 | View default  | Table default | View default | 
+ 16 | View default  | Table default | View default | 
+ 17 | View default  | Table default | View default | 
+    | View default  | Table default | View default | 
+(14 rows)
+
+-- Using an unconditional DO INSTEAD rule should also cause NULLs to be
+-- inserted where there are no view defaults.
+drop function base_tab_def_view_instrig_func;
+psql:sql/updatable_views.sql:1086: ERROR:  could not find a function named "base_tab_def_view_instrig_func"
+delete from base_tab_def;
+DELETE 14
+insert into base_tab_def values (1);
+INSERT 0 1
+insert into base_tab_def values (2), (3);
+INSERT 0 2
+insert into base_tab_def values (4, default, default, default, default);
+INSERT 0 1
+insert into base_tab_def values (5, default, default, default, default),
+                                (6, default, default, default, default);
+INSERT 0 2
+insert into base_tab_def_view values (11);
+INSERT 0 1
+insert into base_tab_def_view values (12), (13);
+INSERT 0 2
+insert into base_tab_def_view values (14, default, default, default, default);
+INSERT 0 1
+insert into base_tab_def_view values (15, default, default, default, default),
+                                     (16, default, default, default, default);
+INSERT 0 2
+insert into base_tab_def_view values (17), (default);
+INSERT 0 2
+select * from base_tab_def order by a;
+ a  |       b       |       c       |      d       | e 
+----+---------------+---------------+--------------+---
+  1 | Table default | Table default |              | 
+  2 | Table default | Table default |              | 
+  3 | Table default | Table default |              | 
+  4 | Table default | Table default |              | 
+  5 | Table default | Table default |              | 
+  6 | Table default | Table default |              | 
+ 11 | View default  | Table default | View default | 
+ 12 | View default  | Table default | View default | 
+ 13 | View default  | Table default | View default | 
+ 14 | View default  | Table default | View default | 
+ 15 | View default  | Table default | View default | 
+ 16 | View default  | Table default | View default | 
+ 17 | View default  | Table default | View default | 
+    | View default  | Table default | View default | 
+(14 rows)
+
+-- A DO ALSO rule should cause each row to be inserted twice. The first
+-- insert should behave the same as an auto-updatable view (using table
+-- defaults, unless overridden by view defaults). The second insert should
+-- behave the same as a rule-updatable view (inserting NULLs where there are
+-- no view defaults).
+delete from base_tab_def;
+DELETE 14
+insert into base_tab_def values (1);
+INSERT 0 1
+insert into base_tab_def values (2), (3);
+INSERT 0 2
+insert into base_tab_def values (4, default, default, default, default);
+INSERT 0 1
+insert into base_tab_def values (5, default, default, default, default),
+                                (6, default, default, default, default);
+INSERT 0 2
+insert into base_tab_def_view values (11);
+INSERT 0 1
+insert into base_tab_def_view values (12), (13);
+INSERT 0 2
+insert into base_tab_def_view values (14, default, default, default, default);
+INSERT 0 1
+insert into base_tab_def_view values (15, default, default, default, default),
+                                     (16, default, default, default, default);
+INSERT 0 2
+insert into base_tab_def_view values (17), (default);
+INSERT 0 2
+select * from base_tab_def order by a, c NULLS LAST;
+ a  |       b       |       c       |      d       | e 
+----+---------------+---------------+--------------+---
+  1 | Table default | Table default |              | 
+  2 | Table default | Table default |              | 
+  3 | Table default | Table default |              | 
+  4 | Table default | Table default |              | 
+  5 | Table default | Table default |              | 
+  6 | Table default | Table default |              | 
+ 11 | View default  | Table default | View default | 
+ 12 | View default  | Table default | View default | 
+ 13 | View default  | Table default | View default | 
+ 14 | View default  | Table default | View default | 
+ 15 | View default  | Table default | View default | 
+ 16 | View default  | Table default | View default | 
+ 17 | View default  | Table default | View default | 
+    | View default  | Table default | View default | 
+(14 rows)
+
+drop view base_tab_def_view;
+DROP VIEW
+drop table base_tab_def;
+DROP TABLE

@@ -1579,10 +1579,9 @@ SET SESSION AUTHORIZATION regress_rls_bob;
 SET
 SET row_security TO ON;
 SET
-EXPLAIN (COSTS OFF) DELETE FROM only t1 WHERE f_leak(b);
-psql:sql/rowsecurity.sql:506: ERROR:  Kunlun-db: Exression cannot be serialized: ({FUNCEXPR :funcid 20004 :funcresulttype 16 :funcretset false :funcvariadic false :funcformat 0 :funccollid 0 :inputcollid 100 :args ({VAR :varno 65003 :varattno 2 :vartype 25 :vartypmod -1 :varcollid 100 :varlevelsup 0 :varnoold 1 :varoattno 3 :location 53}) :location 46})
-EXPLAIN (COSTS OFF) DELETE FROM t1 WHERE f_leak(b);
-psql:sql/rowsecurity.sql:507: ERROR:  Kunlun-db: Exression cannot be serialized: ({FUNCEXPR :funcid 20004 :funcresulttype 16 :funcretset false :funcvariadic false :funcformat 0 :funccollid 0 :inputcollid 100 :args ({VAR :varno 65003 :varattno 2 :vartype 25 :vartypmod -1 :varcollid 100 :varlevelsup 0 :varnoold 1 :varoattno 3 :location 48}) :location 41})
+--delete/update不支持用户自定义函数，或者mysql不支持的函数 #777									 
+--EXPLAIN (COSTS OFF) DELETE FROM only t1 WHERE f_leak(b);
+--EXPLAIN (COSTS OFF) DELETE FROM t1 WHERE f_leak(b);
 --
 -- S.b. view on top of Row-level security
 --
@@ -1607,16 +1606,16 @@ SET
 EXPLAIN (COSTS OFF) SELECT * FROM bv1 WHERE f_leak(b);
 
 SELECT * FROM bv1 WHERE f_leak(b);
-psql:sql/rowsecurity.sql:527: NOTICE:  f_leak => c4ca4238a0b923820dcc509a6f75849b
-psql:sql/rowsecurity.sql:527: NOTICE:  f_leak => c81e728d9d4c2f636f067f89cc14862c
-psql:sql/rowsecurity.sql:527: NOTICE:  f_leak => eccbc87e4b5ce2fe28308fd9f2a7baf3
-psql:sql/rowsecurity.sql:527: NOTICE:  f_leak => a87ff679a2f3e71d9181a67b7542122c
-psql:sql/rowsecurity.sql:527: NOTICE:  f_leak => e4da3b7fbbce2345d7772b0674a318d5
-psql:sql/rowsecurity.sql:527: NOTICE:  f_leak => 1679091c5a880faf6fb5e6087eb1b2dc
-psql:sql/rowsecurity.sql:527: NOTICE:  f_leak => 8f14e45fceea167a5a36dedd4bea2543
-psql:sql/rowsecurity.sql:527: NOTICE:  f_leak => c9f0f895fb98ab9159f51fd0297e236d
-psql:sql/rowsecurity.sql:527: NOTICE:  f_leak => 45c48cce2e2d7fbdea1afc51c7c6ad26
-psql:sql/rowsecurity.sql:527: NOTICE:  f_leak => d3d9446802a44259755d38e6d163e820
+psql:sql/rowsecurity.sql:528: NOTICE:  f_leak => c4ca4238a0b923820dcc509a6f75849b
+psql:sql/rowsecurity.sql:528: NOTICE:  f_leak => c81e728d9d4c2f636f067f89cc14862c
+psql:sql/rowsecurity.sql:528: NOTICE:  f_leak => eccbc87e4b5ce2fe28308fd9f2a7baf3
+psql:sql/rowsecurity.sql:528: NOTICE:  f_leak => a87ff679a2f3e71d9181a67b7542122c
+psql:sql/rowsecurity.sql:528: NOTICE:  f_leak => e4da3b7fbbce2345d7772b0674a318d5
+psql:sql/rowsecurity.sql:528: NOTICE:  f_leak => 1679091c5a880faf6fb5e6087eb1b2dc
+psql:sql/rowsecurity.sql:528: NOTICE:  f_leak => 8f14e45fceea167a5a36dedd4bea2543
+psql:sql/rowsecurity.sql:528: NOTICE:  f_leak => c9f0f895fb98ab9159f51fd0297e236d
+psql:sql/rowsecurity.sql:528: NOTICE:  f_leak => 45c48cce2e2d7fbdea1afc51c7c6ad26
+psql:sql/rowsecurity.sql:528: NOTICE:  f_leak => d3d9446802a44259755d38e6d163e820
  a  |                b                 
 ----+----------------------------------
   1 | c4ca4238a0b923820dcc509a6f75849b
@@ -1841,10 +1840,10 @@ INSERT 0 4
 SET SESSION AUTHORIZATION regress_rls_bob;
 SET
 SELECT * FROM z1 WHERE f_leak(b);
-psql:sql/rowsecurity.sql:653: NOTICE:  f_leak => aba
-psql:sql/rowsecurity.sql:653: NOTICE:  f_leak => bbb
-psql:sql/rowsecurity.sql:653: NOTICE:  f_leak => ccc
-psql:sql/rowsecurity.sql:653: NOTICE:  f_leak => dad
+psql:sql/rowsecurity.sql:654: NOTICE:  f_leak => aba
+psql:sql/rowsecurity.sql:654: NOTICE:  f_leak => bbb
+psql:sql/rowsecurity.sql:654: NOTICE:  f_leak => ccc
+psql:sql/rowsecurity.sql:654: NOTICE:  f_leak => dad
  a |  b  
 ---+-----
  1 | aba
@@ -1862,10 +1861,10 @@ EXPLAIN (COSTS OFF) EXECUTE plancache_test;
 SET ROLE regress_rls_group1;
 SET
 SELECT * FROM z1 WHERE f_leak(b);
-psql:sql/rowsecurity.sql:660: NOTICE:  f_leak => aba
-psql:sql/rowsecurity.sql:660: NOTICE:  f_leak => bbb
-psql:sql/rowsecurity.sql:660: NOTICE:  f_leak => ccc
-psql:sql/rowsecurity.sql:660: NOTICE:  f_leak => dad
+psql:sql/rowsecurity.sql:661: NOTICE:  f_leak => aba
+psql:sql/rowsecurity.sql:661: NOTICE:  f_leak => bbb
+psql:sql/rowsecurity.sql:661: NOTICE:  f_leak => ccc
+psql:sql/rowsecurity.sql:661: NOTICE:  f_leak => dad
  a |  b  
 ---+-----
  1 | aba
@@ -1881,10 +1880,10 @@ EXPLAIN (COSTS OFF) EXECUTE plancache_test;
 SET SESSION AUTHORIZATION regress_rls_carol;
 SET
 SELECT * FROM z1 WHERE f_leak(b);
-psql:sql/rowsecurity.sql:666: NOTICE:  f_leak => aba
-psql:sql/rowsecurity.sql:666: NOTICE:  f_leak => bbb
-psql:sql/rowsecurity.sql:666: NOTICE:  f_leak => ccc
-psql:sql/rowsecurity.sql:666: NOTICE:  f_leak => dad
+psql:sql/rowsecurity.sql:667: NOTICE:  f_leak => aba
+psql:sql/rowsecurity.sql:667: NOTICE:  f_leak => bbb
+psql:sql/rowsecurity.sql:667: NOTICE:  f_leak => ccc
+psql:sql/rowsecurity.sql:667: NOTICE:  f_leak => dad
  a |  b  
 ---+-----
  1 | aba
@@ -1900,10 +1899,10 @@ EXPLAIN (COSTS OFF) EXECUTE plancache_test;
 SET ROLE regress_rls_group2;
 SET
 SELECT * FROM z1 WHERE f_leak(b);
-psql:sql/rowsecurity.sql:672: NOTICE:  f_leak => aba
-psql:sql/rowsecurity.sql:672: NOTICE:  f_leak => bbb
-psql:sql/rowsecurity.sql:672: NOTICE:  f_leak => ccc
-psql:sql/rowsecurity.sql:672: NOTICE:  f_leak => dad
+psql:sql/rowsecurity.sql:673: NOTICE:  f_leak => aba
+psql:sql/rowsecurity.sql:673: NOTICE:  f_leak => bbb
+psql:sql/rowsecurity.sql:673: NOTICE:  f_leak => ccc
+psql:sql/rowsecurity.sql:673: NOTICE:  f_leak => dad
  a |  b  
 ---+-----
  1 | aba
@@ -1930,10 +1929,10 @@ GRANT
 SET SESSION AUTHORIZATION regress_rls_bob;
 SET
 SELECT * FROM rls_view;
-psql:sql/rowsecurity.sql:687: NOTICE:  f_leak => aba
-psql:sql/rowsecurity.sql:687: NOTICE:  f_leak => bbb
-psql:sql/rowsecurity.sql:687: NOTICE:  f_leak => ccc
-psql:sql/rowsecurity.sql:687: NOTICE:  f_leak => dad
+psql:sql/rowsecurity.sql:688: NOTICE:  f_leak => aba
+psql:sql/rowsecurity.sql:688: NOTICE:  f_leak => bbb
+psql:sql/rowsecurity.sql:688: NOTICE:  f_leak => ccc
+psql:sql/rowsecurity.sql:688: NOTICE:  f_leak => dad
  a |  b  
 ---+-----
  1 | aba
@@ -1948,10 +1947,10 @@ EXPLAIN (COSTS OFF) SELECT * FROM rls_view;
 SET SESSION AUTHORIZATION regress_rls_alice;
 SET
 SELECT * FROM rls_view;
-psql:sql/rowsecurity.sql:692: NOTICE:  f_leak => aba
-psql:sql/rowsecurity.sql:692: NOTICE:  f_leak => bbb
-psql:sql/rowsecurity.sql:692: NOTICE:  f_leak => ccc
-psql:sql/rowsecurity.sql:692: NOTICE:  f_leak => dad
+psql:sql/rowsecurity.sql:693: NOTICE:  f_leak => aba
+psql:sql/rowsecurity.sql:693: NOTICE:  f_leak => bbb
+psql:sql/rowsecurity.sql:693: NOTICE:  f_leak => ccc
+psql:sql/rowsecurity.sql:693: NOTICE:  f_leak => dad
  a |  b  
 ---+-----
  1 | aba
@@ -1976,10 +1975,10 @@ GRANT
 SET SESSION AUTHORIZATION regress_rls_alice;
 SET
 SELECT * FROM rls_view;
-psql:sql/rowsecurity.sql:704: NOTICE:  f_leak => aba
-psql:sql/rowsecurity.sql:704: NOTICE:  f_leak => bbb
-psql:sql/rowsecurity.sql:704: NOTICE:  f_leak => ccc
-psql:sql/rowsecurity.sql:704: NOTICE:  f_leak => dad
+psql:sql/rowsecurity.sql:705: NOTICE:  f_leak => aba
+psql:sql/rowsecurity.sql:705: NOTICE:  f_leak => bbb
+psql:sql/rowsecurity.sql:705: NOTICE:  f_leak => ccc
+psql:sql/rowsecurity.sql:705: NOTICE:  f_leak => dad
  a |  b  
 ---+-----
  1 | aba
@@ -1995,10 +1994,10 @@ EXPLAIN (COSTS OFF) SELECT * FROM rls_view;
 SET SESSION AUTHORIZATION regress_rls_bob;
 SET
 SELECT * FROM rls_view;
-psql:sql/rowsecurity.sql:710: NOTICE:  f_leak => aba
-psql:sql/rowsecurity.sql:710: NOTICE:  f_leak => bbb
-psql:sql/rowsecurity.sql:710: NOTICE:  f_leak => ccc
-psql:sql/rowsecurity.sql:710: NOTICE:  f_leak => dad
+psql:sql/rowsecurity.sql:711: NOTICE:  f_leak => aba
+psql:sql/rowsecurity.sql:711: NOTICE:  f_leak => bbb
+psql:sql/rowsecurity.sql:711: NOTICE:  f_leak => ccc
+psql:sql/rowsecurity.sql:711: NOTICE:  f_leak => dad
  a |  b  
 ---+-----
  1 | aba
@@ -2013,19 +2012,19 @@ EXPLAIN (COSTS OFF) SELECT * FROM rls_view;
 SET SESSION AUTHORIZATION regress_rls_carol;
 SET
 SELECT * FROM rls_view; --fail - permission denied.
-psql:sql/rowsecurity.sql:715: ERROR:  permission denied for view rls_view
-EXPLAIN (COSTS OFF) SELECT * FROM rls_view; --fail - permission denied.
 psql:sql/rowsecurity.sql:716: ERROR:  permission denied for view rls_view
+EXPLAIN (COSTS OFF) SELECT * FROM rls_view; --fail - permission denied.
+psql:sql/rowsecurity.sql:717: ERROR:  permission denied for view rls_view
 -- Query as role that is not the owner of the table or view with permissions.
 SET SESSION AUTHORIZATION regress_rls_bob;
 SET
 GRANT SELECT ON rls_view TO regress_rls_carol;
 GRANT
 SELECT * FROM rls_view;
-psql:sql/rowsecurity.sql:721: NOTICE:  f_leak => aba
-psql:sql/rowsecurity.sql:721: NOTICE:  f_leak => bbb
-psql:sql/rowsecurity.sql:721: NOTICE:  f_leak => ccc
-psql:sql/rowsecurity.sql:721: NOTICE:  f_leak => dad
+psql:sql/rowsecurity.sql:722: NOTICE:  f_leak => aba
+psql:sql/rowsecurity.sql:722: NOTICE:  f_leak => bbb
+psql:sql/rowsecurity.sql:722: NOTICE:  f_leak => ccc
+psql:sql/rowsecurity.sql:722: NOTICE:  f_leak => dad
  a |  b  
 ---+-----
  1 | aba
@@ -2110,27 +2109,27 @@ INSERT 0 21
 SET SESSION AUTHORIZATION regress_rls_bob;
 SET
 SELECT * FROM y2 WHERE f_leak(b);
-psql:sql/rowsecurity.sql:786: NOTICE:  f_leak => cfcd208495d565ef66e7dff9f98764da
-psql:sql/rowsecurity.sql:786: NOTICE:  f_leak => c4ca4238a0b923820dcc509a6f75849b
-psql:sql/rowsecurity.sql:786: NOTICE:  f_leak => c81e728d9d4c2f636f067f89cc14862c
-psql:sql/rowsecurity.sql:786: NOTICE:  f_leak => eccbc87e4b5ce2fe28308fd9f2a7baf3
-psql:sql/rowsecurity.sql:786: NOTICE:  f_leak => a87ff679a2f3e71d9181a67b7542122c
-psql:sql/rowsecurity.sql:786: NOTICE:  f_leak => e4da3b7fbbce2345d7772b0674a318d5
-psql:sql/rowsecurity.sql:786: NOTICE:  f_leak => 1679091c5a880faf6fb5e6087eb1b2dc
-psql:sql/rowsecurity.sql:786: NOTICE:  f_leak => 8f14e45fceea167a5a36dedd4bea2543
-psql:sql/rowsecurity.sql:786: NOTICE:  f_leak => c9f0f895fb98ab9159f51fd0297e236d
-psql:sql/rowsecurity.sql:786: NOTICE:  f_leak => 45c48cce2e2d7fbdea1afc51c7c6ad26
-psql:sql/rowsecurity.sql:786: NOTICE:  f_leak => d3d9446802a44259755d38e6d163e820
-psql:sql/rowsecurity.sql:786: NOTICE:  f_leak => 6512bd43d9caa6e02c990b0a82652dca
-psql:sql/rowsecurity.sql:786: NOTICE:  f_leak => c20ad4d76fe97759aa27a0c99bff6710
-psql:sql/rowsecurity.sql:786: NOTICE:  f_leak => c51ce410c124a10e0db5e4b97fc2af39
-psql:sql/rowsecurity.sql:786: NOTICE:  f_leak => aab3238922bcc25a6f606eb525ffdc56
-psql:sql/rowsecurity.sql:786: NOTICE:  f_leak => 9bf31c7ff062936a96d3c8bd1f8f2ff3
-psql:sql/rowsecurity.sql:786: NOTICE:  f_leak => c74d97b01eae257e44aa9d5bade97baf
-psql:sql/rowsecurity.sql:786: NOTICE:  f_leak => 70efdf2ec9b086079795c442636b55fb
-psql:sql/rowsecurity.sql:786: NOTICE:  f_leak => 6f4922f45568161a8cdf4ad2299f6d23
-psql:sql/rowsecurity.sql:786: NOTICE:  f_leak => 1f0e3dad99908345f7439f8ffabdffc4
-psql:sql/rowsecurity.sql:786: NOTICE:  f_leak => 98f13708210194c475687be6106a3b84
+psql:sql/rowsecurity.sql:787: NOTICE:  f_leak => cfcd208495d565ef66e7dff9f98764da
+psql:sql/rowsecurity.sql:787: NOTICE:  f_leak => c4ca4238a0b923820dcc509a6f75849b
+psql:sql/rowsecurity.sql:787: NOTICE:  f_leak => c81e728d9d4c2f636f067f89cc14862c
+psql:sql/rowsecurity.sql:787: NOTICE:  f_leak => eccbc87e4b5ce2fe28308fd9f2a7baf3
+psql:sql/rowsecurity.sql:787: NOTICE:  f_leak => a87ff679a2f3e71d9181a67b7542122c
+psql:sql/rowsecurity.sql:787: NOTICE:  f_leak => e4da3b7fbbce2345d7772b0674a318d5
+psql:sql/rowsecurity.sql:787: NOTICE:  f_leak => 1679091c5a880faf6fb5e6087eb1b2dc
+psql:sql/rowsecurity.sql:787: NOTICE:  f_leak => 8f14e45fceea167a5a36dedd4bea2543
+psql:sql/rowsecurity.sql:787: NOTICE:  f_leak => c9f0f895fb98ab9159f51fd0297e236d
+psql:sql/rowsecurity.sql:787: NOTICE:  f_leak => 45c48cce2e2d7fbdea1afc51c7c6ad26
+psql:sql/rowsecurity.sql:787: NOTICE:  f_leak => d3d9446802a44259755d38e6d163e820
+psql:sql/rowsecurity.sql:787: NOTICE:  f_leak => 6512bd43d9caa6e02c990b0a82652dca
+psql:sql/rowsecurity.sql:787: NOTICE:  f_leak => c20ad4d76fe97759aa27a0c99bff6710
+psql:sql/rowsecurity.sql:787: NOTICE:  f_leak => c51ce410c124a10e0db5e4b97fc2af39
+psql:sql/rowsecurity.sql:787: NOTICE:  f_leak => aab3238922bcc25a6f606eb525ffdc56
+psql:sql/rowsecurity.sql:787: NOTICE:  f_leak => 9bf31c7ff062936a96d3c8bd1f8f2ff3
+psql:sql/rowsecurity.sql:787: NOTICE:  f_leak => c74d97b01eae257e44aa9d5bade97baf
+psql:sql/rowsecurity.sql:787: NOTICE:  f_leak => 70efdf2ec9b086079795c442636b55fb
+psql:sql/rowsecurity.sql:787: NOTICE:  f_leak => 6f4922f45568161a8cdf4ad2299f6d23
+psql:sql/rowsecurity.sql:787: NOTICE:  f_leak => 1f0e3dad99908345f7439f8ffabdffc4
+psql:sql/rowsecurity.sql:787: NOTICE:  f_leak => 98f13708210194c475687be6106a3b84
  a  |                b                 
 ----+----------------------------------
   0 | cfcd208495d565ef66e7dff9f98764da
@@ -2162,27 +2161,27 @@ EXPLAIN (COSTS OFF) SELECT * FROM y2 WHERE f_leak(b);
 -- Qual push-down of leaky functions, when not referring to table
 --
 SELECT * FROM y2 WHERE f_leak('abc');
-psql:sql/rowsecurity.sql:792: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:792: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:792: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:792: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:792: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:792: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:792: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:792: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:792: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:792: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:792: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:792: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:792: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:792: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:792: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:792: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:792: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:792: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:792: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:792: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:792: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:793: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:793: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:793: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:793: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:793: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:793: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:793: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:793: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:793: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:793: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:793: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:793: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:793: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:793: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:793: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:793: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:793: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:793: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:793: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:793: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:793: NOTICE:  f_leak => abc
  a  |                b                 
 ----+----------------------------------
   0 | cfcd208495d565ef66e7dff9f98764da
@@ -2217,48 +2216,48 @@ CREATE TABLE
 INSERT INTO test_qual_pushdown VALUES ('abc'),('def');
 INSERT 0 2
 SELECT * FROM y2 JOIN test_qual_pushdown ON (b = abc) WHERE f_leak(abc);
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => def
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => def
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => def
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => def
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => def
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => def
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => def
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => def
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => def
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => def
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => def
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => def
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => def
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => def
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => def
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => def
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => def
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => def
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => def
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => def
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => abc
-psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => def
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => def
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => def
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => def
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => def
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => def
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => def
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => def
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => def
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => def
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => def
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => def
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => def
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => def
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => def
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => def
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => def
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => def
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => def
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => def
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => def
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => abc
+psql:sql/rowsecurity.sql:802: NOTICE:  f_leak => def
  a | b | abc 
 ---+---+-----
 (0 rows)
@@ -2266,27 +2265,27 @@ psql:sql/rowsecurity.sql:801: NOTICE:  f_leak => def
 EXPLAIN (COSTS OFF) SELECT * FROM y2 JOIN test_qual_pushdown ON (b = abc) WHERE f_leak(abc);
 
 SELECT * FROM y2 JOIN test_qual_pushdown ON (b = abc) WHERE f_leak(b);
-psql:sql/rowsecurity.sql:804: NOTICE:  f_leak => cfcd208495d565ef66e7dff9f98764da
-psql:sql/rowsecurity.sql:804: NOTICE:  f_leak => c4ca4238a0b923820dcc509a6f75849b
-psql:sql/rowsecurity.sql:804: NOTICE:  f_leak => c81e728d9d4c2f636f067f89cc14862c
-psql:sql/rowsecurity.sql:804: NOTICE:  f_leak => eccbc87e4b5ce2fe28308fd9f2a7baf3
-psql:sql/rowsecurity.sql:804: NOTICE:  f_leak => a87ff679a2f3e71d9181a67b7542122c
-psql:sql/rowsecurity.sql:804: NOTICE:  f_leak => e4da3b7fbbce2345d7772b0674a318d5
-psql:sql/rowsecurity.sql:804: NOTICE:  f_leak => 1679091c5a880faf6fb5e6087eb1b2dc
-psql:sql/rowsecurity.sql:804: NOTICE:  f_leak => 8f14e45fceea167a5a36dedd4bea2543
-psql:sql/rowsecurity.sql:804: NOTICE:  f_leak => c9f0f895fb98ab9159f51fd0297e236d
-psql:sql/rowsecurity.sql:804: NOTICE:  f_leak => 45c48cce2e2d7fbdea1afc51c7c6ad26
-psql:sql/rowsecurity.sql:804: NOTICE:  f_leak => d3d9446802a44259755d38e6d163e820
-psql:sql/rowsecurity.sql:804: NOTICE:  f_leak => 6512bd43d9caa6e02c990b0a82652dca
-psql:sql/rowsecurity.sql:804: NOTICE:  f_leak => c20ad4d76fe97759aa27a0c99bff6710
-psql:sql/rowsecurity.sql:804: NOTICE:  f_leak => c51ce410c124a10e0db5e4b97fc2af39
-psql:sql/rowsecurity.sql:804: NOTICE:  f_leak => aab3238922bcc25a6f606eb525ffdc56
-psql:sql/rowsecurity.sql:804: NOTICE:  f_leak => 9bf31c7ff062936a96d3c8bd1f8f2ff3
-psql:sql/rowsecurity.sql:804: NOTICE:  f_leak => c74d97b01eae257e44aa9d5bade97baf
-psql:sql/rowsecurity.sql:804: NOTICE:  f_leak => 70efdf2ec9b086079795c442636b55fb
-psql:sql/rowsecurity.sql:804: NOTICE:  f_leak => 6f4922f45568161a8cdf4ad2299f6d23
-psql:sql/rowsecurity.sql:804: NOTICE:  f_leak => 1f0e3dad99908345f7439f8ffabdffc4
-psql:sql/rowsecurity.sql:804: NOTICE:  f_leak => 98f13708210194c475687be6106a3b84
+psql:sql/rowsecurity.sql:805: NOTICE:  f_leak => cfcd208495d565ef66e7dff9f98764da
+psql:sql/rowsecurity.sql:805: NOTICE:  f_leak => c4ca4238a0b923820dcc509a6f75849b
+psql:sql/rowsecurity.sql:805: NOTICE:  f_leak => c81e728d9d4c2f636f067f89cc14862c
+psql:sql/rowsecurity.sql:805: NOTICE:  f_leak => eccbc87e4b5ce2fe28308fd9f2a7baf3
+psql:sql/rowsecurity.sql:805: NOTICE:  f_leak => a87ff679a2f3e71d9181a67b7542122c
+psql:sql/rowsecurity.sql:805: NOTICE:  f_leak => e4da3b7fbbce2345d7772b0674a318d5
+psql:sql/rowsecurity.sql:805: NOTICE:  f_leak => 1679091c5a880faf6fb5e6087eb1b2dc
+psql:sql/rowsecurity.sql:805: NOTICE:  f_leak => 8f14e45fceea167a5a36dedd4bea2543
+psql:sql/rowsecurity.sql:805: NOTICE:  f_leak => c9f0f895fb98ab9159f51fd0297e236d
+psql:sql/rowsecurity.sql:805: NOTICE:  f_leak => 45c48cce2e2d7fbdea1afc51c7c6ad26
+psql:sql/rowsecurity.sql:805: NOTICE:  f_leak => d3d9446802a44259755d38e6d163e820
+psql:sql/rowsecurity.sql:805: NOTICE:  f_leak => 6512bd43d9caa6e02c990b0a82652dca
+psql:sql/rowsecurity.sql:805: NOTICE:  f_leak => c20ad4d76fe97759aa27a0c99bff6710
+psql:sql/rowsecurity.sql:805: NOTICE:  f_leak => c51ce410c124a10e0db5e4b97fc2af39
+psql:sql/rowsecurity.sql:805: NOTICE:  f_leak => aab3238922bcc25a6f606eb525ffdc56
+psql:sql/rowsecurity.sql:805: NOTICE:  f_leak => 9bf31c7ff062936a96d3c8bd1f8f2ff3
+psql:sql/rowsecurity.sql:805: NOTICE:  f_leak => c74d97b01eae257e44aa9d5bade97baf
+psql:sql/rowsecurity.sql:805: NOTICE:  f_leak => 70efdf2ec9b086079795c442636b55fb
+psql:sql/rowsecurity.sql:805: NOTICE:  f_leak => 6f4922f45568161a8cdf4ad2299f6d23
+psql:sql/rowsecurity.sql:805: NOTICE:  f_leak => 1f0e3dad99908345f7439f8ffabdffc4
+psql:sql/rowsecurity.sql:805: NOTICE:  f_leak => 98f13708210194c475687be6106a3b84
  a | b | abc 
 ---+---+-----
 (0 rows)
@@ -2344,27 +2343,27 @@ INSERT 0 21
 SET SESSION AUTHORIZATION regress_rls_bob;
 SET
 WITH cte1 AS (SELECT * FROM t1 WHERE f_leak(b)) SELECT * FROM cte1;
-psql:sql/rowsecurity.sql:850: NOTICE:  f_leak => cfcd208495d565ef66e7dff9f98764da
-psql:sql/rowsecurity.sql:850: NOTICE:  f_leak => c4ca4238a0b923820dcc509a6f75849b
-psql:sql/rowsecurity.sql:850: NOTICE:  f_leak => c81e728d9d4c2f636f067f89cc14862c
-psql:sql/rowsecurity.sql:850: NOTICE:  f_leak => eccbc87e4b5ce2fe28308fd9f2a7baf3
-psql:sql/rowsecurity.sql:850: NOTICE:  f_leak => a87ff679a2f3e71d9181a67b7542122c
-psql:sql/rowsecurity.sql:850: NOTICE:  f_leak => e4da3b7fbbce2345d7772b0674a318d5
-psql:sql/rowsecurity.sql:850: NOTICE:  f_leak => 1679091c5a880faf6fb5e6087eb1b2dc
-psql:sql/rowsecurity.sql:850: NOTICE:  f_leak => 8f14e45fceea167a5a36dedd4bea2543
-psql:sql/rowsecurity.sql:850: NOTICE:  f_leak => c9f0f895fb98ab9159f51fd0297e236d
-psql:sql/rowsecurity.sql:850: NOTICE:  f_leak => 45c48cce2e2d7fbdea1afc51c7c6ad26
-psql:sql/rowsecurity.sql:850: NOTICE:  f_leak => d3d9446802a44259755d38e6d163e820
-psql:sql/rowsecurity.sql:850: NOTICE:  f_leak => 6512bd43d9caa6e02c990b0a82652dca
-psql:sql/rowsecurity.sql:850: NOTICE:  f_leak => c20ad4d76fe97759aa27a0c99bff6710
-psql:sql/rowsecurity.sql:850: NOTICE:  f_leak => c51ce410c124a10e0db5e4b97fc2af39
-psql:sql/rowsecurity.sql:850: NOTICE:  f_leak => aab3238922bcc25a6f606eb525ffdc56
-psql:sql/rowsecurity.sql:850: NOTICE:  f_leak => 9bf31c7ff062936a96d3c8bd1f8f2ff3
-psql:sql/rowsecurity.sql:850: NOTICE:  f_leak => c74d97b01eae257e44aa9d5bade97baf
-psql:sql/rowsecurity.sql:850: NOTICE:  f_leak => 70efdf2ec9b086079795c442636b55fb
-psql:sql/rowsecurity.sql:850: NOTICE:  f_leak => 6f4922f45568161a8cdf4ad2299f6d23
-psql:sql/rowsecurity.sql:850: NOTICE:  f_leak => 1f0e3dad99908345f7439f8ffabdffc4
-psql:sql/rowsecurity.sql:850: NOTICE:  f_leak => 98f13708210194c475687be6106a3b84
+psql:sql/rowsecurity.sql:851: NOTICE:  f_leak => cfcd208495d565ef66e7dff9f98764da
+psql:sql/rowsecurity.sql:851: NOTICE:  f_leak => c4ca4238a0b923820dcc509a6f75849b
+psql:sql/rowsecurity.sql:851: NOTICE:  f_leak => c81e728d9d4c2f636f067f89cc14862c
+psql:sql/rowsecurity.sql:851: NOTICE:  f_leak => eccbc87e4b5ce2fe28308fd9f2a7baf3
+psql:sql/rowsecurity.sql:851: NOTICE:  f_leak => a87ff679a2f3e71d9181a67b7542122c
+psql:sql/rowsecurity.sql:851: NOTICE:  f_leak => e4da3b7fbbce2345d7772b0674a318d5
+psql:sql/rowsecurity.sql:851: NOTICE:  f_leak => 1679091c5a880faf6fb5e6087eb1b2dc
+psql:sql/rowsecurity.sql:851: NOTICE:  f_leak => 8f14e45fceea167a5a36dedd4bea2543
+psql:sql/rowsecurity.sql:851: NOTICE:  f_leak => c9f0f895fb98ab9159f51fd0297e236d
+psql:sql/rowsecurity.sql:851: NOTICE:  f_leak => 45c48cce2e2d7fbdea1afc51c7c6ad26
+psql:sql/rowsecurity.sql:851: NOTICE:  f_leak => d3d9446802a44259755d38e6d163e820
+psql:sql/rowsecurity.sql:851: NOTICE:  f_leak => 6512bd43d9caa6e02c990b0a82652dca
+psql:sql/rowsecurity.sql:851: NOTICE:  f_leak => c20ad4d76fe97759aa27a0c99bff6710
+psql:sql/rowsecurity.sql:851: NOTICE:  f_leak => c51ce410c124a10e0db5e4b97fc2af39
+psql:sql/rowsecurity.sql:851: NOTICE:  f_leak => aab3238922bcc25a6f606eb525ffdc56
+psql:sql/rowsecurity.sql:851: NOTICE:  f_leak => 9bf31c7ff062936a96d3c8bd1f8f2ff3
+psql:sql/rowsecurity.sql:851: NOTICE:  f_leak => c74d97b01eae257e44aa9d5bade97baf
+psql:sql/rowsecurity.sql:851: NOTICE:  f_leak => 70efdf2ec9b086079795c442636b55fb
+psql:sql/rowsecurity.sql:851: NOTICE:  f_leak => 6f4922f45568161a8cdf4ad2299f6d23
+psql:sql/rowsecurity.sql:851: NOTICE:  f_leak => 1f0e3dad99908345f7439f8ffabdffc4
+psql:sql/rowsecurity.sql:851: NOTICE:  f_leak => 98f13708210194c475687be6106a3b84
  a  |                b                 
 ----+----------------------------------
   0 | cfcd208495d565ef66e7dff9f98764da
@@ -2707,7 +2706,7 @@ EXPLAIN (COSTS OFF) SELECT * FROM t1;
 RESET SESSION AUTHORIZATION;
 RESET
 DROP TABLE copy_t CASCADE;
-psql:sql/rowsecurity.sql:958: ERROR:  table "copy_t" does not exist
+psql:sql/rowsecurity.sql:959: ERROR:  table "copy_t" does not exist
 CREATE TABLE copy_t (a integer, b text);
 CREATE TABLE
 --CREATE POLICY p1 ON copy_t USING (a % 2 = 0);
@@ -2815,11 +2814,11 @@ SET
 SET row_security TO OFF;
 SET
 COPY (SELECT * FROM copy_t ORDER BY a ASC) TO STDOUT WITH DELIMITER ','; --fail - would be affected by RLS
-psql:sql/rowsecurity.sql:992: ERROR:  permission denied for table copy_t
+psql:sql/rowsecurity.sql:993: ERROR:  permission denied for table copy_t
 SET row_security TO ON;
 SET
 COPY (SELECT * FROM copy_t ORDER BY a ASC) TO STDOUT WITH DELIMITER ','; --fail - permission denied
-psql:sql/rowsecurity.sql:994: ERROR:  permission denied for table copy_t
+psql:sql/rowsecurity.sql:995: ERROR:  permission denied for table copy_t
 -- Check COPY relation TO; keep it just one row to avoid reordering issues
 RESET SESSION AUTHORIZATION;
 RESET
@@ -2872,11 +2871,11 @@ SET
 SET row_security TO OFF;
 SET
 COPY copy_rel_to TO STDOUT WITH DELIMITER ','; --fail - permission denied
-psql:sql/rowsecurity.sql:1032: ERROR:  permission denied for table copy_rel_to
+psql:sql/rowsecurity.sql:1033: ERROR:  permission denied for table copy_rel_to
 SET row_security TO ON;
 SET
 COPY copy_rel_to TO STDOUT WITH DELIMITER ','; --fail - permission denied
-psql:sql/rowsecurity.sql:1034: ERROR:  permission denied for table copy_rel_to
+psql:sql/rowsecurity.sql:1035: ERROR:  permission denied for table copy_rel_to
 -- Check COPY FROM as Superuser/owner.
 RESET SESSION AUTHORIZATION;
 RESET
@@ -2894,7 +2893,7 @@ SET
 SET row_security TO OFF;
 SET
 COPY copy_t FROM STDIN; --fail - would be affected by RLS.
-psql:sql/rowsecurity.sql:1068: ERROR:  invalid input syntax for integer: "SET row_security TO ON;"
+psql:sql/rowsecurity.sql:1069: ERROR:  invalid input syntax for integer: "SET row_security TO ON;"
 CONTEXT:  COPY copy_t, line 1, column a: "SET row_security TO ON;"
 -- Check COPY FROM as user without permissions.
 SET SESSION AUTHORIZATION regress_rls_carol;
@@ -2902,11 +2901,11 @@ SET
 SET row_security TO OFF;
 SET
 COPY copy_t FROM STDIN; --fail - permission denied.
-psql:sql/rowsecurity.sql:1073: ERROR:  permission denied for table copy_t
+psql:sql/rowsecurity.sql:1074: ERROR:  permission denied for table copy_t
 SET row_security TO ON;
 SET
 COPY copy_t FROM STDIN; --fail - permission denied.
-psql:sql/rowsecurity.sql:1075: ERROR:  permission denied for table copy_t
+psql:sql/rowsecurity.sql:1076: ERROR:  permission denied for table copy_t
 RESET SESSION AUTHORIZATION;
 RESET
 DROP TABLE copy_t;
@@ -3285,10 +3284,10 @@ INSERT 0 1
 -- SELECT permissions)
 INSERT INTO r1 VALUES (10)
     ON CONFLICT (a) DO UPDATE SET a = 30;
-psql:sql/rowsecurity.sql:1290: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '30' for key 'r1.PRIMARY'.
+psql:sql/rowsecurity.sql:1291: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '30' for key 'r1.PRIMARY'.
 INSERT INTO r1 VALUES (10)
     ON CONFLICT ON CONSTRAINT r1_pkey DO UPDATE SET a = 30;
-psql:sql/rowsecurity.sql:1292: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '30' for key 'r1.PRIMARY'.
+psql:sql/rowsecurity.sql:1293: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '30' for key 'r1.PRIMARY'.
 	
 DROP TABLE r1;
 DROP TABLE
@@ -3372,9 +3371,9 @@ GRANT
 SET SESSION AUTHORIZATION regress_rls_alice;
 SET
 SELECT * FROM ref_tbl; -- Permission denied
-psql:sql/rowsecurity.sql:1347: ERROR:  permission denied for table ref_tbl
+psql:sql/rowsecurity.sql:1348: ERROR:  permission denied for table ref_tbl
 SELECT * FROM rls_tbl; -- Permission denied
-psql:sql/rowsecurity.sql:1348: ERROR:  permission denied for table rls_tbl
+psql:sql/rowsecurity.sql:1349: ERROR:  permission denied for table rls_tbl
 SELECT * FROM rls_view; -- OK
  a  
 ----
@@ -3397,7 +3396,7 @@ RESET
 drop table regress_rls_schema.t1 cascade;
 DROP TABLE
 drop table regress_rls_schema.blog;
-psql:sql/rowsecurity.sql:1362: ERROR:  table "blog" does not exist
+psql:sql/rowsecurity.sql:1363: ERROR:  table "blog" does not exist
 drop table regress_rls_schema.x1;
 DROP TABLE
 drop table regress_rls_schema.y1;
@@ -3409,18 +3408,18 @@ DROP TABLE
 drop table regress_rls_schema.z2;
 DROP TABLE
 drop table regress_rls_schema.b1 cascade;
-psql:sql/rowsecurity.sql:1368: NOTICE:  drop cascades to view bv1
+psql:sql/rowsecurity.sql:1369: NOTICE:  drop cascades to view bv1
 DROP TABLE
 drop table regress_rls_schema.s1 cascade;
 DROP TABLE
 drop table regress_rls_schema.s2 cascade;
-psql:sql/rowsecurity.sql:1370: NOTICE:  drop cascades to view v2
+psql:sql/rowsecurity.sql:1371: NOTICE:  drop cascades to view v2
 DROP TABLE
 drop table regress_rls_schema.rec1 cascade;
-psql:sql/rowsecurity.sql:1371: NOTICE:  drop cascades to view rec1v
+psql:sql/rowsecurity.sql:1372: NOTICE:  drop cascades to view rec1v
 DROP TABLE
 drop table regress_rls_schema.rec2 cascade;
-psql:sql/rowsecurity.sql:1372: NOTICE:  drop cascades to view rec2v
+psql:sql/rowsecurity.sql:1373: NOTICE:  drop cascades to view rec2v
 DROP TABLE
 drop table regress_rls_schema.part_document cascade;
 DROP TABLE
@@ -3435,9 +3434,9 @@ DROP TABLE
 drop table regress_rls_schema.current_check;
 DROP TABLE
 drop table regress_rls_schema.rls_tbl cascade;
-psql:sql/rowsecurity.sql:1379: ERROR:  table "rls_tbl" does not exist
+psql:sql/rowsecurity.sql:1380: ERROR:  table "rls_tbl" does not exist
 drop function regress_rls_schema.op_leak(integer,integer) cascade;
-psql:sql/rowsecurity.sql:1380: ERROR:  function regress_rls_schema.op_leak(integer, integer) does not exist
+psql:sql/rowsecurity.sql:1381: ERROR:  function regress_rls_schema.op_leak(integer, integer) does not exist
 DROP USER regress_rls_alice;
 DROP ROLE
 drop table regress_rls_schema.dep1 cascade;
@@ -3464,7 +3463,7 @@ drop table regress_rls_schema.dep2 cascade;
 DROP TABLE
 \set VERBOSITY terse \\ -- suppress cascade details
 DROP SCHEMA regress_rls_schema CASCADE;
-psql:sql/rowsecurity.sql:1397: NOTICE:  drop cascades to function f_leak(text)
+psql:sql/rowsecurity.sql:1398: NOTICE:  drop cascades to function f_leak(text)
 DROP SCHEMA
 \set VERBOSITY default
 -- Arrange to have a few policies left over, for testing

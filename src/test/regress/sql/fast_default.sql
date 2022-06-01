@@ -24,9 +24,9 @@ ALTER TABLE has_volatile ADD col2 int DEFAULT 1;
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE has_volatile ADD col3 timestamptz DEFAULT current_timestamp;
 --DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-ALTER TABLE has_volatile ADD col4 int DEFAULT (random() * 10000)::int;
---DDL_STATEMENT_END--
+--mysql的自身的限制，可以忽略 [#728]
+--ALTER TABLE has_volatile ADD col4 int DEFAULT (random() * 10000)::int;
+
 
 
 -- Test a large sample of different datatypes

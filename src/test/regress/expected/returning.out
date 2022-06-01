@@ -49,7 +49,6 @@ SELECT * FROM foo;
 INSERT INTO foo SELECT f1+10, f2, f3+99 FROM foo
   RETURNING *, f1+112 IN (SELECT q1 FROM int8_tbl) AS subplan,
     EXISTS(SELECT * FROM int4_tbl) AS initplan;
-psql:sql/returning.sql:25: WARNING:  Rescan is called unexpectedly, so reset node->will_rewind to TRUE
  f1 |  f2  | f3  | subplan | initplan 
 ----+------+-----+---------+----------
  11 | test | 141 | t       | t
@@ -61,7 +60,6 @@ UPDATE foo SET f3 = f3 * 2
   WHERE f1 > 10
   RETURNING *, f1+112 IN (SELECT q1 FROM int8_tbl) AS subplan,
     EXISTS(SELECT * FROM int4_tbl) AS initplan;
-psql:sql/returning.sql:30: WARNING:  Rescan is called unexpectedly, so reset node->will_rewind to TRUE
  f1 |  f2  | f3  | subplan | initplan 
 ----+------+-----+---------+----------
  11 | test | 282 | t       | t
@@ -73,7 +71,6 @@ DELETE FROM foo
   WHERE f1 > 10
   RETURNING *, f1+112 IN (SELECT q1 FROM int8_tbl) AS subplan,
     EXISTS(SELECT * FROM int4_tbl) AS initplan;
-psql:sql/returning.sql:35: WARNING:  Rescan is called unexpectedly, so reset node->will_rewind to TRUE
  f1 |  f2  | f3  | subplan | initplan 
 ----+------+-----+---------+----------
  11 | test | 282 | t       | t
@@ -122,25 +119,26 @@ SELECT * FROM foochild;
 (1 row)
 
 UPDATE foo SET f4 = f4 + f3 WHERE f4 = 99 RETURNING *;
- f1 |  f2  | f3 | f4  
-----+------+----+-----
-  1 | test | 42 | 141
-  2 | More | 11 | 110
-(2 rows)
+ f1  |  f2   | f3  |  f4  
+-----+-------+-----+------
+   1 | test  |  42 |  141
+   2 | More  |  11 |  110
+ 123 | child | 999 | 1098
+(3 rows)
 
-UPDATE 2
+UPDATE 3
 SELECT * FROM foo;
- f1  |  f2   | f3  | f4  
------+-------+-----+-----
-   1 | test  |  42 | 141
-   2 | More  |  11 | 110
- 123 | child | 999 |  99
+ f1  |  f2   | f3  |  f4  
+-----+-------+-----+------
+   1 | test  |  42 |  141
+   2 | More  |  11 |  110
+ 123 | child | 999 | 1098
 (3 rows)
 
 SELECT * FROM foochild;
- f1  |  f2   | f3  |  fc  | f4 
------+-------+-----+------+----
- 123 | child | 999 | -123 | 99
+ f1  |  f2   | f3  |  fc  |  f4  
+-----+-------+-----+------+------
+ 123 | child | 999 | -123 | 1098
 (1 row)
 
 -- update involves two or more tables, not supported in kunlun currently.

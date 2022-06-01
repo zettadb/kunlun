@@ -128,13 +128,13 @@ Null display is "#null#".
 SELECT v,h, string_agg(i::text, E'\n') AS i FROM ctv_data
 GROUP BY v, h ORDER BY h,v
  \crosstabview v h i
- v  | #null# |   h0   | h1 | h2 | h4 
-----+--------+--------+----+----+----
- v0 | 5      |        |    |    | 4 +
-    |        |        |    |    | -3
- v1 |        | #null# |    | 3 +| 
-    |        |        |    | 7  | 
- v2 |        |        | 3  |    | 
+ v  |   h0   | h1 | h2 | h4 | #null# 
+----+--------+----+----+----+--------
+ v1 | #null# |    | 3 +|    | 
+    |        |    | 7  |    | 
+ v2 |        | 3  |    |    | 
+ v0 |        |    |    | 4 +| 5
+    |        |    |    | -3 | 
 (3 rows)
 
 \pset null ''
@@ -143,28 +143,28 @@ Null display is "".
 SELECT v,h,string_agg(i::text, E'\n'), string_agg(c, E'\n')
 FROM ctv_data GROUP BY v, h ORDER BY h,v
  \crosstabview 2 1 4
- h  | v0  |  v1  | v2  
-----+-----+------+-----
-    | qux |      | 
- h0 |     | baz  | 
- h1 |     |      | bar
- h2 |     | foo +| 
-    |     | quux | 
- h4 | qux+|      | 
-    | dbl |      | 
+ h  |  v1  | v2  | v0  
+----+------+-----+-----
+ h0 | baz  |     | 
+ h1 |      | bar | 
+ h2 | foo +|     | 
+    | quux |     | 
+ h4 |      |     | qux+
+    |      |     | dbl
+    |      |     | qux
 (5 rows)
 
 -- refer to columns by positions and names mixed
 SELECT v,h, string_agg(i::text, E'\n') AS i, string_agg(c, E'\n') AS c
 FROM ctv_data GROUP BY v, h ORDER BY h,v
  \crosstabview 1 "h" 4
- v  |     | h0  | h1  |  h2  | h4  
-----+-----+-----+-----+------+-----
- v0 | qux |     |     |      | qux+
-    |     |     |     |      | dbl
- v1 |     | baz |     | foo +| 
-    |     |     |     | quux | 
- v2 |     |     | bar |      | 
+ v  | h0  | h1  |  h2  | h4  |     
+----+-----+-----+------+-----+-----
+ v1 | baz |     | foo +|     | 
+    |     |     | quux |     | 
+ v2 |     | bar |      |     | 
+ v0 |     |     |      | qux+| qux
+    |     |     |      | dbl | 
 (3 rows)
 
 -- refer to columns by quoted names, check downcasing of unquoted name

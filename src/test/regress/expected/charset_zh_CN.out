@@ -343,12 +343,12 @@ SELECT 姓名,SUM(工资) FROM 个人表 GROUP BY 姓名 ORDER BY 姓名;
  陈琪 | 10000
 (7 rows)
 
-SELECT 工作,avg(工资) FROM 个人表 GROUP BY 工作 order by AVG(工资);
- 工作 |          avg           
-------+------------------------
- 前台 | 10000.0000000000000000
- 内科 |     17666.666666666667
- 外科 |     21666.666666666667
+SELECT 工作,avg(工资)::numeric(64,4) FROM 个人表 GROUP BY 工作 order by 2;
+ 工作 |    avg     
+------+------------
+ 前台 | 10000.0000
+ 内科 | 17666.6667
+ 外科 | 21666.6667
 (3 rows)
 
 select 工作,max(工资) from 个人表 group by 工作 order by max(工资)desc; 

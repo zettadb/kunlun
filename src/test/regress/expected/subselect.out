@@ -149,7 +149,6 @@ SELECT '' AS three, f1, f2
   FROM SUBSELECT_TBL
   WHERE (f1, f2) NOT IN (SELECT f2, CAST(f3 AS int4) FROM SUBSELECT_TBL
                          WHERE f3 IS NOT NULL);
-psql:sql/subselect.sql:60: WARNING:  Rescan is called unexpectedly, so reset node->will_rewind to TRUE
  three | f1 | f2 
 -------+----+----
        |  1 |  2
@@ -188,7 +187,6 @@ SELECT '' AS six, f1 AS "Correlated Field", f3 AS "Second Field"
   FROM SUBSELECT_TBL upper
   WHERE f3 IN (SELECT upper.f1 + f2 FROM SUBSELECT_TBL
                WHERE f2 = CAST(f3 AS integer));
-psql:sql/subselect.sql:76: WARNING:  Rescan is called unexpectedly, so reset node->will_rewind to TRUE
  six | Correlated Field | Second Field 
 -----+------------------+--------------
      |                1 |            3
@@ -847,7 +845,6 @@ select * from int4_tbl where
 select * from int4_tbl where
   (case when f1 in (select unique1 from tenk1 a) then f1 else null end) in
   (select ten from tenk1 b);
-psql:sql/subselect.sql:483: WARNING:  Rescan is called unexpectedly, so reset node->will_rewind to TRUE
  f1 
 ----
   0

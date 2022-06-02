@@ -705,7 +705,7 @@ CREATE TABLE T(pk INT NOT NULL PRIMARY KEY);
 --DDL_STATEMENT_END--
 INSERT INTO T VALUES (1);
 --DDL_STATEMENT_BEGIN--
-ALTER TABLE T ADD COLUMN c1 TIMESTAMP DEFAULT now();
+ALTER TABLE T ADD COLUMN c1 TIMESTAMP DEFAULT '2022-06-02 16:00:00+08';
 --DDL_STATEMENT_END--
 select*from T;
 insert into T values(2);
@@ -1416,7 +1416,7 @@ create table t1(pk int not null primary key);
 ALTER TABLE t1 ADD COLUMN c_num NUMERIC DEFAULT 1.00000000001;
 --DDL_STATEMENT_END--
 insert into t1 values(1),(2),(3),(4),(5);
-select * from t1;
+select pk,c_num::numeric(64,2) from t1;
 
 -- bug 126
 --DDL_STATEMENT_BEGIN--

@@ -18,11 +18,11 @@ ALTER TABLE has_volatile ADD col2 int DEFAULT 1;
 ALTER TABLE
 ALTER TABLE has_volatile ADD col3 timestamptz DEFAULT current_timestamp;
 ALTER TABLE
-ALTER TABLE has_volatile ADD col4 int DEFAULT (random() * 10000)::int;
-psql:sql/fast_default.sql:15: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1674, Statement is unsafe because it uses a system function that may return a different value on the slave..
+--mysql的自身的限制，可以忽略 [#728]
+--ALTER TABLE has_volatile ADD col4 int DEFAULT (random() * 10000)::int;
 -- Test a large sample of different datatypes
 drop table if not exists T;
-psql:sql/fast_default.sql:19: ERROR:  syntax error at or near "not"
+psql:sql/fast_default.sql:21: ERROR:  syntax error at or near "not"
 LINE 1: drop table if not exists T;
                       ^
 CREATE TABLE T(pk INT NOT NULL PRIMARY KEY, c_int INT DEFAULT 1);
@@ -68,17 +68,17 @@ INSERT INTO T VALUES (15), (16);
 INSERT 0 2
 ALTER TABLE T ADD COLUMN c_num NUMERIC(10,10) DEFAULT 1.00000000001,
               ALTER COLUMN c_big SET DEFAULT -9999999999999999;
-psql:sql/fast_default.sql:62: ERROR:  numeric field overflow
+psql:sql/fast_default.sql:64: ERROR:  numeric field overflow
 DETAIL:  A field with precision 10, scale 10 must round to an absolute value less than 1.
 INSERT INTO T VALUES (17), (18);
 INSERT 0 2
 ALTER TABLE T ADD COLUMN c_time TIME DEFAULT '12:00:00',
               ALTER COLUMN c_num SET DEFAULT 2.000000000000002;
-psql:sql/fast_default.sql:67: ERROR:  column "c_num" of relation "t" does not exist
+psql:sql/fast_default.sql:69: ERROR:  column "c_num" of relation "t" does not exist
 INSERT INTO T VALUES (19), (20);
 INSERT 0 2
 ALTER TABLE T ALTER COLUMN c_time SET DEFAULT '23:59:59';
-psql:sql/fast_default.sql:71: ERROR:  column "c_time" of relation "t" does not exist
+psql:sql/fast_default.sql:73: ERROR:  column "c_time" of relation "t" does not exist
 INSERT INTO T VALUES (21), (22);
 INSERT 0 2
 INSERT INTO T VALUES (23), (24);
@@ -93,14 +93,14 @@ ALTER TABLE T ALTER COLUMN c_bpchar    DROP DEFAULT,
               ALTER COLUMN c_big       DROP DEFAULT,
               ALTER COLUMN c_num       DROP DEFAULT,
               ALTER COLUMN c_time      DROP DEFAULT;
-psql:sql/fast_default.sql:86: ERROR:  column "c_num" of relation "t" does not exist
+psql:sql/fast_default.sql:88: ERROR:  column "c_num" of relation "t" does not exist
 INSERT INTO T VALUES (27), (28);
 INSERT 0 2
 SELECT pk, c_int, c_bpchar, c_text, c_date, c_timestamp,
        c_timestamp_null, c_small, c_small_null,
        c_big, c_num, c_time
 FROM T ORDER BY pk;
-psql:sql/fast_default.sql:93: ERROR:  column "c_num" does not exist
+psql:sql/fast_default.sql:95: ERROR:  column "c_num" does not exist
 LINE 3:        c_big, c_num, c_time
                       ^
 DROP TABLE T;
@@ -199,7 +199,7 @@ ALTER TABLE T ADD COLUMN c1 TIMESTAMP DEFAULT now();
 ALTER TABLE
 -- clock_timestamp() is volatile
 ALTER TABLE T ADD COLUMN c2 TIMESTAMP DEFAULT clock_timestamp();
-psql:sql/fast_default.sql:170: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1064, You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CAST('2022-05-26 16:02:45.96932' as DATETIME)' at line 1.
+ALTER TABLE
 DROP TABLE T;
 DROP TABLE
 -- Simple querie
@@ -276,7 +276,7 @@ SELECT * FROM T ORDER BY c_bigint, pk LIMIT 10;
 --ELECT * FROM T ORDER BY c_bigint, c_text, pk LIMIT 10;
 EXPLAIN (VERBOSE TRUE, COSTS FALSE)
 ELECT * FROM T ORDER BY c_bigint, pk LIMIT 10;
-psql:sql/fast_default.sql:215: ERROR:  syntax error at or near "ELECT"
+psql:sql/fast_default.sql:217: ERROR:  syntax error at or near "ELECT"
 LINE 2: ELECT * FROM T ORDER BY c_bigint, pk LIMIT 10;
         ^
 -- LIMIT
@@ -645,11 +645,11 @@ DROP TABLE
 DROP TABLE leader;
 DROP TABLE
 DROP TABLE t1;
-psql:sql/fast_default.sql:378: ERROR:  table "t1" does not exist
+psql:sql/fast_default.sql:380: ERROR:  table "t1" does not exist
 DROP TABLE has_volatile;
 DROP TABLE
 DROP FUNCTION log_rewrite;
-psql:sql/fast_default.sql:380: ERROR:  could not find a function named "log_rewrite"
+psql:sql/fast_default.sql:382: ERROR:  could not find a function named "log_rewrite"
 DROP SCHEMA fast_default;
 DROP SCHEMA
 -- Leave a table with an active fast default in place, for pg_upgrade testing

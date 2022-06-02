@@ -55,12 +55,14 @@ select*from t1;
 drop table if exists t2;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-create table t2(a int primary key, b timestamptz default now(), c varchar(32) default 'xyz');
+-- create table t2(a int primary key, b timestamptz default now(), c varchar(32) default 'xyz');
+create table t2(a int primary key, b timestamptz default '2022-06-01 16:00:00+08', c varchar(32) default 'xyz');
 --DDL_STATEMENT_END--
 --start transaction;
 insert into t2 values(1) returning *;
 insert into t2 values(8, NULL, 'xxx'),(9, NULL, NULL) returning *;
-insert into t2 values(10, now(), 'abc'),(11, '2006-06-02 13:36:35+08', '你好');
+-- insert into t2 values(10, now(), 'abc'),(11, '2006-06-02 13:36:35+08', '你好');
+insert into t2 values(10, '2022-06-01 17:00:00+08', 'abc'),(11, '2006-06-02 13:36:35+08', '你好');
 commit;
 
 insert into t2 values(1) returning *;
@@ -110,7 +112,8 @@ drop table if exists t503;
 drop table if exists t504;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-create table t5(a int primary key, b timestamptz default now(), c varchar(32) default 'abc') partition by range(a);
+-- create table t5(a int primary key, b timestamptz default now(), c varchar(32) default 'abc') partition by range(a);
+create table t5(a int primary key, b timestamptz default '2022-06-01 16:00:00+08', c varchar(32) default 'abc') partition by range(a);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 create table t501 partition of t5 for values from (MINVALUE) to (10);
@@ -128,13 +131,13 @@ insert into t5 values(-10),(0), (15),(40) returning *;
 insert into t5 values(-20),(10), (25),(400);
 select*from t5 where a between 30 and 100;
 
-PREPARE q1(int, int) AS SELECT * FROM t5 WHERE a between $1 and $2;
+PREPARE q1(int, int) AS SELECT * FROM t5 WHERE a between $1 and $2 order by 1;
 
 EXECUTE q1(-100, 20);
 EXECUTE q1(0, 40);
 
 
-PREPARE q2(int, int) AS SELECT * FROM t1 WHERE a between $1 and $2;
+PREPARE q2(int, int) AS SELECT * FROM t1 WHERE a between $1 and $2 order by 1;
 
 EXECUTE q2(0, 10);
 EXECUTE q1(10, 30);
@@ -182,7 +185,7 @@ EXECUTE q6(23);
 begin;
 EXECUTE q6(31);
 EXECUTE q6(33);
-select*from t5;
+select*from t5 order by 1;
 commit;
 
 prepare q5(varchar(32), int, varchar(32)) as update  t5 set c=$1 where a%7=$2 and c=$3;

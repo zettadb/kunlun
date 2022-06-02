@@ -45,15 +45,11 @@ SELECT srvname, srvoptions FROM pg_foreign_server;
  integer    | 
 (2 rows)
 
-SELECT * FROM pg_user_mapping;
- umuser | umserver | umoptions 
---------+----------+-----------
-  20210 |    20250 | 
-(1 row)
-
+--Its value changes frequently and is temporarily cancelled
+--SELECT * FROM pg_user_mapping;
 -- CREATE FOREIGN DATA WRAPPER
 CREATE FOREIGN DATA WRAPPER foo VALIDATOR bar;            -- ERROR
-psql:sql/foreign_data.sql:33: ERROR:  function bar(text[], oid) does not exist
+psql:sql/foreign_data.sql:34: ERROR:  function bar(text[], oid) does not exist
 CREATE FOREIGN DATA WRAPPER foo;
 CREATE FOREIGN DATA WRAPPER
 \dew
@@ -67,7 +63,7 @@ CREATE FOREIGN DATA WRAPPER
 (4 rows)
 
 CREATE FOREIGN DATA WRAPPER foo; -- duplicate
-psql:sql/foreign_data.sql:37: ERROR:  foreign-data wrapper "foo" already exists
+psql:sql/foreign_data.sql:38: ERROR:  foreign-data wrapper "foo" already exists
 DROP FOREIGN DATA WRAPPER foo;
 DROP FOREIGN DATA WRAPPER
 CREATE FOREIGN DATA WRAPPER foo OPTIONS (testing '1');
@@ -85,7 +81,7 @@ CREATE FOREIGN DATA WRAPPER
 DROP FOREIGN DATA WRAPPER foo;
 DROP FOREIGN DATA WRAPPER
 CREATE FOREIGN DATA WRAPPER foo OPTIONS (testing '1', testing '2');   -- ERROR
-psql:sql/foreign_data.sql:43: ERROR:  option "testing" provided more than once
+psql:sql/foreign_data.sql:44: ERROR:  option "testing" provided more than once
 CREATE FOREIGN DATA WRAPPER foo OPTIONS (testing '1', another '2');
 CREATE FOREIGN DATA WRAPPER
 \dew+
@@ -103,7 +99,7 @@ DROP FOREIGN DATA WRAPPER
 SET ROLE regress_test_role;
 SET
 CREATE FOREIGN DATA WRAPPER foo; -- ERROR
-psql:sql/foreign_data.sql:49: ERROR:  permission denied to create foreign-data wrapper "foo"
+psql:sql/foreign_data.sql:50: ERROR:  permission denied to create foreign-data wrapper "foo"
 HINT:  Must be superuser to create a foreign-data wrapper.
 RESET ROLE;
 RESET
@@ -123,20 +119,20 @@ CREATE FOREIGN DATA WRAPPER
 CREATE FUNCTION invalid_fdw_handler() RETURNS int LANGUAGE SQL AS 'SELECT 1;';
 CREATE FUNCTION
 CREATE FOREIGN DATA WRAPPER test_fdw HANDLER invalid_fdw_handler;  -- ERROR
-psql:sql/foreign_data.sql:56: ERROR:  function invalid_fdw_handler must return type fdw_handler
+psql:sql/foreign_data.sql:57: ERROR:  function invalid_fdw_handler must return type fdw_handler
 CREATE FOREIGN DATA WRAPPER test_fdw HANDLER test_fdw_handler HANDLER invalid_fdw_handler;  -- ERROR
-psql:sql/foreign_data.sql:57: ERROR:  conflicting or redundant options
+psql:sql/foreign_data.sql:58: ERROR:  conflicting or redundant options
 CREATE FOREIGN DATA WRAPPER test_fdw HANDLER test_fdw_handler;
 CREATE FOREIGN DATA WRAPPER
 DROP FOREIGN DATA WRAPPER test_fdw;
 DROP FOREIGN DATA WRAPPER
 -- ALTER FOREIGN DATA WRAPPER
 ALTER FOREIGN DATA WRAPPER foo;                             -- ERROR
-psql:sql/foreign_data.sql:62: ERROR:  syntax error at or near ";"
+psql:sql/foreign_data.sql:63: ERROR:  syntax error at or near ";"
 LINE 1: ALTER FOREIGN DATA WRAPPER foo;
                                       ^
 ALTER FOREIGN DATA WRAPPER foo VALIDATOR bar;               -- ERROR
-psql:sql/foreign_data.sql:63: ERROR:  function bar(text[], oid) does not exist
+psql:sql/foreign_data.sql:64: ERROR:  function bar(text[], oid) does not exist
 ALTER FOREIGN DATA WRAPPER foo NO VALIDATOR;
 ALTER FOREIGN DATA WRAPPER
 \dew+
@@ -152,9 +148,9 @@ ALTER FOREIGN DATA WRAPPER
 ALTER FOREIGN DATA WRAPPER foo OPTIONS (a '1', b '2');
 ALTER FOREIGN DATA WRAPPER
 ALTER FOREIGN DATA WRAPPER foo OPTIONS (SET c '4');         -- ERROR
-psql:sql/foreign_data.sql:68: ERROR:  option "c" not found
-ALTER FOREIGN DATA WRAPPER foo OPTIONS (DROP c);            -- ERROR
 psql:sql/foreign_data.sql:69: ERROR:  option "c" not found
+ALTER FOREIGN DATA WRAPPER foo OPTIONS (DROP c);            -- ERROR
+psql:sql/foreign_data.sql:70: ERROR:  option "c" not found
 ALTER FOREIGN DATA WRAPPER foo OPTIONS (ADD x '1', DROP x);
 ALTER FOREIGN DATA WRAPPER
 \dew+
@@ -182,7 +178,7 @@ ALTER FOREIGN DATA WRAPPER
 ALTER FOREIGN DATA WRAPPER foo OPTIONS (a '2');
 ALTER FOREIGN DATA WRAPPER
 ALTER FOREIGN DATA WRAPPER foo OPTIONS (b '4');             -- ERROR
-psql:sql/foreign_data.sql:77: ERROR:  option "b" provided more than once
+psql:sql/foreign_data.sql:78: ERROR:  option "b" provided more than once
 \dew+
                                                      List of foreign-data wrappers
     Name    |           Owner           | Handler |        Validator         | Access privileges |      FDW options      | Description 
@@ -196,7 +192,7 @@ psql:sql/foreign_data.sql:77: ERROR:  option "b" provided more than once
 SET ROLE regress_test_role;
 SET
 ALTER FOREIGN DATA WRAPPER foo OPTIONS (ADD d '5');         -- ERROR
-psql:sql/foreign_data.sql:81: ERROR:  permission denied to alter foreign-data wrapper "foo"
+psql:sql/foreign_data.sql:82: ERROR:  permission denied to alter foreign-data wrapper "foo"
 HINT:  Must be superuser to alter a foreign-data wrapper.
 SET ROLE regress_test_role_super;
 SET
@@ -213,7 +209,7 @@ ALTER FOREIGN DATA WRAPPER
 (4 rows)
 
 ALTER FOREIGN DATA WRAPPER foo OWNER TO regress_test_role;  -- ERROR
-psql:sql/foreign_data.sql:86: ERROR:  permission denied to change owner of foreign-data wrapper "foo"
+psql:sql/foreign_data.sql:87: ERROR:  permission denied to change owner of foreign-data wrapper "foo"
 HINT:  The owner of a foreign-data wrapper must be a superuser.
 ALTER FOREIGN DATA WRAPPER foo OWNER TO regress_test_role_super;
 ALTER FOREIGN DATA WRAPPER
@@ -222,7 +218,7 @@ ALTER ROLE
 SET ROLE regress_test_role_super;
 SET
 ALTER FOREIGN DATA WRAPPER foo OPTIONS (ADD e '6');         -- ERROR
-psql:sql/foreign_data.sql:90: ERROR:  permission denied to alter foreign-data wrapper "foo"
+psql:sql/foreign_data.sql:91: ERROR:  permission denied to alter foreign-data wrapper "foo"
 HINT:  Must be superuser to alter a foreign-data wrapper.
 RESET ROLE;
 RESET
@@ -252,19 +248,19 @@ ALTER FOREIGN DATA WRAPPER foo1 RENAME TO foo;
 ALTER FOREIGN DATA WRAPPER
 -- HANDLER related checks
 ALTER FOREIGN DATA WRAPPER foo HANDLER invalid_fdw_handler;  -- ERROR
-psql:sql/foreign_data.sql:99: ERROR:  function invalid_fdw_handler must return type fdw_handler
+psql:sql/foreign_data.sql:100: ERROR:  function invalid_fdw_handler must return type fdw_handler
 ALTER FOREIGN DATA WRAPPER foo HANDLER test_fdw_handler HANDLER anything;  -- ERROR
-psql:sql/foreign_data.sql:100: ERROR:  conflicting or redundant options
+psql:sql/foreign_data.sql:101: ERROR:  conflicting or redundant options
 ALTER FOREIGN DATA WRAPPER foo HANDLER test_fdw_handler;
-psql:sql/foreign_data.sql:101: WARNING:  changing the foreign-data wrapper handler can change behavior of existing foreign tables
+psql:sql/foreign_data.sql:102: WARNING:  changing the foreign-data wrapper handler can change behavior of existing foreign tables
 ALTER FOREIGN DATA WRAPPER
 DROP FUNCTION invalid_fdw_handler();
 DROP FUNCTION
 -- DROP FOREIGN DATA WRAPPER
 DROP FOREIGN DATA WRAPPER nonexistent;                      -- ERROR
-psql:sql/foreign_data.sql:105: ERROR:  foreign-data wrapper "nonexistent" does not exist
+psql:sql/foreign_data.sql:106: ERROR:  foreign-data wrapper "nonexistent" does not exist
 DROP FOREIGN DATA WRAPPER IF EXISTS nonexistent;
-psql:sql/foreign_data.sql:106: NOTICE:  foreign-data wrapper "nonexistent" does not exist, skipping
+psql:sql/foreign_data.sql:107: NOTICE:  foreign-data wrapper "nonexistent" does not exist, skipping
 DROP FOREIGN DATA WRAPPER
 \dew+
                                                              List of foreign-data wrappers
@@ -277,7 +273,7 @@ DROP FOREIGN DATA WRAPPER
 (4 rows)
 
 DROP ROLE regress_test_role_super;                          -- ERROR
-psql:sql/foreign_data.sql:109: ERROR:  role "regress_test_role_super" cannot be dropped because some objects depend on it
+psql:sql/foreign_data.sql:110: ERROR:  role "regress_test_role_super" cannot be dropped because some objects depend on it
 DETAIL:  owner of foreign-data wrapper foo
 SET ROLE regress_test_role_super;
 SET
@@ -305,9 +301,9 @@ COMMENT
 CREATE USER MAPPING FOR current_user SERVER s1;
 CREATE USER MAPPING
 CREATE USER MAPPING FOR current_user SERVER s1;				-- ERROR
-psql:sql/foreign_data.sql:120: ERROR:  user mapping for "regress_foreign_data_user" already exists for server s1
+psql:sql/foreign_data.sql:121: ERROR:  user mapping for "regress_foreign_data_user" already exists for server s1
 CREATE USER MAPPING IF NOT EXISTS FOR current_user SERVER s1; -- NOTICE
-psql:sql/foreign_data.sql:121: NOTICE:  user mapping for "regress_foreign_data_user" already exists for server s1, skipping
+psql:sql/foreign_data.sql:122: NOTICE:  user mapping for "regress_foreign_data_user" already exists for server s1, skipping
 CREATE USER MAPPING
 \dew+
                                                 List of foreign-data wrappers
@@ -337,18 +333,18 @@ CREATE USER MAPPING
 (2 rows)
 
 DROP FOREIGN DATA WRAPPER foo;                              -- ERROR
-psql:sql/foreign_data.sql:125: ERROR:  cannot drop foreign-data wrapper foo because other objects depend on it
+psql:sql/foreign_data.sql:126: ERROR:  cannot drop foreign-data wrapper foo because other objects depend on it
 DETAIL:  server s1 depends on foreign-data wrapper foo
 user mapping for regress_foreign_data_user on server s1 depends on server s1
 HINT:  Use DROP ... CASCADE to drop the dependent objects too.
 SET ROLE regress_test_role;
 SET
 DROP FOREIGN DATA WRAPPER foo CASCADE;                      -- ERROR
-psql:sql/foreign_data.sql:127: ERROR:  must be owner of foreign-data wrapper foo
+psql:sql/foreign_data.sql:128: ERROR:  must be owner of foreign-data wrapper foo
 RESET ROLE;
 RESET
 DROP FOREIGN DATA WRAPPER foo CASCADE;
-psql:sql/foreign_data.sql:129: NOTICE:  drop cascades to 2 other objects
+psql:sql/foreign_data.sql:130: NOTICE:  drop cascades to 2 other objects
 DETAIL:  drop cascades to server s1
 drop cascades to user mapping for regress_foreign_data_user on server s1
 DROP FOREIGN DATA WRAPPER
@@ -378,15 +374,15 @@ DROP FOREIGN DATA WRAPPER
 
 -- exercise CREATE SERVER
 CREATE SERVER s1 FOREIGN DATA WRAPPER foo;                  -- ERROR
-psql:sql/foreign_data.sql:135: ERROR:  foreign-data wrapper "foo" does not exist
+psql:sql/foreign_data.sql:136: ERROR:  foreign-data wrapper "foo" does not exist
 CREATE FOREIGN DATA WRAPPER foo OPTIONS ("test wrapper" 'true');
 CREATE FOREIGN DATA WRAPPER
 CREATE SERVER s1 FOREIGN DATA WRAPPER foo;
 CREATE SERVER
 CREATE SERVER s1 FOREIGN DATA WRAPPER foo;                  -- ERROR
-psql:sql/foreign_data.sql:138: ERROR:  server "s1" already exists
+psql:sql/foreign_data.sql:139: ERROR:  server "s1" already exists
 CREATE SERVER IF NOT EXISTS s1 FOREIGN DATA WRAPPER foo;	-- No ERROR, just NOTICE
-psql:sql/foreign_data.sql:139: NOTICE:  server "s1" already exists, skipping
+psql:sql/foreign_data.sql:140: NOTICE:  server "s1" already exists, skipping
 CREATE SERVER
 CREATE SERVER s2 FOREIGN DATA WRAPPER foo OPTIONS (host 'a', dbname 'b');
 CREATE SERVER
@@ -401,7 +397,7 @@ CREATE SERVER
 CREATE SERVER s7 TYPE 'oracle' VERSION '17.0' FOREIGN DATA WRAPPER foo OPTIONS (host 'a', dbname 'b');
 CREATE SERVER
 CREATE SERVER s8 FOREIGN DATA WRAPPER postgresql OPTIONS (foo '1'); -- ERROR
-psql:sql/foreign_data.sql:146: ERROR:  invalid option "foo"
+psql:sql/foreign_data.sql:147: ERROR:  invalid option "foo"
 HINT:  Valid options in this context are: authtype, service, connect_timeout, dbname, host, hostaddr, port, tty, options, requiressl, sslmode, gsslib
 CREATE SERVER s8 FOREIGN DATA WRAPPER postgresql OPTIONS (host 'localhost', dbname 's8db');
 CREATE SERVER
@@ -424,7 +420,7 @@ CREATE SERVER
 SET ROLE regress_test_role;
 SET
 CREATE SERVER t1 FOREIGN DATA WRAPPER foo;                 -- ERROR: no usage on FDW
-psql:sql/foreign_data.sql:150: ERROR:  permission denied for foreign-data wrapper foo
+psql:sql/foreign_data.sql:151: ERROR:  permission denied for foreign-data wrapper foo
 RESET ROLE;
 RESET
 GRANT USAGE ON FOREIGN DATA WRAPPER foo TO regress_test_role;
@@ -459,7 +455,7 @@ GRANT
 SET ROLE regress_test_role;
 SET
 CREATE SERVER t2 FOREIGN DATA WRAPPER foo;                 -- ERROR
-psql:sql/foreign_data.sql:161: ERROR:  permission denied for foreign-data wrapper foo
+psql:sql/foreign_data.sql:162: ERROR:  permission denied for foreign-data wrapper foo
 RESET ROLE;
 RESET
 GRANT regress_test_indirect TO regress_test_role;
@@ -492,11 +488,11 @@ REVOKE regress_test_indirect FROM regress_test_role;
 REVOKE ROLE
 -- ALTER SERVER
 ALTER SERVER s0;                                            -- ERROR
-psql:sql/foreign_data.sql:171: ERROR:  syntax error at or near ";"
+psql:sql/foreign_data.sql:172: ERROR:  syntax error at or near ";"
 LINE 1: ALTER SERVER s0;
                        ^
 ALTER SERVER s0 OPTIONS (a '1');                            -- ERROR
-psql:sql/foreign_data.sql:172: ERROR:  server "s0" does not exist
+psql:sql/foreign_data.sql:173: ERROR:  server "s0" does not exist
 ALTER SERVER s1 VERSION '1.0' OPTIONS (servername 's1');
 ALTER SERVER
 ALTER SERVER s2 VERSION '1.1';
@@ -530,9 +526,9 @@ GRANT
 SET ROLE regress_test_role;
 SET
 ALTER SERVER s1 VERSION '1.1';                              -- ERROR
-psql:sql/foreign_data.sql:180: ERROR:  must be owner of foreign server s1
-ALTER SERVER s1 OWNER TO regress_test_role;                 -- ERROR
 psql:sql/foreign_data.sql:181: ERROR:  must be owner of foreign server s1
+ALTER SERVER s1 OWNER TO regress_test_role;                 -- ERROR
+psql:sql/foreign_data.sql:182: ERROR:  must be owner of foreign server s1
 RESET ROLE;
 RESET
 ALTER SERVER s1 OWNER TO regress_test_role;
@@ -544,18 +540,18 @@ SET
 ALTER SERVER s1 VERSION '1.1';
 ALTER SERVER
 ALTER SERVER s1 OWNER TO regress_test_role2;                -- ERROR
-psql:sql/foreign_data.sql:187: ERROR:  permission denied for foreign-data wrapper foo
+psql:sql/foreign_data.sql:188: ERROR:  permission denied for foreign-data wrapper foo
 RESET ROLE;
 RESET
 ALTER SERVER s8 OPTIONS (foo '1');                          -- ERROR option validation
-psql:sql/foreign_data.sql:189: ERROR:  invalid option "foo"
+psql:sql/foreign_data.sql:190: ERROR:  invalid option "foo"
 HINT:  Valid options in this context are: authtype, service, connect_timeout, dbname, host, hostaddr, port, tty, options, requiressl, sslmode, gsslib
 ALTER SERVER s8 OPTIONS (connect_timeout '30', SET dbname 'db1', DROP host);
 ALTER SERVER
 SET ROLE regress_test_role;
 SET
 ALTER SERVER s1 OWNER TO regress_test_indirect;             -- ERROR
-psql:sql/foreign_data.sql:192: ERROR:  must be member of role "regress_test_indirect"
+psql:sql/foreign_data.sql:193: ERROR:  must be member of role "regress_test_indirect"
 RESET ROLE;
 RESET
 GRANT regress_test_indirect TO regress_test_role;
@@ -575,7 +571,7 @@ ALTER SERVER
 RESET ROLE;
 RESET
 DROP ROLE regress_test_indirect;                            -- ERROR
-psql:sql/foreign_data.sql:202: ERROR:  role "regress_test_indirect" cannot be dropped because some objects depend on it
+psql:sql/foreign_data.sql:203: ERROR:  role "regress_test_indirect" cannot be dropped because some objects depend on it
 DETAIL:  owner of server s1
 privileges for foreign-data wrapper foo
 \des+
@@ -622,9 +618,9 @@ ALTER SERVER s8new RENAME to s8;
 ALTER SERVER
 -- DROP SERVER
 DROP SERVER nonexistent;                                    -- ERROR
-psql:sql/foreign_data.sql:210: ERROR:  server "nonexistent" does not exist
+psql:sql/foreign_data.sql:211: ERROR:  server "nonexistent" does not exist
 DROP SERVER IF EXISTS nonexistent;
-psql:sql/foreign_data.sql:211: NOTICE:  server "nonexistent" does not exist, skipping
+psql:sql/foreign_data.sql:212: NOTICE:  server "nonexistent" does not exist, skipping
 DROP SERVER
 \des
                     List of foreign servers
@@ -647,7 +643,7 @@ DROP SERVER
 SET ROLE regress_test_role;
 SET
 DROP SERVER s2;                                             -- ERROR
-psql:sql/foreign_data.sql:214: ERROR:  must be owner of foreign server s2
+psql:sql/foreign_data.sql:215: ERROR:  must be owner of foreign server s2
 DROP SERVER s1;
 DROP SERVER
 RESET ROLE;
@@ -704,11 +700,11 @@ CREATE USER MAPPING
 (2 rows)
 
 DROP SERVER s3;                                             -- ERROR
-psql:sql/foreign_data.sql:225: ERROR:  cannot drop server s3 because other objects depend on it
+psql:sql/foreign_data.sql:226: ERROR:  cannot drop server s3 because other objects depend on it
 DETAIL:  user mapping for regress_foreign_data_user on server s3 depends on server s3
 HINT:  Use DROP ... CASCADE to drop the dependent objects too.
 DROP SERVER s3 CASCADE;
-psql:sql/foreign_data.sql:226: NOTICE:  drop cascades to user mapping for regress_foreign_data_user on server s3
+psql:sql/foreign_data.sql:227: NOTICE:  drop cascades to user mapping for regress_foreign_data_user on server s3
 DROP SERVER
 \des
                     List of foreign servers
@@ -734,17 +730,17 @@ DROP SERVER
 
 -- CREATE USER MAPPING
 CREATE USER MAPPING FOR regress_test_missing_role SERVER s1;  -- ERROR
-psql:sql/foreign_data.sql:231: ERROR:  role "regress_test_missing_role" does not exist
+psql:sql/foreign_data.sql:232: ERROR:  role "regress_test_missing_role" does not exist
 CREATE USER MAPPING FOR current_user SERVER s1;             -- ERROR
-psql:sql/foreign_data.sql:232: ERROR:  server "s1" does not exist
+psql:sql/foreign_data.sql:233: ERROR:  server "s1" does not exist
 CREATE USER MAPPING FOR current_user SERVER s4;
 CREATE USER MAPPING
 CREATE USER MAPPING FOR user SERVER s4;                     -- ERROR duplicate
-psql:sql/foreign_data.sql:234: ERROR:  user mapping for "regress_foreign_data_user" already exists for server s4
+psql:sql/foreign_data.sql:235: ERROR:  user mapping for "regress_foreign_data_user" already exists for server s4
 CREATE USER MAPPING FOR public SERVER s4 OPTIONS ("this mapping" 'is public');
 CREATE USER MAPPING
 CREATE USER MAPPING FOR user SERVER s8 OPTIONS (username 'test', password 'secret');    -- ERROR
-psql:sql/foreign_data.sql:236: ERROR:  invalid option "username"
+psql:sql/foreign_data.sql:237: ERROR:  invalid option "username"
 HINT:  Valid options in this context are: user, password
 CREATE USER MAPPING FOR user SERVER s8 OPTIONS (user 'test', password 'secret');
 CREATE USER MAPPING
@@ -759,9 +755,9 @@ CREATE USER MAPPING
 CREATE USER MAPPING FOR current_user SERVER s6 OPTIONS (username 'test');
 CREATE USER MAPPING
 CREATE USER MAPPING FOR current_user SERVER s7;             -- ERROR
-psql:sql/foreign_data.sql:243: ERROR:  permission denied for foreign server s7
+psql:sql/foreign_data.sql:244: ERROR:  permission denied for foreign server s7
 CREATE USER MAPPING FOR public SERVER s8;                   -- ERROR
-psql:sql/foreign_data.sql:244: ERROR:  must be owner of foreign server s8
+psql:sql/foreign_data.sql:245: ERROR:  must be owner of foreign server s8
 RESET ROLE;
 RESET
 ALTER SERVER t1 OWNER TO regress_test_indirect;
@@ -790,13 +786,13 @@ RESET
 
 -- ALTER USER MAPPING
 ALTER USER MAPPING FOR regress_test_missing_role SERVER s4 OPTIONS (gotcha 'true'); -- ERROR
-psql:sql/foreign_data.sql:255: ERROR:  role "regress_test_missing_role" does not exist
+psql:sql/foreign_data.sql:256: ERROR:  role "regress_test_missing_role" does not exist
 ALTER USER MAPPING FOR user SERVER ss4 OPTIONS (gotcha 'true'); -- ERROR
-psql:sql/foreign_data.sql:256: ERROR:  server "ss4" does not exist
+psql:sql/foreign_data.sql:257: ERROR:  server "ss4" does not exist
 ALTER USER MAPPING FOR public SERVER s5 OPTIONS (gotcha 'true');            -- ERROR
-psql:sql/foreign_data.sql:257: ERROR:  user mapping for "public" does not exist for the server
+psql:sql/foreign_data.sql:258: ERROR:  user mapping for "public" does not exist for the server
 ALTER USER MAPPING FOR current_user SERVER s8 OPTIONS (username 'test');    -- ERROR
-psql:sql/foreign_data.sql:258: ERROR:  invalid option "username"
+psql:sql/foreign_data.sql:259: ERROR:  invalid option "username"
 HINT:  Valid options in this context are: user, password
 ALTER USER MAPPING FOR current_user SERVER s8 OPTIONS (DROP user, SET password 'public');
 ALTER USER MAPPING
@@ -805,7 +801,7 @@ SET
 ALTER USER MAPPING FOR current_user SERVER s5 OPTIONS (ADD modified '1');
 ALTER USER MAPPING
 ALTER USER MAPPING FOR public SERVER s4 OPTIONS (ADD modified '1'); -- ERROR
-psql:sql/foreign_data.sql:262: ERROR:  must be owner of foreign server s4
+psql:sql/foreign_data.sql:263: ERROR:  must be owner of foreign server s4
 ALTER USER MAPPING FOR public SERVER t1 OPTIONS (ADD modified '1');
 ALTER USER MAPPING
 RESET ROLE;
@@ -826,26 +822,26 @@ RESET
 
 -- DROP USER MAPPING
 DROP USER MAPPING FOR regress_test_missing_role SERVER s4;  -- ERROR
-psql:sql/foreign_data.sql:268: ERROR:  role "regress_test_missing_role" does not exist
+psql:sql/foreign_data.sql:269: ERROR:  role "regress_test_missing_role" does not exist
 DROP USER MAPPING FOR user SERVER ss4;
-psql:sql/foreign_data.sql:269: ERROR:  server "ss4" does not exist
+psql:sql/foreign_data.sql:270: ERROR:  server "ss4" does not exist
 DROP USER MAPPING FOR public SERVER s7;                     -- ERROR
-psql:sql/foreign_data.sql:270: ERROR:  user mapping for "public" does not exist for the server
+psql:sql/foreign_data.sql:271: ERROR:  user mapping for "public" does not exist for the server
 DROP USER MAPPING IF EXISTS FOR regress_test_missing_role SERVER s4;
-psql:sql/foreign_data.sql:271: NOTICE:  role "regress_test_missing_role" does not exist, skipping
+psql:sql/foreign_data.sql:272: NOTICE:  role "regress_test_missing_role" does not exist, skipping
 DROP USER MAPPING
 DROP USER MAPPING IF EXISTS FOR user SERVER ss4;
-psql:sql/foreign_data.sql:272: NOTICE:  server does not exist, skipping
+psql:sql/foreign_data.sql:273: NOTICE:  server does not exist, skipping
 DROP USER MAPPING
 DROP USER MAPPING IF EXISTS FOR public SERVER s7;
-psql:sql/foreign_data.sql:273: NOTICE:  user mapping for "public" does not exist for the server, skipping
+psql:sql/foreign_data.sql:274: NOTICE:  user mapping for "public" does not exist for the server, skipping
 DROP USER MAPPING
 CREATE USER MAPPING FOR public SERVER s8;
 CREATE USER MAPPING
 SET ROLE regress_test_role;
 SET
 DROP USER MAPPING FOR public SERVER s8;                     -- ERROR
-psql:sql/foreign_data.sql:276: ERROR:  must be owner of foreign server s8
+psql:sql/foreign_data.sql:277: ERROR:  must be owner of foreign server s8
 RESET ROLE;
 RESET
 DROP SERVER s7;
@@ -871,11 +867,11 @@ CREATE SCHEMA
 CREATE SERVER s0 FOREIGN DATA WRAPPER dummy;
 CREATE SERVER
 CREATE FOREIGN TABLE ft1 ();                                    -- ERROR
-psql:sql/foreign_data.sql:284: ERROR:  syntax error at or near ";"
+psql:sql/foreign_data.sql:285: ERROR:  syntax error at or near ";"
 LINE 1: CREATE FOREIGN TABLE ft1 ();
                                    ^
 CREATE FOREIGN TABLE ft1 () SERVER no_server;                   -- ERROR
-psql:sql/foreign_data.sql:285: ERROR:  server "no_server" does not exist
+psql:sql/foreign_data.sql:286: ERROR:  server "no_server" does not exist
 CREATE FOREIGN TABLE ft1 () SERVER s0;                -- ERROR
 CREATE FOREIGN TABLE
 CREATE FOREIGN TABLE ft1 (
@@ -883,7 +879,7 @@ CREATE FOREIGN TABLE ft1 (
 	c2 text OPTIONS (param2 'val2', param3 'val3'),
 	c3 date
 ) SERVER s0 OPTIONS (delimiter ',', quote '"', "be quoted" 'value'); -- ERROR
-psql:sql/foreign_data.sql:291: ERROR:  primary key constraints are not supported on foreign tables
+psql:sql/foreign_data.sql:292: ERROR:  primary key constraints are not supported on foreign tables
 LINE 2:  c1 integer OPTIONS ("param 1" 'val1') PRIMARY KEY,
                                                ^
 CREATE TABLE ref_table (id integer PRIMARY KEY);
@@ -893,7 +889,7 @@ CREATE FOREIGN TABLE ft1 (
 	c2 text OPTIONS (param2 'val2', param3 'val3'),
 	c3 date
 ) SERVER s0 OPTIONS (delimiter ',', quote '"', "be quoted" 'value'); -- ERROR
-psql:sql/foreign_data.sql:297: ERROR:  relation "ft1" already exists
+psql:sql/foreign_data.sql:298: ERROR:  relation "ft1" already exists
 DROP TABLE ref_table;
 DROP TABLE
 CREATE FOREIGN TABLE ft1 (
@@ -902,7 +898,7 @@ CREATE FOREIGN TABLE ft1 (
 	c3 date,
 	UNIQUE (c3)
 ) SERVER s0 OPTIONS (delimiter ',', quote '"', "be quoted" 'value'); -- ERROR
-psql:sql/foreign_data.sql:304: ERROR:  unique constraints are not supported on foreign tables
+psql:sql/foreign_data.sql:305: ERROR:  unique constraints are not supported on foreign tables
 LINE 5:  UNIQUE (c3)
          ^
 CREATE FOREIGN TABLE ft1 (
@@ -910,11 +906,11 @@ CREATE FOREIGN TABLE ft1 (
 	c2 text OPTIONS (param2 'val2', param3 'val3'),
 	c3 date
 ) SERVER s0 OPTIONS (delimiter ',', quote '"', "be quoted" 'value');
-psql:sql/foreign_data.sql:309: ERROR:  relation "ft1" already exists
+psql:sql/foreign_data.sql:310: ERROR:  relation "ft1" already exists
 COMMENT ON FOREIGN TABLE ft1 IS 'ft1';
 COMMENT
 COMMENT ON COLUMN ft1.c1 IS 'ft1.c1';
-psql:sql/foreign_data.sql:311: ERROR:  column "c1" of relation "ft1" does not exist
+psql:sql/foreign_data.sql:312: ERROR:  column "c1" of relation "ft1" does not exist
 \d+ ft1
                                      Foreign table "public.ft1"
  Column | Type | Collation | Nullable | Default | FDW options | Storage | Stats target | Description 
@@ -929,11 +925,11 @@ Server: s0
 (1 row)
 
 CREATE INDEX id_ft1_c2 ON ft1 (c2);                             -- ERROR
-psql:sql/foreign_data.sql:314: ERROR:  cannot create index on foreign table "ft1"
+psql:sql/foreign_data.sql:315: ERROR:  cannot create index on foreign table "ft1"
 SELECT * FROM ft1;                                              -- ERROR
-psql:sql/foreign_data.sql:315: ERROR:  foreign-data wrapper "dummy" has no handler
-EXPLAIN SELECT * FROM ft1;                                      -- ERROR
 psql:sql/foreign_data.sql:316: ERROR:  foreign-data wrapper "dummy" has no handler
+EXPLAIN SELECT * FROM ft1;                                      -- ERROR
+psql:sql/foreign_data.sql:317: ERROR:  foreign-data wrapper "dummy" has no handler
 CREATE TABLE lt1 (a INT) PARTITION BY RANGE (a);
 CREATE TABLE
 CREATE FOREIGN TABLE ft_part1
@@ -942,10 +938,10 @@ CREATE FOREIGN TABLE
 CREATE INDEX ON lt1 (a);                              -- skips partition
 CREATE INDEX
 CREATE UNIQUE INDEX ON lt1 (a);                                 -- ERROR
-psql:sql/foreign_data.sql:322: ERROR:  cannot create unique index on partitioned table "lt1"
+psql:sql/foreign_data.sql:323: ERROR:  cannot create unique index on partitioned table "lt1"
 DETAIL:  Table "lt1" contains partitions that are foreign tables.
 ALTER TABLE lt1 ADD PRIMARY KEY (a);                            -- ERROR
-psql:sql/foreign_data.sql:323: ERROR:  cannot create unique index on partitioned table "lt1"
+psql:sql/foreign_data.sql:324: ERROR:  cannot create unique index on partitioned table "lt1"
 DETAIL:  Table "lt1" contains partitions that are foreign tables.
 DROP TABLE lt1;
 DROP TABLE
@@ -965,15 +961,15 @@ CREATE INDEX
 ALTER TABLE lt1 ADD PRIMARY KEY (a);
 ALTER TABLE
 CREATE FOREIGN TABLE ft_part1 PARTITION OF lt1 FOR VALUES FROM (0) TO (1000) SERVER s0;     -- ERROR
-psql:sql/foreign_data.sql:334: ERROR:  cannot create foreign partition of partitioned table "lt1"
+psql:sql/foreign_data.sql:335: ERROR:  cannot create foreign partition of partitioned table "lt1"
 DETAIL:  Table "lt1" contains indexes that are unique.
 CREATE FOREIGN TABLE ft_part2 PARTITION OF lt1 FOR VALUES FROM (1000) TO (2000) SERVER s0;
-psql:sql/foreign_data.sql:335: ERROR:  cannot create foreign partition of partitioned table "lt1"
+psql:sql/foreign_data.sql:336: ERROR:  cannot create foreign partition of partitioned table "lt1"
 DETAIL:  Table "lt1" contains indexes that are unique.
 DROP TABLE lt1;
 DROP TABLE
 DROP FOREIGN TABLE ft_part2;
-psql:sql/foreign_data.sql:337: ERROR:  foreign table "ft_part2" does not exist
+psql:sql/foreign_data.sql:338: ERROR:  foreign table "ft_part2" does not exist
 CREATE TABLE lt1 (a INT) PARTITION BY RANGE (a);
 CREATE TABLE
 CREATE INDEX ON lt1 (a);
@@ -988,10 +984,10 @@ CREATE FOREIGN TABLE
 CREATE FOREIGN TABLE ft_part_1_2 PARTITION OF lt1_part1 FOR VALUES FROM (100) TO (200) SERVER s0;
 CREATE FOREIGN TABLE
 CREATE UNIQUE INDEX ON lt1 (a);
-psql:sql/foreign_data.sql:347: ERROR:  cannot create unique index on partitioned table "lt1"
+psql:sql/foreign_data.sql:348: ERROR:  cannot create unique index on partitioned table "lt1"
 DETAIL:  Table "lt1" contains partitions that are foreign tables.
 ALTER TABLE lt1 ADD PRIMARY KEY (a);
-psql:sql/foreign_data.sql:348: ERROR:  cannot create unique index on partitioned table "lt1_part1"
+psql:sql/foreign_data.sql:349: ERROR:  cannot create unique index on partitioned table "lt1_part1"
 DETAIL:  Table "lt1_part1" contains partitions that are foreign tables.
 DROP FOREIGN TABLE ft_part_1_1, ft_part_1_2;
 DROP FOREIGN TABLE
@@ -1001,24 +997,24 @@ ALTER TABLE lt1 ADD PRIMARY KEY (a);
 ALTER TABLE
 CREATE FOREIGN TABLE ft_part_1_1
   PARTITION OF lt1_part1 FOR VALUES FROM (0) TO (100) SERVER s0;
-psql:sql/foreign_data.sql:353: ERROR:  cannot create foreign partition of partitioned table "lt1_part1"
+psql:sql/foreign_data.sql:354: ERROR:  cannot create foreign partition of partitioned table "lt1_part1"
 DETAIL:  Table "lt1_part1" contains indexes that are unique.
 CREATE FOREIGN TABLE ft_part_1_2 PARTITION OF lt1_part1 FOR VALUES FROM (100) TO (200) SERVER s0;
-psql:sql/foreign_data.sql:354: ERROR:  cannot create foreign partition of partitioned table "lt1_part1"
+psql:sql/foreign_data.sql:355: ERROR:  cannot create foreign partition of partitioned table "lt1_part1"
 DETAIL:  Table "lt1_part1" contains indexes that are unique.
 DROP TABLE lt1;
 DROP TABLE
 DROP FOREIGN TABLE ft_part_1_2;
-psql:sql/foreign_data.sql:356: ERROR:  foreign table "ft_part_1_2" does not exist
+psql:sql/foreign_data.sql:357: ERROR:  foreign table "ft_part_1_2" does not exist
 -- ALTER FOREIGN TABLE
 COMMENT ON FOREIGN TABLE ft1 IS 'foreign table';
 COMMENT
 COMMENT ON FOREIGN TABLE ft1 IS NULL;
 COMMENT
 COMMENT ON COLUMN ft1.c1 IS 'foreign column';
-psql:sql/foreign_data.sql:361: ERROR:  column "c1" of relation "ft1" does not exist
-COMMENT ON COLUMN ft1.c1 IS NULL;
 psql:sql/foreign_data.sql:362: ERROR:  column "c1" of relation "ft1" does not exist
+COMMENT ON COLUMN ft1.c1 IS NULL;
+psql:sql/foreign_data.sql:363: ERROR:  column "c1" of relation "ft1" does not exist
 ALTER FOREIGN TABLE ft1 ADD COLUMN c4 integer;
 ALTER FOREIGN TABLE
 ALTER FOREIGN TABLE ft1 ADD COLUMN c5 integer DEFAULT 0;
@@ -1042,20 +1038,20 @@ ALTER FOREIGN TABLE
 ALTER FOREIGN TABLE ft1 ALTER COLUMN c7 DROP NOT NULL;
 ALTER FOREIGN TABLE
 ALTER FOREIGN TABLE ft1 ALTER COLUMN c8 TYPE char(10) USING '0'; -- ERROR
-psql:sql/foreign_data.sql:376: ERROR:  Can not alter column type using non-TypeCast expression
+psql:sql/foreign_data.sql:377: ERROR:  Can not alter column type using non-TypeCast expression
 ALTER FOREIGN TABLE ft1 ALTER COLUMN c8 TYPE char(10);
 ALTER FOREIGN TABLE
 ALTER FOREIGN TABLE ft1 ALTER COLUMN c8 SET DATA TYPE text;
 ALTER FOREIGN TABLE
 ALTER FOREIGN TABLE ft1 ALTER COLUMN xmin OPTIONS (ADD p1 'v1'); -- ERROR
-psql:sql/foreign_data.sql:379: ERROR:  cannot alter system column "xmin"
+psql:sql/foreign_data.sql:380: ERROR:  cannot alter system column "xmin"
 ALTER FOREIGN TABLE ft1 ALTER COLUMN c7 OPTIONS (ADD p1 'v1', ADD p2 'v2'),
                         ALTER COLUMN c8 OPTIONS (ADD p1 'v1', ADD p2 'v2');
 ALTER FOREIGN TABLE
 ALTER FOREIGN TABLE ft1 ALTER COLUMN c8 OPTIONS (SET p2 'V2', DROP p1);
 ALTER FOREIGN TABLE
 ALTER FOREIGN TABLE ft1 ALTER COLUMN c1 SET (n_distinct = 100);
-psql:sql/foreign_data.sql:383: ERROR:  column "c1" of relation "ft1" does not exist
+psql:sql/foreign_data.sql:384: ERROR:  column "c1" of relation "ft1" does not exist
 \d+ ft1
                                            Foreign table "public.ft1"
  Column |  Type   | Collation | Nullable | Default |    FDW options     | Storage  | Stats target | Description 
@@ -1073,31 +1069,31 @@ Server: s0
 ALTER FOREIGN TABLE ft1 ALTER COLUMN c8 SET DATA TYPE integer;	-- ERROR
 ALTER FOREIGN TABLE
 ALTER FOREIGN TABLE ft1 ADD PRIMARY KEY (c7);                   -- ERROR
-psql:sql/foreign_data.sql:387: ERROR:  primary key constraints are not supported on foreign tables
+psql:sql/foreign_data.sql:388: ERROR:  primary key constraints are not supported on foreign tables
 LINE 1: ALTER FOREIGN TABLE ft1 ADD PRIMARY KEY (c7);
                                     ^
 ALTER FOREIGN TABLE ft1 DROP CONSTRAINT no_const;               -- ERROR
-psql:sql/foreign_data.sql:388: ERROR:  constraint "no_const" of relation "ft1" does not exist
+psql:sql/foreign_data.sql:389: ERROR:  constraint "no_const" of relation "ft1" does not exist
 ALTER FOREIGN TABLE ft1 DROP CONSTRAINT IF EXISTS no_const;
-psql:sql/foreign_data.sql:389: NOTICE:  constraint "no_const" of relation "ft1" does not exist, skipping
+psql:sql/foreign_data.sql:390: NOTICE:  constraint "no_const" of relation "ft1" does not exist, skipping
 ALTER FOREIGN TABLE
 --ALTER FOREIGN TABLE ft1 SET WITH OIDS;
 ALTER FOREIGN TABLE ft1 OWNER TO regress_test_role;
 ALTER FOREIGN TABLE
 --ALTER FOREIGN TABLE ft1 OPTIONS (DROP delimiter, SET quote '~', ADD escape '@');
 ALTER FOREIGN TABLE ft1 DROP COLUMN no_column;                  -- ERROR
-psql:sql/foreign_data.sql:393: ERROR:  column "no_column" of relation "ft1" does not exist
+psql:sql/foreign_data.sql:394: ERROR:  column "no_column" of relation "ft1" does not exist
 ALTER FOREIGN TABLE ft1 DROP COLUMN IF EXISTS no_column;
-psql:sql/foreign_data.sql:394: NOTICE:  column "no_column" of relation "ft1" does not exist, skipping
+psql:sql/foreign_data.sql:395: NOTICE:  column "no_column" of relation "ft1" does not exist, skipping
 ALTER FOREIGN TABLE
 ALTER FOREIGN TABLE ft1 DROP COLUMN c9;
 ALTER FOREIGN TABLE
 ALTER FOREIGN TABLE ft1 SET SCHEMA foreign_schema;
 ALTER FOREIGN TABLE
 ALTER FOREIGN TABLE ft1 SET TABLESPACE ts;                      -- ERROR
-psql:sql/foreign_data.sql:397: ERROR:  Kunlun-db: Alter table is not supported
+psql:sql/foreign_data.sql:398: ERROR:  Kunlun-db: Alter table is not supported
 ALTER FOREIGN TABLE foreign_schema.ft1 RENAME c1 TO foreign_column_1;
-psql:sql/foreign_data.sql:398: ERROR:  column "c1" does not exist
+psql:sql/foreign_data.sql:399: ERROR:  column "c1" does not exist
 ALTER FOREIGN TABLE foreign_schema.ft1 RENAME TO foreign_table_1;
 ALTER FOREIGN TABLE
 \d foreign_schema.foreign_table_1
@@ -1114,64 +1110,64 @@ Server: s0
 
 -- alter noexisting table
 ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 ADD COLUMN c4 integer;
-psql:sql/foreign_data.sql:403: NOTICE:  relation "doesnt_exist_ft1" does not exist, skipping
-ALTER FOREIGN TABLE
-ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 ADD COLUMN c6 integer;
 psql:sql/foreign_data.sql:404: NOTICE:  relation "doesnt_exist_ft1" does not exist, skipping
 ALTER FOREIGN TABLE
-ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 ADD COLUMN c7 integer NOT NULL;
+ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 ADD COLUMN c6 integer;
 psql:sql/foreign_data.sql:405: NOTICE:  relation "doesnt_exist_ft1" does not exist, skipping
 ALTER FOREIGN TABLE
-ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 ADD COLUMN c8 integer;
+ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 ADD COLUMN c7 integer NOT NULL;
 psql:sql/foreign_data.sql:406: NOTICE:  relation "doesnt_exist_ft1" does not exist, skipping
 ALTER FOREIGN TABLE
-ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 ADD COLUMN c9 integer;
+ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 ADD COLUMN c8 integer;
 psql:sql/foreign_data.sql:407: NOTICE:  relation "doesnt_exist_ft1" does not exist, skipping
 ALTER FOREIGN TABLE
-ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 ADD COLUMN c10 integer OPTIONS (p1 'v1');
+ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 ADD COLUMN c9 integer;
 psql:sql/foreign_data.sql:408: NOTICE:  relation "doesnt_exist_ft1" does not exist, skipping
 ALTER FOREIGN TABLE
-ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 ALTER COLUMN c6 SET NOT NULL;
-psql:sql/foreign_data.sql:410: NOTICE:  relation "doesnt_exist_ft1" does not exist, skipping
+ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 ADD COLUMN c10 integer OPTIONS (p1 'v1');
+psql:sql/foreign_data.sql:409: NOTICE:  relation "doesnt_exist_ft1" does not exist, skipping
 ALTER FOREIGN TABLE
-ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 ALTER COLUMN c7 DROP NOT NULL;
+ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 ALTER COLUMN c6 SET NOT NULL;
 psql:sql/foreign_data.sql:411: NOTICE:  relation "doesnt_exist_ft1" does not exist, skipping
 ALTER FOREIGN TABLE
-ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 ALTER COLUMN c8 TYPE char(10);
+ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 ALTER COLUMN c7 DROP NOT NULL;
 psql:sql/foreign_data.sql:412: NOTICE:  relation "doesnt_exist_ft1" does not exist, skipping
 ALTER FOREIGN TABLE
-ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 ALTER COLUMN c8 SET DATA TYPE text;
+ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 ALTER COLUMN c8 TYPE char(10);
 psql:sql/foreign_data.sql:413: NOTICE:  relation "doesnt_exist_ft1" does not exist, skipping
+ALTER FOREIGN TABLE
+ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 ALTER COLUMN c8 SET DATA TYPE text;
+psql:sql/foreign_data.sql:414: NOTICE:  relation "doesnt_exist_ft1" does not exist, skipping
 ALTER FOREIGN TABLE
 ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 ALTER COLUMN c7 OPTIONS (ADD p1 'v1', ADD p2 'v2'),
                         ALTER COLUMN c8 OPTIONS (ADD p1 'v1', ADD p2 'v2');
-psql:sql/foreign_data.sql:415: NOTICE:  relation "doesnt_exist_ft1" does not exist, skipping
-ALTER FOREIGN TABLE
-ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 ALTER COLUMN c8 OPTIONS (SET p2 'V2', DROP p1);
 psql:sql/foreign_data.sql:416: NOTICE:  relation "doesnt_exist_ft1" does not exist, skipping
 ALTER FOREIGN TABLE
-ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 DROP CONSTRAINT IF EXISTS no_const;
-psql:sql/foreign_data.sql:418: NOTICE:  relation "doesnt_exist_ft1" does not exist, skipping
+ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 ALTER COLUMN c8 OPTIONS (SET p2 'V2', DROP p1);
+psql:sql/foreign_data.sql:417: NOTICE:  relation "doesnt_exist_ft1" does not exist, skipping
 ALTER FOREIGN TABLE
-ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 OWNER TO regress_test_role;
+ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 DROP CONSTRAINT IF EXISTS no_const;
 psql:sql/foreign_data.sql:419: NOTICE:  relation "doesnt_exist_ft1" does not exist, skipping
 ALTER FOREIGN TABLE
-ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 OPTIONS (DROP delimiter, SET quote '~', ADD escape '@');
-psql:sql/foreign_data.sql:420: ERROR:  Kunlun-db: Alter table is not supported
-ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 DROP COLUMN IF EXISTS no_column;
-psql:sql/foreign_data.sql:421: NOTICE:  relation "doesnt_exist_ft1" does not exist, skipping
+ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 OWNER TO regress_test_role;
+psql:sql/foreign_data.sql:420: NOTICE:  relation "doesnt_exist_ft1" does not exist, skipping
 ALTER FOREIGN TABLE
-ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 DROP COLUMN c9;
+ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 OPTIONS (DROP delimiter, SET quote '~', ADD escape '@');
+psql:sql/foreign_data.sql:421: ERROR:  Kunlun-db: Alter table is not supported
+ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 DROP COLUMN IF EXISTS no_column;
 psql:sql/foreign_data.sql:422: NOTICE:  relation "doesnt_exist_ft1" does not exist, skipping
 ALTER FOREIGN TABLE
-ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 SET SCHEMA foreign_schema;
+ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 DROP COLUMN c9;
 psql:sql/foreign_data.sql:423: NOTICE:  relation "doesnt_exist_ft1" does not exist, skipping
 ALTER FOREIGN TABLE
-ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 RENAME c1 TO foreign_column_1;
+ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 SET SCHEMA foreign_schema;
 psql:sql/foreign_data.sql:424: NOTICE:  relation "doesnt_exist_ft1" does not exist, skipping
+ALTER FOREIGN TABLE
+ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 RENAME c1 TO foreign_column_1;
+psql:sql/foreign_data.sql:425: NOTICE:  relation "doesnt_exist_ft1" does not exist, skipping
 ALTER TABLE
 ALTER FOREIGN TABLE IF EXISTS doesnt_exist_ft1 RENAME TO foreign_table_1;
-psql:sql/foreign_data.sql:425: NOTICE:  relation "doesnt_exist_ft1" does not exist, skipping
+psql:sql/foreign_data.sql:426: NOTICE:  relation "doesnt_exist_ft1" does not exist, skipping
 ALTER FOREIGN TABLE
 -- Information schema
 SELECT * FROM information_schema.foreign_data_wrappers ORDER BY 1, 2;
@@ -1420,40 +1416,40 @@ ALTER SERVER
 ALTER USER MAPPING FOR regress_test_role SERVER s6 OPTIONS (DROP username);
 ALTER USER MAPPING
 ALTER FOREIGN DATA WRAPPER foo VALIDATOR postgresql_fdw_validator;
-psql:sql/foreign_data.sql:484: WARNING:  changing the foreign-data wrapper validator can cause the options for dependent objects to become invalid
+psql:sql/foreign_data.sql:485: WARNING:  changing the foreign-data wrapper validator can cause the options for dependent objects to become invalid
 ALTER FOREIGN DATA WRAPPER
 -- Privileges
 SET ROLE regress_unprivileged_role;
 SET
 CREATE FOREIGN DATA WRAPPER foobar;                             -- ERROR
-psql:sql/foreign_data.sql:488: ERROR:  permission denied to create foreign-data wrapper "foobar"
+psql:sql/foreign_data.sql:489: ERROR:  permission denied to create foreign-data wrapper "foobar"
 HINT:  Must be superuser to create a foreign-data wrapper.
 ALTER FOREIGN DATA WRAPPER foo OPTIONS (gotcha 'true');         -- ERROR
-psql:sql/foreign_data.sql:489: ERROR:  permission denied to alter foreign-data wrapper "foo"
+psql:sql/foreign_data.sql:490: ERROR:  permission denied to alter foreign-data wrapper "foo"
 HINT:  Must be superuser to alter a foreign-data wrapper.
 ALTER FOREIGN DATA WRAPPER foo OWNER TO regress_unprivileged_role; -- ERROR
-psql:sql/foreign_data.sql:490: ERROR:  permission denied to change owner of foreign-data wrapper "foo"
+psql:sql/foreign_data.sql:491: ERROR:  permission denied to change owner of foreign-data wrapper "foo"
 HINT:  Must be superuser to change owner of a foreign-data wrapper.
 DROP FOREIGN DATA WRAPPER foo;                                  -- ERROR
-psql:sql/foreign_data.sql:491: ERROR:  must be owner of foreign-data wrapper foo
+psql:sql/foreign_data.sql:492: ERROR:  must be owner of foreign-data wrapper foo
 GRANT USAGE ON FOREIGN DATA WRAPPER foo TO regress_test_role;   -- ERROR
-psql:sql/foreign_data.sql:492: ERROR:  permission denied for foreign-data wrapper foo
-CREATE SERVER s9 FOREIGN DATA WRAPPER foo;                      -- ERROR
 psql:sql/foreign_data.sql:493: ERROR:  permission denied for foreign-data wrapper foo
+CREATE SERVER s9 FOREIGN DATA WRAPPER foo;                      -- ERROR
+psql:sql/foreign_data.sql:494: ERROR:  permission denied for foreign-data wrapper foo
 ALTER SERVER s4 VERSION '0.5';                                  -- ERROR
-psql:sql/foreign_data.sql:494: ERROR:  must be owner of foreign server s4
-ALTER SERVER s4 OWNER TO regress_unprivileged_role;             -- ERROR
 psql:sql/foreign_data.sql:495: ERROR:  must be owner of foreign server s4
-DROP SERVER s4;                                                 -- ERROR
+ALTER SERVER s4 OWNER TO regress_unprivileged_role;             -- ERROR
 psql:sql/foreign_data.sql:496: ERROR:  must be owner of foreign server s4
+DROP SERVER s4;                                                 -- ERROR
+psql:sql/foreign_data.sql:497: ERROR:  must be owner of foreign server s4
 GRANT USAGE ON FOREIGN SERVER s4 TO regress_test_role;          -- ERROR
-psql:sql/foreign_data.sql:497: ERROR:  permission denied for foreign server s4
+psql:sql/foreign_data.sql:498: ERROR:  permission denied for foreign server s4
 CREATE USER MAPPING FOR public SERVER s4;                       -- ERROR
-psql:sql/foreign_data.sql:498: ERROR:  must be owner of foreign server s4
+psql:sql/foreign_data.sql:499: ERROR:  must be owner of foreign server s4
 ALTER USER MAPPING FOR regress_test_role SERVER s6 OPTIONS (gotcha 'true'); -- ERROR
-psql:sql/foreign_data.sql:499: ERROR:  must be owner of foreign server s6
-DROP USER MAPPING FOR regress_test_role SERVER s6;              -- ERROR
 psql:sql/foreign_data.sql:500: ERROR:  must be owner of foreign server s6
+DROP USER MAPPING FOR regress_test_role SERVER s6;              -- ERROR
+psql:sql/foreign_data.sql:501: ERROR:  must be owner of foreign server s6
 RESET ROLE;
 RESET
 GRANT USAGE ON FOREIGN DATA WRAPPER postgresql TO regress_unprivileged_role;
@@ -1463,50 +1459,50 @@ GRANT
 SET ROLE regress_unprivileged_role;
 SET
 CREATE FOREIGN DATA WRAPPER foobar;                             -- ERROR
-psql:sql/foreign_data.sql:506: ERROR:  permission denied to create foreign-data wrapper "foobar"
+psql:sql/foreign_data.sql:507: ERROR:  permission denied to create foreign-data wrapper "foobar"
 HINT:  Must be superuser to create a foreign-data wrapper.
 ALTER FOREIGN DATA WRAPPER foo OPTIONS (gotcha 'true');         -- ERROR
-psql:sql/foreign_data.sql:507: ERROR:  permission denied to alter foreign-data wrapper "foo"
+psql:sql/foreign_data.sql:508: ERROR:  permission denied to alter foreign-data wrapper "foo"
 HINT:  Must be superuser to alter a foreign-data wrapper.
 DROP FOREIGN DATA WRAPPER foo;                                  -- ERROR
-psql:sql/foreign_data.sql:508: ERROR:  must be owner of foreign-data wrapper foo
+psql:sql/foreign_data.sql:509: ERROR:  must be owner of foreign-data wrapper foo
 GRANT USAGE ON FOREIGN DATA WRAPPER postgresql TO regress_test_role; -- WARNING
-psql:sql/foreign_data.sql:509: WARNING:  no privileges were granted for "postgresql"
+psql:sql/foreign_data.sql:510: WARNING:  no privileges were granted for "postgresql"
 GRANT
 GRANT USAGE ON FOREIGN DATA WRAPPER foo TO regress_test_role;
 GRANT
 CREATE SERVER s9 FOREIGN DATA WRAPPER postgresql;
 CREATE SERVER
 ALTER SERVER s6 VERSION '0.5';                                  -- ERROR
-psql:sql/foreign_data.sql:512: ERROR:  must be owner of foreign server s6
-DROP SERVER s6;                                                 -- ERROR
 psql:sql/foreign_data.sql:513: ERROR:  must be owner of foreign server s6
+DROP SERVER s6;                                                 -- ERROR
+psql:sql/foreign_data.sql:514: ERROR:  must be owner of foreign server s6
 --DDL_STAx                                                                        TEMENT_BEGIN--
 GRANT USAGE ON FOREIGN SERVER s6 TO regress_test_role;          -- ERROR
-psql:sql/foreign_data.sql:515: ERROR:  permission denied for foreign server s6
+psql:sql/foreign_data.sql:516: ERROR:  permission denied for foreign server s6
 GRANT USAGE ON FOREIGN SERVER s9 TO regress_test_role;
 GRANT
 CREATE USER MAPPING FOR public SERVER s6;                       -- ERROR
-psql:sql/foreign_data.sql:517: ERROR:  must be owner of foreign server s6
+psql:sql/foreign_data.sql:518: ERROR:  must be owner of foreign server s6
 CREATE USER MAPPING FOR public SERVER s9;
 CREATE USER MAPPING
 ALTER USER MAPPING FOR regress_test_role SERVER s6 OPTIONS (gotcha 'true'); -- ERROR
-psql:sql/foreign_data.sql:519: ERROR:  must be owner of foreign server s6
-DROP USER MAPPING FOR regress_test_role SERVER s6;              -- ERROR
 psql:sql/foreign_data.sql:520: ERROR:  must be owner of foreign server s6
+DROP USER MAPPING FOR regress_test_role SERVER s6;              -- ERROR
+psql:sql/foreign_data.sql:521: ERROR:  must be owner of foreign server s6
 RESET ROLE;
 RESET
 REVOKE USAGE ON FOREIGN DATA WRAPPER foo FROM regress_unprivileged_role; -- ERROR
-psql:sql/foreign_data.sql:523: ERROR:  dependent privileges exist
+psql:sql/foreign_data.sql:524: ERROR:  dependent privileges exist
 HINT:  Use CASCADE to revoke them too.
 REVOKE USAGE ON FOREIGN DATA WRAPPER foo FROM regress_unprivileged_role CASCADE;
 REVOKE
 SET ROLE regress_unprivileged_role;
 SET
 GRANT USAGE ON FOREIGN DATA WRAPPER foo TO regress_test_role;   -- ERROR
-psql:sql/foreign_data.sql:526: ERROR:  permission denied for foreign-data wrapper foo
-CREATE SERVER s10 FOREIGN DATA WRAPPER foo;                     -- ERROR
 psql:sql/foreign_data.sql:527: ERROR:  permission denied for foreign-data wrapper foo
+CREATE SERVER s10 FOREIGN DATA WRAPPER foo;                     -- ERROR
+psql:sql/foreign_data.sql:528: ERROR:  permission denied for foreign-data wrapper foo
 ALTER SERVER s9 VERSION '1.1';
 ALTER SERVER
 GRANT USAGE ON FOREIGN SERVER s9 TO regress_test_role;
@@ -1516,7 +1512,7 @@ CREATE USER MAPPING
 -- We use terse mode to avoid ordering issues in cascade detail output.
 \set VERBOSITY terse
 DROP SERVER s9 CASCADE;
-psql:sql/foreign_data.sql:533: NOTICE:  drop cascades to 2 other objects
+psql:sql/foreign_data.sql:534: NOTICE:  drop cascades to 2 other objects
 DROP SERVER
 \set VERBOSITY default
 RESET ROLE;
@@ -1528,14 +1524,14 @@ GRANT
 SET ROLE regress_unprivileged_role;
 SET
 ALTER SERVER s9 VERSION '1.2';                                  -- ERROR
-psql:sql/foreign_data.sql:539: ERROR:  must be owner of foreign server s9
+psql:sql/foreign_data.sql:540: ERROR:  must be owner of foreign server s9
 GRANT USAGE ON FOREIGN SERVER s9 TO regress_test_role;          -- WARNING
-psql:sql/foreign_data.sql:540: WARNING:  no privileges were granted for "s9"
+psql:sql/foreign_data.sql:541: WARNING:  no privileges were granted for "s9"
 GRANT
 CREATE USER MAPPING FOR current_user SERVER s9;
 CREATE USER MAPPING
 DROP SERVER s9 CASCADE;                                         -- ERROR
-psql:sql/foreign_data.sql:542: ERROR:  must be owner of foreign server s9
+psql:sql/foreign_data.sql:543: ERROR:  must be owner of foreign server s9
 -- Check visibility of user mapping data
 SET ROLE regress_test_role;
 SET
@@ -1604,7 +1600,7 @@ RESET ROLE;
 RESET
 \set VERBOSITY terse
 DROP SERVER s10 CASCADE;
-psql:sql/foreign_data.sql:559: NOTICE:  drop cascades to 2 other objects
+psql:sql/foreign_data.sql:560: NOTICE:  drop cascades to 2 other objects
 DROP SERVER
 \set VERBOSITY default
 -- Table inheritance
@@ -1656,9 +1652,9 @@ Server: s0
 FDW options: (delimiter ',', quote '"', "be quoted" 'value')
 
 \d+ ct3
-psql:sql/foreign_data.sql:583: Did not find any relation named "ct3".
+psql:sql/foreign_data.sql:584: Did not find any relation named "ct3".
 \d+ ft3
-psql:sql/foreign_data.sql:584: Did not find any relation named "ft3".
+psql:sql/foreign_data.sql:585: Did not find any relation named "ft3".
 -- alter attributes recursively
 ALTER TABLE fd_pt1 ALTER COLUMN c4 SET DEFAULT 0;
 ALTER TABLE
@@ -1669,7 +1665,7 @@ ALTER TABLE
 ALTER TABLE fd_pt1 ALTER COLUMN c7 DROP NOT NULL;
 ALTER TABLE
 ALTER TABLE fd_pt1 ALTER COLUMN c8 TYPE char(10) USING '0';
-psql:sql/foreign_data.sql:591: ERROR:  Can not alter column type using non-TypeCast expression
+psql:sql/foreign_data.sql:592: ERROR:  Can not alter column type using non-TypeCast expression
 ALTER TABLE fd_pt1 ALTER COLUMN c8 TYPE char(10);
 ALTER TABLE
 ALTER TABLE fd_pt1 ALTER COLUMN c8 SET DATA TYPE text;
@@ -1840,19 +1836,19 @@ DROP TABLE fd_pt1 CASCADE;
 DROP TABLE
 -- IMPORT FOREIGN SCHEMA
 IMPORT FOREIGN SCHEMA s1 FROM SERVER s9 INTO public; -- ERROR
-psql:sql/foreign_data.sql:642: ERROR:  foreign-data wrapper "foo" has no handler
-IMPORT FOREIGN SCHEMA s1 LIMIT TO (t1) FROM SERVER s9 INTO public; --ERROR
 psql:sql/foreign_data.sql:643: ERROR:  foreign-data wrapper "foo" has no handler
-IMPORT FOREIGN SCHEMA s1 EXCEPT (t1) FROM SERVER s9 INTO public; -- ERROR
+IMPORT FOREIGN SCHEMA s1 LIMIT TO (t1) FROM SERVER s9 INTO public; --ERROR
 psql:sql/foreign_data.sql:644: ERROR:  foreign-data wrapper "foo" has no handler
+IMPORT FOREIGN SCHEMA s1 EXCEPT (t1) FROM SERVER s9 INTO public; -- ERROR
+psql:sql/foreign_data.sql:645: ERROR:  foreign-data wrapper "foo" has no handler
 IMPORT FOREIGN SCHEMA s1 EXCEPT (t1, t2) FROM SERVER s9 INTO public
 OPTIONS (option1 'value1', option2 'value2'); -- ERROR
-psql:sql/foreign_data.sql:646: ERROR:  foreign-data wrapper "foo" has no handler
+psql:sql/foreign_data.sql:647: ERROR:  foreign-data wrapper "foo" has no handler
 -- DROP FOREIGN TABLE@
 DROP FOREIGN TABLE no_table;                                    -- ERROR
-psql:sql/foreign_data.sql:649: ERROR:  foreign table "no_table" does not exist
+psql:sql/foreign_data.sql:650: ERROR:  foreign table "no_table" does not exist
 DROP FOREIGN TABLE IF EXISTS no_table;
-psql:sql/foreign_data.sql:651: NOTICE:  foreign table "no_table" does not exist, skipping
+psql:sql/foreign_data.sql:652: NOTICE:  foreign table "no_table" does not exist, skipping
 DROP FOREIGN TABLE
 -- REASSIGN OWNED/DROP OWNED of foreign objects
 REASSIGN OWNED BY regress_test_role TO regress_test_role2;
@@ -1891,7 +1887,7 @@ FDW options: (delimiter ',', quote '"', "be quoted" 'value')
 
 -- cannot add column to a partition
 ALTER TABLE fd_pt2_1 ADD c4 char;
-psql:sql/foreign_data.sql:667: ERROR:  cannot add column to a partition
+psql:sql/foreign_data.sql:668: ERROR:  cannot add column to a partition
 -- ok to have a partition's own constraints though
 ALTER TABLE fd_pt2_1 ALTER c3 SET NOT NULL;
 ALTER TABLE
@@ -1919,7 +1915,7 @@ FDW options: (delimiter ',', quote '"', "be quoted" 'value')
 
 -- cannot drop inherited NOT NULL constraint from a partition
 ALTER TABLE fd_pt2_1 ALTER c1 DROP NOT NULL;
-psql:sql/foreign_data.sql:674: ERROR:  column "c1" is marked NOT NULL in parent table
+psql:sql/foreign_data.sql:675: ERROR:  column "c1" is marked NOT NULL in parent table
 -- partition must have parent's constraints
 ALTER TABLE fd_pt2 ALTER c2 SET NOT NULL;
 ALTER TABLE
@@ -1951,25 +1947,25 @@ DROP TABLE fd_pt2;
 DROP TABLE
 -- Cleanup
 DROP SCHEMA foreign_schema CASCADE;
-psql:sql/foreign_data.sql:685: NOTICE:  drop cascades to foreign table foreign_schema.foreign_table_1
+psql:sql/foreign_data.sql:686: NOTICE:  drop cascades to foreign table foreign_schema.foreign_table_1
 DROP SCHEMA
 DROP ROLE regress_test_role;                                -- ERROR
-psql:sql/foreign_data.sql:686: ERROR:  role "regress_test_role" cannot be dropped because some objects depend on it
+psql:sql/foreign_data.sql:687: ERROR:  role "regress_test_role" cannot be dropped because some objects depend on it
 DETAIL:  privileges for server s4
 privileges for foreign-data wrapper foo
 owner of user mapping for regress_test_role on server s6
 owner of user mapping for regress_test_role on server s5
 DROP SERVER t1 CASCADE;
-psql:sql/foreign_data.sql:687: NOTICE:  drop cascades to user mapping for public on server t1
+psql:sql/foreign_data.sql:688: NOTICE:  drop cascades to user mapping for public on server t1
 DROP SERVER
 DROP USER MAPPING FOR regress_test_role SERVER s6;
 DROP USER MAPPING
 \set VERBOSITY terse
 DROP FOREIGN DATA WRAPPER foo CASCADE;
-psql:sql/foreign_data.sql:690: NOTICE:  drop cascades to 8 other objects
+psql:sql/foreign_data.sql:691: NOTICE:  drop cascades to 8 other objects
 DROP FOREIGN DATA WRAPPER
 DROP SERVER s8 CASCADE;
-psql:sql/foreign_data.sql:691: NOTICE:  drop cascades to 2 other objects
+psql:sql/foreign_data.sql:692: NOTICE:  drop cascades to 2 other objects
 DROP SERVER
 \set VERBOSITY default
 DROP ROLE regress_test_indirect;
@@ -1977,7 +1973,7 @@ DROP ROLE
 DROP ROLE regress_test_role;
 DROP ROLE
 DROP ROLE regress_unprivileged_role;                        -- ERROR
-psql:sql/foreign_data.sql:695: ERROR:  role "regress_unprivileged_role" cannot be dropped because some objects depend on it
+psql:sql/foreign_data.sql:696: ERROR:  role "regress_unprivileged_role" cannot be dropped because some objects depend on it
 DETAIL:  privileges for foreign-data wrapper postgresql
 REVOKE ALL ON FOREIGN DATA WRAPPER postgresql FROM regress_unprivileged_role;
 REVOKE
@@ -1988,7 +1984,7 @@ DROP ROLE
 DROP FOREIGN DATA WRAPPER postgresql CASCADE;
 DROP FOREIGN DATA WRAPPER
 DROP FOREIGN DATA WRAPPER dummy CASCADE;
-psql:sql/foreign_data.sql:700: NOTICE:  drop cascades to 2 other objects
+psql:sql/foreign_data.sql:701: NOTICE:  drop cascades to 2 other objects
 DETAIL:  drop cascades to server s0
 drop cascades to foreign table ft2
 DROP FOREIGN DATA WRAPPER
@@ -2003,16 +1999,13 @@ SELECT fdwname, fdwhandler, fdwvalidator, fdwoptions FROM pg_foreign_data_wrappe
  addr_fdw |          0 |            0 | 
 (1 row)
 
-SELECT srvname, srvoptions FROM pg_foreign_server;
+SELECT srvname, srvoptions FROM pg_foreign_server;\
   srvname   | srvoptions 
 ------------+------------
  addr_fserv | 
  integer    | 
 (2 rows)
 
-SELECT * FROM pg_user_mapping;
- umuser | umserver | umoptions 
---------+----------+-----------
-  20210 |    20250 | 
-(1 row)
-
+psql:sql/foreign_data.sql:707: invalid command \
+--Its value changes frequently and is temporarily cancelled
+--SELECT * FROM pg_user_mapping;

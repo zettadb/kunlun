@@ -25,6 +25,7 @@
 #include "access/remote_dml.h"
 #include "access/remote_meta.h"
 #include "catalog/pg_constraint.h"
+#include "catalog/pg_inherits.h"
 #include "catalog/pg_proc.h"
 #include "catalog/pg_type.h"
 #include "executor/executor.h"
@@ -961,11 +962,20 @@ subquery_planner(PlannerGlobal *glob, Query *parse,
 		reduce_outer_joins(root);
 
 	/*
-	 * Do the main planning.  If we have an inherited target relation, that
-	 * needs special processing, else go straight to grouping_planner.
+	 * Do the main planning.  If we have an inherited target relation, and it is
+	 * a forgign table that needs special processing in the traditional way which
+	 * generate a plan for each child table, else go straight to grouping_planner.
 	 */
-	if (parse->resultRelation &&
-		rt_fetch(parse->resultRelation, parse->rtable)->inh)
+	bool do_inheritance_planner = false;
+ 	if (parse->resultRelation)
+	{
+		RangeTblEntry *tle = rt_fetch(parse->resultRelation, parse->rtable);
+		do_inheritance_planner = tle->inh &&
+					 (tle->relkind == RELKIND_FOREIGN_TABLE ||
+					  (tle->relkind == RELKIND_RELATION && has_inheritance_children(tle->relid)));
+	}
+
+	if (do_inheritance_planner)
 		inheritance_planner(root);
 	else
 		grouping_planner(root, false, tuple_fraction);

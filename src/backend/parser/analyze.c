@@ -27,6 +27,7 @@
 #include "access/sysattr.h"
 #include "access/remote_dml.h"
 #include "catalog/catalog.h"
+#include "catalog/pg_inherits.h"
 #include "catalog/pg_type.h"
 #include "miscadmin.h"
 #include "nodes/makefuncs.h"
@@ -463,6 +464,35 @@ transformDeleteStmt(ParseState *pstate, DeleteStmt *stmt)
 								EXPR_KIND_WHERE, "WHERE");
 
 	qry->returningList = transformReturningList(pstate, stmt->returningList);
+
+	qry->sortClause = transformSortClause(pstate,
+										  stmt->sortClause,
+										  &qry->targetList,
+										  EXPR_KIND_ORDER_BY,
+										  false);
+
+	qry->limitCount = transformLimitClause(pstate, stmt->limitCount,
+										   EXPR_KIND_LIMIT, "LIMIT");
+
+	/* delete ... order by limit require the top ModifyTable plan only have one
+	 * ResultRelinfo, which have not implemented for foreign table
+	 */
+	if (pstate->p_target_rangetblentry->relkind == RELKIND_FOREIGN_TABLE &&
+		(qry->sortClause || qry->limitCount))
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("DELETE ... ORDER BY LIMIT is not supported for Foreign table.")));
+	}
+
+	if (pstate->p_target_rangetblentry->relkind == RELKIND_RELATION &&
+	    has_inheritance_children(pstate->p_target_rangetblentry->relid) &&
+	    (qry->sortClause || qry->limitCount))
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("DELETE ... ORDER BY LIMIT is not supported for inherited table.")));
+	}
 
 	/* done building the range table and jointree */
 	qry->rtable = pstate->p_rtable;
@@ -2244,6 +2274,29 @@ determineRecursiveColTypes(ParseState *pstate, Node *larg, List *nrtargetlist)
 	analyzeCTETargetList(pstate, pstate->p_parent_cte, targetList);
 }
 
+static List *
+transformUpdateSortClause(ParseState *pstate, List **targetList, List *sortClause)
+{
+	ListCell *lc;
+
+	/* disallow order by constant, because it is not very intuitive. */
+	foreach (lc, sortClause)
+	{
+		SortBy *sortby = (SortBy *)lfirst(lc);
+		if (IsA(sortby->node, A_Const))
+		{
+			ereport(ERROR,
+				(errcode(ERRCODE_SYNTAX_ERROR),
+				 errmsg("constant in update order by "),
+				 parser_errposition(pstate, sortby->location)));
+		}
+	}
+	return transformSortClause(pstate,
+				   sortClause,
+				   targetList,
+				   EXPR_KIND_ORDER_BY,
+				   true);
+}
 
 /*
  * transformUpdateStmt -
@@ -2318,6 +2371,33 @@ transformUpdateStmt(ParseState *pstate, UpdateStmt *stmt)
 	 */
 	qry->targetList = transformUpdateTargetList(pstate, stmt->targetList);
 
+	qry->sortClause = transformUpdateSortClause(pstate,
+										  &qry->targetList,
+										  stmt->sortClause);
+
+	qry->limitCount = transformLimitClause(pstate, stmt->limitCount,
+										   EXPR_KIND_LIMIT, "LIMIT");
+
+	/* delete ... order by limit require the top ModifyTable plan only have one
+	 * ResultRelinfo, which have not implemented for foreign table
+	 */
+	if (pstate->p_target_rangetblentry->relkind == RELKIND_FOREIGN_TABLE &&
+		(qry->sortClause || qry->limitCount))
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("DELETE ... ORDER BY LIMIT is not supported for Foreign table.")));
+	}
+
+	if (pstate->p_target_rangetblentry->relkind == RELKIND_RELATION &&
+	    has_inheritance_children(pstate->p_target_rangetblentry->relid) &&
+	    (qry->sortClause || qry->limitCount))
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("DELETE ... ORDER BY LIMIT is not supported for inherited table.")));
+	}
+	
 	qry->rtable = pstate->p_rtable;
 	qry->jointree = makeFromExpr(pstate->p_joinlist, qual);
 

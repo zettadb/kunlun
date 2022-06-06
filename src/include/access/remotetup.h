@@ -26,6 +26,9 @@
 struct RemotetupCacheState;
 
 extern struct RemotetupCacheState * CreateRemotetupCacheState(Relation rel);
+extern OnConflictAction get_remote_conflict_action(struct RemotetupCacheState *cachestate);
+extern void set_remote_onconflict_action(struct RemotetupCacheState *cachestate,
+								  OnConflictAction action, StringInfo action_clause);
 extern bool cache_remotetup(TupleTableSlot *slot, ResultRelInfo *rri);
 extern bool end_remote_insert_stmt(struct RemotetupCacheState *s, bool eos);
 extern char *pg_to_mysql_const(Oid typid, char *c);

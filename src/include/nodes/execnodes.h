@@ -456,6 +456,9 @@ typedef struct ResultRelInfo
 	/* for removing junk attributes from tuples */
 	JunkFilter *ri_junkFilter;
 
+	/* junk attributes used by ModifyTable to route tuples on partitioned table */
+	JunkFilter *ri_junkTableoid;
+
 	/* list of RETURNING expressions */
 	List	   *ri_returningList;
 
@@ -1069,47 +1072,45 @@ typedef struct RemoteModifyState
 	StmtSafeHandle handle;
 } RemoteModifyState;
 
+struct RemoteUD;
 /* ----------------
  *	 ModifyTableState information
  * ----------------
  */
 typedef struct ModifyTableState
 {
-	PlanState	ps;				/* its first field is NodeTag */
-	CmdType		operation;		/* INSERT, UPDATE, or DELETE */
-	bool		canSetTag;		/* do we set the command tag/es_processed? */
-	bool		mt_done;		/* are we done? */
-	bool		fireBSTriggers; /* do we need to fire stmt triggers? */
-	PlanState **mt_plans;		/* subplans (one per target rel) */
-	int			mt_nplans;		/* number of plans in the array */
-	int			mt_whichplan;	/* which one is being executed (0..n-1) */
-
-	RemoteModifyState *mt_remote_states; /* per-subplan remote modify state */
+	PlanState ps;		  /* its first field is NodeTag */
+	CmdType operation;	  /* INSERT, UPDATE, or DELETE */
+	bool canSetTag;		  /* do we set the command tag/es_processed? */
+	bool mt_done;		  /* are we done? */
+	bool fireBSTriggers;  /* do we need to fire stmt triggers? */
+	PlanState **mt_plans; /* subplans (one per target rel) */
+	int mt_nplans;		  /* number of plans in the array */
+	int mt_whichplan;	  /* which one is being executed (0..n-1) */
+	bool mt_perchildplan; /* does planner construct plan for each child table */
 
 	StringInfoData mt_remote_action_clause; /* 'ON DUPLICATE KEY' clause added to remote sql */
-	/*   
-	 * Attr Nums in this set is a 'long expression', i.e. longer than NAMEDATALEN.
-	 * Suppose the i'th 1 bit in long_exprs_bmp denotes number x, then the
-	 * tupdesc->attrs[x].attname doesn't contail complete expr text, need to use
-	 * long_exprs[i] instead.
-	 * All mt_plan subplans share the same column names, so they should be here
-	 * instead of RemoteModifyState.
-	 * */
-	Bitmapset *long_exprs_bmp;
-	List *long_exprs;
 
-	ResultRelInfo *resultRelInfo;	/* per-subplan target relations */
-	ResultRelInfo *rootResultRelInfo;	/* root target relation (partitioned
-										 * table root) */
+	ResultRelInfo *resultRelInfo;	  /* per-subplan target relations */
+	ResultRelInfo *rootResultRelInfo; /* root target relation (partitioned
+									   * table root) */
+
+	bool is_pushdown_updel;	   /* true if this query is pushdownable delete/update */
+	List *pushdown_returning;  /* the returning clause of the pushdownable delete/update */
+	struct RemoteUD *remote_updel; /* printer generating pushed delete/update*/
+	StmtSafeHandle *active_stmts;	   /* active stmts array */
+	int max_actieve_stmts;
+	int nactive_stmts;
+
 	TupleTableSlot *remoteReturningTupleSlot;
 	TypeInputInfo *typeInputInfo;
 	int cur_returning_idx;
 
-	List	  **mt_arowmarks;	/* per-subplan ExecAuxRowMark lists */
-	EPQState	mt_epqstate;	/* for evaluating EvalPlanQual rechecks */
-	TupleTableSlot *mt_existing;	/* slot to store existing target tuple in */
-	List	   *mt_excludedtlist;	/* the excluded pseudo relation's tlist  */
-	TupleTableSlot *mt_conflproj;	/* CONFLICT ... SET ... projection target */
+	List **mt_arowmarks;		  /* per-subplan ExecAuxRowMark lists */
+	EPQState mt_epqstate;		  /* for evaluating EvalPlanQual rechecks */
+	TupleTableSlot *mt_existing;  /* slot to store existing target tuple in */
+	List *mt_excludedtlist;		  /* the excluded pseudo relation's tlist  */
+	TupleTableSlot *mt_conflproj; /* CONFLICT ... SET ... projection target */
 
 	/* Tuple-routing support info */
 	struct PartitionTupleRouting *mt_partition_tuple_routing;
@@ -1122,6 +1123,10 @@ typedef struct ModifyTableState
 
 	/* Per plan map for tuple conversion from child to root */
 	TupleConversionMap **mt_per_subplan_tupconv_maps;
+
+	/* cached tuple conversion map to accelerate tupconv_map_for_partition()*/
+	int mt_current_partidx;
+
 } ModifyTableState;
 
 /* ----------------
@@ -1301,6 +1306,9 @@ typedef struct RemoteScanState
 	   of a join. If so store result rather than use result.
 	   */
 	bool will_rewind;
+
+	/* Unpushable target list */
+	List *unpushable_tl;
 
 	/* Generated vars of scantuple, and the coresponding exprs */
 	List *scanvars;

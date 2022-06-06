@@ -40,7 +40,7 @@
 #include "utils/builtins.h"
 #include "utils/lsyscache.h"
 #include "utils/rel.h"
-
+#include "catalog/index.h"
 
 /* We use a list of these to detect recursion in RewriteQuery */
 typedef struct rewrite_event
@@ -1431,17 +1431,71 @@ rewriteTargetListUD(Query *parsetree, RangeTblEntry *target_rte,
 		target_relation->rd_rel->relkind == RELKIND_MATVIEW ||
 		target_relation->rd_rel->relkind == RELKIND_PARTITIONED_TABLE)
 	{
-		/*
-		 * Emit CTID so that executor can find the row to update or delete.
-		 */
-		var = makeVar(parsetree->resultRelation,
-					  SelfItemPointerAttributeNumber,
-					  TIDOID,
-					  -1,
-					  InvalidOid,
-					  0);
+		if (IsRemoteRelation(target_relation) || IsRemoteRelationParent(target_relation))
+		{
+			/*
+			 * Make row containing the primary key column if possible,
+			 * otherwise make a whole row var
+			 */
+			Oid pkoid = GetRelationPrimaryKey(target_relation);
+			if (pkoid != InvalidOid)
+			{
+				/* Expand heap relation vars */
+				List *varlist = NIL;
+				expandRTE(target_rte,
+						  parsetree->resultRelation,
+						  0,
+						  -1,
+						  false,
+						  NULL,
+						  &varlist);
 
-		attrname = "ctid";
+				/* Make row expr based on primary key attr */
+				Relation pkrel = relation_open(pkoid, NoLock);
+				IndexInfo *pkinfo = BuildIndexInfo(pkrel);
+				relation_close(pkrel, NoLock);
+
+				const int max_attnum = list_length(varlist);
+				List *pkvarlist = NIL;
+				for (int i = 0; i < pkinfo->ii_NumIndexKeyAttrs; ++i)
+				{
+					AttrNumber attnum = pkinfo->ii_IndexAttrNumbers[i];
+					Assert(attnum > 0 && attnum <= max_attnum);
+					pkvarlist = lappend(pkvarlist, list_nth(varlist, attnum - 1));
+				}
+				RowExpr *rowexpr = makeNode(RowExpr);
+				rowexpr->args = pkvarlist;
+				rowexpr->row_typeid = RECORDOID;
+				rowexpr->row_format = COERCE_IMPLICIT_CAST;
+				rowexpr->colnames = NIL;
+				rowexpr->location = -1;
+				var = (Var *)rowexpr;
+				attrname = "pkrow";
+			}
+			else
+			{
+				var = makeWholeRowVar(target_rte,
+									  parsetree->resultRelation,
+									  0,
+									  false);
+
+				attrname = "wholerow";
+			}
+		}
+		else
+		{
+			/*
+			 * Emit CTID so that executor can find the row to update or delete.
+			 */
+			var = makeVar(parsetree->resultRelation,
+						  SelfItemPointerAttributeNumber,
+						  TIDOID,
+						  -1,
+						  InvalidOid,
+						  0);
+
+			attrname = "ctid";
+		}
 	}
 	else if (target_relation->rd_rel->relkind == RELKIND_FOREIGN_TABLE)
 	{
@@ -1483,6 +1537,34 @@ rewriteTargetListUD(Query *parsetree, RangeTblEntry *target_rte,
 		tle = makeTargetEntry((Expr *) var,
 							  list_length(parsetree->targetList) + 1,
 							  pstrdup(attrname),
+							  true);
+
+		parsetree->targetList = lappend(parsetree->targetList, tle);
+	}
+
+	// add tableoid for partitioned table, then ModifyTable can route
+	// this tuple based on this field. 
+	// Note: for foreign table, the optimizer construct a plan for each
+	// child table int the traditional way, no need to add tableoid.
+	if (target_relation->rd_rel->relkind == RELKIND_PARTITIONED_TABLE &&
+		target_relation->rd_rel->relkind != RELKIND_FOREIGN_TABLE)
+	{
+		/*
+		 * If we have any child target relations, assume they all need to
+		 * generate a junk "tableoid" column.  (If only one child survives
+		 * pruning, we wouldn't really need this, but it's not worth
+		 * thrashing about to avoid it.)
+		 */
+		var = makeVar(parsetree->resultRelation,
+					  TableOidAttributeNumber,
+					  OIDOID,
+					  -1,
+					  InvalidOid,
+					  0);
+
+		tle = makeTargetEntry((Expr *)var,
+							  list_length(parsetree->targetList) + 1,
+							  pstrdup("tableoid"),
 							  true);
 
 		parsetree->targetList = lappend(parsetree->targetList, tle);

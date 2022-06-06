@@ -20,11 +20,13 @@
 #include "pgtime.h"
 #include "miscadmin.h"
 #include "access/printtup.h"
+#include "access/sysattr.h"
 #include "catalog/heap.h"
 #include "catalog/pg_type.h"
 #include "executor/spi.h"
 #include "lib/stringinfo.h"
 #include "nodes/print.h"
+#include "nodes/makefuncs.h"
 #include "nodes/nodeFuncs.h"
 #include "optimizer/clauses.h"
 #include "parser/parsetree.h"
@@ -590,7 +592,11 @@ static const char *get_var_attname(const Var *var, const List *rtable)
 					   (int) var->varno <= list_length(rtable));
 				rte = rt_fetch(var->varno, rtable);
 				relname = rte->eref->aliasname;
-				if (var->varattno < 0)
+				if (var->varattno == TableOidAttributeNumber)
+				{
+					attname = psprintf("%u", rte->relid);
+				}
+				else if (var->varattno < 0)
 				{
 					Form_pg_attribute sysatt = SystemAttributeDefinition(var->varattno, true);
 					ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
@@ -1210,7 +1216,10 @@ op_expr_done:
 	else if (IsA(expr, NextValueExpr))
 	{
 		NextValueExpr *nve = (NextValueExpr *)expr;
-		nw += eval_nextval_expr(str, nve);
+		if (rpec->consume_sequence)
+			nw += eval_nextval_expr(str, nve);
+		else
+			APPEND_STR("0");
 	}
 	else if (IsA(expr, RowExpr))
 	{

@@ -1496,6 +1496,8 @@ typedef struct DeleteStmt
 	Node	   *whereClause;	/* qualifications */
 	List	   *returningList;	/* list of expressions to return */
 	WithClause *withClause;		/* WITH clause */
+	List       *sortClause;     /* sort clause (a list of SortBy's) */
+	Node       *limitCount;     /* # of result tuples to return */
 } DeleteStmt;
 
 /* ----------------------
@@ -1511,6 +1513,8 @@ typedef struct UpdateStmt
 	List	   *fromClause;		/* optional from clause for more tables */
 	List	   *returningList;	/* list of expressions to return */
 	WithClause *withClause;		/* WITH clause */
+	List       *sortClause;     /* sort clause (a list of SortBy's) */
+	Node       *limitCount;     /* # of result tuples to return */	
 } UpdateStmt;
 
 /* ----------------------

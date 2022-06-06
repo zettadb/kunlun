@@ -11264,13 +11264,24 @@ returning_clause:
  *****************************************************************************/
 
 DeleteStmt: opt_with_clause DELETE_P FROM relation_expr_opt_alias
-			using_clause where_or_current_clause returning_clause
+			using_clause where_or_current_clause
+			opt_sort_clause opt_select_limit
+			returning_clause
 				{
+					if (list_nth($8, 0) != NULL)
+					{
+						ereport(ERROR,
+							(errcode(ERRCODE_SYNTAX_ERROR),
+							 errmsg("Incorrect usage of UPDATE and OFFSET"),
+							 parser_errposition(@8)));
+					}
 					DeleteStmt *n = makeNode(DeleteStmt);
 					n->relation = $4;
 					n->usingClause = $5;
 					n->whereClause = $6;
-					n->returningList = $7;
+					n->sortClause = $7;
+					n->limitCount = list_nth($8, 1);
+					n->returningList = $9;
 					n->withClause = $1;
 					$$ = (Node *)n;
 				}
@@ -11336,14 +11347,25 @@ UpdateStmt: opt_with_clause UPDATE relation_expr_opt_alias
 			SET set_clause_list
 			from_clause
 			where_or_current_clause
+			opt_sort_clause
+			opt_select_limit
 			returning_clause
 				{
+					if (list_nth($9, 0) != NULL)
+					{
+						ereport(ERROR,
+							(errcode(ERRCODE_SYNTAX_ERROR),
+							 errmsg("Incorrect usage of UPDATE and OFFSET"),
+							 parser_errposition(@9)));
+					}
 					UpdateStmt *n = makeNode(UpdateStmt);
 					n->relation = $3;
 					n->targetList = $5;
 					n->fromClause = $6;
 					n->whereClause = $7;
-					n->returningList = $8;
+					n->sortClause = $8;
+					n->limitCount = list_nth($9, 1);
+					n->returningList = $10;
 					n->withClause = $1;
 					$$ = (Node *)n;
 				}

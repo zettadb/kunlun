@@ -484,3 +484,36 @@ DeleteInheritsTuple(Oid inhrelid, Oid inhparent)
 
 	return found;
 }
+
+bool
+has_inheritance_children(Oid parentrelId)
+{
+	Relation relation;
+	SysScanDesc scan;
+	ScanKeyData key[1];
+	bool result = false;
+	/*
+	 * Can skip the scan if pg_class shows the relation has never had a
+	 * subclass.
+	 */
+	if (has_subclass(parentrelId))
+	{
+		relation = heap_open(InheritsRelationId, AccessShareLock);
+
+		ScanKeyInit(&key[0],
+			    Anum_pg_inherits_inhparent,
+			    BTEqualStrategyNumber, F_OIDEQ,
+			    ObjectIdGetDatum(parentrelId));
+
+		scan = systable_beginscan(relation, InheritsParentIndexId, true,
+					  NULL, 1, key);
+
+		result = (systable_getnext(scan) != NULL);
+
+		systable_endscan(scan);
+
+		heap_close(relation, AccessShareLock);
+	}
+
+	return result;
+}

@@ -191,6 +191,25 @@ relationHasPrimaryKey(Relation rel)
 	return result;
 }
 
+Oid
+GetRelationPrimaryKey(Relation rel)
+{
+	List *indexlist = RelationGetIndexList(rel);
+	ListCell *lc;
+	foreach (lc, indexlist)
+	{
+		Oid indexoid = lfirst_oid(lc);
+		HeapTuple tuple = SearchSysCache1(INDEXRELID, ObjectIdGetDatum(indexoid));
+		if (!HeapTupleIsValid(tuple))
+			elog(ERROR, "cache lookup failed for index %u", indexoid);
+		bool ispk = ((Form_pg_index)GETSTRUCT(tuple))->indisprimary;
+		ReleaseSysCache(tuple);
+		if (ispk)
+			return indexoid;
+	}
+	return InvalidOid;
+}
+
 /*
  * index_check_primary_key
  *		Apply special checks needed before creating a PRIMARY KEY index

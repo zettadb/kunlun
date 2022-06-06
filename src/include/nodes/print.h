@@ -37,6 +37,9 @@ typedef struct RemotePrintExprContext
 
 	/* Column name of excluded table in on conflict clause */
 	List *excluded_table_columns;
+
+	/* Print nextval with consumed sequence */
+	bool consume_sequence;
 } RemotePrintExprContext;
 
 extern void InitRemotePrintExprContext(RemotePrintExprContext *rpec, List*rtable);

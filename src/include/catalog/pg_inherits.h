@@ -53,5 +53,5 @@ extern bool typeInheritsFrom(Oid subclassTypeId, Oid superclassTypeId);
 extern void StoreSingleInheritance(Oid relationId, Oid parentOid,
 					   int32 seqNumber);
 extern bool DeleteInheritsTuple(Oid inhrelid, Oid inhparent);
-
+extern bool has_inheritance_children(Oid parentrelId);
 #endif							/* PG_INHERITS_H */

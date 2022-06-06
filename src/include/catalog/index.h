@@ -37,7 +37,7 @@ typedef enum
 	INDEX_DROP_SET_DEAD
 } IndexStateFlagsAction;
 
-
+extern Oid GetRelationPrimaryKey(Relation rel);
 extern void index_check_primary_key(Relation heapRel,
 						IndexInfo *indexInfo,
 						bool is_alter_table,

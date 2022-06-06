@@ -138,12 +138,14 @@ ExecSetupPartitionTupleRouting(ModifyTableState *mtstate, Relation rel)
 	/* Set up details specific to the type of tuple routing we are doing. */
 	if (node && node->operation == CMD_UPDATE)
 	{
-		update_rri = mtstate->resultRelInfo;
-		num_update_rri = list_length(node->plans);
-		proute->subplan_partition_offsets =
-			palloc(num_update_rri * sizeof(int));
-		proute->num_subplan_partition_offsets = num_update_rri;
-
+		if (mtstate->mt_perchildplan)
+		{
+			update_rri = mtstate->resultRelInfo;
+			num_update_rri = list_length(node->plans);
+			proute->subplan_partition_offsets =
+				palloc(num_update_rri * sizeof(int));
+			proute->num_subplan_partition_offsets = num_update_rri;
+		}
 		/*
 		 * We need an additional tuple slot for storing transient tuples that
 		 * are converted to the root table descriptor.
@@ -197,12 +199,6 @@ ExecSetupPartitionTupleRouting(ModifyTableState *mtstate, Relation rel)
 		proute->partitions[i] = leaf_part_rri;
 		i++;
 	}
-
-	/*
-	 * For UPDATE, we should have found all the per-subplan resultrels in the
-	 * leaf partitions.  (If this is an INSERT, both values will be zero.)
-	 */
-	Assert(update_rri_index == num_update_rri);
 
 	return proute;
 }

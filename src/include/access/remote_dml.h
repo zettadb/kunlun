@@ -21,6 +21,8 @@
 #include "nodes/primnodes.h"
 #include "nodes/execnodes.h"
 
+extern int remote_param_fetch_threshold;
+
 typedef struct VarPickerCtx
 {
 	/*
@@ -62,9 +64,39 @@ typedef struct VarPickerCtx
 	bool check_alien_vars;
 } VarPickerCtx;
 
-extern int remote_param_fetch_threshold;
+struct RemotePrintExprContext;
+/*
+ * Used to construct sql for pushdownable update&&delete
+ */
+typedef struct RemoteUD
+{
+   ModifyTableState *mtstate;
+   int planIndex;
+   int index;       /* Index of current result relation */
+   Relation rel;    /* Current result relation */
+   int rti;         /* RTE number of current result relation */
+   List *tlist;     /* Update target list */
+   List *qual;      /* Where clause of current result relation */
+   PlanState *from; /* From clause */
+   List *sortlist;  /* Sort clause */
+   List *sortop;    /* Sort operator */
+   List *sortnullfirst;
+   int64_t limit;   /* Limit clause */
+   List *rellist;   /* All of the result relation */
+   List *quallist;  /* All of the qual of result relation */
+   ResultRelInfo *relinfo;
+} RemoteUD;
 
-extern void post_remote_updel_stmt(ModifyTableState*mtstate, RemoteScan *rs, int i);
+#define RemoteUDRelations(p) \
+   (list_length((p)->rellist))
+
+extern void RemoteUDSetup(PlanState *planstate, RemoteUD *remote_updel);
+extern bool RemoteUDNext(RemoteUD *remote_updel, struct RemotePrintExprContext *rpec, StringInfo sql, Oid *shardid);
+extern bool RemoteUDEOF(RemoteUD *remote_updel);
+
+extern bool CheckPartitionKeyModified(Relation,  Index attrno);
+extern bool CanPushdownRemoteUD(PlanState *state, List *unused_tl, int *nleafs, const char **reaseon);
+
 extern bool var_picker(Node *node, VarPickerCtx*ctx);
 extern TupleDesc expandTupleDesc2(TupleDesc tpd);
 extern void reset_var_picker_ctx(VarPickerCtx *vpc);

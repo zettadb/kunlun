@@ -49,6 +49,7 @@
 #include "executor/execPartition.h"
 #include "executor/executor.h"
 #include "executor/nodeModifyTable.h"
+#include "executor/remoteScanUtils.h"
 #include "foreign/fdwapi.h"
 #include "miscadmin.h"
 #include "nodes/nodeFuncs.h"
@@ -94,16 +95,18 @@ static void ExecSetupChildParentMapForTcs(ModifyTableState *mtstate);
 static void ExecSetupChildParentMapForSubplan(ModifyTableState *mtstate);
 static TupleConversionMap *tupconv_map_for_subplan(ModifyTableState *node,
 						int whichplan);
-static TupleDesc
-ExecScanTypeFromTL(EState *estate, ModifyTableState *mts,
-	Relation rel, bool skipjunk);
+static TupleDesc ExecScanTypeFromTL(EState *estate, ModifyTableState *mts, Relation rel, bool skipjunk);
+static void ExecInitRemoteReturningTupleSlotTL(EState *estate, ModifyTableState *mts, TupleDesc tupledesc);
+static int get_partition_index(ModifyTableState *mtstate, ResultRelInfo *partrel);
+static TupleConversionMap *tupconv_map_for_partition(ModifyTableState *mtstate, int index);
+static TupleConversionMap *tupconv_map_to_partition(ModifyTableState *mtstate, int index);
+static TupleTableSlot * ExecPushdownUpDel(ModifyTableState *node);
 static void
-ExecInitRemoteReturningTupleSlotTL(EState *estate, ModifyTableState *mts,
-	TupleDesc tupledesc);
-static TupleTableSlot *
-ReturningNext(ModifyTableState *node, ResultRelInfo *resultRelInfo,
-	RemoteModifyState*rms);
-
+ConvertReturningForPushdown(EState *estate, ModifyTableState *mtstate,
+                             List *returning,
+                             List **pscanlist,
+                             List **preturning,
+                             TupleDesc *pscantuple);
 /*
  * Verify that the tuples to be produced by INSERT or UPDATE match the
  * target relation's rowtype
@@ -1261,17 +1264,25 @@ lreplace:;
 			if (mtstate->mt_transition_capture)
 				saved_tcs_map = mtstate->mt_transition_capture->tcs_map;
 
-			/*
-			 * resultRelInfo is one of the per-subplan resultRelInfos.  So we
-			 * should convert the tuple into root's tuple descriptor, since
-			 * ExecInsert() starts the search from root.  The tuple conversion
-			 * map list is in the order of mtstate->resultRelInfo[], so to
-			 * retrieve the one for this resultRel, we need to know the
-			 * position of the resultRel in mtstate->resultRelInfo[].
-			 */
-			map_index = resultRelInfo - mtstate->resultRelInfo;
-			Assert(map_index >= 0 && map_index < mtstate->mt_nplans);
-			tupconv_map = tupconv_map_for_subplan(mtstate, map_index);
+			if (mtstate->mt_perchildplan)
+			{
+				/*
+			 	* resultRelInfo is one of the per-subplan resultRelInfos.  So we
+			 	* should convert the tuple into root's tuple descriptor, since
+			 	* ExecInsert() starts the search from root.  The tuple conversion
+			 	* map list is in the order of mtstate->resultRelInfo[], so to
+			 	* retrieve the one for this resultRel, we need to know the
+			 	* position of the resultRel in mtstate->resultRelInfo[].
+			 	*/
+				map_index = resultRelInfo - mtstate->resultRelInfo;
+				Assert(map_index >= 0 && map_index < mtstate->mt_nplans);
+				tupconv_map = tupconv_map_for_subplan(mtstate, map_index);
+			}
+			else
+			{
+				map_index = get_partition_index(mtstate, resultRelInfo);
+				tupconv_map = tupconv_map_for_partition(mtstate, map_index);
+			}
 			tuple = ConvertPartitionTupleSlot(tupconv_map,
 											  tuple,
 											  proute->root_tuple_slot,
@@ -2178,6 +2189,62 @@ tupconv_map_for_subplan(ModifyTableState *mtstate, int whichplan)
 	}
 }
 
+static
+int get_partition_index(ModifyTableState *mtstate, ResultRelInfo *partrel)
+{
+	PartitionTupleRouting *proute = mtstate->mt_partition_tuple_routing;
+	if (mtstate->mt_current_partidx >= 0 &&
+		proute->partitions[mtstate->mt_current_partidx] == partrel)
+		return mtstate->mt_current_partidx;
+
+	for (int i = 0; i < proute->num_partitions; ++i)
+		if (proute->partitions[i] == partrel)
+			return i;
+	return -1;
+}
+
+/**
+ * @brief Get the conversion map that can be used to convert tuples from root's tuple descriptor
+ *  to child's tuple descriptor
+ * 
+ * @param partidx index of the partition table in the PartitionTupleRouting
+ */
+static TupleConversionMap *
+tupconv_map_to_partition(ModifyTableState *mtstate, int partidx)
+{
+	PartitionTupleRouting *proute = mtstate->mt_partition_tuple_routing;
+
+	if (!proute->child_parent_map_not_required)
+		ExecSetupChildParentMapForLeaf(proute);
+
+	TupleConversionMap **map = &proute->parent_child_tupconv_maps[partidx];
+	if (!*map && !proute->child_parent_map_not_required[partidx])
+	{
+		ResultRelInfo *partrel = proute->partitions[partidx];
+		ExecInitRoutingInfo(mtstate,
+							mtstate->ps.state,
+							proute,
+							partrel,
+							partidx);
+		proute->child_parent_map_not_required[partidx] = !*map;
+	}
+	return *map;
+}
+
+/**
+ * @brief Get the conversion map that can be used to convert tuples from child's tuple descriptor
+ *  to the parent's tuple descriptor
+ * 
+ * @param partidx index of the partition table in the PartitionTupleRouting
+ */
+static TupleConversionMap *
+tupconv_map_for_partition(ModifyTableState *mtstate, int partidx)
+{
+	PartitionTupleRouting *proute = mtstate->mt_partition_tuple_routing;
+	if (!proute->child_parent_tupconv_maps)
+		ExecSetupChildParentMapForLeaf(proute);
+	return TupConvMapForLeaf(proute, getTargetResultRelInfo(mtstate), partidx);
+}
 /* ----------------------------------------------------------------
  *	   ExecModifyTable
  *
@@ -2195,7 +2262,7 @@ ExecModifyTable(PlanState *pstate)
 	ResultRelInfo *saved_resultRelInfo;
 	ResultRelInfo *resultRelInfo;
 	PlanState  *subplanstate;
-	JunkFilter *junkfilter;
+	JunkFilter *junkfilter, *junkTableoid;
 	TupleTableSlot *slot;
 	TupleTableSlot *planSlot;
 	ItemPointer tupleid;
@@ -2239,6 +2306,7 @@ ExecModifyTable(PlanState *pstate)
 	resultRelInfo = node->resultRelInfo + node->mt_whichplan;
 	subplanstate = node->mt_plans[node->mt_whichplan];
 	junkfilter = resultRelInfo->ri_junkFilter;
+	junkTableoid = resultRelInfo->ri_junkTableoid;
 
 	/*
 	 * es_result_relation_info must point to the currently active result
@@ -2256,51 +2324,9 @@ ExecModifyTable(PlanState *pstate)
 	  Handle update/delete stmts, send all enqueued stmts, and then recv all
 	  below if has returning clause.
 	*/
-	if (node->operation != CMD_INSERT &&
-		IsRemoteRelation(resultRelInfo->ri_RelationDesc))
+	if (node->is_pushdown_updel)
 	{
-		if (!node->remoteReturningTupleSlot)
-			flush_all_stmts();
-		else
-		{
-			RemoteModifyState *currms = node->cur_returning_idx >= 0 ?
-				node->mt_remote_states + node->cur_returning_idx : NULL;
-
-			if (currms && (slot = ReturningNext(node, resultRelInfo, currms)))
-				return slot;
-
-			node->cur_returning_idx = -1;
-			int ndones = 0;
-			/*
-			  find one with data. in every channel there can be multiple stmts
-			  to send and then recv results one after another.
-			  iterate all channels multiple times until all channels have
-			  handled all stmts.
-			*/
-			for (int i = 0; ndones < node->mt_nplans; i = (i+1)%node->mt_nplans)
-			{
-				RemoteModifyState *rms = node->mt_remote_states + i;
-				resultRelInfo = node->resultRelInfo + i;
-				if (!rms->asi)
-				{
-					ndones++;
-					continue;
-				}
-
-				// got a channel with available data, fetch next row from it to a
-				// tupletableslot and return it. and later keep fetching until
-				// all result rows exhausted.
-				slot = ReturningNext(node, resultRelInfo, rms);
-				if (slot)
-				{
-					node->cur_returning_idx = i;
-					return slot;
-				}
-			}
-		}
-		node->mt_done = true;
-		estate->es_result_relation_info = saved_resultRelInfo;
-		return NULL;
+		return ExecPushdownUpDel(node);
 	}
 
 	/*
@@ -2328,6 +2354,7 @@ ExecModifyTable(PlanState *pstate)
 				resultRelInfo++;
 				subplanstate = node->mt_plans[node->mt_whichplan];
 				junkfilter = resultRelInfo->ri_junkFilter;
+				junkTableoid = resultRelInfo->ri_junkTableoid;
 				estate->es_result_relation_info = resultRelInfo;
 				EvalPlanQualSetPlan(&node->mt_epqstate, subplanstate->plan,
 									node->mt_arowmarks[node->mt_whichplan]);
@@ -2371,6 +2398,42 @@ ExecModifyTable(PlanState *pstate)
 		EvalPlanQualSetSlot(&node->mt_epqstate, planSlot);
 		slot = planSlot;
 
+		/* Set estate->es_result_relation_info to the partition */
+		if (junkTableoid != NULL)
+		{
+			bool isNull;
+			Datum datum;
+			Oid resultoid;
+
+			datum = ExecGetJunkAttribute(slot, junkTableoid->jf_junkAttNo, &isNull);
+			if (isNull)
+				elog(ERROR, "tableoid is NULL");
+			resultoid = DatumGetObjectId(datum);
+
+			if (!estate->es_result_relation_info ||
+				RelationGetRelid(estate->es_result_relation_info->ri_RelationDesc) != resultoid)
+			{
+				/* Use the proute to cache accessed partition */
+				ResultRelInfo *partitionRelinfo = NULL;
+				for (int i = 0; i < proute->num_partitions; ++i)
+				{
+					if (proute->partition_oids[i] == resultoid)
+					{
+						if (!(partitionRelinfo = proute->partitions[i]))
+							partitionRelinfo = ExecInitPartitionInfo(node, resultRelInfo, proute, estate, i);
+						// remember the index of current partition
+						node->mt_current_partidx = i;
+						break;
+					}
+				}
+
+				if (!partitionRelinfo)
+					elog(ERROR, "tableoid '%u' is one of the partition", resultoid);
+
+				estate->es_result_relation_info = partitionRelinfo;
+			}
+		}
+
 		tupleid = NULL;
 		oldtuple = NULL;
 		if (junkfilter != NULL)
@@ -2385,7 +2448,9 @@ ExecModifyTable(PlanState *pstate)
 				bool		isNull;
 
 				relkind = resultRelInfo->ri_RelationDesc->rd_rel->relkind;
-				if (relkind == RELKIND_RELATION || relkind == RELKIND_MATVIEW)
+				if (relkind == RELKIND_RELATION ||
+					relkind == RELKIND_MATVIEW ||
+					relkind == RELKIND_PARTITIONED_TABLE)
 				{
 					datum = ExecGetJunkAttribute(slot,
 												 junkfilter->jf_junkAttNo,
@@ -2458,6 +2523,22 @@ ExecModifyTable(PlanState *pstate)
 					estate->es_result_relation_info = resultRelInfo;
 				break;
 			case CMD_UPDATE:
+				/*
+				 * Convert tuple from root to child table if the optimizer not construct
+				 * plan for each child table
+				 */
+				if (!node->mt_perchildplan)
+				{
+					TupleConversionMap *tupconv_map = tupconv_map_to_partition(node, node->mt_current_partidx);
+					if (tupconv_map)
+					{
+						HeapTuple tuple = ExecMaterializeSlot(slot);
+						ConvertPartitionTupleSlot(tupconv_map,
+												  tuple,
+												  proute->root_tuple_slot,
+												  &slot);
+					}
+				}
 				slot = ExecUpdate(node, tupleid, oldtuple, slot, planSlot,
 								  &node->mt_epqstate, estate, node->canSetTag);
 				break;
@@ -2496,30 +2577,6 @@ ExecModifyTable(PlanState *pstate)
 	return NULL;
 }
 
-static bool CheckPartitionKeyUpdated(Relation rel, Bitmapset *attnums)
-{
-	if (rel->rd_rel->relkind != RELKIND_PARTITIONED_TABLE || !attnums)
-		return false;
-	if (has_partition_attrs(rel, attnums, NULL))
-		return true;
-
-	bool updated = false;
-	struct PartitionDescData *partdesc = RelationGetPartitionDesc(rel);
-	for (int i = 0; !updated && i < partdesc->nparts; ++i)
-	{
-		Oid childOID = partdesc->oids[i];
-		Relation childrel;
-
-		/* Open rel; we already have required locks */
-		childrel = heap_open(childOID, NoLock);
-
-		updated = CheckPartitionKeyUpdated(childrel, attnums);
-
-		heap_close(childrel, NoLock);
-	}
-	return updated;
-}
-
 /* ----------------------------------------------------------------
  *		ExecInitModifyTable
  * ----------------------------------------------------------------
@@ -2548,10 +2605,19 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 	mtstate->ps.plan = (Plan *) node;
 	mtstate->ps.state = estate;
 	mtstate->ps.ExecProcNode = ExecModifyTable;
+	mtstate->ps.ps_ExprContext = NULL;
 
 	mtstate->operation = operation;
 	mtstate->canSetTag = node->canSetTag;
 	mtstate->mt_done = false;
+	mtstate->mt_perchildplan = true; /* see inheritance_planner() */
+	mtstate->mt_current_partidx = -1;
+	mtstate->is_pushdown_updel = false;
+	mtstate->remote_updel = NULL;
+	mtstate->pushdown_returning = NIL;
+	mtstate->active_stmts = NULL;
+	mtstate->max_actieve_stmts = 0;
+	mtstate->nactive_stmts = 0;
 
 	mtstate->mt_plans = (PlanState **) palloc0(sizeof(PlanState *) * nplans);
 	mtstate->resultRelInfo = estate->es_result_relations + node->resultRelIndex;
@@ -2561,9 +2627,15 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 		mtstate->rootResultRelInfo = estate->es_root_result_relations +
 			node->rootResultRelIndex;
 
+	/* check the kind of the first result relation */
+	if (mtstate->resultRelInfo->ri_RelationDesc->rd_rel->relkind == RELKIND_PARTITIONED_TABLE)
+	{
+		mtstate->mt_perchildplan = false;
+		mtstate->rootResultRelInfo = mtstate->resultRelInfo;
+	}
+
 	mtstate->mt_arowmarks = (List **) palloc0(sizeof(List *) * nplans);
 	mtstate->mt_nplans = nplans;
-	mtstate->mt_remote_states = palloc0(sizeof(RemoteModifyState) * nplans);
 	/* set up epqstate with dummy subplan data for the moment */
 	EvalPlanQualInit(&mtstate->mt_epqstate, estate, NULL, NIL, node->epqParam);
 	mtstate->fireBSTriggers = true;
@@ -2624,22 +2696,6 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 		estate->es_result_relation_info = resultRelInfo;
 		int extra_eflags = 0;
 
-		/*
-		  dzw: forbid remotescan node to modify its targetlist which is used
-		  in modify node to produce the remote dml stmt, for details see
-		  post_remote_updel_stmt.
-		  In kunlun to execute update stmts, we don't need/want the remotescan
-		  node to pull rows to computing node(while such rows are locked),
-		  we always do one shot one directional updates, for best performance.
-		  Thus remotescan nodes never need to or should do selects in such
-		  contexts.
-		*/
-		if ((operation == CMD_DELETE || operation == CMD_UPDATE) &&
-			IsRemoteRelation(resultRelInfo->ri_RelationDesc))
-		{
-			extra_eflags = EXEC_FLAG_REMOTE_FETCH_NO_DATA;
-		}
-
 		mtstate->mt_plans[i] = ExecInitNode(subplan, estate, eflags | extra_eflags);
 
 		/* Also let FDWs init themselves for foreign-table result rels */
@@ -2674,13 +2730,17 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 
 	/*
 	 * Build state for tuple routing if it's an INSERT or if it's an UPDATE of
-	 * partition key.
+	 * partition key or if optimizer does not construct plan for echo child table
+	 * of the partitioned table.
 	 */
 	if (rel->rd_rel->relkind == RELKIND_PARTITIONED_TABLE &&
-		(operation == CMD_INSERT || update_tuple_routing_needed))
+		(operation == CMD_INSERT ||
+		 update_tuple_routing_needed ||
+		 !mtstate->mt_perchildplan))
+	{
 		mtstate->mt_partition_tuple_routing =
 			ExecSetupPartitionTupleRouting(mtstate, rel);
-
+	}
 	/*
 	 * Build state for collecting transition tuples.  This requires having a
 	 * valid trigger query context, so skip it in explain-only mode.
@@ -2723,76 +2783,6 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 		resultRelInfo->ri_WithCheckOptionExprs = wcoExprs;
 		resultRelInfo++;
 		i++;
-	}
-
-	/*
-	 * Initialize RETURNING projections if needed.
-	 */
-	if (node->returningLists)
-	{
-		TupleTableSlot *slot;
-		ExprContext *econtext;
-
-		/*
-		 * Initialize result tuple slot and assign its rowtype using the first
-		 * RETURNING list.  We assume the rest will look the same.
-		 */
-		mtstate->ps.plan->targetlist = (List *) linitial(node->returningLists);
-
-		/*
-		  dzw: Here we assume that all tables in mtstate->resultRelInfo array
-		  are leaf partitions of the same partitioned table, so they share the
-		  same tupledesc and targetlist.
-
-		  For insert stmt we always assume original tuple format because
-		  insert returning is computed in computing node.
-		*/
-		if (node->operation != CMD_INSERT)
-		{
-			ExecScanTypeFromTL(estate, mtstate,
-				mtstate->resultRelInfo->ri_RelationDesc, true);
-
-			ExecInitRemoteReturningTupleSlotTL(estate, mtstate, mtstate->ps.scandesc);
-		}
-		else
-		{
-			mtstate->ps.scandesc = mtstate->resultRelInfo->ri_RelationDesc->rd_att;
-		}
-
-		/* Set up a slot for the output of the RETURNING projection(s) */
-		ExecInitResultTupleSlotTL(estate, &mtstate->ps);
-		slot = mtstate->ps.ps_ResultTupleSlot;
-
-		/* Need an econtext too */
-		if (mtstate->ps.ps_ExprContext == NULL)
-			ExecAssignExprContext(estate, &mtstate->ps);
-		econtext = mtstate->ps.ps_ExprContext;
-
-		/*
-		 * Build a projection for each result rel.
-		 */
-		resultRelInfo = mtstate->resultRelInfo;
-		foreach(l, node->returningLists)
-		{
-			List	   *rlist = (List *) lfirst(l);
-
-			resultRelInfo->ri_returningList = rlist;
-			resultRelInfo->ri_projectReturning =
-				ExecBuildProjectionInfo(rlist, econtext, slot, &mtstate->ps,
-					mtstate->ps.scandesc);
-			resultRelInfo++;
-		}
-	}
-	else
-	{
-		/*
-		 * We still must construct a dummy result tuple type, because InitPlan
-		 * expects one (maybe should change that?).
-		 */
-		mtstate->ps.plan->targetlist = NIL;
-		ExecInitResultTupleSlotTL(estate, &mtstate->ps);
-
-		mtstate->ps.ps_ExprContext = NULL;
 	}
 
 	/* Set the list of arbiter indexes if needed for ON CONFLICT */
@@ -2874,9 +2864,8 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 				StringInfo action_str = &mtstate->mt_remote_action_clause;
 				appendStringInfo(action_str, " on duplicate key update ");
 
-				int varno = 1;
+				int varno = 1, count = 0;
 				bool first = true, make_dummy = false;
-				Bitmapset *attnums = NULL;
 				ListCell *lc1, *lc2;
 
 			Make_action:
@@ -2904,28 +2893,27 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 								(errcode(ERRCODE_INTERNAL_ERROR),
 								 errmsg("Kunlun-db: The on conflict action cannot be serialized")));
 						}
+						++ count;
 
 						/* add a dummy expr to avoid syntax error */
 						if (make_dummy)
 							break;
 
-						attnums = bms_add_member(attnums, varno - FirstLowInvalidHeapAttributeNumber);
+						/* check the partition key is updated */
+						if (CheckPartitionKeyModified(resultRelInfo->ri_RelationDesc, varno))
+						{
+							ereport(ERROR,
+								(errcode(ERRCODE_INTERNAL_ERROR),
+								 errmsg("Kunlun-db: Can not update partition key of a remote relation.")));
+						}
 					}
 					++varno;
 				}
 
-				if (bms_is_empty(attnums) && !make_dummy)
+				if (count == 0 && !make_dummy)
 				{
 					make_dummy = true;
 					goto Make_action;
-				}
-
-				/* check the partition key is updated */
-				if (CheckPartitionKeyUpdated(resultRelInfo->ri_RelationDesc, attnums))
-				{
-					ereport(ERROR,
-						(errcode(ERRCODE_INTERNAL_ERROR),
-						 errmsg("Kunlun-db: Can not update partition key of a remote relation.")));
 				}
 			}
 		}
@@ -3099,12 +3087,22 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 					/* For UPDATE/DELETE, find the appropriate junk attr now */
 					char		relkind;
 
-					relkind = resultRelInfo->ri_RelationDesc->rd_rel->relkind;
+					Relation resultRel = resultRelInfo->ri_RelationDesc;
+					relkind = resultRel->rd_rel->relkind;
 					if (relkind == RELKIND_RELATION ||
 						relkind == RELKIND_MATVIEW ||
 						relkind == RELKIND_PARTITIONED_TABLE)
 					{
-						j->jf_junkAttNo = ExecFindJunkAttribute(j, "ctid");
+						if (IsRemoteRelation(resultRel) || IsRemoteRelationParent(resultRel))
+						{
+							j->jf_junkAttNo = ExecFindJunkAttribute(j, "pkrow");
+							if (!AttributeNumberIsValid(j->jf_junkAttNo))
+								j->jf_junkAttNo = ExecFindJunkAttribute(j, "wholerow");
+						}
+						else
+						{
+							j->jf_junkAttNo = ExecFindJunkAttribute(j, "ctid");
+						}
 						if (!AttributeNumberIsValid(j->jf_junkAttNo))
 							elog(ERROR, "could not find junk ctid column");
 					}
@@ -3125,6 +3123,27 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 				}
 
 				resultRelInfo->ri_junkFilter = j;
+
+				if ((operation == CMD_UPDATE || operation == CMD_DELETE) && !mtstate->mt_perchildplan)
+				{
+					/* For UPDATE/DELETE, find the appropriate junk tableoid attr now */
+					char relkind;
+
+					Relation resultRel = resultRelInfo->ri_RelationDesc;
+					relkind = resultRel->rd_rel->relkind;
+					if (relkind == RELKIND_PARTITIONED_TABLE)
+					{
+						j = ExecInitJunkFilter(subplan->targetlist,
+											   resultRelInfo->ri_RelationDesc->rd_att->tdhasoid,
+											   ExecInitExtraTupleSlot(estate, NULL));
+						j->jf_junkAttNo = ExecFindJunkAttribute(j, "tableoid");
+						
+						/* We need the tableoid to route tuple between partitions */
+						if (!AttributeNumberIsValid(j->jf_junkAttNo))
+							elog(ERROR, "could not find junk tableoid column");
+						resultRelInfo->ri_junkTableoid = j;
+					}
+				}
 				resultRelInfo++;
 			}
 		}
@@ -3135,6 +3154,113 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 									subplan->targetlist);
 		}
 	}
+
+	/* 
+	 * Check if the update&&delete can push down to remote server
+	 */
+	if (operation == CMD_DELETE || operation == CMD_UPDATE)
+	{
+		Relation resultRel = mtstate->resultRelInfo->ri_RelationDesc;
+		if (resultRel &&
+			(IsRemoteRelation(resultRel) || IsRemoteRelationParent(resultRel)))
+		{
+			const char *reason = 0;
+			int nleafs = 0;
+			if (CanPushdownRemoteUD((PlanState*)mtstate, NIL, &nleafs, &reason))
+			{
+				mtstate->is_pushdown_updel = true;
+			}
+			else
+			{
+				ereport(ERROR,
+					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					 errmsg("Kunlun-db: %s", reason ? reason : "Cannot push down plan")));
+			}
+		}
+	}
+
+	/*
+	 * Initialize RETURNING projections if needed.
+	 */
+	if (node->returningLists)
+	{
+		TupleTableSlot *slot;
+		ExprContext *econtext;
+
+		/*
+		 * Initialize result tuple slot and assign its rowtype using the first
+		 * RETURNING list.  We assume the rest will look the same.
+		 */
+		mtstate->ps.plan->targetlist = (List *)linitial(node->returningLists);
+
+		/*
+		  dzw: Here we assume that all tables in mtstate->resultRelInfo array
+		  are leaf partitions of the same partitioned table, so they share the
+		  same tupledesc and targetlist.
+
+		  For insert stmt we always assume original tuple format because
+		  insert returning is computed in computing node.
+		*/
+		List *rtlist = NIL;
+		if (mtstate->is_pushdown_updel)
+		{
+			ConvertReturningForPushdown(estate,
+										mtstate,
+										mtstate->ps.plan->targetlist,
+										&mtstate->pushdown_returning,
+										&rtlist/*&mtstate->ps.plan->targetlist*/,
+										&mtstate->ps.scandesc);
+
+			ExecInitRemoteReturningTupleSlotTL(estate, mtstate, mtstate->ps.scandesc);
+		}
+		else
+		{
+			mtstate->ps.scandesc = mtstate->resultRelInfo->ri_RelationDesc->rd_att;
+		}
+
+		/* Set up a slot for the output of the RETURNING projection(s) */
+		ExecInitResultTupleSlotTL(estate, &mtstate->ps);
+		slot = mtstate->ps.ps_ResultTupleSlot;
+
+		/* Need an econtext too */
+		if (mtstate->ps.ps_ExprContext == NULL)
+			ExecAssignExprContext(estate, &mtstate->ps);
+		econtext = mtstate->ps.ps_ExprContext;
+
+		/*
+		 * Build a projection for each result rel.
+		 */
+		if (mtstate->is_pushdown_updel)
+		{
+			/* Use the rewrited target list to generate project info*/
+			mtstate->resultRelInfo->ri_projectReturning =
+			    ExecBuildProjectionInfo(rtlist, econtext, slot, &mtstate->ps, mtstate->ps.scandesc);
+		}
+		else
+		{
+			resultRelInfo = mtstate->resultRelInfo;
+			foreach (l, node->returningLists)
+			{
+				List *rlist = (List *)lfirst(l);
+
+				resultRelInfo->ri_returningList = rlist;
+				resultRelInfo->ri_projectReturning =
+				    ExecBuildProjectionInfo(rlist, econtext, slot, &mtstate->ps,
+							    mtstate->ps.scandesc);
+				resultRelInfo++;
+			}
+		}
+	}
+	else
+	{
+		/*
+		 * We still must construct a dummy result tuple type, because InitPlan
+		 * expects one (maybe should change that?).
+		 */
+		mtstate->ps.plan->targetlist = NIL;
+		ExecInitResultTupleSlotTL(estate, &mtstate->ps);
+	}
+
 
 	/*
 	 * Set up a tuple table slot for use for trigger output tuples. In a plan
@@ -3170,32 +3296,13 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 
 	if (eflags & EXEC_FLAG_EXPLAIN_ONLY) goto end;
 
-	RemoteScan **rs_updels = palloc(sizeof(void*) * mtstate->mt_nplans);
-	if ((operation == CMD_DELETE || operation == CMD_UPDATE) &&
-		IsRemoteRelation(resultRelInfo->ri_RelationDesc))
-	{
-		for (int i = 0; i < mtstate->mt_nplans; i++)
-		{
-			subplan = mtstate->mt_plans[i]->plan;
-			while (subplan && nodeTag(subplan) != T_RemoteScan)
-			{
-				subplan = outerPlan(subplan);
-			}
-			if (!subplan || nodeTag(subplan) != T_RemoteScan)
-				ereport(ERROR,
-						(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-						 errmsg("Can not execute the query plan, updating/deleting remote tables require a remote scan under the update/delete node.")));
-			rs_updels[i] = (RemoteScan *)subplan;
-		}
-	}
 
-	for (int i = 0; i < nplans; i++, resultRelInfo++)
+	if (mtstate->is_pushdown_updel)
 	{
-		if ((operation == CMD_DELETE || operation == CMD_UPDATE) &&
-		    IsRemoteRelation(resultRelInfo->ri_RelationDesc))
-		{
-			post_remote_updel_stmt(mtstate, rs_updels[i], i);
-		}
+		RemotePrintExprContext rpec;
+		InitRemotePrintExprContext(&rpec, estate->es_plannedstmt->rtable);
+		mtstate->remote_updel = (RemoteUD*)palloc0(sizeof(RemoteUD) * mtstate->mt_nplans);
+		RemoteUDSetup((PlanState*)mtstate, mtstate->remote_updel);
 	}
 
 	if (mtstate->remoteReturningTupleSlot)
@@ -3216,7 +3323,7 @@ end:
 void
 ExecEndModifyTable(ModifyTableState *node)
 {
-	int			i;
+	int i;
 
 	/*
 	 * Allow any FDWs to shut down
@@ -3231,7 +3338,6 @@ ExecEndModifyTable(ModifyTableState *node)
 			resultRelInfo->ri_FdwRoutine->EndForeignModify(node->ps.state,
 														   resultRelInfo);
 
-
 		/*
 		 * dzw: end remote tuple caching for each leaf partition of a
 		 * partition table, or the regular table.
@@ -3239,17 +3345,17 @@ ExecEndModifyTable(ModifyTableState *node)
 		PartitionTupleRouting *proute = node->mt_partition_tuple_routing;
 		if (proute)
 		{
-	        for (int partidx = 0; partidx < proute->num_partitions; partidx++)
-	        {
-	            ResultRelInfo *partrel = proute->partitions[partidx];
-	            if (partrel && partrel->ri_RemotetupCache)
-	                end_remote_insert_stmt(partrel->ri_RemotetupCache, true);
-	        }
+			for (int partidx = 0; partidx < proute->num_partitions; partidx++)
+			{
+				ResultRelInfo *partrel = proute->partitions[partidx];
+				if (partrel && partrel->ri_RemotetupCache)
+					end_remote_insert_stmt(partrel->ri_RemotetupCache, true);
+			}
 		}
 		else
 		{
-	        if (node->operation == CMD_INSERT && resultRelInfo->ri_RemotetupCache)
-	            end_remote_insert_stmt(resultRelInfo->ri_RemotetupCache, true);
+			if (node->operation == CMD_INSERT && resultRelInfo->ri_RemotetupCache)
+				end_remote_insert_stmt(resultRelInfo->ri_RemotetupCache, true);
 		}
 	}
 
@@ -3257,7 +3363,8 @@ ExecEndModifyTable(ModifyTableState *node)
 	 * dzw: send accumulated remote statements to remote storage nodes.
 	 for update&delete, this was already done in ExecModifyTable().
 	 * */
-	if (node->operation == CMD_INSERT) flush_all_stmts();
+	if (node->operation == CMD_INSERT)
+		flush_all_stmts();
 
 	node->ps.state->es_processed = GetRemoteAffectedRows();
 
@@ -3285,6 +3392,10 @@ ExecEndModifyTable(ModifyTableState *node)
 	 */
 	for (i = 0; i < node->mt_nplans; i++)
 		ExecEndNode(node->mt_plans[i]);
+
+	ModifyTable *plan = (ModifyTable*)node->ps.plan;
+	if (plan->returningLists)
+		plan->plan.targetlist = (List *)linitial(plan->returningLists);
 }
 
 void
@@ -3297,208 +3408,19 @@ ExecReScanModifyTable(ModifyTableState *node)
 	elog(ERROR, "ExecReScanModifyTable is not implemented");
 }
 
-
-/*
- * TargetEntries with expr of T_SQLValueFunction and T_Const can be processed,
- * they don't need to be sent to remote and they can be evaluated.
- * */
-static TupleDesc
-ExecScanTypeFromTL(EState *estate, ModifyTableState *mts,
-	Relation rel, bool skipjunk)
-{
-	List *targetList = (List *)linitial(((ModifyTable*)mts->ps.plan)->returningLists);
-	TupleDesc	typeInfo;
-	ListCell   *l;
-	int			len = 0;
-	int			cur_resno = 1;
-	char *colname = NULL;
-	int rti = mts->resultRelInfo->ri_RangeTableIndex;
-
-	if (targetList == NULL) return NULL;
-
-	/*
-	  How many columns are there in the returning clause?
-	*/
-	VarPickerCtx vpc;
-	memset(&vpc, 0, sizeof(vpc));
-	vpc.scanrelid = rti;
-	vpc.mctx = estate->es_query_cxt;
-
-	foreach(l, targetList)
-	{
-		TargetEntry *tle = (TargetEntry *)lfirst(l);
-		expression_tree_walker((Node *)tle->expr, var_picker, &vpc);
-		len += vpc.nvars;
-		reset_var_picker_ctx(&vpc);
-	}
-	if (len < 3)
-	{
-		// Alloc enough; will append a column at the end of the func.
-		len = 3;
-	}
-
-	typeInfo = CreateTemplateTupleDesc(len, false /*hasoid*/);
-
-	StringInfoData colexpr_str;
-
-	foreach(l, targetList)
-	{
-		if (cur_resno > typeInfo->natts)
-			typeInfo = expandTupleDesc2(typeInfo);
-
-		Node *pnode = lfirst(l);
-		Assert(IsA(pnode, TargetEntry));
-		TargetEntry *tle = (TargetEntry *)pnode;
-
-		if ((skipjunk && tle->resjunk) || !tle->expr)
-			continue;
-		/*
-		 * Try to make a column name in order to build the result's tupledesc.
-		 * */
-		if (IsA(tle->expr, Var))
-		{
-			/*
-			 * Fast path for most common case.
-			 * */
-			Var *colvar = (Var*)(tle->expr);
-			colname = rel->rd_att->attrs[colvar->varattno - 1].attname.data;
-			validate_column_reference(colvar, rel);
-			if (colvar->varattno == 0)
-			{
-				cur_resno = append_cols_for_whole_var(rel, &typeInfo, cur_resno);
-				continue;
-			}
-
-			cur_resno = add_unique_col_var(rel, typeInfo, cur_resno, tle, colvar, false);
-			continue;
-
-		}
-		else
-		{
-			reset_var_picker_ctx(&vpc);
-			if (IsA(tle->expr, Const))
-				vpc.local_evaluables++;
-			else
-			{
-				expression_tree_walker((Node *)tle->expr, var_picker, &vpc);
-			}
-
-			if (vpc.has_alien_cols)
-			{
-				ereport(ERROR,
-						(errcode(ERRCODE_INTERNAL_ERROR),
-						 errmsg("Columns of other tables can't be in a returning list.")));
-			}
-
-			if (vpc.nvars == 0)
-			{
-				continue;// no target column to add to the returning clause. but does such a field need a attr slot? I believe so.TODO
-			}
-
-			Assert(vpc.nvars > 0);
-			/* Whether column def added to typeInfo. */
-			initStringInfo2(&colexpr_str, 256, estate->es_query_cxt);
-			RemotePrintExprContext rpec;
-			InitRemotePrintExprContext(&rpec, estate->es_plannedstmt->rtable);
-			int seret = snprint_expr(&colexpr_str, tle->expr, &rpec);
-
-			if (seret >= 0 && rpec.num_vals == 1)
-			{
-				/*
-				  The expression can be computed by storage shard, so simply
-				  use returned field value, i.e. replace the expr with a Var
-				  to refer to the source column.
-				*/
-				Var *var_expr = makeVar(rti, cur_resno,
-					exprType((Node *)tle->expr), exprTypmod((Node *)tle->expr),
-					exprCollation((Node *)tle->expr), 0);
-				tle->expr = (Expr*)var_expr;
-
-				if (lengthStringInfo(&colexpr_str) >= sizeof(NameData))
-				{
-					mts->long_exprs_bmp = bms_add_member(mts->long_exprs_bmp, cur_resno);
-					mts->long_exprs = lappend(mts->long_exprs, pstrdup(colexpr_str.data));
-					colexpr_str.data[sizeof(NameData) - 1] = '\0';
-				}
-				colname = donateStringInfo(&colexpr_str);
-				/*
-				 * Hold the target var name or expr string to generate remote sql.
-				 * */
-				if (!tle->resname)
-					tle->resname = colname;
-				TupleDescInitEntry(typeInfo,
-								   cur_resno,
-								   colname,
-								   exprType((Node *) tle->expr),
-								   exprTypmod((Node *) tle->expr),
-								   0);
-				TupleDescInitEntryCollation(typeInfo,
-											cur_resno,
-											exprCollation((Node *) tle->expr));
-				cur_resno++;
-			}
-			else
-			{
-				/*
-				  The expr has to be computed in computing node, the columns
-				  involved has already been extracted, request their field
-				  values instead.
-				*/
-				resetStringInfo(&colexpr_str);
-				for (int i = 0; i < vpc.nvars; i++)
-				{
-					if (cur_resno > typeInfo->natts)
-						typeInfo = expandTupleDesc2(typeInfo);
-					Var *origvar = vpc.target_cols[i];
-					validate_column_reference(origvar, rel);
-					if (origvar->varattno == 0)
-					{
-						cur_resno = append_cols_for_whole_var(rel, &typeInfo, cur_resno);
-						continue;
-					}
-					cur_resno = add_unique_col_var(rel, typeInfo, cur_resno, tle, origvar, false);
-				}
-				continue;
-			}
-		}
-	}
-
-	Assert(cur_resno > 1);
-	if (cur_resno > 1) typeInfo->natts = cur_resno - 1;
-
-	mts->ps.scandesc = typeInfo;
-	/*
-	  Unlike RemoteScan, we always do one shot(one directional) command
-	  execution to storage shard, we don't filter target rows returned from
-	  storage shards for update/delete.
-	*/
-	return typeInfo;
-}
-
-static TupleTableSlot *
-ReturningNext(ModifyTableState *node, ResultRelInfo *resultRelInfo,
-	RemoteModifyState*rms)
+static TupleTableSlot * 
+ReturningNext(ModifyTableState *node, ResultRelInfo *resultRelInfo, MYSQL_ROW row, size_t *lengths)
 {
 	TupleTableSlot *slot = node->remoteReturningTupleSlot;
 
-	MYSQL_ROW mysql_row = get_stmt_next_row(rms->handle);
-	size_t *lengths = (mysql_row ? get_stmt_row_lengths(rms->handle) : NULL);
-	// dzw: TODO: do projection! if some targets have to be computed in
-	// compnode using fields from storage shard, we must do the computation here
-	if (mysql_row)
-	{
-		ExecStoreRemoteTuple(node->typeInputInfo, mysql_row,	/* tuple to store */
-					         lengths, slot);	/* slot to store in */
+	ExecStoreRemoteTuple(node->typeInputInfo,
+			     row,	     /* tuple to store */
+			     lengths,
+			     slot); /* slot to store in */
 
-		if (resultRelInfo->ri_projectReturning)
-			slot = ExecProcessReturning(resultRelInfo, slot, slot);
-	}
-	else
-	{
-		release_stmt_handle(rms->handle);
-		rms->asi = NULL; // no more stmts to send, flag the rms done.
-		return NULL;
-	}
+	if (resultRelInfo->ri_projectReturning)
+		slot = ExecProcessReturning(resultRelInfo, slot, slot);
+
 	return slot;
 }
 
@@ -3509,4 +3431,196 @@ ExecInitRemoteReturningTupleSlotTL(EState *estate, ModifyTableState *mts,
 	if (!tupledesc) return;
 	mts->remoteReturningTupleSlot = ExecAllocTableSlot(&estate->es_tupleTable,
 													 tupledesc);
+}
+
+ static void
+ ConvertReturningForPushdown(EState *estate, ModifyTableState *mtstate,
+                             List *returning,
+                             List **pscanlist,
+                             List **preturning,
+                             TupleDesc *pscantuple)
+ {
+     ListCell *lc;
+     List *list = NIL;
+     ScanTupleGenContext context;
+     InitScanTupleGenContext(&context, (PlanState *)mtstate, true);
+
+     foreach (lc, returning)
+     {
+         TargetEntry *tle = lfirst_node(TargetEntry, lc);
+         if (tle->resjunk || !tle->expr)
+             continue;
+
+         alloc_scanvar_for_expr(&context, tle->expr);
+
+         tle = (TargetEntry *)replace_expr_with_scanvar_mutator((Node *)tle, &context);
+         list = lappend(list, tle);
+     }
+     context.tupledesc->natts = list_length(context.vars);
+
+     *preturning = list;
+     *pscanlist = context.exprs;
+     *pscantuple = context.tupledesc;
+ }
+
+static TupleTableSlot*
+ExecPushdownUpDel(ModifyTableState *node)
+{
+	AsyncStmtInfo *asi;
+	StmtSafeHandle handle;
+	MYSQL_ROW row;
+	RemoteUD *remote_updel = node->remote_updel;
+
+	int64_t dummy = 0;
+	int64_t *pcount = (remote_updel->limit > 0 ? &remote_updel->limit : &dummy);
+
+	StringInfoData sql;
+	RemotePrintExprContext rpec;
+	initStringInfo2(&sql, 256, TopTransactionContext);
+	InitRemotePrintExprContext(&rpec, node->ps.state->es_plannedstmt->rtable);
+	rpec.rpec_param_exec_vals =
+	    (node->ps.ps_ExprContext ? node->ps.ps_ExprContext->ecxt_param_exec_vals : NULL);
+	rpec.rpec_param_list_info = node->ps.state->es_param_list_info;
+
+	/* TODO: for now we only produce one sequence number even if multi rows
+	 * will be updated. for example:
+	 *  update t set t.seq = DEFAULT; // t.seq is generated by default as identity
+	 *
+	 * We should prevent such query to be pushed down in the future, for sequence
+	 * can not be safely consumed though sprint_expr()
+	 */
+	rpec.consume_sequence = true;
+next_stmt:
+	/* Send query */
+	if (!node->nactive_stmts)
+	{
+		if (RemoteUDEOF(remote_updel))
+		{
+			/* inheritance table may be here  */
+			if (remote_updel->planIndex < node->mt_nplans - 1)
+			{
+				node->remote_updel = ++remote_updel;
+				goto next_stmt;
+			}
+		}
+		else
+		{
+			Oid shardid;
+			while (RemoteUDNext(remote_updel, &rpec, &sql, &shardid))
+			{
+				asi = GetAsyncStmtInfo(shardid);
+
+				handle = send_stmt_async(asi,
+							 sql.data,
+							 sql.len,
+							 node->operation,
+							 true,
+							 node->operation == CMD_UPDATE ? SQLCOM_UPDATE : SQLCOM_DELETE,
+							 false);
+
+				if (!node->active_stmts)
+				{
+					node->active_stmts = (StmtSafeHandle *)palloc0(sizeof(handle) * 4);
+					node->nactive_stmts = 0;
+					node->max_actieve_stmts = 4;
+				}
+				else if (node->nactive_stmts == node->max_actieve_stmts)
+				{
+					node->max_actieve_stmts *= 2;
+					node->active_stmts = (StmtSafeHandle *)
+					    repalloc(node->active_stmts, sizeof(handle) * node->max_actieve_stmts);
+				}
+				node->active_stmts[node->nactive_stmts++] = handle;
+				donateStringInfo(&sql);
+
+				/* Global limit, execute one by one */
+				if (RemoteUDRelations(remote_updel) > 1 && remote_updel->limit > 0)
+					break;
+			}
+		}
+	}
+
+	/* Process result */
+	if (node->nactive_stmts == 0)
+	{
+		/* do nothing */
+	}
+	else if (!node->remoteReturningTupleSlot)
+	{
+		handle = node->active_stmts[0];
+		flush_all_stmts();
+
+		/* Get the matched row */
+		if (remote_updel->limit > 0)
+		{
+			const char query[] = "select found_rows()";
+			/*
+			 * TODO: the FOUND_ROWS() will be removed in a future release,
+			 * fix it in the future
+			 */
+			handle = send_stmt_async(RAW_HANDLE(handle)->asi,
+						 (char *)query,
+						 sizeof(query) - 1,
+						 CMD_SELECT,
+						 false,
+						 SQLCOM_SELECT,
+						 false);
+
+			if ((row = get_stmt_next_row(handle)))
+			{
+				*pcount -= strtol(row[0], NULL, 10);
+			}
+
+			release_stmt_handle(handle);
+		}
+	}
+	else
+	{
+		while (node->nactive_stmts)
+		{
+			handle = wait_for_readable_stmt(node->active_stmts, node->nactive_stmts);
+			if ((row = try_get_stmt_next_row(handle)))
+			{
+				*pcount -= 1;
+				return ReturningNext(node,
+						     node->resultRelInfo,
+						     row,
+						     get_stmt_row_lengths(handle));
+			}
+			if (is_stmt_eof(handle))
+			{
+				release_stmt_handle(handle);
+				node->nactive_stmts--;
+				if (node->nactive_stmts > 0)
+				{
+					for (int i = 0; i < node->nactive_stmts; ++i)
+					{
+						if (RAW_HANDLE(node->active_stmts[i]) == RAW_HANDLE(handle))
+						{
+							node->active_stmts[i] = node->active_stmts[node->nactive_stmts];
+							break;
+						}
+					}
+				}
+			}
+		}
+		ExecClearTuple(node->remoteReturningTupleSlot);
+	}
+
+	/* release stmt handles */
+	for (int i = 0; i < node->nactive_stmts; ++i)
+	{
+		release_stmt_handle(node->active_stmts[i]);
+	}
+	node->nactive_stmts = 0;
+
+	/* check if another statment need to send ? */
+	if (!RemoteUDEOF(remote_updel) ||
+	    (remote_updel->planIndex < node->mt_nplans - 1))
+	{
+		goto next_stmt;
+	}
+
+	node->mt_done = true;
+	return NULL;
 }

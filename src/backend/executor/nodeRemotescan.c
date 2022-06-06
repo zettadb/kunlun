@@ -71,189 +71,26 @@ RemoteNext(RemoteScanState *node)
 	 */
 	slot = node->ss.ss_ScanTupleSlot;
 
-	/* Prepare tuplestore if rescan will be called */
-	if (node->will_rewind && !node->tuplestorestate)
-	{
-		node->tuplestorestate = tuplestore_begin_heap(true, false, work_mem);
-		tuplestore_set_eflags(node->tuplestorestate, EXEC_FLAG_REWIND | EXEC_FLAG_MARK);
-		/*
-		 * Allocate a second read pointer to serve as the mark.
-		 * MaterializeOtherRemoteScan() need this to set the right position
-		 */
-		int         ptrno PG_USED_FOR_ASSERTS_ONLY;
-		ptrno = tuplestore_alloc_read_pointer(node->tuplestorestate, EXEC_FLAG_REWIND | EXEC_FLAG_MARK);
-		Assert(ptrno == 1);
-	}
-
-	/*
-	 * fetch from the tuplestore, this happens when:
-	 * (1) The used connection is taken away be other remote scan, and the tuples
-	 *  that has not been read from the connection was materialized into the tuplestore
-	 *  by other remote scan.
-	 * (2) Current remote scan will be re-scanned by upper node, so materialize the
-	 *  tuple into tuplestore to reduce network access
-	 */
-	if (node->tuplestorestate &&
-			!tuplestore_ateof(node->tuplestorestate))
-	{
-		if (tuplestore_gettupleslot(node->tuplestorestate, true, false, slot))
-			return slot;
-	}
-
-	/*
-	 * The connection is already occupied by other remote scans, all tuples must be
-	 * stored in the tuplestore, and we have reached the EOF
-	 */
-	if (node->asi->rss_owner != node)
-	{
-		ExecClearTuple(slot);
-		return slot;
-	}
-
-	if (!node->asi->mysql_res && node->asi->result_pending)
-	{
-		/*
-		   This happens after a ReScan which really regenerated&resent queries
-		   because of param changes.
-		   */
-		send_multi_stmts_to_multi();
-	}
-
 	/* Reach the EOF of tuples from connection */
-	if (!node->asi->mysql_res)
+	if (is_stmt_eof(node->handle))
 	{
 		ExecClearTuple(slot);
 		return slot;
 	}
 
-	MYSQL_ROW mysql_row = mysql_fetch_row(node->asi->mysql_res);
-	unsigned long *lengths = ((mysql_row && node->asi->mysql_res) ?
-			mysql_fetch_lengths(node->asi->mysql_res) : NULL);
-
+	MYSQL_ROW mysql_row = get_stmt_next_row(node->handle);
 	if (mysql_row)
 	{
-		ExecStoreRemoteTuple(node->typeInputInfo, mysql_row,	/* tuple to store */
-				lengths, slot);	/* slot to store in */
-		/*
-		 * Append a copy of the returned tuple to tuplestore.  NOTE: because
-		 * the tuplestore is certainly in EOF state, its read position will
-		 * move forward over the added tuple.  This is what we want.
-		 */
-		if (node->will_rewind)
-		{
-			Assert (node->tuplestorestate);
-			tuplestore_puttupleslot(node->tuplestorestate, slot);
-		}
+		size_t *lengths = get_stmt_row_lengths(node->handle);
+		ExecStoreRemoteTuple(node->typeInputInfo, mysql_row, /* tuple to store */
+				     lengths, slot);		     /* slot to store in */
 	}
 	else
 	{
-		check_mysql_fetch_row_status(node->asi);
+		Assert(is_stmt_eof(node->handle));
 		ExecClearTuple(slot);
-
-		/*
-		 * Release mysql result from channel if not gonna rewind, in order to
-		 * send next stmt to remote storage node. If scanning a partitioned
-		 * table, this result must be freed here otherwise the same channel
-		 * can't work on next stmt to fetch data from next table of the same
-		 * shard.
-		 * */
-		free_mysql_result(node->asi);
-		node->asi->rss_owner = NULL;
 	}
 	return slot;
-}
-
-static
-void DiscardPreviouseScan(RemoteScanState *node)
-{
-	Assert(node->asi->rss_owner == node);
-	if (!node->asi->mysql_res && node->asi->result_pending)
-		send_multi_stmts_to_multi();
-
-	if (node->asi->mysql_res)
-		free_mysql_result(node->asi);
-	if (node->tuplestorestate)
-		tuplestore_end(node->tuplestorestate);
-	node->asi->rss_owner = NULL;
-}
-
-void MaterializeOtherRemoteScan(RemoteScanState *node)
-{
-	Assert(node->asi->rss_owner == node);
-	MemoryContext saved = MemoryContextSwitchTo(node->ss.ps.state->es_query_cxt);
-	bool reset_position = false;
-	if (!node->tuplestorestate)
-	{
-		node->tuplestorestate = tuplestore_begin_heap(true, false, work_mem);
-		tuplestore_set_eflags(node->tuplestorestate, EXEC_FLAG_REWIND | EXEC_FLAG_MARK);
-		/* Allocate a second read pointer to serve as the mark in case need it */
-		int         ptrno PG_USED_FOR_ASSERTS_ONLY;
-		ptrno = tuplestore_alloc_read_pointer(node->tuplestorestate, EXEC_FLAG_REWIND | EXEC_FLAG_MARK);
-		Assert(ptrno == 1);
-	}
-	else
-	{
-		/*
-		 * Remember current position:
-		 *  copy the active read pointer to the mark.
-		 */
-		reset_position = true;
-		tuplestore_copy_read_pointer(node->tuplestorestate, 0, 1);
-	}
-
-	// TupleTableSlot *slot = node->ss.ss_ScanTupleSlot;
-
-	/* Make new slot for materialize, maybe save it for reuse */
-	TupleTableSlot *slot =  ExecAllocTableSlot(&node->ss.ps.state->es_tupleTable,
-			node->ss.ps.scandesc);
-
-	if (!node->asi->mysql_res && node->asi->result_pending)
-	{
-		send_multi_stmts_to_multi();
-	}
-	Assert(node->asi->mysql_res);
-
-	MYSQL_RES *res = node->asi->mysql_res;
-	MYSQL_ROW mysql_row;
-	unsigned long *lengths;
-	while (res)
-	{
-		mysql_row = mysql_fetch_row(res);
-		if (mysql_row)
-		{
-			lengths = mysql_fetch_lengths(res) ;
-			/* Extract tuple from mysql result */
-			ExecStoreRemoteTuple(node->typeInputInfo, mysql_row, lengths, slot);
-
-			/* Store tuple into tuplestore */
-			tuplestore_puttupleslot(node->tuplestorestate, slot);
-		}
-		else
-		{
-			check_mysql_fetch_row_status(node->asi);
-			free_mysql_result(node->asi);
-			ExecClearTuple(slot);
-			break;
-		}
-	}
-
-	/* Give up the occupation of the connection. */
-	node->asi->rss_owner = NULL;
-
-	/* Set to the right position in the tuplestore */
-	if (reset_position)
-	{
-		/* copy the mark to the active read pointer.*/
-		tuplestore_copy_read_pointer(node->tuplestorestate, 1, 0);
-	}
-	else
-	{
-		/* set read pointer to the begining */
-		tuplestore_rescan(node->tuplestorestate);
-	}
-
-	/* restore saved memory context */
-	MemoryContextSwitchTo(saved);
 }
 
 /*
@@ -291,46 +128,15 @@ ExecRemoteScan(PlanState *pstate)
 				 errmsg("Kunlun-db: Internal error: Communication channel has been released.")));
 	}
 
-	if (!node->refill_tuplestore && node->tuplestorestate)
-	{
-		/* We have materielized the tuple into tuplestore. */
-	}
-	else
+
+	if (!stmt_handle_valid(node->handle))
 	{
 		/*
-		 * If another RemoteScan has occupied the connection,
-		 * we need to materialize its tuple for him before we use this connection.
-		 */
-		if (node->asi->rss_owner && node->asi->rss_owner != pstate)
-		{
-			MaterializeOtherRemoteScan(node->asi->rss_owner);
-			Assert(node->asi->rss_owner == NULL);
-		}
-
-		node->refill_tuplestore = false;
-
-		if (!node->asi->mysql_res && !node->asi->result_pending)
-		{
-			/*
-			   1st row is to be returned from this remote table.
-			   */
-			size_t stmtlen = lengthStringInfo(&node->remote_sql);
-			append_async_stmt(node->asi, pstrdup(node->remote_sql.data),
-					stmtlen, CMD_SELECT, true, SQLCOM_SELECT);
-			int rc = work_on_next_stmt(node->asi);
-			if (rc == 1)
-			{
-				send_stmt_to_multi_start(node->asi, 1);
-				/* Mark that we we have occupied that connection */
-				node->asi->rss_owner = node;
-			}
-			else if (rc == 0)
-				return NULL; // no more results
-			else if (rc < 0)
-				ereport(ERROR,
-						(errcode(ERRCODE_INTERNAL_ERROR),
-						 errmsg("Kunlun-db: Internal error: mysql result has not been consumed yet.")));
-		}
+		   1st row is to be returned from this remote table.
+		   */
+		size_t stmtlen = lengthStringInfo(&node->remote_sql);
+		node->handle = send_stmt_async(node->asi, MemoryContextStrdup(TopTransactionContext, node->remote_sql.data),
+					       stmtlen, CMD_SELECT, true, SQLCOM_SELECT, node->will_rewind);
 	}
 
 	return ExecScan(&node->ss,
@@ -666,7 +472,6 @@ ExecScanTypeFromTL(EState *estate, RemoteScanState *rss,
 	List *targetList = plan->targetlist;
 	ListCell   *l;
 	int			len;
-	RemoteScan *rs = (RemoteScan *)plan;
 
 	if (skipjunk)
 		len = ExecCleanTargetListLength(targetList);
@@ -1015,6 +820,7 @@ ExecInitRemoteScan(RemoteScan *node, EState *estate, int eflags)
 	scanstate->long_exprs = NULL;
 	scanstate->long_exprs_bmp = NULL;
 	scanstate->check_exists = node->check_exists;
+	scanstate->handle = INVALID_STMT_HANLE;
 
 	scanstate->param_driven = decide_remote_scan_param_driven(node);
 	/*
@@ -1086,9 +892,6 @@ end:
 	else
 		scanstate->will_rewind = false;
 
-	scanstate->refill_tuplestore = false;
-	scanstate->tuplestorestate = NULL;
-
 	return scanstate;
 }
 
@@ -1116,7 +919,13 @@ ExecEndRemoteScan(RemoteScanState *node)
 	if (node->fetches_remote_data == false)
 		goto end;
 
-	release_shard_conn(node);
+	 if (stmt_handle_valid(node->handle))
+	 {
+		 /* Cancel the statement, no longer need it. */
+		 cancel_stmt_async(node->handle);
+		 release_stmt_handle(node->handle);
+		 node->handle = INVALID_STMT_HANLE;
+	 }
 
 	int natts = node->ss.ss_ScanTupleSlot->tts_tupleDescriptor->natts;
 
@@ -1137,37 +946,10 @@ ExecEndRemoteScan(RemoteScanState *node)
 	ExecClearTuple(node->ss.ps.ps_ResultTupleSlot);
 	ExecClearTuple(node->ss.ss_ScanTupleSlot);
 end:
-
-	if (node->tuplestorestate)
-	{
-		tuplestore_end(node->tuplestorestate);
-		node->tuplestorestate = NULL;
-	}
-
 	/*
 	 * close the heap relation.
 	 */
 	ExecCloseScanRelation(relation);
-}
-
-void release_shard_conn(RemoteScanState *node)
-{
-	if (node->fetches_remote_data == false)
-	{
-		Assert(!node->asi);
-		return;
-	}
-
-	if (node->asi->rss_owner == node || node->asi->rss_owner == NULL)
-	{
-		if (!node->asi->mysql_res && node->asi->result_pending)
-			send_multi_stmts_to_multi();
-		free_mysql_result(node->asi);
-		cleanup_asi_work_queue(node->asi);
-		node->asi->rss_owner = NULL;
-		// must hold asi, it can be used in a rescan.
-		//node->asi = NULL;
-	}
 }
 
 /* ----------------------------------------------------------------
@@ -1214,53 +996,24 @@ ExecReScanRemoteScan(RemoteScanState *node)
 	 * (2) some tuples are missing
 	 * (3) tuplestore not initialized
 	 */
-	bool regenerate = !reuse_previous || !node->will_rewind || !node->tuplestorestate;
-
-	/*
-	 * Still occupy the connection.
-	 * if the tuple cannot be reused, or some tuples are missing, we need to regenerate it
-	 */
-	if (node->asi->rss_owner == node)
-	{
-		/* Do not miss anything */
-		if (reuse_previous &&
-				(!node->asi->mysql_res && node->asi->result_pending))
-		{
-			regenerate = false;
-		}
-
-		if (regenerate)
-		{
-			/* Discard the unread tuples which still in the connection if we need regenerate it. */
-			DiscardPreviouseScan(node);
-		}
-		else
-		{
-			/* there is no need to materialize all the unread data now, we do this lazily.
-			 * see RemoteScanNext for details
-			 */
-		}
-	}
+	bool regenerate = !reuse_previous || !stmt_handle_valid(node->handle) || !is_stmt_rewindable(node->handle);
 
 	/* Check if the intial value of will_rewind is correct */
 	if (!node->will_rewind)
-	{
 		node->will_rewind = true;
-		elog(WARNING, "Rescan is called unexpectedly, so reset node->will_rewind to TRUE");
-	}
 
 	if (!regenerate)
 	{
-		/* Use the tuplestore to rescan */
-		if (node->tuplestorestate)
-			tuplestore_rescan(node->tuplestorestate);
+		Assert(stmt_handle_valid(node->handle));
+		stmt_rewind(node->handle);
 	}
 	else
 	{
-		if (node->tuplestorestate)
+		if (stmt_handle_valid(node->handle))
 		{
-			node->refill_tuplestore = true;
-			tuplestore_end(node->tuplestorestate);
+			cancel_stmt_async(node->handle);
+			release_stmt_handle(node->handle);
+			node->handle = INVALID_STMT_HANLE;
 		}
 
 		initStringInfo2(&node->remote_sql, 512, node->ss.ps.state->es_query_cxt);

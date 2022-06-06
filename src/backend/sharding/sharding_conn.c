@@ -16,9 +16,13 @@
  */
 
 #include "postgres.h"
+#include "pgstat.h"
+
 #include "sharding/sharding_conn.h"
 #include "sharding/sharding.h"
 #include "sharding/mysql_vars.h"
+#include "sharding/mat_cache.h"
+#include "access/parallel.h"
 #include "access/remote_meta.h"
 #include "access/remotetup.h"
 #include "access/remote_xact.h"
@@ -27,7 +31,7 @@
 #include "utils/memutils.h"
 #include "utils/hsearch.h"
 #include "utils/lsyscache.h"
-#include "nodes/nodes.h" 
+#include "nodes/nodes.h"
 #include "sharding/mysql/mysql.h"
 #include "sharding/mysql/errmsg.h"
 #include "sharding/mysql/mysqld_error.h"
@@ -35,14 +39,30 @@
 #include "miscadmin.h"
 #include "utils/timeout.h"
 #include "storage/ipc.h"
-#include <unistd.h>
-#include <poll.h>
-#include <limits.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
+#include "tcop/tcopprot.h"
+
 #include <arpa/inet.h>
+#include <limits.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <poll.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 extern Oid comp_node_id;
+
+#define IS_MYSQL_CLIENT_ERROR(err) \
+	(((err) >= CR_MIN_ERROR && (err) <= CR_MAX_ERROR) || ((err) >= CER_MIN_ERROR && (err) <= CER_MAX_ERROR))
+
+#define SAFE_HANDLE(h) ((StmtSafeHandle){h, handle_epoch})
+
+#define HANDLE_EXPIRED(h) (h.epoch != handle_epoch)
+
+#define CHECK_HANDLE_EPOCH(h) \
+	do {	\
+		if (h.epoch != handle_epoch) \
+			elog(ERROR, "A fatal error may have occurred, the handle used has expired."); \
+	} while (false);
 
 // GUC vars.
 // seconds waiting for connect done.
@@ -50,34 +70,45 @@ int mysql_connect_timeout = 10;
 /*
  * Seconds waiting for read/write done, real wait time is 3/2 times this value
  * according to doc because of read/write retries.
+ * CR_SERVER_LOST ('Lost connection...') is returned if connect/read/write times out;
+ * if the other side closed connection already, read/write returns
+ * CR_SERVER_GONE_ERROR('Server gone away...').
  */
 int mysql_read_timeout = 10;
 int mysql_write_timeout = 10;
 int mysql_max_packet_size = 16384;
 bool mysql_transmit_compress = false;
+static int32_t handle_epoch = 0;
 
-static void send_stmt_to_multi(AsyncStmtInfo *asis, size_t shard_cnt);
-static void send_stmt_to_multi_wait(AsyncStmtInfo *asis, size_t shard_cnt);
-static void ResetASIStmt(AsyncStmtInfo *asi, bool ended_clean);
 static void ResetASI(AsyncStmtInfo *asi);
 static bool async_connect(MYSQL *mysql, const char *host, uint16_t port, const char *user, const char *password);
-static ShardConnection*GetConnShard(Oid shardid);
-static int wait_for_mysql(MYSQL *mysql, int status);
+static ShardConnection *GetConnShard(Oid shardid);
 static ShardConnection *AllocShardConnSlot(Oid shardid, int inspos);
 static int AllocShardConnNodeSlot(ShardConnection *sconn, Oid nodeid, int *newconn, bool req_chk_onfail);
 static void handle_backend_disconnect(AsyncStmtInfo *asi);
-static int wait_for_mysql_multi(AsyncStmtInfo *asi, size_t len, struct pollfd *pfds, int timeout_ms);
-static void handle_mysql_result(AsyncStmtInfo *pasi);
-static void handle_mysql_error(int ret, AsyncStmtInfo *asi);
 static MYSQL *GetConnShardNode(Oid shardid, Oid nodeid, int *newconn, bool req_chk_onfail);
+static MYSQL *GetConnShardMaster(Oid shardid, int *newconn);
 static bool ConnHasFlag(AsyncStmtInfo *asi, int flagbit);
 static bool MarkConnFlag(AsyncStmtInfo *asi, int flagbit, bool b);
 
-static void
-check_mysql_node_status(AsyncStmtInfo *asi, bool want_master);
-static void
-make_check_mysql_node_status_stmt(AsyncStmtInfo *asi, bool want_master);
-static bool DoingDDL(void);
+static void check_mysql_node_status(AsyncStmtInfo *asi, bool want_master);
+
+static void work_on_stmt(AsyncStmtInfo *asi, StmtHandle *handle);
+static bool send_stmt_impl(AsyncStmtInfo *asi, StmtHandle *handle);
+static bool recv_stmt_result_impl(AsyncStmtInfo *asi, StmtHandle *handle);
+static bool fetch_stmt_remote_next(AsyncStmtInfo *asi, StmtHandle *handle);
+static bool handle_stmt_remote_result(AsyncStmtInfo *asi, StmtHandle *handle);
+static StmtHandle* poll_remote_events_any(StmtHandle *handles[], int count, int timeout_ms);
+static bool process_preceding_stmts(AsyncStmtInfo *asi, StmtHandle *cur);
+static void flush_invalid_stmts(AsyncStmtInfo *asi);
+static void flush_all_stmts_impl(AsyncStmtInfo **asi, int count, bool cancel);
+static void cancel_all_stmts_impl(AsyncStmtInfo *asi[], int cnt);
+
+static void materialize_current_tuple(AsyncStmtInfo *asi, StmtHandle *handle);
+static MYSQL_ROW next_row_from_matcache(StmtHandle *handle);
+
+static void handle_stmt_error(AsyncStmtInfo *asi, StmtHandle *handle, int eno);
+
 static void CurrentStatementsShards(StringInfo str);
 static void disconnect_request_kill_shard_conns(int i, Datum d);
 
@@ -103,16 +134,18 @@ inline static bool MarkConnReset(AsyncStmtInfo *asi, bool b)
 inline static bool MarkConnValid(AsyncStmtInfo *asi, bool valid)
 {
 	if (!valid)
-	{
 		asi->conn = NULL;
-		asi->result_pending = false;
-	}
 	return MarkConnFlag(asi, CONN_VALID, valid);
 }
 
 /*
  * The mapping of postgreSQL database name and schema name to mysql database name:
- * use dbname-schemaname as mysql db name. the max length is 192 bytes in mysql side.
+ * In pg, these facts are true, besides those in doc:
+ * 1. A connection can't switch database, it sticks to one database.
+ * 2. A schema is processed as a namespace, it's logical and virtual.
+ * 3. each object handle(Relation, Proc, etc) has a namespace field.
+ *
+ * so use dbname-schemaname as mysql db name. the max length is 192 bytes in mysql side.
  * all names sent to mysql must be qualified (dbname.objname)
  * */
 
@@ -126,23 +159,25 @@ inline static bool MarkConnValid(AsyncStmtInfo *asi, bool valid)
  * */
 const char *make_qualified_name(Oid nspid, const char *objname, int *plen)
 {
-	StringInfoData qname;
-
+	static StringInfoData qname;
 	initStringInfo(&qname);
 
 	get_database_name2(MyDatabaseId, &qname);
 	appendStringInfoString(&qname, "_$$_");
 
 	get_namespace_name2(nspid, &qname);
-	if (objname)
-		appendStringInfo(&qname, ".%s", objname);
+	if (!objname)
+	{
+		goto end;
+	}
 
+	appendStringInfo(&qname, ".%s", objname);
+end:
 	if (plen)
 		*plen = lengthStringInfo(&qname);
 
 	return qname.data;
 }
-
 
 #define SHARD_SECTION_NCONNS 16
 
@@ -170,22 +205,88 @@ typedef struct ShardConnSection
 	struct ShardConnSection *next;
 } ShardConnSection;
 
-
 typedef struct ShardingSession
 {
+	/*
+	 * Mysql session variables set by user/client, cached during session lifetime.
+	 * Whenever a new shard node connection is made, computing node must set all
+	 * these session variables to mysql.
+	 *
+	 * Every variable can exist once in this list.
+	 * */
+	// Var_section *set_vars;// alloc in TopMemcxt. this is defined in mysql_vars.c as a global object.
 	ShardConnSection all_shard_conns; // 1st section
-	ShardConnSection *last_section;   // ptr to last section.
+	ShardConnSection *last_section;	  // ptr to last section.
 
 	/*
 	 * remote stmt send&result recv facility.
 	 * */
 
+	/*
+	 * dzw: async send 'ports' for execution of remote statements.
+	 * each shard to be written to has such a slot, each relation to be
+	 * written/read is wired to its owner shard's slot.
+	 * Whenver a remote stmt is formed, it's appended to the target
+	 * AsyncStmtInfo's stmt queue. To send stmts, we first check whether there
+	 * is pending result to recv,
+	 * if so wait&recv it via send_stmt_to_multi_wait, then send its stmt via
+	 * send_stmt_to_multi_start.
+	 *
+	 * At end of an stmt(e.g. insert), each end_remote_insert_stmt() call appends
+	 * the relation's stmts to its ri_pasi port's stmt queue. then finally in
+	 * ExecEndModifyTable(), send each shard's accumulated stmts this way:
+	 * do above check&wait&recv&send for every slot's every stmt, one iteration
+	 * after another. each iteration sends one stmt of every port.
+	 *
+	 * TODO: do vector write in mysql_real_query/mysql_real_query_start/_cont
+	 * in order to send multiple stmts to one shard using one mysql_real_query_start call.
+	 * */
 	AsyncStmtInfo *asis;
 	int num_asis_used; // NO. of slots used in current stmt in 'asis'.
-	int num_asis; // total NO. of slots in 'asis'.
+	int num_asis;	   // total NO. of slots in 'asis'.
 } ShardingSession;
 
 static ShardingSession cur_session;
+
+/**
+ * @brief Cleanup stmt handle allocated in subtransaction after transaction committed/rollback
+ */
+static void
+remote_conn_subxact_cb(SubXactEvent event, SubTransactionId mySubid,
+		       SubTransactionId parentSubid, void *arg)
+{
+	if (event == SUBXACT_EVENT_ABORT_SUB || event == SUBXACT_EVENT_COMMIT_SUB)
+	{
+		const size_t count = cur_session.num_asis_used;
+		AsyncStmtInfo *pasi = cur_session.asis;
+		ListCell *lc;
+		StmtHandle *handle;
+		// scan all connections currently in use
+		for (int i = 0; i < count; ++i, ++pasi)
+		{
+			do
+			{
+				handle = NULL;
+				/* Find out stmt handle allocated in current subtransaction */
+				foreach (lc, pasi->stmt_inuse)
+				{
+					handle = (StmtHandle *)lfirst(lc);
+					/* For currently running stmt, make sure its refcount bigger than zero */
+					if (handle->subxactid == mySubid &&
+					    (pasi->curr_stmt != handle || handle->refcount > 1))
+						break;
+					handle = NULL;
+				}
+				if (!handle)
+					break;
+				/* Cancel statement currently running */
+				if (pasi->curr_stmt == handle)
+					cancel_stmt_async(SAFE_HANDLE(handle));
+				release_stmt_handle(SAFE_HANDLE(handle));
+			} while (true);
+		}
+	}
+}
 
 void InitShardingSession()
 {
@@ -195,12 +296,14 @@ void InitShardingSession()
 	  Make sure conns are always closed.
 	*/
 	before_shmem_exit(disconnect_request_kill_shard_conns, 0);
+				
+        RegisterSubXactCallback(remote_conn_subxact_cb, NULL);
 }
 
 static void disconnect_request_kill_shard_conns(int i, Datum arg)
 {
 	disconnect_storage_shards();
-	ShardConnKillReq *req = makeShardConnKillReq(1/*kill conn*/);
+	ShardConnKillReq *req = makeShardConnKillReq(1 /*kill conn*/);
 	if (req)
 	{
 		/*
@@ -220,6 +323,22 @@ AsyncStmtInfo *GetAsyncStmtInfo(Oid shardid)
 	return GetAsyncStmtInfoNode(shardid, InvalidOid, true);
 }
 
+/**
+ * @brief Check the connection is still up
+ * 
+ */
+static
+bool check_conn_alive(MYSQL *conn)
+{
+	struct tcp_info info;
+	int len = sizeof(info);
+	int socket = mysql_get_socket(conn);
+	if (getsockopt(socket, IPPROTO_TCP, TCP_INFO, &info, (socklen_t *)&len) == 0)
+	{
+		return (info.tcpi_state == TCP_ESTABLISHED);
+	}
+	return true;
+}
 /*
   Get communication port to (shardid, shardNodeId) storage node.
   If shardNodeId is InvalidOid, it's current master node.
@@ -234,8 +353,8 @@ AsyncStmtInfo *GetAsyncStmtInfoNode(Oid shardid, Oid shardNodeId, bool req_chk_o
 
 	bool want_master = false;
 	int newconn = 0;
-	AsyncStmtInfo *asi = NULL;
 	Storage_HA_Mode ha_mode = storage_ha_mode();
+	AsyncStmtInfo *asi;
 
 	if (shardNodeId == InvalidOid)
 	{
@@ -245,18 +364,20 @@ AsyncStmtInfo *GetAsyncStmtInfoNode(Oid shardid, Oid shardNodeId, bool req_chk_o
 		  shard's master node. Otherwise caller simply want to connect to
 		  the node, so don't check it's a master.
 		 */
-		if (ha_mode != HA_NO_REP) want_master = true;
+		if (ha_mode != HA_NO_REP)
+			want_master = true;
 	}
 
 	for (int i = 0; i < cur_session.num_asis_used; i++)
 	{
-		asi = cur_session.asis + i;
-		if (asi->shard_id == shardid && asi->node_id == shardNodeId)
+		AsyncStmtInfo *pasi = cur_session.asis + i;
+		if (pasi->shard_id == shardid && pasi->node_id == shardNodeId)
 		{
-			if (asi->conn != NULL)
-				return asi;
-			else
-				goto make_conn;
+			if (pasi->conn != NULL)
+				return pasi;
+			
+			asi = pasi;
+			goto make_conn;
 		}
 	}
 
@@ -268,13 +389,19 @@ AsyncStmtInfo *GetAsyncStmtInfoNode(Oid shardid, Oid shardNodeId, bool req_chk_o
 	}
 
 	asi = cur_session.asis + cur_session.num_asis_used++;
-	Assert(asi->conn == NULL && asi->shard_id == InvalidOid && asi->node_id == InvalidOid);
+	// Assert(asi->conn == NULL && asi->shard_id == InvalidOid && asi->node_id == InvalidOid);
 make_conn:
 	asi->conn = GetConnShardNode(shardid, shardNodeId, &newconn, req_chk_onfail);
 	asi->shard_id = shardid;
 	asi->node_id = shardNodeId;
-	asi->need_abort = true;
-	asi->rss_owner = NULL;
+
+	/* Check if the connection is still established */
+	if (!newconn && !check_conn_alive(asi->conn))
+	{
+		mysql_close(asi->conn);
+		MarkConnValid(asi, false);
+		goto make_conn;
+	}
 
 	/*
 	 * Set session status to the new connection, including all cached mysql var
@@ -287,49 +414,41 @@ make_conn:
 
 		char *setvar_stmt = produce_set_var_stmts(&setvar_stmtlen);
 		if (setvar_stmt && setvar_stmtlen > 0)
-			append_async_stmt(asi, setvar_stmt, setvar_stmtlen, CMD_UTILITY,
-							  true, SQLCOM_SET_OPTION);
+		{
+			send_stmt_async_nowarn(asi, setvar_stmt, setvar_stmtlen, CMD_UTILITY, true, SQLCOM_SET_OPTION);
+		}
 
 		char cmdbuf[256];
 		int cmdlen = 0;
 		if (ha_mode != HA_NO_REP)
 			cmdlen = snprintf(cmdbuf, sizeof(cmdbuf),
-				"SET NAMES 'utf8'; set session autocommit = true; set computing_node_id=%u; set global_conn_id=%u",
-				comp_node_id, getpid());
+					  "SET NAMES 'utf8'; set session autocommit = true; set computing_node_id=%u; set global_conn_id=%u",
+					  comp_node_id, getpid());
 		else
 			cmdlen = snprintf(cmdbuf, sizeof(cmdbuf),
-				"SET NAMES 'utf8'; set session autocommit = true ");
+					  "SET NAMES 'utf8'; set session autocommit = true ");
 		Assert(cmdlen < sizeof(cmdbuf));
 
-		append_async_stmt(asi, cmdbuf, cmdlen, CMD_UTILITY, false, SQLCOM_SET_OPTION);
+		send_stmt_async_nowarn(asi, cmdbuf, cmdlen, CMD_UTILITY, false, SQLCOM_SET_OPTION);
 
 		// must append this last in one packet of sql stmts.
-		if (want_master) make_check_mysql_node_status_stmt(asi, want_master);
-
-		/*
-		 * We have to send the set stmts now because immediately next stmt maybe a DDL
-		 * */
-		send_stmt_to_multi(asi, 1);
-
-		if (want_master) check_mysql_node_status(asi, want_master);
+		if (want_master)
+		{
+			check_mysql_node_status(asi, want_master);
+		}
+		flush_all_stmts_impl(&asi, 1, false);
 
 		/*
 		 * Make the communication port brandnew. this is crucial, without this
 		 * operation, XA START won't be correctly generated and sent at the
 		 * start of a txn branch.
 		 * */
-		ResetASIStmt(asi, true);
-		asi->result_pending = false;
-		asi->executed_stmts = 0;
-		asi->need_abort = true;
-		asi->did_write = asi->did_read = asi->did_ddl = false;
-
+		ResetASI(asi);
 		/*
 		 * Now we've set/sent session status to the mysql connection, we can
 		 * clear the CONN_RESET bit.
 		 * */
 		MarkConnReset(asi, false);
-		// MarkConnValid(asi, true); marked already
 	}
 
 	Assert(IsConnValid(asi) && !IsConnReset(asi));
@@ -338,16 +457,46 @@ make_conn:
 }
 
 /*
+ * Reset asi at end(or start) of a stmt.
+ * */
+static void ResetASI(AsyncStmtInfo *asi)
+{
+	/*
+	 * We don't release memory here, it's been released when the stmt's result
+	 * has been received.
+	 * */
+	cancel_all_stmts_impl(&asi, 1);
+	
+	asi->stmt_queue = NIL;
+	asi->stmt_wrows = 0;
+	asi->nwarnings = 0;
+	asi->executed_stmts = 0;
+	asi->did_write = asi->did_read = asi->did_ddl = false;
+	asi->txn_in_progress = false;
+	// asi->shard_id = InvalidOid;
+	// asi->node_id = InvalidOid;
+	// asi->conn = NULL;
+	asi->txn_wrows = 0;
+	{
+		while(list_length(asi->stmt_inuse))
+		{
+			StmtHandle *handle = (StmtHandle*)linitial(asi->stmt_inuse);
+			release_stmt_handle(SAFE_HANDLE(handle));
+		}
+	}
+}
+/*
  * Called at start of each txn to totally cleanup all channels used by prev txn.
  * */
 void ResetCommunicationHub()
 {
 	for (int i = 0; i < cur_session.num_asis_used; i++)
 	{
-		ResetASI(cur_session.asis+i);
+		ResetASI(cur_session.asis + i);
 	}
 	cur_session.num_asis_used = 0;
-	// cur_session.num_asis/asis must be valid throughout the session.
+	/* increment handle_epoch to invalid handles out of module */
+	++ handle_epoch;
 }
 
 // called at end(or start) of a stmt to reset certain states but keep some other states.
@@ -355,11 +504,10 @@ void ResetCommunicationHubStmt(bool ended_clean)
 {
 	for (int i = 0; i < cur_session.num_asis_used; i++)
 	{
-		ResetASIStmt(cur_session.asis+i, ended_clean);
+		AsyncStmtInfo *asi = cur_session.asis + i;
+		asi->stmt_wrows = 0;
+		asi->nwarnings = 0;
 	}
-	// cur_session.num_asis_used must stay as is until end(start) of txn,
-	// because the commit/abort of current txn will need it. And it will be
-	// reset by ResetCommunicationHub();
 }
 
 /*
@@ -371,7 +519,7 @@ static ShardConnection *AllocShardConnSlot(Oid shardid, int inspos)
 	if (cur_session.last_section->nconns == SHARD_SECTION_NCONNS)
 	{
 		ShardConnSection *psect = (ShardConnSection *)MemoryContextAllocZero(
-			TopMemoryContext, sizeof (ShardConnSection));
+		    TopMemoryContext, sizeof(ShardConnSection));
 
 		cur_session.last_section->next = psect;
 		cur_session.last_section = psect;
@@ -401,7 +549,6 @@ static ShardConnection *AllocShardConnSlot(Oid shardid, int inspos)
 
 	return pconn;
 }
-
 
 static inline bool
 ShardBackendConnValid(ShardConnection *sconn, int pos)
@@ -440,9 +587,9 @@ static int AllocShardConnNodeSlot(ShardConnection *sconn, Oid nodeid, int *newco
 
 	if (sconn->num_nodes >= MAX_NODES_PER_SHARD)
 		ereport(ERROR,
-				(errcode(ERRCODE_INTERNAL_ERROR),
-				 errmsg("Kunlun-db: A shard can have at most %d nodes, shard %u is given more.",
-						MAX_NODES_PER_SHARD, sconn->shard_id)));
+			(errcode(ERRCODE_INTERNAL_ERROR),
+			 errmsg("Kunlun-db: A shard can have at most %d nodes, shard %u is given more.",
+				MAX_NODES_PER_SHARD, sconn->shard_id)));
 
 	// alloc slot and make new connection.
 	if (inspos >= 0 && inspos < sconn->num_nodes)
@@ -459,7 +606,7 @@ static int AllocShardConnNodeSlot(ShardConnection *sconn, Oid nodeid, int *newco
 
 	ids[inspos] = nodeid;
 
-	// Use last MYSQL slot. 
+	// Use last MYSQL slot.
 	mysql_conn = sconn->conn_objs + sconn->num_nodes;
 	sconn->num_nodes++;
 
@@ -469,19 +616,20 @@ make_conn:
 	found_shard_node = FindCachedShardNode(sconn->shard_id, nodeid, &snode);
 
 	if (found_shard_node &&
-		!async_connect(mysql_conn, snode.hostaddr, snode.port,
-					   snode.user_name.data, snode.passwd))
+	    !async_connect(mysql_conn, snode.hostaddr, snode.port,
+			   snode.user_name.data, snode.passwd))
 	{
-		if (req_chk_onfail) RequestShardingTopoCheck(sconn->shard_id);
+		if (req_chk_onfail)
+			RequestShardingTopoCheck(sconn->shard_id);
 		/*
 		  Although connection fails this time, the storge slots allocated to
 		  'nodeid' belong to it, we won't revoke them.
 		*/
 		ereport(ERROR,
-				(errcode(ERRCODE_CONNECTION_FAILURE),
-				 errmsg("Kunlun-db: Failed to connect to mysql storage node at (%s, %u): %d, %s",
-						snode.hostaddr, snode.port, mysql_errno(mysql_conn),
-						mysql_error(mysql_conn))));
+			(errcode(ERRCODE_CONNECTION_FAILURE),
+			 errmsg("Kunlun-db: Failed to connect to mysql storage node at (%s, %u): %d, %s",
+				snode.hostaddr, snode.port, mysql_errno(mysql_conn),
+				mysql_error(mysql_conn))));
 	}
 	sconn->conn_flags[inspos] |= CONN_VALID;
 
@@ -491,14 +639,13 @@ make_conn:
 	return inspos;
 }
 
-
 static bool MarkConnFlag(AsyncStmtInfo *asi, int flagbit, bool b)
 {
 	Oid shardid = asi->shard_id;
 	Oid nodeid = asi->node_id;
 	Assert(nodeid != 0);
 
-	ShardConnection*sconn = GetConnShard(shardid);
+	ShardConnection *sconn = GetConnShard(shardid);
 	Oid *ids = sconn->nodeids;
 	int inspos;
 	int pos = bin_search(&nodeid, ids, sconn->num_nodes, sizeof(nodeid), oid_cmp, &inspos);
@@ -517,7 +664,7 @@ static bool ConnHasFlag(AsyncStmtInfo *asi, int flagbit)
 	Oid nodeid = asi->node_id;
 	Assert(nodeid != 0);
 
-	ShardConnection*sconn = GetConnShard(shardid);
+	ShardConnection *sconn = GetConnShard(shardid);
 	Oid *ids = sconn->nodeids;
 	int inspos;
 	int pos = bin_search(&nodeid, ids, sconn->num_nodes, sizeof(nodeid), oid_cmp, &inspos);
@@ -526,12 +673,11 @@ static bool ConnHasFlag(AsyncStmtInfo *asi, int flagbit)
 	return sconn->conn_flags[pos] & flagbit;
 }
 
-
 /*
  * Find a ShardConnection object by (shardid, nodeid) from cur_session.
  * If not found, create a new one and cache it in cur_session.
  * */
-static ShardConnection*GetConnShard(Oid shardid)
+static ShardConnection *GetConnShard(Oid shardid)
 {
 	int inspos = -1, pos;
 	ShardConnSection *psect = NULL;
@@ -561,320 +707,59 @@ static ShardConnection*GetConnShard(Oid shardid)
 	return pconn;
 }
 
-
 /*
  * Find MYSQL connection object by (shardid, nodeid) from cur_session.
  * If not found, start a new connection and cache it in cur_session.
+ *
+ * A non-master node of a shard can be needed when we want to dispatch a read
+ * only query(select stmt, etc) to a slave node when currently there is no
+ * active transaction.
+ *
+ * Also when we already know the master node's id we can call this function
+ * instead of GetConnShardMaster(). Never cache master node object or id
+ * elsewhere than the ShardCache, otherwise when master switches the cached
+ * value will be obsolete.
  @param req_chk_onfail: if connect to node fails, request master switch check.
  * */
 static MYSQL *GetConnShardNode(Oid shardid, Oid nodeid, int *newconn, bool req_chk_onfail)
 {
-	ShardConnection*sconn = GetConnShard(shardid);
+	ShardConnection *sconn = GetConnShard(shardid);
 	int slot = AllocShardConnNodeSlot(sconn, nodeid, newconn, req_chk_onfail);
 	return sconn->conns[slot];
 }
 
-#if 0
 /*
- * When poll() tells us a backend connection is closed(POLL_HUP), if we
- * believe other backend connections can still be kept, we should call this
- * function to free the corresponding slots in ShardConnection's arrays.
- *
- * The conn_objs array have to be continuous, and the nodeids array must be
- * continuous and increase only, and the conns array must keep with the
- * nodeids array.
- */
-void clear_node_connection(ShardConnection *sconn, Oid nodeid)
-{
-	Assert(false);
-}
-
-/*
- * Close all backend connections of current session to all shards's all nodes.
+ * Find a ShardConnection object by (shardid, nodeid) from cur_session.
+ * If not found, create a new one and cache it.
  * */
-void disconnectAll()
+static MYSQL *GetConnShardMaster(Oid shardid, int *newconn)
 {
-
-	Assert(false);
+	ShardConnection *sconn = GetConnShard(shardid);
+	int slot = AllocShardConnNodeSlot(sconn, GetShardMasterNodeId(shardid), newconn, true);
+	return sconn->conns[slot];
 }
-
-/*
- * Close all connections to the specified shard.
- * */
-void disconnectShard(Oid shardid)
-{
-
-	Assert(false);
-}
-#endif
-
-/*
- * Abort txns on all connections to storage node, and clear the MYSQL* ptr in
- * ShardConnection.
- * */
-static void handle_backend_disconnect(AsyncStmtInfo *asi0)
-{
-	AsyncStmtInfo *asi;
-	/*
-	 * Close all in-use connections to storage nodes, and mark them invalid.
-	 * */
-	for (int i = 0; i < cur_session.num_asis_used; i++)
-	{
-		asi = cur_session.asis + i;
-		/*
-		 * If result pending, disconnect to avoid potential async IO issues.
-		 * */
-		if (asi == asi0 || asi->result_pending)
-		{
-			if (asi->mysql_res)
-			{
-				mysql_free_result(asi->mysql_res);
-				asi->mysql_res = NULL;
-			}
-
-			mysql_close(asi->conn);
-			MarkConnValid(asi, false);
-		}
-		else if (asi->conn)
-		{
-			if (asi->mysql_res)
-			{
-				mysql_free_result(asi->mysql_res);
-				asi->mysql_res = NULL;
-			}
-			mysql_close(asi->conn);
-			MarkConnValid(asi, false);
-		}
-
-		asi->need_abort = false;
-		ResetASIStmt(asi, false);
-	}
-
-}
-
-#define IS_MYSQL_CLIENT_ERROR(err) (((err) >= CR_MIN_ERROR && (err) <= CR_MAX_ERROR) || ((err) >= CER_MIN_ERROR && (err) <= CER_MAX_ERROR))
-static void handle_mysql_error(int ret, AsyncStmtInfo *asi)
-{
-	Assert(ret != 0);
-
-	MYSQL *conn = asi->conn;
-	Oid shardid = asi->shard_id;
-	Oid nodeid = asi->node_id;
-
-	/*
-	 * The shard and node may not be found from cache, e.g. when they are
-	 * removed from system and computing nodes' meta table and cache.
-	 *
-	 * FindCachedShard(shardid);
-	Shard_node_t* pnode = FindCachedShardNode(sconn->shard_id, nodeid);
-	*/
-	ret = mysql_errno(conn);
-	if (ret == 0) return;
-
-	static char errmsg_buf[512];
-	errmsg_buf[0] = '\0';
-	strncat(errmsg_buf, mysql_error(conn), sizeof(errmsg_buf) - 1);
-
-	/*
-	 * Only break the connection for client errors. Errors returned by server
-	 * caused by sql stmt simply report to client, those are not caused by
-	 * the connection.
-	 * */
-	if (IS_MYSQL_CLIENT_ERROR(ret))
-	{
-		/*
-		  Mysqld server has no response, maybe because current session is still
-		  computing or being blocked, kill each connection in storage shard
-		  since we will disconnect next. Simply mysql_close() it isn't enough
-		  since the network request won't be picked up in this case.
-		*/
-		if (ret == CR_SERVER_LOST || ret == CR_SERVER_GONE_ERROR)
-		{
-			ShardConnKillReq *req = makeShardConnKillReq(1/*kill conn*/);
-			if (req)
-			{
-				appendShardConnKillReq(req);
-				pfree(req);
-			}
-		}
-
-		/*
-		 * On client error close the connection to keep clean states.
-		 * Close conn before the exception is thrown.
-		 * */
-		handle_backend_disconnect(asi);
-	}
-	else if (ret != asi->ignore_error)
-	{
-		AsyncStmtInfo *pasi = cur_session.asis;
-		for (int i = 0; i < cur_session.num_asis_used; i++, pasi++)
-		{
-			if (pasi->owns_stmt_mem)
-			{
-				pfree(pasi->stmt); // release the job buffer.
-				pasi->owns_stmt_mem = false;
-			}
-			pasi->stmt = NULL;
-			pasi->stmt_len = 0;
-			pasi->need_abort = true;
-		}
-	}
-
-	if (ret == CR_SERVER_LOST || ret == CR_SERVER_GONE_ERROR ||
-		ret == CR_SERVER_HANDSHAKE_ERR)
-	{
-		if (GetShardMasterNodeId(asi->shard_id) == asi->node_id)
-		    RequestShardingTopoCheck(asi->shard_id);
-
-		ereport(ERROR,
-				(errcode(ERRCODE_CONNECTION_EXCEPTION),
-				 errmsg("Kunlun-db: Connection with MySQL storage node (%u, %u) is gone: %d, %s. Resend the statement.",
-						shardid, nodeid, ret, errmsg_buf),
-				 errdetail_internal("Disconnected all connections to MySQL storage nodes.")));
-	}
-	else if (ret == CR_UNKNOWN_ERROR)
-		ereport(ERROR,
-				(errcode(ERRCODE_INTERNAL_ERROR),
-				 errmsg("Kunlun-db: Unknown MySQL client error from MySQL storage node (%u, %u) : %d, %s. Resend the statement.",
-						shardid, nodeid, ret, errmsg_buf),
-				 errdetail_internal("Disconnected all connections to MySQL storage nodes.")));
-	else if (ret == CR_COMMANDS_OUT_OF_SYNC)
-		ereport(ERROR,
-				(errcode(ERRCODE_INTERNAL_ERROR),
-				 errmsg("Kunlun-db: Command out of sync from MySQL storage node (%u, %u) : %d, %s. Resend the statement.",
-						shardid, nodeid, ret, errmsg_buf),
-				 errdetail_internal("Disconnected all connections to MySQL storage nodes.")));
-	else if (IS_MYSQL_CLIENT_ERROR(ret))
-		ereport(ERROR,
-				(errcode(ERRCODE_INTERNAL_ERROR),
-				 errmsg("Kunlun-db: MySQL client error from MySQL storage node (%u, %u) : %d, %s. Resend the statement.",
-						shardid, nodeid, ret, errmsg_buf),
-				 errdetail_internal("Disconnected all connections to MySQL storage nodes.")));
-	else if (ret == ER_OPTION_PREVENTS_STATEMENT &&
-		/* It's fragile to rely on error message text for precise error
-		 * conditions, but this is all we have from mysql client. If in future
-		 * the error message changes, we must respond to that. */
-			 (strcasestr(errmsg_buf, "--read-only") ||
-			  strcasestr(errmsg_buf, "--super-read-only")))
-	{
-		/*
-		 * A master switch just happened and this computing node doesn't know
-		 * it yet. We must have just reconnected (otherwise we would get
-		 * CR_SERVER_GONE_ERROR or CR_SERVER_LOST) but we used obsolete info.
-		 *
-		 * pg_shard/pg_shard_node may have already been updated since we used
-		 * the information to reconnect, or they will be updated very soon.
-		 * So we will return the ERROR to client so that it can abort the
-		 * transaction and retry. And we will disconnect so that next time
-		 * connect we may have latest master info(or not, and that would cause
-		 * another same loop here, but finally we will have latest info and succeed.)
-		 *
-		 * Request topology check to update pg_shard/pg_shard_node with latest master info.
-		 * */
-		RequestShardingTopoCheck(asi->shard_id);
-		handle_backend_disconnect(asi);
-		ereport(ERROR,
-				(errcode(ERRCODE_INTERNAL_ERROR),
-				 errmsg("Kunlun-db: MySQL storage node (%u, %u) is no longer a primary(%d, %s), . Retry the transaction.",
-						shardid, nodeid, ret, errmsg_buf),
-				 errhint("Primary info will be refreshed automatically very soon. "),
-				 errdetail_internal("Disconnected all connections to MySQL storage nodes.")));
-	}
-	else if (ret != asi->ignore_error)
-		ereport(ERROR,
-				(errcode(ERRCODE_INTERNAL_ERROR),
-				 errmsg("Kunlun-db: MySQL storage node (%u, %u) returned error: %d, %s.",
-						shardid, nodeid, ret, errmsg_buf)));
-	else
-		elog(WARNING, "MySQL storage node (%u, %u) returned error: %d, %s, and it's taken as a WARNING.",
-			 shardid, nodeid, ret, errmsg_buf);
-}
-
-
-/*
- * Make connection to target mysql instance, return true of successful, false on failure.
- * TCP_NODELAY: 0
- * SO_SNDBUF: 64KB or more
- * SO_RCVBUF:64KB or more
- * no need to set, can set default at linux system level, and the max value
- varies among system settings and an out-of-range setting will not take effect,
- so better leave as default so that DBA can set it at Linux system level.
- *
- * */
-static bool async_connect(MYSQL *mysql, const char *host, uint16_t port, const char *user, const char *password)
-{
-	int status;
-	MYSQL *ret;
-
-	Assert(mysql != NULL);
-	mysql_init(mysql);
-	mysql_options(mysql, MYSQL_OPT_NONBLOCK, 0);
-	mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, &mysql_connect_timeout);
-	mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, &mysql_read_timeout);
-	mysql_options(mysql, MYSQL_OPT_WRITE_TIMEOUT, &mysql_write_timeout);
-	/*
-	 * USE result, no difference from STORE result for small result set, but
-	 * for large result set, USE can use the result rows before all are recved,
-	 * and also, extra copying of result data is avoided.
-	 * */
-	int use_res = 1;
-	mysql_options(mysql, MYSQL_OPT_USE_RESULT, &use_res);
-	mysql_options(mysql, MYSQL_OPT_MAX_ALLOWED_PACKET, &mysql_max_packet_size);
-
-	if (mysql_transmit_compress)
-		mysql_options(mysql, MYSQL_OPT_COMPRESS, NULL);
-
-	// Never reconnect, because that messes up txnal status.
-	my_bool reconnect = 0;
-	mysql_options(mysql, MYSQL_OPT_RECONNECT, &reconnect);
-	
-
-	/* Returns 0 when done, else flag for what to wait for when need to block. */
-	status= mysql_real_connect_start(&ret, mysql, host, user, password, NULL,
-									 port, NULL, CLIENT_MULTI_STATEMENTS | (mysql_transmit_compress ? MYSQL_OPT_COMPRESS : 0));
-	while (status)
-	{
-		status= wait_for_mysql(mysql, status);
-		status= mysql_real_connect_cont(&ret, mysql, status);
-	}
-
-	if (!ret)
-	{
-		return false;
-	}
-
-	elog(LOG, "Connected to mysql instance at %s:%u", host, port);
-	return true;
-}
-
-
 static int
-wait_for_mysql(MYSQL *mysql, int status)
+wait_for_mysql(MYSQL *mysql, int status, int timeout_ms)
 {
 	struct pollfd pfd;
 	int timeout;
 	int res;
+	pfd.fd = mysql_get_socket(mysql);
+	pfd.events =
+	    (status & MYSQL_WAIT_READ ? POLLIN : 0) |
+	    (status & MYSQL_WAIT_WRITE ? POLLOUT : 0) |
+	    (status & MYSQL_WAIT_EXCEPT ? POLLPRI : 0);
 
-	pfd.fd= mysql_get_socket(mysql);
-	pfd.events=
-	  (status & MYSQL_WAIT_READ ? POLLIN : 0) |
-	  (status & MYSQL_WAIT_WRITE ? POLLOUT : 0) |
-	  (status & MYSQL_WAIT_EXCEPT ? POLLPRI : 0);
-
-	/*
-	 * This timeout is set to MYSQL handle when the connect/read/write syscall
-	 * returned uncompleted, the value is connect_timeout, read_timeout and
-	 * write_timeout sent to mysql_options() respectively. It means if the
-	 * connect/read/write op has not completed within this timeout period, the
-	 * operation should return failure.
-	 * */
-	if (status & MYSQL_WAIT_TIMEOUT)
-		timeout= mysql_get_timeout_value_ms(mysql);
+	if (timeout_ms != -1)
+		timeout = timeout_ms;
+	else if (status & MYSQL_WAIT_TIMEOUT)
+		timeout = mysql_get_timeout_value_ms(mysql);
 	else
-		timeout= -1;
+		timeout = -1;
+	
 	while (true)
 	{
-		res= poll(&pfd, 1, timeout);
+		res = poll(&pfd, 1, timeout);
 		if (res == 0)
 			return MYSQL_WAIT_TIMEOUT;
 		else if (res < 0)
@@ -901,377 +786,109 @@ wait_for_mysql(MYSQL *mysql, int status)
 		}
 		else
 		{
-			int status= 0;
+			int status = 0;
 			if (pfd.revents & POLLIN)
-			  status|= MYSQL_WAIT_READ;
+				status |= MYSQL_WAIT_READ;
 			if (pfd.revents & POLLOUT)
-			  status|= MYSQL_WAIT_WRITE;
+				status |= MYSQL_WAIT_WRITE;
 			if (pfd.revents & POLLPRI)
-			  status|= MYSQL_WAIT_EXCEPT;
+				status |= MYSQL_WAIT_EXCEPT;
 			return status;
 		}
 	}
 }
 
-  
-static int
-wait_for_mysql_multi(AsyncStmtInfo *asi, size_t len, struct pollfd *pfds, int timeout_ms)
-{
-	int res, num_waits = 0;
-
-	for (size_t i = 0; i < len; i++)
-	{
-		/*
-		 * if asi[i].conn is NULL, it means the _cont op failed and the conn was closed.
-		 * */
-		AsyncStmtInfo *pasi = asi + i;
-		struct pollfd *pfd = pfds + i;
-
-		if (pfd->fd == 0)
-			pfd->fd = UINT_MAX; // just to make it positive otherwise poll will wait for stdin.
-		if (pasi->conn && pasi->result_pending)
-			pfd->fd= mysql_get_socket(pasi->conn);
-		else
-		{
-			if (pfd->fd > 0)
-				pfd->fd = -pfd->fd;
-			continue;
-		}
-
-		pfd->events = pfd->revents = 0;
-		pfd->events=
-		  (pasi->status & MYSQL_WAIT_READ ? POLLIN : 0) |
-		  (pasi->status & MYSQL_WAIT_WRITE ? POLLOUT : 0) |
-		  (pasi->status & MYSQL_WAIT_EXCEPT ? POLLPRI : 0);
-
-		if (pfd->events == 0 && pfd->fd > 0)
-			pfd->fd = -pfd->fd; // io was completed on this fd.
-		if (pasi->status & MYSQL_WAIT_TIMEOUT)
-		{
-			Assert(pfd->events != 0);// there must be some events to wait for.
-		}
-
-		if (pasi->status)
-		{
-			Assert(pfd->fd >= 0 && pfd->events != 0);// there must be some events to wait for.
-			num_waits++;
-		}
-	}
-
-	if (num_waits == 0)
-		return 0;
-
-	while (true)
-	{
-		res= poll(pfds, len, -1);
-		if (res == 0)
-		{
-			for (size_t i = 0; i < len; i++)
-			{
-				if (asi[i].conn)
-					asi[i].status|= MYSQL_WAIT_TIMEOUT;
-			}
-			break;
-		}
-		else if (res < 0)
-		{
-			// handle EINTR and ENOMEM
-			if (errno == ENOMEM)
-			{
-				ereport(ERROR,
-						(errcode(ERRCODE_INSUFFICIENT_RESOURCES),
-						 errmsg("Kunlun-db: poll() failed with ENOMEM(%d : %s)", errno, strerror(errno))));
-				break;
-			}
-			else if (errno == EINTR)
-			{
-				CHECK_FOR_INTERRUPTS();
-				continue;
-			}
-			else
-			{
-				ereport(ERROR,
-						(errcode(ERRCODE_SYSTEM_ERROR),
-						 errmsg("Kunlun-db: poll() unexpectedly failed with system error (%d : %s)",
-						 errno, strerror(errno))));
-			}
-		}
-		else
-		{
-			for (size_t i = 0; i < len; i++)
-			{
-				struct pollfd *pfd = pfds + i;
-				if (pfd->fd < 0)
-					continue; // can't be this one.
-				asi[i].status = 0; // Must clear the MYSQL_WAIT_TIMEOUT bit.
-				if (pfd->revents & POLLIN)
-					asi[i].status|= MYSQL_WAIT_READ;
-				if (pfd->revents & POLLOUT)
-					asi[i].status|= MYSQL_WAIT_WRITE;
-				if (pfd->revents & POLLPRI)
-					asi[i].status|= MYSQL_WAIT_EXCEPT;
-			}
-			break;
-		}
-	}
-
-	return num_waits;
-}
-
-
-/*
- * Syncly send 'stmt' to one specified shard's master. So far only this
- * function needs to ignore an error.
- * */
-void send_remote_stmt(AsyncStmtInfo *asi, char *stmt, size_t len,
-	CmdType cmdtype, bool owns_it, enum enum_sql_command sqlcom, int ignore_err)
-{
-	asi->ignore_error = ignore_err;
-	append_async_stmt(asi, stmt, len, cmdtype, owns_it, sqlcom);
-	send_stmt_to_multi(asi, 1);
-}
-
-/*
- * Send 'stmt' of 'len' bytes to all shards existing in system.
- * */
-void
-send_stmt_to_all_shards(char *stmt, size_t len, CmdType cmdtype, bool owns_it,
-	enum enum_sql_command sqlcom)
-{
-	List *shardids = GetAllShardIds();
-	ListCell *lc = NULL;
-
-	foreach (lc, shardids)
-	{
-		/*
-		 * Txn mgmt cmds are never supposed to be sent to all shards existing
-		 * in system.
-		 * */
-		Assert(cmdtype != CMD_TXN_MGMT);
-		AsyncStmtInfo *asi = GetAsyncStmtInfo(lfirst_oid(lc));
-		append_async_stmt(asi, stmt, len, cmdtype, owns_it, sqlcom);
-	}
-
-	send_stmt_to_multi(cur_session.asis, list_length(shardids));
-}
-
-/*
- * Send 'stmt' of 'len' bytes to all shards currently in use in this txn.
- * */
-void send_stmt_to_all_inuse(char *stmt, size_t len, CmdType cmdtype, bool owns_it,
-	enum enum_sql_command sqlcom, bool written_only)
-{
-	size_t shard_cnt = cur_session.num_asis_used;
-	AsyncStmtInfo *pasi = cur_session.asis;
-	for (size_t i = 0; i < shard_cnt; i++)
-	{
-		if (cmdtype == CMD_TXN_MGMT && sqlcom == SQLCOM_XA_ROLLBACK &&
-			(!pasi[i].need_abort || pasi[i].executed_stmts == 0))
-			continue;
-		if (written_only && !pasi[i].did_write)
-			continue;
-		append_async_stmt(pasi + i, stmt, len, cmdtype, owns_it, sqlcom);
-	}
-
-	send_stmt_to_multi(pasi, shard_cnt);
-}
-
-/*
-  For now we never send CMD_SELECT mixed with CMD_INSERT/DELETE/UPDATE, but
-  we might do this in future, hence this function.
-*/
-inline static bool 
-doing_dml_write(AsyncStmtInfo *asis, size_t shard_cnt)
-{
-	for (size_t i = 0; i < shard_cnt; i++)
-	{
-		CmdType cmd = asis[i].cmd;
-		if (cmd == CMD_INSERT || cmd == CMD_DELETE || cmd == CMD_UPDATE)
-			return true;
-	}
-	return false;
-}
-
-
-void send_stmt_to_multi_try_wait_all()
-{
-	AsyncStmtInfo *asis = cur_session.asis;
-	size_t shard_cnt = cur_session.num_asis_used;
-
-	send_stmt_to_multi_try_wait(asis, shard_cnt);
-}
-
-
-/*
- * Send all stmts in each asis object's stmt queue. for best performance, never
- * wait for a result to be ready on a connection, when it's not ready, see if
- * another connection's result is ready, and when a ready one is found, send
- * its next stmt.
- *
- * At entry some of the asis slots may have pending results which were sent
- * before the end of an stmt execution(e.g. accumulated insert rows excceeds
- * buffer capacity). and every asis slot must have stmts to send and connection
- * established.
- *
- * shard_cnt: [asis, asis+shard_cnt) ports *may* have stmts to send.
- * */
-void send_multi_stmts_to_multi()
-{
-	AsyncStmtInfo *asis = cur_session.asis;
-	size_t shard_cnt = cur_session.num_asis_used;
-	send_stmt_to_multi(asis, shard_cnt);
-}
-
-
 /**
- * Asyncly send 'stmt' to the specified list of shards' master nodes, then wait for all replies.
- * caller should free asis array if necessary.
- */
-static void send_stmt_to_multi(AsyncStmtInfo *asis, size_t shard_cnt)
-{
-	PG_TRY();
-	{
-	while (true)
-	{
-		bool has_more = false;
-
-		/*
-		  if doing insert/delete/update stmts, request global deadlock detection
-		  if waited longer than start_global_deadlock_detection_wait_timeout millisecs.
-		*/
-		if (doing_dml_write(asis, shard_cnt))
-			enable_timeout_after(WRITE_SHARD_RESULT_TIMEOUT,
-								 start_global_deadlock_detection_wait_timeout);
-
-		send_stmt_to_multi_try_wait(asis, shard_cnt);
-		for (size_t i = 0; i < shard_cnt; i++)
-		{
-			AsyncStmtInfo *pasi = asis + i;
-			if (pasi->result_pending)
-			{
-				has_more = true;
-				continue;
-			}
-
-			/*
-			 * If pasi has no more stmts to work on, or if pasi's SELECT result
-			 * have not been fully consumed, we have nothing to do for it.
-			 * In the latter case, caller will need to consume and free the
-			 * mysql result, then call this func again to move forward.
-			 * */
-			if (work_on_next_stmt(pasi) == 1)
-			{
-				send_stmt_to_multi_start(pasi, 1);
-				has_more = true;
-			}
-		}
-
-		if (!has_more)
-			break;
-		CHECK_FOR_INTERRUPTS();
-	}
-	disable_timeout(WRITE_SHARD_RESULT_TIMEOUT, false);
-	}
-	PG_CATCH();
-	{
-	if (geterrcode() == ERRCODE_QUERY_CANCELED)
-	{
-		// statement timeout
-		request_topo_checks_used_shards();
-		/*
-		  if statement_timeout set smaller than start_global_deadlock_detection_wait_timeout,
-		  this helps to inform gdd in time.
-		*/
-		kick_start_gdd();
-
-		if (DoingDDL())
-		{
-			StringInfoData stmt_str;
-			initStringInfo2(&stmt_str, 512, TopTransactionContext);
-			CurrentStatementsShards(&stmt_str);
-			ereport(WARNING,
-					(errcode(ERRCODE_INTERNAL_ERROR),
-					 errmsg("Kunlun-db: Current timed out statement is a DDL, so there could be"
-					 "unrevokable effects(i.e. leftover tables/databases, etc) in "
-					 "target storage shards."),
-					 errhint("DBAs should manually check all target shards and "
-					 "clear leftover effects. DDL statements in all target shards: %*s.",
-					 		stmt_str.len, stmt_str.data)));
-		}
-	}
-
-	/*
-	  Current txn will be aborted, no sense to execute the rest stmts. there
-	  might be pending results in other some channels, which will be cancelled
-	  because of ResetASIStmt() call.
-	*/
-	CancelAllRemoteStmtsInQueue(true);
-
-	PG_RE_THROW();
-	}
-	PG_END_TRY();
-}
-
-/*
- * Start async send to multiple shards.
- * return the NO. of conns in asis that are waiting for query results.
+ * Make connection to target mysql instance, return true of successful, false on failure.
+ * TCP_NODELAY: 0
+ * SO_SNDBUF: 64KB or more
+ * SO_RCVBUF:64KB or more
+ * no need to set, can set default at linux system level, and the max value
+ varies among system settings and an out-of-range setting will not take effect,
+ so better leave as default so that DBA can set it at Linux system level.
+ *
  * */
-int send_stmt_to_multi_start(AsyncStmtInfo *asis, size_t shard_cnt)
+static bool async_connect(MYSQL *mysql, const char *host, uint16_t port, const char *user, const char *password)
 {
-	int num_waits = 0, ret = 0;
+	Assert(mysql != NULL);
+	mysql_init(mysql);
+	mysql_options(mysql, MYSQL_OPT_NONBLOCK, 0);
+	mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, &mysql_connect_timeout);
+	mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, &mysql_read_timeout);
+	mysql_options(mysql, MYSQL_OPT_WRITE_TIMEOUT, &mysql_write_timeout);
+	/*
+	 * USE result, no difference from STORE result for small result set, but
+	 * for large result set, USE can use the result rows before all are recved,
+	 * and also, extra copying of result data is avoided.
+	 * */
+	int use_res = 1;
+	mysql_options(mysql, MYSQL_OPT_USE_RESULT, &use_res);
+	mysql_options(mysql, MYSQL_OPT_MAX_ALLOWED_PACKET, &mysql_max_packet_size);
 
-	for (int j = 0; j < shard_cnt; j++)
+	/**
+	 * more options to investigate,
+	 *
+	 * these are supported by both mariadb&mysql:
+	 *    MYSQL_OPT_USE_RESULT,  MYSQL_OPT_PROTOCOL,
+	 * these are supported by latest mysql8.0.15 but not latest mariadb, may be useful in future:
+	 *      MYSQL_OPT_RETRY_COUNT, MYSQL_OPT_OPTIONAL_RESULTSET_METADATA,
+	  * SSL options, useful if we need to connect to storage nodes using ssl.
+	  * MYSQL_OPT_TLS_VERSION,
+	  * MYSQL_OPT_SSL_KEY,
+	  * MYSQL_OPT_SSL_CERT,
+	  * MYSQL_OPT_SSL_CA,
+	  * MYSQL_OPT_SSL_CAPATH,
+	  * MYSQL_OPT_SSL_CIPHER,
+	  * MYSQL_OPT_SSL_CRL,
+	  * MYSQL_OPT_SSL_CRLPATH,
+	  * These SSL options are not in latest mariadb:
+	  * MYSQL_OPT_SSL_MODE,
+	  * MYSQL_OPT_GET_SERVER_PUBLIC_KEY,
+	  * MYSQL_OPT_SSL_FIPS_MODE
+	  * For all option bits not existing in latest mariadb, if we really need them
+	  * we can modify mariadb client lib code to add these option bits.
+	  */
+	if (mysql_transmit_compress)
+		mysql_options(mysql, MYSQL_OPT_COMPRESS, NULL);
+
+	// Never reconnect, because that messes up txnal status.
+	my_bool reconnect = 0;
+	mysql_options(mysql, MYSQL_OPT_RECONNECT, &reconnect);
+
+	/* Returns 0 when done, else flag for what to wait for when need to block. */
+	int status = 0;
+	MYSQL *ret = NULL;
+	status = mysql_real_connect_start(&ret,
+					  mysql,
+					  host,
+					  user,
+					  password,
+					  NULL,
+					  port,
+					  NULL,
+					  CLIENT_MULTI_STATEMENTS | (mysql_transmit_compress ? MYSQL_OPT_COMPRESS : 0));
+	while (status)
 	{
-		AsyncStmtInfo *pasi = asis + j;
-
-		/*
-		 * When there is result pending on a connection, we must first
-		 * receive it totally, then send next stmt.
-		 * */
-		Assert(!pasi->result_pending);
-
-		/*
-		 * No need to fetch the connection every time, because if connection
-		 * broken during execution of an statement, exception is thrown and
-		 * the execution fails. The lifetime of any AsyncStmtInfo is one stmt.
-		 * */
-		MYSQL *conn = pasi->conn;
-		int status = mysql_real_query_start(&ret, conn, pasi->stmt, pasi->stmt_len);
-
-		/*
-		 *  if the operation was done in _start, there is no need to wait for
-		 *  its results.
-		 * */
-		if (status)
-		{
-			num_waits++;
-			pasi->status = status;
-			pasi->result_pending = true;
-			elog(DEBUG1, "sent query to [%u, %u:%ld]: %s", pasi->shard_id,
-				 pasi->node_id, mysql_thread_id(pasi->conn), pasi->stmt);
-		}
-		else
-		{
-			elog(DEBUG1, "sent query to [%u, %u:%ld] and got result: %s",
-				 pasi->shard_id, pasi->node_id, mysql_thread_id(pasi->conn), pasi->stmt);
-			pasi->result_pending = false;
-			pasi->executed_stmts++;
-			if (pasi->owns_stmt_mem)
-			{
-				pfree(pasi->stmt);
-				pasi->owns_stmt_mem = false;
-			}
-			pasi->stmt = NULL;
-			pasi->stmt_len = 0;
-
-			if (ret)
-				handle_mysql_error(ret, pasi);
-			else
-				handle_mysql_result(pasi);
-		}
+		status = wait_for_mysql(mysql, status, -1);
+		status = mysql_real_connect_cont(&ret, mysql, status);
 	}
 
-	return num_waits;
+	if (!ret)
+	{
+		/**
+		 * TODO:
+		 * If we are in an active transaction now, we have to abort the user
+		 * connection and all its connections to storage nodes, because we can't
+		 * resume current stmt&txn execution without this new connection. If we
+		 * have no active txn state now, we can keep current fore-end and
+		 * its backend connections, and the stmt(mostly auto-commit stmt, or a
+		 * set/show stmt to be sent to backends) execution fails.
+		 * */
+		return false;
+	}
+
+	elog(LOG, "Connected to mysql instance at %s:%u", host, port);
+	return true;
 }
 
 int GetAsyncStmtInfoUsed()
@@ -1281,143 +898,24 @@ int GetAsyncStmtInfoUsed()
 
 AsyncStmtInfo *GetAsyncStmtInfoByIndex(int i)
 {
-	AsyncStmtInfo *res = (i < cur_session.num_asis_used && i >= 0) ? cur_session.asis+i : NULL;
+	AsyncStmtInfo *res = (i < cur_session.num_asis_used && i >= 0) ? cur_session.asis + i : NULL;
 
 	// when res->conn is NULL, this assert fails
-	//Assert(res->shard_id != InvalidOid && res->node_id != InvalidOid);
+	// Assert(res->shard_id != InvalidOid && res->node_id != InvalidOid);
 
-	//if (!IsConnValid(res))
+	// if (!IsConnValid(res))
 	{
 		/*
 		  In future we may want to reconnect when the conn is invalid, but
 		  not now.
 		 */
-		//if (conn_invalid) // res marked valid inside it.
-		  //  GetAsyncStmtInfoNode(res->shard_id, res->node_id, true);
+		// if (conn_invalid) // res marked valid inside it.
+		//   GetAsyncStmtInfoNode(res->shard_id, res->node_id, true);
 		// else
-			//res = NULL;
+		// res = NULL;
 	}
 
 	return res;
-}
-
-void free_mysql_result(AsyncStmtInfo *pasi)
-{
-	/*
-	 * It's likely that multiple executor nodes reads from the same channel,
-	 * and in that case the pasi could be freed multiple times, so this assert
-	 * holds for none but the 1st free.
-	 * Assert(pasi->mysql_res && pasi->cmd == CMD_SELECT);
-	 */
-	if (!pasi)
-		return;
-
-	if (pasi->mysql_res) mysql_free_result(pasi->mysql_res);
-	pasi->mysql_res = NULL;
-	pasi->cmd = CMD_UNKNOWN;
-	Assert(!pasi->result_pending);
-}
-
-static bool obtain_mysql_result_rows(AsyncStmtInfo *pasi, int*status)
-{
-	do {
-		Assert(pasi->mysql_res == NULL);
-		pasi->mysql_res = mysql_store_result(pasi->conn);
-		/*pasi->mysql_res = (pasi->will_rewind ? mysql_store_result(pasi->conn) :
-			mysql_use_result(pasi->conn));*/
-		pasi->nwarnings += mysql_warning_count(pasi->conn);
-
-		if (!pasi->mysql_res)
-		{
-			if (mysql_errno(pasi->conn))
-				handle_mysql_error(1, pasi);
-			else
-			{
-				/*
-				  it's possible that we sent some aux stmts like SET var stmts
-				  along with the SELECT/RETURNING stmt and identify as one
-				  SELECT/UPDATE/DELETE stmt, so we
-				  need to consume results of such SET stmts.
-				*/
-				Assert(mysql_field_count(pasi->conn) == 0);
-				if (mysql_more_results(pasi->conn))
-				{
-					if ((*status = mysql_next_result(pasi->conn)) > 0)
-						handle_mysql_error(-1, pasi);
-				}
-				else
-				{
-					ereport(ERROR,
-							(errcode(ERRCODE_INTERNAL_ERROR),
-							errmsg("Kunlun-db: A %s statement returned no results.",
-							pasi->cmd == CMD_SELECT ? "SELECT" : "RETURNING")));
-				}
-			}
-		}
-		else
-		{
-			/*
-			 * The SELECT/RETURNING stmt must be the last stmt in the packet sent.
-			 * */
-			if (mysql_more_results(pasi->conn))
-				ereport(ERROR,
-						(errcode(ERRCODE_INTERNAL_ERROR),
-						 errmsg("Kunlun-db: More than one SELECT statements were sent at once.")));
-			pasi->stmt_nrows = 0; // unknown for now, because 'USE' not 'STORE'.
-			break;
-		}
-	
-	} while (*status == 0);
-	return pasi->mysql_res != NULL;
-}
-
-/*
- * Receive SQL stmt result returned from mysql. According to mysql doc, if we
- * send multiple stmts to mysql, we must iterate and receive all results,
- * otherwise the mysql connection will be terminated by client library,
- * and I did see this happen. -- dzw
- * */
-static void handle_mysql_result(AsyncStmtInfo *pasi)
-{
-	int status = 1;
-
-	if (pasi->cmd == CMD_SELECT)
-	{
-		obtain_mysql_result_rows(pasi, &status);
-	}
-	else /*(if pasi->cmd == CMD_INSERT || pasi->cmd == CMD_UPDATE ||
-			 pasi->cmd == CMD_DELETE || pasi->cmd == CMD_UTILITY)*/
-	{
-		do {
-	        // handle RETURNING result, it must be the last one in a list of
-			// stmts sent to mysql at once. so far this constraint is
-			// acceptable, otherwise we would need to modify a few
-			// send_multi_xxx functions for a new communication framework.
-	        if (mysql_field_count(pasi->conn))
-			{
-				obtain_mysql_result_rows(pasi, &status);
-				break;
-			}
-			else if (mysql_more_results(pasi->conn))
-			{
-			    if ((status = mysql_next_result(pasi->conn)) > 0)
-	                handle_mysql_error(-1, pasi);
-			}
-			else
-				break;
-		} while (status == 0);
-
-		uint64_t n = mysql_affected_rows(pasi->conn);
-		if (n == (uint64_t)-1)
-		   handle_mysql_error(-1, pasi);
-		pasi->stmt_nrows += n;
-		pasi->txn_wrows += n;
-
-	}
-
-	elog(DEBUG1, "Recvd results from [%u, %u:%ld] : [%u,%u]",
-		 pasi->shard_id, pasi->node_id, mysql_thread_id(pasi->conn),
-		 pasi->stmt_nrows, pasi->nwarnings);
 }
 
 uint64_t GetRemoteAffectedRows()
@@ -1427,391 +925,30 @@ uint64_t GetRemoteAffectedRows()
 	for (int i = 0; i < cur_session.num_asis_used; i++)
 	{
 		AsyncStmtInfo *pasi = cur_session.asis + i;
-		num += pasi->stmt_nrows;
+		num += pasi->stmt_wrows;
 	}
 
 	return num;
 }
 
-MYSQL_RES *GetRemoteRows(AsyncStmtInfo *pasi)
+/**
+ * @brief Sets the ignored errors for subsequent statements added by calling add;
+ */
+static int stmt_ignored_eno;
+int set_stmt_ignored_error(int eno)
 {
-	return pasi->mysql_res;
+	int old = stmt_ignored_eno;
+	stmt_ignored_eno = eno;
+	return old;
 }
 
-/*
- * Wait for all shards to complete.
- * */
-static void send_stmt_to_multi_wait(AsyncStmtInfo *asis, size_t shard_cnt)
-{
-	// Always attempt to wait at least once, if no fd needs to wait, we won't
-	// poll() in vain.
-	int num_waits = 1;
-	struct pollfd fixed[8];
-
-	struct pollfd *pfd = (shard_cnt > 8) ? MemoryContextAllocZero(CurTransactionContext, shard_cnt * sizeof(struct pollfd)) : fixed;
-
-	/*
-	 * wait for all to return results.
-	 * */
-	while (num_waits)
-	{
-		CHECK_FOR_INTERRUPTS();
-		num_waits = wait_for_mysql_multi(asis, shard_cnt, pfd, -1);
-		if (num_waits == 0)
-			break;
-		num_waits = 0;
-		for (int i = 0; i < shard_cnt; i++)
-		{
-			int ret = 0;
-			AsyncStmtInfo *pasi = asis + i;
-			/*
-			 * Don't exclude pasi->status == 0 if pasi->status is 0, still
-			 * need one last call of _cont() functions.
-			 */
-			if (pasi->conn && pasi->result_pending)
-			{
-				pasi->status= mysql_real_query_cont(&ret, pasi->conn, pasi->status);
-
-	            if (pasi->status == 0)
-	            {
-	                /* 
-	                 * This connection has completed its stmt, no more handling needed.
-	                 * Do not set pasi->conn to NULL to denote end of IO, because
-	                 * there can be more stmts to send. use asis->result_pending
-	                 * instead.
-	                 * pasi->conn = NULL;
-	                 */
-	                pasi->result_pending = false;
-					pasi->executed_stmts++;
-					if (pasi->owns_stmt_mem)
-					{
-						pfree(pasi->stmt);
-						pasi->owns_stmt_mem = false;
-					}
-					pasi->stmt = NULL;
-					pasi->stmt_len = 0;
-
-	                if (ret)
-	                    handle_mysql_error(ret, pasi);
-					else
-						handle_mysql_result(pasi);
-	            }
-	            else
-	                num_waits++;
-			}
-		}
-	}
-
-	if (pfd != fixed)
-		pfree(pfd);
-}
-
-
-/*
- * Peek for ready connections, don't block waiting. for those ready, call _cont
- * to finish the query execution.
- * Return the NO. of conns finished execution by this call.
- * */
-int send_stmt_to_multi_try_wait(AsyncStmtInfo *asis, size_t shard_cnt)
-{
-	// Always attempt to wait at least once, if no fd needs to wait, we won't
-	// poll() in vain.
-	static struct pollfd fixed[32];
-
-	struct pollfd *pfd = (shard_cnt > 32) ? MemoryContextAllocZero(CurTransactionContext, shard_cnt * sizeof(struct pollfd)) : fixed;
-	/*
-	 * peek each connection for ready IO, don't wait. and process those
-	 * which are IO ready.
-	 * */
-	int ndone = 0;
-
-	wait_for_mysql_multi(asis, shard_cnt, pfd, -1);
-
-	for (int i = 0; i < shard_cnt; i++)
-	{
-		int ret = 0;
-		AsyncStmtInfo *pasi = asis + i;
-
-		/*
-		* Don't exclude pasi->status == 0 if pasi->status is 0, still
-		* need one last call of _cont() functions.
-		*/
-		if (pasi->conn && pasi->result_pending)
-		{
-			pasi->status= mysql_real_query_cont(&ret, pasi->conn, pasi->status);
-
-	        if (pasi->status == 0)
-	        {
-	            pasi->result_pending = false;
-				pasi->executed_stmts++;
-	            // query completed
-	            ndone++;
-				if (pasi->owns_stmt_mem)
-				{
-					pfree(pasi->stmt); // release the job buffer.
-					pasi->owns_stmt_mem = false;
-				}
-				pasi->stmt = NULL;
-				pasi->stmt_len = 0;
-
-	            if (ret)
-	                handle_mysql_error(ret, pasi);
-				else
-					handle_mysql_result(pasi);
-	        }
-		}
-	}
-
-	if (pfd != fixed)
-		pfree(pfd);
-	return ndone;
-}
-
-static void ResetASICommon(AsyncStmtInfo *asi)
-{
-	/*
-	 * Error thrown by prev stmt could leave unconsumed results, and current txn
-	 * is already aborted in computing node.
-	 * */
-	if (asi->mysql_res)
-	{
-		free_mysql_result(asi);
-		if (asi->conn)
-		{
-			mysql_close(asi->conn);
-			MarkConnValid(asi, false);
-		}
-		/*
-		 * The connection didn't exist or was just reset, either way no need
-		 * for an abort.
-		 * */
-		asi->need_abort = false;
-	}
-
-	/*
-	 * This could happen if multiple SELECT stmts are sent to remote, and the
-	 * during the use of the 1st result an error occurs and other results have
-	 * not yet arrived.
-	 * */
-	if (asi->result_pending && asi->conn)
-	{
-		mysql_close(asi->conn);
-		MarkConnValid(asi, false);
-		asi->need_abort = false;
-	}
-	asi->result_pending = false;
-	asi->ignore_error = 0;
-
-	/*
-	 * In normal circumstances other than above, asi->conn should be kept valid
-	 * in order to avoid repetitive lookup from cur_session. and asi->conn will
-	 * be set to NULL when backend connection is found invalid.
-	 * */
-}
-
-/*
- * Reset asi at end of txn.
- * */
-static void ResetASI(AsyncStmtInfo *asi)
-{
-	/*
-	 * We don't release memory here, it's been released when the stmt's result
-	 * has been received.
-	 * */
-	ResetASIStmt(asi, false);
-
-	/*
-	 * Reset remaining fields.
-	 * stmtq must be kept valid throughout the session.
-	 * */
-	asi->result_pending = false;
-	asi->executed_stmts = 0;
-	asi->need_abort = true;
-	asi->did_write = asi->did_read = asi->did_ddl = false;
-	asi->shard_id = InvalidOid;
-	asi->node_id = InvalidOid;
-	asi->conn = NULL;
-	asi->txn_wrows = 0;
-}
-
-/*
- * Reset asi at end(or start) of a stmt.
- * */
-static void ResetASIStmt(AsyncStmtInfo *asi, bool ended_clean)
-{
-	/*
-	 * We don't release memory here, it's been released when the stmt's result
-	 * has been received.
-	 * */
-	StmtQueue *q = &(asi->stmtq);
-	q->head = q->end = 0;
-	if (ended_clean)
-		Assert(asi->status == 0 && asi->stmt == NULL &&
-			   asi->stmt_len == 0);
-	else
-	{
-		asi->status = 0;
-		asi->stmt = NULL;
-		asi->stmt_len = 0;
-	}
-
-	ResetASICommon(asi);
-	// asi->executed_stmts = 0; this must be kept valid until end of txn.
-	asi->cmd = CMD_UNKNOWN;
-	asi->stmt_nrows = 0;
-	asi->nwarnings = 0;
-	Assert(asi->mysql_res == NULL);
-	asi->mysql_res = NULL;
-	asi->owns_stmt_mem = false;
-	asi->sqlcom = SQLCOM_END;
-}
-
-/*
-  To be called only internally after executing a DDL and before executing
-  some DMLs in a global txn, so far only used to drop sequences while
-  dropping a schema/db.
-*/
-void ResetASIInternal(AsyncStmtInfo *asi)
-{
-	/*
-	 * We don't release memory here, it's been released when the stmt's result
-	 * has been received.
-	 * */
-	ResetASIStmt(asi, false);
-
-	/*
-	 * Reset remaining fields.
-	 * stmtq must be kept valid throughout the session.
-	 * */
-	asi->result_pending = false;
-	asi->executed_stmts = 0;
-	asi->did_write = asi->did_read = asi->did_ddl = false;
-}
-
-/*
-  Executor may end a remote scan before its results are consumed and/or
-  before all its enqueued stmts are all executed, this function
-  does the cleanup work.
-*/
-void cleanup_asi_work_queue(AsyncStmtInfo *pasi)
-{
-	if (!pasi) return;
-
-	if (pasi->stmt && pasi->owns_stmt_mem)
-		pfree(pasi->stmt); // release the job buffer.
-
-	pasi->owns_stmt_mem = false;
-	pasi->stmt = NULL;
-	pasi->stmt_len = 0;
-	pasi->cmd = CMD_UNKNOWN;
-	pasi->sqlcom = SQLCOM_END;
-
-	StmtQueue *q = &(pasi->stmtq);
-	for (int i = q->head; i < q->end; i++)
-	{
-		StmtElem *se = q->queue + i;
-		if (se->owns_stmt_mem && se->stmt)
-			pfree(se->stmt);
-
-		se->owns_stmt_mem = false;
-		se->stmt = NULL;
-		se->stmt_len = 0;
-		se->cmd = CMD_UNKNOWN;
-		se->sqlcom = SQLCOM_END;
-	}
-	q->head = q->end = 0;
-}
-
-
-/*
- * work on asi->stmtq's next stmt, assign them to asi->stmt/stmt_len.
- * if found next stmt to work on, return 1;
- * if no more stmt to work on, return 0;
- * if current result have not been received or consumed(for SELECT stmt),
- * return -1.
- * */
-int work_on_next_stmt(AsyncStmtInfo *asi)
-{
-	StmtQueue *q = &(asi->stmtq);
-	if (q->queue == NULL || q->head >= q->end)
-		return 0;
-	/*
-	 * Current stmt (if any) 's result must have been received when this is
-	 * called.
-	 *
-	 * Also, all recved results must have been consumed
-	 * before we can send next stmt.
-	 * */
-	Assert(asi->result_pending == false);
-	if (asi->mysql_res != NULL)
-		return -1;
-
-#define FIRST_CMD_IS_DDL (q && q->queue && q->queue[q->head].cmd == CMD_DDL)
-
-/*
- * SET and all the SHOW commands are ADMIN commands, they should not be
- * preceded by XA START. A SET stmt is sent before the 1st stmt of a new
- * connection to storage node is sent, but SHOW commands will be independent
- * stmts so we only consider SET stmt here.
- * */
-#define FIRST_CMD_IS_ADMIN (q && q->queue && q->queue[q->head].sqlcom == SQLCOM_SET_OPTION)
-
-	/*
-	 * If this shard is accessed for the 1st time, send the txn start stmts
-	 * to it first, then send DML stmts.
-	 * A DDL stmt is always sent as an autocommit txn without XA cmds wrapped.
-	 * Note that if in future we need to send non DML stmts, such as SHOW
-	 * commands, set var commands, etc, we won't need to send XA START before
-	 * them. It will not be an error to send XA START in such situations though.
-	 * */
-	if (!asi->did_write && !asi->did_read && !asi->executed_stmts &&
-		IsTransactionState() && !FIRST_CMD_IS_DDL && !FIRST_CMD_IS_ADMIN)
-	{
-		StringInfoData txnstart;
-		StmtElem *qse = q->queue + q->head;
-		int tslen = 256 + qse->stmt_len;
-		if (tslen < 512)
-			tslen = 512;
-
-		initStringInfo2(&txnstart, tslen, TopTransactionContext);
-		StartTxnRemote(&txnstart);
-		appendStringInfoChar(&txnstart, ';');
-		appendBinaryStringInfo(&txnstart, qse->stmt, qse->stmt_len);
-		if (qse->owns_stmt_mem)
-			pfree(qse->stmt);
-		qse->stmt_len = lengthStringInfo(&txnstart);
-		qse->stmt = donateStringInfo(&txnstart);
-		qse->owns_stmt_mem = true;;
-	}
-
-	asi->stmt = q->queue[q->head].stmt;
-	asi->stmt_len = q->queue[q->head].stmt_len;
-	Assert(asi->stmt != NULL && asi->stmt_len > 0);
-	asi->owns_stmt_mem = q->queue[q->head].owns_stmt_mem;
-	asi->cmd = q->queue[q->head].cmd;
-	asi->sqlcom = q->queue[q->head].sqlcom;
-
-	if (!asi->did_write)
-		asi->did_write = (asi->cmd == CMD_INSERT || asi->cmd == CMD_UPDATE ||
-						  asi->cmd == CMD_DELETE);
-	if (!asi->did_ddl)
-		asi->did_ddl = (asi->cmd == CMD_DDL);
-	if (!asi->did_read)
-		asi->did_read = (asi->cmd == CMD_SELECT || asi->cmd == CMD_UTILITY);
-	q->head++;
-	Assert(q->head <= q->end);
-	if (q->head == q->end)
-		q->head = q->end = 0;
-
-	return 1;
-}
-
-/*
+/**
  * Append 'stmt' into asi's job queue. 'stmt' will be sent later when its
  * turn comes, then it will be pfree'd.
- * */
-StmtElem *append_async_stmt(AsyncStmtInfo *asi, char *stmt, size_t stmt_len,
-	CmdType cmd, bool owns_stmt_mem, enum enum_sql_command sqlcom)
+ */
+StmtSafeHandle
+send_stmt_async(AsyncStmtInfo *asi, char *stmt, size_t stmt_len,
+		CmdType cmd, bool owns_stmt_mem, enum enum_sql_command sqlcom, bool materialize)
 {
 	/*
 	  If the shard node isn't connected, don't append stmt to it. This could happen
@@ -1821,69 +958,1659 @@ StmtElem *append_async_stmt(AsyncStmtInfo *asi, char *stmt, size_t stmt_len,
 	if (!ASIConnected(asi))
 	{
 		ereport(ERROR,
-				(errcode(ERRCODE_INTERNAL_ERROR),
-				 errmsg("Kunlun-db: Can not append remote queries to a broken channel to shard %u node %u.",
-				 		asi ? asi->shard_id : 0, asi ? asi->node_id : 0)));
-		return NULL;
-	}
-
-	StmtQueue *q = &(asi->stmtq);
-	if (q->queue == NULL)
-	{
-		q->capacity = 32;
-		q->queue = MemoryContextAlloc(TopMemoryContext, q->capacity * sizeof(StmtElem));
-	}
-	
-	Assert(q->head <= q->end);
-
-	if (q->head == q->end) Assert(q->head == 0);
-
-	if (q->end == q->capacity)
-	{
-		q->queue = repalloc(q->queue, sizeof(StmtElem) * q->capacity * 2);
-		memset(q->queue + q->capacity, 0, sizeof(StmtElem)*q->capacity);
-		q->capacity *= 2;
+			(errcode(ERRCODE_INTERNAL_ERROR),
+			 errmsg("Kunlun-db: Can not append remote queries to a broken channel to shard %u node %u.",
+				asi ? asi->shard_id : 0, asi ? asi->node_id : 0)));
+		return INVALID_STMT_HANLE;
 	}
 
 	Assert(cmd == CMD_INSERT || cmd == CMD_UPDATE || cmd == CMD_DELETE ||
-		   cmd == CMD_SELECT || cmd == CMD_UTILITY || cmd == CMD_DDL || cmd == CMD_TXN_MGMT);
+	       cmd == CMD_SELECT || cmd == CMD_UTILITY || cmd == CMD_DDL || cmd == CMD_TXN_MGMT);
 
 	if (cmd == CMD_DDL && IsExplicitTxn())
 	{
+		ereport(ERROR,
+			(errcode(ERRCODE_INTERNAL_ERROR),
+			 errmsg("Kunlun-db: As demanded by MySQL, a DDL statement can NOT be executed in an explicit transaction.")));
+	}
+
+	/* Make sure the memory allocated from top transaction context */
+	if (owns_stmt_mem)
+	{
+		Assert(GetMemoryChunkContext(stmt) == TopTransactionContext);
+	}
+
+	MemoryContext mem_ctx = MemoryContextSwitchTo(TopMemoryContext);
+
+	StmtHandle *handle = (StmtHandle *)palloc0(sizeof(StmtHandle));
+	handle->asi = asi;
+        handle->subxactid = GetCurrentSubTransactionId();
+	handle->refcount = 2;
+	handle->stmt = stmt;
+	handle->stmt_len = stmt_len;
+	handle->owns_stmt_mem = owns_stmt_mem;
+	handle->cmd = cmd;
+	handle->sqlcom = sqlcom;
+	handle->support_rewind = materialize;
+	handle->ignore_errno = stmt_ignored_eno;
+	handle->is_dml_write =
+	    (cmd == CMD_INSERT || cmd == CMD_DELETE || cmd == CMD_UPDATE);
+	asi->stmt_queue = lappend(asi->stmt_queue, handle);
+	asi->stmt_inuse = lappend(asi->stmt_inuse, handle);
+
+	MemoryContextSwitchTo(mem_ctx);
+
+	/**
+	 *  urge processing of the pending statements if :
+	 *  (1) No runing statements
+	 *  (2) The running statement does not return a tuple, which avoids expensive materialization.
+	 *  (3) Too many pending statements
+	 */
+	if (asi->curr_stmt == NULL ||
+	    asi->curr_stmt->cmd != CMD_SELECT ||
+	    list_length(asi->stmt_queue) > 10)
+	{
+		process_preceding_stmts(asi, NULL);
+	}
+
+	return SAFE_HANDLE(handle);
+}
+
+/**
+ * @brief Before sending the statement, update the inner status of asi, and add extra info to the handle
+ */
+static void
+work_on_stmt(AsyncStmtInfo *asi, StmtHandle *handle)
+{
+	/*
+	 * If this shard is accessed for the 1st time, send the txn start stmts
+	 * to it first, then send DML stmts.
+	 * A DDL stmt is always sent as an autocommit txn without XA cmds wrapped.
+	 * Note that if in future we need to send non DML stmts, such as SHOW
+	 * commands, set var commands, etc, we won't need to send XA START before
+	 * them. It will not be an error to send XA START in such situations though.
+	 * If user statement only access one shard with only one interactions, and not 
+	 * in an explicit transaction, than no need to wrap the statement in a xa transaction.
+	 *
+	 * In a txn the 1st stmt might be a subtxn and it might fail and be aborted,
+	 * and in this case we should avoid generating&sending another XA START stmt.
+	 * */
+
+	if (!asi->did_write &&
+	    !asi->did_read &&
+	    handle->cmd != CMD_DDL &&
+	    handle->sqlcom != SQLCOM_SET_OPTION &&
+	    IsTransactionState())
+	{
 		/*
-		 * If the asi has not received any results, and there is no stmt
-		 * result pending, it's not actually used.
-		 * It's crucial to keep the cur_session.num_asi_used right otherwise
-		 * we would send XA txn cmds to unused shards, causing an error.
-		 * */
-		if (asi->result_pending == false && asi->executed_stmts == 0)
+		  Need wrap the statement into a xa transaction if :
+		  (1) in a explicit transaction
+		  (2) need multi interactions with remote shards
+		  (3) invoke non internal language function which may introduce extra interaction with shards
+		  (4) background process which have no valid estimate of the number of interactions
+		 */
+		if (asi->txn_in_progress)
 		{
-			ResetASIStmt(asi, true);
-			Assert(cur_session.num_asis_used > 0);
-			// nothing done, no txn branch in this channel, can't abort
-			asi->need_abort = false;
+			/* Already in xa transaction, do nothing */
 		}
+		else 
+		{
+			StringInfoData txnstart;
+			int tslen = Max(512, 256 + handle->stmt_len);
+
+			initStringInfo2(&txnstart, tslen, TopTransactionContext);
+			StartTxnRemote(&txnstart);
+			appendStringInfoChar(&txnstart, ';');
+			appendBinaryStringInfo(&txnstart, handle->stmt, handle->stmt_len);
+			if (handle->owns_stmt_mem)
+				pfree(handle->stmt);
+			handle->stmt_len = lengthStringInfo(&txnstart);
+			handle->stmt = donateStringInfo(&txnstart);
+			handle->owns_stmt_mem = true;
+			asi->txn_in_progress = true;
+		}
+	}
+
+	CmdType cmd = handle->cmd;
+	if (!asi->did_write)
+		asi->did_write = (cmd == CMD_INSERT || cmd == CMD_UPDATE || cmd == CMD_DELETE);
+	if (!asi->did_ddl)
+		asi->did_ddl = (cmd == CMD_DDL);
+	if (!asi->did_read)
+		asi->did_read = (cmd == CMD_SELECT || cmd == CMD_UTILITY);
+	asi->executed_stmts++;
+}
+
+static bool
+send_stmt_impl(AsyncStmtInfo *asi, StmtHandle *handle)
+{
+	Assert(!asi->curr_stmt);
+	Assert(handle->asi == asi);
+	Assert(ASIConnected(asi));
+	int ret = 0;
+	/* update asi status, and add extra info to current statment */
+	work_on_stmt(asi, handle);
+	
+	asi->curr_stmt = handle;
+	asi->stmt_queue = list_delete_ptr(asi->stmt_queue, handle);
+	/* send it */
+	handle->status_req = mysql_real_query_start(&ret,
+											asi->conn,
+											handle->stmt,
+											handle->stmt_len);
+
+	elog(DEBUG1, "sent query to [%u, %u:%ld]: %s",
+	     asi->shard_id,
+	     asi->node_id,
+	     mysql_thread_id(asi->conn),
+	     handle->stmt);
+
+	if (handle->status_req == 0)
+	{
+		/* No need to call mysql_real_query_cont() */
+		handle->first_packet = true;
+
+		/** 
+		 * Free the stmts memory here, otherwise, it is automatically 
+		 * released depending on the corresponding memory context.
+		 */
+		if (handle->owns_stmt_mem)
+		{
+			pfree(handle->stmt);
+			handle->stmt = NULL;
+			handle->owns_stmt_mem = false;
+		}
+	}
+
+	return handle->status_req == 0;
+}
+
+/**
+ * @brief Recv next result of the statement
+ *
+ * @return true 	EOF or a new result
+ * @return false 	the result is on the way
+ */
+static bool
+recv_stmt_result_impl(AsyncStmtInfo *asi, StmtHandle *handle)
+{
+	Assert(asi == handle->asi);
+	Assert(asi->curr_stmt == handle);
+	Assert(ASIConnected(asi));
+	int err = 0;
+	bool ret = false;
+
+	if (handle->finished)
+	{
+		ret = true;
+		goto end;
+	}
+
+	if (handle->status_req &&
+	    (handle->status_req & handle->status) == 0)
+		return false;
+
+	/* Waiting for the first packet of the first result */
+	if (!handle->first_packet)
+	{
+		if ((handle->status_req =
+			 mysql_real_query_cont(&err, asi->conn, handle->status)))
+			return false;
+
+		handle->status = 0;
+		
+		/* We have got the response packet now, mark it */
+		handle->first_packet = true;
+
+		/* Free memory */
+		if (handle->owns_stmt_mem)
+		{
+			pfree(handle->stmt);
+			handle->stmt = NULL;
+			handle->owns_stmt_mem = false;
+		}
+		
+		if (err)
+			handle_stmt_error(asi, handle, mysql_errno(asi->conn));
+	}
+
+	/* Waiting for the first packet of the next result */
+	if (handle->nextres)
+	{
+		if ((handle->status_req =
+			 mysql_next_result_cont(&err, asi->conn, handle->status)))
+			return false;
+
+		handle->status = 0;
+		handle->nextres = false;
+	}
+
+	PG_TRY();
+	{
+		ret = handle_stmt_remote_result(asi, handle);
+	}
+	PG_CATCH();
+	{
+		if (handle->finished)
+		{
+			asi->curr_stmt = NULL;
+			release_stmt_handle(SAFE_HANDLE(handle));
+		}
+		PG_RE_THROW();
+	}
+	PG_END_TRY();
+
+end:
+	if (handle->finished)
+	{
+		asi->curr_stmt = NULL;
+		release_stmt_handle(SAFE_HANDLE(handle));
+	}
+
+	return ret;
+}
+
+/**
+ * @brief Fetch the next tuple of Select/Returning's result
+ *
+ * @return true 	EOF or a new tuple
+ * @return false 	need wait
+ */
+static inline bool
+fetch_stmt_remote_next(AsyncStmtInfo *asi, StmtHandle *handle)
+{
+	if (handle->status_req &&
+		(handle->status_req & handle->status) == 0)
+		return false;
+
+	if (handle->status_req == 0)
+		handle->status_req = mysql_fetch_row_start(&handle->row,
+												   handle->res);
+	else
+		handle->status_req = mysql_fetch_row_cont(&handle->row,
+												  handle->res,
+												  handle->status);
+	if (handle->status_req)
+		return false;
+
+	handle->status = 0;
+
+	/* empty, maybe error or EOF */
+	if (!handle->row)
+	{
+		int eno;
+		if ((eno = mysql_errno(asi->conn)))
+		{
+			handle_stmt_error(asi, handle, eno);
+			Assert(handle->finished);
+			/* This is an ignored error, reaching the EOF */
+			return true;
+		}
+
+		mysql_free_result(handle->res);
+		handle->res = NULL;
+		if (!mysql_more_results(asi->conn))
+		{
+			handle->finished = true;
+		}
+		else
+		{
+			int ret;
+			handle->status_req = mysql_next_result_start(&ret, asi->conn);
+			handle->nextres = (handle->status_req != 0);
+		}
+	}
+	/* it's returning, so count for the affected rows */
+	else
+	{
+		handle->lengths = mysql_fetch_lengths(handle->res);
+		if (handle->cmd != CMD_SELECT)
+		{
+			++handle->affected_rows;
+			++asi->stmt_wrows;
+			++asi->txn_wrows;
+		}
+	}
+
+	return true;
+}
+
+/**
+ * @brief Handle the result of the given statment
+ *
+ * @return true 	EOF or a new tuple
+ * @return false 	Need wait
+ */
+static bool
+handle_stmt_remote_result(AsyncStmtInfo *asi, StmtHandle *handle)
+{
+	int eno;
+	Assert(ASIConnected(asi));
+
+	/* it is finished, no more results */
+	if (handle->finished)
+		return true;
+
+	if (handle->status_req &&
+		(handle->status_req & handle->status) == 0)
+		return false;
+	
+	if (!handle->res)
+	{
+		/* Check if it is 'select/returning' based on the returned metadata. ? */
+		int field_count = 0;
+		if ((field_count = mysql_field_count(asi->conn)) > 0)
+		{
+			if (handle->fetch) // fetch is true, means we handle select/returning before
+			{
+				if (!handle->cancel) // Don't complain abort canceled statement
+				{
+					ereport(ERROR,
+							(errcode(ERRCODE_INTERNAL_ERROR),
+							 errmsg("Kunlun-db: More than one SELECT statements were sent at once.")));
+				}
+			}
+
+			handle->field_count = field_count;
+
+			/* Mark we are going to fetch the result tuple */
+			handle->fetch = true;
+			if (!(handle->res = mysql_use_result(asi->conn)))
+			{
+				if ((eno = mysql_errno(asi->conn)))
+				{
+					handle_stmt_error(asi, handle, eno);
+					// This is an ignored error, reaching the EOF of the result
+					Assert(handle->finished);
+					return true;
+				}
+				else
+				{
+					ereport(ERROR,
+						(errcode(ERRCODE_INTERNAL_ERROR),
+						 errmsg("Kunlun-db: A %s statement returned no results.",
+							handle->cmd == CMD_SELECT ? "SELECT" : "RETURNING")));
+				}
+			}
+			
+			// fetch the field type
+			MYSQL_FIELD *fields = mysql_fetch_field(handle->res);
+			handle->types = (enum enum_field_types *)
+			    MemoryContextAlloc(TopMemoryContext, field_count * sizeof(enum enum_field_types));
+			for (int i = 0; i < field_count; ++i)
+				handle->types[i] = fields->type;
+		}
+	}
+
+	if (!handle->res)
+	{
+		uint64_t n = mysql_affected_rows(asi->conn);
+		if (n == (uint64_t)-1)
+		{
+			handle_stmt_error(asi, handle, mysql_errno(asi->conn));
+			// it's a ignore error, reach the EOF of the result
+			return true;
+		}
+		handle->affected_rows += n;
+		asi->stmt_wrows += n;
+		asi->txn_wrows += n;
+		asi->nwarnings += mysql_warning_count(asi->conn);
+
+		/* No more results? it's EOF ? */	
+		if (!mysql_more_results(asi->conn))
+		{
+			handle->finished = true;
+		}
+		else
+		{
+			int ret;
+			handle->status_req = mysql_next_result_start(&ret, asi->conn);
+			handle->nextres = (handle->status_req != 0);
+		}
+
+		return true;
+	}
+	else
+	{
+		/* free result if it is canceled  */
+		if (handle->cancel)
+		{
+			handle->row = NULL;
+			if (handle->status_req == 0)
+				handle->status_req = mysql_free_result_start(handle->res);
+			else
+				handle->status_req = mysql_free_result_cont(handle->res, handle->status);
+			if (handle->status_req)
+				return false;
+
+			handle->status = 0;
+			handle->res = NULL;
+			if (!mysql_more_results(asi->conn))
+			{
+				handle->finished = true;
+			}
+			else
+			{
+				int ret;
+				handle->status = mysql_next_result_start(&ret, asi->conn);
+				handle->nextres = (handle->status != 0);
+			}
+			return true;
+		}
+		else
+		{
+			return fetch_stmt_remote_next(asi, handle);
+		}
+	}
+}
+
+bool is_stmt_eof(StmtSafeHandle h)
+{
+	CHECK_HANDLE_EPOCH(h);
+	StmtHandle *handle = RAW_HANDLE(h);
+	return handle->finished &&
+	       (!handle->read_cache || !handle->cache || matcache_eof(handle->cache));
+}
+
+static StmtHandle*
+poll_remote_events_any(StmtHandle *handles[], int size, int timeout_ms)
+{
+	struct pollfd pfds[size];
+	memset(pfds, 0, sizeof(pfds[0]) * size);
+
+	int num = 0;
+	for (int i=0; i<size; ++i)
+	{
+		StmtHandle *handle = handles[i];
+		if (handle->finished || !handle->status_req || (handle->status_req & handle->status))
+			return handle;
+
+		struct pollfd *pfd = pfds + num;
+		pfd->fd = mysql_get_socket(handle->asi->conn);
+		pfd->revents = 0;
+		pfd->events =
+			(handle->status_req & MYSQL_WAIT_READ ? POLLIN : 0) |
+			(handle->status_req & MYSQL_WAIT_WRITE ? POLLOUT : 0) |
+			(handle->status_req & MYSQL_WAIT_EXCEPT ? POLLPRI : 0);
+		++num;
+	}
+
+	StmtHandle *active_handle = NULL;
+	while (num)
+	{
+		int res = poll(pfds, num, timeout_ms);
+
+                /* Timeout, break  */
+                if (res == 0)
+                        break;
+		if (res < 0)
+		{
+			// handle EINTR and ENOMEM
+			if (errno == ENOMEM)
+			{
+				pgstat_report_wait_end();
+				ereport(ERROR,
+					(errcode(ERRCODE_INSUFFICIENT_RESOURCES),
+					 errmsg("Kunlun-db: poll() failed with ENOMEM(%d : %s)", errno, strerror(errno))));
+				break;
+			}
+			else if (errno == EINTR)
+			{
+				CHECK_FOR_INTERRUPTS();
+				continue;
+			}
+			else
+			{
+				pgstat_report_wait_end();
+				ereport(ERROR,
+					(errcode(ERRCODE_SYSTEM_ERROR),
+					 errmsg("Kunlun-db: poll() unexpectedly failed with system error (%d : %s)",
+						errno, strerror(errno))));
+			}
+		}
+		else if (res > 0)
+		{
+			for (size_t i = 0; i < num; i++)
+			{
+				struct pollfd *pfd = pfds + i;
+				StmtHandle *handle = handles[i];
+				handle->status = 0;
+				if (pfd->revents & POLLIN)
+					handle->status |= MYSQL_WAIT_READ;
+				if (pfd->revents & POLLOUT)
+					handle->status |= MYSQL_WAIT_WRITE;
+				if (pfd->revents & POLLPRI)
+					handle->status |= MYSQL_WAIT_EXCEPT;
+				active_handle = handle;
+			}
+			break;
+		}
+	}
+
+	return active_handle;
+}
+
+/**
+ * @brief Urges processing of statements preceding cur .
+ *
+ * 	if cur = null, then all statements in the queue are urged to be processed
+ *
+ * @return true	 	All of the statements preceding cur has been processed
+ * @return false 	A preceding statement is in progress, need wait for a while
+ */
+static bool
+process_preceding_stmts(AsyncStmtInfo *asi, StmtHandle *cur)
+{
+	StmtHandle *handle;
+	Assert(ASIConnected(asi));
+	if (cur && cur == asi->curr_stmt)
+		return true;
+	while (true)
+	{
+		if (asi->curr_stmt)
+		{
+			handle = asi->curr_stmt;
+			/* mark should read the cache to get the next tuple  */
+			if (!handle->read_cache)
+			{
+				handle->read_cache = true;
+				/* Read from current write position */
+				if (handle->cache)
+				{
+					matcache_get_write_pos(handle->cache, &handle->cache_pos);
+					handle->reset_cache_pos = true;
+				}
+			}
+
+			/* materialize results of previous statment */
+			++handle->refcount;
+			while (recv_stmt_result_impl(asi, handle))
+			{
+				if (handle->finished)
+					break;
+
+				if (handle->row && !handle->cancel)
+				{
+					materialize_current_tuple(asi, handle);
+				}
+			}
+
+			if (!handle->cache)
+				handle->read_cache = false;
+
+			bool finished = handle->finished;
+			release_stmt_handle(SAFE_HANDLE(handle));
+			if (!finished)
+				return false;
+		}
+
+		do
+		{
+			if (list_length(asi->stmt_queue) == 0 ||
+			    (handle = (StmtHandle*)linitial(asi->stmt_queue)) == cur)
+				return true;
+
+			if (handle->cancel)
+			{
+				asi->stmt_queue = list_delete_ptr(asi->stmt_queue, handle);
+				release_stmt_handle(SAFE_HANDLE(handle));
+				continue;
+			}
+		} while (0);
+
+		/* send preceding statement */
+		if (!send_stmt_impl(asi, handle))
+			return false;
+	}
+}
+
+static void
+flush_invalid_stmts(AsyncStmtInfo *pasi)
+{
+	Assert(ASIConnected(pasi) == false);
+	ListCell *lc;
+	foreach (lc, pasi->stmt_queue)
+	{
+		StmtHandle *handle = (StmtHandle *)lfirst(lc);
+		handle->cancel = true;
+		handle->finished = true;
+		release_stmt_handle(SAFE_HANDLE(handle));
+	}
+	pasi->stmt_queue = NIL;
+
+	if (pasi->curr_stmt)
+	{
+		pasi->curr_stmt->cancel = true;
+		pasi->curr_stmt->finished = true;
+		release_stmt_handle(SAFE_HANDLE(pasi->curr_stmt));
+		pasi->curr_stmt = NULL;
+	}
+}
+
+/**
+ * @brief Urge processing of the statements in asi[], and wait for them to complete.
+ *
+ *  Because this is an internally used helper function, if an asi is invalid, all the statements
+ *  in it will be canceled and no error will be thrown, and the caller needs to do the
+ *  corresponding checks before calling it.
+ *  
+ *  @param cancel	True if we are waiting for canceled stmts to be complete
+ */
+static void
+flush_all_stmts_impl(AsyncStmtInfo **asi, int count, bool cancel)
+{
+	StmtHandle *handle;
+	StmtHandle *blocking[count];
+	int num_blocking = 0;
+	bool is_write = false;
+	bool is_ddl = false;
+	bool enable_timeout = false;
+	int checkCount = 0;
+
+	PG_TRY();
+	{
+		while (true)
+		{
+			for (int i = 0; i < count; ++i)
+			{
+				AsyncStmtInfo *pasi = asi[i];
+
+				/* if the the connection is invalid, just release all the stmts */
+				if ( !ASIConnected(pasi))
+				{
+					flush_invalid_stmts(pasi);
+					continue;
+				}
+			recheck:
+				/* any pending stmts? */
+				if (!pasi->curr_stmt && list_length(pasi->stmt_queue) == 0)
+					continue;
+
+				/* urges processing of  the statements in queue */
+				if (process_preceding_stmts(pasi, NULL))
+					goto recheck;
+
+				handle = pasi->curr_stmt;
+				is_write |= handle->is_dml_write;
+				is_ddl  |= handle->cmd == CMD_DDL;
+				blocking[num_blocking++] = pasi->curr_stmt;
+			}
+
+			if (num_blocking == 0)
+				break;
+
+			/* set timeout for distributed deadlock detect */
+			if (is_write && !enable_timeout)
+			{
+				enable_timeout = true;
+				enable_timeout_after(WRITE_SHARD_RESULT_TIMEOUT,
+						     start_global_deadlock_detection_wait_timeout);
+			}
+
+			/* wait for the results from any of the currently blocking stmts */
+			poll_remote_events_any(blocking, num_blocking, 1000);
+			num_blocking = 0;
+
+			CHECK_FOR_INTERRUPTS();
+			/* interrupt may be hold,*/
+			if (cancel && QueryCancelPending && InterruptHoldoffCount > 0)
+			{
+				if (checkCount == 0)
+				{
+					ShardConnKillReq *req = makeShardConnKillReq(2 /*kill query*/);
+					if (req)
+					{
+						appendShardConnKillReq(req);
+						pfree(req);
+					}
+					checkCount = 1000;
+				}
+				checkCount -= 1;
+			}
+		}
+		if (enable_timeout)
+			disable_timeout(WRITE_SHARD_RESULT_TIMEOUT, false);
+	}
+	PG_CATCH();
+	{
+		if (geterrcode() == ERRCODE_QUERY_CANCELED)
+		{
+			/* No need to send kill here, it is done in ProecessInterrupts() */
+
+			/* Maybe the network to shard is broken, and topo is changed */
+			request_topo_checks_used_shards();
+
+			/*
+			  if statement_timeout set smaller than start_global_deadlock_detection_wait_timeout,
+			  this helps to inform gdd in time.
+			*/
+			if (is_write)
+				kick_start_gdd();
+
+			if (is_ddl)
+			{
+				StringInfoData stmt_str;
+				initStringInfo2(&stmt_str, 512, TopTransactionContext);
+				CurrentStatementsShards(&stmt_str);
+				ereport(WARNING,
+					(errcode(ERRCODE_INTERNAL_ERROR),
+					 errmsg("Kunlun-db: Current timed out statement is a DDL, so there could be"
+						"unrevokable effects(i.e. leftover tables/databases, etc) in "
+						"target storage shards."),
+					 errhint("DBAs should manually check all target shards and "
+						 "clear leftover effects. DDL statements in all target shards: %*s.",
+						 stmt_str.len, stmt_str.data)));
+			}
+		}
+
+		/* Cancel all statements in the queue */
+		cancel_all_stmts();
+		PG_RE_THROW();
+	}
+	PG_END_TRY();
+}
+
+/**
+ * @brief The common logic of getting next row of the statement
+ */
+static MYSQL_ROW
+get_stmt_next_row_common(StmtHandle *handle, bool wait)
+{
+	Assert(handle->asi);
+	AsyncStmtInfo *asi = handle->asi;
+	if (is_stmt_eof(SAFE_HANDLE(handle)))
+		return NULL;
+
+	/* read from materialize cache */
+	if (handle->read_cache)
+	{
+		if (handle->reset_cache_pos)
+		{
+			handle->reset_cache_pos = false;
+			matcache_set_read_pos(handle->cache, handle->cache_pos);
+		}
+		if (!matcache_eof(handle->cache))
+			return next_row_from_matcache(handle);
+		/* Reach the EOF of matcache, try read from socket again ? */
+		handle->read_cache = false;
+
+		/* This is a temporary one time materializtion, reset it*/
+		if (handle->support_rewind == false)
+			matcache_reset(handle->cache);
+		
+		/* Try read socket again, maybe some there are tuples not materialized yet */
+		return get_stmt_next_row_common(handle, wait);
+	}
+
+	/* if the connection is broken, just return NULL */
+	if (!ASIConnected(handle->asi))
+	{
+		AsyncStmtInfo *asi = handle->asi;
+		flush_invalid_stmts(asi);
+		ereport(ERROR,
+			(errcode(ERRCODE_CONNECTION_EXCEPTION),
+			 errmsg("Kunlun-db: Connection with MySQL storage node (%u, %u) is gone. Resend the statement.",
+				asi->shard_id, asi->node_id)));
+	}
+
+	/* urge processing of  preceding statments */
+	if (asi->curr_stmt != handle)
+	{
+		while (process_preceding_stmts(asi, handle) == false)
+		{
+			/* return if not wait */
+			if (!wait)
+				return NULL;
+
+			poll_remote_events_any(&asi->curr_stmt, 1, 1000);
+			CHECK_FOR_INTERRUPTS();
+		}
+	}
+
+	/* Send statement if not send it yet */
+	if (!asi->curr_stmt)
+		send_stmt_impl(asi, handle);
+
+	Assert(asi->curr_stmt == handle);
+	/* wait until recv next tuple from the socket */
+	while (true)
+	{
+		CHECK_FOR_INTERRUPTS();
+		if (recv_stmt_result_impl(asi, handle) == false)
+		{
+			/* just return if not no wait*/
+			if (!wait)
+				return NULL;
+			poll_remote_events_any(&asi->curr_stmt, 1, 1000);
+			continue;
+		}
+
+		/* EOF */
+		if (handle->finished)
+			return NULL;
+
+		/* Non-select/returning cmd */
+		if (handle->row == NULL)
+			continue;
+
+		if (handle->support_rewind)
+			materialize_current_tuple(asi, handle);
+		return handle->row;
+	}
+
+	return NULL;
+}
+
+MYSQL_ROW
+get_stmt_next_row(StmtSafeHandle handle)
+{
+	CHECK_HANDLE_EPOCH(handle);
+	return get_stmt_next_row_common(handle.handle, true);
+}
+
+MYSQL_ROW
+try_get_stmt_next_row(StmtSafeHandle handle)
+{
+	CHECK_HANDLE_EPOCH(handle);
+	return get_stmt_next_row_common(handle.handle, false);
+}
+
+enum enum_field_types *
+get_stmt_field_types(StmtSafeHandle handle)
+{
+	CHECK_HANDLE_EPOCH(handle);
+	return handle.handle->types;
+}
+
+size_t *get_stmt_row_lengths(StmtSafeHandle handle)
+{
+	CHECK_HANDLE_EPOCH(handle);
+	return handle.handle->lengths;
+}
+
+static bool
+stmt_handles_member(StmtSafeHandle *handles, int size, StmtHandle *handle)
+{
+	for (int i = 0; i < size; ++i)
+		if (handles[i].handle == handle)
+			return true;
+	return false;
+}
+
+StmtSafeHandle
+wait_for_readable_stmt(StmtSafeHandle *handles, int size)
+{
+	StmtHandle *handle, *best = NULL;
+	StmtHandle *runing_stmts[size];
+	StmtHandle *pending_stmts[size];
+	int num_runing_stmts = 0, num_pending_stmts = 0;
+	ListCell *lc;
+
+	for(int i=0; i<size; ++i)
+	{
+		CHECK_HANDLE_EPOCH(handles[i]);	
+		if (is_stmt_eof(handles[i]))
+			continue;
+		
+		handle = handles[i].handle;
+		/* it has been materialized, read it ! */
+		if (handle->read_cache &&
+		    handle->cache &&
+		    !matcache_eof(handle->cache))
+		{
+			best = handle;
+		}
+		/* it is stmts currently runing and waiting for no events */
+		else if (handle == handle->asi->curr_stmt)
+		{
+			if (!best && (handle->status_req == 0 || (handle->status_req & handle->status)))
+				best = handle;
+
+			if (handle->status_req)
+				runing_stmts[num_runing_stmts++] = handle;
+		}
+		else if (handle->asi->curr_stmt == 0 ||
+			 !stmt_handles_member(handles, size, handle->asi->curr_stmt))
+		{
+			foreach (lc, handle->asi->stmt_queue)
+			{
+				if (lfirst(lc) == handle)
+				{
+					pending_stmts[num_pending_stmts++] = handle;
+					break;
+				}
+				/* prevent expensive materialization */
+				if (stmt_handles_member(handles, size, lfirst(lc)))
+					break;
+			}
+		}
+	}
+
+	/* Send the stmts if connection is idle */
+	int i = 0;
+	while (i < num_pending_stmts)
+	{
+		handle = pending_stmts[i];
+		if (handle->asi->curr_stmt == NULL &&
+		    linitial(handle->asi->stmt_queue) == handle)
+		{
+			send_stmt_impl(handle->asi, handle);
+			runing_stmts[num_runing_stmts++] = handle;
+			pending_stmts[i] = pending_stmts[--num_pending_stmts];
+		}
+		else
+		{
+			++i;
+		}
+	}
+
+	while (!best)
+	{
+		/* waiting for result from any runing statments */
+		if (num_runing_stmts > 0)
+		{
+			while (!(best = poll_remote_events_any(runing_stmts, num_runing_stmts, 1000)))
+			{
+				/* check for pending interruption */
+			}
+			break;
+		}
+		else if (num_pending_stmts > 0)
+		{
+			StmtHandle *blocking[size];
+			i = 0;
+			while (i < num_pending_stmts)
+			{
+				handle = pending_stmts[i];
+				/* process the precding stmts to get a idle connection*/
+				if (process_preceding_stmts(handle->asi, handle))
+				{
+					send_stmt_impl(handle->asi, handle);
+					runing_stmts[num_runing_stmts++] = handle;
+					pending_stmts[i] = pending_stmts[--num_pending_stmts];
+				}
+				else
+				{
+					blocking[i] = handle->asi->curr_stmt;
+					++i;
+				}
+			}
+
+			if (num_runing_stmts == 0)
+			{
+				poll_remote_events_any(blocking, num_pending_stmts, 1000);
+			}
+		}
+		else
+		{
+			break;
+		}
+	}
+
+	return SAFE_HANDLE(best);
+}
+
+/**
+ * @brief Materialize ulong value
+ */
+static void
+matcache_store_ulong(MatCache *cache, size_t value)
+{
+	uint8_t u8 = value;
+	if (value < 251) /* 1 byte */
+	{
+		matcache_write(cache, (uchar*)&u8, sizeof(u8));
+	}
+	else if (value < 0xffff) /* 3 byte */
+	{
+		uint16_t u16 = value;
+		u8 = 251;
+		matcache_write(cache, (uchar*)&u8, sizeof(u8));
+		matcache_write(cache, (uchar*)&u16, sizeof(u16));
+	}
+	else
+	{
+		u8 = 252;
+		matcache_write(cache, (uchar*)&u8, sizeof(u8));
+		matcache_write(cache, (uchar*)&value, sizeof(value));
+	}
+}
+
+static size_t
+matcache_read_ulong(MatCache *cache)
+{
+	uint8_t u8;
+	matcache_read(cache, (uchar*)&u8, sizeof(u8));
+	if (u8 < 251)
+	{
+		return u8;
+	}
+	else if (u8 == 251)
+	{
+		uint16_t u16;
+		matcache_read(cache, (uchar*)&u16, sizeof(u16));
+		return u16;
+	}
+	else
+	{
+		size_t value;
+		Assert(u8 == 252);
+		matcache_read(cache, (uchar*)&value, sizeof(value));
+		return value;
+	}
+}
+
+static int
+serialize_ulong(size_t value, char *buff)
+{
+	if (value < 251)
+	{
+		buff[0] = (char)value;
+		return 1;
+	}
+	else if (value < 0xffff)
+	{
+		buff[0] = 251;
+		*(uint16_t *)(buff + 1) = (uint16_t)value;
+		return 3;
+	}
+	else
+	{
+		buff[0] = 252;
+		*(size_t *)(buff + 1) = value;
+		return 1 + sizeof(value);
+	}
+}
+
+static size_t
+deserialize_ulong(char **pptr)
+{
+	size_t ret = 0;
+	char *ptr = *pptr;
+	if (*ptr < 251)
+	{
+		ret = *(uint8_t *)ptr++;
+	}
+	else if (*ptr == 251)
+	{
+		++ptr;
+		ret = *(uint16_t *)ptr;
+		ptr += 2;
+	}
+	else
+	{
+		Assert(*ptr == 252);
+		++ptr;
+		ret = *(size_t *)ptr;
+		ptr += sizeof(size_t);
+	}
+	*pptr = ptr;
+	return ret;
+}
+
+/**
+ * @brief Get the next row from the materialized cache
+ */
+static MYSQL_ROW
+next_row_from_matcache(StmtHandle *handle)
+{
+	size_t len, lenlen, rowlen;
+	StringInfo buff = &handle->read_buff;
+	resetStringInfo(buff);
+
+	len = matcache_read_ulong(handle->cache);
+
+	/* alloc enough memory */
+	lenlen = sizeof(size_t) * handle->field_count;
+	rowlen = sizeof(char*) * handle->field_count;
+	enlargeStringInfo(buff, len + lenlen + rowlen);
+
+	matcache_read(handle->cache, (uchar*)buff->data, len);
+	handle->lengths = (size_t*)(buff->data + len);
+	handle->row = (char**)(buff->data + len  + lenlen);
+
+	char *ptr = buff->data;
+	for (int i = 0; i < handle->field_count; ++i)
+	{
+		len = deserialize_ulong(&ptr);
+		handle->row[i] = (len == 0 ? NULL : ptr);
+		ptr += len;
+		handle->lengths[i] = (len == 0 ? len : len - 1);
+	}
+	return handle->row;
+}
+
+/**
+ * @brief Materialize currently fetched tuple
+ */
+static void
+materialize_current_tuple(AsyncStmtInfo *asi, StmtHandle *handle)
+{
+	Assert(asi->curr_stmt == handle);
+	Assert(handle->res && handle->row);
+	if (!handle->cache)
+	{
+		handle->cache = matcache_create();
+		Assert(matcache_mode(handle->cache) == WRITE_MODE);
+		initStringInfo2(&handle->read_buff, 128, TopMemoryContext);
+		initStringInfo2(&handle->buff, 128, TopMemoryContext);
+	}
+	resetStringInfo(&handle->buff);
+
+	size_t len;
+	StringInfo buff = &handle->buff;
+	char lenBuff[sizeof(size_t) + 1];
+	int lenBuffSize;
+	
+	for (int i = 0; i < handle->field_count; ++i)
+	{
+		len = handle->lengths[i] + (handle->row[i] ? 1 : 0);
+		lenBuffSize = serialize_ulong(len, lenBuff);
+		appendBinaryStringInfo(buff, lenBuff, lenBuffSize);
+		if (len == 0)
+			continue;
+		appendBinaryStringInfo(buff, handle->row[i], len);
+	}
+
+	len = buff->len;
+	matcache_store_ulong(handle->cache, len);
+	matcache_write(handle->cache, (uchar *)buff->data, buff->len);
+}
+
+bool is_stmt_rewindable(StmtSafeHandle handle)
+{
+	CHECK_HANDLE_EPOCH(handle);
+	return RAW_HANDLE(handle)->support_rewind;
+}
+
+void stmt_rewind(StmtSafeHandle h)
+{
+	CHECK_HANDLE_EPOCH(h);
+	StmtHandle *handle = h.handle;
+	Assert(handle->support_rewind);
+	if (handle->cache)
+	{
+		handle->read_cache = true;
+		handle->reset_cache_pos = true;
+		handle->cache_pos.fileno = 0;
+		handle->cache_pos.offset = 0;
+		matcache_set_read_pos(handle->cache, handle->cache_pos);
+	}
+}
+
+void release_stmt_handle(StmtSafeHandle h)
+{
+	if (HANDLE_EXPIRED(h))
+		return;
+	StmtHandle *handle = h.handle;
+	--handle->refcount;
+	if (handle->refcount == 0)
+	{
+		handle->asi->stmt_inuse =  list_delete_ptr(handle->asi->stmt_inuse, handle);
+		Assert(handle->finished);
+		if (handle->cache)
+			matcache_close(handle->cache);
+		if (handle->types)
+			pfree(handle->types);
+		// The memory context may have been released 
+		// if (handle->owns_stmt_mem)
+		// 	pfree(handle->stmt);
+		pfree(handle);
+	}
+}
+
+/**
+ * @brief Same as send_stmt_async(), but don't  care about the result unless some error occurs
+ */
+void send_stmt_async_nowarn(AsyncStmtInfo *asi, char *stmt,
+			    size_t stmt_len, CmdType cmd, bool ownsit, enum enum_sql_command sqlcom)
+{
+	StmtSafeHandle handle = send_stmt_async(asi, stmt, stmt_len, cmd, ownsit, sqlcom, false);
+	release_stmt_handle(handle);
+
+	/* throw error if the connection is invalid*/
+	if (ASIConnected(asi) == false)
+	{
+		flush_invalid_stmts(asi);
+		ereport(ERROR,
+			(errcode(ERRCODE_CONNECTION_EXCEPTION),
+			 errmsg("Kunlun-db: Connection with MySQL storage node (%u, %u) is gone. Resend the statement.",
+				asi->shard_id, asi->node_id)));
+	}
+}
+
+/**
+ * @brief Send statement and waiting for the result synchronously
+ *
+ *  throw error if connection is invalid or other errors happened
+ */
+void send_remote_stmt_sync(AsyncStmtInfo *asi, char *stmt, size_t len,
+			   CmdType cmdtype, bool owns_it, enum enum_sql_command sqlcom, int ignore_err)
+{
+	StmtSafeHandle handle = INVALID_STMT_HANLE;
+	int old = set_stmt_ignored_error(ignore_err);
+	PG_TRY();
+	{
+		handle = send_stmt_async(asi, stmt, len, cmdtype, owns_it, sqlcom, false);
+		set_stmt_ignored_error(old);
+	}
+	PG_CATCH();
+	{
+		set_stmt_ignored_error(old);
+		if (stmt_handle_valid(handle))
+			release_stmt_handle(handle);
+
+		PG_RE_THROW();
+	}
+	PG_END_TRY();
+	release_stmt_handle(handle);
+
+	/* throw error if the connection is invalid*/
+	if (ASIConnected(asi) == false)
+	{
+		flush_invalid_stmts(asi);
+		ereport(ERROR,
+			(errcode(ERRCODE_CONNECTION_EXCEPTION),
+			 errmsg("Kunlun-db: Connection with MySQL storage node (%u, %u) is gone. Resend the statement.",
+				asi->shard_id, asi->node_id)));
+	}
+
+	flush_all_stmts_impl(&asi, 1, false);
+}
+
+/**
+ * @brief Send statement to all of the connections in use and waiting for the result synchronously
+ *
+ *  throw error if a connection is invalid or other errors happened
+ */
+void send_stmt_to_all_inuse_sync(char *stmt, size_t len, CmdType cmdtype, bool owns_it,
+				 enum enum_sql_command sqlcom, bool written_only)
+{
+	size_t cnt = cur_session.num_asis_used, num = 0;
+	AsyncStmtInfo *asi = cur_session.asis;
+	AsyncStmtInfo *used_asis[cnt];
+
+	for (int i = 0; i < cnt; ++i, ++asi)
+	{
+		/*
+		  if the connection to storage shard is closed, no need to abort the txn;
+		  if no stmt was yet executed, we have no txn to abort --- this could
+		  happen if another channel got error and we need to abort current txn.
+		  All of these two cases can be detected by check asi->executed_stmts,
+		  because we always reset asi when got disconnected error , which will
+		  set executed_stmts to zero.
+		*/
+		if (sqlcom == SQLCOM_XA_ROLLBACK && asi->executed_stmts == 0)
+			continue;
+
+		if (written_only && !asi->did_write)
+			continue;
+
+		if (cmdtype == CMD_TXN_MGMT && !asi->txn_in_progress)
+			continue;
+
+		/* add it to asi's stmt queue  */
+		send_stmt_async_nowarn(asi, stmt, len, cmdtype, owns_it, sqlcom);
+
+		used_asis[num++] = asi;
+	}
+
+	/* Do synchronously wait*/
+	flush_all_stmts_impl(used_asis, num, false);
+}
+
+/**
+ * @brief Send statement to all of the shards and waiting for the result synchronously
+ *
+ *  throw error if a connection is invalid or other errors happened
+ */
+void send_stmt_to_all_shards_sync(char *stmt, size_t len, CmdType cmdtype, bool owns_it,
+				  enum enum_sql_command sqlcom)
+{
+	ListCell *lc;
+	List *shards = GetAllShardIds();
+	const int cnt = list_length(shards);
+	AsyncStmtInfo *used_asis[cnt];
+
+	int i = 0;
+	foreach (lc, shards)
+	{
+
+		AsyncStmtInfo *asi = GetAsyncStmtInfo(lfirst_oid(lc));
+		send_stmt_async_nowarn(asi, stmt, len, cmdtype, owns_it, sqlcom);
+		used_asis[i++] = asi;
+	}
+
+	flush_all_stmts_impl(used_asis, cnt, false);
+}
+
+/**
+ * @brief Send all of the statements in queue and  waiting for the result synchronously
+ *
+ *  throw error if a connection is invalid or other errors happened
+ */
+void flush_all_stmts()
+{
+	const size_t count = cur_session.num_asis_used;
+	AsyncStmtInfo *pasi = cur_session.asis;
+	AsyncStmtInfo *asi_vec[count];
+
+	int len = 0;
+	for (int i = 0; i < count; ++i, ++pasi)
+	{
+		if (pasi->curr_stmt || list_length(pasi->stmt_queue) > 0)
+		{
+			if (ASIConnected(pasi) == false)
+			{
+				flush_invalid_stmts(pasi);
+				ereport(ERROR,
+					(errcode(ERRCODE_CONNECTION_EXCEPTION),
+					 errmsg("Kunlun-db: Connection with MySQL storage node (%u, %u) is gone. Resend the statement.",
+						pasi->shard_id, pasi->node_id)));
+			}
+			asi_vec[len++] = pasi;
+		}
+	}
+
+	if (len > 0)
+		flush_all_stmts_impl(asi_vec, len, false);
+}
+
+/**
+ * @brief Marked statement to be canceled, and no longer cares whether it executes
+ *    or its returned result (which may still be executed).
+ *
+ * @param handle
+ */
+void cancel_stmt_async(StmtSafeHandle h)
+{
+	CHECK_HANDLE_EPOCH(h);
+	StmtHandle *handle = RAW_HANDLE(h);
+	Assert(handle->refcount > 0);
+	handle->cancel = true;
+}
+
+/**
+ * @brief Marked statement to be canceled, and free all the results remained in the sockets
+ * 
+ * @param handle 
+ */
+void cancel_stmt(StmtSafeHandle h)
+{
+	if (HANDLE_EXPIRED(h))
+		return;
+	StmtHandle *handle = RAW_HANDLE(h);
+	handle->cancel = true;
+
+	/* free cache */
+	handle->read_cache = false;
+	handle->support_rewind = false;
+	if (handle->cache)
+	{
+		matcache_close(handle->cache);
+		handle->cache = NULL;
+	}
+
+	/* Check if it is currently running statment */
+	if (is_stmt_eof(h) || handle->asi->curr_stmt != handle)
+		return;
+
+	MYSQL_ROW row = get_stmt_next_row_common(handle, true);
+
+	Assert(row == NULL);
+}
+
+/**
+ * @brief Cancels all statements waiting in the queue and waits for the currently running
+ *  statement to complete.
+ *
+ *  This is used internally and is mainly used when the asi is finally cleaned up, so even if
+ *  the running stmt eventually reports an error, or even if the connection is disconnected,
+ *  no exception will be thrown.
+ */
+static void
+cancel_all_stmts_impl(AsyncStmtInfo *asi[], int cnt)
+{
+	static int deep = 0;
+	++deep;
+	if (deep > 1)
+	{
+		/*Avoid recursive call*/
+		--deep;
+		return;
+	}
+
+	AsyncStmtInfo *active[cnt];
+	int num = 0;
+	for (int i = 0; i < cnt; ++i)
+	{
+		AsyncStmtInfo *pasi = asi[i];
+		ListCell *lc;
+		foreach (lc, pasi->stmt_queue)
+		{
+			StmtHandle *handle = lfirst(lc);
+			handle->cancel = true;
+			handle->finished = true;
+			release_stmt_handle(SAFE_HANDLE(handle));
+		}
+		list_free(pasi->stmt_queue);
+		pasi->stmt_queue = NIL;
+
+		if (pasi->curr_stmt)
+		{
+			pasi->curr_stmt->cancel = true;
+			active[num++] = pasi;
+		}
+	}
+
+	/* make a copy to top error before loop */
+	ErrorData *errdata = NULL;
+	MemoryContext saved;
+	if (top_errcode())
+	{
+		saved = MemoryContextSwitchTo(TopMemoryContext);
+		errdata = CopyErrorData();
+		MemoryContextSwitchTo(saved);
+	}
+
+	bool retry = false;
+	do
+	{
+		retry = false;
+		PG_TRY();
+		{
+			if (num > 0)
+				flush_all_stmts_impl(active, num, true);
+		}
+		PG_CATCH();
+		{
+			FlushErrorState();
+			retry = true;
+		}
+		PG_END_TRY();
+	} while (retry);
+
+	--deep;
+
+	/* Restore the top error information */
+	if (errdata)
+	{
+		PG_TRY();
+		{
+			ReThrowError(errdata);
+		}
+		PG_END_TRY();
+		FreeErrorData(errdata);
+	}
+}
+
+/**
+ * @brief Like cancel_all_stmts_impl(), cancels all the statements in asi currently in use,
+ *  but does not need to pass in the asi array.
+ */
+void cancel_all_stmts()
+{
+	const size_t count = cur_session.num_asis_used;
+	AsyncStmtInfo *pasi = cur_session.asis;
+	AsyncStmtInfo *asis[count];
+
+	for (int i = 0; i < count; ++i, ++pasi)
+	{
+		asis[i] = pasi;
+	}
+
+	cancel_all_stmts_impl(asis, count);
+}
+
+static void
+close_remote_conn(AsyncStmtInfo *asi)
+{
+	if (asi->curr_stmt && asi->curr_stmt->res)
+	{
+		Assert(asi->conn);
+		mysql_free_result(asi->curr_stmt->res);
+		asi->curr_stmt->res = NULL;
+	}
+
+	if (asi->conn)
+		mysql_close(asi->conn);
+	MarkConnValid(asi, false);
+	flush_invalid_stmts(asi);
+}
+/*
+ * Abort txns on all connections to storage node, and clear the MYSQL* ptr in
+ * ShardConnection.
+ * */
+static void handle_backend_disconnect(AsyncStmtInfo *asi0)
+{
+	AsyncStmtInfo *asi;
+	/*
+	 * Close all in-use connections to storage nodes, and mark them invalid.
+	 * */
+	for (int i = 0; i < cur_session.num_asis_used; i++)
+	{
+		asi = cur_session.asis + i;
+		if (asi->conn)
+		{
+			close_remote_conn(asi);
+		}
+
+		/*
+		 * Disconnection auto aborts current txn, except if current stmt just
+		 * executed is XA PREPARE.
+		 * If we send XA ROLLBACK when last executed
+		 * isn't 'XA PREPARE', we'd make new connection and the XA ROLLBACK
+		 * will cause error: unknown xid.
+
+		 * If we sent XA PREPARE to some conns, here we don't know whether they
+		 * have succeeded, and since we've either reset or disconnected such
+		 * conns, it's safe to skip the abort and let cluster_manager abort.
+
+		 * For the broken channel, let cluster_manager abort the prepared txn
+		 * branch if it's already prepared. we don't know here whethe it's
+		 * prepared or not.
+		 */
+		ResetASI(asi);
+	}
+	/* invalid all handles not released yet*/
+	++ handle_epoch;
+}
+
+static void
+handle_stmt_error(AsyncStmtInfo *asi, StmtHandle *handle, int eno)
+{
+	MYSQL *conn = asi->conn;
+	Oid shardid = asi->shard_id;
+	Oid nodeid = asi->node_id;
+
+	if (eno == 0)
+		return;
+
+	static char errmsg_buf[512];
+	errmsg_buf[0] = '\0';
+	strncat(errmsg_buf, mysql_error(conn), sizeof(errmsg_buf) - 1);
+
+	/* Mark the EOF of the statement */
+	handle->finished = true;
+
+	/*
+	 * Only break the connection for client errors. Errors returned by server
+	 * caused by sql stmt simply report to client, those are not caused by
+	 * the connection.
+	 * */
+	if (IS_MYSQL_CLIENT_ERROR(eno))
+	{
+		if (eno == CR_SERVER_LOST || eno == CR_SERVER_GONE_ERROR)
+		{
+			ShardConnKillReq *req = makeShardConnKillReq(1 /*kill conn*/);
+			if (req)
+			{
+				appendShardConnKillReq(req);
+				pfree(req);
+			}
+		}
+
+		/* Close all of the connections used in txn */
+		handle_backend_disconnect(asi);
+	}
+
+	if (eno == CR_SERVER_LOST ||
+	    eno == CR_SERVER_GONE_ERROR ||
+	    eno == CR_SERVER_HANDSHAKE_ERR)
+	{
+		if (GetShardMasterNodeId(asi->shard_id) == asi->node_id)
+			RequestShardingTopoCheck(asi->shard_id);
+
+		ereport(ERROR,
+			(errcode(ERRCODE_CONNECTION_EXCEPTION),
+			 errmsg("Kunlun-db: Connection with MySQL storage node (%u, %u) is gone: %d, %s. Resend the statement.",
+				shardid, nodeid, eno, errmsg_buf),
+			 errdetail_internal("Disconnected all connections to MySQL storage nodes.")));
+	}
+	else if (eno == CR_UNKNOWN_ERROR)
+		ereport(ERROR,
+			(errcode(ERRCODE_INTERNAL_ERROR),
+			 errmsg("Kunlun-db: Unknown MySQL client error from MySQL storage node (%u, %u) : %d, %s. Resend the statement.",
+				shardid, nodeid, eno, errmsg_buf),
+			 errdetail_internal("Disconnected all connections to MySQL storage nodes.")));
+	else if (eno == CR_COMMANDS_OUT_OF_SYNC)
+		ereport(ERROR,
+			(errcode(ERRCODE_INTERNAL_ERROR),
+			 errmsg("Kunlun-db: Command out of sync from MySQL storage node (%u, %u) : %d, %s. Resend the statement.",
+				shardid, nodeid, eno, errmsg_buf),
+			 errdetail_internal("Disconnected all connections to MySQL storage nodes.")));
+	else if (IS_MYSQL_CLIENT_ERROR(eno))
+		ereport(ERROR,
+			(errcode(ERRCODE_INTERNAL_ERROR),
+			 errmsg("Kunlun-db: MySQL client error from MySQL storage node (%u, %u) : %d, %s. Resend the statement.",
+				shardid, nodeid, eno, errmsg_buf),
+			 errdetail_internal("Disconnected all connections to MySQL storage nodes.")));
+	else if (eno == ER_OPTION_PREVENTS_STATEMENT &&
+		 (strcasestr(errmsg_buf, "--read-only") ||
+		  strcasestr(errmsg_buf, "--super-read-only")))
+	{
+		/* It's fragile to rely on error message text for precise error
+		 * conditions, but this is all we have from mysql client. If in future
+		 * the error message changes, we must respond to that. */
+		RequestShardingTopoCheck(asi->shard_id);
+		handle_backend_disconnect(asi);
 
 		ereport(ERROR,
 				(errcode(ERRCODE_INTERNAL_ERROR),
-				 errmsg("Kunlun-db: As demanded by MySQL, a DDL statement can NOT be executed in an explicit transaction.")));
+				 errmsg("Kunlun-db: MySQL storage node (%u, %u) is no longer a primary(%d, %s), . Retry the transaction.",
+						shardid, nodeid, eno, errmsg_buf),
+				 errhint("Primary info will be refreshed automatically very soon. "),
+				 errdetail_internal("Disconnected all connections to MySQL storage nodes.")));
 	}
-
-	q->queue[q->end].stmt = stmt;
-	q->queue[q->end].stmt_len = stmt_len;
-	q->queue[q->end].owns_stmt_mem = owns_stmt_mem;
-	q->queue[q->end].cmd = cmd;
-	q->queue[q->end].sqlcom = sqlcom;
-	/*
-	  In DROP TYPE CASCADE, the type may have a dependent table  which is
-	  also dropped, but DROP TYPE doesn't go through the remote meta logic so
-	  the OP and OBJ types are both generic, mapping no valid sqlcom.
-	Assert(sqlcom != SQLCOM_END);
-	*/
-	return q->queue + q->end++;
+	else if (eno != handle->ignore_errno)
+		ereport(ERROR,
+			(errcode(ERRCODE_INTERNAL_ERROR),
+			 errmsg("Kunlun-db: MySQL storage node (%u, %u) returned error: %d, %s.",
+				shardid, nodeid, eno, errmsg_buf)));
+	else
+		elog(WARNING, "MySQL storage node (%u, %u) returned error: %d, %s, and it's taken as a WARNING.",
+		     shardid, nodeid, eno, errmsg_buf);
 }
-
-
 
 /*
  * Whether a mysql query has been executed in current transaction.
@@ -1893,49 +2620,22 @@ bool MySQLQueryExecuted()
 	AsyncStmtInfo *asi = cur_session.asis;
 	for (int i = 0; i < cur_session.num_asis_used; i++, asi++)
 	{
-		if (asi->executed_stmts || asi->result_pending || asi->did_read ||
-			asi->did_write || asi->did_ddl)
+		if (asi->executed_stmts || asi->did_read || asi->did_write || asi->did_ddl)
 			return true;
 	}
 	return false;
 }
 
-/*
- * When a txn is to be aborted, before appending XA ROLLBACK we need to cancel
- * all remote stmts still in queue waiting to be sent. There is no need
- * sending them.
- * */
-void CancelAllRemoteStmtsInQueue(bool freestmts)
-{
-	AsyncStmtInfo *asi = cur_session.asis;
-	for (int i = 0; i < cur_session.num_asis_used; i++, asi++)
-	{
-		for (int j = asi->stmtq.head; j < asi->stmtq.end; j++)
-		{
-			StmtElem *se = asi->stmtq.queue + j;
-			if (se->owns_stmt_mem && freestmts)
-				pfree(se->stmt);
-			se->stmt = NULL;
-			se->stmt_len = 0;
-			se->owns_stmt_mem = false;
-			se->cmd = CMD_UNKNOWN;
-			se->sqlcom = SQLCOM_END;
-		}
-		asi->stmtq.head = asi->stmtq.end = 0;
-		ResetASIStmt(asi, false);
-	}
-}
-
 static void
-make_check_mysql_node_status_stmt(AsyncStmtInfo *asi, bool want_master)
+check_mysql_node_status(AsyncStmtInfo *asi, bool want_master)
 {
 	Storage_HA_Mode ha_mode = storage_ha_mode();
 	Assert(ha_mode != HA_NO_REP);
 
-	const char *stmt_mgr = "select MEMBER_HOST, MEMBER_PORT from performance_schema.replication_group_members where channel_name='group_replication_applier' and MEMBER_STATE='ONLINE' and MEMBER_ROLE='PRIMARY'";
+	const char *stmt_mgr = "SELECT MEMBER_HOST, MEMBER_PORT  FROM performance_schema.replication_group_members "
+			       " WHERE channel_name = 'group_replication_applier' AND MEMBER_STATE = 'ONLINE'  AND MEMBER_ROLE = 'PRIMARY'";
 	const char *stmt_rbr = "select HOST, PORT from performance_schema.replication_connection_configuration where channel_name='kunlun_repl'";
 
-	size_t stmtlen = 0;
 	const char *stmt = NULL;
 	if (ha_mode == HA_MGR)
 		stmt = stmt_mgr;
@@ -1947,28 +2647,14 @@ make_check_mysql_node_status_stmt(AsyncStmtInfo *asi, bool want_master)
 		return;
 	}
 
-	if (stmtlen == 0 && stmt) stmtlen = strlen(stmt);
-
-	if (stmt) append_async_stmt(asi, (char*)stmt, stmtlen, CMD_SELECT, false, SQLCOM_SELECT);
-}
-
-static void
-check_mysql_node_status(AsyncStmtInfo *asi, bool want_master)
-{
-	Storage_HA_Mode ha_mode = storage_ha_mode();
-	Assert(ha_mode != HA_NO_REP);
-
-	MYSQL_RES *mres = asi->mysql_res;
-	Assert(mres);
+	size_t stmtlen = strlen(stmt);
+	StmtSafeHandle handle = send_stmt_async(asi, (char*)stmt, stmtlen, CMD_SELECT, false, SQLCOM_SELECT, false);
+	MYSQL_ROW row = get_stmt_next_row(handle);
 	bool res = true;
-
-	MYSQL_ROW row = mysql_fetch_row(asi->mysql_res);
-	
-	if (!row) check_mysql_fetch_row_status(asi);
 
 	if (!row || row[0] == NULL || row[1] == NULL)
 	{
-		res = (ha_mode == HA_RBR) ? true : false; // not in a mgr cluster, definitely not an MGR master.
+		res = (ha_mode == HA_RBR ? true : false);
 	}
 	else
 	{
@@ -1978,35 +2664,15 @@ check_mysql_node_status(AsyncStmtInfo *asi, bool want_master)
 			res = false; // current master not what's connected to by asi.
 	}
 
-	free_mysql_result(asi);
+	release_stmt_handle(handle);
 
 	if (!res)
 	{
 		RequestShardingTopoCheck(asi->shard_id);
 		ereport(ERROR,
-				(errcode(ERRCODE_INTERNAL_ERROR),
-				 errmsg("Kunlun-db: Shard (%u) primary node(%u) is not primary node now, retry in a few seconds.",
-						asi->shard_id, asi->node_id)));
-	}
-}
-
-
-/*
-  To be called after mysql_fetch_row() returns NULL, because we are using
-  mysql_use_result() rather than mysql_store_result().
- */
-void check_mysql_fetch_row_status(AsyncStmtInfo *asi)
-{
-	int ec = mysql_errno(asi->conn);
-	if (ec)
-	{
-		free_mysql_result(asi);
-		RequestShardingTopoCheck(asi->shard_id);
-		CancelAllRemoteStmtsInQueue(true);
-		ereport(ERROR,
-				(errcode(ERRCODE_INTERNAL_ERROR),
-				 errmsg("Kunlun-db: Shard (%u) primary node(%u) encountered error (%d, %s) while fetching result rows.",
-						asi->shard_id, asi->node_id, ec, mysql_error(asi->conn))));
+			(errcode(ERRCODE_INTERNAL_ERROR),
+			 errmsg("Kunlun-db: Shard (%u) primary node(%u) is not primary node now, retry in a few seconds.",
+				asi->shard_id, asi->node_id)));
 	}
 }
 
@@ -2015,13 +2681,17 @@ void disconnect_storage_shards()
 	for (int i = 0; i < cur_session.num_asis_used; i++)
 	{
 		AsyncStmtInfo *asi = cur_session.asis + i;
-	
-		if (asi->node_id == 0 || asi->shard_id == 0 || !IsConnValid(asi)) continue;
-		if (asi->conn) mysql_close(asi->conn);
+
+		if (asi->node_id == 0 || asi->shard_id == 0 || !IsConnValid(asi))
+			continue;
+		
+		close_remote_conn(asi);
+		
 		MarkConnValid(asi, false);
-		asi->need_abort = false;
-		ResetASIStmt(asi, false);
+		ResetASI(asi);
 	}
+	/* invalid all handle out of this module */
+	handle_epoch ++;
 }
 
 void request_topo_checks_used_shards()
@@ -2033,19 +2703,26 @@ void request_topo_checks_used_shards()
 	}
 }
 
-static bool DoingDDL()
+uint64_t GetTxnRemoteAffectedRows()
 {
-	bool ret = false;
+	uint64_t num_rows = 0;
 	for (int i = 0; i < cur_session.num_asis_used; i++)
 	{
 		AsyncStmtInfo *asi = cur_session.asis + i;
-		if (asi->did_ddl)
-		{
-			ret = true;
-			break;
-		}
+		num_rows += asi->txn_wrows;
 	}
-	return ret;
+	return num_rows;
+}
+
+Oid GetCurrentNodeOfShard(Oid shard)
+{
+	for (int i = 0; i < cur_session.num_asis_used; i++)
+	{
+		AsyncStmtInfo *asi = cur_session.asis + i;
+		if (asi->shard_id == shard)
+			return asi->node_id;
+	}
+	return Invalid_shard_node_id;
 }
 
 static void CurrentStatementsShards(StringInfo str)
@@ -2053,10 +2730,10 @@ static void CurrentStatementsShards(StringInfo str)
 	for (int i = 0; i < cur_session.num_asis_used; i++)
 	{
 		AsyncStmtInfo *asi = cur_session.asis + i;
-		if (asi->stmt)
+		if (asi->curr_stmt)
 		{
 			appendStringInfo(str, "{shard_id: %u, SQL_statement: %*s}",
-				asi->shard_id, (int)asi->stmt_len, asi->stmt);
+					 asi->shard_id, (int)asi->curr_stmt->stmt_len, asi->curr_stmt->stmt);
 		}
 	}
 }

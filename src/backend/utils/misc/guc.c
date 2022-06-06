@@ -8103,47 +8103,34 @@ got_val:
 	appendStringInfo(&setvar_stmt, "set %s %s = %s%s%s",
 		varscope_str(stmt->sv_scope), stmt->name, valsep, valstr, valsep);
 
-	send_stmt_to_all_shards(setvar_stmt.data, setvar_stmt.len, CMD_UTILITY, false,
+	send_stmt_to_all_shards_sync(setvar_stmt.data, setvar_stmt.len, CMD_UTILITY, false,
 		SQLCOM_SET_OPTION);
 
-	AsyncStmtInfo *asi = NULL;
 	if ((stmt->sv_flags & SVS_DEFAULT) && stmt->sv_scope == SVS_SESSION)
 	{
 		/*
 		  Fetch the default value from any shard to cache it.
 		*/
-		setvar_stmt.len= 0;
+		setvar_stmt.len = 0;
 		appendStringInfo(&setvar_stmt, "select @@SESSION.%s", stmt->name);
-		asi = FindAnyShard();
-		send_remote_stmt(asi, setvar_stmt.data, setvar_stmt.len,
-			CMD_SELECT, false, SQLCOM_SELECT, 0);
-		MYSQL_RES *mres = asi->mysql_res;
-		if (mres == NULL)
-		{
-			free_mysql_result(asi);
-			ereport(ERROR,
-					(errcode(ERRCODE_INTERNAL_ERROR),
-					 errmsg("Can not get value for session variable %s after it's set to DEFAULT: no result.", stmt->name)));
-		}
-
-		MYSQL_ROW row = mysql_fetch_row(mres);
+		AsyncStmtInfo *asi = FindAnyShard();
+		StmtSafeHandle handle = send_stmt_async(asi, setvar_stmt.data, setvar_stmt.len,
+							CMD_SELECT, false, SQLCOM_SELECT, 0);
+		MYSQL_ROW row = get_stmt_next_row(handle);
 		if (row == NULL)
 		{
-			check_mysql_fetch_row_status(asi);
-			free_mysql_result(asi);
+			release_stmt_handle(handle);
 			ereport(ERROR,
-					(errcode(ERRCODE_INTERNAL_ERROR),
-					 errmsg("Can not get value for session variable %s after it's set to DEFAULT: no rows returned.", stmt->name)));
+				(errcode(ERRCODE_INTERNAL_ERROR),
+				 errmsg("Can not get value for session variable %s after it's set to DEFAULT: no rows returned.", stmt->name)));
 		}
 
-		valstr = row[0];
+		valstr = pstrdup(row[0]);
+		release_stmt_handle(handle);
 	}
 
 	if (stmt->sv_scope == SVS_SESSION && (stmt->sv_flags & SVS_CACHED))
 		cache_var(stmt->name, valstr);
-
-	if (asi)
-		free_mysql_result(asi);
 }
 
 
@@ -8680,31 +8667,14 @@ void GetVariablesShard(VariableShowStmt *n, DestReceiver *dest)
 		appendStringInfo(&sqlstmt, "show %s variables", varscope_str(n->sv_scope));
 	
 	AsyncStmtInfo *asi = FindAnyShard();
-	send_remote_stmt(asi, sqlstmt.data, sqlstmt.len,
-		CMD_SELECT, false, SQLCOM_SELECT, 0);
-	MYSQL_RES *mres = asi->mysql_res;
-	if (mres == NULL)
-	{
-		free_mysql_result(asi);
-		ereport(ERROR,
-				(errcode(ERRCODE_INTERNAL_ERROR),
-				 errmsg("Can not get value for %s variables '%s': no result.",
-				 varscope_str(n->sv_scope), n->name)));
-	}
-	
+	StmtSafeHandle handle = send_stmt_async(asi, sqlstmt.data, sqlstmt.len,
+						CMD_SELECT, false, SQLCOM_SELECT, 0);
 
 	tstate = begin_tup_output_tupdesc(dest, tupdesc);
 
-	while (true)
+	MYSQL_ROW row;
+	while ((row = get_stmt_next_row(handle)))
 	{
-		MYSQL_ROW row = mysql_fetch_row(mres);
-		if (row == NULL)
-		{
-			check_mysql_fetch_row_status(asi);
-			free_mysql_result(asi);
-			break;
-		}
-
 		values[0] = PointerGetDatum(cstring_to_text(row[0]));
 		if (n->strict && find_var_def(row[0]) == NULL)
 			continue;
@@ -8723,6 +8693,8 @@ void GetVariablesShard(VariableShowStmt *n, DestReceiver *dest)
 		do_tup_output(tstate, values, isnull);
 	}
 	end_tup_output(tstate);
+
+	release_stmt_handle(handle);
 }
 
 static TupleDesc GetMysqlVariableResultDesc()

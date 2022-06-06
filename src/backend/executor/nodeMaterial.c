@@ -494,10 +494,6 @@ static void init_fill_all(bool remote_fetch_all, MaterialState *node)
 	}
 	// TODO: move read cursor to start of tuplestore
 	node->eof_underlying = true;
-
-	// Release all remote connections so that other RemoteScanState nodes can
-	// use them.
-	planstate_tree_walker((PlanState *)node, ReleaseShardConnection, NULL);
 }
 
 

@@ -785,21 +785,25 @@ static int FindCurrentMasterNodeId(Oid shardid, Oid *pmaster_nodeid)
 	if (ha_mode == HA_MGR)
 		fetch_gr_members_sql = "select MEMBER_HOST, MEMBER_PORT from performance_schema.replication_group_members where channel_name='group_replication_applier' and MEMBER_STATE='ONLINE' and MEMBER_ROLE='PRIMARY'";
 	else if (ha_mode == HA_RBR)
-		fetch_gr_members_sql = "select HOST, PORT from performance_schema.replication_connection_configuration where channel_name='kunlun_repl';"
+		fetch_gr_members_sql = "select HOST, PORT from performance_schema.replication_connection_configuration where channel_name='kunlun_repl'";
 	else Assert(ha_mode == HA_NO_REP);
 
 	size_t sqllen = 0;
-	if (fetch_gr_members_sql) sqllen = strlen(fetch_gr_members_sql);
+	if (fetch_gr_members_sql)
+		sqllen = strlen(fetch_gr_members_sql);
 
 	int num_conn_fails = 0;
 	Shard_t shard;
 	Shard_t *ps = NULL;
 	Shard_node_t *pshard_nodes = NULL;
-	if (FindCachedShardInternal(shardid, true, &shard, &pshard_nodes)) ps = &shard;
+	if (FindCachedShardInternal(shardid, true, &shard, &pshard_nodes))
+		ps = &shard;
 	else
 	{
-		if (pmaster_nodeid) *pmaster_nodeid = 0;
-		if (pshard_nodes) free_shard_nodes(pshard_nodes);
+		if (pmaster_nodeid)
+			*pmaster_nodeid = 0;
+		if (pshard_nodes)
+			free_shard_nodes(pshard_nodes);
 		elog(WARNING, "Shard %u not found while looking for its current master node.", shardid);
 		return -3;
 	}
@@ -809,19 +813,26 @@ static int FindCurrentMasterNodeId(Oid shardid, Oid *pmaster_nodeid)
 	{
 		Assert(ps->num_nodes == 1);
 		*pmaster_nodeid = pnoderef[0].ptr->id;
-		if (pshard_nodes) free_shard_nodes(pshard_nodes);
+		if (pshard_nodes)
+			free_shard_nodes(pshard_nodes);
 		return 1;
 	}
 
+	StmtSafeHandle stmts[MAX_NODES_PER_SHARD];
+	int nstmts = 0;
 	for (int i = 0; i < MAX_NODES_PER_SHARD; i++)
 	{
 		Shard_node_t *pnode = pnoderef[i].ptr;
-		if (!pnode) continue;
+		if (!pnode)
+			continue;
 
 		AsyncStmtInfo *asi = NULL;
-		PG_TRY(); {
+		PG_TRY();
+		{
 			asi = GetAsyncStmtInfoNode(pnode->shard_id, pnode->id, false);
-		} PG_CATCH() ; {
+		}
+		PG_CATCH();
+		{
 			/*
 			  can't connect to pnode, don't throw error here otherwise we
 			  never can find current master if one node is down. So we downgrade
@@ -843,10 +854,18 @@ static int FindCurrentMasterNodeId(Oid shardid, Oid *pmaster_nodeid)
 			errfinish(0);
 			FlushErrorState();
 			RESUME_INTERRUPTS();
-
-		} PG_END_TRY();
+		}
+		PG_END_TRY();
 		if (asi)
-			append_async_stmt(asi, (char*)fetch_gr_members_sql, sqllen, CMD_SELECT, false, SQLCOM_SELECT);
+		{
+			PG_TRY();
+			{
+				StmtSafeHandle handle = send_stmt_async(asi, fetch_gr_members_sql, sqllen,
+									CMD_SELECT, false, SQLCOM_SELECT, false);
+				stmts[nstmts++] = handle;
+			}
+			PG_END_TRY();
+		}
 	}
 
 	/*
@@ -860,52 +879,38 @@ static int FindCurrentMasterNodeId(Oid shardid, Oid *pmaster_nodeid)
 	  We might also find no master available from any shard node, and we report
 	  WARNING and exit the function.
 	*/
-	send_multi_stmts_to_multi();
-
 	size_t num_asis = GetAsyncStmtInfoUsed();
 	elog(LOG, "Looking for primary node of shard %s(%u) among %lu nodes, with %d unavailable nodes.",
-		 ps->name.data, shardid, num_asis, num_conn_fails);
+	     ps->name.data, shardid, num_asis, num_conn_fails);
 	/*
 	 * Receive results.
 	 * */
 	Oid master_nodeid = InvalidOid;
 	const char *master_ip = NULL;
 	uint16_t master_port = 0;
-	int num_masters = 0; // NO. of unique master nodes found from storage shard nodes.
-	int num_quorum = 0; // NO. of shard nodes which affirm master_node_id to be new master.
-	int num_unknowns = 0; // NO. of shard nodes who doesn't know about current master.
+	int num_masters = 0;	 // NO. of unique master nodes found from storage shard nodes.
+	int num_quorum = 0;	 // NO. of shard nodes which affirm master_node_id to be new master.
+	int num_unknowns = 0;	 // NO. of shard nodes who doesn't know about current master.
 	int num_new_masters = 0; // NO. of found masters not in pg_shard_node
 
-	for (size_t i = 0; i < num_asis; i++)
+	for (int i = 0; i < nstmts; ++i)
 	{
 		CHECK_FOR_INTERRUPTS();
-		AsyncStmtInfo *asi = GetAsyncStmtInfoByIndex(i);
-		if (!ASIConnected(asi)) continue; // connection failed, node unavailable.
-		MYSQL_RES *mres = asi->mysql_res;
-		int nrows = 0;
-
-		if (mres == NULL)
+		StmtSafeHandle handle = stmts[i];
+		AsyncStmtInfo *asi = RAW_HANDLE(handle)->asi;
+		if (!ASIConnected(asi))
 		{
 			elog(WARNING, "Primary node unknown in shard %s(%u) node (%s, %u, %u).",
-				 ps->name.data, asi->shard_id, asi->conn->host, asi->conn->port, asi->node_id);
-			free_mysql_result(asi);
+			     ps->name.data, asi->shard_id, asi->conn->host, asi->conn->port, asi->node_id);
 			num_unknowns++;
-			continue;
+			release_stmt_handle(handle);
+			continue; // connection failed, node unavailable.
 		}
-		do {
-			MYSQL_ROW row = mysql_fetch_row(mres);
-			if (row == NULL)
-			{
-				if (nrows == 0)
-				{
-					num_unknowns++;
-					elog(WARNING, "Primary node unknown in shard %s(%u) node (%s, %u, %u).",
-				 		 ps->name.data, asi->shard_id, asi->conn->host, asi->conn->port, asi->node_id);
-				}
-				check_mysql_fetch_row_status(asi);
-				free_mysql_result(asi);
-				break;
-			}
+
+		int nrows = 0;
+		MYSQL_ROW row;
+		while ((row = get_stmt_next_row(handle)))
+		{
 			nrows++;
 			const char *ip = row[0];
 			char *endptr = NULL;
@@ -914,8 +919,8 @@ static int FindCurrentMasterNodeId(Oid shardid, Oid *pmaster_nodeid)
 			if (sn == NULL)
 			{
 				elog(WARNING, "Found a new primary node(%s, %u) of shard %s(%u) not in pg_shard_node, "
-					 "meta data in pg_shard_node isn't up to date, retry later.",
-					 ip, port, ps->name.data, shardid);
+					      "meta data in pg_shard_node isn't up to date, retry later.",
+				     ip, port, ps->name.data, shardid);
 				num_new_masters++;
 				continue;
 			}
@@ -932,8 +937,8 @@ static int FindCurrentMasterNodeId(Oid shardid, Oid *pmaster_nodeid)
 			else if (master_nodeid != sn->id)
 			{
 				elog(WARNING, "Found a new primary node(%s, %u, %u) of shard %s(%u) when we already found a new primary node (%s, %u, %u),"
-					 " might be a brain split bug of MGR, but more likely a primary switch is happening right now, retry later.",
-					 ip, port, sn->id, ps->name.data, shardid, master_ip, master_port, master_nodeid);
+					      " might be a brain split bug of MGR, but more likely a primary switch is happening right now, retry later.",
+				     ip, port, sn->id, ps->name.data, shardid, master_ip, master_port, master_nodeid);
 				num_masters++;
 			}
 			else
@@ -941,29 +946,39 @@ static int FindCurrentMasterNodeId(Oid shardid, Oid *pmaster_nodeid)
 				Assert(master_nodeid == sn->id);
 				num_quorum++;
 			}
-		} while (true);
+		}
+
+		if (nrows == 0)
+		{
+			elog(WARNING, "Primary node unknown in shard %s(%u) node (%s, %u, %u).",
+			     ps->name.data, asi->shard_id, asi->conn->host, asi->conn->port, asi->node_id);
+			num_unknowns++;
+		}
+		release_stmt_handle(handle);
 	}
 
 	if (num_new_masters > 0)
 	{
 		elog(WARNING, "Found %d new primary nodes in shard %s(%u) which are not registered in pg_shard_node and can't be used by current computing node. Primary node is unknown in %d nodes, with %d unavailable nodes. Retry later.",
-			 num_new_masters, ps->name.data, shardid, num_unknowns, num_conn_fails);
-		if (pshard_nodes) free_shard_nodes(pshard_nodes);
+		     num_new_masters, ps->name.data, shardid, num_unknowns, num_conn_fails);
+		if (pshard_nodes)
+			free_shard_nodes(pshard_nodes);
 		return -1;
 	}
 
 	if (num_masters == 0)
 		elog(WARNING, "Primary node not found in shard %s(%u), it's unknown in %d nodes, with %d unavailable nodes. Retry later.",
-			 ps->name.data, shardid, num_unknowns, num_conn_fails);
+		     ps->name.data, shardid, num_unknowns, num_conn_fails);
 	if (num_masters > 1)
 		elog(WARNING, "Multiple(%d) primary nodes found in shard %s(%u). It's unknown in %d nodes, with %d unavailable nodes. Retry later.",
-			 num_masters, ps->name.data, shardid, num_unknowns, num_conn_fails);
+		     num_masters, ps->name.data, shardid, num_unknowns, num_conn_fails);
 	if (num_masters == 1)
 		elog(LOG, "Found new primary node (%s, %u, %u) in shard %s(%u), affirmed by %d nodes of the shard. The primary is unknown in %d nodes, with %d unavailable nodes.",
-			 master_ip, master_port, master_nodeid, ps->name.data, shardid, num_quorum, num_unknowns, num_conn_fails);
+		     master_ip, master_port, master_nodeid, ps->name.data, shardid, num_quorum, num_unknowns, num_conn_fails);
 
 	*pmaster_nodeid = master_nodeid;
-	if (pshard_nodes) free_shard_nodes(pshard_nodes);
+	if (pshard_nodes)
+		free_shard_nodes(pshard_nodes);
 	return num_masters;
 }
 
@@ -1511,6 +1526,7 @@ static void freeMetaShardKillConnReqSection(MetaShardKillConnReqSection*sec)
 
 void reapShardConnKillReqs()
 {
+	Assert(IsTransactionState());
 	uint32_t metashard_connid = 0;
 	uint32_t pos = sizeof(ShardConnKillReqQ);
 	int num_shard_reqs = 0, num_meta_reqs = 0;
@@ -1518,109 +1534,94 @@ void reapShardConnKillReqs()
 	MetaShardKillConnReqSection metareqs;
 	memset(&metareqs, 0, sizeof(metareqs));
 
-	ResetCommunicationHub();
+	set_stmt_ignored_error(ER_NO_SUCH_THREAD);
 	LWLockAcquire(KillShardConnReqLock, LW_EXCLUSIVE);
 	PG_TRY();
 	{
-	for (uint32_t i = 0; i < shard_conn_kill_reqs->nreqs; i++)
-	{
-		ShardConnKillReq *req = (ShardConnKillReq *)((char*)shard_conn_kill_reqs + pos);
-		Assert(req->type == 1 || req->type == 2);
-		ShardNodeConnId *sncs = req->entries;
-
-		if (req->num_ents == 0) continue;
-
-		if (req->flags & METASHARD_REQ)
+		for (uint32_t i = 0; i < shard_conn_kill_reqs->nreqs; i++)
 		{
-			metashard_connid = sncs[0].connid;
-			Assert(metashard_connid != 0);
-			Assert(req->num_ents == 1);
-			appendMetaConnKillReq(&metareqs, metashard_connid, req->type);
-			num_meta_reqs++;
-			continue;
+			ShardConnKillReq *req = (ShardConnKillReq *)((char *)shard_conn_kill_reqs + pos);
+			Assert(req->type == 1 || req->type == 2);
+			ShardNodeConnId *sncs = req->entries;
+
+			if (req->num_ents == 0)
+				continue;
+
+			if (req->flags & METASHARD_REQ)
+			{
+				metashard_connid = sncs[0].connid;
+				Assert(metashard_connid != 0);
+				Assert(req->num_ents == 1);
+				appendMetaConnKillReq(&metareqs, metashard_connid, req->type);
+				num_meta_reqs++;
+				continue;
+			}
+
+			for (int j = 0; j < req->num_ents; j++)
+			{
+				Assert(sncs[j].shardid != Invalid_shard_id &&
+				       sncs[j].nodeid != Invalid_shard_node_id && sncs[j].connid != 0);
+				cur_shardid = sncs[j].shardid;
+				AsyncStmtInfo *asi = GetAsyncStmtInfoNode(cur_shardid, sncs[j].nodeid, true);
+				/*
+				  There is no txnal cxt here, so allocing from top-memcxt and
+				  should tell async-comm module to free it.
+				*/
+				char *stmt = (char *)palloc(64);
+				int slen = snprintf(stmt, 64, "kill %s %u",
+						    (req->type == 1 ? "connection" : "query"), sncs[j].connid);
+				Assert(slen < 64);
+				send_stmt_async_nowarn(asi, stmt, slen, CMD_UTILITY, true, SQLCOM_KILL);
+			}
+
+			num_shard_reqs += req->num_ents;
+			pos = req->next_req_off;
 		}
 
-		for (int j = 0; j < req->num_ents; j++)
-		{
-			Assert(sncs[j].shardid != Invalid_shard_id &&
-				sncs[j].nodeid != Invalid_shard_node_id && sncs[j].connid != 0);
-			cur_shardid = sncs[j].shardid;
-			AsyncStmtInfo*asi = GetAsyncStmtInfoNode(cur_shardid, sncs[j].nodeid, true);
-			/*
-			  There is no txnal cxt here, so allocing from top-memcxt and
-			  should tell async-comm module to free it.
-			*/
-			char *stmt = (char*)palloc(64);
-			int slen = snprintf(stmt, 64, "kill %s %u",
-				(req->type == 1 ? "connection" : "query"), sncs[j].connid);
-			Assert(slen < 64);
-			asi->ignore_error = ER_NO_SUCH_THREAD;
-			append_async_stmt(asi, stmt, slen, CMD_UTILITY, true, SQLCOM_KILL);
-		}
+		shard_conn_kill_reqs->write_pos = sizeof(ShardConnKillReqQ);
+		shard_conn_kill_reqs->nreqs = 0;
 
-		num_shard_reqs += req->num_ents;
-		pos = req->next_req_off;
-	}
-
-	shard_conn_kill_reqs->write_pos = sizeof(ShardConnKillReqQ);
-	shard_conn_kill_reqs->nreqs = 0;
-
-	LWLockRelease(KillShardConnReqLock);
+		LWLockRelease(KillShardConnReqLock);
 	}
 	PG_CATCH(); // the GetAsyncStmtInfoNode() could fail of mysql connect error.
 	{
-	LWLockReleaseAll();
-	/*
-	  For mysql connect error, don't rethrow, but request a master check and
-	  proceed with the rest of this function, so that we will still send kill
-	  stmts to those reachable master nodes, and metashard node.
-	  The kill-conn requests are intact, they will be handled in next round,
-	  and this means some requests may be processed multiple times but that's
-	  no harm.
-	*/
-	if (geterrcode() == ERRCODE_CONNECTION_FAILURE)
-	{
-		RequestShardingTopoCheck(cur_shardid);
-		HOLD_INTERRUPTS();
+		set_stmt_ignored_error(0);
+		LWLockReleaseAll();
+		/*
+		  For mysql connect error, don't rethrow, but request a master check and
+		  proceed with the rest of this function, so that we will still send kill
+		  stmts to those reachable master nodes, and metashard node.
+		  The kill-conn requests are intact, they will be handled in next round,
+		  and this means some requests may be processed multiple times but that's
+		  no harm.
+		*/
+		if (geterrcode() == ERRCODE_CONNECTION_FAILURE)
+		{
+			RequestShardingTopoCheck(cur_shardid);
+			HOLD_INTERRUPTS();
 
-		downgrade_error();
-		errfinish(0);
-		FlushErrorState();
-		RESUME_INTERRUPTS();
-	}
-	else
-		PG_RE_THROW();
+			downgrade_error();
+			errfinish(0);
+			FlushErrorState();
+			RESUME_INTERRUPTS();
+		}
+		else
+			PG_RE_THROW();
 	}
 	PG_END_TRY();
+	set_stmt_ignored_error(0);
 
-	if (num_shard_reqs == 0) goto do_meta;
+	if (num_shard_reqs == 0)
+		goto do_meta;
 
-	PG_TRY();
-	{
-	/*
-	  Connection could break while sending the stmts or receiving results,
-	  and this is perfectly OK, topo check and kill-conn reqs are all enqueued
-	*/
-	send_multi_stmts_to_multi();
-	}
-	PG_CATCH();
-	{
-		PG_RE_THROW();
-	}
-	PG_END_TRY();
+	flush_all_stmts();
 
-	// reset ignore_err fields.
-	int nasis = GetAsyncStmtInfoUsed();
-	for (int i = 0; i < nasis; i++)
-	{
-		AsyncStmtInfo *asi = GetAsyncStmtInfoByIndex(i);
-		asi->ignore_error = 0;
-	}
 do_meta:
 	if (num_shard_reqs > 0 || num_meta_reqs > 0)
 		elog(INFO, "Reaped %d shard kill reqs and %d meta kill reqs.",
-			num_shard_reqs, num_meta_reqs);
-	if (num_meta_reqs == 0) return;
+		     num_shard_reqs, num_meta_reqs);
+	if (num_meta_reqs == 0)
+		return;
 	// kill metashard_connid on all metashard nodes, because a primary switch
 	// may have just finished and current master known to this computing node
 	// isn't the one containing the target conn to kill.
@@ -1755,7 +1756,11 @@ void TopoServiceMain(void)
 			disable_remote_timeout();
 
 			// task 2: kill connections/queries
-			reapShardConnKillReqs();
+			{
+				StartTransactionCommand();
+				reapShardConnKillReqs();
+				CommitTransactionCommand();
+			}
 
 			wait_latch(5000);
 		}

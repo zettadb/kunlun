@@ -2973,7 +2973,7 @@ next_tuple:
 	ExecCleanUpTriggerState(estate);
 
 	// dzw: do this last because all above chores take a little while.
-	if (remote_inserting) send_multi_stmts_to_multi();
+	if (remote_inserting) flush_all_stmts();
 
 	FreeExecutorState(estate);
 

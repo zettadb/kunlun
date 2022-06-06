@@ -3326,7 +3326,7 @@ AbortCurrentTransaction(void)
 			 * another exception, control will come to here again because of
 			 * the setjmp() call in PostgresMain().
 			 * */
-			send_multi_stmts_to_multi();
+			flush_all_stmts();
 
 			/*
 			 * dzw:
@@ -3381,7 +3381,7 @@ AbortCurrentTransaction(void)
 			 * another exception, control will come to here again because of
 			 * the setjmp() call in PostgresMain().
 			 * */
-			send_multi_stmts_to_multi();
+			flush_all_stmts();
 			s->blockState = TBLOCK_ABORT;
 			/* CleanupTransaction happens when we exit TBLOCK_ABORT_END */
 			break;
@@ -3405,7 +3405,7 @@ AbortCurrentTransaction(void)
 			 * another exception, control will come to here again because of
 			 * the setjmp() call in PostgresMain().
 			 * */
-			send_multi_stmts_to_multi();
+			flush_all_stmts();
 			CleanupTransaction();
 			s->blockState = TBLOCK_DEFAULT;
 			break;
@@ -4798,7 +4798,7 @@ AbortOutOfAnyTransaction(void)
 				 * another exception, control will come to here again because of
 				 * the setjmp() call in PostgresMain().
 				 * */
-				send_multi_stmts_to_multi();
+				flush_all_stmts();
 				CleanupTransaction();
 				s->blockState = TBLOCK_DEFAULT;
 				break;

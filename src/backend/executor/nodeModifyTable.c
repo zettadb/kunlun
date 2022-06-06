@@ -2089,7 +2089,7 @@ ExecModifyTable(PlanState *pstate)
 		IsRemoteRelation(resultRelInfo->ri_RelationDesc))
 	{
 		if (!node->remoteReturningTupleSlot)
-			send_multi_stmts_to_multi();
+			flush_all_stmts();
 		else
 		{
 			RemoteModifyState *currms = node->cur_returning_idx >= 0 ?
@@ -2113,14 +2113,6 @@ ExecModifyTable(PlanState *pstate)
 				if (!rms->asi)
 				{
 					ndones++;
-					continue;
-				}
-
-				if (rms->asi->result_pending)
-				{
-					// at the end of every pass, block&wait for at least one
-					// channel's result to come.
-					if (i == node->mt_nplans - 1) send_stmt_to_multi_try_wait_all();
 					continue;
 				}
 
@@ -2939,7 +2931,7 @@ ExecEndModifyTable(ModifyTableState *node)
 	 * dzw: send accumulated remote statements to remote storage nodes.
 	 for update&delete, this was already done in ExecModifyTable().
 	 * */
-	if (node->operation == CMD_INSERT) send_multi_stmts_to_multi();
+	if (node->operation == CMD_INSERT) flush_all_stmts();
 
 	node->ps.state->es_processed = GetRemoteAffectedRows();
 
@@ -3163,9 +3155,8 @@ ReturningNext(ModifyTableState *node, ResultRelInfo *resultRelInfo,
 {
 	TupleTableSlot *slot = node->remoteReturningTupleSlot;
 
-	MYSQL_ROW mysql_row = mysql_fetch_row(rms->asi->mysql_res);
-	unsigned long *lengths = ((mysql_row && rms->asi->mysql_res) ?
-		mysql_fetch_lengths(rms->asi->mysql_res) : NULL);
+	MYSQL_ROW mysql_row = get_stmt_next_row(rms->handle);
+	size_t *lengths = (mysql_row ? get_stmt_row_lengths(rms->handle) : NULL);
 	// dzw: TODO: do projection! if some targets have to be computed in
 	// compnode using fields from storage shard, we must do the computation here
 	if (mysql_row)
@@ -3178,27 +3169,8 @@ ReturningNext(ModifyTableState *node, ResultRelInfo *resultRelInfo,
 	}
 	else
 	{
-		check_mysql_fetch_row_status(rms->asi);
-		ExecClearTuple(slot);
-
-		/*
-		 * Release mysql result from channel, in order to send next stmt to
-		 * remote storage node.
-		 * */
-		free_mysql_result(rms->asi);
-
-		/*
-		  all result rows consumed, post next stmt without waiting for its
-		  result.
-		*/
-		int wons = work_on_next_stmt(rms->asi);
-		Assert(wons >= 0);
-		if (wons == 1)
-		{
-			send_stmt_to_multi_start(rms->asi, 1);
-		}
-		else
-			rms->asi = NULL;// no more stmts to send, flag the rms done.
+		release_stmt_handle(rms->handle);
+		rms->asi = NULL; // no more stmts to send, flag the rms done.
 		return NULL;
 	}
 	return slot;

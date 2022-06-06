@@ -699,6 +699,9 @@ static void handle_seq_reqs(SeqFetchReq *reqs, int num_reqs)
 	}
 
 	/* Send sql to storage nodes */
+	const int size = list_length(sendshard);
+	StmtSafeHandle stmts[size];
+	int nstmts = 0;
 	forboth(lc1, sendshard, lc2, sendsql)
 	{
 		Oid shardid = lfirst_oid(lc1);
@@ -718,19 +721,9 @@ static void handle_seq_reqs(SeqFetchReq *reqs, int num_reqs)
 		  it's OK for those seq changes to get lost and seq changes on other
 		  shards take effect.
 		*/
-		append_async_stmt(asi, sqlbuf, slen, CMD_SELECT, false, SQLCOM_SELECT);
+		stmts[nstmts++] =
+		    send_stmt_async(asi, sqlbuf, slen, CMD_SELECT, false, SQLCOM_SELECT, false);
 	}
-
-	PG_TRY();
-	{
-		send_multi_stmts_to_multi();
-	}
-	PG_CATCH();
-	{
-		/* TODO: send error to the waiter */
-		PG_RE_THROW();
-	}
-	PG_END_TRY();
 
 	size_t num_asis = GetAsyncStmtInfoUsed();
 
@@ -740,34 +733,18 @@ static void handle_seq_reqs(SeqFetchReq *reqs, int num_reqs)
 	int64_t newval, newstart;
 	SeqFetchReq *req;
 	
-	for (size_t i = 0; i < num_asis; i++)
+	for (int i=0; i<nstmts; ++i)
 	{
 		CHECK_FOR_INTERRUPTS();
-
-		AsyncStmtInfo *asi = GetAsyncStmtInfoByIndex(i);
-
-		MYSQL_RES *mres = asi->mysql_res;
-
-		if (mres == NULL)
-		{
-			free_mysql_result(asi);
-			/* Notify the waiter ? */
-			continue;
-		}
+		StmtSafeHandle handle = stmts[i];
+		AsyncStmtInfo *asi = RAW_HANDLE(handle)->asi;
 
 		/*
 		  Update seq state in shared cache.
 		*/
-		do
+		MYSQL_ROW row;
+		while ((row = get_stmt_next_row(handle)))
 		{
-			MYSQL_ROW row = mysql_fetch_row(mres);
-			if (row == NULL)
-			{
-				check_mysql_fetch_row_status(asi);
-				free_mysql_result(asi);
-				break;
-			}
-
 			Assert(row[0]);
 			char *json = row[0];
 			while (true)
@@ -809,7 +786,9 @@ static void handle_seq_reqs(SeqFetchReq *reqs, int num_reqs)
 
 				LWLockRelease(seq_fetch_queue_lock);
 			}
-		} while (true);
+		}
+		
+		release_stmt_handle(handle);
 	}
 }
 
@@ -951,9 +930,8 @@ void remote_setval(Relation seqrel, int64_t next, bool iscalled)
 						errmsg("Kunlun-db: set curval of sequence in explicit transaction is not support")));
 	}
 
-	PG_TRY();
 	{
-		initStringInfo(&sql);
+		initStringInfo2(&sql, 128, TopTransactionContext);
 		appendStringInfo(&sql, "update kunlun_sysdb.sequences set curval=%ld where db='%s_%s_%s' and name='%s'",
 						 next,
 						 get_database_name(MyDatabaseId),
@@ -963,15 +941,8 @@ void remote_setval(Relation seqrel, int64_t next, bool iscalled)
 
 		AsyncStmtInfo *asi = GetAsyncStmtInfo(seqrel->rd_rel->relshardid);
 
-		append_async_stmt(asi, sql.data, sql.len, CMD_UPDATE, true, SQLCOM_UPDATE);
-
-		send_multi_stmts_to_multi();
+		send_remote_stmt_sync(asi, sql.data, sql.len, CMD_UPDATE, true, SQLCOM_UPDATE, 0);
 	}
-	PG_CATCH();
-	{
-		PG_RE_THROW();
-	}
-	PG_END_TRY();
 
 	/**
 	 *  Get the lock of the seq file page, before invalidate the cache.

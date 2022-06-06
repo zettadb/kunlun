@@ -910,8 +910,7 @@ void execute_all_remote_ddl(void)
 		{
 			Remote_ddl_sql *ddl = (Remote_ddl_sql *)lfirst(lc2);
 			AsyncStmtInfo *asi = GetAsyncStmtInfo(ddl->shard);
-			asi->ignore_error = false;
-			append_async_stmt(asi,
+			send_stmt_async_nowarn(asi,
 							  ddl->sql,
 							  ddl->sql_len,
 							  CMD_DDL,
@@ -920,7 +919,7 @@ void execute_all_remote_ddl(void)
 		}
 	}
 	
-	send_multi_stmts_to_multi();
+	flush_all_stmts();
 }
 
 char *dump_all_remote_ddl()

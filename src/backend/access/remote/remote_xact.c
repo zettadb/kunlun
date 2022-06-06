@@ -98,7 +98,7 @@ void SendRollbackRemote(const char *txnid, bool xa_end, bool written_only)
 	  allocated in txn memcxt, and they should be. Otherwise there would be
 	  memory leaks here!
 	*/
-	CancelAllRemoteStmtsInQueue(false);
+	cancel_all_stmts();
 
 	int ihoc = InterruptHoldoffCount;
 	PG_TRY();
@@ -158,7 +158,7 @@ again:
 	  recovered after the connection was killed, and in this case the txn will
 	  be aborted by cluster_mgr later.
 	*/
-	send_stmt_to_all_inuse(g_txn_cmd, len, CMD_TXN_MGMT, false, esc, written_only);
+	send_stmt_to_all_inuse_sync(g_txn_cmd, len, CMD_TXN_MGMT, false, esc, written_only);
 }
 
 /*
@@ -232,8 +232,7 @@ bool Send1stPhaseRemote(const char *txnid)
 			elog(DEBUG2, "Found in transaction %s shard node (%u,%u) at %s:%u read only branch, doing 1pc to it.",
 				 txnid, asi->shard_id, asi->node_id, asi->conn->host, asi->conn->port);
 			// In MySQL, XA COMMIT  ... ONE PHASE is also a SQLCOM_XA_COMMIT.
-			append_async_stmt(asi, stmt, len, CMD_TXN_MGMT, false, SQLCOM_XA_COMMIT);
-			Assert(asi->result_pending == false);
+			send_stmt_async_nowarn(asi, stmt, len, CMD_TXN_MGMT, false, SQLCOM_XA_COMMIT);
 			nr++;
 		}
 
@@ -288,7 +287,7 @@ bool Send1stPhaseRemote(const char *txnid)
 			    sqlcom = SQLCOM_XA_ROLLBACK;
 				elog(DEBUG2, "Aborting transaction %s 's branch in shard node (%u,%u) at %s:%u",
 				 	txnid, asi->shard_id, asi->node_id, asi->conn->host, asi->conn->port);
-				append_async_stmt(asi, stmt2, len, CMD_TXN_MGMT, false, sqlcom);
+				send_stmt_async_nowarn(asi, stmt2, len, CMD_TXN_MGMT, false, sqlcom);
 			}
 			else if (nw == 1 && ASIAccessed(asi) && asi->txn_wrows > 0)
 			{
@@ -300,7 +299,7 @@ bool Send1stPhaseRemote(const char *txnid)
 			    sqlcom = SQLCOM_XA_COMMIT;
 				elog(DEBUG2, "Only 1 written shard found for transaction %s in shard node (%u,%u) at %s:%u, doing 1pc to it.",
 				 	txnid, asi->shard_id, asi->node_id, asi->conn->host, asi->conn->port);
-				append_async_stmt(asi, stmt1, len, CMD_TXN_MGMT, false, sqlcom);
+				send_stmt_async_nowarn(asi, stmt1, len, CMD_TXN_MGMT, false, sqlcom);
 			}
 			else if (nw > 1 && asi->txn_wrows > 0)
 			{
@@ -312,15 +311,13 @@ bool Send1stPhaseRemote(const char *txnid)
 			    sqlcom = SQLCOM_XA_PREPARE;
 				elog(DEBUG2, "Found %d written shards for transaction %s, preparing in shard node (%u,%u) at %s:%u",
 				 	nw, txnid, asi->shard_id, asi->node_id, asi->conn->host, asi->conn->port);
-				append_async_stmt(asi, stmt2, len, CMD_TXN_MGMT, false, sqlcom);
+				send_stmt_async_nowarn(asi, stmt2, len, CMD_TXN_MGMT, false, sqlcom);
 			}
 
 			Assert(len < slen);
-
-			Assert(asi->result_pending == false);
 		}
 	}
-	send_multi_stmts_to_multi();
+	flush_all_stmts();
 	return nw > 1 && !abort_txn;
 }
 
@@ -365,11 +362,11 @@ void Send2ndPhaseRemote(const char *txnid)
 
 			elog(DEBUG2, "For transaction %s doing 2pc commit in shard node (%u,%u) at %s:%u",
 				 txnid, asi->shard_id, asi->node_id, asi->conn->host, asi->conn->port);
-			append_async_stmt(asi, stmt, len, CMD_TXN_MGMT, false, SQLCOM_XA_COMMIT);
+			send_stmt_async_nowarn(asi, stmt, len, CMD_TXN_MGMT, false, SQLCOM_XA_COMMIT);
 		}
 	}
 
-	send_multi_stmts_to_multi();
+	flush_all_stmts();
 }
 
 /*
@@ -392,7 +389,7 @@ void insert_debug_sync(int where, int what, int which)
 		AsyncStmtInfo *asi = GetAsyncStmtInfoByIndex(i);
 		if (asi->did_write || which == 1)
 		{
-			append_async_stmt(asi, stmt, sizeof(stmt) - 1, CMD_UTILITY, false,
+			send_stmt_async_nowarn(asi, stmt, sizeof(stmt) - 1, CMD_UTILITY, false,
 				SQLCOM_SET_OPTION);
 		}
 	}
@@ -1112,6 +1109,8 @@ static bool build_wait_for_graph()
 	int shardidx = 0;
 	bool gdd_supported = true;
 	ListCell *lc;
+	StmtSafeHandle stmts[nshards];
+	int nstmts = 0;
 
 	foreach(lc, pshards)
 	{
@@ -1120,8 +1119,8 @@ static bool build_wait_for_graph()
 
 		PG_TRY(); {
 			asi = GetAsyncStmtInfo(shardid);
-			if (shardidx == 0 && !(gdd_supported = check_gdd_supported(asi)))
-				break;
+			if (shardidx == 0)
+				gdd_supported = check_gdd_supported(asi);
 			shardidx++;
 		} PG_CATCH(); {
 			/*
@@ -1140,8 +1139,20 @@ static bool build_wait_for_graph()
 			elog(DEBUG1, "GDD: Skipping shard(%u) when building wait-for graph because its master isn't available for now.", shardid);
 		} PG_END_TRY();
 
+		if (!gdd_supported)
+			return false;
+
 		if (asi)
-			append_async_stmt(asi, query_wait, qlen_wait, CMD_SELECT, false, SQLCOM_SELECT);
+		{
+			StmtSafeHandle handle = send_stmt_async(asi,
+								 query_wait,
+								 qlen_wait,
+								 CMD_SELECT,
+								 false,
+								 SQLCOM_SELECT,
+								 false);
+			stmts[nstmts++] = handle;
+		}
 		else
 			// This shard has no known master node, so it can't be written
 			// anyway and it's safe to skip it for now.
@@ -1151,43 +1162,33 @@ static bool build_wait_for_graph()
 		return false;
 
 	enable_remote_timeout();
-	send_multi_stmts_to_multi();
 
-	size_t num_asis = GetAsyncStmtInfoUsed();
-	//Assert(num_asis == nshards); this could fail if a shard suddenly has no master.
 	/*
 	 * Receive results and build graph nodes.
 	 * */
-	for (size_t i = 0; i < num_asis; i++)
+	for (int i = 0; i < nstmts; ++i)
 	{
 		CHECK_FOR_INTERRUPTS();
 		
-		AsyncStmtInfo *asi = GetAsyncStmtInfoByIndex(i);
+		StmtSafeHandle handle = stmts[i];
+		AsyncStmtInfo *asi = RAW_HANDLE(handle)->asi;
 
 		// If shard master unavailable, handle this shard in next round.
 		if (!ASIConnected(asi)) continue;
 
-		MYSQL_RES *mres = asi->mysql_res;
+		MYSQL_ROW row = get_stmt_next_row(handle);
 		GTxnId gtxnid;
 		TxnBranchId txnid_blocker;
 		memset(&txnid_blocker, 0, sizeof(txnid_blocker));
 
-		if (mres == NULL)
+		if (row == NULL)
 		{
 			elog(DEBUG1, "GDD: NULL results of wait-for relationship from shard.node(%u.%u).",
 				 asi->shard_id, asi->node_id);
-			free_mysql_result(asi);
+			release_stmt_handle(handle);
 			continue;
 		}
 		do {
-			MYSQL_ROW row = mysql_fetch_row(mres);
-			if (row == NULL)
-			{
-				check_mysql_fetch_row_status(asi);
-				free_mysql_result(asi);
-				break;
-			}
-
 			if (row[0] == NULL || row[1] == NULL || row[2] == NULL ||
 				row[3] == NULL || row[4] == NULL ||
 				row[5] == NULL || row[6] == NULL || row[7] == NULL ||
@@ -1195,7 +1196,6 @@ static bool build_wait_for_graph()
 			{
 				elog(WARNING, "GDD: Invalid rows fetched from i_s.innodb_trx of shard.node(%u.%u): NULL field(s) in NOT NULL column(s).",
 					 asi->shard_id, asi->node_id);
-				free_mysql_result(asi);
 				break;
 			}
 
@@ -1246,7 +1246,7 @@ static bool build_wait_for_graph()
 					txnid_blocker.gtxnid.compnodeid, txnid_blocker.gtxnid.ts, txnid_blocker.gtxnid.txnid);
 				MakeWaitFor(gt_waiter, tb_blocker);
 			}
-		} while (true);
+		} while ((row = get_stmt_next_row(handle)));
 	}
 
 	disable_remote_timeout();
@@ -1285,7 +1285,7 @@ static void kill_victim(GTxnBest *best)
 		Assert(gn->mysql_connid != 0);
 		int slen = snprintf(stmt, stmtlen, "kill query %d", gn->mysql_connid);
 		Assert(slen < stmtlen);
-		append_async_stmt(asi, stmt, slen, CMD_UTILITY, false, SQLCOM_KILL);
+		send_stmt_async_nowarn(asi, stmt, slen, CMD_UTILITY, false, SQLCOM_KILL);
 		gn->killed_dd = true;
 		appendStringInfo(&str, " (%u, %u)", gn->waiting_shardid, gn->mysql_connid);
 	}
@@ -1458,7 +1458,7 @@ dfs_next:
 	}
 
 	enable_remote_timeout();
-	send_multi_stmts_to_multi();
+	flush_all_stmts();
 	disable_remote_timeout();
 
 	if (stk.base)
@@ -1596,24 +1596,13 @@ static bool check_gdd_supported(AsyncStmtInfo *asi)
 static char*get_storage_node_version(AsyncStmtInfo *asi)
 {
 	const char *stmt = "select version()";
-	append_async_stmt(asi, stmt, strlen(stmt), CMD_SELECT, false, SQLCOM_SELECT);
-	enable_remote_timeout();
-	send_multi_stmts_to_multi();
-
-	MYSQL_RES *mres = asi->mysql_res;
 	char *verstr = NULL;
+	StmtSafeHandle handle = send_stmt_async(asi, stmt, strlen(stmt), CMD_SELECT, false, SQLCOM_SELECT, false);
+	enable_remote_timeout();
 
-	if (mres == NULL)
-		goto end;
-
-	MYSQL_ROW row = mysql_fetch_row(mres);
-	if (row == NULL)
-	{
-		check_mysql_fetch_row_status(asi);
-		goto end;
-	}
-	verstr = pstrdup(row[0]);
-end:
-	free_mysql_result(asi);
+	MYSQL_ROW row = get_stmt_next_row(handle);
+	if (row)
+		verstr = pstrdup(row[0]);
+	release_stmt_handle(handle);
 	return verstr;
 }

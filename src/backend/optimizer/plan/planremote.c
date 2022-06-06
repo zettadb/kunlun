@@ -1158,17 +1158,3 @@ static List *make_tl_subplan_list(PlannedStmt *pstmt, Plan *plan)
 	}
 	return ctx.subplans;
 }
-
-/*-------------------End of materialize remote scan nodes --------------------*/
-bool ReleaseShardConnection(PlanState *ps)
-{
-	switch(nodeTag(ps))
-	{
-	case T_RemoteScanState:
-		release_shard_conn((RemoteScanState*)ps);
-		break;
-	default:
-		break;
-	}
-	return false; // keep traversing.
-}

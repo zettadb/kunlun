@@ -307,16 +307,6 @@ void post_remote_updel_stmt(ModifyTableState*mtstate, RemoteScan *rs, int i)
 					 srctxt)));
 	}
 
-	append_async_stmt(rms->asi, rms->remote_dml.data, rms->remote_dml.len,
-		operation, true, operation == CMD_UPDATE ? SQLCOM_UPDATE : SQLCOM_DELETE);
-	int rc = 0;
-	if (!rms->asi->result_pending)
-	{
-		rc = work_on_next_stmt(rms->asi);
-		if (rc == 1) send_stmt_to_multi_start(rms->asi, 1);
-	}
-	if (rc < 0)
-		ereport(ERROR,
-				(errcode(ERRCODE_INTERNAL_ERROR),
-				 errmsg("Kunlun-db internal error: mysql result has not been consumed yet.")));
+	rms->handle = send_stmt_async(rms->asi, rms->remote_dml.data, rms->remote_dml.len,
+				      operation, true, operation == CMD_UPDATE ? SQLCOM_UPDATE : SQLCOM_DELETE, false);
 }

@@ -12,6 +12,6 @@ subdir = src/backend/sharding
 top_builddir = ../../..
 include $(top_builddir)/src/Makefile.global
 
-OBJS = mysql_vars.o sharding_conn.o cluster_meta.o
+OBJS = mysql_vars.o sharding_conn.o cluster_meta.o mat_cache.o
 
 include $(top_srcdir)/src/backend/common.mk

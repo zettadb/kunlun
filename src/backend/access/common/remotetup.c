@@ -299,37 +299,19 @@ bool end_remote_insert_stmt(struct RemotetupCacheState *s, bool end_of_stmt)
 	if (lengthStringInfo(self) == 0)
 		return false;
 
-	if (s->pasi->rss_owner)
-	{
-		MaterializeOtherRemoteScan(s->pasi->rss_owner);
-		Assert(s->pasi->rss_owner == NULL);
-	}
-
 	// Each tuple ends with 2 chars ',' and ' ', which is not needed for the
 	// last tuple of an insert stmt.
 	shrinkStringInfo(self, 2);
+
 	s->last_tup_end_offset -= 2;
 
 	// append our stmt to the AsyncStmtInfo port.
-	size_t stmtlen = lengthStringInfo(self);	
-	append_async_stmt(s->pasi, donateStringInfo(self), stmtlen, CMD_INSERT, true, SQLCOM_INSERT);
+	size_t stmtlen = lengthStringInfo(self);
+	send_stmt_async_nowarn(s->pasi, donateStringInfo(self), stmtlen, CMD_INSERT, true, SQLCOM_INSERT);
 	// the buffer is given to async, can't be used anymore in memory buffer.
 	if (!end_of_stmt)
-		initStringInfo2(self, BLCKSZ*remote_insert_blocks, CurrentMemoryContext);
+		initStringInfo2(self, BLCKSZ * remote_insert_blocks, TopTransactionContext);
 
-	/*
-	 * Push the sending work forward. If result pending, try receive it, and
-	 * if no result recvd yet, we can't send next stmt.
-	 * */
-	if (s->pasi->result_pending && send_stmt_to_multi_try_wait(s->pasi, 1) == 0) return true;
-
-	int rc = work_on_next_stmt(s->pasi);
-	if (rc == 1)
-		send_stmt_to_multi_start(s->pasi, 1);
-	else if (rc < 0)
-		ereport(ERROR,
-				(errcode(ERRCODE_INTERNAL_ERROR),
-				 errmsg("Kunlun-db: Internal error: mysql result has not been consumed yet.")));
 	return true;
 }
 

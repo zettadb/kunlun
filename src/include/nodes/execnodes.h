@@ -1066,6 +1066,7 @@ typedef struct RemoteModifyState
 {
 	AsyncStmtInfo *asi;         /* communication channel with storage node. */
 	StringInfoData remote_dml;
+	StmtSafeHandle handle;
 } RemoteModifyState;
 
 /* ----------------
@@ -1259,6 +1260,7 @@ typedef struct RemoteScanState
 	ScanState	ss;				/* its first field is NodeTag */
 	StringInfoData remote_sql;
 	AsyncStmtInfo *asi;         /* communication channel with storage node. */
+	StmtSafeHandle handle;
 	TypeInputInfo *typeInputInfo;
 	/*
 	 * Attr Nums in this set is a 'long expression', i.e. longer than NAMEDATALEN.
@@ -1297,14 +1299,6 @@ typedef struct RemoteScanState
 	   of a join. If so store result rather than use result.
 	   */
 	bool will_rewind;
-
-	/*
-	 * When multiple RemoteScan compete for the same mysql connection, the tuples of
-	 * the RemoteJoin that has occupied the connection is automatically materialized
-	 * in this tuple store.
-	 */
-	Tuplestorestate *tuplestorestate;
-	bool refill_tuplestore;
 
 	/* Generated vars of scantuple, and the coresponding exprs */
 	List *scanvars;

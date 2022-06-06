@@ -20,19 +20,20 @@
  */
 #include "postgres.h"
 
+#include "pgtime.h"
+#include "miscadmin.h"
 #include "access/printtup.h"
 #include "access/remotetup.h"
-#include "catalog/pg_type.h"
 #include "executor/nodeRemotescan.h"
-#include "miscadmin.h"
-#include "pgtime.h"
-#include "sharding/sharding_conn.h"
-#include "utils/algos.h"
 #include "utils/builtins.h"
 #include "utils/lsyscache.h"
 #include "utils/memdebug.h"
-#include "utils/memutils.h"
+#include "utils/algos.h"
 #include "utils/rel.h"
+#include "catalog/pg_type.h"
+#include "sharding/sharding_conn.h"
+#include "utils/memutils.h"
+
 
 /* ----------------
  *		Private state for a remotetup destination object
@@ -130,7 +131,8 @@ remotetup_prepare_info(RemotetupCacheState*myState,
 	myState->myinfo = (RemotetupAttrInfo *)
 		palloc0(numAttrs * sizeof(RemotetupAttrInfo));
 
-	appendStringInfo(&myState->buf, "insert %s into %s (",
+	appendStringInfo(&myState->buf, "%s %s into %s (",
+		myState->action == ONCONFLICT_REPLACE ? "replace" : "insert",
 		myState->action == ONCONFLICT_NOTHING ? "ignore" : "",
 		make_qualified_name(myState->target_rel->rd_rel->relnamespace,
 		  myState->target_rel->rd_rel->relname.data, NULL));

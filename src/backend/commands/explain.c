@@ -3202,10 +3202,15 @@ show_modifytable_info(ModifyTableState *mtstate, List *ancestors,
 
 	if (node->onConflictAction != ONCONFLICT_NONE)
 	{
-		ExplainPropertyText("Conflict Resolution",
-							node->onConflictAction == ONCONFLICT_NOTHING ?
-							"NOTHING" : "UPDATE",
-							es);
+		const char *action = "?";
+		if (node->onConflictAction == ONCONFLICT_NOTHING)
+			action = "NOTHING";
+		else if (node->onConflictAction == ONCONFLICT_REPLACE)
+			action = "REPLACE";
+		else if (node->onConflictAction == ONCONFLICT_UPDATE)
+			action = "UPDATE";
+
+		ExplainPropertyText("Conflict Resolution", action, es);
 
 		/*
 		 * Don't display arbiter indexes at all when DO NOTHING variant

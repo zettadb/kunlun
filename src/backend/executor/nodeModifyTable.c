@@ -77,6 +77,13 @@ static bool ExecOnConflictUpdate(ModifyTableState *mtstate,
 					 EState *estate,
 					 bool canSetTag,
 					 TupleTableSlot **returning);
+static bool ExecOnConflictDelete(ModifyTableState *mtstate,
+					 ResultRelInfo *resultRelInfo,
+					 ItemPointer conflictTid,
+					 TupleTableSlot *planSlot,
+					 TupleTableSlot *excludedSlot,
+					 EState *estate,
+					 bool canSetTag);
 static TupleTableSlot *ExecPrepareTupleRouting(ModifyTableState *mtstate,
 						EState *estate,
 						PartitionTupleRouting *proute,
@@ -551,6 +558,14 @@ ExecInsert(ModifyTableState *mtstate,
 					}
 					else
 						goto vlock;
+				}
+				else if (onconflict == ONCONFLICT_REPLACE)
+				{
+					/* Delete all the conflicted tuple before inserting */
+					ExecOnConflictDelete(mtstate, resultRelInfo,
+										 &conflictTid, planSlot, slot,
+										 estate, canSetTag);
+					goto vlock;
 				}
 				else
 				{
@@ -1638,6 +1653,138 @@ ExecOnConflictUpdate(ModifyTableState *mtstate,
 	return true;
 }
 
+static bool
+ExecOnConflictDelete(ModifyTableState *mtstate,
+					 ResultRelInfo *resultRelInfo,
+					 ItemPointer conflictTid,
+					 TupleTableSlot *planSlot,
+					 TupleTableSlot *excludedSlot,
+					 EState *estate,
+					 bool canSetTag)
+{
+	Relation relation = resultRelInfo->ri_RelationDesc;
+	HeapTupleData tuple;
+	HeapUpdateFailureData hufd;
+	LockTupleMode lockmode;
+	HTSU_Result test;
+	Buffer buffer;
+
+	/* Determine lock mode to use */
+	lockmode = ExecUpdateLockMode(estate, resultRelInfo);
+
+	/*
+	 * Lock tuple for update.  Don't follow updates when tuple cannot be
+	 * locked without doing so.  A row locking conflict here means our
+	 * previous conclusion that the tuple is conclusively committed is not
+	 * true anymore.
+	 */
+	tuple.t_self = *conflictTid;
+	test = heap_lock_tuple(relation, &tuple, estate->es_output_cid,
+						   lockmode, LockWaitBlock, false, &buffer,
+						   &hufd);
+	switch (test)
+	{
+	case HeapTupleMayBeUpdated:
+		/* success! */
+		break;
+
+	case HeapTupleInvisible:
+
+		/*
+		 * This can occur when a just inserted tuple is updated again in
+		 * the same command. E.g. because multiple rows with the same
+		 * conflicting key values are inserted.
+		 *
+		 * This is somewhat similar to the ExecUpdate()
+		 * HeapTupleSelfUpdated case.  We do not want to proceed because
+		 * it would lead to the same row being updated a second time in
+		 * some unspecified order, and in contrast to plain UPDATEs
+		 * there's no historical behavior to break.
+		 *
+		 * It is the user's responsibility to prevent this situation from
+		 * occurring.  These problems are why SQL-2003 similarly specifies
+		 * that for SQL MERGE, an exception must be raised in the event of
+		 * an attempt to update the same row twice.
+		 */
+		if (TransactionIdIsCurrentTransactionId(HeapTupleHeaderGetXmin(tuple.t_data)))
+		{
+			ereport(ERROR,
+					(errcode(ERRCODE_CARDINALITY_VIOLATION),
+					 errmsg("REPLACE INTO command cannot affect row a second time"),
+					 errhint("Ensure that no rows proposed for insertion within the same command have duplicate constrained values.")));
+		}
+		/* This shouldn't happen */
+		elog(ERROR, "attempted to lock invisible tuple");
+		break;
+
+	case HeapTupleSelfUpdated:
+
+		/*
+		 * This state should never be reached. As a dirty snapshot is used
+		 * to find conflicting tuples, speculative insertion wouldn't have
+		 * seen this row to conflict with.
+		 */
+		elog(ERROR, "unexpected self-updated tuple");
+		break;
+
+	case HeapTupleUpdated:
+		if (IsolationUsesXactSnapshot())
+			ereport(ERROR,
+					(errcode(ERRCODE_T_R_SERIALIZATION_FAILURE),
+					 errmsg("could not serialize access due to concurrent update")));
+
+		/*
+		 * As long as we don't support an UPDATE of INSERT ON CONFLICT for
+		 * a partitioned table we shouldn't reach to a case where tuple to
+		 * be lock is moved to another partition due to concurrent update
+		 * of the partition key.
+		 */
+		Assert(!ItemPointerIndicatesMovedPartitions(&hufd.ctid));
+
+		/*
+		 * Tell caller to try again from the very start.
+		 *
+		 * It does not make sense to use the usual EvalPlanQual() style
+		 * loop here, as the new version of the row might not conflict
+		 * anymore, or the conflicting tuple has actually been deleted.
+		 */
+		ReleaseBuffer(buffer);
+		return false;
+
+	default:
+		elog(ERROR, "unrecognized heap_lock_tuple status: %u", test);
+	}
+
+	/*
+	 * Verify that the tuple is visible to our MVCC snapshot if the current
+	 * isolation level mandates that.
+	 *
+	 * It's not sufficient to rely on the check within ExecUpdate() as e.g.
+	 * CONFLICT ... WHERE clause may prevent us from reaching that.
+	 *
+	 * This means we only ever continue when a new command in the current
+	 * transaction could see the row, even though in READ COMMITTED mode the
+	 * tuple will not be visible according to the current statement's
+	 * snapshot.  This is in line with the way UPDATE deals with newer tuple
+	 * versions.
+	 */
+	ExecCheckHeapTupleVisible(estate, &tuple, buffer);
+
+	/* 
+	 * TODO:
+	 * Maybe we should check any WITH CHECK OPTION constraints from the views
+	 * or the ROW LEVEL POLICY for the deleted rows. Since kunlunDB already disables
+	 * these features, there is no harm in skiping it.
+	 */
+
+	ExecDelete(mtstate, &tuple.t_self, NULL,
+			   planSlot, &mtstate->mt_epqstate,
+			   mtstate->ps.state, false, canSetTag,
+			   true, NULL, NULL);
+
+	ReleaseBuffer(buffer);
+	return true;
+}
 
 /*
  * Process BEFORE EACH STATEMENT triggers

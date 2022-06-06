@@ -189,7 +189,6 @@ static void processCASbits(int cas_bits, int location, const char *constrType,
 static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 static int firstPositive2(int arg1, int arg2);
 static int firstPositive3(int arg1, int arg2, int arg3);
-
 %}
 
 %pure-parser
@@ -11096,6 +11095,22 @@ InsertStmt:
 					$6->returningList = $7;
 					$6->withClause = $1;
 					$$ = (Node *) $6;
+				}
+			|
+			opt_with_clause REPLACE INTO insert_target insert_rest returning_clause
+				{
+					OnConflictClause *clause = makeNode(OnConflictClause);
+					clause->action = ONCONFLICT_REPLACE;
+					clause->infer = NULL;
+					clause->targetList = NULL;
+					clause->whereClause = NULL;
+					clause->location = @2;
+
+					$5->relation = $4;
+					$5->onConflictClause = clause;
+					$5->returningList = $6;
+					$5->withClause = $1;
+					$$ = (Node *) $5;
 				}
 		;
 

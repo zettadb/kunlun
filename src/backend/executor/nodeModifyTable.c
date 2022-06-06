@@ -65,6 +65,9 @@
 #include "nodes/print.h"
 #include "executor/nodeRemotescan.h"
 #include "catalog/heap.h"
+#include "parser/parse_relation.h"
+#include "catalog/partition.h"
+#include "access/sysattr.h"
 
 static bool ExecOnConflictUpdate(ModifyTableState *mtstate,
 					 ResultRelInfo *resultRelInfo,
@@ -346,9 +349,30 @@ ExecInsert(ModifyTableState *mtstate,
 	 * */
 	if (IsRemoteRelation(resultRelationDesc))
 	{
+		/*
+		 * ExecWithCheckOptions() will skip any WCOs which are not of the kind
+		 * we are looking for at this point.
+		 */
+		if (resultRelInfo->ri_WithCheckOptions != NIL)
+			ExecWithCheckOptions(WCO_RLS_INSERT_CHECK, resultRelInfo, slot, estate);
+
+		/*
+		 * Check the constraints of the tuple.
+		 */
+		if (resultRelationDesc->rd_att->constr)
+			ExecConstraints(resultRelInfo, slot, estate);
+
 		if (resultRelInfo->ri_PartitionCheck &&
 			resultRelInfo->ri_PartitionRoot == NULL)
 			ExecPartitionCheck(resultRelInfo, slot, estate, true);
+
+		if (onconflict != ONCONFLICT_NONE &&
+			onconflict != get_remote_conflict_action(resultRelInfo->ri_RemotetupCache))
+		{
+			set_remote_onconflict_action(
+				resultRelInfo->ri_RemotetupCache, onconflict, &mtstate->mt_remote_action_clause);
+		}
+
 		fill_tupdesc_attr_info(resultRelationDesc->rd_att, slot);
 		cache_remotetup(slot, resultRelInfo);
 		goto process_returning;
@@ -2325,6 +2349,30 @@ ExecModifyTable(PlanState *pstate)
 	return NULL;
 }
 
+static bool CheckPartitionKeyUpdated(Relation rel, Bitmapset *attnums)
+{
+	if (rel->rd_rel->relkind != RELKIND_PARTITIONED_TABLE || !attnums)
+		return false;
+	if (has_partition_attrs(rel, attnums, NULL))
+		return true;
+
+	bool updated = false;
+	struct PartitionDescData *partdesc = RelationGetPartitionDesc(rel);
+	for (int i = 0; !updated && i < partdesc->nparts; ++i)
+	{
+		Oid childOID = partdesc->oids[i];
+		Relation childrel;
+
+		/* Open rel; we already have required locks */
+		childrel = heap_open(childOID, NoLock);
+
+		updated = CheckPartitionKeyUpdated(childrel, attnums);
+
+		heap_close(childrel, NoLock);
+	}
+	return updated;
+}
+
 /* ----------------------------------------------------------------
  *		ExecInitModifyTable
  * ----------------------------------------------------------------
@@ -2373,6 +2421,7 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 	EvalPlanQualInit(&mtstate->mt_epqstate, estate, NULL, NIL, node->epqParam);
 	mtstate->fireBSTriggers = true;
 	mtstate->cur_returning_idx = -1;
+	initStringInfo(&mtstate->mt_remote_action_clause);
 
 	/*
 	 * call ExecInitNode on each of the plans to be executed and save the
@@ -2602,8 +2651,138 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 	/* Set the list of arbiter indexes if needed for ON CONFLICT */
 	resultRelInfo = mtstate->resultRelInfo;
 	if (node->onConflictAction != ONCONFLICT_NONE)
+	{
 		resultRelInfo->ri_onConflictArbiterIndexes = node->arbiterIndexes;
 
+		if (resultRelInfo->ri_RelationDesc->rd_rel->relhasindex &&
+			!resultRelInfo->ri_IndexRelationDescs)
+		{
+			ExecOpenIndices(resultRelInfo, true);
+		}
+		if (IsRemoteRelation(resultRelInfo->ri_RelationDesc) ||
+			IsRemoteRelationParent(resultRelInfo->ri_RelationDesc))
+		{
+			/*
+			 * 'On conflict do update' clause can convert to mysql "on duplicate key update",
+			 * if the onConflict clause speicify empty constraint targets, or all of the unique/
+			 * primary index in the arbiter indexes.
+			 */
+			if (list_length(node->arbiterIndexes) > 0)
+			{
+				int i;
+				int num = resultRelInfo->ri_NumIndices;
+				for (i = 0; i < num; ++i)
+				{
+					Relation indexRel = resultRelInfo->ri_IndexRelationDescs[i];
+					IndexInfo *indexInfo = resultRelInfo->ri_IndexRelationInfo[i];
+
+					if (!indexRel || !indexInfo->ii_ReadyForInserts)
+						continue;
+
+					/* kunlun not support exclusion constraints, cannot be here */
+					Assert(!indexInfo->ii_ExclusionOps);
+
+					if (indexInfo->ii_Unique &&
+						!list_member_oid(node->arbiterIndexes,
+										 indexRel->rd_index->indexrelid))
+					{
+						ereport(ERROR,
+								(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+								 errmsg("In KunlunDB, the unique constraint referenced by the ON CONFLICT clause needs to be null when there are multiple unique constraints."),
+								 errhint("In kunlunDB, do not specify conflict target in ON CONFLICT.")));
+					}
+				}
+			}
+
+			/*
+			 * check whether the 'on conflict do update' clause can safely convert to 'insert on duplicate update',
+			 * and make sure the partition columns is not updated
+			 */
+			if (node->onConflictAction == ONCONFLICT_UPDATE)
+			{
+				List *rtables = mtstate->ps.state->es_plannedstmt->rtable;
+				int rti = resultRelInfo->ri_RangeTableIndex;
+				RangeTblEntry *rte = list_nth(rtables, rti - 1);
+				List *columns = NIL;
+				expandRTE(rte, rti, 0, -1, false, &columns, NULL);
+
+				RemotePrintExprContext rpec;
+				InitRemotePrintExprContext(&rpec, mtstate->ps.state->es_plannedstmt->rtable);
+				rpec.ignore_param_quals = true;
+				rpec.excluded_table_columns = columns; /* 'excluded' table on do update exprs */
+
+				if (list_length(node->onConflictSet) != list_length(columns))
+				{
+					elog(ERROR, "On conflict action has illegle number of set exprs");
+				}
+
+				/* conflict where clause */
+				if (node->onConflictWhere)
+				{
+					ereport(ERROR,
+						(errcode(ERRCODE_INTERNAL_ERROR),
+						 errmsg("Kunlun-db: On conflict action do not support where clause.")));
+				}
+
+				StringInfo action_str = &mtstate->mt_remote_action_clause;
+				appendStringInfo(action_str, " on duplicate key update ");
+
+				int varno = 1;
+				bool first = true, make_dummy = false;
+				Bitmapset *attnums = NULL;
+				ListCell *lc1, *lc2;
+
+			Make_action:
+				forboth(lc1, columns, lc2, node->onConflictSet)
+				{
+					Value *col = (Value *)lfirst(lc1);
+					Expr *expr = lfirst_node(TargetEntry, lc2)->expr;
+
+					if (IsA(expr, Var) &&
+						((Var *)expr)->varattno == varno &&
+						((Var *)expr)->varno == rti &&
+						!make_dummy)
+					{
+						/* set a=a, do nothing */
+					}
+					else
+					{
+						if (!first)
+							appendStringInfoChar(action_str, ',');
+						first = false;
+						appendStringInfo(action_str, " `%s`=", col->val.str);
+						if (snprint_expr(action_str, expr, &rpec) <= 0)
+						{
+							ereport(ERROR,
+								(errcode(ERRCODE_INTERNAL_ERROR),
+								 errmsg("Kunlun-db: The on conflict action cannot be serialized")));
+						}
+
+						/* add a dummy expr to avoid syntax error */
+						if (make_dummy)
+							break;
+
+						attnums = bms_add_member(attnums, varno - FirstLowInvalidHeapAttributeNumber);
+					}
+					++varno;
+				}
+
+				if (bms_is_empty(attnums) && !make_dummy)
+				{
+					make_dummy = true;
+					goto Make_action;
+				}
+
+				/* check the partition key is updated */
+				if (CheckPartitionKeyUpdated(resultRelInfo->ri_RelationDesc, attnums))
+				{
+					ereport(ERROR,
+						(errcode(ERRCODE_INTERNAL_ERROR),
+						 errmsg("Kunlun-db: Can not update partition key of a remote relation.")));
+				}
+			}
+		}
+	}
 	/*
 	 * If needed, Initialize target list, projection and qual for ON CONFLICT
 	 * DO UPDATE.

@@ -172,7 +172,7 @@ ProcessQuery(PlannedStmt *plan,
 		*/
 		if (CMD_UPDATE == queryDesc->operation ||
 			CMD_DELETE == queryDesc->operation)
-			queryDesc->estate->es_processed = GetRemoteAffectedRows();
+			queryDesc->estate->es_processed += GetRemoteAffectedRows();
 
 		Oid			lastOid;
 		/*

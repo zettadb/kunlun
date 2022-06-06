@@ -630,7 +630,7 @@ static int firstPositive3(int arg1, int arg2, int arg3);
 	DATA_P DATABASE DAY_P DEALLOCATE DEC DECIMAL_P DECLARE DEFAULT DEFAULTS
 	DEFERRABLE DEFERRED DEFINER DELETE_P DELIMITER DELIMITERS DEPENDS DESC
 	DETACH DICTIONARY DISABLE_P DISCARD DISTINCT DO DOCUMENT_P DOMAIN_P
-	DOUBLE_P DROP
+	DOUBLE_P DROP DUPLICATE
 
 	EACH ELSE ENABLE_P ENCODING ENCRYPTED END_P ENUM_P ESCAPE EVENT EXCEPT
 	EXCLUDE EXCLUDING EXCLUSIVE EXECUTE EXISTS EXPLAIN
@@ -643,7 +643,7 @@ static int firstPositive3(int arg1, int arg2, int arg3);
 
 	HANDLER HAVING HEADER_P HOLD HOUR_P
 
-	IDENTITY_P IF_P ILIKE IMMEDIATE IMMUTABLE IMPLICIT_P IMPORT_P IN_P INCLUDE
+	IDENTITY_P IF_P IGNORE ILIKE IMMEDIATE IMMUTABLE IMPLICIT_P IMPORT_P IN_P INCLUDE
 	INCLUDING INCREMENT INDEX INDEXES INHERIT INHERITS INITIALLY INLINE_P
 	INNER_P INOUT INPUT_P INSENSITIVE INSERT INSTEAD INT_P INTEGER
 	INTERSECT INTERVAL INTO INVOKER IS ISNULL ISOLATION
@@ -11081,6 +11081,22 @@ InsertStmt:
 					$5->withClause = $1;
 					$$ = (Node *) $5;
 				}
+			|
+			opt_with_clause INSERT IGNORE INTO insert_target insert_rest returning_clause
+				{
+					OnConflictClause *clause = makeNode(OnConflictClause);
+					clause->action = ONCONFLICT_NOTHING;
+					clause->infer = NULL;
+					clause->targetList = NULL;
+					clause->whereClause = NULL;
+					clause->location = @3;
+
+					$6->relation = $5;
+					$6->onConflictClause = clause;
+					$6->returningList = $7;
+					$6->withClause = $1;
+					$$ = (Node *) $6;
+				}
 		;
 
 /*
@@ -11176,6 +11192,16 @@ opt_on_conflict:
 					$$->action = ONCONFLICT_NOTHING;
 					$$->infer = $3;
 					$$->targetList = NIL;
+					$$->whereClause = NULL;
+					$$->location = @1;
+				}
+			|
+			ON DUPLICATE KEY UPDATE set_clause_list
+				{
+					$$ = makeNode(OnConflictClause);
+					$$->action = ONCONFLICT_UPDATE;
+					$$->infer = NULL;
+					$$->targetList = $5;
 					$$->whereClause = NULL;
 					$$->location = @1;
 				}
@@ -15348,6 +15374,7 @@ unreserved_keyword:
 			| DOMAIN_P
 			| DOUBLE_P
 			| DROP
+			| DUPLICATE
 			| EACH
 			| ENABLE_P
 			| ENCODING
@@ -15380,6 +15407,7 @@ unreserved_keyword:
 			| HOUR_P
 			| IDENTITY_P
 			| IF_P
+			| IGNORE
 			| IMMEDIATE
 			| IMMUTABLE
 			| IMPLICIT_P

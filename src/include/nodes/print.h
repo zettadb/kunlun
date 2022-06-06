@@ -34,6 +34,9 @@ typedef struct RemotePrintExprContext
 	bool ignore_param_quals;
 	int skip_n; // skip first N elements
 	int num_vals;
+
+	/* Column name of excluded table in on conflict clause */
+	List *excluded_table_columns;
 } RemotePrintExprContext;
 
 extern void InitRemotePrintExprContext(RemotePrintExprContext *rpec, List*rtable);

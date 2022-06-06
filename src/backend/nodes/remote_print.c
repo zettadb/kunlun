@@ -648,9 +648,30 @@ snprint_expr(StringInfo str, const Expr *expr, RemotePrintExprContext *rpec)
 		 * partition table name. We know for sure that the column name is
 		 * qualified and valid in both computing node and storage node.
 		 * */
-		const char *varname = get_var_attname(var, rtable);
-		if (varname) APPEND_STR(varname);
-		else return -2;
+		 bool done = false;
+		if (var->varno == INNER_VAR && rpec->excluded_table_columns)
+		{
+			if (var->varattno > 0 &&
+			    var->varattno <= list_length(rpec->excluded_table_columns))
+			{
+				Value *colname = list_nth(rpec->excluded_table_columns, var->varattno - 1);
+				APPEND_STR(" VALUES(");
+				APPEND_STR(colname->val.str);
+				APPEND_STR(") ");
+				done = true;
+			}
+		}
+		else
+		{
+			const char *varname = get_var_attname(var, rtable);
+			if (varname)
+			{
+				APPEND_STR(varname);
+				done = true;
+			}
+		}
+
+		if (!done) return -2;
 	}
 	else if (IsA(expr, Const))
 	{

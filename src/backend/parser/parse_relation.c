@@ -714,7 +714,8 @@ scanRTEForColumn(ParseState *pstate, RangeTblEntry *rte, const char *colname,
 	 * excluded.
 	 */
 	if (rte->rtekind == RTE_RELATION &&
-		rte->relkind != RELKIND_COMPOSITE_TYPE)
+		rte->relkind != RELKIND_COMPOSITE_TYPE &&
+		rte->relshardid == Invalid_shard_id) /* Remote shard relation has no system column */
 	{
 		/* quick check to see if name could be a system column */
 		attnum = specialAttNum(colname);

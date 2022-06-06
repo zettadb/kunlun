@@ -1085,6 +1085,8 @@ typedef struct ModifyTableState
 	int			mt_whichplan;	/* which one is being executed (0..n-1) */
 
 	RemoteModifyState *mt_remote_states; /* per-subplan remote modify state */
+
+	StringInfoData mt_remote_action_clause; /* 'ON DUPLICATE KEY' clause added to remote sql */
 	/*   
 	 * Attr Nums in this set is a 'long expression', i.e. longer than NAMEDATALEN.
 	 * Suppose the i'th 1 bit in long_exprs_bmp denotes number x, then the

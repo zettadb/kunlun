@@ -60,6 +60,8 @@ typedef struct RemotetupCacheState
 	RemotetupAttrInfo *myinfo;	/* Cached info about each attr */
 	Relation target_rel;        /* inserting into this relation. */
 	AsyncStmtInfo *pasi;        /* stmt sending port */
+	enum OnConflictAction action;
+	StringInfoData action_str;
 } RemotetupCacheState;
 
 
@@ -88,9 +90,24 @@ struct RemotetupCacheState *CreateRemotetupCacheState(Relation rel)
 	initStringInfo2(&self->buf, PerLeafRelStmtBufSz,CurrentMemoryContext);
 	self->target_rel = rel;
 	self->pasi = GetAsyncStmtInfo(rel->rd_rel->relshardid);
+	self->action = ONCONFLICT_NONE;
+	initStringInfo(&self->action_str);
 	return self;
 }
 
+OnConflictAction 
+get_remote_conflict_action(RemotetupCacheState *cachestate)
+{
+	return cachestate->action;
+}
+
+void set_remote_onconflict_action(RemotetupCacheState *cachestate,
+								  OnConflictAction action, StringInfo action_clause)
+{
+	cachestate->action = action;
+	if (action == ONCONFLICT_UPDATE)
+		appendBinaryStringInfo(&cachestate->action_str, action_clause->data, action_clause->len);
+}
 /*
  * Get the lookup info that remotetup() needs
  */
@@ -113,7 +130,8 @@ remotetup_prepare_info(RemotetupCacheState*myState,
 	myState->myinfo = (RemotetupAttrInfo *)
 		palloc0(numAttrs * sizeof(RemotetupAttrInfo));
 
-	appendStringInfo(&myState->buf, "insert into %s (",
+	appendStringInfo(&myState->buf, "insert %s into %s (",
+		myState->action == ONCONFLICT_NOTHING ? "ignore" : "",
 		make_qualified_name(myState->target_rel->rd_rel->relnamespace,
 		  myState->target_rel->rd_rel->relname.data, NULL));
 

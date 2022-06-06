@@ -1,7 +1,7 @@
 
-drop table if exists t4;
-drop table if exists t5;
-drop table if exists t6;
+drop table if exists t4 cascade;
+drop table if exists t5 cascade;
+drop table if exists t6 cascade;
 
 create table t4(a int primary key, b int unique) with oids;
 create table t4(a int primary key, b int unique, c varchar(32) not null);
@@ -46,7 +46,7 @@ show last_remote_sql;
 -- forbidden create index clauses end
 
 
-drop table if exists t3;
+drop table if exists t3 cascade;
 create table t3(a int) partition by list(a);
 show last_remote_sql;
 \d+ t3;
@@ -58,7 +58,7 @@ create table t302 partition of t3 for values in (2,4,6);
 show last_remote_sql;
 \d+ t302;
 
-drop table if exists t3;
+drop table if exists t3 cascade;
 create table t3(a int, b date, c timestamp, d time, e varchar(64), primary key(b,d)) partition by range(b);
 create unique index on t3(c, b);
 create index on t3(c);
@@ -232,6 +232,7 @@ show last_remote_sql;
 \d+ t201;
 \d+ t202;
 
+drop table if exists t10 cascade;
 create table t10 (a decimal(66));
 create table t10 (a decimal(10,31));
 

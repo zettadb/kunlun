@@ -157,15 +157,17 @@ bool check_mysql_instance_status(MYSQL_CONN *conn, uint64_t checks, bool isbg)
 
 	if (checks & (CHECK_MGR_MASTER | CHECK_RBR_MASTER))
 	{
-	    const char *stmt = NULL;
-		if (checks & CHECK_MGR_MASTER) stmt = "select MEMBER_HOST, MEMBER_PORT from performance_schema.replication_group_members where channel_name='group_replication_applier' and MEMBER_STATE='ONLINE' and MEMBER_ROLE='PRIMARY'";
+		const char *stmt = NULL;
+		bool is_rbr_mode = false;;
+		if (checks & CHECK_MGR_MASTER)
+			stmt = "select MEMBER_HOST, MEMBER_PORT from performance_schema.replication_group_members where channel_name='group_replication_applier' and MEMBER_STATE='ONLINE' and MEMBER_ROLE='PRIMARY'";
 		else if (checks & CHECK_RBR_MASTER)
 		{
-			stmt = "select host, port, Channel_name  from mysql.slave_master_info ";
-			Assert(false); // TODO: may need extra work.
+			stmt = "select HOST, PORT from performance_schema.replication_connection_configuration where channel_name='kunlun_repl'";
+			is_rbr_mode = true;
 		}
 
-	    size_t stmtlen = stmt ? strlen(stmt) : 0;
+		size_t stmtlen = stmt ? strlen(stmt) : 0;
 
 		ret = mysql_real_query(&conn->conn, stmt, stmtlen);
 		if (ret)
@@ -190,8 +192,9 @@ bool check_mysql_instance_status(MYSQL_CONN *conn, uint64_t checks, bool isbg)
 			  this happens.
 			 */
 			mysql_free_result(res);
-			if (row == NULL) handle_metadata_cluster_error(conn, !isbg);
-			return false;
+			if (row == NULL)
+				handle_metadata_cluster_error(conn, !isbg);
+			return is_rbr_mode ? true : false;
 		}
 
 		char *endptr = NULL;
@@ -777,22 +780,25 @@ static int check_metashard_master(MYSQL_CONN *cnconn, CMNConnInfo *ci, CMNConnIn
 	cnconn->node_type = (ci->is_primary ? 1 : 0);
 	const char *stmt = NULL;
 	Storage_HA_Mode ha_mode = storage_ha_mode();
+	bool is_rbr_mode = false;
 
-	if (ha_mode == HA_MGR) stmt = "select MEMBER_HOST, MEMBER_PORT from performance_schema.replication_group_members where channel_name='group_replication_applier' and MEMBER_STATE='ONLINE' and MEMBER_ROLE='PRIMARY'";
+	if (ha_mode == HA_MGR)
+		stmt = "select MEMBER_HOST, MEMBER_PORT from performance_schema.replication_group_members where channel_name='group_replication_applier' and MEMBER_STATE='ONLINE' and MEMBER_ROLE='PRIMARY'";
 	else if (ha_mode == HA_RBR)
 	{
-		stmt = "select host, port, Channel_name from mysql.slave_master_info ";
-		Assert(false);
+		stmt = "select HOST, PORT from performance_schema.replication_connection_configuration where channel_name='kunlun_repl'";
+		is_rbr_mode = true;
 	}
 	else
 	{
-		Assert(ha_mode == HA_NO_REP);// the only master is itself.
+		Assert(ha_mode == HA_NO_REP); // the only master is itself.
 		close_metadata_cluster_conn(cnconn);
 		return 0;
 	}
 
 	size_t stmtlen = 0;
-	if (stmt) stmtlen = strlen(stmt);
+	if (stmt)
+		stmtlen = strlen(stmt);
 
 	bool done = !send_stmt_to_cluster_meta(cnconn, stmt, stmtlen, CMD_SELECT, true);
 	int ret = -1;
@@ -808,6 +814,16 @@ static int check_metashard_master(MYSQL_CONN *cnconn, CMNConnInfo *ci, CMNConnIn
 
 		if (!row || !row[0] || !row[1])
 		{
+			/* In rbr mode, master return empty result, so return the index of current node */
+			if (is_rbr_mode)
+			{
+				for (int i = 0; i < num_ci; ++i)
+				{
+					if (ci == &cis[i])
+						return i;
+				}
+			}
+
 			ret = -2;
 			goto end;
 		}
@@ -827,17 +843,17 @@ static int check_metashard_master(MYSQL_CONN *cnconn, CMNConnInfo *ci, CMNConnIn
 		// when (ip, port) not found, ret is -1 here as expected.
 		if (ret == -1)
 			elog(WARNING, "Found a new primary node(%s, %u) of metadata shard not in pg_cluster_meta_node, "
-				 "meta data in pg_cluster_meta_node isn't up to date, retry later.", hostaddr, port);
+				      "meta data in pg_cluster_meta_node isn't up to date, retry later.",
+			     hostaddr, port);
 
-end:
+	end:
 		free_metadata_cluster_result(cnconn);
 	}
 	else
-		ret = -3;// connection broken before sending the stmt.
+		ret = -3; // connection broken before sending the stmt.
 	close_metadata_cluster_conn(cnconn);
 	return ret;
 }
-
 
 /*
   Connect to each node of the metadata shard and find which one is the latest master

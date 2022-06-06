@@ -785,10 +785,7 @@ static int FindCurrentMasterNodeId(Oid shardid, Oid *pmaster_nodeid)
 	if (ha_mode == HA_MGR)
 		fetch_gr_members_sql = "select MEMBER_HOST, MEMBER_PORT from performance_schema.replication_group_members where channel_name='group_replication_applier' and MEMBER_STATE='ONLINE' and MEMBER_ROLE='PRIMARY'";
 	else if (ha_mode == HA_RBR)
-	{
-		fetch_gr_members_sql = "select host, port, Channel_name from mysql.slave_master_info";
-		Assert(false);
-	}
+		fetch_gr_members_sql = "select HOST, PORT from performance_schema.replication_connection_configuration where channel_name='kunlun_repl';"
 	else Assert(ha_mode == HA_NO_REP);
 
 	size_t sqllen = 0;

@@ -1933,17 +1933,14 @@ make_check_mysql_node_status_stmt(AsyncStmtInfo *asi, bool want_master)
 	Assert(ha_mode != HA_NO_REP);
 
 	const char *stmt_mgr = "select MEMBER_HOST, MEMBER_PORT from performance_schema.replication_group_members where channel_name='group_replication_applier' and MEMBER_STATE='ONLINE' and MEMBER_ROLE='PRIMARY'";
-	const char *stmt_rbr = "select host, port, Channel_name from mysql.slave_master_info"; // TODO: this need extra work
+	const char *stmt_rbr = "select HOST, PORT from performance_schema.replication_connection_configuration where channel_name='kunlun_repl'";
 
 	size_t stmtlen = 0;
 	const char *stmt = NULL;
 	if (ha_mode == HA_MGR)
 		stmt = stmt_mgr;
 	else if (ha_mode == HA_RBR)
-	{
 		stmt = stmt_rbr;
-		Assert(false);
-	}
 	else
 	{
 		Assert(ha_mode == HA_NO_REP);
@@ -1961,8 +1958,6 @@ check_mysql_node_status(AsyncStmtInfo *asi, bool want_master)
 	Storage_HA_Mode ha_mode = storage_ha_mode();
 	Assert(ha_mode != HA_NO_REP);
 
-	Assert(ha_mode == HA_MGR); // this is true only for now.
-
 	MYSQL_RES *mres = asi->mysql_res;
 	Assert(mres);
 	bool res = true;
@@ -1972,7 +1967,9 @@ check_mysql_node_status(AsyncStmtInfo *asi, bool want_master)
 	if (!row) check_mysql_fetch_row_status(asi);
 
 	if (!row || row[0] == NULL || row[1] == NULL)
-		res = false; // not in a mgr cluster, definitely not an MGR master.
+	{
+		res = (ha_mode == HA_RBR) ? true : false; // not in a mgr cluster, definitely not an MGR master.
+	}
 	else
 	{
 		char *endptr = NULL;

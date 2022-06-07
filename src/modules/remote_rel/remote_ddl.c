@@ -785,13 +785,13 @@ void remote_alter_column(Relation rel, int attrnum, ObjectAccessType type)
 				 */
 				if (snprint_expr(&defstr, defexpr, &rpec) > 0)
 				{
-					appendStringInfo(&remote_sql, " default %.*s", defstr.len, defstr.data);
+					appendStringInfo(&remote_sql, " default (%.*s)", defstr.len, defstr.data);
 				}
 				else
 				{
 					resetStringInfo(&defstr);
 					print_default_value(rel, attrnum, &defstr);
-					appendStringInfo(&remote_sql, " default %.*s", defstr.len, defstr.data);
+					appendStringInfo(&remote_sql, " default (%.*s)", defstr.len, defstr.data);
 				}
 
 				// else

@@ -4159,7 +4159,7 @@ static struct config_string ConfigureNamesString[] =
 			gettext_noop("Session debug switches"),
 			GUC_NOT_IN_SAMPLE | GUC_DISALLOW_IN_FILE | GUC_DISALLOW_IN_AUTO_FILE
 		},
-		&session_debug.data,
+		&session_debug,
 		"",
 		NULL, update_session_debug, show_session_debug
 	},
@@ -4169,7 +4169,7 @@ static struct config_string ConfigureNamesString[] =
 			gettext_noop("Global debug switches"),
 			GUC_NOT_IN_SAMPLE | GUC_DISALLOW_IN_FILE | GUC_DISALLOW_IN_AUTO_FILE
 		},
-		&global_debug.data,
+		&global_debug,
 		"",
 		NULL, update_global_debug, show_global_debug
 	},

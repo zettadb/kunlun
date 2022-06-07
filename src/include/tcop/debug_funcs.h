@@ -20,8 +20,8 @@
 
 #include "lib/stringinfo.h"
 
-extern StringInfoData session_debug;
-extern StringInfoData global_debug;
+extern char* session_debug;
+extern char* global_debug;
 
 void init_debug_sys(void);
 Size DbugShmemSize(void);

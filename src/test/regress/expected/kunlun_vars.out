@@ -6,7 +6,7 @@ show local variables like '%lock%';
  innodb_api_disable_rowlock              | OFF
  innodb_autoinc_lock_mode                | 2
  innodb_deadlock_detect                  | ON
- innodb_lock_wait_timeout                | 11
+ innodb_lock_wait_timeout                | 20
  innodb_old_blocks_pct                   | 37
  innodb_old_blocks_time                  | 1000
  innodb_print_all_deadlocks              | ON
@@ -46,7 +46,7 @@ show local variables like '%lock%';
 show variables like '%lock%' strict;
       Variable_name       | Value 
 --------------------------+-------
- innodb_lock_wait_timeout | 11
+ innodb_lock_wait_timeout | 20
  lock_wait_timeout        | 5
  query_alloc_block_size   | 16384
  range_alloc_block_size   | 4096
@@ -60,7 +60,7 @@ show global variables like '%lock%';
  innodb_api_disable_rowlock              | OFF
  innodb_autoinc_lock_mode                | 2
  innodb_deadlock_detect                  | ON
- innodb_lock_wait_timeout                | 11
+ innodb_lock_wait_timeout                | 20
  innodb_old_blocks_pct                   | 37
  innodb_old_blocks_time                  | 1000
  innodb_print_all_deadlocks              | ON
@@ -99,7 +99,7 @@ show global variables like '%lock%';
 show global variables like '%lock%' strict;
       Variable_name       | Value 
 --------------------------+-------
- innodb_lock_wait_timeout | 11
+ innodb_lock_wait_timeout | 20
  lock_wait_timeout        | 5
  query_alloc_block_size   | 16384
  range_alloc_block_size   | 4096
@@ -122,7 +122,7 @@ show global variables like 'innodb_lock_wait_timeout' strict;
 show session variables like 'innodb_lock_wait_timeout' strict;
       Variable_name       | Value 
 --------------------------+-------
- innodb_lock_wait_timeout | 11
+ innodb_lock_wait_timeout | 20
 (1 row)
 
 set session innodb_lock_wait_timeout = 3;
@@ -598,7 +598,7 @@ show variables;
  global_conn_id                                           | 0
  group_concat_max_len                                     | 1024
  group_replication_consistency                            | EVENTUAL
- gtid_executed                                            | 988ce880-e1fd-11ec-a744-fc3497a73395:1-6138
+ gtid_executed                                            | 0bfa6154-e5ea-11ec-8ba3-fc3497a73395:1-6235
  gtid_executed_compression_period                         | 0
  gtid_mode                                                | ON
  gtid_next                                                | AUTOMATIC
@@ -1025,7 +1025,7 @@ show variables;
  proxy_user                                               | 
  pseudo_replica_mode                                      | OFF
  pseudo_slave_mode                                        | OFF
- pseudo_thread_id                                         | 182
+ pseudo_thread_id                                         | 180
  query_alloc_block_size                                   | 16384
  query_prealloc_size                                      | 24576
  rand_seed1                                               | 0
@@ -1083,7 +1083,7 @@ show variables;
  select_into_disk_sync_delay                              | 0
  server_id                                                | 3827
  server_id_bits                                           | 32
- server_uuid                                              | 988ce880-e1fd-11ec-a744-fc3497a73395
+ server_uuid                                              | 0bfa6154-e5ea-11ec-8ba3-fc3497a73395
  session_track_gtids                                      | OFF
  session_track_schema                                     | ON
  session_track_state_change                               | OFF
@@ -1188,7 +1188,7 @@ show variables;
  thread_stack                                             | 196608
  thread_statistics                                        | OFF
  time_zone                                                | SYSTEM
- timestamp                                                | 1654126339.920731
+ timestamp                                                | 1654557743.116385
  tls_ciphersuites                                         | 
  tls_version                                              | TLSv1,TLSv1.1,TLSv1.2,TLSv1.3
  tmp_table_size                                           | 33554432
@@ -1293,7 +1293,7 @@ show variables strict;
  parser_max_mem_size               | 18446744073709551615
  profiling_history_size            | 15
  pseudo_slave_mode                 | OFF
- pseudo_thread_id                  | 182
+ pseudo_thread_id                  | 180
  query_alloc_block_size            | 16384
  query_prealloc_size               | 24576
  range_alloc_block_size            | 4096
@@ -1447,7 +1447,7 @@ show global variables;
  generated_random_password_length                         | 20
  group_concat_max_len                                     | 1024
  group_replication_consistency                            | EVENTUAL
- gtid_executed                                            | 988ce880-e1fd-11ec-a744-fc3497a73395:1-6138
+ gtid_executed                                            | 0bfa6154-e5ea-11ec-8ba3-fc3497a73395:1-6235
  gtid_executed_compression_period                         | 0
  gtid_mode                                                | ON
  gtid_owned                                               | 
@@ -1916,7 +1916,7 @@ show global variables;
  select_into_disk_sync_delay                              | 0
  server_id                                                | 3827
  server_id_bits                                           | 32
- server_uuid                                              | 988ce880-e1fd-11ec-a744-fc3497a73395
+ server_uuid                                              | 0bfa6154-e5ea-11ec-8ba3-fc3497a73395
  session_track_gtids                                      | OFF
  session_track_schema                                     | ON
  session_track_state_change                               | OFF

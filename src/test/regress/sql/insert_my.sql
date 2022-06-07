@@ -55,16 +55,16 @@ select * from t1;
 --- 临时表存放于计算节点。由于PG不允许在一条SQL中对同一个元组更新多次，
 -- 因此如果与"当前sql"中先插入的元组冲突，则报错。
 
-create temp table t3(a int primary key, b int unique);
+create temp table t6(a int primary key, b int unique);
 
-replace into t3 values(1,1),(1,2);
+replace into t6 values(1,1),(1,2);
 
-
+drop table t6;
 
 -- support mysql insert syntax: update/delete limit #581
-drop table if exists t3p1;
-drop table if exists t3p2;
-drop table if exists t3 ;
+
+drop table if exists t3 cascade;
+
 CREATE TABLE t3 (A INT PRIMARY KEY, B INT) PARTITION BY RANGE(a);
 CREATE TABLE t3p1 PARTITION OF t3 FOR VALUES FROM (0) TO (100);
 CREATE TABLE t3p2 PARTITION OF t3 FOR VALUES FROM (100) TO (200);

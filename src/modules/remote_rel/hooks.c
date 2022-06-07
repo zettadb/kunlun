@@ -150,6 +150,7 @@ remoteddl_object_access(ObjectAccessType access,
 				 (access == OAT_DROP || access == OAT_POST_ALTER))
 		{
 			Relation rel = relation_open(objectId, NoLock);
+			/* TODO: More information is needed to avoid unnecessary cache invalidation. */
 			if (rel->rd_rel->relkind == RELKIND_SEQUENCE)
 			{
 				invalidate_seq_shared_cache(MyDatabaseId, objectId, access == OAT_DROP);
@@ -297,9 +298,6 @@ remoteddl_object_access(ObjectAccessType access,
 				case RELKIND_SEQUENCE:
 				{
 					remote_alter_sequence(rel);
-
-					/* Mark the sequence cache entry should be reloaded */
-					invalidate_seq_shared_cache(MyDatabaseId, objectId, false);
 					break;
 				}
 				default:

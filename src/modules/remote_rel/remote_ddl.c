@@ -49,6 +49,7 @@
 #include "libpq-fe.h"
 
 #include "common.h"
+#include "sequence_service.h"
 
 extern bool use_mysql_native_seq; // guc variable
 extern int str_key_part_len;
@@ -580,6 +581,7 @@ void remote_alter_sequence(Relation rel)
 {
 	if (rel->rd_rel->relpersistence == RELPERSISTENCE_TEMP)
 		return;
+	bool reset_cache = false;
 	StringInfoData remote_sql;
 	initStringInfo(&remote_sql);
 	Node *top_stmt = remoteddl_top_stmt();
@@ -667,6 +669,7 @@ void remote_alter_sequence(Relation rel)
 							 use_mysql_native_seq ? "@0024@0024" : "$$",
 							 get_namespace_name(RelationGetNamespace(rel)),
 							 RelationGetRelationName(rel));
+			reset_cache = true;
 		}
 	}
 
@@ -674,6 +677,10 @@ void remote_alter_sequence(Relation rel)
 
 	if (remote_sql.len > 0)
 		enque_remote_ddl(SQLCOM_UPDATE, rel->rd_rel->relshardid, &remote_sql, false);
+
+	/* Mark the sequence cache entry should be reloaded */
+	if (reset_cache)
+		invalidate_seq_shared_cache(MyDatabaseId, rel->rd_id, false);
 }
 
 /* Use to evaluate the default value when add column */

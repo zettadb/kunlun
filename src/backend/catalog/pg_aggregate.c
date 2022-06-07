@@ -675,6 +675,13 @@ AggregateCreate(const char *aggName,
 	else
 		nulls[Anum_pg_aggregate_aggminitval - 1] = true;
 
+	values[Anum_pg_aggregate_aggsupportmysql - 1] = BoolGetDatum(0);
+	values[Anum_pg_aggregate_aggmysupdistinct - 1] = BoolGetDatum(0);
+	values[Anum_pg_aggregate_aggmysuporder - 1] = BoolGetDatum(0);
+	values[Anum_pg_aggregate_aggmysupover - 1] = BoolGetDatum(0);
+	values[Anum_pg_aggregate_aggmysplitpartialfn - 1] = ObjectIdGetDatum(InvalidOid);
+
+
 	aggdesc = heap_open(AggregateRelationId, RowExclusiveLock);
 	tupDesc = aggdesc->rd_att;
 

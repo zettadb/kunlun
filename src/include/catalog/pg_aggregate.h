@@ -91,6 +91,20 @@ CATALOG(pg_aggregate,2600,AggregateRelationId) BKI_WITHOUT_OIDS
 	/* estimated size of moving-agg state (0 for default est) */
 	int32		aggmtransspace BKI_DEFAULT(0);
 
+ 	/* True if mysql support it */
+ 	bool        aggsupportmysql BKI_DEFAULT(f);
+
+ 	/* True if mysql support it with distinct */
+ 	bool        aggmysupdistinct BKI_DEFAULT(f);
+
+ 	/* True if mysql support it with order */
+ 	bool        aggmysuporder BKI_DEFAULT(f);
+
+ 	/* True if mysql support it with over */
+ 	bool        aggmysupover BKI_DEFAULT(f);
+
+ 	regproc     aggmysplitpartialfn BKI_DEFAULT(-) BKI_LOOKUP(pg_proc);
+
 #ifdef CATALOG_VARLEN			/* variable-length fields start here */
 
 	/* initial value for transition state (can be NULL) */

@@ -65,6 +65,16 @@ def add_computing_nodes(mysql_conn_params, args, config_path, install_ids, intoS
     elif row[2] == 'mgr':
         ha_mode = 1
 
+    meta_cursor.execute('select value from global_configuration where name=%s', ('meta_ha_mode',))
+    row = meta_cursor.fetchone()
+    meta_ha_mode = -1
+    if row[0] == 'no_rep':
+        meta_ha_mode = 0
+    elif row[0] == 'mgr':
+        meta_ha_mode = 1
+    elif row[0] == 'rbr':
+        meta_ha_mode = 2
+
     meta_cursor0 = meta_conn.cursor(buffered=True, dictionary=True)
 
     # insert computing nodes info into meta-tables.
@@ -98,8 +108,8 @@ def add_computing_nodes(mysql_conn_params, args, config_path, install_ids, intoS
         conn = psycopg2.connect(host=compcfg['ip'], port=compcfg['port'], user=compcfg['user'], database='postgres', password=compcfg['password'])
         cur = conn.cursor()
         cur.execute("set skip_tidsync = true; start transaction")
-        cur.execute("insert into pg_cluster_meta values(%s, %s, %s, %s, %s, %s)",
-                (compcfg['id'], cluster_id, 0, ha_mode, args.cluster_name, compcfg['name']))
+        cur.execute("insert into pg_cluster_meta values(%s, %s, %s, %s, %s, %s, %s)",
+                (compcfg['id'], cluster_id, 0, ha_mode, args.cluster_name, compcfg['name'], meta_ha_mode))
         for meta_node in meta_dbnodes:
             is_master = False
             

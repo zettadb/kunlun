@@ -93,9 +93,9 @@ typedef enum DDL_OP_Types
 	DDL_OP_Type_generic
 } DDL_OP_Types;
 
-extern int connect_mysql_master(MYSQL_CONN *mysql, const char *host,
+extern int connect_meta_master(MYSQL_CONN *mysql, const char *host,
 	uint16_t port, const char *user, const char *password, bool is_bg);
-extern int connect_mysql_slave(MYSQL_CONN *mysql, const char *host,
+extern int connect_meta_slave(MYSQL_CONN *mysql, const char *host,
 	uint16_t port, const char *user, const char *password, bool is_bg);
 extern bool send_stmt_to_cluster_meta(MYSQL_CONN*conn, const char *stmt,
 	size_t len, CmdType cmd, bool isbg);

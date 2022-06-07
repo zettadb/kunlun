@@ -1134,26 +1134,34 @@ void ShardingTopoCheckShmemInit(void)
 */
 bool RequestShardingTopoCheck(Oid shardid)
 {
-	Storage_HA_Mode ha_mode = storage_ha_mode();
-	if (ha_mode == HA_NO_REP) return false;
-
-	int pid;
+	Storage_HA_Mode ha_mode;
 	bool done = false;
-	LWLockAcquire(ShardingTopoCheckLock, LW_EXCLUSIVE);
-	if (ShardingTopoChkReqs->endidx >= MAX_SHARDS)
-		goto end;
-	for (int i = 0; i < ShardingTopoChkReqs->endidx; i++)
-		if (shardid == ShardingTopoChkReqs->shardids[i])
-			goto done;
 
-	ShardingTopoChkReqs->shardids[ShardingTopoChkReqs->endidx++] = shardid;
-done:
-	done = true;
-end:
-	LWLockRelease(ShardingTopoCheckLock);
-	pid = get_topo_service_pid();
-	if (done && pid != 0 && pid != MyProcPid)
-		kill(pid, SIGUSR2);
+	if (shardid == METADATA_SHARDID)
+		ha_mode = metaserver_ha_mode();
+	else
+		ha_mode = storage_ha_mode();
+
+	if (ha_mode != HA_NO_REP)
+	{
+		LWLockAcquire(ShardingTopoCheckLock, LW_EXCLUSIVE);
+		if (ShardingTopoChkReqs->endidx < MAX_SHARDS)
+		{
+			for (int i = 0; !done && i < ShardingTopoChkReqs->endidx; i++)
+			{
+				done = (shardid == ShardingTopoChkReqs->shardids[i]);
+			}
+
+			if (!done)
+				ShardingTopoChkReqs->shardids[ShardingTopoChkReqs->endidx++] = shardid;
+			done = true;
+		}
+		LWLockRelease(ShardingTopoCheckLock);
+
+		int pid = get_topo_service_pid();
+		if (done && pid != 0 && pid != MyProcPid)
+			kill(pid, SIGUSR2);
+	}
 
 	return done;
 }

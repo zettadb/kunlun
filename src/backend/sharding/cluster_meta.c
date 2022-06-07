@@ -247,7 +247,7 @@ bool check_mysql_instance_status(MYSQL_CONN *conn, uint64_t checks, bool isbg)
  * @retval 0: connected to metadata cluster master node;
  *        -1: connection failed; -2: the mysql instance check for master/slave doesn't match 'check_master'.
  * */
-static int connect_mysql(MYSQL_CONN *mysql, const char *host, uint16_t port,
+static int connect_meta_mysql(MYSQL_CONN *mysql, const char *host, uint16_t port,
 	const char *user, const char *password, bool is_bg, const int check_master)
 {
 	Assert(check_master == 1 || check_master == 0 || check_master == -1);
@@ -292,7 +292,7 @@ static int connect_mysql(MYSQL_CONN *mysql, const char *host, uint16_t port,
 	mysql->node_type = -1;
 
 	// Whether and how to check master status.
-	Storage_HA_Mode ha_mode = storage_ha_mode();
+	Storage_HA_Mode ha_mode = metaserver_ha_mode();
 	int master_bit = 0;
 	if (ha_mode == HA_MGR) master_bit = CHECK_MGR_MASTER;
 	else if (ha_mode == HA_RBR) master_bit = CHECK_RBR_MASTER;
@@ -321,14 +321,14 @@ static int connect_mysql(MYSQL_CONN *mysql, const char *host, uint16_t port,
 
 }
 
-int connect_mysql_master(MYSQL_CONN *mysql, const char *host, uint16_t port, const char *user, const char *password, bool is_bg)
+int connect_meta_master(MYSQL_CONN *mysql, const char *host, uint16_t port, const char *user, const char *password, bool is_bg)
 {
-	return connect_mysql(mysql, host, port, user, password, is_bg, 1);
+	return connect_meta_mysql(mysql, host, port, user, password, is_bg, 1);
 }
 
-int connect_mysql_slave(MYSQL_CONN *mysql, const char *host, uint16_t port, const char *user, const char *password, bool is_bg)
+int connect_meta_slave(MYSQL_CONN *mysql, const char *host, uint16_t port, const char *user, const char *password, bool is_bg)
 {
-	return connect_mysql(mysql, host, port, user, password, is_bg, 0);
+	return connect_meta_mysql(mysql, host, port, user, password, is_bg, 0);
 }
 
 
@@ -770,7 +770,7 @@ typedef struct CMNConnInfo {
 */
 static int check_metashard_master(MYSQL_CONN *cnconn, CMNConnInfo *ci, CMNConnInfo *cis, int num_ci)
 {
-	int cret = connect_mysql(cnconn, ci->hostaddr, ci->port, ci->usr.data, ci->pwd, true, -1);
+	int cret = connect_meta_mysql(cnconn, ci->hostaddr, ci->port, ci->usr.data, ci->pwd, true, -1);
 	if (cret < 0)
 	{
 		Assert(cret == -1);
@@ -779,7 +779,7 @@ static int check_metashard_master(MYSQL_CONN *cnconn, CMNConnInfo *ci, CMNConnIn
 	Assert(cret == 0);
 	cnconn->node_type = (ci->is_primary ? 1 : 0);
 	const char *stmt = NULL;
-	Storage_HA_Mode ha_mode = storage_ha_mode();
+	Storage_HA_Mode ha_mode = metaserver_ha_mode();
 	bool is_rbr_mode = false;
 
 	if (ha_mode == HA_MGR)
@@ -789,11 +789,15 @@ static int check_metashard_master(MYSQL_CONN *cnconn, CMNConnInfo *ci, CMNConnIn
 		stmt = "select HOST, PORT from performance_schema.replication_connection_configuration where channel_name='kunlun_repl'";
 		is_rbr_mode = true;
 	}
-	else
+	else if (ha_mode == HA_NO_REP)
 	{
-		Assert(ha_mode == HA_NO_REP); // the only master is itself.
 		close_metadata_cluster_conn(cnconn);
 		return 0;
+	}
+	else
+	{
+		/* invalid ha mode */
+		return -2;
 	}
 
 	size_t stmtlen = 0;
@@ -1204,7 +1208,7 @@ void KillMetaShardConn(char type, uint32_t connid)
 	for (int i = 0; i < cnt; i++)
 	{
 		CMNConnInfo *ci = cmnodes+i;
-		int cret = connect_mysql(cnconn, ci->hostaddr, ci->port, ci->usr.data, ci->pwd, true, -1);
+		int cret = connect_meta_mysql(cnconn, ci->hostaddr, ci->port, ci->usr.data, ci->pwd, true, -1);
 		if (cret < 0)
 		{
 			continue;
@@ -1321,6 +1325,35 @@ Storage_HA_Mode storage_ha_mode()
 	}
 	Form_pg_cluster_meta cmeta = (Form_pg_cluster_meta)GETSTRUCT(ctup);
 	Storage_HA_Mode ret = cmeta ? cmeta->ha_mode : HA_NO_REP;
+	if (ctup) ReleaseSysCache(ctup);
+	if (need_txn)
+	{
+		PopActiveSnapshot();
+		CommitTransactionCommand();
+	}
+	return ret;
+}
+
+Storage_HA_Mode metaserver_ha_mode()
+{
+	bool need_txn = !IsTransactionState();
+	if (need_txn)
+	{
+		SetCurrentStatementStartTimestamp();
+		StartTransactionCommand();
+		PushActiveSnapshot(GetTransactionSnapshot());
+	}
+
+	HeapTuple ctup = SearchSysCache1(CLUSTER_META, comp_node_id);
+	if (!HeapTupleIsValid(ctup))
+	{
+		ereport(ERROR, 
+				(errcode(ERRCODE_INTERNAL_ERROR),
+				 errmsg("Kunlun-db: Cache lookup failed for pg_cluster_meta by comp_node_id %u", comp_node_id),
+				 errhint("comp_node_id variable must equal to pg_cluster_meta's single row's comp_node_id field.")));
+	}
+	Form_pg_cluster_meta cmeta = (Form_pg_cluster_meta)GETSTRUCT(ctup);
+	Storage_HA_Mode ret = cmeta ? cmeta->meta_ha_mode : HA_NO_REP;
 	if (ctup) ReleaseSysCache(ctup);
 	if (need_txn)
 	{

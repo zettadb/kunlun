@@ -257,7 +257,7 @@ retry:
 		strncpy(master_ip, hostaddr, sizeof(master_ip) - 1);
 		master_port = cmnode->port;
 
-		if ((rcm = connect_mysql_master(&cluster_conn, hostaddr, cmnode->port, cmnode->user_name.data, pwd, isbg)))
+		if ((rcm = connect_meta_master(&cluster_conn, hostaddr, cmnode->port, cmnode->user_name.data, pwd, isbg)))
 		{
 			if (cmnode->is_master && rcm == -2)
 			{

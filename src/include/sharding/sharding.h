@@ -30,6 +30,7 @@ extern Shard_node_id_t Invalid_shard_node_id;
 extern Shard_node_id_t First_shard_node_id;
 
 typedef enum Storage_HA_Mode {
+	HA_INVALID = -1,
 	HA_NO_REP = 0,
 	HA_MGR,
 	HA_RBR
@@ -40,6 +41,7 @@ typedef enum Storage_HA_Mode {
   they never change it after the cluster is created.
 */
 extern Storage_HA_Mode storage_ha_mode(void);
+extern Storage_HA_Mode metaserver_ha_mode(void);
 
 /*
  * A shard has one master node and multiple slaves nodes. they contain

@@ -587,7 +587,7 @@ static void free_applier_connection(Oid dbid)
 	char *sql  = PQescapeLiteral(conn, event->sqlsrc, strlen(event->sqlsrc));
 	const char *op = DDL_OP_TypeNames[event->optype];
 
-	appendStringInfo(&sqlstr, "SELECT public.apply_log_wrapper(%lu, %s, %s, %s, %s, %s)",
+	appendStringInfo(&sqlstr, "SELECT public.apply_log_wrapper(%lu, %s, %s, %s, '%s', %s)",
 									 event->id, user, role, path, op, sql);
 
 	free(user), free(role), free(path), free(sql);

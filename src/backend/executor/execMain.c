@@ -1720,7 +1720,10 @@ ExecutePlan(EState *estate,
 
 	estate->es_use_parallel_mode = use_parallel_mode;
 	if (use_parallel_mode)
+	{
+		(void)GetCurrentTransactionId();
 		EnterParallelMode();
+	}
 
 	/*
 	 * Loop until we've processed the proper number of tuples from the plan.

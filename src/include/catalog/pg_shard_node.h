@@ -46,12 +46,16 @@ CATALOG(pg_shard_node,12345,ShardNodeRelationId) BKI_SHARED_RELATION BKI_WITHOUT
    * max ro_weight of a shard. set it to 0 to disable slave reading to the node.
    */
   int16 ro_weight;
+  int16 ping; /* The ping latency from current CN */
+  int16 latency; /* The binlog sync latency from master */
   NameData user_name;
 #ifdef CATALOG_VARLEN
   /* host address , ipv6 or ipv4, or host name/domain name, denoted by addrtype. */
   text hostaddr;
   text passwd BKI_FORCE_NOT_NULL;
   timestamptz when_created BKI_DEFAULT(0);
+  json extra; /* extra information added in the future*/
+
 #endif
 } FormData_pg_shard_node;
 

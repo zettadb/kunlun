@@ -22,6 +22,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <signal.h>
+#include <string.h>
 #include <time.h>
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
@@ -67,6 +68,9 @@
 #include "storage/ipc.h"
 #include "sharding/sharding.h"
 
+#define SHARDS_BITMAP_ELEM_BITS (sizeof(ulong) * 8)
+#define SHARDS_BITMAP_LEN (MAX_SHARDS/ SHARDS_BITMAP_ELEM_BITS)
+
 typedef struct GlobalXid
 {
 	Oid comp_nodeid;
@@ -74,6 +78,8 @@ typedef struct GlobalXid
 	GlobalTrxId gtrxid;
 	PGPROC *proc;
 	char txn_action; // 1: commit; 0: abort;
+	int nshards;
+	ulong shards_bitmap[SHARDS_BITMAP_LEN]; /* participants */
 
 	/**
 	 * Used to indicate which proc is waiting for which
@@ -386,11 +392,206 @@ bool XidSyncDone()
 	return g_xgi->max_trxid != InvalidTransactionId || RecoveringGlobalNextXid;
 }
 
+static int
+qsort_oid_compare(const void *a, const void *b)
+{
+	return (*(Oid*)a - *(Oid*)b);
+}
+
+/**
+ * @brief Get the index of corresponding shard in asc order
+ * 
+ * @return return -1 if the shardid is invalid
+ */
+static int
+get_shardid_index(Oid shardid)
+{
+	static Oid sortedShards[MAX_SHARDS];
+	static int numShards = 0;
+	List *shardList;
+	ListCell *lc;
+
+	/* Reload sorted shards */
+	int count = 0;
+	bool starttxn = false;
+	
+	while (numShards <= 0 ||
+	       sortedShards[numShards - 1] < shardid)
+	{
+		/* GetAllshardids() need called in transaction */
+		if (!IsTransactionState()) {
+			starttxn = true;
+			StartTransactionCommand();
+		}
+
+		numShards = 0;
+		shardList = GetAllShardIds();
+		foreach (lc, shardList)
+		{
+			sortedShards[numShards++] = lfirst_oid(lc);
+			Assert(numShards <= MAX_SHARDS);
+		}
+
+		qsort(sortedShards, numShards, sizeof(Oid), qsort_oid_compare);
+		if (++count > 4)
+			break;
+	}
+
+	if (starttxn)
+		CommitTransactionCommand();
+
+	/* binary search */
+	if (numShards > 64)
+	{
+		Oid *addr = bsearch(&shardid,
+				    sortedShards,
+				    numShards,
+				    sizeof(Oid),
+				    qsort_oid_compare);
+		if (addr)
+			return (addr - sortedShards) / sizeof(Oid);
+	}
+	/* linear search */
+	else
+	{
+		for (int i = 0; i < numShards; ++i)
+		{
+			if (sortedShards[i] == shardid)
+				return i;
+		}
+	}
+
+	elog(WARNING, "Get index of shard(%u) failed, number of shards:%d", shardid, numShards);
+	return -1;
+}
+
+/**
+ * @brief Get the Oid at the given index in a asc order
+ * 
+ */
+static Oid
+get_shardid_by_index(int index)
+{
+	static Oid sortedShards[MAX_SHARDS];
+	static int numShards = 0;
+	List *shardList;
+	ListCell *lc;
+
+	/* Reload sorted shards */
+	int count = 0;
+	bool starttxn = false;
+
+	while (index >= numShards)
+	{
+		if (!IsTransactionState())
+		{
+			starttxn = true;
+			StartTransactionCommand();
+		}
+
+		numShards = 0;
+		shardList = GetAllShardIds();
+		foreach (lc, shardList)
+		{
+			sortedShards[numShards++] = lfirst_oid(lc);
+			Assert(numShards <= MAX_SHARDS);
+		}
+
+		qsort(sortedShards, numShards, sizeof(Oid), qsort_oid_compare);
+		if (++count > 4)
+			break;
+	}
+
+	if (starttxn)
+		CommitTransactionCommand();
+
+	if (index < numShards)
+		return sortedShards[index];
+	
+	elog(WARNING, "Get shard by index(%d) failed, number of shards:%d", index, numShards);
+	return InvalidOid;
+}
+
+/**
+ * @brief Encode the shardid into bitmap
+ */
+static void
+encode_shards_bitmap(Oid shardid, ulong *bitmap)
+{
+	int idx;
+
+	if ((idx = get_shardid_index(shardid)) < 0)
+	{
+		ereport(ERROR,
+			(errcode(ERRCODE_INTERNAL_ERROR),
+			 errmsg("Kunlun-db: Geting index of shard(%u) failed", shardid)));
+	}
+
+	bitmap[idx / SHARDS_BITMAP_ELEM_BITS] |= (1ul << (idx % SHARDS_BITMAP_ELEM_BITS));
+}
+
+static void
+decode_shards_bitmap(ulong *bitmap, int nshards, void (*fn)(void*, Oid), void *context)
+{
+	ulong elem;
+	int idx = 0;
+	int offset;
+	Oid shardid;
+
+	for (int i = 0; nshards && i < SHARDS_BITMAP_LEN; ++i)
+	{
+		elem = bitmap[i];
+		while (elem && nshards)
+		{
+			/* last bit position */
+			offset = ffsl(elem) - 1;
+			elem &= (elem - 1);
+			{
+				shardid = get_shardid_by_index(idx + offset);
+				if (shardid == InvalidOid)
+				{
+					ereport(ERROR,
+						(errcode(ERRCODE_INTERNAL_ERROR),
+						 errmsg("Kunlun-db: Geting shard at index(%d) failed", idx)));
+				}
+				fn(context, shardid);
+
+				--nshards;
+			}
+		}
+		idx += SHARDS_BITMAP_ELEM_BITS;
+	}
+}
+
+static void
+dump_shards_bitmap_worker(void *context, Oid shardid)
+{
+	appendStringInfo(((StringInfo)context), "%u,", shardid);
+}
+
+/**
+ * @brief dump shardid in json array format
+ */
+static void
+dump_shards_bitmap(int nshards, ulong *bitmap, StringInfo str)
+{
+	appendStringInfoChar(str, '[');
+	if (nshards)
+	{
+		decode_shards_bitmap(bitmap,
+				     nshards,
+				     dump_shards_bitmap_worker,
+				     (void *)str);
+		--str->len;
+	}
+	appendStringInfoChar(str, ']');
+}
+
 /*
  * Called by backends to wait for commit log write completion.
  * @retval 1: successful; 0: failure; -1: timeout
  * */
-char WaitForXidCommitLogWrite(Oid comp_nodeid, GlobalTrxId xid, time_t deadline, bool commit_it)
+char WaitForXidCommitLogWrite(Oid comp_nodeid, GlobalTrxId xid, time_t deadline, List *prepared_shards, bool commit_it)
 {
 	LWLockAcquire(GlobalXidSenderLock, LW_EXCLUSIVE);
 	int slot_idx = g_xgi->num_used_slots++;
@@ -402,6 +603,15 @@ char WaitForXidCommitLogWrite(Oid comp_nodeid, GlobalTrxId xid, time_t deadline,
 	slot->txn_action = (commit_it ? 1 : 0);
 	slot->pid = MyProc->pid;
 	slot->fenceNo = MyProc->fence.fence_no;
+	
+	/* Encode prepared shards */
+	slot->nshards = list_length(prepared_shards);
+	memset(slot->shards_bitmap, 0, sizeof(slot->shards_bitmap));
+	ListCell *lc;
+	foreach(lc, prepared_shards)
+	{
+		encode_shards_bitmap(lfirst_oid(lc), slot->shards_bitmap);
+	}
 
 	uint64_t counter = g_xgi->counter;
 	if (g_xgi->num_used_slots >= cluster_commitlog_group_size && g_xgi->procid != 0)
@@ -901,8 +1111,9 @@ void XidSenderMain(int argc, char **argv)
 	GlobalXid *localbuf =
 		MemoryContextAlloc(xidSenderLocalContext,
 						   MaxBackends * sizeof(GlobalXid));
-	StringInfoData stmt;
-	initStringInfo2(&stmt, 8192, xidSenderLocalContext);
+	StringInfoData stmt, json_shards;
+        initStringInfo2(&stmt, 8192, xidSenderLocalContext);
+	initStringInfo2(&json_shards, 8192, xidSenderLocalContext);
 	time_t now = 0, when_last_send = 0;
 
 	recover_nextXid_global();
@@ -962,12 +1173,18 @@ retry_send:
 		DEBUG_INJECT_IF("test_metadata_svr_commit_log_append_timeout",
 			appendStringInfo(&stmt, "set session debug_sync='before_execute_sql_command wait_for resume';"););
 
-		appendStringInfo(&stmt, "insert into " KUNLUN_METADATA_DBNAME ".commit_log_%s (comp_node_id, txn_id, next_txn_cmd) values ", GetClusterName2());
+		appendStringInfo(&stmt, "insert into " KUNLUN_METADATA_DBNAME ".commit_log_%s (comp_node_id, txn_id, next_txn_cmd, written_shards) values ", GetClusterName2());
 		for (int i = 0; i < nslots; i++)
 		{
-			GlobalXid *slot = localbuf+i;
-			appendStringInfo(&stmt, "(%u, %lu, (if (unix_timestamp() > %ld,  NULL, '%s'))),",
-				slot->comp_nodeid, slot->gtrxid, slot->deadline, txn_action(slot->txn_action));
+			GlobalXid *slot = localbuf + i;
+			/* dump participant shards in json format */
+			resetStringInfo(&json_shards);
+			dump_shards_bitmap(slot->nshards, slot->shards_bitmap, &json_shards);
+
+			appendStringInfo(&stmt, "(%u, %lu, (if (unix_timestamp() > %ld,  NULL, '%s')), '%s'),",
+					 slot->comp_nodeid, slot->gtrxid, slot->deadline,
+					 txn_action(slot->txn_action),
+					 json_shards.data);
 		}
 
 		stmt.data[stmt.len-1] = '\0';// remove the last comma.

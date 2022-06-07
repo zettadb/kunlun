@@ -48,7 +48,7 @@ extern void StartSubTxnRemote(const char *name);
 extern void SendReleaseSavepointToRemote(const char *name);
 extern void SendRollbackRemote(const char *txnid, bool xa_end, bool written_only);
 extern void SendRollbackSubToRemote(const char *name);
-extern bool Send1stPhaseRemote(const char *txnid);
+extern bool Send1stPhaseRemote(const char *txnid, List **prepared_shards);
 extern void Send2ndPhaseRemote(const char *txnid);
 extern void StartTxnRemote(StringInfo cmd);
 extern char *MakeTopTxnName(TransactionId txnid, time_t now);

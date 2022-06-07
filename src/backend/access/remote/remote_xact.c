@@ -165,7 +165,7 @@ again:
  * Send 1st phase stmts to remote shards, return true if there is 2nd phase,
  * false if no 2nd phase needed.
  * */
-bool Send1stPhaseRemote(const char *txnid)
+bool Send1stPhaseRemote(const char *txnid, List **prepared_shards)
 {
 	int num = GetAsyncStmtInfoUsed();
 	int nr = 0, nw = 0, nddls = 0;
@@ -305,13 +305,15 @@ bool Send1stPhaseRemote(const char *txnid)
 			{
 				if (filled2 == false)
 				{
-			    	len = snprintf(stmt2, slen, "XA END '%s';XA PREPARE '%s'", txnid, txnid);
+					len = snprintf(stmt2, slen, "XA END '%s';XA PREPARE '%s'", txnid, txnid);
 					filled2 = true;
 				}
-			    sqlcom = SQLCOM_XA_PREPARE;
+				sqlcom = SQLCOM_XA_PREPARE;
 				elog(DEBUG2, "Found %d written shards for transaction %s, preparing in shard node (%u,%u) at %s:%u",
-				 	nw, txnid, asi->shard_id, asi->node_id, asi->conn->host, asi->conn->port);
+				     nw, txnid, asi->shard_id, asi->node_id, asi->conn->host, asi->conn->port);
 				send_stmt_async_nowarn(asi, stmt2, len, CMD_TXN_MGMT, false, sqlcom);
+				
+				*prepared_shards = lappend_oid(*prepared_shards, asi->shard_id);
 			}
 
 			Assert(len < slen);

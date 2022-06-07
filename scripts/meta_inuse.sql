@@ -41,6 +41,7 @@ CREATE TABLE `commit_log_template_table` (
   `txn_id` bigint unsigned NOT NULL,
   `next_txn_cmd` enum('commit','abort') NOT NULL,
   `prepare_ts` timestamp(6) default current_timestamp(6),
+  `written_shards` json NOT NULL,
   PRIMARY KEY (`txn_id`,`comp_node_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 /*!50100 PARTITION BY LIST (`comp_node_id`)

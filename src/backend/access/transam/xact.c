@@ -2129,14 +2129,15 @@ CommitTransaction(void)
 
 		PG_TRY();
 		{
-			const bool do_2pc = Send1stPhaseRemote(s->name);
+			List *prepared_shards = NIL;
+			const bool do_2pc = Send1stPhaseRemote(s->name, &prepared_shards);
 			if (do_2pc)
 			{
 				uint64_t gtrxid = GetCurrentGlobalTransactionId();
 				time_t deadline = global_txn_commit_log_wait_max_secs + time(0);
 
 				tc_phase = 2;
-				int ret = WaitForXidCommitLogWrite(comp_node_id, gtrxid, deadline, true);
+				int ret = WaitForXidCommitLogWrite(comp_node_id, gtrxid, deadline, prepared_shards, true);
 				tc_phase = 3;
 
 				/*

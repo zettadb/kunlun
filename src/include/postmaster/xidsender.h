@@ -20,7 +20,7 @@ extern Size BackendXidSenderShmemSize(void);
 extern void xidsender_initialize(void);
 extern void XidSenderMain(int argc, char **argv);
 extern int  xidsender_start(void);
-extern char WaitForXidCommitLogWrite(Oid comp_nodeid, GlobalTrxId xid, time_t deadline, bool commit_it);
+extern char WaitForXidCommitLogWrite(Oid comp_nodeid, GlobalTrxId xid, time_t deadline, List *prepared_shards, bool commit_it);
 extern bool wait_latch(int millisecs);
 
 extern bool XidSyncDone(void);

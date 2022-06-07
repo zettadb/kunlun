@@ -1509,6 +1509,16 @@ try_partitionwise_join(PlannerInfo *root, RelOptInfo *rel1, RelOptInfo *rel2,
 		populate_joinrel_with_paths(root, child_rel1, child_rel2,
 									child_joinrel, child_sjinfo,
 									child_restrictlist);
+
+		if (list_length(child_joinrel->pathlist) == 0)
+		{
+			/*
+			 * Mark the joinrel as unpartitioned so that later functions treat
+			 * it correctly.
+			 */
+			joinrel->nparts = 0;
+			return;
+		}
 	}
 }
 

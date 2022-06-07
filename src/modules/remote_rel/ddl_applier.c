@@ -696,6 +696,12 @@ void create_applier_message_queue(bool module_init)
 	}
 }
 
+void notify_applier()
+{
+	if (applier_mq_context && applier_mq_context->applier_pid)
+		kill(applier_mq_context->applier_pid, SIGUSR2);
+}
+
 bool notify_applier_dropped_database(Oid dbid)
 {
 	LWLockAcquire(applier_mq_lock, LW_EXCLUSIVE);

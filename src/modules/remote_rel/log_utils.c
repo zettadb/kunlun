@@ -34,6 +34,7 @@
 #include "utils/rel.h"
 
 #include "common.h"
+#include "ddl_applier.h"
 #include "remote_ddl.h"
 
 /**
@@ -210,12 +211,18 @@ void catch_up_latest_meta()
 		max_opid = strtoul(row[0], NULL, 10);
 	free_metadata_cluster_result(conn);
 
+	long timeout = 2 /*ms*/;
 	do
 	{
 		uint64_t local_opid = get_ddl_applier_progress(false);
 		if (local_opid >= max_opid)
 			break;
-		sleep(1);
+
+		/* Notify ddl applier to apply the new events */
+		notify_applier();
+		pg_usleep(timeout * 1000);
+		timeout = Min(timeout * 2, 1000);
+
 		CHECK_FOR_INTERRUPTS();
 	} while (true);
 }

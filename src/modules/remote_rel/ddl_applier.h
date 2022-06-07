@@ -27,6 +27,11 @@ extern void create_applier_message_queue(bool module_init);
 extern bool notify_applier_dropped_database(Oid dbid);
 
 /**
+ * @brief Notify applier service to catch up the new logs
+ */
+extern void notify_applier(void);
+
+/**
  * @brief The main loop of the ddl applier service
  */
 extern void ddl_applier_serivce_main(void);

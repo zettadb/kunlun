@@ -358,6 +358,7 @@ ProcedureCreate(const char *procedureName,
 		values[Anum_pg_proc_proconfig - 1] = proconfig;
 	else
 		nulls[Anum_pg_proc_proconfig - 1] = true;
+
 	/* proacl will be determined later */
 
 	rel = heap_open(ProcedureRelationId, RowExclusiveLock);

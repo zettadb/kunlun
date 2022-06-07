@@ -700,47 +700,22 @@ static void print_default_value(Relation rel, int attrnum, StringInfo str)
 	}
 
 	/* Get the print function */
-	Form_pg_attribute attr = &rel->rd_att->attrs[attrnum - 1];
-	getTypeOutputInfo(attr->atttypid,
-					  &typoutput,
-					  &typisvarlena);
-	fmgr_info(typoutput, &finfo);
-
-	/* Using ISO, YMD date style/order in UTC+0 timezone.*/
-	orig_datestyle = -1;
-	if (is_date_time_type(attr->atttypid))
 	{
-		orig_datestyle = DateStyle;
-		orig_dateorder = DateOrder;
-		origtz = session_timezone;
-		orig_intvstyle = IntervalStyle;
+		Const c;
+		Form_pg_attribute attr;
+		RemotePrintExprContext rpec;
 
-		DateStyle = USE_ISO_DATES;
-		DateOrder = DATEORDER_YMD;
-		IntervalStyle = INTSTYLE_ISO_8601;
-		session_timezone =  pg_tzset("GMT");
-	}
-
-	/* Print value to string */
-	char *valstr = OutputFunctionCall(&finfo, value);
-
-	/* Adjust to mysql format */
-	valstr = pg_to_mysql_const(attr->atttypid, valstr);
-	if (const_output_needs_quote(attr->atttypid))
-	{
-		appendStringInfo(str, "'%s'", valstr);
-	}
-	else
-	{
-		appendStringInfo(str, "%s", valstr);
-	}
-
-	if (orig_datestyle != -1)
-	{
-		DateStyle = orig_datestyle;
-		DateOrder = orig_dateorder;
-		IntervalStyle = orig_intvstyle;
-		session_timezone = origtz;
+		attr = TupleDescAttr(rel->rd_att, attrnum - 1);
+		memset(&c, 0, sizeof(c));
+		c.xpr.type = T_Const;
+		c.consttype = attr->atttypid;
+		c.constisnull = isnull;
+		c.constvalue = value;
+		InitRemotePrintExprContext(&rpec, NIL);
+		if (snprint_expr(str, (Expr*)&c, &rpec) <= 0)
+		{
+			elog(ERROR, "Serialize field (attrnum=%d) default value failed", attrnum);
+		}
 	}
 	
 	FreeExprContext(econtext, false);

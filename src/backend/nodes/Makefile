@@ -14,6 +14,7 @@ include $(top_builddir)/src/Makefile.global
 
 OBJS = nodeFuncs.o nodes.o list.o bitmapset.o tidbitmap.o \
        copyfuncs.o equalfuncs.o extensible.o makefuncs.o \
-       outfuncs.o readfuncs.o print.o read.o params.o value.o remote_print.o
+       outfuncs.o readfuncs.o print.o read.o params.o value.o \
+	   remote_print2.o remote_type_funcs.o remote_input.o
 
 include $(top_srcdir)/src/backend/common.mk

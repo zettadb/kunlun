@@ -39,6 +39,7 @@
 #include "utils/lsyscache.h"
 #include "nodes/nodeFuncs.h"
 #include "nodes/makefuncs.h"
+#include "nodes/remote_input.h"
 #include "catalog/pg_enum.h"
 #include "utils/builtins.h"
 #include "catalog/pg_type.h"
@@ -80,9 +81,16 @@ RemoteNext(RemoteScanState *node)
 	MYSQL_ROW mysql_row = get_stmt_next_row(node->handle);
 	if (mysql_row)
 	{
-		size_t *lengths = get_stmt_row_lengths(node->handle);
-		ExecStoreRemoteTuple(node->typeInputInfo, mysql_row, /* tuple to store */
-				     lengths, slot);		     /* slot to store in */
+		size_t *lengths;
+		enum enum_field_types *fieldtypes;
+		
+		lengths = get_stmt_row_lengths(node->handle);
+		fieldtypes = get_stmt_field_types(node->handle);
+		ExecStoreRemoteTuple(node->typeInputInfo,
+				     mysql_row, /* tuple to store */
+				     lengths,
+				     fieldtypes,
+				     slot); /* slot to store in */
 	}
 	else
 	{
@@ -485,21 +493,8 @@ void init_type_input_info(TypeInputInfo **tii, TupleTableSlot *slot,
 		if (att->attisdropped)
 			continue;
 
-		Oid			typinput;
-		Oid			typioparam;
-		TypeInputInfo *ptii = *tii + i;
-
-		getTypeInputInfo(att->atttypid, &typinput, &typioparam);
-		ptii->typinput = typinput;
-		ptii->typioparam = typioparam;
-		ptii->typisenum = type_is_enum_lite(att->atttypid);
-		if (ptii->typisenum)
-		{
-		    ptii->AllEnumLabelOidEntries =
-		        GetAllEnumValueOidLabelSorted(att->atttypid, &ptii->nslots);
-		}
+		myInputInfo(att->atttypid, att->atttypmod, *tii + i);
 	}
-
 }
 
 
@@ -669,7 +664,7 @@ ExecEndRemoteScan(RemoteScanState *node)
 	for (int i = 0; i < natts && node->typeInputInfo; i++)
 	{
 		EnumLabelOid *pelo = 
-			node->typeInputInfo[i].AllEnumLabelOidEntries;
+			node->typeInputInfo[i].enum_label_enties;
 		if (pelo)
 			pfree(pelo);
 	}
@@ -879,60 +874,8 @@ static void generate_remote_sql(RemoteScanState *rss)
 		appendStringInfoString(str, " limit 1");
 }
 
-/*
- * Convert mysql result of pg's timetz/timestamptz column to pg's expected
- * format. 'val' is intact.
- * @retval a converted timestamp/time tz constant with timezone tail
- * recognized by pg internally. Result is valid before next call, and should NOT
- * be written to in case of buffer overrun.
- * */
-inline static char *convert_tz_const_pg(Oid typid, const char *val)
-{
-	static char timestamptz_buf[64];
-	char *str = NULL;
-	int ret = 0;
-
-	/*
-	 * The type-id is informative enough, we can't prepend 'timestamp with time zone'
-	 * or 'time with time zone' otherwise timestamptz_in() throws parse error.
-	 * But we do need to append +00 to indicate that the constant's UTC based.
-	 * */
-	if (typid == TIMETZOID || typid == TIMESTAMPTZOID)
-	{
-		ret = snprintf(timestamptz_buf, sizeof(timestamptz_buf), "%s+00", val);
-		str = timestamptz_buf;
-	}
-
-	Assert(ret < sizeof(timestamptz_buf));
-	if (ret >= sizeof(timestamptz_buf))
-		str = NULL;
-	return str;
-}
-
-static char *convert_bit_const(MemoryContext mctx, const char *bits, unsigned long fldlen, int nbits)
-{
-	int len = nbits + 1;
-
-	char *res = MemoryContextAllocZero(mctx, len);
-
-	int i, j;
-	unsigned char bit = (1 << (nbits % 8 - 1));
-
-	for (i = 0, j = 0; i < fldlen && j < len - 1; j++)
-	{
-		res[j] = ((bits[i] & bit) ? '1' : '0');
-		bit /= 2;
-		if (bit == 0)
-		{
-			bit = (1 << 7);
-			i++;
-		}
-	}
-	return res;
-}
-
 void ExecStoreRemoteTuple(TypeInputInfo *tii, MYSQL_ROW row,
-	unsigned long *lengths, TupleTableSlot *slot)
+			  unsigned long *lengths, enum enum_field_types *types, TupleTableSlot *slot)
 {
 	ExecClearTuple(slot);
 	int         natts = slot->tts_tupleDescriptor->natts;
@@ -946,55 +889,14 @@ void ExecStoreRemoteTuple(TypeInputInfo *tii, MYSQL_ROW row,
 
 		if (!att->attisdropped && row[i] != NULL)
 		{
-			Oid			typinput;
-			Oid			typioparam;
+			bool isnull;
 			TypeInputInfo *ptii = tii + i;
 
-		    typinput = ptii->typinput;
-		    typioparam = ptii->typioparam;
-
-			if (ptii->typisenum)
-			{
-			    slot->tts_values[i] = GetEnumLabelOidCached(
-					ptii->AllEnumLabelOidEntries, ptii->nslots, row[i]);
-				slot->tts_isnull[i] = false;
-			}
-			else
-			{
-				if (att->atttypid == TIMETZOID || att->atttypid == TIMESTAMPTZOID)
-					pfld = convert_tz_const_pg(att->atttypid, row[i]);
-				else if (att->atttypid == BITOID || att->atttypid == VARBITOID)
-				{
-					pfld = convert_bit_const(tii->mctx, row[i], lengths[i], att->atttypmod);
-				}
-				else
-					pfld = row[i];
-
-				/*
-				  if pfld is empty string and field type isn't string,
-				  it means this field is NULL
-				*/
-				if (pfld[0] == '\0' && !is_string_type(att->atttypid))
-				{
-					slot->tts_values[i] = (Datum) 0;
-					slot->tts_isnull[i] = true;
-				}
-				else
-				{
-			    	slot->tts_values[i] =
-				    	OidInputFunctionCall(typinput, pfld,
-					    					 typioparam, att->atttypmod);
-					slot->tts_isnull[i] = false;
-				}
-			}
+			slot->tts_values[i] = myInputFuncCall(ptii, row[i], lengths[i], types[i], &isnull);
+			slot->tts_isnull[i] = isnull;
 		}
 		else
 		{
-			/*
-			 * We assign NULL to dropped attributes, NULL values, and missing
-			 * values (missing values should be later filled using
-			 * slot_fill_defaults).
-			 */
 			slot->tts_values[i] = (Datum) 0;
 			slot->tts_isnull[i] = true;
 		}

@@ -136,7 +136,6 @@ extern char *format_type_be_qualified(Oid type_oid);
 extern char *format_type_with_typemod(Oid type_oid, int32 typemod);
 
 extern int const_output_needs_quote(Oid type_oid);
-extern void InitRemoteTypeInfo(void);
 extern const char *format_type_remote(Oid type_oid);
 extern bool type_is_enum_lite(Oid typid);
 extern bool is_string_type(Oid typid);

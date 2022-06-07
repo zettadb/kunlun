@@ -30,7 +30,7 @@ extern void ExecRemoteScanReInitializeDSM(RemoteScanState *node, ParallelContext
 extern void ExecRemoteScanInitializeWorker(RemoteScanState *node,
 							ParallelWorkerContext *pwcxt);
 extern void ExecStoreRemoteTuple(TypeInputInfo *tii, MYSQL_ROW row,
-	unsigned long *lengths, TupleTableSlot *slot);
+				 unsigned long *lengths, enum enum_field_types *fieldtypes, TupleTableSlot *slot);
 extern void init_type_input_info(TypeInputInfo **tii, TupleTableSlot *slot,
 	EState *estate);
 extern void release_shard_conn(RemoteScanState *node);

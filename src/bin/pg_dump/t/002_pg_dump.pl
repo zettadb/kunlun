@@ -3106,7 +3106,8 @@ my %tests = (
 						   prosrc,
 						   probin,
 						   proconfig,
-						   proacl
+						   proacl,
+						   promysql
 						) ON TABLE pg_proc TO public;',
 		regexp => qr/
 		\QGRANT SELECT(tableoid) ON TABLE pg_catalog.pg_proc TO PUBLIC;\E\n.*

@@ -3408,14 +3408,16 @@ ExecReScanModifyTable(ModifyTableState *node)
 	elog(ERROR, "ExecReScanModifyTable is not implemented");
 }
 
-static TupleTableSlot * 
-ReturningNext(ModifyTableState *node, ResultRelInfo *resultRelInfo, MYSQL_ROW row, size_t *lengths)
+static TupleTableSlot *
+ReturningNext(ModifyTableState *node, ResultRelInfo *resultRelInfo,
+	      MYSQL_ROW row, size_t *lengths, enum enum_field_types *fieldtypes)
 {
 	TupleTableSlot *slot = node->remoteReturningTupleSlot;
 
 	ExecStoreRemoteTuple(node->typeInputInfo,
 			     row,	     /* tuple to store */
 			     lengths,
+			     fieldtypes,
 			     slot); /* slot to store in */
 
 	if (resultRelInfo->ri_projectReturning)
@@ -3585,7 +3587,8 @@ next_stmt:
 				return ReturningNext(node,
 						     node->resultRelInfo,
 						     row,
-						     get_stmt_row_lengths(handle));
+						     get_stmt_row_lengths(handle),
+						     get_stmt_field_types(handle));
 			}
 			if (is_stmt_eof(handle))
 			{

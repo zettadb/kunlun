@@ -2096,6 +2096,35 @@
 3353	pg_proc	0	list files in the log directory
 3354	pg_proc	0	list of files in the WAL directory
 5028	pg_proc	0	hash partition CHECK constraint
+5100	pg_proc	0	I/O
+5101	pg_proc	0	I/O
+5102	pg_proc	0	I/O
+5103	pg_proc	0	I/O
+5104	pg_proc	0	I/O
+5105	pg_proc	0	I/O
+5106	pg_proc	0	I/O
+5107	pg_proc	0	I/O
+5108	pg_proc	0	I/O
+5109	pg_proc	0	I/O
+5110	pg_proc	0	I/O
+5111	pg_proc	0	I/O
+5112	pg_proc	0	I/O
+5113	pg_proc	0	I/O
+5114	pg_proc	0	I/O
+5115	pg_proc	0	I/O
+5116	pg_proc	0	I/O
+5117	pg_proc	0	I/O
+5118	pg_proc	0	I/O
+5119	pg_proc	0	I/O
+5120	pg_proc	0	I/O
+5121	pg_proc	0	I/O
+5122	pg_proc	0	I/O
+5123	pg_proc	0	I/O
+5124	pg_proc	0	I/O
+5125	pg_proc	0	I/O
+5126	pg_proc	0	I/O
+5127	pg_proc	0	I/O
+5128	pg_proc	0	I/O
 16	pg_type	0	boolean, 'true'/'false'
 17	pg_type	0	variable-length string, binary values escaped
 18	pg_type	0	single character

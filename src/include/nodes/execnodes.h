@@ -44,14 +44,18 @@ struct ExprEvalStep;			/* avoid including execExpr.h everywhere */
 struct EnumLabelOid;
 typedef struct TypeInputInfo
 {
+	char typcat;
+	int typmod;
 	Oid typinput;
 	Oid typioparam;
 	bool typisenum;
 	uint16_t nslots;
-	struct EnumLabelOid*AllEnumLabelOidEntries;
+	struct EnumLabelOid *enum_label_enties;
 	MemoryContext mctx;
+	/* Cached function call info for better performance */
+	FmgrInfo flinfo;
+	FunctionCallInfoData fcinfo;
 } TypeInputInfo;
-
 
 /* ----------------
  *		ExprState node

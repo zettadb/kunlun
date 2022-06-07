@@ -43,12 +43,14 @@
 #include "catalog/pg_subscription.h"
 #include "catalog/pg_tablespace.h"
 #include "catalog/pg_type.h"
+#include "catalog/pg_type_map.h"
 #include "catalog/pg_shard.h"
 #include "catalog/pg_shard_node.h"
 #include "catalog/pg_cluster_meta.h"
 #include "catalog/pg_cluster_meta_nodes.h"
 #include "catalog/pg_computing_node_stat.h"
 #include "catalog/pg_ddl_log_progress.h"
+#include "catalog/pg_proc_map.h"
 #include "catalog/toasting.h"
 #include "miscadmin.h"
 #include "storage/fd.h"
@@ -248,7 +250,9 @@ IsSharedRelation(Oid relationId)
 		relationId == DDLLogDbidIndexId ||
 		relationId == ClusterMetaRelationId ||
 		relationId == ClusterMetaNodesRelationId ||
-		relationId == SubscriptionRelationId)
+		relationId == SubscriptionRelationId ||
+		relationId == ProcedureMapRelationId ||
+		relationId == TypeMapRelationId)
 		return true;
 	/* These are their indexes (see indexing.h) */
 	if (relationId == AuthIdRolnameIndexId ||
@@ -276,7 +280,9 @@ IsSharedRelation(Oid relationId)
 		relationId == CompNodeStatIdTstzIndexId ||
 		relationId == ClusterMetaNodesServerIdIndexId ||
 		relationId == ClusterMetaIdIndexId ||
-		relationId == SubscriptionNameIndexId)
+		relationId == SubscriptionNameIndexId ||
+		relationId == ProcedureMapNameArgsNspIndexId ||
+		relationId == TypeMapNameNspIndexId)
 		return true;
 	/* These are their toast tables and toast indexes (see toasting.h) */
 	if (relationId == PgShdescriptionToastTable ||

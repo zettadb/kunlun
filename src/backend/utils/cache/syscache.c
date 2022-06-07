@@ -54,6 +54,7 @@
 #include "catalog/pg_proc.h"
 #include "catalog/pg_publication.h"
 #include "catalog/pg_publication_rel.h"
+#include "catalog/pg_proc_map.h"
 #include "catalog/pg_range.h"
 #include "catalog/pg_rewrite.h"
 #include "catalog/pg_seclabel.h"
@@ -74,6 +75,7 @@
 #include "catalog/pg_ts_parser.h"
 #include "catalog/pg_ts_template.h"
 #include "catalog/pg_type.h"
+#include "catalog/pg_type_map.h"
 #include "catalog/pg_user_mapping.h"
 #include "utils/rel.h"
 #include "utils/catcache.h"
@@ -630,6 +632,17 @@ static const struct cachedesc cacheinfo[] = {
 		},
 		128
 	},
+	{ProcedureMapRelationId,		/* PROCMAP */
+		ProcedureMapNameArgsNspIndexId,
+		3,
+		{
+			Anum_pg_proc_map_proname,
+			Anum_pg_proc_map_proargtypes,
+			Anum_pg_proc_map_pronamespace,
+			0
+		},
+		128
+	},
 	{PublicationRelationId,		/* PUBLICATIONNAME */
 		PublicationNameIndexId,
 		1,
@@ -965,6 +978,18 @@ static const struct cachedesc cacheinfo[] = {
 		1,
 		{
 			ObjectIdAttributeNumber,
+			0,
+			0,
+			0
+		},
+		64
+	},
+	{TypeMapRelationId,			/* TYPEMAP */
+		TypeMapNameNspIndexId,
+		2,
+		{
+			Anum_pg_type_map_typname,
+			Anum_pg_type_typnamespace,
 			0,
 			0,
 			0

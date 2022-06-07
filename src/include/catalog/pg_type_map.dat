@@ -1,0 +1,44 @@
+# -------------------------------------------------------------------------
+#  Copyright (c) 2019-2021 ZettaDB inc. All rights reserved.
+# 
+#  This source code is licensed under Apache 2.0 License,
+#  combined with Common Clause Condition 1.0, as detailed in the NOTICE file.
+# 
+# -------------------------------------------------------------------------
+[
+ {typname => 'bit', mytype => 'bit', myinput => 'my_varbit_in', myoutput => 'my_varbit_out', coercionfromstr => 'f', coerciontostr => 'f' },
+ {typname => 'bool', mytype => 'bool', , myinput => 'boolin', myoutput => 'my_boolout', coercionfromstr => 'f', coerciontostr => 'f' },
+ {typname => 'bpchar', mytype => 'char', mycast => 'char', myinput => 'bpcharin', myoutput => 'my_bpcharout' },
+ {typname => 'bytea', mytype => 'longblob', myinput => 'my_byteain', myoutput => 'my_byteaout'},
+ {typname => 'char', mytype => 'char', mycast => 'char', myinput => 'charin', myoutput => 'my_charout' },
+ {typname => 'cid', mytype => 'smallint unsigned', myinput => 'cidin', myoutput => 'cidout'},
+ {typname => 'cidr', mytype => 'char(255) character set latin1', myinput => 'cidr_in', myoutput => 'my_cidr_out'},
+ {typname => 'cstring', mytype => 'varchar', mycast => 'char', myinput => 'cstring_in', myoutput => 'my_cstring_out'},
+ {typname => 'date', mytype => 'date', mycast => 'date', myinput => 'date_in', myoutput => 'my_date_out'},
+ {typname => 'float4', mytype => 'real', mycast => 'real', myinput => 'float4in', myoutput => 'float4out'},
+ {typname => 'float8', mytype => 'double', mycast => 'real', myinput => 'float8in', myoutput => 'float8out' },
+ {typname => 'inet', mytype => 'char(255) character set latin1', myinput => 'inet_in', myoutput => 'my_inet_out'},
+ {typname => 'int2', mytype => 'smallint', mycast => 'signed', myinput => 'int2in', myoutput => 'int2out' },
+ {typname => 'int4', mytype => 'int', mycast => 'signed', myinput => 'int4in', myoutput => 'int4out' },
+ {typname => 'int8', mytype => 'bigint', mycast => 'signed', myinput => 'int8in', myoutput => 'int8out' },
+ {typname => 'json', mytype => 'json', myinput => 'json_in', myoutput => 'my_json_out'},
+ {typname => 'jsonb', mytype => 'json' , myinput => 'jsonb_in', myoutput => 'my_jsonb_out'},
+ {typname => 'macaddr', mytype => 'char(18) character set latin1', myinput => 'macaddr_in', myoutput => 'my_macaddr_out'},
+ {typname => 'macaddr8', mytype => 'char(24) character set latin1', myinput => 'macaddr8_in', myoutput => 'my_macaddr8_out'},
+ {typname => 'money', mytype => 'numeric', mycast => 'decimal(65,8)', myinput => 'cash_in', myoutput => 'my_cash_out'},
+ {typname => 'name', mytype => 'varchar(64)', mycast => 'char(64)' , myinput => 'namein', myoutput => 'my_nameout' },
+ {typname => 'numeric', mytype => 'numeric', mycast => 'numeric', myinput => 'numeric_in', myoutput => 'numeric_out' },
+ {typname => 'oid', mytype => 'int unsigned', mycast => 'unsigned', myinput => 'oidin', myoutput => 'oidout'},
+ {typname => 'pg_lsn', mytype => 'bigint unsigned', myinput => 'pg_lsn_in', myoutput => 'pg_lsn_out'},
+ {typname => 'text', mytype => 'longtext',  myinput => 'textin', myoutput => 'my_textout'},
+ {typname => 'time', mytype => 'time', mycast => 'time', myinput => 'time_in', myoutput => 'my_time_out' },
+ {typname => 'timestamp', mytype => 'datetime', mycast => 'datetime', myinput => 'timestamp_in', myoutput => 'my_timestamp_out' },
+ {typname => 'timestamptz', mytype => 'datetime', mycast => 'datetime', myinput => 'my_timestamptz_in', myoutput => 'my_timestamptz_out' },
+ {typname => 'timetz', mytype => 'time', mycast => 'time', myinput => 'my_timetz_in', myoutput => 'my_timetz_out' },
+ {typname => 'uuid', mytype => 'char(40) character set latin1' , myinput => 'uuid_in', myoutput => 'my_uuid_out'},
+ {typname => 'varbit', mytype => 'bit', myinput => 'my_varbit_in', myoutput => 'my_varbit_out', coercionfromstr => 'f', coerciontostr => 'f'},
+ {typname => 'varchar', mytype => 'varchar', mycast => 'char', myinput => 'varcharin', myoutput => 'my_varcharout'},
+ {typname => 'xid', mytype => 'int unsigned', myinput => 'xidin', myoutput => 'xidout'},
+ {typname => 'xml', mytype => 'longtext', myinput => 'xml_in', myoutput => 'my_xml_out'},
+ {typname => 'interval', enable => 'f', myinput => 'interval_in', myoutput => 'my_interval_out'}
+ ]

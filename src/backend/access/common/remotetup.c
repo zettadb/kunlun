@@ -88,7 +88,7 @@ struct RemotetupCacheState *CreateRemotetupCacheState(Relation rel)
 	RemotetupCacheState *self = (RemotetupCacheState *)
 		palloc0(sizeof(RemotetupCacheState));
 	// It's verified that the current memcxt is EState's memcxt.
-	initStringInfo2(&self->buf, PerLeafRelStmtBufSz,CurrentMemoryContext);
+	initStringInfo2(&self->buf, PerLeafRelStmtBufSz, TopTransactionContext);
 	self->target_rel = rel;
 	self->pasi = GetAsyncStmtInfo(rel->rd_rel->relshardid);
 	self->action = ONCONFLICT_NONE;
@@ -147,9 +147,8 @@ remotetup_prepare_info(RemotetupCacheState*myState,
 			continue;
 		}
 
-		getTypeOutputInfo(attr->atttypid,
-						  &thisState->typoutput,
-						  &thisState->typisvarlena);
+		thisState->typoutput =
+		    my_output_funcoid(attr->atttypid, &thisState->typisvarlena);
 		fmgr_info(thisState->typoutput, &thisState->finfo);
 		appendStringInfo(&myState->buf, "%s, ", attr->attname.data);
 	}
@@ -211,7 +210,6 @@ bool cache_remotetup(TupleTableSlot *slot, ResultRelInfo *resultRelInfo)
 	tuplen += brlen;
 
 	pg_tz *gmt_tz = pg_tzset("GMT"), *origtz = NULL;
-	int orig_datestyle = -1, orig_dateorder = -1, orig_intvstyle = -1;
 
 	/*
 	 * cache the attributes of this tuple
@@ -248,16 +246,9 @@ bool cache_remotetup(TupleTableSlot *slot, ResultRelInfo *resultRelInfo)
 		 * Temporarily modify the 3 session vars to do so and restore
 		 * them after done.
 		 * */
-		if (orig_datestyle == -1 && is_date_time_type(atttypid))
+		if (origtz && is_date_time_type(atttypid))
 		{
-			orig_datestyle = DateStyle;
-			orig_dateorder = DateOrder;
 			origtz = session_timezone;
-			orig_intvstyle = IntervalStyle;
-
-			DateStyle = USE_ISO_DATES;
-			DateOrder = DATEORDER_YMD;
-			IntervalStyle = INTSTYLE_ISO_8601;
 			session_timezone = gmt_tz;
 		}
 
@@ -272,11 +263,8 @@ bool cache_remotetup(TupleTableSlot *slot, ResultRelInfo *resultRelInfo)
 		tuplen += attrlen;
 	}
 
-	if (orig_datestyle != -1)
+	if (origtz)
 	{
-		DateStyle = orig_datestyle;
-		DateOrder = orig_dateorder;
-		IntervalStyle = orig_intvstyle;
 		session_timezone = origtz;
 	}
 
@@ -336,123 +324,10 @@ bool end_remote_insert_stmt(struct RemotetupCacheState *s, bool end_of_stmt)
 }
 
 /*
- * See if a type is one of the string types.
- * */
-inline static bool is_str_type(Oid typid)
-{
-	const static Oid strtypids[] = //{18, 25, 1002, 1009, 1014, 1015, 1042, 1043, 1263, 2275};
-	{CHAROID, TEXTOID, CHARARRAYOID, NAMEARRAYOID, TEXTARRAYOID, BPCHARARRAYOID,
-		VARCHARARRAYOID, CSTRINGARRAYOID, BPCHAROID, VARCHAROID, CSTRINGOID};
-	// BPCHAROID, VARCHAROID, CSTRINGOID, CHAROID, TEXTOID
-	for (int i = 0; i < sizeof(strtypids)/sizeof(Oid); i++)
-		if (typid == strtypids[i])
-			return true;
-
-	return false;
-}
-
-char *pg_to_mysql_const(Oid typid, char *c)
-{
-	static const char *bool_trues[] = {"true","on","yes","1", "t","y"};
-	static const char *bool_falses[] = {"false","off","no","0", "f","n"};
-	if (typid == BOOLOID)
-	{
-		for (int i = 0; i < sizeof(bool_trues)/sizeof(char*); i++)
-			if (strcasecmp(c, bool_trues[i]) == 0)
-				return "true";
-		for (int i = 0; i < sizeof(bool_falses)/sizeof(char*); i++)
-			if (strcasecmp(c, bool_falses[i]) == 0)
-				return "false";
-	}
-
-	if (typid == TIMESTAMPTZOID || typid == TIMETZOID)
-	{
-		/*
-		 * Remove the time zone indicator.
-		 * */
-		char *ptz = strrchr(c, '+');
-		if (ptz)
-			*ptz = '\0';
-		ptz = strrchr(c, '-');
-		if (ptz)
-		{
-			char *pcolon = strchr(c, ':');
-			if (pcolon != NULL && pcolon < ptz)
-				*ptz = '\0';
-		}
-	}
-
-	if (typid == CASHOID)
-	{
-		/*
-		 * Money value begins with a cash sign, e.g. $. maybe some bizzar
-		 * cash sign has >1 chars.
-		 * remove the money value format chars such as $ and , e.g. $1,000.00
-		*/
-		bool cival = false;
-		int cpidx = -1;
-
-		for (int i = 0; c[i] ; i++)
-		{
-			char ci = c[i];
-			if ((ci >= '0' && ci <= '9') || ci == '+' || ci == '-' || ci == '.')
-				cival = true;
-			else
-				cival = false;
-
-			Assert(cpidx < i);
-			if (cpidx >= 0 && cival)
-				c[cpidx++] = c[i];
-			else if (cpidx < 0 && !cival)
-				cpidx = i;
-		}
-
-		if (cpidx > 0) c[cpidx] = '\0';
-	}
-
-	 if (is_str_type(typid))
-	 {
-		 size_t len = strlen(c);
-		 char *s = (char*)palloc(len * 2 + 1);
-		 mysql_escape_string(s, c, len);
-		 c = s;
-	 }
-
-	return c;
-}
-
-/*
  * Append a field value string, or NULL if the field is null. some field
  * constants need to be single quoted, others must not be.
  * */
 static size_t append_value_str(RemotetupCacheState *s, char *valstr, Oid typid)
 {
-	int ret = 0;
-
-	if (!valstr)
-	{
-		ret = appendStringInfo(&s->buf, "%s, ", "NULL");
-		return ret;
-	}
-
-	valstr = pg_to_mysql_const(typid, valstr);
-	int need = const_output_needs_quote(typid);
-	if (need == -1)
-		ereport(ERROR,
-				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-				 errmsg("Column type not supported by remote storage node in kunlun.")));
-
-	const char *sep = (need ? "'" : "");
-
-	/*
-	 * NULL must not be ' quoted.
-	 * numeric const values must not be ' quoted.
-	 * bool consts can be quoted or not, we choose not to quote it.
-	 * varchar(n), char(n), date, time, timestamp, text, blob, enum, set types must be ' quoted;
-	 * bit(n) is very special, its constant is like: b'1001110'
-	 * */
-	ret = appendStringInfo(&s->buf, "%s%s%s%c ",
-				   ((typid == BITOID || typid == VARBITOID) ? "b'" : sep), valstr, sep, ',');
-
-	return ret;
+	return appendStringInfo(&s->buf, "%s, ", valstr ? valstr : "NULL");
 }

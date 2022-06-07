@@ -32,7 +32,6 @@ typedef struct RemotePrintExprContext
 	  the qual containing the param will be serialized.
 	*/
 	bool ignore_param_quals;
-	int skip_n; // skip first N elements
 	int num_vals;
 
 	/* Column name of excluded table in on conflict clause */
@@ -40,6 +39,9 @@ typedef struct RemotePrintExprContext
 
 	/* Print nextval with consumed sequence */
 	bool consume_sequence;
+
+	/* Do not print expr to mysql sql, just verify */
+	bool noprint;
 } RemotePrintExprContext;
 
 extern void InitRemotePrintExprContext(RemotePrintExprContext *rpec, List*rtable);
@@ -55,4 +57,5 @@ extern void print_pathkeys(const List *pathkeys, const List *rtable);
 extern void print_tl(const List *tlist, const List *rtable);
 extern void print_slot(TupleTableSlot *slot);
 extern int snprint_expr(StringInfo buf, const Expr *expr, RemotePrintExprContext *rpec);
+extern Oid my_output_funcoid(Oid typid, bool *typIsVarlena);
 #endif							/* PRINT_H */

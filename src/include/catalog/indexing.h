@@ -381,4 +381,11 @@ DECLARE_UNIQUE_INDEX(pg_cluster_meta_id_index, 6673, on pg_cluster_meta using bt
 #define ClusterMetaIdIndexId 6673
 DECLARE_UNIQUE_INDEX(pg_ddl_log_dbid_index, 6674, on pg_ddl_log_progress using btree(dbid oid_ops));
 #define DDLLogDbidIndexId 6674
+
+DECLARE_UNIQUE_INDEX(pg_proc_map_proname_args_nsp_index, 7000, on pg_proc_map using btree(proname name_ops, proargtypes oidvector_ops, pronamespace oid_ops));
+#define ProcedureMapNameArgsNspIndexId 7000
+
+DECLARE_UNIQUE_INDEX(pg_type_map_typname_nsp_index,7001, on pg_type_map using btree(typname name_ops, typnamespace oid_ops));
+#define TypeMapNameNspIndexId	7001
+
 #endif							/* INDEXING_H */

@@ -41,7 +41,6 @@
 #include "libpq/pqformat.h"
 #include "utils/portal.h"
 
-
 /* ----------------
  *		dummy DestReceiver functions
  * ----------------

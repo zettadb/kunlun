@@ -348,13 +348,6 @@ static int append_seq_req(Oid seqrelid, int cache_times, Oid shardid)
 	int ret = PGSemaphoreTimedLockFence(MyProc->sem, StatementTimeout, &MyProc->fence);
 	if (ret == 1)
 	{
-		RequestShardingTopoCheckAllStorageShards();
-		ShardConnKillReq *req = makeShardConnKillReq(1 /*kill conn*/);
-		if (req)
-		{
-			appendShardConnKillReq(req);
-			pfree(req);
-		}
 		ereport(ERROR,
 				(errcode(ERRCODE_INTERNAL_ERROR),
 				 errmsg("Kunlun-db: Timed out reserving sequence(%u) value range.",
@@ -839,7 +832,7 @@ void sequence_serivce_main()
 
 	/* Connect to our database */
 	BackgroundWorkerInitializeConnection("postgres", NULL, 0);
-	ShardCacheInit();
+	
 	InitShardingSession();
 
 	/* Copy the error message to waiter*/

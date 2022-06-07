@@ -58,649 +58,108 @@
 #include "utils/relcache.h"
 #include "utils/snapmgr.h"
 #include "utils/timeout.h"
+#include "utils/syscache.h"
 
 #include <sys/types.h>
 #include <unistd.h>
 #include "sharding/mysql/mysqld_error.h"
 
-static HTAB *ShardNodeCache = NULL;
-static HTAB *ShardCache = NULL;
 Shard_id_t Invalid_shard_id = 0;
 Shard_id_t First_shard_id = 1;
 Shard_node_id_t Invalid_shard_node_id = 0;
 Shard_node_id_t First_shard_node_id = 1;
-static bool ShardCacheInvalidated = false;
-
-
-/*
- * Cache reference, in order for Shard_node_t objects to be
- * cached/invalidated seperately.
- * */
-typedef struct Shard_node_ref_t
-{
-  Shard_node_id_t id;
-  Shard_node_t *ptr; // this is 0 if the node is invalidated from cache.
-} Shard_node_ref_t;
-
-typedef struct Shard_t
-{
-  NameData name;
-  uint8_t master_node_idx; // master node index into shard_nodes.
-  uint8_t num_nodes; // number of nodes, including master;
-  Shard_id_t id; // shard id
-  Shard_node_id_t master_node_id; // this is mainly needed at cache init.
-  /*int64 last_master_switch_id; each master switch is logged in backend shard,
-	this is the id of the log record of the last master switch . No need, the
-	last one always has the biggest id. */
-  Shard_node_ref_t shard_nodes[MAX_NODES_PER_SHARD];
-
-  // Below fields changes much more frequently than above, they should be in
-  // another cache line.
-  uint32_t storage_volumn;// data volumn in KBs
-  uint32_t num_tablets;// number of tablets, including whole tables
-} Shard_t;
-
-typedef struct Shard_ref_t
-{
-  Oid id; // shard id
-  Shard_t *ptr;
-} Shard_ref_t;
-
-static size_t LoadAllShards(bool init);
-static Shard_node_t *find_node_by_ip_port(Shard_t *ps, const char *ip,
-	uint16_t port);
-static bool FindCachedShardInternal(const Oid shardid, bool cache_nodes,
-	Shard_t* out, Shard_node_t **pshard_nodes);
-static void free_shard_nodes(Shard_node_t *snodes);
-
-/*
- * Copy shard meta info from px to py
- * */
-static void copy_shard_meta(Form_pg_shard px, Shard_t *py)
-{
-	strncpy(py->name.data, px->name.data, sizeof(py->name));
-	py->id = px->id;
-	py->master_node_id = px->master_node_id;
-	Assert(px->num_nodes < 256);
-	py->num_nodes = (uint8_t)px->num_nodes;
-	py->storage_volumn = px->space_volumn;
-	py->num_tablets = px->num_tablets;
-}
-
-static void copy_shard_node_meta(Form_pg_shard_node px, Shard_node_t *py, HeapTuple tup, Relation shardnoderel)
-{
-	/*
-	 * Create shard node object and put to hash table.
-	 * */
-	strncpy(py->user_name.data, px->user_name.data, sizeof(py->user_name));
-
-	//py->id = HeapTupleGetOid(tup);
-	py->id = px->id;
-	py->shard_id = px->shard_id;
-	py->svr_node_id = px->svr_node_id;
-	Assert(px->port < 0xffff);
-	py->port = (uint16)px->port;
-	py->ro_weight = px->ro_weight;
-
-	// copy py->passwd
-	bool isNull = false;
-	MemoryContext old_memcxt;
-	Datum value = heap_getattr(tup, Anum_pg_shard_node_hostaddr, RelationGetDescr(shardnoderel), &isNull);
-	old_memcxt = MemoryContextSwitchTo(CacheMemoryContext);
-	if (!isNull)
-		py->hostaddr = TextDatumGetCString(value); // palloc's memory for the string
-	else
-		py->hostaddr = NULL;
-
-	value = heap_getattr(tup, Anum_pg_shard_node_passwd, RelationGetDescr(shardnoderel), &isNull);
-	if (!isNull)
-		py->passwd = TextDatumGetCString(value); // palloc's memory for the string
-	else
-		py->passwd = NULL;
-	MemoryContextSwitchTo(old_memcxt);
-}
-
-
-/*
- * Set up pshard->shard_nodes[] reference to the Shard_node_t object
- * referenced by noderef->ptr, if noderef->ptr isn't already in
- * pshard->shard_nodes.
- * */
-static void AddShard_node_ref_t(Shard_t *pshard, Shard_node_ref_t *noderef)
-{
-	Shard_node_ref_t *slot = NULL;
-	Assert(noderef && noderef->id != Invalid_shard_node_id && noderef->ptr != NULL);
-	Assert(pshard && pshard->id != Invalid_shard_id);
-	Assert(noderef->ptr->shard_id == pshard->id);
-
-	for (int i = 0; i < MAX_NODES_PER_SHARD; i++)
-	{
-		Shard_node_ref_t *ref = pshard->shard_nodes + i;
-		if (ref->id == noderef->id)
-		{
-			Assert(ref->ptr != NULL);
-			if (ref->ptr != noderef->ptr)
-			{
-				pfree(ref->ptr);
-				ref->ptr = noderef->ptr;
-			}
-			return;
-		}
-
-		if (ref->id == Invalid_shard_node_id || ref->ptr == NULL)
-		{
-			Assert(ref->id == Invalid_shard_node_id && ref->ptr == NULL);
-			slot = ref;
-			break;
-		}
-		else
-			Assert(ref->ptr && ref->ptr != noderef->ptr);
-	}
-
-	Assert(slot);
-	slot->id = noderef->id;
-	slot->ptr = noderef->ptr;
-}
-
-
-/*
- * Initialize shard and shard_node object caching.
- * */
-void ShardCacheInit()
-{
-	HASHCTL		ctl;
-
-	/*
-	 * make sure cache memory context exists
-	 */
-	if (!CacheMemoryContext)
-		CreateCacheMemoryContext();
-
-	/*
-	 * create hashtable that indexes the shard cache
-	 */
-	MemSet(&ctl, 0, sizeof(ctl));
-	ctl.keysize = sizeof(Oid);
-	ctl.entrysize = sizeof(Shard_ref_t);
-	ShardCache = hash_create("Shard cache by shard OID", 256,
-							 &ctl, HASH_ELEM | HASH_BLOBS);
-
-	ctl.entrysize = sizeof(Shard_node_ref_t);
-	ShardNodeCache = hash_create("Shard node cache by shard node OID", 1000,
-							 &ctl, HASH_ELEM | HASH_BLOBS);
-	LoadAllShards(true);
-}
-
-
-static size_t LoadAllShards(bool init)
-{
-	Relation	shardrel, shardnoderel;
-	SysScanDesc scan;
-	HeapTuple	tup;
-	bool found, end_local_txn = false;
-	size_t nshards = 0;
-
-	if (!IsTransactionState())
-	{
-		StartTransactionCommand();
-		end_local_txn = true;
-	}
-
-	/* Grab an appropriate lock on the pg_shard relation */
-	shardrel = heap_open(ShardRelationId, RowExclusiveLock);
-	shardnoderel = heap_open(ShardNodeRelationId, RowExclusiveLock);
-
-
-	/*
-	 * Do a full table scan to load & cache all shard info. Do not need index
-	 * or scan key.
-	 * */
-	scan = systable_beginscan(shardrel, InvalidOid, false,
-							  NULL, 0, NULL);
-
-	while ((tup = systable_getnext(scan)) != NULL)
-	{
-		Form_pg_shard px = ((Form_pg_shard) GETSTRUCT(tup));
-
-		Shard_ref_t* shardref = hash_search(ShardCache, &px->id, HASH_ENTER, &found);
-		Assert(!init || !found);
-
-		if (!found)
-		{
-			Shard_t *py = (Shard_t *)MemoryContextAllocZero(CacheMemoryContext, sizeof(Shard_t));
-
-			/* copy fields */
-			copy_shard_meta(px, py);
-			shardref->ptr = py;
-			shardref->id = py->id;
-			// allow py->master_node_id to be 0 otherwise system can't startup.
-		}
-		nshards++; 
-	}
-
-	/* Clean up after the scan */
-	systable_endscan(scan);
-
-
-	/*
-	 * Do a full table scan to load & cache all shard node info.
-	 * Do not need index or scan key.
-	 * */
-	scan = systable_beginscan(shardnoderel, InvalidOid, false,
-							  NULL, 0, NULL);
-
-	while ((tup = systable_getnext(scan)) != NULL)
-	{
-		Form_pg_shard_node px = ((Form_pg_shard_node) GETSTRUCT(tup));
-
-		Shard_node_ref_t* shardnoderef = hash_search(ShardNodeCache, &px->id, HASH_ENTER, &found);
-		Assert(!init || !found);
-		Shard_node_t *py = NULL;
-
-		if (!found)
-		{
-			//Assert(py == NULL); this is how the hashtable works.
-			py = (Shard_node_t *)MemoryContextAllocZero(CacheMemoryContext, sizeof(Shard_node_t));
-			copy_shard_node_meta(px, py, tup, shardnoderel);
-
-			shardnoderef->ptr = py;
-			shardnoderef->id = py->id;
-		}
-		else
-		{
-			py = shardnoderef->ptr;
-			Assert(py->id == px->id);
-		}
-		Shard_ref_t *shardref = hash_search(ShardCache, &py->shard_id, HASH_FIND, &found);
-		Assert(shardref != NULL && shardref->ptr != NULL && found);
-
-		/*
-		 * Reference the shard node in shard object. Find a Shard_node_ref_t
-		 * free slot for the shard node from py.
-		 * */
-		AddShard_node_ref_t(shardref->ptr, shardnoderef);
-	}
-
-	/* Clean up after the scan */
-	systable_endscan(scan);
-
-	heap_close(shardnoderel, NoLock);
-	heap_close(shardrel, NoLock);
-	ShardCacheInvalidated = false; // set to true when a invalidate msg is processed.
-	if (end_local_txn)
-		CommitTransactionCommand();
-
-	return nshards;
-}
-
-/*
- * Invalidate cached Shard_t objects, optionally including cached
- * Shard_node_t objects. Note that if and only if a Shard_node_t object
- * is cached is it referenced in owner Shard_t::shard_nodes array.
- * */
-void InvalidateCachedShard(Oid shardid, bool includingShardNodes)
-{
-	if (!ShardCache)
-		return;
-	bool found = false;
-	Shard_ref_t *shardref = (Shard_ref_t *)hash_search(ShardCache, &shardid, HASH_FIND, &found);
-	if (!shardref)
-	{
-		Assert(!found);
-		return;
-	}
-
-	Assert(found && shardref);
-
-	if (includingShardNodes)
-	{
-		Shard_t *pshard = shardref->ptr;
-		for (int i = 0; i < MAX_NODES_PER_SHARD; i++)
-		{
-			Shard_node_ref_t *ref = pshard->shard_nodes + i;
-			if (ref->id != Invalid_shard_node_id)
-			{
-				Assert(ref->ptr);
-				hash_search(ShardNodeCache, &ref->id, HASH_REMOVE, &found);
-				pfree(ref->ptr->hostaddr);
-				pfree(ref->ptr->passwd);
-				pfree(ref->ptr);
-				ref->ptr = NULL;
-				ref->id = Invalid_shard_node_id;
-				//Assert(found); the node may have been evicted from the cache.
-			}
-		}
-	}
-
-	pfree(shardref->ptr);
-	hash_search(ShardCache, &shardid, HASH_REMOVE, NULL);
-	ShardCacheInvalidated = true;
-	elog(DEBUG1, "Invalidated cached shard %u.", shardid);
-}
-
-/*
- * Invalidate cached shard node from ShardNodeCache and the owner Shard_t
- * object if it's also cached.
- * */
-void InvalidateCachedShardNode(Oid shardid, Oid nodeid)
-{
-	bool found = false;
-	if (!ShardCache || !ShardNodeCache)
-		return;
-	Shard_ref_t *shardref = (Shard_ref_t *)hash_search(ShardCache, &shardid, HASH_FIND, &found);
-	// It's likely that the shard object was not reloaded after invalidated last time.
-	if (shardref == NULL)
-	{
-		Assert(!found);
-		goto next_step;
-	}
-
-	Assert(found && shardref);
-
-	// 1. Remove the shard node reference from the cached Shard_t object.
-	found = false;
-
-	for (int i = 0; i < MAX_NODES_PER_SHARD; i++)
-	{
-		/*
-		 * All MAX_NODES_PER_SHARD slots must be checked because there can be
-		 * {0,NULL} slots in the middle.
-		 * */
-		Shard_node_ref_t *pnode = shardref->ptr->shard_nodes+i;
-		if (pnode->id == nodeid)
-		{
-			Assert(pnode->ptr != NULL);
-			pnode->id = Invalid_shard_node_id;
-			pnode->ptr = NULL;
-			found = true;
-			break;
-		}
-	}
-	// Assert(found); it's likely that the node was not reloaded after invalidated last time.
-	//
-next_step:
-	// 2. Remove the shardnode entry from ShardNodeCache.
-	found = false;
-	Shard_node_ref_t *shardnoderef = (Shard_node_ref_t *)
-		hash_search(ShardNodeCache, &nodeid, HASH_FIND, &found);
-	if (shardnoderef)
-	{
-		pfree(shardnoderef->ptr->hostaddr);
-		pfree(shardnoderef->ptr->passwd);
-		pfree(shardnoderef->ptr);
-		shardnoderef->ptr = NULL;
-	}
-
-	hash_search(ShardNodeCache, &nodeid, HASH_REMOVE, &found);
-	ShardCacheInvalidated = true;
-	elog(DEBUG1, "Invalidated cached shard node %u.%u.", shardid, nodeid);
-}
 
 bool ShardExists(const Oid shardid)
 {
-	return FindCachedShardInternal(shardid, false, NULL, NULL);
-}
-
-
-/*
- * Find from hash table the cached shard, if not found, scan tables to cache
- * it. and if 'cache_nodes is true, setup reference to its Shard_node_t objects.
- * Return the found shard by copying it to 'out', shallow copy all fields
- * except 'shard_nodes[i].ptr' objects.
- * Only deep copy shard_nodes[i].ptr objects into an
- * array held by *pshard_nodes and only when requested
- * to(i.e. pshard_nodes not NULL and cache_nodes is true).
-
- * @reval true if the cached Shard_t object is found, and it's copied to out;
- *        false if it's not found and *out is intact.
- *  Note that if not deep copied, out->shard_nodes[i].ptr field of any slots
- * in the array can NOT be accessed because they ref
- *  cached shard nodes which could be invalidated too.
- * */
-static bool
-FindCachedShardInternal(const Oid shardid, bool cache_nodes,
-	Shard_t* out, Shard_node_t **pshard_nodes)
-{
-	bool found = false, found_shard = false;
-	Assert(shardid != Invalid_shard_id);
-	if (shardid == Invalid_shard_id)
-		return NULL;
-
-	bool commit_txn = false;
-	if (!IsTransactionState())
-	{
-		StartTransactionCommand();
-		commit_txn = true;
-	}
-
-	Shard_t *pshard = NULL;
-	Relation shardrel = heap_open(ShardRelationId, RowExclusiveLock);
-	Relation shardnoderel = heap_open(ShardNodeRelationId, RowExclusiveLock);
-	ScanKeyData key, key1;
-	SysScanDesc scan;
-	HeapTuple	tuple;
-	int nfound = 0;
-	Shard_ref_t *shardref = (Shard_ref_t *)
-		hash_search(ShardCache, &shardid, HASH_FIND, &found_shard);
-
-	if (shardref)
-	{
-		Assert(shardref->id == shardid);
-		if (!cache_nodes)
-		{
-			pshard = shardref->ptr;
-			Assert(pshard->id == shardid);
-			if (out) memcpy(out, pshard, sizeof(*out));
-			goto end;
-		}
-		else
-		{
-			pshard = shardref->ptr;
-			Assert(pshard->id == shardid);
-			goto fetch_nodes;
-		}
-	}
-
-	// The object was invalidated, fetch it from pg_shard table and cache it.
-	ScanKeyInit(&key,
-				/*ObjectIdAttributeNumber*/Anum_pg_shard_id,
-				BTEqualStrategyNumber,
-				F_OIDEQ, shardid);
-
-	scan = systable_beginscan(shardrel, ShardOidIndexId, true,
-							  NULL, 1, &key);
-	while ((tuple = systable_getnext(scan)) != NULL)
-	{
-		Form_pg_shard px = ((Form_pg_shard) GETSTRUCT(tuple));
-		pshard = (Shard_t*)MemoryContextAllocZero(CacheMemoryContext, sizeof(Shard_t));
-
-		/* copy fields */
-		copy_shard_meta(px, pshard);
-		Assert(pshard->id == shardid);
-
-		shardref = hash_search(ShardCache, &pshard->id, HASH_ENTER, &found);
-		Assert(!found);
-		shardref->ptr = pshard;
-		shardref->id = pshard->id;
-		nfound++;
-	}
-
-	systable_endscan(scan);
-	if (!(nfound == 1 && pshard != NULL && pshard->id == shardid))
-		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
-				 errmsg("Kunlun-db: Shard (%u) not found.", shardid)));
-fetch_nodes:
-
-	/*
-	 * Fetch all shard nodes belonging to this shard and cache those not
-	 * already in ShardNodeCache, and add node refs into pshard->shard_nodes array.
-	 */
-
-	Assert(pshard->id == shardid);
-	ScanKeyInit(&key1,
-				Anum_pg_shard_node_shard_id, BTEqualStrategyNumber,
-				F_OIDEQ, shardid);
-	scan = systable_beginscan(shardnoderel, ShardNodeShardIdIndexId, true,
-							  NULL, 1, &key1);
-	Assert(pshard->id == shardid);
-
-	nfound = 0;
-
-	while ((tuple = systable_getnext(scan)) != NULL)
-	{
-		Form_pg_shard_node px = ((Form_pg_shard_node) GETSTRUCT(tuple));
-		Oid node_oid = px->id;
-		Shard_node_ref_t *noderef = NULL;
-		Assert(pshard->id == shardid);
-		noderef = hash_search(ShardNodeCache, &node_oid, HASH_ENTER, &found);
-		if (!found)
-		{
-			Shard_node_t *pnode = (Shard_node_t *)MemoryContextAllocZero(
-				CacheMemoryContext, sizeof(Shard_node_t));
-			copy_shard_node_meta(px, pnode, tuple, shardnoderel);
-			noderef->ptr = pnode;
-			noderef->id = node_oid;
-		}
-		else
-			Assert(found && noderef && noderef->id == node_oid &&
-				   noderef->ptr && noderef->ptr->id == node_oid);
-		Assert(noderef);
-		AddShard_node_ref_t(pshard, noderef);
-		nfound++;
-	}
-
-	if (nfound == 0)
-		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
-				 errmsg("Kunlun-db: No nodes found for shard (%u, %s).",
-				 		shardid, pshard->name.data)));
-	Assert(nfound > 0);
-	systable_endscan(scan);
-
-	/*
-	  copy to out. all fields of out could be shallow copied and used by
-	  our caller except shard_nodes, deep copy the array and its Shard_node_t
-	  objects.
-	*/
-	if (out)
-	{
-		memcpy(out, pshard, sizeof(*out));
-		if (pshard_nodes)
-		{
-			Assert(pshard->num_nodes <= MAX_NODES_PER_SHARD);
-			*pshard_nodes = MemoryContextAllocZero(CacheMemoryContext,
-				sizeof(Shard_node_t)*MAX_NODES_PER_SHARD);
-			for (int i = 0, j = 0; i < MAX_NODES_PER_SHARD; i++)
-			{
-				if (!pshard->shard_nodes[i].ptr) continue;
-				Shard_node_t *psnode = (*pshard_nodes) + j;
-
-				memcpy(psnode, pshard->shard_nodes[i].ptr, sizeof(Shard_node_t));
-				out->shard_nodes[j].ptr = psnode;
-				psnode->hostaddr = MemoryContextStrdup(CacheMemoryContext, psnode->hostaddr);
-				psnode->passwd = MemoryContextStrdup(CacheMemoryContext, psnode->passwd);
-				j++;
-			}
-		}
-	}
-end:
-	heap_close(shardnoderel, NoLock);
-	heap_close(shardrel, NoLock);
-	if (commit_txn)
-		CommitTransactionCommand();
-	return pshard != NULL;
+	bool found;
+	HeapTuple tuple = SearchSysCache1(SHARD, ObjectIdGetDatum(shardid));
+	if ((found = HeapTupleIsValid(tuple)))
+		ReleaseSysCache(tuple);
+	
+	return found;
 }
 
 /*
  * Find cached Shard_node_t objects. If not cached, scan table to cache it and
  * setup its owner's reference to it if the owner is also cached.
  * */
-bool FindCachedShardNode(Oid shardid, Oid nodeid, Shard_node_t*out)
+bool FindCachedShardNode(Oid shardid, Oid nodeid, Shard_node_t *out)
 {
 	bool found = false;
-
-	Assert(shardid != Invalid_shard_id && nodeid != Invalid_shard_node_id);
-	if (shardid == Invalid_shard_id || nodeid == Invalid_shard_node_id)
-		return NULL;
-
 	bool end_txn = false;
+	HeapTuple tuple;
+	Form_pg_shard_node snode_tuple;
+	bool isnull1, isnull2;
+	Datum hostaddr, passwd;
+
+	/*StartTransactionCommand will change the MemoryContext */
+	MemoryContext memctx = CurrentMemoryContext;
 	if (!IsTransactionState())
 	{
 		StartTransactionCommand();
 		end_txn = true;
 	}
-	Shard_node_t *pnode = NULL;
-	Relation shardrel = heap_open(ShardNodeRelationId, RowExclusiveLock);
-	Shard_node_ref_t *shardnoderef = (Shard_node_ref_t *)
-		hash_search(ShardNodeCache, &nodeid, HASH_FIND, &found);
-	if (shardnoderef)
+	tuple = SearchSysCache1(SHARDNODE, ObjectIdGetDatum(nodeid));
+	if (HeapScanIsValid(tuple))
 	{
-		pnode = shardnoderef->ptr;
-		goto end;
-	}
+		snode_tuple = (Form_pg_shard_node)GETSTRUCT(tuple);
+		Assert(snode_tuple->shard_id == shardid);
+		found = true;
 
-	ScanKeyData key;
-	SysScanDesc scan;
-	HeapTuple	tup;
-	int nfound = 0;
-
-	ScanKeyInit(&key,
-				/*ObjectIdAttributeNumber*/Anum_pg_shard_node_id,
-				BTEqualStrategyNumber,
-				F_OIDEQ, nodeid);
-
-	scan = systable_beginscan(shardrel, ShardNodeOidIndexId, true,
-							  NULL, 1, &key);
-	while ((tup = systable_getnext(scan)) != NULL)
-	{
-		Form_pg_shard_node px = ((Form_pg_shard_node) GETSTRUCT(tup));
-		pnode = (Shard_node_t *)MemoryContextAllocZero(CacheMemoryContext, sizeof(Shard_node_t));
-
-		/* copy fields */
-		copy_shard_node_meta(px, pnode, tup, shardrel);
-
-		Shard_node_ref_t *noderef = hash_search(ShardNodeCache, &nodeid, HASH_ENTER, &found);
-		Assert(!found);
-		noderef->id = pnode->id;
-		noderef->ptr = pnode;
-		nfound++;
-		Shard_t *pshard = (Shard_t *)hash_search(ShardCache, &shardid, HASH_FIND, &found);
-		if (pshard)
+		if (out)
 		{
-			AddShard_node_ref_t(pshard, noderef);
+			out->id = nodeid;
+			out->shard_id = snode_tuple->shard_id;
+			out->port = snode_tuple->port;
+			out->ro_weight = snode_tuple->ro_weight;
+			out->svr_node_id = snode_tuple->svr_node_id;
+			out->user_name = snode_tuple->user_name;
+
+			hostaddr = SysCacheGetAttr(SHARDNODE, tuple, Anum_pg_shard_node_hostaddr, &isnull1);
+			passwd = SysCacheGetAttr(SHARDNODE, tuple, Anum_pg_shard_node_passwd, &isnull2);
+			/**/
+			if (isnull1 || isnull2)
+			{
+				ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
+						errmsg("Kunlun-db: Node (%u) lack address or authentication information .", shardid)));
+			}
+			out->hostaddr = MemoryContextStrdup(memctx, TextDatumGetCString(hostaddr));
+			out->passwd = MemoryContextStrdup(memctx, TextDatumGetCString(passwd));
 		}
+
+		ReleaseSysCache(tuple);
 	}
 
-	if (nfound == 0)
-		ereport(ERROR,
-				(errcode(ERRCODE_INTERNAL_ERROR),
-				 errmsg("Kunlun-db: Shard node (%u %u) not found.",
-				 shardid, nodeid)));
-
-	if (nfound > 1)
-		ereport(ERROR,
-				(errcode(ERRCODE_INTERNAL_ERROR),
-				 errmsg("Kunlun-db: Duplicate shard node (%u %u) found, found %u nodes.",
-				 shardid, nodeid, nfound)));
-
-	Assert(nfound == 1);
-	systable_endscan(scan);
-end:
-	if (out)
-	{
-		memcpy(out, pnode, sizeof(*out));
-		// pnode->hostaddr/passwd alloced in Cachememcxt
-		out->hostaddr = pstrdup(pnode->hostaddr);
-		out->passwd = pstrdup(pnode->passwd);
-	}
-
-	heap_close(shardrel, NoLock);
 	if (end_txn)
 		CommitTransactionCommand();
 
-	return pnode != NULL;
+	return found;
 }
 
 
+/*
+  Return all shards' IDs in a list.
+*/
+List* GetAllShardIds()
+{
+	Relation pg_shard_rel;
+	HeapTuple tup = NULL;
+	SysScanDesc scan;
+	List *list = NIL;
+
+	pg_shard_rel = heap_open(ShardRelationId, RowShareLock);
+	scan = systable_beginscan(pg_shard_rel, InvalidOid, false, NULL, 0, NULL);
+	while ((tup = systable_getnext(scan)) != NULL)
+	{
+		Form_pg_shard shard = ((Form_pg_shard)GETSTRUCT(tup));
+		list = lappend_oid(list, shard->id);
+	}
+
+	systable_endscan(scan);
+	heap_close(pg_shard_rel, RowShareLock);
+
+	return list;
+}
 
 /*
  * Find from cache the shard with minimal 'storage_volume'(which = 1) or
@@ -709,58 +168,147 @@ end:
  * */
 Oid FindBestShardForTable(int which, Relation rel)
 {
-	HASH_SEQ_STATUS seq_status;
-	Shard_ref_t *ref;
-	Shard_t *ps, *best = NULL;
 	uint32_t minval = UINT_MAX;
+	List *allshards = GetAllShardIds();
 
-	if (ShardCacheInvalidated)
+	Oid best = InvalidOid;
+	if (list_length(allshards) == 0)
 	{
-		LoadAllShards(false);
+		/* do nothing */
+	}
+	else if (which == 0)
+	{
+		best = list_nth_oid(allshards, rand() % list_length(allshards));
+	}
+	else
+	{
+		ListCell *lc;
+		Oid shardid;
+		HeapTuple tuple;
+		Form_pg_shard shard_tuple;
+		foreach (lc, allshards)
+		{
+			shardid = lfirst_oid(lc);
+			tuple = SearchSysCache1(SHARD, ObjectIdGetDatum(shardid));
+			if (HeapTupleIsValid(tuple))
+			{
+				shard_tuple = (Form_pg_shard)GETSTRUCT(tuple);
+
+				if (which == 1 && (best == InvalidOid || shard_tuple->space_volumn < minval))
+				{
+					minval = shard_tuple->space_volumn;
+					best = shardid;
+				}
+				else if (which == 2 && (best == InvalidOid || shard_tuple->num_tablets < minval))
+				{
+					minval = shard_tuple->num_tablets;
+					best = shardid;
+				}
+				else if (which == 3 && (best == InvalidOid || shard_tuple->id < minval))
+				{
+					minval = shard_tuple->id;
+					best = shardid;
+				}
+				ReleaseSysCache(tuple);
+			}
+		}
 	}
 
-	int num_shards = 0;
-	List *pshard_list = NULL;
-	hash_seq_init(&seq_status, ShardCache);
-
-	while ((ref = hash_seq_search(&seq_status)) != NULL)
-	{
-		num_shards++;
-		ps = ref->ptr;
-		if (which  == 0) pshard_list = lappend(pshard_list, ps);
-		if (which == 1 && (!best || ps->storage_volumn < minval))
-		{
-			minval = ps->storage_volumn;
-			best = ps;
-		}
-
-		if (which == 2 && (!best || ps->num_tablets < minval))
-		{
-			minval = ps->num_tablets;
-			best = ps;
-		}
-	}
-	
-	if (which  == 0) best = list_nth(pshard_list, rand() % num_shards);
-
-	if (!best)
+	if (best == InvalidOid)
 	{
 		ereport(ERROR,
-				(errcode(ERRCODE_INTERNAL_ERROR),
-				 errmsg("Kunlun-db: No shard available to store tables.")));
+			(errcode(ERRCODE_INTERNAL_ERROR),
+			 errmsg("Kunlun-db: No shard available to store tables.")));
 	}
 
-	best->num_tablets++;
-	/*
-	 * TODO:
-	 * This is a rough guess, to be accurate, clustermgr should periodically
-	 * update each computing node's stats.
-	 * */
-	best->storage_volumn += 4096;
-
-	return best->id;
+	return best;
 }
 
+
+static Form_pg_shard_node
+find_node_tuple(CatCList *nodes, const char *ip, uint16_t port)
+{
+	Form_pg_shard_node node;
+
+	for (int i = 0; i < nodes->n_members; ++i)
+	{
+		HeapTuple tuple = &nodes->members[i]->tuple;
+		/* match port */
+		node = (Form_pg_shard_node)GETSTRUCT(tuple);
+		if (node->port != port)
+			continue;
+
+		/* match ip address */
+		bool isnull;
+		Datum addr = SysCacheGetAttr(SHARDNODES,
+					     tuple,
+					     Anum_pg_shard_node_hostaddr,
+					     &isnull);
+		char *addr_str = TextDatumGetCString(addr);
+		bool match = (strcmp(addr_str, ip) == 0);
+		pfree(addr_str);
+		if (match)
+			return node;
+	}
+
+	return NULL;
+}
+
+
+static StmtSafeHandle
+send_stmt_no_exception(Oid shardid, Oid nodeid, const char *stmt, size_t len)
+{
+	AsyncStmtInfo *asi;
+	StmtSafeHandle handle = INVALID_STMT_HANLE;
+
+	PG_TRY();
+	{
+		asi = GetAsyncStmtInfoNode(shardid, nodeid, false);
+		handle = send_stmt_async(asi, (char *)stmt, len, CMD_SELECT, false, SQLCOM_SELECT, false);
+	}
+	PG_CATCH();
+	{
+		if (stmt_handle_valid(handle))
+		{
+			release_stmt_handle(handle);
+			handle = INVALID_STMT_HANLE;
+		}
+		/*
+		  can't connect to pnode, don't throw error here otherwise we
+		  never can find current master if one node is down. So we downgrade
+		  the error to warning and output it to server log.
+		  We can do this because GetAsyncStmtInfoNode() doesn't touch
+		  shared memory otherwise we could damage the shared memory and all
+		  other backends could crash.
+		*/
+		HOLD_INTERRUPTS();
+		downgrade_error();
+		errfinish(0);
+		FlushErrorState();
+		RESUME_INTERRUPTS();
+	}
+	PG_END_TRY();
+
+	return handle;
+}
+
+
+static MYSQL_ROW
+get_result_no_exception(StmtSafeHandle handle)
+{
+	MYSQL_ROW row = NULL;
+	PG_TRY();
+	{
+		row = get_stmt_next_row(handle);
+	}
+	PG_CATCH();
+	{
+		cancel_stmt_async(handle);
+	}
+	PG_END_TRY();
+
+	return row;
+}
 
 /*
   Connect to each node of the shard and find which one is the latest master
@@ -780,111 +328,61 @@ static int FindCurrentMasterNodeId(Oid shardid, Oid *pmaster_nodeid)
 {
 	Assert(shardid != InvalidOid && pmaster_nodeid);
 	const char *fetch_gr_members_sql = NULL;
+	int ret = 0;
 
 	Storage_HA_Mode ha_mode = storage_ha_mode();
 	if (ha_mode == HA_MGR)
 		fetch_gr_members_sql = "select MEMBER_HOST, MEMBER_PORT from performance_schema.replication_group_members where channel_name='group_replication_applier' and MEMBER_STATE='ONLINE' and MEMBER_ROLE='PRIMARY'";
 	else if (ha_mode == HA_RBR)
-		fetch_gr_members_sql = "select HOST, PORT from performance_schema.replication_connection_configuration where channel_name='kunlun_repl'";
-	else Assert(ha_mode == HA_NO_REP);
+		fetch_gr_members_sql = "select HOST, PORT from performance_schema.replication_connection_configuration where channel_name='kunlun_repl';";
+	else
+		Assert(ha_mode == HA_NO_REP);
 
 	size_t sqllen = 0;
 	if (fetch_gr_members_sql)
 		sqllen = strlen(fetch_gr_members_sql);
 
-	int num_conn_fails = 0;
-	Shard_t shard;
-	Shard_t *ps = NULL;
-	Shard_node_t *pshard_nodes = NULL;
-	if (FindCachedShardInternal(shardid, true, &shard, &pshard_nodes))
-		ps = &shard;
-	else
+	*pmaster_nodeid = 0;
+
+	HeapTuple tuple = NULL;
+	CatCList *nodes = NULL;
+	Form_pg_shard shard_tuple;
+	char *shard_name = NULL;
+	bool free_txn = false;
+
+	if (!IsTransactionState())
 	{
-		if (pmaster_nodeid)
-			*pmaster_nodeid = 0;
-		if (pshard_nodes)
-			free_shard_nodes(pshard_nodes);
-		elog(WARNING, "Shard %u not found while looking for its current master node.", shardid);
-		return -3;
+		free_txn = true;
+		StartTransactionCommand();
 	}
 
-	Shard_node_ref_t *pnoderef = ps->shard_nodes;
+	/* shard info */
+	tuple = SearchSysCache1(SHARD, ObjectIdGetDatum(shardid));
+	if (!HeapTupleIsValid(tuple))
+	{
+		elog(WARNING, "Shard %u was not found while looking for its current master node.", shardid);
+		ret = -3;
+		goto end;
+	}
+	shard_tuple = (Form_pg_shard)GETSTRUCT(tuple);
+	shard_name = shard_tuple->name.data;
+	/* info of node shards  */
+	nodes = SearchSysCacheList1(SHARDNODES, ObjectIdGetDatum(shardid));
+	if (!nodes || nodes->n_members == 0)
+	{
+		elog(WARNING, "Nodes of shard %u was not found while looking for its current master node.", shardid);
+		ret = -3;
+		goto end;
+	}
+
+	int num_conn_fails = 0;
 	if (ha_mode == HA_NO_REP)
 	{
-		Assert(ps->num_nodes == 1);
-		*pmaster_nodeid = pnoderef[0].ptr->id;
-		if (pshard_nodes)
-			free_shard_nodes(pshard_nodes);
-		return 1;
+		*pmaster_nodeid = shard_tuple->master_node_id;
+		ret = 1;
+		goto end;
 	}
 
-	StmtSafeHandle stmts[MAX_NODES_PER_SHARD];
-	int nstmts = 0;
-	for (int i = 0; i < MAX_NODES_PER_SHARD; i++)
-	{
-		Shard_node_t *pnode = pnoderef[i].ptr;
-		if (!pnode)
-			continue;
-
-		AsyncStmtInfo *asi = NULL;
-		PG_TRY();
-		{
-			asi = GetAsyncStmtInfoNode(pnode->shard_id, pnode->id, false);
-		}
-		PG_CATCH();
-		{
-			/*
-			  can't connect to pnode, don't throw error here otherwise we
-			  never can find current master if one node is down. So we downgrade
-			  the error to warning and output it to server log.
-			  We can do this because GetAsyncStmtInfoNode() doesn't touch
-			  shared memory otherwise we could damage the shared memory and all
-			  other backends could crash.
-			*/
-			num_conn_fails++;
-			/*
-			  Get rid of the exception, log it to server log only to free
-			  error stack space.
-			  Do not abort the current pg txn, keep running in it. it's not pg
-			  error that the mysql node can't be reached.
-			 */
-			HOLD_INTERRUPTS();
-
-			downgrade_error();
-			errfinish(0);
-			FlushErrorState();
-			RESUME_INTERRUPTS();
-		}
-		PG_END_TRY();
-		if (asi)
-		{
-			PG_TRY();
-			{
-				StmtSafeHandle handle = send_stmt_async(asi, fetch_gr_members_sql, sqllen,
-									CMD_SELECT, false, SQLCOM_SELECT, false);
-				stmts[nstmts++] = handle;
-			}
-			PG_END_TRY();
-		}
-	}
-
-	/*
-	  We might find different master node from results of all nodes, that means
-	  one of the following:
-	  1. there is a brain-split, but MGR should be able to avoid this;
-	  2. a master switch is going on and we get old view from some of the nodes
-	  and new view from others.
-	  So if we see this fact, we log WARNING messages and retry later in our caller.
-
-	  We might also find no master available from any shard node, and we report
-	  WARNING and exit the function.
-	*/
-	size_t num_asis = GetAsyncStmtInfoUsed();
-	elog(LOG, "Looking for primary node of shard %s(%u) among %lu nodes, with %d unavailable nodes.",
-	     ps->name.data, shardid, num_asis, num_conn_fails);
-	/*
-	 * Receive results.
-	 * */
 	Oid master_nodeid = InvalidOid;
 	const char *master_ip = NULL;
 	uint16_t master_port = 0;
@@ -893,95 +391,122 @@ static int FindCurrentMasterNodeId(Oid shardid, Oid *pmaster_nodeid)
 	int num_unknowns = 0;	 // NO. of shard nodes who doesn't know about current master.
 	int num_new_masters = 0; // NO. of found masters not in pg_shard_node
 
-	for (int i = 0; i < nstmts; ++i)
+	/* Query the node one by one to collect information about master */
+	for (int i = 0; i < nodes->n_members; i++)
 	{
-		CHECK_FOR_INTERRUPTS();
-		StmtSafeHandle handle = stmts[i];
-		AsyncStmtInfo *asi = RAW_HANDLE(handle)->asi;
-		if (!ASIConnected(asi))
+		Form_pg_shard_node node_tuple =
+		    (Form_pg_shard_node)GETSTRUCT(&nodes->members[i]->tuple);
+		Assert(node_tuple->shard_id == shardid);
+
+		/*
+		  can't connect to pnode, don't throw error here otherwise we
+		  never can find current master if one node is down. So we downgrade
+		  the error to warning and output it to server log.
+		  We can do this because GetAsyncStmtInfoNode() doesn't touch
+		  shared memory otherwise we could damage the shared memory and all
+		  other backends could crash.
+		*/
+		StmtSafeHandle handle = send_stmt_no_exception(node_tuple->shard_id,
+							       node_tuple->id, fetch_gr_members_sql, sqllen);
+		if (!stmt_handle_valid(handle))
 		{
-			elog(WARNING, "Primary node unknown in shard %s(%u) node (%s, %u, %u).",
-			     ps->name.data, asi->shard_id, asi->conn->host, asi->conn->port, asi->node_id);
-			num_unknowns++;
-			release_stmt_handle(handle);
-			continue; // connection failed, node unavailable.
+			num_conn_fails++;
+			continue;
 		}
 
-		int nrows = 0;
-		MYSQL_ROW row;
-		while ((row = get_stmt_next_row(handle)))
+		MYSQL_ROW row = get_result_no_exception(handle);
+		if (row)
 		{
-			nrows++;
 			const char *ip = row[0];
-			char *endptr = NULL;
-			uint16_t port = strtol(row[1], &endptr, 10);
-			Shard_node_t *sn = find_node_by_ip_port(ps, ip, port);
-			if (sn == NULL)
+			uint16_t port = strtol(row[1], NULL, 10);
+
+			Form_pg_shard_node node = find_node_tuple(nodes, ip, port);
+
+			if (node == NULL)
 			{
 				elog(WARNING, "Found a new primary node(%s, %u) of shard %s(%u) not in pg_shard_node, "
 					      "meta data in pg_shard_node isn't up to date, retry later.",
-				     ip, port, ps->name.data, shardid);
+				     ip, port, shard_name, shardid);
 				num_new_masters++;
 				continue;
 			}
 
 			if (master_nodeid == InvalidOid)
 			{
-				master_nodeid = sn->id;
+				master_nodeid = node->id;
 				master_ip = pstrdup(ip);
 				master_port = port;
 				Assert(num_masters == 0);
 				num_masters++;
 				num_quorum++;
 			}
-			else if (master_nodeid != sn->id)
+			else if (master_nodeid != node->id)
 			{
 				elog(WARNING, "Found a new primary node(%s, %u, %u) of shard %s(%u) when we already found a new primary node (%s, %u, %u),"
 					      " might be a brain split bug of MGR, but more likely a primary switch is happening right now, retry later.",
-				     ip, port, sn->id, ps->name.data, shardid, master_ip, master_port, master_nodeid);
+				     ip, port, node->id, shard_name, shardid, master_ip, master_port, master_nodeid);
 				num_masters++;
 			}
 			else
 			{
-				Assert(master_nodeid == sn->id);
 				num_quorum++;
 			}
 		}
-
-		if (nrows == 0)
+		else
 		{
+			AsyncStmtInfo *asi = RAW_HANDLE(handle)->asi;
 			elog(WARNING, "Primary node unknown in shard %s(%u) node (%s, %u, %u).",
-			     ps->name.data, asi->shard_id, asi->conn->host, asi->conn->port, asi->node_id);
+			     shard_name, node_tuple->shard_id, asi->conn->host, asi->conn->port, asi->node_id);
 			num_unknowns++;
 		}
+
 		release_stmt_handle(handle);
 	}
+
+	/*
+	      We might find different master node from results of all nodes, that means
+	      one of the following:
+	      1. there is a brain-split, but MGR should be able to avoid this;
+	      2. a master switch is going on and we get old view from some of the nodes
+	      and new view from others.
+	      So if we see this fact, we log WARNING messages and retry later in our caller.
+
+	      We might also find no master available from any shard node, and we report
+	      WARNING and exit the function.
+	    */
+	elog(LOG, "Looking for primary node of shard %s(%u) among %d nodes, with %d unavailable nodes.",
+	     shard_name, shardid, nodes->n_members, num_conn_fails);
 
 	if (num_new_masters > 0)
 	{
 		elog(WARNING, "Found %d new primary nodes in shard %s(%u) which are not registered in pg_shard_node and can't be used by current computing node. Primary node is unknown in %d nodes, with %d unavailable nodes. Retry later.",
-		     num_new_masters, ps->name.data, shardid, num_unknowns, num_conn_fails);
-		if (pshard_nodes)
-			free_shard_nodes(pshard_nodes);
-		return -1;
+		     num_new_masters, shard_name, shardid, num_unknowns, num_conn_fails);
+		ret = -1;
+		goto end;
 	}
 
 	if (num_masters == 0)
 		elog(WARNING, "Primary node not found in shard %s(%u), it's unknown in %d nodes, with %d unavailable nodes. Retry later.",
-		     ps->name.data, shardid, num_unknowns, num_conn_fails);
+		     shard_name, shardid, num_unknowns, num_conn_fails);
 	if (num_masters > 1)
 		elog(WARNING, "Multiple(%d) primary nodes found in shard %s(%u). It's unknown in %d nodes, with %d unavailable nodes. Retry later.",
-		     num_masters, ps->name.data, shardid, num_unknowns, num_conn_fails);
+		     num_masters, shard_name, shardid, num_unknowns, num_conn_fails);
 	if (num_masters == 1)
 		elog(LOG, "Found new primary node (%s, %u, %u) in shard %s(%u), affirmed by %d nodes of the shard. The primary is unknown in %d nodes, with %d unavailable nodes.",
-		     master_ip, master_port, master_nodeid, ps->name.data, shardid, num_quorum, num_unknowns, num_conn_fails);
+		     master_ip, master_port, master_nodeid, shard_name, shardid, num_quorum, num_unknowns, num_conn_fails);
 
 	*pmaster_nodeid = master_nodeid;
-	if (pshard_nodes)
-		free_shard_nodes(pshard_nodes);
-	return num_masters;
-}
+	ret = num_masters;
 
+end:
+	ReleaseSysCache(tuple);
+	ReleaseSysCacheList(nodes);
+
+	if (free_txn)
+		CommitTransactionCommand();
+
+	return ret;
+}
 /*
   Ask shard 'shardid' nodes which node is master, and if a quorum of them
   affirm the same new master node, it's updated in pg_shard, i.e.
@@ -1225,13 +750,14 @@ void ProcessShardingTopoReqs()
 	if (nreqs == 0 && ha_mode != HA_NO_REP &&
 		last_master_update_ts + check_primary_interval_secs < time(NULL))
 	{
-		HASH_SEQ_STATUS seq_status;
-		hash_seq_init(&seq_status, ShardCache);
-		Shard_ref_t *ref;
-		while ((ref = hash_seq_search(&seq_status)) != NULL)
-		{
-			reqs[nreqs++] = ref->id;
+                List *shardlst = GetAllShardIds();
+		ListCell *lc;
+
+                foreach (lc, shardlst)
+                {
+			reqs[nreqs++] = lfirst_oid(lc);
 		}
+                list_free(shardlst);
 		reqs[nreqs++] = METADATA_SHARDID;
 		selfinit = true;
 	}
@@ -1265,62 +791,6 @@ void ProcessShardingTopoReqs()
 			 nreqs - nfail_reqs, nfail_reqs);
 	}
 }
-
-static Shard_node_t *find_node_by_ip_port(Shard_t *ps, const char *ip, uint16_t port)
-{
-	Shard_node_ref_t *pnoderef = ps->shard_nodes;
-	for (int i = 0; i < MAX_NODES_PER_SHARD; i++)
-	{
-		Shard_node_t *sn = pnoderef[i].ptr;
-		if (!sn) continue;
-		if (strcmp(sn->hostaddr, ip) == 0 && port == sn->port)
-			return sn;
-	}
-	return NULL;
-}
-
-
-void RequestShardingTopoCheckAllStorageShards()
-{
-	Storage_HA_Mode ha_mode = storage_ha_mode();
-	if (ha_mode == HA_NO_REP) return;
-	SetCurrentStatementStartTimestamp();
-	bool end_txn = false;
-
-	if (!IsTransactionState())
-	{
-		StartTransactionCommand();
-		end_txn = true;
-	}
-	SPI_connect();
-	PushActiveSnapshot(GetTransactionSnapshot());
-	
-	Relation pg_shard_rel = heap_open(ShardRelationId, RowExclusiveLock);
-
-	HeapTuple tup = NULL;
-	SysScanDesc scan;
-
-	scan = systable_beginscan(pg_shard_rel, InvalidOid, false, NULL, 0, NULL);
-	LWLockAcquire(ShardingTopoCheckLock, LW_EXCLUSIVE);
-	while ((tup = systable_getnext(scan)) != NULL)
-	{
-		Form_pg_shard ps = ((Form_pg_shard) GETSTRUCT(tup));
-		if (ShardingTopoChkReqs->endidx >= MAX_SHARDS)
-		{
-			elog(ERROR, "Serious error: found more than %u shards in pg_shard table.", MAX_SHARDS);
-			break;
-		}
-		ShardingTopoChkReqs->shardids[ShardingTopoChkReqs->endidx++] = ps->id;
-	}
-
-	LWLockRelease(ShardingTopoCheckLock);
-	systable_endscan(scan);
-	heap_close(pg_shard_rel, NoLock);
-	SPI_finish();
-	PopActiveSnapshot();
-	if (end_txn) CommitTransactionCommand();
-}
-
 
 //====================================================
 
@@ -1645,41 +1115,47 @@ do_meta:
 
 Oid GetShardMasterNodeId(Oid shardid)
 {
-	Shard_t shard;
-	Oid ret = InvalidOid;
-	if (FindCachedShardInternal(shardid, false, &shard, NULL))
-		ret = shard.master_node_id;
-	return ret;
-}
-
-/*
-  Return all shards' IDs in a list.
-*/
-List *GetAllShardIds()
-{
-	HASH_SEQ_STATUS seqstat;
-	Shard_ref_t *ptr;
-	List *l = NULL;
-
-	LoadAllShards(false);
-	hash_seq_init(&seqstat, ShardCache);
-	while ((ptr = hash_seq_search(&seqstat)) != NULL)
+	Oid nodeid = InvalidOid;
+	HeapTuple tuple;
+	bool free_txn = false;
+	/* Make sure in transaction */
+	if (!IsTransactionState())
 	{
-		l = lappend_oid(l, ptr->id);
+		free_txn = true;
+		StartTransactionCommand();
 	}
-	return l;
-}
 
-static void free_shard_nodes(Shard_node_t *snodes)
-{
-	for (int i = 0; i < MAX_NODES_PER_SHARD; i++)
+	tuple = SearchSysCache1(SHARD, ObjectIdGetDatum(shardid));
+	if (HeapTupleIsValid(tuple))
 	{
-		void *p = snodes[i].hostaddr;
-		if (p) pfree(p);
-		p = snodes[i].passwd;
-		if (p) pfree(p);
+		nodeid = ((Form_pg_shard)GETSTRUCT(tuple))->master_node_id;
+		ReleaseSysCache(tuple);
+
+		/* Check if node exists */
+		if (nodeid != InvalidOid)
+		{
+			tuple = SearchSysCache1(SHARDNODE, ObjectIdGetDatum(nodeid));
+			if (HeapTupleIsValid(tuple))
+			{
+				ReleaseSysCache(tuple);
+			}
+			else
+			{
+				ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
+						errmsg("Kunlun-db: Master node (%u) of Shard (%u) not found.", nodeid, shardid)));
+			}
+		}
 	}
-	pfree(snodes);
+	else
+	{
+		ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
+				errmsg("Kunlun-db: Shard (%u) not found.", shardid)));
+	}
+
+	if (free_txn)
+		CommitTransactionCommand();
+
+	return nodeid;
 }
 
 
@@ -1736,7 +1212,6 @@ void TopoServiceMain(void)
 	/* Connect to our database */
 	on_exit_reset();
 	InitPostgres("postgres", InvalidOid, NULL, InvalidOid, NULL, false);
-	ShardCacheInit();
 	InitShardingSession();
 
 	/* Set the topo service pid */

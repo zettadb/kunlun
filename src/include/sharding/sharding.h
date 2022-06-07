@@ -102,19 +102,6 @@ typedef struct ShardConnKillReq {
 } ShardConnKillReq;
 
 
-extern void ShardCacheInit(void);
-/*
- * When meta table is updated, need to invalidate cached Shard or Shard node object in
- * order to reload it at next use.
- *
- * InvalidateCachedShard() only invalidate the Shard_t objects but not the
- * Shard_node_t objects it references via Shard_t::shard_nodes array.
- * InvalidateCachedShardNode() invalidates only the Shard_node_t object from
- * hash table and the owner Shard_t::shard_nodes array.
- * */
-extern void InvalidateCachedShard(Oid shardid, bool includingNodes);
-extern void InvalidateCachedShardNode(Oid shardid, Oid nodeid);
-
 /*
  * Find from hash table the cached shard, if not found, scan tables to load it,
  * and setup reference to its Shard_node_t objects.
@@ -134,7 +121,6 @@ extern Size ShardingTopoCheckSize(void);
 extern void ShardingTopoCheckShmemInit(void);
 extern bool RequestShardingTopoCheck(Oid shardid);
 extern void ProcessShardingTopoReqs(void);
-extern void RequestShardingTopoCheckAllStorageShards(void);
 
 extern void ShardConnKillReqQShmemInit(void);
 extern Size ShardConnKillReqQSize(void);

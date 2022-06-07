@@ -779,7 +779,7 @@ void ddl_applier_serivce_main(void)
 
 	/* Connect to our database */
 	BackgroundWorkerInitializeConnection("postgres", NULL, 0);
-	ShardCacheInit();
+	
 
 	/* Set current user */
 	char *curUser = get_current_username();

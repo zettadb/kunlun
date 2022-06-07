@@ -442,38 +442,6 @@ AddSnapshotInvalidationMessage(InvalidationListHeader *hdr,
 }
 
 /*
- * Add a shard inval entry
- */
-static void
-AddShardingInvalidationMessage(InvalidationListHeader *hdr,
-							   Oid shardId, Oid shardNodeId)
-{
-	SharedInvalidationMessage msg;
-
-	/*
-	 * Don't add a duplicate item. 
-	 InvalidOid for shard id means all shards;
-	 InvalidOid for shard node id means all shard nodes;
-	 so we don't need to add individual ones when it is present.
-	 */
-	ProcessMessageList(hdr->rclist,
-					   if (msg->ss.id == SHAREDINVALSHARD_ID &&
-						   ((msg->ss.shardId == shardId &&
-						     (msg->ss.shardNodeId == shardNodeId ||
-						      msg->ss.shardNodeId == InvalidOid)) ||
-						    msg->ss.shardId == InvalidOid))
-					   return);
-
-	/* OK, add the item */
-	msg.ss.id = SHAREDINVALSHARD_ID;
-	msg.ss.shardId = shardId;
-	msg.ss.shardNodeId = shardNodeId;
-	/* check AddCatcacheInvalidationMessage() for an explanation */
-	VALGRIND_MAKE_MEM_DEFINED(&msg, sizeof(msg));
-
-	AddInvalidationMessage(&hdr->rclist, &msg);
-}
-/*
  * Append one list of invalidation messages to another, resetting
  * the source list to empty.
  */
@@ -585,25 +553,6 @@ RegisterSnapshotInvalidation(Oid dbId, Oid relId)
 }
 
 /*
- * dzw:
- */
-static void
-RegisterShardingInvalidation(Oid shardId, Oid shardNodeId)
-{
-	AddShardingInvalidationMessage(&transInvalInfo->CurrentCmdInvalidMsgs,
-								   shardId, shardNodeId);
-
-	/*
-	 * Most of the time, relcache invalidation is associated with system
-	 * catalog updates, but there are a few cases where it isn't.  Quick hack
-	 * to ensure that the next CommandCounterIncrement() will think that we
-	 * need to do CommandEndInvalidationMessages().
-	 */
-	(void) GetCurrentCommandId(true);
-}
-
-
-/*
  * LocalExecuteInvalidationMessage
  *
  * Process a single invalidation message (which could be of any type).
@@ -681,14 +630,6 @@ LocalExecuteInvalidationMessage(SharedInvalidationMessage *msg)
 			InvalidateCatalogSnapshot();
 		else if (msg->rm.dbId == MyDatabaseId)
 			InvalidateCatalogSnapshot();
-	}
-	else if (msg->id == SHAREDINVALSHARD_ID)
-	{
-		if (msg->ss.shardNodeId == InvalidOid)
-			InvalidateCachedShard(msg->ss.shardId, true);
-		else
-			InvalidateCachedShardNode(msg->ss.shardId, msg->ss.shardNodeId);
-		InvalidateCatalogSnapshot();
 	}
 	else
 		elog(FATAL, "unrecognized SI message ID: %d", msg->id);
@@ -1287,23 +1228,6 @@ CacheInvalidateHeapTuple(Relation relation,
 		}
 		else
 			return;
-	}
-	else if (tupleRelId == ShardRelationId)
-	{
-		Form_pg_shard ps = (Form_pg_shard) GETSTRUCT(tuple);
-		RegisterShardingInvalidation(ps->id, InvalidOid);
-		return;
-	}
-	else if (tupleRelId == ShardNodeRelationId)
-	{
-		Form_pg_shard_node psn = (Form_pg_shard_node) GETSTRUCT(tuple);
-		/*
-		  dzw:
-		  for insert/delete a shard node row, need to invalidate entire shard
-		  object; for update a shard node row, can invalidate only the shard node object.
-		*/
-		RegisterShardingInvalidation(psn->shard_id, newtuple ? psn->id : InvalidOid);
-		return;
 	}
 	else
 		return;

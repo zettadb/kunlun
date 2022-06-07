@@ -1067,7 +1067,7 @@ void gdd_init()
 			AllocSetContextCreate(gdd_memcxt,
 				                  "Global Deadlock Detector Memory Context for SQL Statements",
 				                  ALLOCSET_DEFAULT_SIZES);
-	ShardCacheInit();
+	
 	InitShardingSession();
 }
 

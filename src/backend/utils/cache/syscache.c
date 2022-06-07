@@ -59,6 +59,8 @@
 #include "catalog/pg_rewrite.h"
 #include "catalog/pg_seclabel.h"
 #include "catalog/pg_sequence.h"
+#include "catalog/pg_shard.h"
+#include "catalog/pg_shard_node.h"
 #include "catalog/pg_shdepend.h"
 #include "catalog/pg_shdescription.h"
 #include "catalog/pg_shseclabel.h"
@@ -763,6 +765,42 @@ static const struct cachedesc cacheinfo[] = {
 			0
 		},
 		32
+	},
+	{ShardRelationId,	/* SHARD */
+		ShardOidIndexId,
+		1,
+		{
+			Anum_pg_shard_id,
+			0,
+			0,
+			0,
+			0,
+		},
+		4
+	},
+	{ShardNodeRelationId,	/* SHARDNODE */
+		ShardNodeOidIndexId,
+		1,
+		{
+			Anum_pg_shard_node_id,
+			0,
+			0,
+			0,
+			0
+		},
+		4
+	},
+	{ShardNodeRelationId,	/*SHARDNODES */
+		ShardNodeShardIdIndexId,
+		2,
+		{
+			Anum_pg_shard_node_shard_id,
+			Anum_pg_shard_node_id,
+			0,
+			0,
+			0
+		},
+		4
 	},
 	{StatisticExtRelationId,	/* STATEXTNAMENSP */
 		StatisticExtNameIndexId,

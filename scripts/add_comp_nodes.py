@@ -139,8 +139,8 @@ def add_computing_nodes(mysql_conn_params, args, config_path, install_ids, intoS
             if shard_node_row['id'] in shardnodeids:
                 continue
             shard_nrows[shard_node_row['shard_id']] += 1;
-            cur.execute("insert into pg_shard_node values(%s, %s, %s, %s, %s, %s, %s, %s, %s)",
-                    (shard_node_row['id'], shard_node_row['port'], shard_node_row['shard_id'], 0, 0,
+            cur.execute("insert into pg_shard_node values(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                    (shard_node_row['id'], shard_node_row['port'], shard_node_row['shard_id'], 0, 0, 0, 0,
                      shard_node_row['user_name'], shard_node_row['hostaddr'], shard_node_row['passwd'], shard_node_row['when_created']))
             # update master_node_id to any node's id of the shard, it can't be 0 otherwise computing node won't be able to work.
             cur.execute("update pg_shard set master_node_id = %s where master_node_id = 0 and id=%s", (shard_node_row['id'], shard_node_row['shard_id']))

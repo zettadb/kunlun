@@ -3934,7 +3934,6 @@ PostgresMain(int argc, char *argv[],
 	if (!IsUnderPostmaster)
 		PgStartTime = GetCurrentTimestamp();
 
-	ShardCacheInit();
 	InitShardingSession();
 	g_runtime_env.username = username;
 	g_runtime_env.dbname = dbname;

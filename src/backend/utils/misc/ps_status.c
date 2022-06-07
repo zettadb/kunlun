@@ -32,6 +32,9 @@
 #include "utils/guc.h"
 
 extern char **environ;
+extern int PostPortNumber;
+extern char *cluster_name;
+
 bool		update_process_title = true;
 
 
@@ -306,8 +309,8 @@ init_ps_display(const char *username, const char *dbname,
 	else
 	{
 		snprintf(ps_buffer, ps_buffer_size,
-				 PROGRAM_NAME_PREFIX "%s: %s %s %s ",
-				 cluster_name, username, dbname, host_info);
+				 PROGRAM_NAME_PREFIX "%s-%u %s %s %s ",
+				 cluster_name, PostPortNumber, username, dbname, host_info);
 	}
 
 	ps_buffer_cur_len = ps_buffer_fixed_size = strlen(ps_buffer);

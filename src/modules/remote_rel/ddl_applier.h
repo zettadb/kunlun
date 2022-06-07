@@ -34,6 +34,6 @@ extern void notify_applier(void);
 /**
  * @brief The main loop of the ddl applier service
  */
-extern void ddl_applier_serivce_main(void);
+extern void ddl_applier_service_main(void);
 
 #endif

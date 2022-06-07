@@ -28,6 +28,7 @@
 #include "catalog/pg_type.h"
 #include "commands/dbcommands.h"
 #include "commands/sequence.h"
+#include "libpq/libpq-be.h"
 #include "miscadmin.h"
 #include "tcop/utility.h"
 #include "utils/guc.h"
@@ -36,6 +37,7 @@
 #include "utils/syscache.h"
 #include "utils/builtins.h"
 #include "utils/fmgroids.h"
+#include "utils/ps_status.h"
 #include "storage/ipc.h"
 
 #include "common.h"
@@ -542,6 +544,15 @@ assign_apply_ddl_log_mode(int newval, void *extra)
 	apply_ddl_log_mode = newval;
 	/* When data is restored to the new cluster, the shardid check is not needed */
 	pg_class_allow_dummy_shard = newval ? true : false;
+
+	/* reset ps */
+	if (MyProcPort)
+	{
+		init_ps_display(newval ? "ddl event apply worker" : MyProcPort->user_name,
+				MyProcPort->database_name,
+				MyProcPort->remote_host,
+				"idle");
+	}
 }
 
 static void
@@ -676,8 +687,8 @@ _PG_init(void)
 	log_applier_main.bgw_notify_pid = 0;
 	log_applier_main.bgw_main_arg = 0;
 	sprintf(log_applier_main.bgw_library_name, "remote_rel");
-	sprintf(log_applier_main.bgw_function_name, "ddl_applier_serivce_main");
-	snprintf(log_applier_main.bgw_name, BGW_MAXLEN, "ddl log event applier service");
+	sprintf(log_applier_main.bgw_function_name, "ddl_applier_service_main");
+	snprintf(log_applier_main.bgw_name, BGW_MAXLEN, "ddl event apply service");
 	snprintf(log_applier_main.bgw_type, BGW_MAXLEN, "ddl_log_applier");
 
 	RegisterBackgroundWorker(&log_applier_main);
@@ -691,8 +702,8 @@ _PG_init(void)
 	seq_handler_main.bgw_notify_pid = 0;
 	seq_handler_main.bgw_main_arg = 0;
 	sprintf(seq_handler_main.bgw_library_name, "remote_rel");
-	sprintf(seq_handler_main.bgw_function_name, "sequence_serivce_main");
-	snprintf(seq_handler_main.bgw_name, BGW_MAXLEN, "sequence fetch serivce");
+	sprintf(seq_handler_main.bgw_function_name, "sequence_service_main");
+	snprintf(seq_handler_main.bgw_name, BGW_MAXLEN, "sequence fetch service");
 	snprintf(seq_handler_main.bgw_type, BGW_MAXLEN, "seq_fetch_service");
 
 	RegisterBackgroundWorker(&seq_handler_main);

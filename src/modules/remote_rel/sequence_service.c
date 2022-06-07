@@ -818,7 +818,7 @@ copy_error_message(ErrorData *edata)
 		saved_emit_log_hook(edata);
 }
 
-void sequence_serivce_main()
+void sequence_service_main()
 {
 	int cnt;
 	static SeqFetchReq reqs[MAXSEQREQS];

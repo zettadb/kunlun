@@ -775,7 +775,7 @@ ddl_log_applier_siguser2(SIGNAL_ARGS)
 extern bool skip_top_level_check;
 
 /* applier main loop */
-void ddl_applier_serivce_main(void)
+void ddl_applier_service_main(void)
 {
 	pqsignal(SIGTERM, ddl_log_applier_sigterm);
 	pqsignal(SIGUSR2, ddl_log_applier_siguser2);

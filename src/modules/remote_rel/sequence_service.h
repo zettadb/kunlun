@@ -39,6 +39,6 @@ void remote_setval(Relation seqrel, int64_t next, bool iscalled);
 /**
  * @brief The main loop of the sequence serivce
  */
-void sequence_serivce_main(void);
+void sequence_service_main(void);
 
 #endif

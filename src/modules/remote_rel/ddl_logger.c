@@ -253,6 +253,92 @@ get_attrnum(Relation rel, const char *colname)
 	return InvalidAttrNumber;
 }
 
+/**
+ * @brief  Rewrite "alter table t add column c serial"
+ *  to
+ *  "alter table t add column c int";
+ *  "create sequence s1";
+ *  "alter sequence s1 owned by t.c";
+ *  "alter table t alter column c set default nextval('s1')"
+ */
+static void
+add_extra_for_serial_column(Relation rel, ColumnDef *column, StringInfo stmts)
+{
+	AttrNumber attrno = get_attrnum(rel, column->colname);
+	Assert(attrno != InvalidAttrNumber);
+
+	/* The corresponding sequence */
+	Oid seqid = getOwnedSequence(RelationGetRelid(rel), attrno);
+	Assert(seqid != InvalidOid);
+
+	Relation seqrel = relation_open(seqid, NoLock);
+	/* create sequence s1*/
+	{
+		appendStringInfo(stmts, "create sequence %s.%s start with 1 increment by 1 no minvalue no maxvalue cache 1 shard %u;",
+				 get_namespace_name(RelationGetNamespace(seqrel)),
+				 RelationGetRelationName(seqrel),
+				 seqrel->rd_rel->relshardid);
+	}
+	/* alter sequence owned */
+	{
+		appendStringInfo(stmts, "alter sequence %s.%s owned by %s.%s.%s;",
+				 get_namespace_name(RelationGetNamespace(seqrel)),
+				 RelationGetRelationName(seqrel),
+				 get_namespace_name(RelationGetNamespace(rel)),
+				 RelationGetRelationName(rel),
+				 column->colname);
+	}
+	/* set default */
+	{
+		appendStringInfo(stmts, "alter table %s.%s alter column %s set default nextval('%s.%s');",
+				 get_namespace_name(RelationGetNamespace(rel)),
+				 RelationGetRelationName(rel),
+				 column->colname,
+				 get_namespace_name(RelationGetNamespace(seqrel)),
+				 RelationGetRelationName(seqrel));
+	}
+	relation_close(seqrel, NoLock);
+}
+
+static const char*
+transform_serial_type(Relation rel, ColumnDef *column, const char *query, StringInfo stmts)
+{
+	char *typname = strVal(linitial(column->typeName->names));
+	int len = strlen(typname);
+	if (strcmp(typname, "smallserial") == 0 ||
+	    strcmp(typname, "serial2") == 0)
+	{
+		typname = "int2";
+	}
+	else if (strcmp(typname, "serial") == 0 ||
+		 strcmp(typname, "serial4") == 0)
+	{
+		typname = "int4";
+	}
+	else if (strcmp(typname, "bigserial") == 0 ||
+		 strcmp(typname, "serial8") == 0)
+	{
+		typname = "int8";
+	}
+	else
+	{
+		return query;
+	}
+	/* rewrite the original type with int2/4/8 */
+	int i = 0;
+	int offset = column->typeName->location;
+	char *sql = pstrdup(query);
+	for (; i < strlen(typname); ++i)
+		sql[offset++] = typname[i];
+
+	for (; i < len; ++i)
+		sql[offset++] = ' ';
+
+	add_extra_for_serial_column(rel, column, stmts);
+
+	return sql;
+}
+
 void log_alter_table(AlterTableStmt *stmt, const char *query)
 {
 	RangeVar *relvar = stmt->relation;
@@ -272,6 +358,9 @@ void log_alter_table(AlterTableStmt *stmt, const char *query)
 		ListCell *lc;
 		AttrNumber attrno;
 		Oid seqid;
+		StringInfoData extra_stmts;
+ 		initStringInfo(&extra_stmts);
+
 
 		foreach (lc, stmt->cmds)
 		{
@@ -283,6 +372,16 @@ void log_alter_table(AlterTableStmt *stmt, const char *query)
 				if (constraint->contype == CONSTR_IDENTITY)
 				{
 					subcmdlst = lcons(subcmd, subcmdlst);
+				}
+			}
+			else if (subcmd->subtype == AT_AddColumn)
+			{
+				ColumnDef *column = (ColumnDef *)subcmd->def;
+				if (column->typeName &&
+					list_length(column->typeName->names) == 1 &&
+					!column->typeName->pct_type)
+				{
+					query = transform_serial_type(rel, column, query, &extra_stmts);
 				}
 			}
 		}
@@ -356,6 +455,11 @@ void log_alter_table(AlterTableStmt *stmt, const char *query)
 
 				relation_close(seqrel, NoLock);
 			}
+		}
+
+		if (extra_stmts.len > 0)
+		{
+			query = psprintf("%s; %.*s", query, extra_stmts.len, extra_stmts.data);
 		}
 
 		log_ddl_add(DDL_OP_Type_alter,

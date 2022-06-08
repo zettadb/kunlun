@@ -391,6 +391,21 @@ read_seq_tuple_with_lock(Relation rel, Buffer *buf, HeapTuple seqdatatuple)
 	return seq;
 }
 
+static bool
+is_newly_created_seq(Relation seqrel)
+{
+	HeapTuple tuple = SearchSysCache1(RELOID, ObjectIdGetDatum(seqrel->rd_id));
+	if (HeapTupleIsValid(tuple))
+	{
+		TransactionId xmin = HeapTupleHeaderGetRawXmin(tuple->t_data);
+		ReleaseSysCache(tuple);
+		if (xmin == GetCurrentTransactionId())
+			return true;
+	}
+
+	return false;
+}
+
 int64_t remote_fetch_nextval(Relation seqrel)
 {
 	Page page;
@@ -470,6 +485,16 @@ int64_t remote_fetch_nextval(Relation seqrel)
 		{
 			UnlockReleaseBuffer(buf);
 			return val;
+		}
+
+		/* check  if the sequence is ready, in case of add column serial */
+		if (is_newly_created_seq(seqrel))
+		{
+			UnlockReleaseBuffer(buf);
+			ereport(WARNING,
+				(errmsg("Sequence cannot be used until transaction commits"),
+				 errhint("If you are adding a serial column, make sure the original table is empty, as the new column will not be initialized by the sequence")));
+			return 0;
 		}
 
 		// add new seq qrequest to req queue
@@ -873,8 +898,6 @@ void sequence_service_main()
 				AbortCurrentTransaction();
 
 			EmitErrorReport();
-			FlushErrorState();
-
 			/*
 			  dzw: as explained above, clear requested&cached seqs from dynahash.
 			  This IS quite necessary because this dynahash lives after this
@@ -893,6 +916,9 @@ void sequence_service_main()
 					strncpy(sse->message, rt_error_message, sizeof(sse->message));
 			}
 			LWLockRelease(seq_fetch_queue_lock);
+
+			FlushErrorState();
+
 		}
 		PG_END_TRY();
 

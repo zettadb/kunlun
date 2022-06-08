@@ -197,9 +197,9 @@ test: remote_opt
 test: alter_table2
 test: alter_table3
 test: sequence_noalter
-test: vars
 test: kunlun_alter_table
 test: kunlun_remote
 test: kunlun_remote_dml
 test: kunlun_sequence_noalter
 test: kunlun_vars
+test: insert_my

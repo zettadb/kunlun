@@ -1,0 +1,1080 @@
+drop table if exists t1;
+DROP TABLE
+
+create table t1(a int primary key, b serial) partition by hash(a);
+CREATE TABLE
+create table t100 partition of t1 for values with (modulus 4, remainder 0); 
+CREATE TABLE
+create table t101 partition of t1 for values with (modulus 4, remainder 1); 
+CREATE TABLE
+create table t102 partition of t1 for values with (modulus 4, remainder 2); 
+CREATE TABLE
+create table t103 partition of t1 for values with (modulus 4, remainder 3); 
+CREATE TABLE
+insert into t1 values(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
+INSERT 0 20
+select*from t1;
+ a  | b  
+----+----
+  1 |  1
+ 12 | 12
+ 14 | 14
+ 16 | 16
+ 17 | 17
+  3 |  3
+  5 |  5
+  8 |  8
+  9 |  9
+ 11 | 11
+ 19 | 19
+ 20 | 20
+  2 |  2
+ 13 | 13
+ 18 | 18
+  4 |  4
+  6 |  6
+  7 |  7
+ 10 | 10
+ 15 | 15
+(20 rows)
+
+select a from t1 where a between 3 and 11;
+ a  
+----
+  3
+  5
+  8
+  9
+ 11
+  4
+  6
+  7
+ 10
+(9 rows)
+
+select * from t1 where a in (3,7,11, 13);
+ a  | b  
+----+----
+  3 |  3
+ 11 | 11
+ 13 | 13
+  7 |  7
+(4 rows)
+
+update t1 set a=a+1 where a > 1 and a < 5;
+psql:sql/kunlun_remote_dml.sql:12: ERROR:  Kunlun-db: Can not update partition key of remote relation
+delete from t1 where a %5=0;
+DELETE 4
+select * from t1 where a %5=0;
+ a | b 
+---+---
+(0 rows)
+
+select*from t1;
+ a  | b  
+----+----
+  1 |  1
+ 12 | 12
+ 14 | 14
+ 16 | 16
+ 17 | 17
+  3 |  3
+  8 |  8
+  9 |  9
+ 11 | 11
+ 19 | 19
+  2 |  2
+ 13 | 13
+ 18 | 18
+  4 |  4
+  6 |  6
+  7 |  7
+(16 rows)
+
+
+start transaction;
+START TRANSACTION
+delete from t1 where a > 10;
+DELETE 8
+select*from t1;
+ a | b 
+---+---
+ 1 | 1
+ 3 | 3
+ 8 | 8
+ 9 | 9
+ 2 | 2
+ 4 | 4
+ 6 | 6
+ 7 | 7
+(8 rows)
+
+create table tfail(a int);
+psql:sql/kunlun_remote_dml.sql:20: ERROR:  relation "tfail" already exists
+delete from t1;
+psql:sql/kunlun_remote_dml.sql:21: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+select*from t1;
+psql:sql/kunlun_remote_dml.sql:22: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+commit;
+ROLLBACK
+
+start transaction;
+START TRANSACTION
+delete from t1;
+DELETE 16
+select*from t1;
+ a | b 
+---+---
+(0 rows)
+
+rollback;
+ROLLBACK
+select*from t1;
+ a  | b  
+----+----
+  1 |  1
+ 12 | 12
+ 14 | 14
+ 16 | 16
+ 17 | 17
+  3 |  3
+  8 |  8
+  9 |  9
+ 11 | 11
+ 19 | 19
+  2 |  2
+ 13 | 13
+ 18 | 18
+  4 |  4
+  6 |  6
+  7 |  7
+(16 rows)
+
+
+
+drop table if exists t5 cascade;
+DROP TABLE
+create table t5(a int primary key, b timestamptz default '2022-06-02 13:00:00+00', c varchar(32) default 'abc') partition by range(a);
+CREATE TABLE
+create table t501 partition of t5 for values from (MINVALUE) to (10);
+CREATE TABLE
+create table t502 partition of t5 for values from (10) to (20);
+CREATE TABLE
+create table t503 partition of t5 for values from (20) to (30);
+CREATE TABLE
+create table t504 partition of t5 for values from (30) to (MAXVALUE);
+CREATE TABLE
+insert into t5 values(-10),(0), (15),(40) returning *;
+  a  |           b            |  c  
+-----+------------------------+-----
+ -10 | 2022-06-02 21:00:00+08 | abc
+   0 | 2022-06-02 21:00:00+08 | abc
+  15 | 2022-06-02 21:00:00+08 | abc
+  40 | 2022-06-02 21:00:00+08 | abc
+(4 rows)
+
+INSERT 0 4
+insert into t5 values(-20),(10), (25),(400);
+INSERT 0 4
+
+PREPARE q1(int, int) AS SELECT * FROM t5 WHERE a between $1 and $2 order by 1;
+PREPARE
+
+EXECUTE q1(-100, 20);
+  a  |           b            |  c  
+-----+------------------------+-----
+ -20 | 2022-06-02 21:00:00+08 | abc
+ -10 | 2022-06-02 21:00:00+08 | abc
+   0 | 2022-06-02 21:00:00+08 | abc
+  10 | 2022-06-02 21:00:00+08 | abc
+  15 | 2022-06-02 21:00:00+08 | abc
+(5 rows)
+
+EXECUTE q1(0, 40);
+ a  |           b            |  c  
+----+------------------------+-----
+  0 | 2022-06-02 21:00:00+08 | abc
+ 10 | 2022-06-02 21:00:00+08 | abc
+ 15 | 2022-06-02 21:00:00+08 | abc
+ 25 | 2022-06-02 21:00:00+08 | abc
+ 40 | 2022-06-02 21:00:00+08 | abc
+(5 rows)
+
+
+
+PREPARE q2(int, int) AS SELECT * FROM t1 WHERE a between $1 and $2 order by 1;
+PREPARE
+
+EXECUTE q2(0, 10);
+ a | b 
+---+---
+ 1 | 1
+ 2 | 2
+ 3 | 3
+ 4 | 4
+ 6 | 6
+ 7 | 7
+ 8 | 8
+ 9 | 9
+(8 rows)
+
+EXECUTE q1(10, 30);
+ a  |           b            |  c  
+----+------------------------+-----
+ 10 | 2022-06-02 21:00:00+08 | abc
+ 15 | 2022-06-02 21:00:00+08 | abc
+ 25 | 2022-06-02 21:00:00+08 | abc
+(3 rows)
+
+EXECUTE q2(5, 40);
+ a  | b  
+----+----
+  6 |  6
+  7 |  7
+  8 |  8
+  9 |  9
+ 11 | 11
+ 12 | 12
+ 13 | 13
+ 14 | 14
+ 16 | 16
+ 17 | 17
+ 18 | 18
+ 19 | 19
+(12 rows)
+
+deallocate q1;
+DEALLOCATE
+
+drop table if exists t4 cascade;								
+DROP TABLE
+create table t4(a int primary key, b serial);
+CREATE TABLE
+insert into t4 values(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
+INSERT 0 20
+
+PREPARE q3(int, int) AS SELECT * FROM t4 WHERE a between $1 and $2;
+PREPARE
+
+
+EXECUTE q3(6, 16);
+ a  | b  
+----+----
+  6 |  6
+  7 |  7
+  8 |  8
+  9 |  9
+ 10 | 10
+ 11 | 11
+ 12 | 12
+ 13 | 13
+ 14 | 14
+ 15 | 15
+ 16 | 16
+(11 rows)
+
+
+EXECUTE q1(0, 30);
+psql:sql/kunlun_remote_dml.sql:63: ERROR:  prepared statement "q1" does not exist
+EXECUTE q2(5, 10);
+ a | b 
+---+---
+ 6 | 6
+ 7 | 7
+ 8 | 8
+ 9 | 9
+(4 rows)
+
+deallocate q2;
+DEALLOCATE
+
+PREPARE q4(int, int) as update t1 set b=$1 where a=$2;
+PREPARE
+select*from t1;
+ a  | b  
+----+----
+  1 |  1
+ 12 | 12
+ 14 | 14
+ 16 | 16
+ 17 | 17
+  3 |  3
+  8 |  8
+  9 |  9
+ 11 | 11
+ 19 | 19
+  2 |  2
+ 13 | 13
+ 18 | 18
+  4 |  4
+  6 |  6
+  7 |  7
+(16 rows)
+
+EXECUTE q4(10, 9);
+psql:sql/kunlun_remote_dml.sql:69: ERROR:  Kunlun-db: Can not update partition key of remote relation
+EXECUTE q3(0, 40);
+ a  | b  
+----+----
+  1 |  1
+  2 |  2
+  3 |  3
+  4 |  4
+  5 |  5
+  6 |  6
+  7 |  7
+  8 |  8
+  9 |  9
+ 10 | 10
+ 11 | 11
+ 12 | 12
+ 13 | 13
+ 14 | 14
+ 15 | 15
+ 16 | 16
+ 17 | 17
+ 18 | 18
+ 19 | 19
+ 20 | 20
+(20 rows)
+
+EXECUTE q4(11, 10);
+psql:sql/kunlun_remote_dml.sql:71: ERROR:  Kunlun-db: Can not update partition key of remote relation
+
+begin;
+BEGIN
+EXECUTE q4(14, 13);
+psql:sql/kunlun_remote_dml.sql:74: ERROR:  Kunlun-db: Can not update partition key of remote relation
+EXECUTE q4(12, 11);
+psql:sql/kunlun_remote_dml.sql:75: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+select*from t1 where a between 9 and 12;
+psql:sql/kunlun_remote_dml.sql:76: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+commit;
+ROLLBACK
+
+drop table t1;
+DROP TABLE
+drop table t4;
+DROP TABLE
+drop table t5;
+DROP TABLE
+
+-- bug 30
+drop table if exists uv_iocu_tab cascade;
+psql:sql/kunlun_remote_dml.sql:84: NOTICE:  drop cascades to view uv_iocu_view
+DROP TABLE
+create table uv_iocu_tab (a serial primary key, b varchar(50));
+CREATE TABLE
+insert into uv_iocu_tab (b) values('abc'),('bcd'),('xyz');
+INSERT 0 3
+create view uv_iocu_view as select b as bb, a as aa, uv_iocu_tab::varchar(50) as cc from uv_iocu_tab;
+CREATE VIEW
+select * from uv_iocu_view;
+ bb  | aa |   cc    
+-----+----+---------
+ abc |  1 | (1,abc)
+ bcd |  2 | (2,bcd)
+ xyz |  3 | (3,xyz)
+(3 rows)
+
+drop view uv_iocu_view;
+DROP VIEW
+create view uv_iocu_view as select a as aa, b as bb, uv_iocu_tab::varchar(50) as cc from uv_iocu_tab;
+CREATE VIEW
+select * from uv_iocu_view;
+ aa | bb  |   cc    
+----+-----+---------
+  1 | abc | (1,abc)
+  2 | bcd | (2,bcd)
+  3 | xyz | (3,xyz)
+(3 rows)
+
+
+
+-- bug 31
+drop table if exists base_tbl cascade;
+DROP TABLE
+CREATE TABLE base_tbl(id serial primary key, a float);
+CREATE TABLE
+INSERT INTO base_tbl (a) SELECT i/10.0 FROM generate_series(1,10) g(i);
+INSERT 0 10
+CREATE VIEW rw_view1 AS SELECT sin(a) s, a, cos(a) c FROM base_tbl WHERE a != 0 ORDER BY abs(a);
+CREATE VIEW
+select*from rw_view1;
+         s          |  a  |         c         
+--------------------+-----+-------------------
+ 0.0998334166468282 | 0.1 | 0.995004165278026
+  0.198669330795061 | 0.2 | 0.980066577841242
+   0.29552020666134 | 0.3 | 0.955336489125606
+  0.389418342308651 | 0.4 | 0.921060994002885
+  0.479425538604203 | 0.5 | 0.877582561890373
+  0.564642473395035 | 0.6 | 0.825335614909678
+  0.644217687237691 | 0.7 | 0.764842187284488
+  0.717356090899523 | 0.8 | 0.696706709347165
+  0.783326909627483 | 0.9 | 0.621609968270664
+  0.841470984807897 |   1 |  0.54030230586814
+(10 rows)
+
+drop view rw_view1;
+DROP VIEW
+CREATE VIEW rw_view1 AS SELECT sin(a) s, a, cos(a) c FROM base_tbl WHERE a != 0 ORDER BY abs(a);
+CREATE VIEW
+select*from rw_view1;
+         s          |  a  |         c         
+--------------------+-----+-------------------
+ 0.0998334166468282 | 0.1 | 0.995004165278026
+  0.198669330795061 | 0.2 | 0.980066577841242
+   0.29552020666134 | 0.3 | 0.955336489125606
+  0.389418342308651 | 0.4 | 0.921060994002885
+  0.479425538604203 | 0.5 | 0.877582561890373
+  0.564642473395035 | 0.6 | 0.825335614909678
+  0.644217687237691 | 0.7 | 0.764842187284488
+  0.717356090899523 | 0.8 | 0.696706709347165
+  0.783326909627483 | 0.9 | 0.621609968270664
+  0.841470984807897 |   1 |  0.54030230586814
+(10 rows)
+
+INSERT INTO rw_view1 (a) VALUES (1.1) RETURNING a, s, c;
+  a  |         s         |         c         
+-----+-------------------+-------------------
+ 1.1 | 0.891207360061435 | 0.453596121425577
+(1 row)
+
+INSERT 0 1
+select*from rw_view1;
+         s          |  a  |         c         
+--------------------+-----+-------------------
+ 0.0998334166468282 | 0.1 | 0.995004165278026
+  0.198669330795061 | 0.2 | 0.980066577841242
+   0.29552020666134 | 0.3 | 0.955336489125606
+  0.389418342308651 | 0.4 | 0.921060994002885
+  0.479425538604203 | 0.5 | 0.877582561890373
+  0.564642473395035 | 0.6 | 0.825335614909678
+  0.644217687237691 | 0.7 | 0.764842187284488
+  0.717356090899523 | 0.8 | 0.696706709347165
+  0.783326909627483 | 0.9 | 0.621609968270664
+  0.841470984807897 |   1 |  0.54030230586814
+  0.891207360061435 | 1.1 | 0.453596121425577
+(11 rows)
+
+
+-- bug 39
+drop table if exists SUBSELECT_TBL cascade;
+DROP TABLE
+CREATE TABLE SUBSELECT_TBL ( id serial primary key, f1 integer, f2 integer, f3 float );
+CREATE TABLE
+INSERT INTO SUBSELECT_TBL (f1, f2, f3) VALUES (1, 2, 3), (2, 3, 4), (3, 4, 5), (1, 1, 1), (2, 2, 2), (3, 3, 3), (6, 7, 8), (8, 9, NULL);
+INSERT 0 8
+SELECT f1 AS "Correlated Field", f2 AS "Second Field" FROM SUBSELECT_TBL upper WHERE f1 IN (SELECT f2 FROM SUBSELECT_TBL WHERE f1 = upper.f1);
+ Correlated Field | Second Field 
+------------------+--------------
+                1 |            2
+                2 |            3
+                3 |            4
+                1 |            1
+                2 |            2
+                3 |            3
+(6 rows)
+
+
+create temp table rngfunc(f1 int8, f2 int8);
+CREATE TABLE
+create function testrngfunc() returns record as $$
+
+    insert into rngfunc values (1,2) returning *;
+
+$$ language sql;
+CREATE FUNCTION
+select testrngfunc();
+ testrngfunc 
+-------------
+ (1,2)
+(1 row)
+
+select * from testrngfunc() as t(f1 int8,f2 int8);
+ f1 | f2 
+----+----
+  1 |  2
+(1 row)
+
+select * from testrngfunc() as t(f1 int8,f2 int8);
+ f1 | f2 
+----+----
+  1 |  2
+(1 row)
+
+
+-- bug 66 
+DROP TABLE if exists prt1 cascade;
+DROP TABLE
+DROP TABLE if exists prt2 cascade;
+DROP TABLE
+CREATE TABLE prt1 (a int primary key, b int, c varchar) PARTITION BY RANGE(a);
+CREATE TABLE
+CREATE TABLE prt1_p1 PARTITION OF prt1 FOR VALUES FROM (0) TO (250);
+CREATE TABLE
+CREATE TABLE prt1_p3 PARTITION OF prt1 FOR VALUES FROM (500) TO (600);
+CREATE TABLE
+CREATE TABLE prt1_p2 PARTITION OF prt1 FOR VALUES FROM (250) TO (500);
+CREATE TABLE
+INSERT INTO prt1 SELECT i, i % 25, to_char(i, 'FM0000') FROM generate_series(0, 599) i WHERE i % 2 = 0;
+INSERT 0 300
+CREATE TABLE prt2 (a int, b int primary key, c varchar) PARTITION BY RANGE(b);
+CREATE TABLE
+CREATE TABLE prt2_p1 PARTITION OF prt2 FOR VALUES FROM (0) TO (250);
+CREATE TABLE
+CREATE TABLE prt2_p2 PARTITION OF prt2 FOR VALUES FROM (250) TO (500);
+CREATE TABLE
+CREATE TABLE prt2_p3 PARTITION OF prt2 FOR VALUES FROM (500) TO (600);
+CREATE TABLE
+INSERT INTO prt2 SELECT i % 25, i, to_char(i, 'FM0000') FROM generate_series(0, 599) i WHERE i % 3 = 0;
+INSERT 0 200
+
+SELECT t1, t2 FROM prt1 t1 LEFT JOIN prt2 t2 ON t1.a = t2.b WHERE t1.b = 0 ORDER BY t1.a, t2.b;
+      t1      |      t2      
+--------------+--------------
+ (0,0,0000)   | (0,0,0000)
+ (50,0,0050)  | 
+ (100,0,0100) | 
+ (150,0,0150) | (0,150,0150)
+ (200,0,0200) | 
+ (250,0,0250) | 
+ (300,0,0300) | (0,300,0300)
+ (350,0,0350) | 
+ (400,0,0400) | 
+ (450,0,0450) | (0,450,0450)
+ (500,0,0500) | 
+ (550,0,0550) | 
+(12 rows)
+
+EXPLAIN(verbose)
+SELECT t1, t2 FROM prt1 t1 LEFT JOIN prt2 t2 ON t1.a = t2.b WHERE t1.b = 0 ORDER BY t1.a, t2.b;
+
+SELECT t1.a, t2.b FROM prt1 t1, prt2 t2 WHERE t1::text = t2::text AND t1.a = t2.b ORDER BY t1.a;
+ a  | b  
+----+----
+  0 |  0
+  6 |  6
+ 12 | 12
+ 18 | 18
+ 24 | 24
+(5 rows)
+
+EXPLAIN(verbose)
+SELECT t1.a, t2.b FROM prt1 t1, prt2 t2 WHERE t1::text = t2::text AND t1.a = t2.b ORDER BY t1.a;
+
+SELECT * FROM prt1 t1 LEFT JOIN  (SELECT t2.a AS t2a, t3.a AS t3a, least(t2.a,t3.b) FROM prt1 t2 JOIN prt2 t3 ON (t2.a = t3.b)) ss ON t1.a = ss.t2a WHERE t1.b = 0 ORDER BY t1.a;
+  a  | b |  c   | t2a | t3a | least 
+-----+---+------+-----+-----+-------
+   0 | 0 | 0000 |   0 |   0 |     0
+  50 | 0 | 0050 |     |     |      
+ 100 | 0 | 0100 |     |     |      
+ 150 | 0 | 0150 | 150 |   0 |   150
+ 200 | 0 | 0200 |     |     |      
+ 250 | 0 | 0250 |     |     |      
+ 300 | 0 | 0300 | 300 |   0 |   300
+ 350 | 0 | 0350 |     |     |      
+ 400 | 0 | 0400 |     |     |      
+ 450 | 0 | 0450 | 450 |   0 |   450
+ 500 | 0 | 0500 |     |     |      
+ 550 | 0 | 0550 |     |     |      
+(12 rows)
+
+EXPLAIN(verbose)
+SELECT * FROM prt1 t1 LEFT JOIN  (SELECT t2.a AS t2a, t3.a AS t3a, least(t2.a,t3.b) FROM prt1 t2 JOIN prt2 t3 ON (t2.a = t3.b)) ss ON t1.a = ss.t2a WHERE t1.b = 0 ORDER BY t1.a;
+
+SELECT * FROM prt1 t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t3.a AS t3a, least(t1.a,t2.a,t3.b) FROM prt1 t2 JOIN prt2 t3 ON (t2.a = t3.b)) ss ON t1.a = ss.t2a WHERE t1.b = 0 ORDER BY t1.a;
+  a  | b |  c   | t2a | t3a | least 
+-----+---+------+-----+-----+-------
+   0 | 0 | 0000 |   0 |   0 |     0
+  50 | 0 | 0050 |     |     |      
+ 100 | 0 | 0100 |     |     |      
+ 150 | 0 | 0150 | 150 |   0 |   150
+ 200 | 0 | 0200 |     |     |      
+ 250 | 0 | 0250 |     |     |      
+ 300 | 0 | 0300 | 300 |   0 |   300
+ 350 | 0 | 0350 |     |     |      
+ 400 | 0 | 0400 |     |     |      
+ 450 | 0 | 0450 | 450 |   0 |   450
+ 500 | 0 | 0500 |     |     |      
+ 550 | 0 | 0550 |     |     |      
+(12 rows)
+
+
+EXPLAIN(verbose)
+SELECT * FROM prt1 t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t3.a AS t3a, least(t1.a,t2.a,t3.b) FROM prt1 t2 JOIN prt2 t3 ON (t2.a = t3.b)) ss ON t1.a = ss.t2a WHERE t1.b = 0 ORDER BY t1.a;
+
+
+SET enable_partitionwise_join to true;
+SET
+SELECT t1, t2 FROM prt1 t1 LEFT JOIN prt2 t2 ON t1.a = t2.b WHERE t1.b = 0 ORDER BY t1.a, t2.b;
+      t1      |      t2      
+--------------+--------------
+ (0,0,0000)   | (0,0,0000)
+ (50,0,0050)  | 
+ (100,0,0100) | 
+ (150,0,0150) | (0,150,0150)
+ (200,0,0200) | 
+ (250,0,0250) | 
+ (300,0,0300) | (0,300,0300)
+ (350,0,0350) | 
+ (400,0,0400) | 
+ (450,0,0450) | (0,450,0450)
+ (500,0,0500) | 
+ (550,0,0550) | 
+(12 rows)
+
+EXPLAIN(verbose)
+SELECT t1, t2 FROM prt1 t1 LEFT JOIN prt2 t2 ON t1.a = t2.b WHERE t1.b = 0 ORDER BY t1.a, t2.b;
+
+SELECT t1.a, t2.b FROM prt1 t1, prt2 t2 WHERE t1::text = t2::text AND t1.a = t2.b ORDER BY t1.a;
+ a  | b  
+----+----
+  0 |  0
+  6 |  6
+ 12 | 12
+ 18 | 18
+ 24 | 24
+(5 rows)
+
+EXPLAIN(verbose)
+SELECT t1.a, t2.b FROM prt1 t1, prt2 t2 WHERE t1::text = t2::text AND t1.a = t2.b ORDER BY t1.a;
+
+SELECT * FROM prt1 t1 LEFT JOIN  (SELECT t2.a AS t2a, t3.a AS t3a, least(t2.a,t3.b) FROM prt1 t2 JOIN prt2 t3 ON (t2.a = t3.b)) ss ON t1.a = ss.t2a WHERE t1.b = 0 ORDER BY t1.a;
+  a  | b |  c   | t2a | t3a | least 
+-----+---+------+-----+-----+-------
+   0 | 0 | 0000 |   0 |   0 |     0
+  50 | 0 | 0050 |     |     |      
+ 100 | 0 | 0100 |     |     |      
+ 150 | 0 | 0150 | 150 |   0 |   150
+ 200 | 0 | 0200 |     |     |      
+ 250 | 0 | 0250 |     |     |      
+ 300 | 0 | 0300 | 300 |   0 |   300
+ 350 | 0 | 0350 |     |     |      
+ 400 | 0 | 0400 |     |     |      
+ 450 | 0 | 0450 | 450 |   0 |   450
+ 500 | 0 | 0500 |     |     |      
+ 550 | 0 | 0550 |     |     |      
+(12 rows)
+
+EXPLAIN(verbose)
+SELECT * FROM prt1 t1 LEFT JOIN  (SELECT t2.a AS t2a, t3.a AS t3a, least(t2.a,t3.b) FROM prt1 t2 JOIN prt2 t3 ON (t2.a = t3.b)) ss ON t1.a = ss.t2a WHERE t1.b = 0 ORDER BY t1.a;
+
+SELECT * FROM prt1 t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t3.a AS t3a, least(t1.a,t2.a,t3.b) FROM prt1 t2 JOIN prt2 t3 ON (t2.a = t3.b)) ss ON t1.a = ss.t2a WHERE t1.b = 0 ORDER BY t1.a;
+  a  | b |  c   | t2a | t3a | least 
+-----+---+------+-----+-----+-------
+   0 | 0 | 0000 |   0 |   0 |     0
+  50 | 0 | 0050 |     |     |      
+ 100 | 0 | 0100 |     |     |      
+ 150 | 0 | 0150 | 150 |   0 |   150
+ 200 | 0 | 0200 |     |     |      
+ 250 | 0 | 0250 |     |     |      
+ 300 | 0 | 0300 | 300 |   0 |   300
+ 350 | 0 | 0350 |     |     |      
+ 400 | 0 | 0400 |     |     |      
+ 450 | 0 | 0450 | 450 |   0 |   450
+ 500 | 0 | 0500 |     |     |      
+ 550 | 0 | 0550 |     |     |      
+(12 rows)
+
+
+EXPLAIN(verbose)
+SELECT * FROM prt1 t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t3.a AS t3a, least(t1.a,t2.a,t3.b) FROM prt1 t2 JOIN prt2 t3 ON (t2.a = t3.b)) ss ON t1.a = ss.t2a WHERE t1.b = 0 ORDER BY t1.a;
+
+
+
+-- bug 71
+DROP table if exists T;
+DROP TABLE
+CREATE TABLE T(pk INT NOT NULL PRIMARY KEY);
+CREATE TABLE
+INSERT INTO T VALUES (1);
+INSERT 0 1
+ALTER TABLE T ADD COLUMN c1 TIMESTAMP DEFAULT '2020-10-24 13:36:35+08';
+ALTER TABLE
+select*from T;
+ pk |         c1          
+----+---------------------
+  1 | 2020-10-24 13:36:35
+(1 row)
+
+insert into T values(2);
+INSERT 0 1
+select*from T;
+ pk |         c1          
+----+---------------------
+  1 | 2020-10-24 13:36:35
+  2 | 2020-10-24 13:36:35
+(2 rows)
+
+
+ CREATE OR REPLACE FUNCTION foo(a INT) RETURNS TEXT AS $$
+DECLARE res TEXT = 'xyz';
+
+    i INT;
+
+BEGIN
+
+    i = 0;
+    WHILE (i < a) LOOP
+
+        res = res || chr(ascii('a') + i);
+
+        i = i + 1;
+
+    END LOOP;
+    RETURN res;
+
+END; $$ LANGUAGE PLPGSQL STABLE;
+CREATE FUNCTION
+DROP table if exists T;
+DROP TABLE
+CREATE TABLE T(pk INT NOT NULL PRIMARY KEY, c_int INT DEFAULT LENGTH(foo(6)));
+CREATE TABLE
+INSERT INTO T VALUES (1), (2);
+INSERT 0 2
+select*from t;
+ pk | c_int 
+----+-------
+  1 |     9
+  2 |     9
+(2 rows)
+
+ALTER TABLE T ADD COLUMN c_bpchar BPCHAR(50) DEFAULT foo(4), ALTER COLUMN c_int SET DEFAULT LENGTH(foo(8));
+ALTER TABLE
+select*from t;
+ pk | c_int |                      c_bpchar                      
+----+-------+----------------------------------------------------
+  1 |     9 | xyzabcd                                           
+  2 |     9 | xyzabcd                                           
+(2 rows)
+
+
+
+
+-- bug 65
+drop table if exists itest13 cascade;
+DROP TABLE
+CREATE TABLE itest13 (a int primary key);
+CREATE TABLE
+ALTER TABLE itest13 ADD COLUMN b int GENERATED BY DEFAULT AS IDENTITY;
+ALTER TABLE
+INSERT INTO itest13 VALUES (1), (2), (3);
+INSERT 0 3
+SELECT * FROM itest13;
+ a | b 
+---+---
+ 1 | 1
+ 2 | 2
+ 3 | 3
+(3 rows)
+
+ALTER TABLE itest13 ADD COLUMN c int GENERATED BY DEFAULT AS IDENTITY;
+ALTER TABLE
+SELECT * FROM itest13;
+ a | b | c 
+---+---+---
+ 1 | 1 | 0
+ 2 | 2 | 0
+ 3 | 3 | 0
+(3 rows)
+
+
+drop table if exists itest6 cascade;
+DROP TABLE
+CREATE TABLE itest6 (a int GENERATED ALWAYS AS IDENTITY primary key, b text);
+CREATE TABLE
+INSERT INTO itest6 DEFAULT VALUES;
+INSERT 0 1
+ALTER TABLE itest6 ALTER COLUMN a SET GENERATED BY DEFAULT SET INCREMENT BY 2 SET START WITH 100 RESTART;
+ALTER TABLE
+SELECT * FROM itest6;
+ a | b 
+---+---
+ 1 | 
+(1 row)
+
+INSERT INTO itest6 DEFAULT VALUES;
+INSERT 0 1
+INSERT INTO itest6 DEFAULT VALUES;
+INSERT 0 1
+SELECT * FROM itest6;
+ a | b 
+---+---
+ 1 | 
+ 2 | 
+ 3 | 
+(3 rows)
+
+
+
+-- bug 68
+drop table  if exists t2 cascade;
+DROP TABLE
+create table t2(a int);
+CREATE TABLE
+create index on t2(a,a);
+psql:sql/kunlun_remote_dml.sql:224: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1060, Duplicate column name 'a'.
+
+
+-- bug 13
+SELECT SESSION_USER, CURRENT_USER;
+ session_user | current_user 
+--------------+--------------
+ abc          | abc
+(1 row)
+
+drop schema if exists testschema cascade;
+psql:sql/kunlun_remote_dml.sql:229: NOTICE:  schema "testschema" does not exist, skipping
+DROP SCHEMA
+CREATE SCHEMA if not exists testschema;
+CREATE SCHEMA
+SELECT SESSION_USER, CURRENT_USER;
+ session_user | current_user 
+--------------+--------------
+ abc          | abc
+(1 row)
+
+CREATE TABLE testschema.foo (i serial primary key, j serial);
+CREATE TABLE
+insert into testschema.foo default values;
+INSERT 0 1
+insert into testschema.foo default values;
+INSERT 0 1
+select*from  testschema.foo;
+ i | j 
+---+---
+ 1 | 1
+ 2 | 2
+(2 rows)
+
+create sequence testschema.seq1;
+CREATE SEQUENCE
+select testschema.seq1.nextval, nextval('testschema.seq1');
+ nextval | nextval 
+---------+---------
+       1 |       2
+(1 row)
+
+drop schema testschema cascade;
+psql:sql/kunlun_remote_dml.sql:238: NOTICE:  drop cascades to 2 other objects
+DETAIL:  drop cascades to table testschema.foo
+drop cascades to sequence testschema.seq1
+DROP SCHEMA
+
+-- bug 78
+-- create table b1(v box);
+
+-- bug 50 THIS BUG Is postponed
+create user user1;
+psql:sql/kunlun_remote_dml.sql:244: ERROR:  role "user1" already exists
+drop table if exists r1 cascade;
+DROP TABLE
+SET SESSION AUTHORIZATION user1;
+SET
+
+SET row_security = on;
+SET
+CREATE TABLE r1 (a int primary key);
+CREATE TABLE
+INSERT INTO r1 VALUES (10), (20);
+INSERT 0 2
+-- CREATE POLICY p1 ON r1 USING (false);
+-- ALTER TABLE r1 ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE r1 FORCE ROW LEVEL SECURITY;
+TABLE r1;
+ a  
+----
+ 10
+ 20
+(2 rows)
+
+INSERT INTO r1 VALUES (1);
+INSERT 0 1
+UPDATE r1 SET a = 1;
+psql:sql/kunlun_remote_dml.sql:256: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '1' for key 'r1.PRIMARY'.
+DELETE FROM r1;
+DELETE 3
+SET SESSION AUTHORIZATION abc;
+SET
+
+-- bug 84
+drop table if exists collate_test10 cascade;
+DROP TABLE
+ CREATE TABLE collate_test10 (
+
+    a int primary key,
+    x varchar(50) COLLATE "C",
+    y varchar(50) COLLATE "POSIX"
+
+);
+CREATE TABLE
+INSERT INTO collate_test10 VALUES (1, 'hij', 'hij'), (2, 'HIJ', 'HIJ');
+INSERT 0 2
+select x < y from collate_test10;
+ ?column? 
+----------
+ f
+ f
+(2 rows)
+
+
+drop table if exists collate_test1 cascade;
+DROP TABLE
+drop table if exists collate_test2 cascade;
+DROP TABLE
+CREATE TABLE collate_test1 (id serial primary key, a int, b varchar(50) COLLATE "C" NOT NULL);
+CREATE TABLE
+CREATE TABLE collate_test2 (id serial primary key,  a int, b varchar(50) COLLATE "POSIX" );
+CREATE TABLE
+INSERT INTO collate_test1 (a,b) VALUES (1, 'abc'), (2, 'Abc'), (3, 'bbc'), (4, 'ABD');
+INSERT 0 4
+INSERT INTO collate_test2 (a,b) SELECT a,b FROM collate_test1;
+INSERT 0 4
+SELECT a, b FROM collate_test2 WHERE a < 4 INTERSECT SELECT a, b FROM collate_test2 WHERE a > 1 ORDER BY 2;
+ a |  b  
+---+-----
+ 2 | Abc
+ 3 | bbc
+(2 rows)
+
+
+
+-- bug 114
+drop table if exists update_test cascade;
+DROP TABLE
+CREATE TABLE update_test (a INT DEFAULT 10, b INT, c TEXT);
+CREATE TABLE
+INSERT INTO update_test VALUES (5, 10, 'foo');
+INSERT 0 1
+INSERT INTO update_test(b, a) VALUES (15, 10);
+INSERT 0 1
+UPDATE update_test t SET (a, b) = (SELECT b, a FROM update_test s WHERE s.a = t.a) WHERE CURRENT_USER = SESSION_USER;
+psql:sql/kunlun_remote_dml.sql:286: ERROR:  In kunlun-db unable to serialize value expression of target column a in update statement UPDATE update_test t SET (a, b) = (SELECT b, a FROM update_test s WHERE s.a = t.a) WHERE CURRENT_USER = SESSION_USER;.
+
+-- bug 121
+drop table if exists indext1 cascade;
+DROP TABLE
+create table indext1(id integer);
+CREATE TABLE
+ALTER TABLE indext1 ADD CONSTRAINT oindext1_id_constraint UNIQUE (id);
+ALTER TABLE
+ALTER TABLE indext1 DROP CONSTRAINT oindext1_id_constraint;
+ALTER TABLE
+
+CREATE TABLE part1 (a serial primary key, b int, c varchar(32), unique (b,a)) PARTITION BY LIST (a);
+CREATE TABLE
+create index part1_b_c2 on part1(b,c);
+CREATE INDEX
+create table part1_0 partition of part1 for values in (1,2,3,4);
+CREATE TABLE
+
+insert into part1 (b,c) values(11, 'abc'),(12,'bcd'),(13,'cde');
+INSERT 0 3
+select*from part1;
+ a | b  |  c  
+---+----+-----
+ 1 | 11 | abc
+ 2 | 12 | bcd
+ 3 | 13 | cde
+(3 rows)
+
+ALTER TABLE part1 ADD CONSTRAINT opart1_c_constraint UNIQUE (c,a);
+ALTER TABLE
+create table part1_1 partition of part1 for values in (5,6,7,8);
+CREATE TABLE
+insert into part1 (b,c) values(14, 'def'),(15,'efg'),(16,'fgh');
+INSERT 0 3
+alter table part1 add column d int not null;
+ALTER TABLE
+select*from part1;
+ a | b  |  c  | d 
+---+----+-----+---
+ 1 | 11 | abc | 0
+ 2 | 12 | bcd | 0
+ 3 | 13 | cde | 0
+ 4 | 14 | def | 0
+ 5 | 15 | efg | 0
+ 6 | 16 | fgh | 0
+(6 rows)
+
+create table part1_2 partition of part1 for values in (9,10,11,12);
+CREATE TABLE
+insert into part1 (b,c,d) values(17, 'ghi', 21),(18,'hij',22),(19,'ijk',23);
+INSERT 0 3
+select*from part1;
+ a | b  |  c  | d  
+---+----+-----+----
+ 1 | 11 | abc |  0
+ 2 | 12 | bcd |  0
+ 3 | 13 | cde |  0
+ 4 | 14 | def |  0
+ 5 | 15 | efg |  0
+ 6 | 16 | fgh |  0
+ 7 | 17 | ghi | 21
+ 8 | 18 | hij | 22
+ 9 | 19 | ijk | 23
+(9 rows)
+
+ALTER TABLE part1 ADD CONSTRAINT opart1_b_constraint UNIQUE (b,a);
+ALTER TABLE
+create table part1_3 partition of part1 for values in (13,14,15,16);
+CREATE TABLE
+insert into part1 (b,c,d) values(20, 'jkl', 24),(21,'klm',25),(22,'lmn',26);
+INSERT 0 3
+ALTER TABLE part1 ADD CONSTRAINT opart1_d_constraint UNIQUE (d,a);
+ALTER TABLE
+ALTER TABLE part1 DROP CONSTRAINT opart1_c_constraint;
+ALTER TABLE
+ALTER TABLE part1 DROP CONSTRAINT opart1_d_constraint;
+ALTER TABLE
+ALTER TABLE part1 DROP CONSTRAINT opart1_b_constraint;
+ALTER TABLE
+drop index part1_b_c2;
+DROP INDEX
+drop table part1 cascade;
+DROP TABLE
+
+
+-- bug 94
+ drop table if exists FLOAT4_TBL cascade;
+DROP TABLE
+CREATE TABLE FLOAT4_TBL (f1 float4);
+CREATE TABLE
+INSERT INTO FLOAT4_TBL(f1) VALUES (' 0.0');
+INSERT 0 1
+INSERT INTO FLOAT4_TBL(f1) VALUES ('1004.30 ');
+INSERT 0 1
+INSERT INTO FLOAT4_TBL(f1) VALUES (' -34.84 ');
+INSERT 0 1
+INSERT INTO FLOAT4_TBL(f1) VALUES ('1.2345678901234e+20');
+INSERT 0 1
+INSERT INTO FLOAT4_TBL(f1) VALUES ('1.2345678901234e-20');
+INSERT 0 1
+select f1 from float4_tbl;
+     f1      
+-------------
+           0
+      1004.3
+      -34.84
+ 1.23457e+20
+ 1.23457e-20
+(5 rows)
+
+SELECT f.* FROM FLOAT4_TBL f WHERE f.f1 = 1004.3;
+   f1   
+--------
+ 1004.3
+(1 row)
+
+SELECT f.* FROM FLOAT4_TBL f WHERE f.f1 <> '1004.3';
+     f1      
+-------------
+           0
+      -34.84
+ 1.23457e+20
+ 1.23457e-20
+(4 rows)
+
+
+

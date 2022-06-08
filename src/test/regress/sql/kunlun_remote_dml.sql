@@ -29,7 +29,7 @@ rollback;
 select*from t1;
 
 
-
+drop table if exists t5 cascade;
 create table t5(a int primary key, b timestamptz default '2022-06-02 13:00:00+00', c varchar(32) default 'abc') partition by range(a);
 create table t501 partition of t5 for values from (MINVALUE) to (10);
 create table t502 partition of t5 for values from (10) to (20);

@@ -206,14 +206,14 @@ EXECUTE q3(10, 40);
 begin;
 EXECUTE q4(12, 11);
 select*from t1 where a between 9 and 12;
-select*from t5 ;
+select*from t5 order by 1;
 
 EXECUTE q5('xyz', 3, 'def');
 EXECUTE q5('XYZ', 4, 'abc');
 commit;
 
 EXECUTE q5('MNO', 5, 'abc');
-select*from t5 where a%7=3 or a%7=4 or a%7=5;
+select*from t5 where a%7=3 or a%7=4 or a%7=5 order by 1;
 EXECUTE q5('qps', 11, 'XYZ');
 deallocate q4;
 deallocate q5;

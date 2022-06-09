@@ -2,6 +2,11 @@
 drop table if exists t4 cascade;
 drop table if exists t5 cascade;
 drop table if exists t6 cascade;
+drop table if exists t301;
+drop table if exists t302;
+drop table if exists t303;
+drop table if exists t304;
+drop table if exists t3 cascade;
 
 create table t4(a int primary key, b int unique) with oids;
 create table t4(a int primary key, b int unique, c varchar(32) not null);

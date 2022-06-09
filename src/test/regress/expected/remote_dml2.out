@@ -2166,25 +2166,25 @@ EXECUTE pq1(-4, 4);
 PREPARE pq2(int) AS update t1 set v1=v1+$1;
 PREPARE
 EXECUTE pq2(1);
-UPDATE 0
+UPDATE 2
 select*from t1;
   v1  
 ------
- 2.10
- 3.20
+ 3.10
+ 4.20
 (2 rows)
 
 PREPARE pq3(float) AS update t1 set v1=v1+$1;
 PREPARE
 EXECUTE pq3(2.0);
-UPDATE 0
+UPDATE 2
 PREPARE pq4(float, float) AS SELECT * FROM t1 WHERE v1 between $1 and $2;
 PREPARE
 EXECUTE pq4(-8.0, 8.0);
   v1  
 ------
- 2.10
- 3.20
+ 5.10
+ 6.20
 (2 rows)
 
 -- bug 190
@@ -2213,7 +2213,14 @@ INSERT 0 1
 insert into t4 values (+92233720368547758.07);
 INSERT 0 1
 select*from t4;
-psql:sql/remote_dml2.sql:1025: ERROR:  value "92233720368547758.08000000" is out of range for type money
+              a              
+-----------------------------
+                     $999.00
+                   $1,000.00
+ -$92,233,720,368,547,758.08
+  $92,233,720,368,547,758.07
+(4 rows)
+
 insert into t4 values (-92233720368547758.09); -- bigint out of range
 psql:sql/remote_dml2.sql:1026: ERROR:  bigint out of range
 insert into t4 values (+92233720368547758.08); -- bigint out of range
@@ -2221,7 +2228,15 @@ psql:sql/remote_dml2.sql:1027: ERROR:  bigint out of range
 insert into t4 values (-1111);
 INSERT 0 1
 select*from t4;
-psql:sql/remote_dml2.sql:1030: ERROR:  value "92233720368547758.08000000" is out of range for type money
+              a              
+-----------------------------
+                     $999.00
+                   $1,000.00
+ -$92,233,720,368,547,758.08
+  $92,233,720,368,547,758.07
+                  -$1,111.00
+(5 rows)
+
 -- bug 94
  drop table if exists FLOAT4_TBL cascade;
 psql:sql/remote_dml2.sql:1033: NOTICE:  table "float4_tbl" does not exist, skipping

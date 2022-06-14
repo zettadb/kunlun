@@ -1354,11 +1354,10 @@ UPDATE rw_view3 SET s = s; -- should fail
 psql:sql/updatable_views.sql:583: ERROR:  cannot update column "s" of view "rw_view1"
 DETAIL:  View columns that are not columns of their base relation are not updatable.
 DELETE FROM rw_view3 WHERE s = sin(0.1); -- should be OK
-DELETE 0
+DELETE 1
 SELECT * FROM base_tbl ORDER BY a;
   a  
 -----
- 0.1
  0.2
  0.3
  0.4
@@ -1368,7 +1367,7 @@ SELECT * FROM base_tbl ORDER BY a;
  0.8
  0.9
    1
-(10 rows)
+(9 rows)
 
 SELECT table_name, is_insertable_into
   FROM information_schema.tables

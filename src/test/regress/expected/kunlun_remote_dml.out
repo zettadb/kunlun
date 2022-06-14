@@ -312,7 +312,7 @@ select*from t1;
 (16 rows)
 
 EXECUTE q4(10, 9);
-psql:sql/kunlun_remote_dml.sql:69: ERROR:  Kunlun-db: Can not update partition key of remote relation
+UPDATE 1
 EXECUTE q3(0, 40);
  a  | b  
 ----+----
@@ -339,18 +339,24 @@ EXECUTE q3(0, 40);
 (20 rows)
 
 EXECUTE q4(11, 10);
-psql:sql/kunlun_remote_dml.sql:71: ERROR:  Kunlun-db: Can not update partition key of remote relation
+UPDATE 0
 
 begin;
 BEGIN
 EXECUTE q4(14, 13);
-psql:sql/kunlun_remote_dml.sql:74: ERROR:  Kunlun-db: Can not update partition key of remote relation
+UPDATE 1
 EXECUTE q4(12, 11);
-psql:sql/kunlun_remote_dml.sql:75: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+UPDATE 1
 select*from t1 where a between 9 and 12;
-psql:sql/kunlun_remote_dml.sql:76: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+ a  | b  
+----+----
+ 12 | 12
+  9 | 10
+ 11 | 12
+(3 rows)
+
 commit;
-ROLLBACK
+COMMIT
 
 drop table t1;
 DROP TABLE
@@ -1071,10 +1077,11 @@ SELECT f.* FROM FLOAT4_TBL f WHERE f.f1 <> '1004.3';
      f1      
 -------------
            0
+      1004.3
       -34.84
  1.23457e+20
  1.23457e-20
-(4 rows)
+(5 rows)
 
 
 

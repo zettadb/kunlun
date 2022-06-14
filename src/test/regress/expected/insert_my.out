@@ -7,6 +7,7 @@
 -- insert ignore
 -- https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html#ignore-effect-on-execution
 drop table if exists t1;
+psql:sql/insert_my.sql:9: NOTICE:  table "t1" does not exist, skipping
 DROP TABLE
 create table t1 (a int PRIMARY KEY , b int not null,CONSTRAINT t1_b_key UNIQUE (b));
 CREATE TABLE
@@ -27,7 +28,7 @@ INSERT 0 0
 -- 不忽略违背约束的错误（例如分区约束、非null约束）
 
 insert ignore into t1(a,b) values (4,NULL); --error
-psql:insert_my.sql:23: ERROR:  null value in column "b" violates not-null constraint
+psql:sql/insert_my.sql:23: ERROR:  null value in column "b" violates not-null constraint
 DETAIL:  Failing row contains (4, null).
 
 -- insert on duplicate key update
@@ -63,7 +64,7 @@ select * from t1;
 
 -- 明确指定约束名，且表中存在多个唯一约束时，则报错
 insert into t1 values(3,3) on conflict on constraint t1_pkey do update set b=3; --error
-psql:insert_my.sql:37: ERROR:  In KunlunDB, the unique constraint referenced by the ON CONFLICT clause needs to be null when there are multiple unique constraints.
+psql:sql/insert_my.sql:37: ERROR:  In KunlunDB, the unique constraint referenced by the ON CONFLICT clause needs to be null when there are multiple unique constraints.
 HINT:  In kunlunDB, do not specify conflict target in ON CONFLICT.
 
 
@@ -107,24 +108,23 @@ select * from t1;
 --- 临时表存放于计算节点。由于PG不允许在一条SQL中对同一个元组更新多次，
 -- 因此如果与"当前sql"中先插入的元组冲突，则报错。
 
-create temp table t3(a int primary key, b int unique);
+create temp table t6(a int primary key, b int unique);
 CREATE TABLE
 
-replace into t3 values(1,1),(1,2);
-psql:insert_my.sql:60: ERROR:  REPLACE INTO command cannot affect row a second time
+replace into t6 values(1,1),(1,2);
+psql:sql/insert_my.sql:60: ERROR:  REPLACE INTO command cannot affect row a second time
 HINT:  Ensure that no rows proposed for insertion within the same command have duplicate constrained values.
 
-
+drop table t6;
+DROP TABLE
 
 -- support mysql insert syntax: update/delete limit #581
-drop table if exists t3p1;
+
+drop table if exists t3 cascade;
 DROP TABLE
-drop table if exists t3p2;
-DROP TABLE
-drop table if exists t3 ;
-DROP TABLE
+
 CREATE TABLE t3 (A INT PRIMARY KEY, B INT) PARTITION BY RANGE(a);
-psql:insert_my.sql:68: ERROR:  relation "t3" already exists
+CREATE TABLE
 CREATE TABLE t3p1 PARTITION OF t3 FOR VALUES FROM (0) TO (100);
 CREATE TABLE
 CREATE TABLE t3p2 PARTITION OF t3 FOR VALUES FROM (100) TO (200);
@@ -134,7 +134,7 @@ INSERT 0 602
 
 -- 分区表暂不支持全局有序的删除
 UPDATE t3 SET b=-b ORDER BY a LIMIT 1; -- should be fail, global order is not supported
-psql:insert_my.sql:74: ERROR:  Kunlun-db: Cannot push down sort
+psql:sql/insert_my.sql:74: ERROR:  Kunlun-db: Cannot push down sort
 
 
 -- 支持不跨越分区的有序删除
@@ -147,7 +147,7 @@ UPDATE t3 SET b=-b WHERE a<100 ORDER BY a LIMIT 1 RETURNING *;
 UPDATE 1
 
 WITH foo as (UPDATE t3 SET b=-b WHERE b > 0 LIMIT 10 RETURNING *) SELECT count(1) FROM foo;
-psql:insert_my.sql:80: ERROR:  Kunlun-db: Shard (0) not found.
+psql:sql/insert_my.sql:80: ERROR:  Kunlun-db: Shard (0) not found.
 
 
 SELECT count(1) FROM t3 where b<0;

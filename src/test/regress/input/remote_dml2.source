@@ -978,21 +978,22 @@ explain (verbose, costs off)
         right join int4_tbl i2 on i2.f1 = b.tenthous
         order by 1;
 
-set enable_nestloop=false;
+set enable_nestloop =off;
     select b.unique1 from
         tenk1 a join tenk1 b on a.unique1 = b.unique2
         left join tenk1 c on b.unique1 = 42 and c.thousand = a.thousand
         join int4_tbl i1 on b.thousand = f1
         right join int4_tbl i2 on i2.f1 = b.tenthous
         order by 1;
+set enable_nestloop =on;
 
-set enable_nestloop=false;
+set enable_nestloop =off;
     select b.unique1 from
         tenk1 a join tenk1 b on a.unique1 = b.unique2
         join int4_tbl i1 on b.thousand = f1
         right join int4_tbl i2 on i2.f1 = b.tenthous
         order by 1;
-
+set enable_nestloop =on;
 --set enable_remote_join_pushdown = false;
 explain (costs off)
     select b.unique1 from
@@ -1009,20 +1010,22 @@ explain (costs off)
         right join int4_tbl i2 on i2.f1 = b.tenthous
         order by 1;
 
-set enable_nestloop=false;
+set enable_nestloop =off;
     select b.unique1 from
         tenk1 a join tenk1 b on a.unique1 = b.unique2
         left join tenk1 c on b.unique1 = 42 and c.thousand = a.thousand
         join int4_tbl i1 on b.thousand = f1
         right join int4_tbl i2 on i2.f1 = b.tenthous
         order by 1;
+set enable_nestloop =on;
 
-set enable_nestloop=false;
+set enable_nestloop =off;
     select b.unique1 from
         tenk1 a join tenk1 b on a.unique1 = b.unique2
         join int4_tbl i1 on b.thousand = f1
         right join int4_tbl i2 on i2.f1 = b.tenthous
         order by 1;
+set enable_nestloop =on;
 -- below portion is fixed, above portion not yet. TODO
 --DDL_STATEMENT_BEGIN--
  drop table if exists mlparted cascade;
@@ -1710,13 +1713,13 @@ INSERT INTO prt2_e SELECT i, i, i % 25 FROM generate_series(0, 599, 3) i;
 set enable_hashjoin=false;
 set enable_mergejoin=false;
 set enable_nestloop=true;
-SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x ORDER BY 1, 2, 3;
+SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x;
 EXPLAIN (verbose, COSTS OFF)
-SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x ORDER BY 1, 2, 3;
+SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x;
 
-SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.y HAVING avg(t1.x) > 10 ORDER BY 1, 2, 3;
+SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.y HAVING avg(t1.x) > 10;
 EXPLAIN (verbose, COSTS OFF)
-SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.y HAVING avg(t1.x) > 10 ORDER BY 1, 2, 3;
+SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.y HAVING avg(t1.x) > 10;
 
 SELECT b.y, sum(a.y) FROM pagg_tab1 a LEFT JOIN pagg_tab2 b ON a.x = b.y GROUP BY b.y ORDER BY 1 NULLS LAST;
 EXPLAIN (verbose, COSTS OFF)
@@ -1752,7 +1755,7 @@ SELECT t1.* FROM prt1 t1 WHERE t1.a IN (SELECT t1.b FROM prt2 t1, prt1_e t2 WHER
 
 set enable_hashjoin=true;
 set enable_mergejoin=false;
-set enable_nestloop=false;
+set enable_nestloop =off;
 SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x ORDER BY 1, 2, 3;
 EXPLAIN (verbose, COSTS OFF)
 SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x ORDER BY 1, 2, 3;
@@ -1793,11 +1796,12 @@ SELECT t1.* FROM prt1 t1 WHERE t1.a IN (SELECT t1.b FROM prt2 t1, prt1_e t2 WHER
 EXPLAIN (verbose, COSTS OFF)
 SELECT t1.* FROM prt1 t1 WHERE t1.a IN (SELECT t1.b FROM prt2 t1, prt1_e t2 WHERE t1.a = 0 AND t1.b = (t2.a + t2.b)/2) AND t1.b = 0 ORDER BY t1.a;
 
+set enable_nestloop =on;
 
 
 set enable_hashjoin=false;
 set enable_mergejoin=true;
-set enable_nestloop=false;
+set enable_nestloop =off;
 SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x ORDER BY 1, 2, 3;
 EXPLAIN (verbose, COSTS OFF)
 SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x ORDER BY 1, 2, 3;
@@ -1837,7 +1841,7 @@ SELECT t1.a, t1.c, t2.b, t2.c, t3.a + t3.b, t3.c FROM (prt1 t1 LEFT JOIN prt2 t2
 SELECT t1.* FROM prt1 t1 WHERE t1.a IN (SELECT t1.b FROM prt2 t1, prt1_e t2 WHERE t1.a = 0 AND t1.b = (t2.a + t2.b)/2) AND t1.b = 0 ORDER BY t1.a;
 EXPLAIN (verbose, COSTS OFF)
 SELECT t1.* FROM prt1 t1 WHERE t1.a IN (SELECT t1.b FROM prt2 t1, prt1_e t2 WHERE t1.a = 0 AND t1.b = (t2.a + t2.b)/2) AND t1.b = 0 ORDER BY t1.a;
-
+set enable_nestloop =on;
 -- bug 226 Wrong Assert causing failure when an expression target is pushed down
 --DDL_STATEMENT_BEGIN--
 DROP TABLE if exists SUBSELECT_TBL cascade;

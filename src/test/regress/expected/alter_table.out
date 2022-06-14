@@ -1841,13 +1841,13 @@ DETAIL:  System catalog modifications are currently disallowed.
 CREATE TABLE new_system_table(id serial primary key, othercol text);
 CREATE TABLE
 ALTER TABLE new_system_table SET SCHEMA pg_catalog;
-psql:sql/alter_table.sql:964: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1049, Unknown database 'regress_$$_pg_catalog'.
+ALTER TABLE
 -- XXX: it's currently impossible to move relations out of pg_catalog
 ALTER TABLE new_system_table SET SCHEMA public;
-ALTER TABLE
+psql:sql/alter_table.sql:967: ERROR:  cannot remove dependency on schema pg_catalog because it is a system object
 -- move back, will be ignored -- already there
 ALTER TABLE new_system_table SET SCHEMA pg_catalog;
-psql:sql/alter_table.sql:969: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1049, Unknown database 'regress_$$_pg_catalog'.
+ALTER TABLE
 ALTER TABLE new_system_table RENAME TO old_system_table;
 ALTER TABLE
 INSERT INTO old_system_table(othercol) VALUES ('somedata'), ('otherdata');

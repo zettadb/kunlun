@@ -381,7 +381,7 @@ ALTER SEQUENCE
 SELECT nextval('sequence_test2');
  nextval 
 ---------
-      36
+      32
 (1 row)
 
 ALTER SEQUENCE sequence_test2 RESTART WITH 0;  -- error

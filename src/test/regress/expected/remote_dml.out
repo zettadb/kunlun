@@ -368,7 +368,7 @@ select*from t1;
 (0 rows)
 
 EXECUTE q4(10, 9);
-psql:sql/remote_dml.sql:107: ERROR:  Kunlun-db: Can not update partition key of remote relation
+UPDATE 0
 EXECUTE q3(0, 40);
  a  | b  
 ----+----
@@ -395,7 +395,7 @@ EXECUTE q3(0, 40);
 (20 rows)
 
 EXECUTE q4(11, 10);
-psql:sql/remote_dml.sql:109: ERROR:  Kunlun-db: Can not update partition key of remote relation
+UPDATE 0
 prepare q6(int) as insert into t5 values($1);
 PREPARE
 EXECUTE q6(1);
@@ -407,11 +407,11 @@ BEGIN
 EXECUTE q6(12);
 INSERT 0 1
 EXECUTE q4(14, 13);
-psql:sql/remote_dml.sql:117: ERROR:  Kunlun-db: Can not update partition key of remote relation
+UPDATE 0
 EXECUTE q6(13);
-psql:sql/remote_dml.sql:118: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+INSERT 0 1
 commit;
-ROLLBACK
+COMMIT
 EXECUTE q6(21);
 INSERT 0 1
 EXECUTE q6(22);
@@ -433,6 +433,8 @@ select*from t5 order by 1;
    1 | 2022-06-01 16:00:00+08 | abc
    2 | 2022-06-01 16:00:00+08 | abc
   10 | 2022-06-01 16:00:00+08 | abc
+  12 | 2022-06-01 16:00:00+08 | abc
+  13 | 2022-06-01 16:00:00+08 | abc
   15 | 2022-06-01 16:00:00+08 | abc
   21 | 2022-06-01 16:00:00+08 | abc
   22 | 2022-06-01 16:00:00+08 | abc
@@ -442,7 +444,7 @@ select*from t5 order by 1;
   33 | 2022-06-01 16:00:00+08 | abc
   40 | 2022-06-01 16:00:00+08 | abc
  400 | 2022-06-01 16:00:00+08 | abc
-(15 rows)
+(17 rows)
 
 commit;
 COMMIT
@@ -451,13 +453,13 @@ PREPARE
 begin;
 BEGIN
 EXECUTE q5('def', 3, 'abc');
-psql:sql/remote_dml.sql:134: ERROR:  Kunlun-db: Can not update partition key of remote relation
+UPDATE 2
 EXECUTE q6(3);
-psql:sql/remote_dml.sql:136: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+INSERT 0 1
 EXECUTE q6(4);
-psql:sql/remote_dml.sql:137: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+INSERT 0 1
 commit;
-ROLLBACK
+COMMIT
 EXECUTE q6(11);
 INSERT 0 1
 EXECUTE q6(32);
@@ -494,33 +496,63 @@ psql:sql/remote_dml.sql:144: ERROR:  prepared statement "q3" does not exist
 begin;
 BEGIN
 EXECUTE q4(12, 11);
-psql:sql/remote_dml.sql:147: ERROR:  Kunlun-db: Can not update partition key of remote relation
+UPDATE 0
 select*from t1 where a between 9 and 12;
-psql:sql/remote_dml.sql:148: ERROR:  current transaction is aborted, commands ignored until end of transaction block
-select*from t5 ;
-psql:sql/remote_dml.sql:149: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+ a | b 
+---+---
+(0 rows)
+
+select*from t5 order by 1;
+  a  |           b            |  c  
+-----+------------------------+-----
+ -20 | 2022-06-01 16:00:00+08 | abc
+ -10 | 2022-06-01 16:00:00+08 | abc
+   0 | 2022-06-01 16:00:00+08 | abc
+   1 | 2022-06-01 16:00:00+08 | abc
+   2 | 2022-06-01 16:00:00+08 | abc
+   3 | 2022-06-01 16:00:00+08 | abc
+   4 | 2022-06-01 16:00:00+08 | abc
+  10 | 2022-06-01 16:00:00+08 | def
+  11 | 2022-06-01 16:00:00+08 | abc
+  12 | 2022-06-01 16:00:00+08 | abc
+  13 | 2022-06-01 16:00:00+08 | abc
+  15 | 2022-06-01 16:00:00+08 | abc
+  21 | 2022-06-01 16:00:00+08 | abc
+  22 | 2022-06-01 16:00:00+08 | abc
+  23 | 2022-06-01 16:00:00+08 | abc
+  25 | 2022-06-01 16:00:00+08 | abc
+  31 | 2022-06-01 16:00:00+08 | def
+  32 | 2022-06-01 16:00:00+08 | abc
+  33 | 2022-06-01 16:00:00+08 | abc
+  40 | 2022-06-01 16:00:00+08 | abc
+ 400 | 2022-06-01 16:00:00+08 | abc
+(21 rows)
+
 EXECUTE q5('xyz', 3, 'def');
-psql:sql/remote_dml.sql:151: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+UPDATE 2
 EXECUTE q5('XYZ', 4, 'abc');
-psql:sql/remote_dml.sql:152: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+UPDATE 4
 commit;
-ROLLBACK
+COMMIT
 EXECUTE q5('MNO', 5, 'abc');
-psql:sql/remote_dml.sql:155: ERROR:  Kunlun-db: Can not update partition key of remote relation
-select*from t5 where a%7=3 or a%7=4 or a%7=5;
+UPDATE 3
+select*from t5 where a%7=3 or a%7=4 or a%7=5 order by 1;
  a  |           b            |  c  
 ----+------------------------+-----
- 10 | 2022-06-01 16:00:00+08 | abc
- 11 | 2022-06-01 16:00:00+08 | abc
- 25 | 2022-06-01 16:00:00+08 | abc
- 31 | 2022-06-01 16:00:00+08 | abc
- 32 | 2022-06-01 16:00:00+08 | abc
- 33 | 2022-06-01 16:00:00+08 | abc
- 40 | 2022-06-01 16:00:00+08 | abc
-(7 rows)
+  3 | 2022-06-01 16:00:00+08 | abc
+  4 | 2022-06-01 16:00:00+08 | XYZ
+ 10 | 2022-06-01 16:00:00+08 | xyz
+ 11 | 2022-06-01 16:00:00+08 | XYZ
+ 12 | 2022-06-01 16:00:00+08 | MNO
+ 25 | 2022-06-01 16:00:00+08 | XYZ
+ 31 | 2022-06-01 16:00:00+08 | xyz
+ 32 | 2022-06-01 16:00:00+08 | XYZ
+ 33 | 2022-06-01 16:00:00+08 | MNO
+ 40 | 2022-06-01 16:00:00+08 | MNO
+(10 rows)
 
 EXECUTE q5('qps', 11, 'XYZ');
-psql:sql/remote_dml.sql:157: ERROR:  Kunlun-db: Can not update partition key of remote relation
+UPDATE 0
 deallocate q4;
 DEALLOCATE
 deallocate q5;

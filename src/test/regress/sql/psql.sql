@@ -126,7 +126,7 @@ order by attnum
 -- (though the fetch limit applies to the executed queries not the meta query)
 \set FETCH_COUNT 1
 
-select 'select 1 as ones', 'select x.y, x.y*2 as double from generate_series(1,4) as x(y)'
+select 'select 1 as ones', 'select x.y, x.y*2 as "double" from generate_series(1,4) as x(y)'
 union all
 select 'drop table gexec_test', NULL
 union all

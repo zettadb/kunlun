@@ -242,9 +242,14 @@ select 1 as ones
 (1 row)
 
 select x.y, x.y*2 as double from generate_series(1,4) as x(y)
-psql:sql/psql.sql:130: ERROR:  syntax error at or near "double"
-LINE 2: select x.y, x.y*2 as double from generate_series(1,4) as x(y...
-                             ^
+ y | double 
+---+--------
+ 1 |      2
+ 2 |      4
+ 3 |      6
+ 4 |      8
+(4 rows)
+
 drop table gexec_test
 DROP TABLE
 drop table gexec_test

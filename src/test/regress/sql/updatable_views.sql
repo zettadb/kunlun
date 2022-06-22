@@ -77,7 +77,7 @@ CREATE VIEW ro_view20 AS SELECT a, b, generate_series(1, a) g FROM base_tbl; -- 
 --DDL_STATEMENT_END--
 
 SELECT table_name, is_insertable_into
-  FROM information_schema.tables
+  FROM information_schema."tables"
  WHERE table_name LIKE E'r_\\_view%'
  ORDER BY table_name;
 

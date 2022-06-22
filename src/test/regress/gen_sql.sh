@@ -2,7 +2,7 @@
 
 basedir="$1"
 
-for input in constraints copy create_function_1 create_function_2 misc aggregates remote_dml2 select select_distinct select_distinct_on union; do
+for input in constraints copy create_function_1 create_function_2 misc aggregates remote_dml2 select select_distinct select_distinct_on union join; do
 	source_name="$input.source"
 	sed -e "s!@abs_srcdir@!$basedir!g" \
 	    -e "s!@abs_builddir@!$basedir!g" \

@@ -355,7 +355,7 @@ insert into price values (1,false,42), (10,false,100), (11,true,17.99);
 --    FROM unnest(ARRAY[(10, 123.00), (11, 99.99)]::price_input[]) input_prices
 --    WHERE price_key_from_table(price.*) = price_key_from_input(input_prices.*);
 
-select * from price;
+select id,active,price::NUMERIC(65) from price;
 
 rollback;
 

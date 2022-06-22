@@ -9,6 +9,7 @@ show local variables like '%lock%';
  innodb_lock_wait_timeout                | 20
  innodb_old_blocks_pct                   | 37
  innodb_old_blocks_time                  | 1000
+ innodb_page_hash_locks                  | 16
  innodb_print_all_deadlocks              | ON
  innodb_print_lock_wait_timeout_info     | OFF
  innodb_show_locks_held                  | 10
@@ -40,7 +41,7 @@ show local variables like '%lock%';
  range_alloc_block_size                  | 4096
  skip_external_locking                   | ON
  transaction_alloc_block_size            | 8192
-(39 rows)
+(40 rows)
 
 -- strict: only show variables that can be modified&cached in computing node
 show variables like '%lock%' strict;
@@ -63,6 +64,7 @@ show global variables like '%lock%';
  innodb_lock_wait_timeout                | 20
  innodb_old_blocks_pct                   | 37
  innodb_old_blocks_time                  | 1000
+ innodb_page_hash_locks                  | 16
  innodb_print_all_deadlocks              | ON
  innodb_print_lock_wait_timeout_info     | OFF
  innodb_show_locks_held                  | 10
@@ -94,7 +96,7 @@ show global variables like '%lock%';
  range_alloc_block_size                  | 4096
  skip_external_locking                   | ON
  transaction_alloc_block_size            | 8192
-(39 rows)
+(40 rows)
 
 show global variables like '%lock%' strict;
       Variable_name       | Value 
@@ -386,10 +388,14 @@ CREATE TABLE
 insert into tt values(1,1),(2,2),(3,3),(4,4);
 INSERT 0 4
 set session debug='+d,crash_before_flush_binlog';
-psql:sql/kunlun_vars.sql:96: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1193, Unknown system variable 'debug'.
+SET
 -- connection breaks
 update tt set b=b+1;
-UPDATE 4
+psql:sql/kunlun_vars.sql:98: WARNING:  Error(512) doing 1st phase prepare of transaction 1-1655857663-11947, will abort it.
+psql:sql/kunlun_vars.sql:98: ERROR:  Kunlun-db: Connection with MySQL storage node (1, 1) is gone: 2013, Lost connection to MySQL server during query. Resend the statement.
+DETAIL:  Disconnected all connections to MySQL storage nodes.
+ERROR:  Kunlun-db: Connection with MySQL storage node (1, 1) is gone: 2013, Lost connection to MySQL server during query. Resend the statement.
+DETAIL:  Disconnected all connections to MySQL storage nodes.
 -- cached value (innodb_lock_wait_timeout=5) should be set.
 -- manual test also show that the var cache&restore feature works alright. -- dzw
 select pg_sleep(3);
@@ -399,14 +405,7 @@ select pg_sleep(3);
 (1 row)
 
 select*from tt;
- a | b 
----+---
- 1 | 2
- 2 | 3
- 3 | 4
- 4 | 5
-(4 rows)
-
+psql:sql/kunlun_vars.sql:102: ERROR:  Kunlun-db: Failed to connect to mysql storage node at (192.168.0.128, 16011): 2002, Can't connect to MySQL server on '192.168.0.128' (111)
 select pg_sleep(5);
  pg_sleep 
 ----------
@@ -416,10 +415,10 @@ select pg_sleep(5);
 select*from tt;
  a | b 
 ---+---
- 1 | 2
- 2 | 3
- 3 | 4
- 4 | 5
+ 1 | 1
+ 2 | 2
+ 3 | 3
+ 4 | 4
 (4 rows)
 
 select pg_sleep(7);
@@ -431,10 +430,10 @@ select pg_sleep(7);
 select*from tt;
  a | b 
 ---+---
- 1 | 2
- 2 | 3
- 3 | 4
- 4 | 5
+ 1 | 1
+ 2 | 2
+ 3 | 3
+ 4 | 4
 (4 rows)
 
 show innodb_lock_wait_timeout;
@@ -450,15 +449,36 @@ show local variables like 'innodb_lock_wait_timeout';
 (1 row)
 
 show variables like 'debug';
-psql:sql/kunlun_vars.sql:109: ERROR:  Can not get value for SESSION variables 'debug': no result.
+ Variable_name |            Value            
+---------------+-----------------------------
+ debug         | d,crash_before_flush_binlog
+(1 row)
+
 show session variables like '%debug%';
-          Variable_name          | Value 
----------------------------------+-------
- lock_order_debug_loop           | OFF
- lock_order_debug_missing_arc    | OFF
- lock_order_debug_missing_key    | OFF
- lock_order_debug_missing_unlock | OFF
-(4 rows)
+              Variable_name              |            Value            
+-----------------------------------------+-----------------------------
+ debug                                   | d,crash_before_flush_binlog
+ debug_sync                              | OFF
+ innodb_buffer_pool_debug                | OFF
+ innodb_change_buffering_debug           | 0
+ innodb_compress_debug                   | none
+ innodb_ddl_log_crash_reset_debug        | OFF
+ innodb_dict_stats_disabled_debug        | OFF
+ innodb_fil_make_page_dirty_debug        | 4294967295
+ innodb_limit_optimistic_insert_debug    | 0
+ innodb_master_thread_disabled_debug     | OFF
+ innodb_merge_threshold_set_all_debug    | 50
+ innodb_page_cleaner_disabled_debug      | OFF
+ innodb_saved_page_number_debug          | 0
+ innodb_semaphore_wait_timeout_debug     | 600
+ innodb_sync_debug                       | OFF
+ innodb_trx_purge_view_update_only_debug | OFF
+ innodb_trx_rseg_n_slots_debug           | 0
+ lock_order_debug_loop                   | OFF
+ lock_order_debug_missing_arc            | OFF
+ lock_order_debug_missing_key            | OFF
+ lock_order_debug_missing_unlock         | OFF
+(21 rows)
 
 show global variables like 'innodb_lock_wait_timeout' strict;
       Variable_name       | Value 
@@ -481,6 +501,7 @@ show variables;
  admin_ssl_key                                            | 
  admin_tls_ciphersuites                                   | 
  admin_tls_version                                        | TLSv1,TLSv1.1,TLSv1.2,TLSv1.3
+ all_channels_fullsync                                    | OFF
  auto_generate_certs                                      | ON
  auto_increment_increment                                 | 1
  auto_increment_offset                                    | 1
@@ -518,7 +539,7 @@ show variables;
  binlog_transaction_compression                           | OFF
  binlog_transaction_compression_level_zstd                | 3
  binlog_transaction_dependency_history_size               | 1000000
- binlog_transaction_dependency_tracking                   | WRITESET_SESSION
+ binlog_transaction_dependency_tracking                   | COMMIT_ORDER
  block_encryption_mode                                    | aes-128-ecb
  bulk_insert_buffer_size                                  | 8388608
  caching_sha2_password_auto_generate_rsa_keys             | ON
@@ -548,6 +569,8 @@ show variables;
  cte_max_recursion_depth                                  | 1000
  datadir                                                  | /home/kunlun/onesharddata/data1/dbdata_raw/data/
  ddc_mode                                                 | 1
+ debug                                                    | d,crash_before_flush_binlog
+ debug_sync                                               | OFF
  default_authentication_plugin                            | mysql_native_password
  default_collation_for_utf8mb4                            | utf8mb4_0900_ai_ci
  default_password_lifetime                                | 0
@@ -559,7 +582,7 @@ show variables;
  delayed_insert_limit                                     | 100
  delayed_insert_timeout                                   | 300
  delayed_queue_size                                       | 1000
- disable_fullsync_on_slave_ack_timeout                    | ON
+ disable_fullsync_on_slave_ack_timeout                    | OFF
  disabled_storage_engines                                 | MyISAM,BLACKHOLE,FEDERATED,ARCHIVE,MEMORY
  disconnect_on_expired_password                           | ON
  disconnect_on_net_write_timeout                          | ON
@@ -598,7 +621,7 @@ show variables;
  global_conn_id                                           | 0
  group_concat_max_len                                     | 1024
  group_replication_consistency                            | EVENTUAL
- gtid_executed                                            | 0bfa6154-e5ea-11ec-8ba3-fc3497a73395:1-6235
+ gtid_executed                                            | 42c837a3-f1ba-11ec-9e83-fc3497a73395:1-7457
  gtid_executed_compression_period                         | 0
  gtid_mode                                                | ON
  gtid_next                                                | AUTOMATIC
@@ -639,14 +662,18 @@ show variables;
  innodb_api_trx_level                                     | 0
  innodb_autoextend_increment                              | 64
  innodb_autoinc_lock_mode                                 | 2
+ innodb_background_drop_list_empty                        | OFF
  innodb_background_scrub_data_check_interval              | 3600
  innodb_background_scrub_data_compressed                  | OFF
  innodb_background_scrub_data_interval                    | 604800
  innodb_background_scrub_data_uncompressed                | OFF
+ innodb_buf_flush_list_now                                | OFF
  innodb_buffer_pool_chunk_size                            | 33554432
+ innodb_buffer_pool_debug                                 | OFF
  innodb_buffer_pool_dump_at_shutdown                      | OFF
  innodb_buffer_pool_dump_now                              | OFF
  innodb_buffer_pool_dump_pct                              | 25
+ innodb_buffer_pool_evict                                 | 
  innodb_buffer_pool_filename                              | ib_buffer_pool
  innodb_buffer_pool_in_core_file                          | ON
  innodb_buffer_pool_instances                             | 64
@@ -656,10 +683,15 @@ show variables;
  innodb_buffer_pool_size                                  | 2147483648
  innodb_change_buffer_max_size                            | 25
  innodb_change_buffering                                  | all
+ innodb_change_buffering_debug                            | 0
+ innodb_checkpoint_disabled                               | OFF
  innodb_checksum_algorithm                                | crc32
  innodb_cleaner_lsn_age_factor                            | high_checkpoint
+ innodb_cleaner_max_flush_time                            | 1000
+ innodb_cleaner_max_lru_time                              | 1000
  innodb_cmp_per_index_enabled                             | OFF
  innodb_commit_concurrency                                | 0
+ innodb_compress_debug                                    | none
  innodb_compressed_columns_threshold                      | 96
  innodb_compressed_columns_zip_level                      | 6
  innodb_compression_failure_threshold_pct                 | 5
@@ -669,11 +701,14 @@ show variables;
  innodb_corrupt_table_action                              | assert
  innodb_data_file_path                                    | ibdata1:2G:autoextend
  innodb_data_home_dir                                     | /home/kunlun/onesharddata/data1/dbdata_raw/dbdata
+ innodb_ddl_log_crash_reset_debug                         | OFF
  innodb_deadlock_detect                                   | ON
  innodb_dedicated_server                                  | OFF
  innodb_default_encryption_key_id                         | 0
  innodb_default_row_format                                | dynamic
+ innodb_dict_stats_disabled_debug                         | OFF
  innodb_directories                                       | 
+ innodb_disable_background_merge                          | OFF
  innodb_disable_sort_file_cache                           | OFF
  innodb_doublewrite                                       | ON
  innodb_doublewrite_batch_size                            | 0
@@ -687,6 +722,7 @@ show variables;
  innodb_encryption_threads                                | 0
  innodb_extend_and_initialize                             | ON
  innodb_fast_shutdown                                     | 1
+ innodb_fil_make_page_dirty_debug                         | 4294967295
  innodb_file_per_table                                    | ON
  innodb_fill_factor                                       | 70
  innodb_flush_log_at_timeout                              | 1
@@ -698,6 +734,7 @@ show variables;
  innodb_force_index_records_in_range                      | 0
  innodb_force_load_corrupted                              | OFF
  innodb_force_recovery                                    | 0
+ innodb_force_recovery_crash                              | 0
  innodb_fsync_threshold                                   | 0
  innodb_ft_aux_table                                      | 
  innodb_ft_cache_size                                     | 8000000
@@ -714,14 +751,20 @@ show variables;
  innodb_ft_user_stopword_table                            | 
  innodb_idle_flush_pct                                    | 100
  innodb_immediate_scrub_data_uncompressed                 | OFF
+ innodb_interpreter                                       | init
+ innodb_interpreter_output                                | The Default Value
  innodb_io_capacity                                       | 10000
  innodb_io_capacity_max                                   | 20000
+ innodb_limit_optimistic_insert_debug                     | 0
  innodb_lock_wait_timeout                                 | 3
  innodb_log_buffer_size                                   | 268435456
+ innodb_log_checkpoint_fuzzy_now                          | OFF
+ innodb_log_checkpoint_now                                | OFF
  innodb_log_checksums                                     | ON
  innodb_log_compressed_pages                              | OFF
  innodb_log_file_size                                     | 1073741824
  innodb_log_files_in_group                                | 2
+ innodb_log_flush_now                                     | OFF
  innodb_log_group_home_dir                                | /home/kunlun/onesharddata/data1/dblogs/arch
  innodb_log_spin_cpu_abs_lwm                              | 80
  innodb_log_spin_cpu_pct_hwm                              | 50
@@ -729,6 +772,7 @@ show variables;
  innodb_log_write_ahead_size                              | 8192
  innodb_log_writer_threads                                | ON
  innodb_lru_scan_depth                                    | 1024
+ innodb_master_thread_disabled_debug                      | OFF
  innodb_max_bitmap_file_size                              | 104857600
  innodb_max_changed_pages                                 | 1000000
  innodb_max_dirty_pages_pct                               | 70.000000
@@ -736,6 +780,7 @@ show variables;
  innodb_max_purge_lag                                     | 500000
  innodb_max_purge_lag_delay                               | 0
  innodb_max_undo_log_size                                 | 1073741824
+ innodb_merge_threshold_set_all_debug                     | 50
  innodb_monitor_disable                                   | 
  innodb_monitor_enable                                    | 
  innodb_monitor_reset                                     | 
@@ -745,7 +790,9 @@ show variables;
  innodb_online_alter_log_max_size                         | 134217728
  innodb_open_files                                        | 10240
  innodb_optimize_fulltext_only                            | OFF
+ innodb_page_cleaner_disabled_debug                       | OFF
  innodb_page_cleaners                                     | 4
+ innodb_page_hash_locks                                   | 16
  innodb_page_size                                         | 16384
  innodb_parallel_dblwr_encrypt                            | OFF
  innodb_parallel_doublewrite_path                         | xb_doublewrite
@@ -753,8 +800,12 @@ show variables;
  innodb_print_all_deadlocks                               | ON
  innodb_print_ddl_logs                                    | OFF
  innodb_print_lock_wait_timeout_info                      | OFF
+ innodb_priority_master                                   | OFF
+ innodb_priority_purge                                    | OFF
  innodb_purge_batch_size                                  | 1000
  innodb_purge_rseg_truncate_frequency                     | 128
+ innodb_purge_run_now                                     | OFF
+ innodb_purge_stop_now                                    | OFF
  innodb_purge_threads                                     | 16
  innodb_random_read_ahead                                 | OFF
  innodb_read_ahead_threshold                              | 56
@@ -767,9 +818,14 @@ show variables;
  innodb_report_concur_waits_interval                      | 3
  innodb_rollback_on_timeout                               | OFF
  innodb_rollback_segments                                 | 128
+ innodb_saved_page_number_debug                           | 0
+ innodb_sched_priority_io                                 | 19
+ innodb_sched_priority_master                             | 19
+ innodb_sched_priority_purge                              | 19
  innodb_scrub_log                                         | OFF
  innodb_scrub_log_speed                                   | 256
  innodb_segment_reserve_factor                            | 12.500000
+ innodb_semaphore_wait_timeout_debug                      | 600
  innodb_show_locks_held                                   | 10
  innodb_sleep_wait_for_free_block                         | 100
  innodb_sort_buffer_size                                  | 1048576
@@ -786,6 +842,7 @@ show variables;
  innodb_status_output_locks                               | OFF
  innodb_strict_mode                                       | OFF
  innodb_sync_array_size                                   | 1024
+ innodb_sync_debug                                        | OFF
  innodb_sync_spin_loops                                   | 30
  innodb_sys_tablespace_encrypt                            | OFF
  innodb_table_locks                                       | ON
@@ -796,6 +853,9 @@ show variables;
  innodb_thread_sleep_delay                                | 0
  innodb_tmpdir                                            | 
  innodb_track_changed_pages                               | OFF
+ innodb_track_redo_log_now                                | OFF
+ innodb_trx_purge_view_update_only_debug                  | OFF
+ innodb_trx_rseg_n_slots_debug                            | 0
  innodb_undo_directory                                    | ./
  innodb_undo_log_encrypt                                  | OFF
  innodb_undo_log_truncate                                 | ON
@@ -899,6 +959,7 @@ show variables;
  max_user_connections                                     | 0
  max_write_lock_count                                     | 18446744073709551615
  min_examined_row_limit                                   | 0
+ multi_purpose_int                                        | 0
  my_thread_handling                                       | 2
  myisam_data_pointer_size                                 | 6
  myisam_max_sort_file_size                                | 9223372036853727232
@@ -948,7 +1009,7 @@ show variables;
  offline_mode                                             | OFF
  old                                                      | OFF
  old_alter_table                                          | OFF
- open_files_limit                                         | 300000
+ open_files_limit                                         | 200000
  optimizer_prune_level                                    | 1
  optimizer_search_depth                                   | 62
  optimizer_switch                                         | index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on,favor_range_scan=off
@@ -1025,8 +1086,9 @@ show variables;
  proxy_user                                               | 
  pseudo_replica_mode                                      | OFF
  pseudo_slave_mode                                        | OFF
- pseudo_thread_id                                         | 180
+ pseudo_thread_id                                         | 9
  query_alloc_block_size                                   | 16384
+ query_exec_time                                          | 0.000000
  query_prealloc_size                                      | 24576
  rand_seed1                                               | 0
  rand_seed2                                               | 0
@@ -1081,14 +1143,15 @@ show variables;
  select_into_buffer_size                                  | 131072
  select_into_disk_sync                                    | OFF
  select_into_disk_sync_delay                              | 0
- server_id                                                | 3827
+ server_id                                                | 1
  server_id_bits                                           | 32
- server_uuid                                              | 0bfa6154-e5ea-11ec-8ba3-fc3497a73395
+ server_uuid                                              | 42c837a3-f1ba-11ec-9e83-fc3497a73395
  session_track_gtids                                      | OFF
  session_track_schema                                     | ON
  session_track_state_change                               | OFF
  session_track_system_variables                           | time_zone,autocommit,character_set_client,character_set_results,character_set_connection
  session_track_transaction_info                           | OFF
+ set_readonly_on_fullsync_timeout                         | OFF
  sha256_password_auto_generate_rsa_keys                   | ON
  sha256_password_private_key_path                         | private_key.pem
  sha256_password_proxy_users                              | OFF
@@ -1188,7 +1251,7 @@ show variables;
  thread_stack                                             | 196608
  thread_statistics                                        | OFF
  time_zone                                                | SYSTEM
- timestamp                                                | 1654557743.116385
+ timestamp                                                | 1655857678.909267
  tls_ciphersuites                                         | 
  tls_version                                              | TLSv1,TLSv1.1,TLSv1.2,TLSv1.3
  tmp_table_size                                           | 33554432
@@ -1204,16 +1267,17 @@ show variables;
  updatable_views_with_limit                               | YES
  use_secondary_engine                                     | ON
  userstat                                                 | OFF
- version                                                  | 8.0.26-16-kunlun-storage
+ version                                                  | 8.0.26-16-kunlun-storage-debug
  version_comment                                          | Source distribution
  version_compile_machine                                  | x86_64
  version_compile_os                                       | Linux
  version_compile_zlib                                     | 1.2.11
- version_suffix                                           | -kunlun-storage
+ version_suffix                                           | -kunlun-storage-debug
  wait_timeout                                             | 28800
  warning_count                                            | 0
  windowing_use_high_precision                             | ON
-(744 rows)
+ xa_prep_cop_binlog_last                                  | 1
+(788 rows)
 
 show variables strict;
            Variable_name           |                                                                                                                                                                                                                                                                                               Value                                                                                                                                                                                                                                                                                               
@@ -1235,6 +1299,8 @@ show variables strict;
  collation_server                  | utf8mb4_0900_ai_ci
  completion_type                   | NO_CHAIN
  cte_max_recursion_depth           | 1000
+ debug                             | d,crash_before_flush_binlog
+ debug_sync                        | OFF
  default_collation_for_utf8mb4     | utf8mb4_0900_ai_ci
  default_week_format               | 0
  end_markers_in_json               | OFF
@@ -1293,7 +1359,7 @@ show variables strict;
  parser_max_mem_size               | 18446744073709551615
  profiling_history_size            | 15
  pseudo_slave_mode                 | OFF
- pseudo_thread_id                  | 180
+ pseudo_thread_id                  | 9
  query_alloc_block_size            | 16384
  query_prealloc_size               | 24576
  range_alloc_block_size            | 4096
@@ -1306,10 +1372,13 @@ show variables strict;
  session_track_transaction_info    | OFF
  show_create_table_verbosity       | OFF
  show_old_temporals                | OFF
+ slow_query_log                    | ON
  sql_log_bin                       | ON
+ sql_mode                          | STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
  sql_require_primary_key           | OFF
  ssl_fips_mode                     | OFF
  time_zone                         | SYSTEM
+ timestamp                         | 1655857678.915699
  tmp_table_size                    | 33554432
  transaction_isolation             | READ-COMMITTED
  transaction_read_only             | OFF
@@ -1317,7 +1386,7 @@ show variables strict;
  updatable_views_with_limit        | YES
  use_secondary_engine              | ON
  windowing_use_high_precision      | ON
-(99 rows)
+(104 rows)
 
 show global variables;
                       Variable_name                       |                                                                                                                                                                                                                                                                                               Value                                                                                                                                                                                                                                                                                               
@@ -1334,6 +1403,7 @@ show global variables;
  admin_ssl_key                                            | 
  admin_tls_ciphersuites                                   | 
  admin_tls_version                                        | TLSv1,TLSv1.1,TLSv1.2,TLSv1.3
+ all_channels_fullsync                                    | OFF
  auto_generate_certs                                      | ON
  auto_increment_increment                                 | 1
  auto_increment_offset                                    | 1
@@ -1371,7 +1441,7 @@ show global variables;
  binlog_transaction_compression                           | OFF
  binlog_transaction_compression_level_zstd                | 3
  binlog_transaction_dependency_history_size               | 1000000
- binlog_transaction_dependency_tracking                   | WRITESET_SESSION
+ binlog_transaction_dependency_tracking                   | COMMIT_ORDER
  block_encryption_mode                                    | aes-128-ecb
  bulk_insert_buffer_size                                  | 8388608
  caching_sha2_password_auto_generate_rsa_keys             | ON
@@ -1400,6 +1470,7 @@ show global variables;
  cte_max_recursion_depth                                  | 1000
  datadir                                                  | /home/kunlun/onesharddata/data1/dbdata_raw/data/
  ddc_mode                                                 | 1
+ debug                                                    | 
  default_authentication_plugin                            | mysql_native_password
  default_collation_for_utf8mb4                            | utf8mb4_0900_ai_ci
  default_password_lifetime                                | 0
@@ -1411,7 +1482,7 @@ show global variables;
  delayed_insert_limit                                     | 100
  delayed_insert_timeout                                   | 300
  delayed_queue_size                                       | 1000
- disable_fullsync_on_slave_ack_timeout                    | ON
+ disable_fullsync_on_slave_ack_timeout                    | OFF
  disabled_storage_engines                                 | MyISAM,BLACKHOLE,FEDERATED,ARCHIVE,MEMORY
  disconnect_on_expired_password                           | ON
  disconnect_on_net_write_timeout                          | ON
@@ -1447,7 +1518,7 @@ show global variables;
  generated_random_password_length                         | 20
  group_concat_max_len                                     | 1024
  group_replication_consistency                            | EVENTUAL
- gtid_executed                                            | 0bfa6154-e5ea-11ec-8ba3-fc3497a73395:1-6235
+ gtid_executed                                            | 42c837a3-f1ba-11ec-9e83-fc3497a73395:1-7457
  gtid_executed_compression_period                         | 0
  gtid_mode                                                | ON
  gtid_owned                                               | 
@@ -1485,14 +1556,18 @@ show global variables;
  innodb_api_trx_level                                     | 0
  innodb_autoextend_increment                              | 64
  innodb_autoinc_lock_mode                                 | 2
+ innodb_background_drop_list_empty                        | OFF
  innodb_background_scrub_data_check_interval              | 3600
  innodb_background_scrub_data_compressed                  | OFF
  innodb_background_scrub_data_interval                    | 604800
  innodb_background_scrub_data_uncompressed                | OFF
+ innodb_buf_flush_list_now                                | OFF
  innodb_buffer_pool_chunk_size                            | 33554432
+ innodb_buffer_pool_debug                                 | OFF
  innodb_buffer_pool_dump_at_shutdown                      | OFF
  innodb_buffer_pool_dump_now                              | OFF
  innodb_buffer_pool_dump_pct                              | 25
+ innodb_buffer_pool_evict                                 | 
  innodb_buffer_pool_filename                              | ib_buffer_pool
  innodb_buffer_pool_in_core_file                          | ON
  innodb_buffer_pool_instances                             | 64
@@ -1502,10 +1577,15 @@ show global variables;
  innodb_buffer_pool_size                                  | 2147483648
  innodb_change_buffer_max_size                            | 25
  innodb_change_buffering                                  | all
+ innodb_change_buffering_debug                            | 0
+ innodb_checkpoint_disabled                               | OFF
  innodb_checksum_algorithm                                | crc32
  innodb_cleaner_lsn_age_factor                            | high_checkpoint
+ innodb_cleaner_max_flush_time                            | 1000
+ innodb_cleaner_max_lru_time                              | 1000
  innodb_cmp_per_index_enabled                             | OFF
  innodb_commit_concurrency                                | 0
+ innodb_compress_debug                                    | none
  innodb_compressed_columns_threshold                      | 96
  innodb_compressed_columns_zip_level                      | 6
  innodb_compression_failure_threshold_pct                 | 5
@@ -1515,11 +1595,14 @@ show global variables;
  innodb_corrupt_table_action                              | assert
  innodb_data_file_path                                    | ibdata1:2G:autoextend
  innodb_data_home_dir                                     | /home/kunlun/onesharddata/data1/dbdata_raw/dbdata
+ innodb_ddl_log_crash_reset_debug                         | OFF
  innodb_deadlock_detect                                   | ON
  innodb_dedicated_server                                  | OFF
  innodb_default_encryption_key_id                         | 0
  innodb_default_row_format                                | dynamic
+ innodb_dict_stats_disabled_debug                         | OFF
  innodb_directories                                       | 
+ innodb_disable_background_merge                          | OFF
  innodb_disable_sort_file_cache                           | OFF
  innodb_doublewrite                                       | ON
  innodb_doublewrite_batch_size                            | 0
@@ -1533,6 +1616,7 @@ show global variables;
  innodb_encryption_threads                                | 0
  innodb_extend_and_initialize                             | ON
  innodb_fast_shutdown                                     | 1
+ innodb_fil_make_page_dirty_debug                         | 4294967295
  innodb_file_per_table                                    | ON
  innodb_fill_factor                                       | 70
  innodb_flush_log_at_timeout                              | 1
@@ -1544,6 +1628,7 @@ show global variables;
  innodb_force_index_records_in_range                      | 0
  innodb_force_load_corrupted                              | OFF
  innodb_force_recovery                                    | 0
+ innodb_force_recovery_crash                              | 0
  innodb_fsync_threshold                                   | 0
  innodb_ft_aux_table                                      | 
  innodb_ft_cache_size                                     | 8000000
@@ -1560,14 +1645,20 @@ show global variables;
  innodb_ft_user_stopword_table                            | 
  innodb_idle_flush_pct                                    | 100
  innodb_immediate_scrub_data_uncompressed                 | OFF
+ innodb_interpreter                                       | init
+ innodb_interpreter_output                                | The Default Value
  innodb_io_capacity                                       | 10000
  innodb_io_capacity_max                                   | 20000
+ innodb_limit_optimistic_insert_debug                     | 0
  innodb_lock_wait_timeout                                 | 11
  innodb_log_buffer_size                                   | 268435456
+ innodb_log_checkpoint_fuzzy_now                          | OFF
+ innodb_log_checkpoint_now                                | OFF
  innodb_log_checksums                                     | ON
  innodb_log_compressed_pages                              | OFF
  innodb_log_file_size                                     | 1073741824
  innodb_log_files_in_group                                | 2
+ innodb_log_flush_now                                     | OFF
  innodb_log_group_home_dir                                | /home/kunlun/onesharddata/data1/dblogs/arch
  innodb_log_spin_cpu_abs_lwm                              | 80
  innodb_log_spin_cpu_pct_hwm                              | 50
@@ -1575,6 +1666,7 @@ show global variables;
  innodb_log_write_ahead_size                              | 8192
  innodb_log_writer_threads                                | ON
  innodb_lru_scan_depth                                    | 1024
+ innodb_master_thread_disabled_debug                      | OFF
  innodb_max_bitmap_file_size                              | 104857600
  innodb_max_changed_pages                                 | 1000000
  innodb_max_dirty_pages_pct                               | 70.000000
@@ -1582,6 +1674,7 @@ show global variables;
  innodb_max_purge_lag                                     | 500000
  innodb_max_purge_lag_delay                               | 0
  innodb_max_undo_log_size                                 | 1073741824
+ innodb_merge_threshold_set_all_debug                     | 50
  innodb_monitor_disable                                   | 
  innodb_monitor_enable                                    | 
  innodb_monitor_reset                                     | 
@@ -1591,7 +1684,9 @@ show global variables;
  innodb_online_alter_log_max_size                         | 134217728
  innodb_open_files                                        | 10240
  innodb_optimize_fulltext_only                            | OFF
+ innodb_page_cleaner_disabled_debug                       | OFF
  innodb_page_cleaners                                     | 4
+ innodb_page_hash_locks                                   | 16
  innodb_page_size                                         | 16384
  innodb_parallel_dblwr_encrypt                            | OFF
  innodb_parallel_doublewrite_path                         | xb_doublewrite
@@ -1599,8 +1694,12 @@ show global variables;
  innodb_print_all_deadlocks                               | ON
  innodb_print_ddl_logs                                    | OFF
  innodb_print_lock_wait_timeout_info                      | OFF
+ innodb_priority_master                                   | OFF
+ innodb_priority_purge                                    | OFF
  innodb_purge_batch_size                                  | 1000
  innodb_purge_rseg_truncate_frequency                     | 128
+ innodb_purge_run_now                                     | OFF
+ innodb_purge_stop_now                                    | OFF
  innodb_purge_threads                                     | 16
  innodb_random_read_ahead                                 | OFF
  innodb_read_ahead_threshold                              | 56
@@ -1613,9 +1712,14 @@ show global variables;
  innodb_report_concur_waits_interval                      | 3
  innodb_rollback_on_timeout                               | OFF
  innodb_rollback_segments                                 | 128
+ innodb_saved_page_number_debug                           | 0
+ innodb_sched_priority_io                                 | 19
+ innodb_sched_priority_master                             | 19
+ innodb_sched_priority_purge                              | 19
  innodb_scrub_log                                         | OFF
  innodb_scrub_log_speed                                   | 256
  innodb_segment_reserve_factor                            | 12.500000
+ innodb_semaphore_wait_timeout_debug                      | 600
  innodb_show_locks_held                                   | 10
  innodb_sleep_wait_for_free_block                         | 100
  innodb_sort_buffer_size                                  | 1048576
@@ -1632,6 +1736,7 @@ show global variables;
  innodb_status_output_locks                               | OFF
  innodb_strict_mode                                       | OFF
  innodb_sync_array_size                                   | 1024
+ innodb_sync_debug                                        | OFF
  innodb_sync_spin_loops                                   | 30
  innodb_sys_tablespace_encrypt                            | OFF
  innodb_table_locks                                       | ON
@@ -1642,6 +1747,9 @@ show global variables;
  innodb_thread_sleep_delay                                | 0
  innodb_tmpdir                                            | 
  innodb_track_changed_pages                               | OFF
+ innodb_track_redo_log_now                                | OFF
+ innodb_trx_purge_view_update_only_debug                  | OFF
+ innodb_trx_rseg_n_slots_debug                            | 0
  innodb_undo_directory                                    | ./
  innodb_undo_log_encrypt                                  | OFF
  innodb_undo_log_truncate                                 | ON
@@ -1743,6 +1851,7 @@ show global variables;
  max_user_connections                                     | 0
  max_write_lock_count                                     | 18446744073709551615
  min_examined_row_limit                                   | 0
+ multi_purpose_int                                        | 0
  myisam_data_pointer_size                                 | 6
  myisam_max_sort_file_size                                | 9223372036853727232
  myisam_mmap_size                                         | 18446744073709551615
@@ -1791,7 +1900,7 @@ show global variables;
  offline_mode                                             | OFF
  old                                                      | OFF
  old_alter_table                                          | OFF
- open_files_limit                                         | 300000
+ open_files_limit                                         | 200000
  optimizer_prune_level                                    | 1
  optimizer_search_depth                                   | 62
  optimizer_switch                                         | index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on,subquery_to_derived=off,prefer_ordering_index=on,hypergraph_optimizer=off,derived_condition_pushdown=on,favor_range_scan=off
@@ -1864,6 +1973,7 @@ show global variables;
  protocol_version                                         | 10
  proxy_protocol_networks                                  | 
  query_alloc_block_size                                   | 16384
+ query_exec_time                                          | 0.000000
  query_prealloc_size                                      | 24576
  range_alloc_block_size                                   | 4096
  range_optimizer_max_mem_size                             | 8388608
@@ -1914,14 +2024,15 @@ show global variables;
  select_into_buffer_size                                  | 131072
  select_into_disk_sync                                    | OFF
  select_into_disk_sync_delay                              | 0
- server_id                                                | 3827
+ server_id                                                | 1
  server_id_bits                                           | 32
- server_uuid                                              | 0bfa6154-e5ea-11ec-8ba3-fc3497a73395
+ server_uuid                                              | 42c837a3-f1ba-11ec-9e83-fc3497a73395
  session_track_gtids                                      | OFF
  session_track_schema                                     | ON
  session_track_state_change                               | OFF
  session_track_system_variables                           | time_zone,autocommit,character_set_client,character_set_results,character_set_connection
  session_track_transaction_info                           | OFF
+ set_readonly_on_fullsync_timeout                         | OFF
  sha256_password_auto_generate_rsa_keys                   | ON
  sha256_password_private_key_path                         | private_key.pem
  sha256_password_proxy_users                              | OFF
@@ -2032,15 +2143,16 @@ show global variables;
  unique_checks                                            | ON
  updatable_views_with_limit                               | YES
  userstat                                                 | OFF
- version                                                  | 8.0.26-16-kunlun-storage
+ version                                                  | 8.0.26-16-kunlun-storage-debug
  version_comment                                          | Source distribution
  version_compile_machine                                  | x86_64
  version_compile_os                                       | Linux
  version_compile_zlib                                     | 1.2.11
- version_suffix                                           | -kunlun-storage
+ version_suffix                                           | -kunlun-storage-debug
  wait_timeout                                             | 28800
  windowing_use_high_precision                             | ON
-(718 rows)
+ xa_prep_cop_binlog_last                                  | 1
+(761 rows)
 
 show global variables strict;
            Variable_name           |                                                                                                                                                                                                                                                                                               Value                                                                                                                                                                                                                                                                                               
@@ -2062,6 +2174,7 @@ show global variables strict;
  collation_server                  | utf8mb4_0900_ai_ci
  completion_type                   | NO_CHAIN
  cte_max_recursion_depth           | 1000
+ debug                             | 
  default_collation_for_utf8mb4     | utf8mb4_0900_ai_ci
  default_week_format               | 0
  end_markers_in_json               | OFF
@@ -2126,6 +2239,8 @@ show global variables strict;
  session_track_transaction_info    | OFF
  show_create_table_verbosity       | OFF
  show_old_temporals                | OFF
+ slow_query_log                    | ON
+ sql_mode                          | STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
  sql_require_primary_key           | OFF
  ssl_fips_mode                     | OFF
  time_zone                         | SYSTEM
@@ -2135,13 +2250,12 @@ show global variables strict;
  transaction_write_set_extraction  | XXHASH64
  updatable_views_with_limit        | YES
  windowing_use_high_precision      | ON
-(90 rows)
+(93 rows)
 
 drop table if exists tt;
-DROP TABLE
+psql:sql/kunlun_vars.sql:117: ERROR:  Kunlun-db: Connection with MySQL storage node (1, 1) is gone: 2013, Lost connection to MySQL server during query. Resend the statement.
+DETAIL:  Disconnected all connections to MySQL storage nodes.
 drop table if exists tt;
-psql:sql/kunlun_vars.sql:118: NOTICE:  table "tt" does not exist, skipping
-DROP TABLE
+psql:sql/kunlun_vars.sql:118: ERROR:  Kunlun-db: Failed to connect to mysql storage node at (192.168.0.128, 16011): 2002, Can't connect to MySQL server on '192.168.0.128' (111)
 drop table if exists tt;
-psql:sql/kunlun_vars.sql:119: NOTICE:  table "tt" does not exist, skipping
-DROP TABLE
+psql:sql/kunlun_vars.sql:119: ERROR:  Kunlun-db: Failed to connect to mysql storage node at (192.168.0.128, 16011): 2002, Can't connect to MySQL server on '192.168.0.128' (111)

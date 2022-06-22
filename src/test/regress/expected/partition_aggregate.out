@@ -177,7 +177,7 @@ SELECT c, sum(b order by a) FROM pagg_tab GROUP BY c ORDER BY 1, 2;
 -- partitionwise aggregation plan is not generated.
 EXPLAIN (COSTS OFF)
 SELECT a, sum(b order by a) FROM pagg_tab GROUP BY a ORDER BY 1, 2;
-psql:sql/partition_aggregate.sql:88: ERROR:  could not find pathkey item to sort
+
 -- JOIN query
 drop table if exists pagg_tab1;
 psql:sql/partition_aggregate.sql:92: NOTICE:  table "pagg_tab1" does not exist, skipping

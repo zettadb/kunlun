@@ -21,8 +21,8 @@ select prop,
 --------------------+----+-------+--------
  asc                |    |       | t
  desc               |    |       | f
- nulls_first        |    |       | f
- nulls_last         |    |       | t
+ nulls_first        |    |       | t
+ nulls_last         |    |       | f
  orderable          |    |       | t
  distance_orderable |    |       | f
  returnable         |    |       | t

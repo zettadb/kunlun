@@ -523,7 +523,11 @@ INSERT 0 300
 EXPLAIN (COSTS OFF)
 SELECT avg(t1.a), avg(t2.b), avg(t3.a + t3.b), t1.c, t2.c, t3.c FROM plt1 t1, plt2 t2, plt1_e t3 WHERE t1.b = t2.b AND t1.c = t2.c AND ltrim(t3.c, 'A') = t1.c GROUP BY t1.c, t2.c, t3.c ORDER BY t1.c, t2.c, t3.c;
 
-SELECT avg(t1.a), avg(t2.b), avg(t3.a + t3.b), t1.c, t2.c, t3.c FROM plt1 t1, plt2 t2, plt1_e t3 WHERE t1.b = t2.b AND t1.c = t2.c AND ltrim(t3.c, 'A') = t1.c GROUP BY t1.c, t2.c, t3.c ORDER BY t1.c, t2.c, t3.c;
+SELECT avg(t1.a)::numeric(65,4), avg(t2.b)::numeric(65,4), avg(t3.a + t3.b)::numeric(65,4), t1.c, t2.c, t3.c 
+FROM plt1 t1, plt2 t2, plt1_e t3 
+WHERE t1.b = t2.b AND t1.c = t2.c AND ltrim(t3.c, 'A') = t1.c 
+GROUP BY t1.c, t2.c, t3.c 
+ORDER BY t1.c, t2.c, t3.c;
    avg    |   avg    |    avg    |  c   |  c   |   c   
 ----------+----------+-----------+------+------+-------
   24.0000 |  24.0000 |   48.0000 | 0000 | 0000 | A0000
@@ -557,7 +561,7 @@ SELECT t1.a, t1.c, t2.b, t2.c FROM (SELECT * FROM prt1 WHERE a = 1 AND a = 2) t1
 -- tests for hash partitioned tables.
 --
 DROP TABLE if exists pht1;
-psql:sql/partition_join.sql:241: NOTICE:  table "pht1" does not exist, skipping
+psql:sql/partition_join.sql:244: NOTICE:  table "pht1" does not exist, skipping
 DROP TABLE
 CREATE TABLE pht1 (a int, b int, c text) PARTITION BY HASH(c);
 CREATE TABLE
@@ -570,7 +574,7 @@ CREATE TABLE
 INSERT INTO pht1 SELECT i, i, to_char(i/50, 'FM0000') FROM generate_series(0, 599, 2) i;
 INSERT 0 300
 DROP TABLE if exists pht2;
-psql:sql/partition_join.sql:248: NOTICE:  table "pht2" does not exist, skipping
+psql:sql/partition_join.sql:251: NOTICE:  table "pht2" does not exist, skipping
 DROP TABLE
 CREATE TABLE pht2 (a int, b int, c text) PARTITION BY HASH(c);
 CREATE TABLE
@@ -586,7 +590,7 @@ INSERT 0 200
 -- hash partitioned by expression
 --
 DROP TABLE if exists pht1_e;
-psql:sql/partition_join.sql:258: NOTICE:  table "pht1_e" does not exist, skipping
+psql:sql/partition_join.sql:261: NOTICE:  table "pht1_e" does not exist, skipping
 DROP TABLE
 CREATE TABLE pht1_e (a int, b int, c text) PARTITION BY HASH(ltrim(c, 'A'));
 CREATE TABLE
@@ -602,7 +606,11 @@ INSERT 0 150
 EXPLAIN (COSTS OFF)
 SELECT avg(t1.a), avg(t2.b), avg(t3.a + t3.b), t1.c, t2.c, t3.c FROM pht1 t1, pht2 t2, pht1_e t3 WHERE t1.b = t2.b AND t1.c = t2.c AND ltrim(t3.c, 'A') = t1.c GROUP BY t1.c, t2.c, t3.c ORDER BY t1.c, t2.c, t3.c;
 
-SELECT avg(t1.a), avg(t2.b), avg(t3.a + t3.b), t1.c, t2.c, t3.c FROM pht1 t1, pht2 t2, pht1_e t3 WHERE t1.b = t2.b AND t1.c = t2.c AND ltrim(t3.c, 'A') = t1.c GROUP BY t1.c, t2.c, t3.c ORDER BY t1.c, t2.c, t3.c;
+SELECT avg(t1.a)::numeric(65,4), avg(t2.b)::numeric(65,4), avg(t3.a + t3.b)::numeric(65,4), t1.c, t2.c, t3.c 
+FROM pht1 t1, pht2 t2, pht1_e t3 
+WHERE t1.b = t2.b AND t1.c = t2.c AND ltrim(t3.c, 'A') = t1.c 
+GROUP BY t1.c, t2.c, t3.c 
+ORDER BY t1.c, t2.c, t3.c;
    avg    |   avg    |   avg    |  c   |  c   |   c   
 ----------+----------+----------+------+------+-------
   24.0000 |  24.0000 |  48.0000 | 0000 | 0000 | A0000
@@ -617,7 +625,7 @@ SELECT avg(t1.a), avg(t2.b), avg(t3.a + t3.b), t1.c, t2.c, t3.c FROM pht1 t1, ph
 -- multiple levels of partitioning
 --
 DROP TABLE if exists prt1_l;
-psql:sql/partition_join.sql:273: NOTICE:  table "prt1_l" does not exist, skipping
+psql:sql/partition_join.sql:279: NOTICE:  table "prt1_l" does not exist, skipping
 DROP TABLE
 CREATE TABLE prt1_l (a int, b int, c varchar) PARTITION BY RANGE(a);
 CREATE TABLE
@@ -638,7 +646,7 @@ CREATE TABLE
 INSERT INTO prt1_l SELECT i, i % 25, to_char(i % 4, 'FM0000') FROM generate_series(0, 599, 2) i;
 INSERT 0 300
 DROP TABLE if exists prt2_l;
-psql:sql/partition_join.sql:284: NOTICE:  table "prt2_l" does not exist, skipping
+psql:sql/partition_join.sql:290: NOTICE:  table "prt2_l" does not exist, skipping
 DROP TABLE
 CREATE TABLE prt2_l (a int, b int, c varchar) PARTITION BY RANGE(b);
 CREATE TABLE
@@ -770,7 +778,7 @@ SELECT t1.a, t1.c, t2.b, t2.c FROM (SELECT * FROM prt1_l WHERE a = 1 AND a = 2) 
 -- negative testcases
 --
 DROP TABLE if exists prt1_n;
-psql:sql/partition_join.sql:343: NOTICE:  table "prt1_n" does not exist, skipping
+psql:sql/partition_join.sql:349: NOTICE:  table "prt1_n" does not exist, skipping
 DROP TABLE
 CREATE TABLE prt1_n (a int, b int, c varchar) PARTITION BY RANGE(c);
 CREATE TABLE
@@ -781,7 +789,7 @@ CREATE TABLE
 INSERT INTO prt1_n SELECT i, i, to_char(i, 'FM0000') FROM generate_series(0, 499, 2) i;
 INSERT 0 250
 DROP TABLE if exists prt2_n;
-psql:sql/partition_join.sql:349: NOTICE:  table "prt2_n" does not exist, skipping
+psql:sql/partition_join.sql:355: NOTICE:  table "prt2_n" does not exist, skipping
 DROP TABLE
 CREATE TABLE prt2_n (a int, b int, c text) PARTITION BY LIST(c);
 CREATE TABLE
@@ -792,7 +800,7 @@ CREATE TABLE
 INSERT INTO prt2_n SELECT i, i, to_char(i/50, 'FM0000') FROM generate_series(0, 599, 2) i;
 INSERT 0 300
 DROP TABLE if exists prt3_n;
-psql:sql/partition_join.sql:355: NOTICE:  table "prt3_n" does not exist, skipping
+psql:sql/partition_join.sql:361: NOTICE:  table "prt3_n" does not exist, skipping
 DROP TABLE
 CREATE TABLE prt3_n (a int, b int, c text) PARTITION BY LIST(c);
 CREATE TABLE
@@ -805,7 +813,7 @@ CREATE TABLE
 INSERT INTO prt2_n SELECT i, i, to_char(i/50, 'FM0000') FROM generate_series(0, 599, 2) i;
 INSERT 0 300
 DROP TABLE if exists prt4_n;
-psql:sql/partition_join.sql:362: NOTICE:  table "prt4_n" does not exist, skipping
+psql:sql/partition_join.sql:368: NOTICE:  table "prt4_n" does not exist, skipping
 DROP TABLE
 CREATE TABLE prt4_n (a int, b int, c text) PARTITION BY RANGE(a);
 CREATE TABLE

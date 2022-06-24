@@ -261,7 +261,7 @@ CREATE TABLE
 --------+---------+-----------+----------+---------
  a      | integer |           | not null | 
 Indexes:
-    "like_constraint_rename_cache_pkey" PRIMARY KEY, btree (a)
+    "like_constraint_rename_cache_pkey" PRIMARY KEY, btree (a NULLS FIRST)
 
 DROP TABLE constraint_rename_cache;
 DROP TABLE
@@ -1053,11 +1053,11 @@ CREATE INDEX
  f4     | integer |           |          | 
  f5     | integer |           |          | 
 Indexes:
-    "anothertab_pkey" PRIMARY KEY, btree (f1)
-    "anothertab_f1_f4_key" UNIQUE CONSTRAINT, btree (f1, f4)
-    "anothertab_f2_key" UNIQUE CONSTRAINT, btree (f2)
-    "anothertab_f4_idx" UNIQUE, btree (f4)
-    "anothertab_f2_f3_idx" btree (f2, f3)
+    "anothertab_pkey" PRIMARY KEY, btree (f1 NULLS FIRST)
+    "anothertab_f1_f4_key" UNIQUE CONSTRAINT, btree (f1 NULLS FIRST, f4 NULLS FIRST)
+    "anothertab_f2_key" UNIQUE CONSTRAINT, btree (f2 NULLS FIRST)
+    "anothertab_f4_idx" UNIQUE, btree (f4 NULLS FIRST)
+    "anothertab_f2_f3_idx" btree (f2 NULLS FIRST, f3 NULLS FIRST)
 
 alter table anothertab alter column f1 type bigint;
 ALTER TABLE
@@ -1081,8 +1081,8 @@ Indexes:
     "anothertab_pkey" PRIMARY KEY, btree (f1)
     "anothertab_f1_f4_key" UNIQUE CONSTRAINT, btree (f1, f4)
     "anothertab_f2_key" UNIQUE CONSTRAINT, btree (f2)
-    "anothertab_f4_idx" UNIQUE, btree (f4)
-    "anothertab_f2_f3_idx" btree (f2, f3)
+    "anothertab_f4_idx" UNIQUE, btree (f4 NULLS FIRST)
+    "anothertab_f2_f3_idx" btree (f2 NULLS FIRST, f3 NULLS FIRST)
 
 drop table anothertab;
 DROP TABLE
@@ -1141,8 +1141,8 @@ CREATE INDEX
  b      | character varying(50) |           |          | 
 Partition of: at_partitioned FOR VALUES FROM (0) TO (1000)
 Indexes:
-    "at_part_1_a_idx" btree (a)
-    "at_part_1_b_idx" btree (b)
+    "at_part_1_a_idx" btree (a NULLS FIRST)
+    "at_part_1_b_idx" btree (b NULLS FIRST)
 
 alter table at_partitioned alter column b type numeric using b::numeric;
 ALTER TABLE
@@ -1154,7 +1154,7 @@ ALTER TABLE
  b      | numeric |           |          | 
 Partition of: at_partitioned FOR VALUES FROM (0) TO (1000)
 Indexes:
-    "at_part_1_a_idx" btree (a)
+    "at_part_1_a_idx" btree (a NULLS FIRST)
     "at_part_1_b_idx" btree (b)
 
 drop table at_partitioned;
@@ -1697,7 +1697,7 @@ ALTER TABLE
  a      | integer |           |          | 
  f1     | integer |           | not null | 0
 Indexes:
-    "xxx" PRIMARY KEY, btree (f1)
+    "xxx" PRIMARY KEY, btree (f1 NULLS FIRST)
 
 DROP TABLE alter2.tt8;
 DROP TABLE
@@ -1724,10 +1724,10 @@ ALTER TABLE
 --------+---------+-----------+----------+---------
  c      | integer |           |          | 
 Indexes:
-    "foo" UNIQUE CONSTRAINT, btree (c)
-    "tt9_c_key" UNIQUE CONSTRAINT, btree (c)
-    "tt9_c_key1" UNIQUE CONSTRAINT, btree (c)
-    "tt9_c_key2" UNIQUE CONSTRAINT, btree (c)
+    "foo" UNIQUE CONSTRAINT, btree (c NULLS FIRST)
+    "tt9_c_key" UNIQUE CONSTRAINT, btree (c NULLS FIRST)
+    "tt9_c_key1" UNIQUE CONSTRAINT, btree (c NULLS FIRST)
+    "tt9_c_key2" UNIQUE CONSTRAINT, btree (c NULLS FIRST)
 
 DROP TABLE tt9;
 DROP TABLE

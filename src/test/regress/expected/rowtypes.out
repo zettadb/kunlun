@@ -724,12 +724,12 @@ INSERT 0 3
 --    SET active = true, price = input_prices.price
 --    FROM unnest(ARRAY[(10, 123.00), (11, 99.99)]::price_input[]) input_prices
 --    WHERE price_key_from_table(price.*) = price_key_from_input(input_prices.*);
-select * from price;
- id | active |          price           
-----+--------+--------------------------
-  1 | f      |  42.00000000000000000000
- 10 | f      | 100.00000000000000000000
- 11 | t      |  17.99000000000000000000
+select id,active,price::NUMERIC(65) from price;
+ id | active | price 
+----+--------+-------
+  1 | f      |    42
+ 10 | f      |   100
+ 11 | t      |    18
 (3 rows)
 
 rollback;
@@ -899,13 +899,13 @@ select row_to_json(i) from int8_tbl i;
 (5 rows)
 
 select row_to_json(i) from int8_tbl i(x,y);
-                 row_to_json                  
-----------------------------------------------
- {"x":123,"y":456}
- {"x":123,"y":4567890123456789}
- {"x":4567890123456789,"y":123}
- {"x":4567890123456789,"y":4567890123456789}
- {"x":4567890123456789,"y":-4567890123456789}
+                  row_to_json                   
+------------------------------------------------
+ {"q1":123,"q2":456}
+ {"q1":123,"q2":4567890123456789}
+ {"q1":4567890123456789,"q2":123}
+ {"q1":4567890123456789,"q2":4567890123456789}
+ {"q1":4567890123456789,"q2":-4567890123456789}
 (5 rows)
 
 create temp view vv1 as select * from int8_tbl;

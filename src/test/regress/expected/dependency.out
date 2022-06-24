@@ -108,7 +108,7 @@ RESET
  a      | integer |           | not null | "nextval"('deptest_a_seq'::regclass)
  b      | text    |           |          | 
 Indexes:
-    "deptest_pkey" PRIMARY KEY, btree (a)
+    "deptest_pkey" PRIMARY KEY, btree (a NULLS FIRST)
 
 drop table deptest;
 DROP TABLE

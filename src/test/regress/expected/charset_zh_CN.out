@@ -52,7 +52,7 @@ ALTER TABLE
  年龄   | integer               |           | not null | 
  身高   | text                  |           |          | 
 Indexes:
-    "个人表_pkey" PRIMARY KEY, btree ("编号")
+    "个人表_pkey" PRIMARY KEY, btree ("编号" NULLS FIRST)
 
 alter table 信息表 add constraint 年龄 unique(年龄);
 ALTER TABLE
@@ -65,8 +65,8 @@ ALTER TABLE
  年龄   | integer               |           | not null | 
  身高   | text                  |           |          | 
 Indexes:
-    "个人表_pkey" PRIMARY KEY, btree ("编号")
-    "年龄" UNIQUE CONSTRAINT, btree ("年龄")
+    "个人表_pkey" PRIMARY KEY, btree ("编号" NULLS FIRST)
+    "年龄" UNIQUE CONSTRAINT, btree ("年龄" NULLS FIRST)
 
 alter table 信息表 drop constraint "年龄";
 ALTER TABLE
@@ -79,7 +79,7 @@ ALTER TABLE
  年龄   | integer               |           | not null | 
  身高   | text                  |           |          | 
 Indexes:
-    "个人表_pkey" PRIMARY KEY, btree ("编号")
+    "个人表_pkey" PRIMARY KEY, btree ("编号" NULLS FIRST)
 
 alter table 信息表  add 性别 int NULL;
 ALTER TABLE
@@ -114,7 +114,7 @@ ALTER TABLE
  爱好   | text                  |           |          | 
  地址   | integer               |           |          | 
 Indexes:
-    "个人表_pkey" PRIMARY KEY, btree ("编号")
+    "个人表_pkey" PRIMARY KEY, btree ("编号" NULLS FIRST)
 
 alter table 信息表 alter column 地址 type text USING 地址::text;
 ALTER TABLE
@@ -130,7 +130,7 @@ ALTER TABLE
  爱好   | text                  |           |          | 
  地址   | text                  |           |          | 
 Indexes:
-    "个人表_pkey" PRIMARY KEY, btree ("编号")
+    "个人表_pkey" PRIMARY KEY, btree ("编号" NULLS FIRST)
 
 --alter table 信息表 add constraint 性别 check(2) (性别='男' or 性别='女') (性别);  #暂时不支持check
 --INSERT into-- 
@@ -480,8 +480,8 @@ CREATE INDEX
  工资   | integer               |           |          | 
  工作   | text                  |           |          | 
 Indexes:
-    "个人表_pkey1" PRIMARY KEY, btree ("编号")
-    "姓名索引" btree ("姓名")
+    "个人表_pkey1" PRIMARY KEY, btree ("编号" NULLS FIRST)
+    "姓名索引" btree ("姓名" NULLS FIRST)
 
 ALTER INDEX 姓名索引 RENAME TO 索引名字;
 ALTER INDEX
@@ -494,8 +494,8 @@ ALTER INDEX
  工资   | integer               |           |          | 
  工作   | text                  |           |          | 
 Indexes:
-    "个人表_pkey1" PRIMARY KEY, btree ("编号")
-    "索引名字" btree ("姓名")
+    "个人表_pkey1" PRIMARY KEY, btree ("编号" NULLS FIRST)
+    "索引名字" btree ("姓名" NULLS FIRST)
 
 create index 组合索引 on 个人表 (工资,工作);
 CREATE INDEX
@@ -508,9 +508,9 @@ CREATE INDEX
  工资   | integer               |           |          | 
  工作   | text                  |           |          | 
 Indexes:
-    "个人表_pkey1" PRIMARY KEY, btree ("编号")
-    "索引名字" btree ("姓名")
-    "组合索引" btree ("工资", "工作")
+    "个人表_pkey1" PRIMARY KEY, btree ("编号" NULLS FIRST)
+    "索引名字" btree ("姓名" NULLS FIRST)
+    "组合索引" btree ("工资" NULLS FIRST, "工作" NULLS FIRST)
 
 drop index 索引名字;
 DROP INDEX
@@ -525,7 +525,7 @@ DROP INDEX
  工资   | integer               |           |          | 
  工作   | text                  |           |          | 
 Indexes:
-    "个人表_pkey1" PRIMARY KEY, btree ("编号")
+    "个人表_pkey1" PRIMARY KEY, btree ("编号" NULLS FIRST)
 
 --view--
 CREATE VIEW 个人表_视图 AS select 编号,姓名,工作 from 个人表;
@@ -641,7 +641,7 @@ DELETE 2
  工资   | integer               |           |          | 
  工作   | text                  |           |          | 
 Indexes:
-    "个人表_pkey1" PRIMARY KEY, btree ("编号")
+    "个人表_pkey1" PRIMARY KEY, btree ("编号" NULLS FIRST)
 
 delete from 信息表;
 DELETE 2
@@ -655,7 +655,7 @@ DELETE 2
  爱好   | text                  |           |          | 
  地址   | text                  |           |          | 
 Indexes:
-    "个人表_pkey" PRIMARY KEY, btree ("编号")
+    "个人表_pkey" PRIMARY KEY, btree ("编号" NULLS FIRST)
 
 drop table 信息表;
 DROP TABLE

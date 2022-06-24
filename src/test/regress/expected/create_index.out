@@ -137,7 +137,7 @@ CREATE INDEX
  b      | character varying(10) |           |          | 
  c      | character(1)          |           |          | 
 Indexes:
-    "cwi_uniq_idx" UNIQUE, btree (a, b)
+    "cwi_uniq_idx" UNIQUE, btree (a NULLS FIRST, b NULLS FIRST)
 
 \d cwi_uniq_idx
             Index "public.cwi_uniq_idx"

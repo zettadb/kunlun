@@ -192,8 +192,8 @@ CREATE TABLE
  a      | character varying(100) |           | not null |         | extended |              | A
  b      | character varying(100) |           |          |         | extended |              | B
 Indexes:
-    "ctlt_all_pkey" PRIMARY KEY, btree (a)
-    "ctlt_all_b_idx" btree (b)
+    "ctlt_all_pkey" PRIMARY KEY, btree (a NULLS FIRST)
+    "ctlt_all_b_idx" btree (b NULLS FIRST)
 Options: shard=1
 
 SELECT c.relname, objsubid, description FROM pg_description, pg_index i, pg_class c WHERE classoid = 'pg_class'::regclass AND objoid = i.indexrelid AND c.oid = i.indexrelid AND i.indrelid = 'ctlt_all'::regclass ORDER BY c.relname, objsubid;

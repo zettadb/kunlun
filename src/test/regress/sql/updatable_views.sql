@@ -162,7 +162,7 @@ CREATE VIEW rw_view1 AS SELECT * FROM base_tbl WHERE a>0;
 --DDL_STATEMENT_END--
 
 SELECT table_name, is_insertable_into
-  FROM information_schema.tables
+  FROM information_schema."tables"
  WHERE table_name = 'rw_view1';
 
 SELECT table_name, is_updatable, is_insertable_into
@@ -203,7 +203,7 @@ CREATE VIEW rw_view2 AS SELECT aa AS aaa, bb AS bbb FROM rw_view1 WHERE aa<10;
 --DDL_STATEMENT_END--
 
 SELECT table_name, is_insertable_into
-  FROM information_schema.tables
+  FROM information_schema."tables"
  WHERE table_name = 'rw_view2';
 
 SELECT table_name, is_updatable, is_insertable_into
@@ -244,7 +244,7 @@ CREATE VIEW rw_view2 AS SELECT * FROM rw_view1 WHERE a<10;
 --DDL_STATEMENT_END--
 
 SELECT table_name, is_insertable_into
-  FROM information_schema.tables
+  FROM information_schema."tables"
  WHERE table_name LIKE 'rw_view%'
  ORDER BY table_name;
 
@@ -259,7 +259,7 @@ SELECT table_name, column_name, is_updatable
  ORDER BY table_name, ordinal_position;
 
 SELECT table_name, is_insertable_into
-  FROM information_schema.tables
+  FROM information_schema."tables"
  WHERE table_name LIKE 'rw_view%'
  ORDER BY table_name;
 
@@ -274,7 +274,7 @@ SELECT table_name, column_name, is_updatable
  ORDER BY table_name, ordinal_position;
 
 SELECT table_name, is_insertable_into
-  FROM information_schema.tables
+  FROM information_schema."tables"
  WHERE table_name LIKE 'rw_view%'
  ORDER BY table_name;
 
@@ -289,7 +289,7 @@ SELECT table_name, column_name, is_updatable
  ORDER BY table_name, ordinal_position;
 
 SELECT table_name, is_insertable_into
-  FROM information_schema.tables
+  FROM information_schema."tables"
  WHERE table_name LIKE 'rw_view%'
  ORDER BY table_name;
 
@@ -331,7 +331,7 @@ CREATE VIEW rw_view2 AS SELECT * FROM rw_view1 WHERE a<10;
 --DDL_STATEMENT_END--
 
 SELECT table_name, is_insertable_into
-  FROM information_schema.tables
+  FROM information_schema."tables"
  WHERE table_name LIKE 'rw_view%'
  ORDER BY table_name;
 
@@ -348,7 +348,7 @@ SELECT table_name, column_name, is_updatable
  ORDER BY table_name, ordinal_position;
 
 SELECT table_name, is_insertable_into
-  FROM information_schema.tables
+  FROM information_schema."tables"
  WHERE table_name LIKE 'rw_view%'
  ORDER BY table_name;
 
@@ -365,7 +365,7 @@ SELECT table_name, column_name, is_updatable
  ORDER BY table_name, ordinal_position;
 
 SELECT table_name, is_insertable_into
-  FROM information_schema.tables
+  FROM information_schema."tables"
  WHERE table_name LIKE 'rw_view%'
  ORDER BY table_name;
 
@@ -382,7 +382,7 @@ SELECT table_name, column_name, is_updatable
  ORDER BY table_name, ordinal_position;
 
 SELECT table_name, is_insertable_into
-  FROM information_schema.tables
+  FROM information_schema."tables"
  WHERE table_name LIKE 'rw_view%'
  ORDER BY table_name;
 
@@ -753,7 +753,7 @@ DELETE FROM rw_view3 WHERE s = sin(0.1); -- should be OK
 SELECT * FROM base_tbl ORDER BY a;
 
 SELECT table_name, is_insertable_into
-  FROM information_schema.tables
+  FROM information_schema."tables"
  WHERE table_name LIKE E'r_\\_view%'
  ORDER BY table_name;
 
@@ -1008,7 +1008,7 @@ SELECT * FROM rw_view1 WHERE snoop(person);
 -- ALTER VIEW rw_view1 SET (security_barrier = true);
 
 SELECT table_name, is_insertable_into
-  FROM information_schema.tables
+  FROM information_schema."tables"
  WHERE table_name = 'rw_view1';
 
 SELECT table_name, is_updatable, is_insertable_into
@@ -1034,7 +1034,7 @@ CREATE VIEW rw_view2 WITH (security_barrier = true) AS
   
 --DDL_STATEMENT_END--
 SELECT table_name, is_insertable_into
-  FROM information_schema.tables
+  FROM information_schema."tables"
  WHERE table_name = 'rw_view2';
 
 SELECT table_name, is_updatable, is_insertable_into

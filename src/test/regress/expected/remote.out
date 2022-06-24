@@ -22,9 +22,9 @@ CREATE INDEX
  b      | integer               |           |          |         | plain    |              | 
  c      | character varying(32) |           | not null |         | extended |              | 
 Indexes:
-    "t4_pkey" PRIMARY KEY, btree (a)
-    "t4_b_key" UNIQUE CONSTRAINT, btree (b)
-    "t4_cb" btree (c DESC, b)
+    "t4_pkey" PRIMARY KEY, btree (a NULLS FIRST)
+    "t4_b_key" UNIQUE CONSTRAINT, btree (b NULLS FIRST)
+    "t4_cb" btree (c DESC NULLS LAST, b NULLS FIRST)
 Options: shard=1
 
 \d+ t4_cb;
@@ -71,10 +71,10 @@ CREATE INDEX
  c      | integer               |           | not null |         | plain    |              | 
  d      | character varying(16) |           | not null |         | extended |              | 
 Indexes:
-    "t7_pkey" PRIMARY KEY, btree (c, d)
-    "t7_a_c_key" UNIQUE CONSTRAINT, btree (a, c)
-    "t7_b_d_key" UNIQUE CONSTRAINT, btree (b, d)
-    "t7_abc" btree (b DESC, a, c DESC)
+    "t7_pkey" PRIMARY KEY, btree (c NULLS FIRST, d NULLS FIRST)
+    "t7_a_c_key" UNIQUE CONSTRAINT, btree (a NULLS FIRST, c NULLS FIRST)
+    "t7_b_d_key" UNIQUE CONSTRAINT, btree (b NULLS FIRST, d NULLS FIRST)
+    "t7_abc" btree (b DESC NULLS LAST, a NULLS FIRST, c DESC NULLS LAST)
 Options: shard=1
 
 \d+ t7_abc;
@@ -191,9 +191,9 @@ CREATE TABLE
 Partition of: t3 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2000-01-01'::date) AND (b < '2009-12-31'::date))
 Indexes:
-    "t301_pkey" PRIMARY KEY, btree (b, d)
-    "t301_c_b_idx" UNIQUE, btree (c, b)
-    "t301_c_idx" btree (c)
+    "t301_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
+    "t301_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
+    "t301_c_idx" btree (c NULLS FIRST)
 Options: shard=1
 
 \d+ t3;
@@ -227,9 +227,9 @@ CREATE TABLE
 Partition of: t3 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2020-01-01'::date) AND (b < '2029-12-31'::date))
 Indexes:
-    "t303_pkey" PRIMARY KEY, btree (b, d)
-    "t303_c_b_idx" UNIQUE, btree (c, b)
-    "t303_c_idx" btree (c)
+    "t303_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
+    "t303_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
+    "t303_c_idx" btree (c NULLS FIRST)
 Options: shard=1
 
 \d+ t3;
@@ -268,11 +268,11 @@ CREATE INDEX
 Partition of: t3 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2000-01-01'::date) AND (b < '2009-12-31'::date))
 Indexes:
-    "t301_pkey" PRIMARY KEY, btree (b, d)
-    "t301_b_a_idx" UNIQUE, btree (b, a)
-    "t301_c_b_idx" UNIQUE, btree (c, b)
-    "t301_a_idx" btree (a)
-    "t301_c_idx" btree (c)
+    "t301_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
+    "t301_b_a_idx" UNIQUE, btree (b NULLS FIRST, a NULLS FIRST)
+    "t301_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
+    "t301_a_idx" btree (a NULLS FIRST)
+    "t301_c_idx" btree (c NULLS FIRST)
 Options: shard=1
 
 \d+ t303;
@@ -287,11 +287,11 @@ Options: shard=1
 Partition of: t3 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2020-01-01'::date) AND (b < '2029-12-31'::date))
 Indexes:
-    "t303_pkey" PRIMARY KEY, btree (b, d)
-    "t303_b_a_idx" UNIQUE, btree (b, a)
-    "t303_c_b_idx" UNIQUE, btree (c, b)
-    "t303_a_idx" btree (a)
-    "t303_c_idx" btree (c)
+    "t303_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
+    "t303_b_a_idx" UNIQUE, btree (b NULLS FIRST, a NULLS FIRST)
+    "t303_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
+    "t303_a_idx" btree (a NULLS FIRST)
+    "t303_c_idx" btree (c NULLS FIRST)
 Options: shard=1
 
 \d+ t3;
@@ -350,11 +350,11 @@ Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
 Partition of: t3 FOR VALUES FROM ('2010-01-01') TO ('2019-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2010-01-01'::date) AND (b < '2019-12-31'::date))
 Indexes:
-    "t302_pkey" PRIMARY KEY, btree (b, d)
-    "t302_b_a_idx" UNIQUE, btree (b, a)
-    "t302_c_b_idx" UNIQUE, btree (c, b)
-    "t302_a_idx" btree (a)
-    "t302_c_idx" btree (c)
+    "t302_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
+    "t302_b_a_idx" UNIQUE, btree (b NULLS FIRST, a NULLS FIRST)
+    "t302_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
+    "t302_a_idx" btree (a NULLS FIRST)
+    "t302_c_idx" btree (c NULLS FIRST)
 Options: shard=1
 
 \d+ t301;
@@ -369,11 +369,11 @@ Options: shard=1
 Partition of: t3 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2000-01-01'::date) AND (b < '2009-12-31'::date))
 Indexes:
-    "t301_pkey" PRIMARY KEY, btree (b, d)
-    "t301_b_a_idx" UNIQUE, btree (b, a)
-    "t301_c_b_idx" UNIQUE, btree (c, b)
-    "t301_a_idx" btree (a)
-    "t301_c_idx" btree (c)
+    "t301_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
+    "t301_b_a_idx" UNIQUE, btree (b NULLS FIRST, a NULLS FIRST)
+    "t301_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
+    "t301_a_idx" btree (a NULLS FIRST)
+    "t301_c_idx" btree (c NULLS FIRST)
 Options: shard=1
 
 \d+ t303;
@@ -388,11 +388,11 @@ Options: shard=1
 Partition of: t3 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2020-01-01'::date) AND (b < '2029-12-31'::date))
 Indexes:
-    "t303_pkey" PRIMARY KEY, btree (b, d)
-    "t303_b_a_idx" UNIQUE, btree (b, a)
-    "t303_c_b_idx" UNIQUE, btree (c, b)
-    "t303_a_idx" btree (a)
-    "t303_c_idx" btree (c)
+    "t303_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
+    "t303_b_a_idx" UNIQUE, btree (b NULLS FIRST, a NULLS FIRST)
+    "t303_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
+    "t303_a_idx" btree (a NULLS FIRST)
+    "t303_c_idx" btree (c NULLS FIRST)
 Options: shard=1
 
 create table t304 partition of t3 for values from ('2030-01-01') to ('2049-12-31');
@@ -431,11 +431,11 @@ Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
 Partition of: t3 FOR VALUES FROM ('2030-01-01') TO ('2049-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2030-01-01'::date) AND (b < '2049-12-31'::date))
 Indexes:
-    "t304_pkey" PRIMARY KEY, btree (b, d)
-    "t304_b_a_idx" UNIQUE, btree (b, a)
-    "t304_c_b_idx" UNIQUE, btree (c, b)
-    "t304_a_idx" btree (a)
-    "t304_c_idx" btree (c)
+    "t304_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
+    "t304_b_a_idx" UNIQUE, btree (b NULLS FIRST, a NULLS FIRST)
+    "t304_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
+    "t304_a_idx" btree (a NULLS FIRST)
+    "t304_c_idx" btree (c NULLS FIRST)
 Options: shard=1
 
 \d+ t301;
@@ -450,11 +450,11 @@ Options: shard=1
 Partition of: t3 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2000-01-01'::date) AND (b < '2009-12-31'::date))
 Indexes:
-    "t301_pkey" PRIMARY KEY, btree (b, d)
-    "t301_b_a_idx" UNIQUE, btree (b, a)
-    "t301_c_b_idx" UNIQUE, btree (c, b)
-    "t301_a_idx" btree (a)
-    "t301_c_idx" btree (c)
+    "t301_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
+    "t301_b_a_idx" UNIQUE, btree (b NULLS FIRST, a NULLS FIRST)
+    "t301_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
+    "t301_a_idx" btree (a NULLS FIRST)
+    "t301_c_idx" btree (c NULLS FIRST)
 Options: shard=1
 
 \d+ t302;
@@ -469,11 +469,11 @@ Options: shard=1
 Partition of: t3 FOR VALUES FROM ('2010-01-01') TO ('2019-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2010-01-01'::date) AND (b < '2019-12-31'::date))
 Indexes:
-    "t302_pkey" PRIMARY KEY, btree (b, d)
-    "t302_b_a_idx" UNIQUE, btree (b, a)
-    "t302_c_b_idx" UNIQUE, btree (c, b)
-    "t302_a_idx" btree (a)
-    "t302_c_idx" btree (c)
+    "t302_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
+    "t302_b_a_idx" UNIQUE, btree (b NULLS FIRST, a NULLS FIRST)
+    "t302_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
+    "t302_a_idx" btree (a NULLS FIRST)
+    "t302_c_idx" btree (c NULLS FIRST)
 Options: shard=1
 
 \d+ t303;
@@ -488,11 +488,11 @@ Options: shard=1
 Partition of: t3 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2020-01-01'::date) AND (b < '2029-12-31'::date))
 Indexes:
-    "t303_pkey" PRIMARY KEY, btree (b, d)
-    "t303_b_a_idx" UNIQUE, btree (b, a)
-    "t303_c_b_idx" UNIQUE, btree (c, b)
-    "t303_a_idx" btree (a)
-    "t303_c_idx" btree (c)
+    "t303_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
+    "t303_b_a_idx" UNIQUE, btree (b NULLS FIRST, a NULLS FIRST)
+    "t303_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
+    "t303_a_idx" btree (a NULLS FIRST)
+    "t303_c_idx" btree (c NULLS FIRST)
 Options: shard=1
 
 -- create a new idx for t302 only.
@@ -511,12 +511,12 @@ CREATE INDEX
 Partition of: t3 FOR VALUES FROM ('2010-01-01') TO ('2019-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2010-01-01'::date) AND (b < '2019-12-31'::date))
 Indexes:
-    "t302_pkey" PRIMARY KEY, btree (b, d)
-    "t302_b_a_idx" UNIQUE, btree (b, a)
-    "t302_b_e_idx" UNIQUE, btree (b, e)
-    "t302_c_b_idx" UNIQUE, btree (c, b)
-    "t302_a_idx" btree (a)
-    "t302_c_idx" btree (c)
+    "t302_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
+    "t302_b_a_idx" UNIQUE, btree (b NULLS FIRST, a NULLS FIRST)
+    "t302_b_e_idx" UNIQUE, btree (b NULLS FIRST, e NULLS FIRST)
+    "t302_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
+    "t302_a_idx" btree (a NULLS FIRST)
+    "t302_c_idx" btree (c NULLS FIRST)
 Options: shard=1
 
 \d+ t3;
@@ -556,12 +556,12 @@ CREATE INDEX
 Partition of: t3 FOR VALUES FROM ('2030-01-01') TO ('2049-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2030-01-01'::date) AND (b < '2049-12-31'::date))
 Indexes:
-    "t304_pkey" PRIMARY KEY, btree (b, d)
-    "t304_b_a_idx" UNIQUE, btree (b, a)
-    "t304_c_b_idx" UNIQUE, btree (c, b)
-    "t304_a_idx" btree (a)
-    "t304_b_e_idx" btree (b, e)
-    "t304_c_idx" btree (c)
+    "t304_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
+    "t304_b_a_idx" UNIQUE, btree (b NULLS FIRST, a NULLS FIRST)
+    "t304_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
+    "t304_a_idx" btree (a NULLS FIRST)
+    "t304_b_e_idx" btree (b NULLS FIRST, e NULLS FIRST)
+    "t304_c_idx" btree (c NULLS FIRST)
 Options: shard=1
 
 \d+ t3;
@@ -602,12 +602,12 @@ CREATE INDEX
 Partition of: t3 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2000-01-01'::date) AND (b < '2009-12-31'::date))
 Indexes:
-    "t301_pkey" PRIMARY KEY, btree (b, d)
-    "t301_b_a_idx" UNIQUE, btree (b, a)
-    "t301_c_b_idx" UNIQUE, btree (c, b)
-    "t301_a_idx" btree (a)
-    "t301_c_idx" btree (c)
-    "t301_e_idx" btree (e)
+    "t301_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
+    "t301_b_a_idx" UNIQUE, btree (b NULLS FIRST, a NULLS FIRST)
+    "t301_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
+    "t301_a_idx" btree (a NULLS FIRST)
+    "t301_c_idx" btree (c NULLS FIRST)
+    "t301_e_idx" btree (e NULLS FIRST)
 Options: shard=1
 
 \d+ t302;
@@ -622,13 +622,13 @@ Options: shard=1
 Partition of: t3 FOR VALUES FROM ('2010-01-01') TO ('2019-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2010-01-01'::date) AND (b < '2019-12-31'::date))
 Indexes:
-    "t302_pkey" PRIMARY KEY, btree (b, d)
-    "t302_b_a_idx" UNIQUE, btree (b, a)
-    "t302_b_e_idx" UNIQUE, btree (b, e)
-    "t302_c_b_idx" UNIQUE, btree (c, b)
-    "t302_a_idx" btree (a)
-    "t302_c_idx" btree (c)
-    "t302_e_idx" btree (e)
+    "t302_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
+    "t302_b_a_idx" UNIQUE, btree (b NULLS FIRST, a NULLS FIRST)
+    "t302_b_e_idx" UNIQUE, btree (b NULLS FIRST, e NULLS FIRST)
+    "t302_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
+    "t302_a_idx" btree (a NULLS FIRST)
+    "t302_c_idx" btree (c NULLS FIRST)
+    "t302_e_idx" btree (e NULLS FIRST)
 Options: shard=1
 
 \d+ t303;
@@ -643,12 +643,12 @@ Options: shard=1
 Partition of: t3 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2020-01-01'::date) AND (b < '2029-12-31'::date))
 Indexes:
-    "t303_pkey" PRIMARY KEY, btree (b, d)
-    "t303_b_a_idx" UNIQUE, btree (b, a)
-    "t303_c_b_idx" UNIQUE, btree (c, b)
-    "t303_a_idx" btree (a)
-    "t303_c_idx" btree (c)
-    "t303_e_idx" btree (e)
+    "t303_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
+    "t303_b_a_idx" UNIQUE, btree (b NULLS FIRST, a NULLS FIRST)
+    "t303_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
+    "t303_a_idx" btree (a NULLS FIRST)
+    "t303_c_idx" btree (c NULLS FIRST)
+    "t303_e_idx" btree (e NULLS FIRST)
 Options: shard=1
 
 \d+ t304;
@@ -663,13 +663,13 @@ Options: shard=1
 Partition of: t3 FOR VALUES FROM ('2030-01-01') TO ('2049-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2030-01-01'::date) AND (b < '2049-12-31'::date))
 Indexes:
-    "t304_pkey" PRIMARY KEY, btree (b, d)
-    "t304_b_a_idx" UNIQUE, btree (b, a)
-    "t304_c_b_idx" UNIQUE, btree (c, b)
-    "t304_a_idx" btree (a)
-    "t304_b_e_idx" btree (b, e)
-    "t304_c_idx" btree (c)
-    "t304_e_idx" btree (e)
+    "t304_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
+    "t304_b_a_idx" UNIQUE, btree (b NULLS FIRST, a NULLS FIRST)
+    "t304_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
+    "t304_a_idx" btree (a NULLS FIRST)
+    "t304_b_e_idx" btree (b NULLS FIRST, e NULLS FIRST)
+    "t304_c_idx" btree (c NULLS FIRST)
+    "t304_e_idx" btree (e NULLS FIRST)
 Options: shard=1
 
 \d+ t3;
@@ -900,8 +900,8 @@ CREATE TABLE
 Partition of: t2 FOR VALUES IN (1, 2, 3, 4)
 Partition constraint: ((a IS NOT NULL) AND (a = ANY (ARRAY[1, 2, 3, 4])))
 Indexes:
-    "t200_pkey" PRIMARY KEY, btree (a, b)
-    "t200_a_b_c_key" UNIQUE CONSTRAINT, btree (a, b, c)
+    "t200_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST)
+    "t200_a_b_c_key" UNIQUE CONSTRAINT, btree (a NULLS FIRST, b NULLS FIRST, c NULLS FIRST)
 Options: shard=1
 
 create index t2_d_g on t2(d,g desc);
@@ -939,9 +939,9 @@ Partitions: t200 FOR VALUES IN (1, 2, 3, 4)
 Partition of: t2 FOR VALUES IN (1, 2, 3, 4)
 Partition constraint: ((a IS NOT NULL) AND (a = ANY (ARRAY[1, 2, 3, 4])))
 Indexes:
-    "t200_pkey" PRIMARY KEY, btree (a, b)
-    "t200_a_b_c_key" UNIQUE CONSTRAINT, btree (a, b, c)
-    "t200_d_g_idx" btree (d, g DESC)
+    "t200_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST)
+    "t200_a_b_c_key" UNIQUE CONSTRAINT, btree (a NULLS FIRST, b NULLS FIRST, c NULLS FIRST)
+    "t200_d_g_idx" btree (d NULLS FIRST, g DESC NULLS LAST)
 Options: shard=1
 
 create table t201 partition of t2 for values in (5,6,7);
@@ -960,9 +960,9 @@ CREATE TABLE
 Partition of: t2 FOR VALUES IN (5, 6, 7)
 Partition constraint: ((a IS NOT NULL) AND (a = ANY (ARRAY[5, 6, 7])))
 Indexes:
-    "t201_pkey" PRIMARY KEY, btree (a, b)
-    "t201_a_b_c_key" UNIQUE CONSTRAINT, btree (a, b, c)
-    "t201_d_g_idx" btree (d, g DESC)
+    "t201_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST)
+    "t201_a_b_c_key" UNIQUE CONSTRAINT, btree (a NULLS FIRST, b NULLS FIRST, c NULLS FIRST)
+    "t201_d_g_idx" btree (d NULLS FIRST, g DESC NULLS LAST)
 Options: shard=1
 
 create unique index t2_c_d on t2(a,c,d desc);
@@ -1002,10 +1002,10 @@ Partitions: t200 FOR VALUES IN (1, 2, 3, 4),
 Partition of: t2 FOR VALUES IN (1, 2, 3, 4)
 Partition constraint: ((a IS NOT NULL) AND (a = ANY (ARRAY[1, 2, 3, 4])))
 Indexes:
-    "t200_pkey" PRIMARY KEY, btree (a, b)
-    "t200_a_b_c_key" UNIQUE CONSTRAINT, btree (a, b, c)
-    "t200_a_c_d_idx" UNIQUE, btree (a, c, d DESC)
-    "t200_d_g_idx" btree (d, g DESC)
+    "t200_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST)
+    "t200_a_b_c_key" UNIQUE CONSTRAINT, btree (a NULLS FIRST, b NULLS FIRST, c NULLS FIRST)
+    "t200_a_c_d_idx" UNIQUE, btree (a NULLS FIRST, c NULLS FIRST, d DESC NULLS LAST)
+    "t200_d_g_idx" btree (d NULLS FIRST, g DESC NULLS LAST)
 Options: shard=1
 
 \d+ t201;
@@ -1022,10 +1022,10 @@ Options: shard=1
 Partition of: t2 FOR VALUES IN (5, 6, 7)
 Partition constraint: ((a IS NOT NULL) AND (a = ANY (ARRAY[5, 6, 7])))
 Indexes:
-    "t201_pkey" PRIMARY KEY, btree (a, b)
-    "t201_a_b_c_key" UNIQUE CONSTRAINT, btree (a, b, c)
-    "t201_a_c_d_idx" UNIQUE, btree (a, c, d DESC)
-    "t201_d_g_idx" btree (d, g DESC)
+    "t201_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST)
+    "t201_a_b_c_key" UNIQUE CONSTRAINT, btree (a NULLS FIRST, b NULLS FIRST, c NULLS FIRST)
+    "t201_a_c_d_idx" UNIQUE, btree (a NULLS FIRST, c NULLS FIRST, d DESC NULLS LAST)
+    "t201_d_g_idx" btree (d NULLS FIRST, g DESC NULLS LAST)
 Options: shard=1
 
 create unique index t201_c_a on t201(c,a desc);
@@ -1045,11 +1045,11 @@ CREATE INDEX
 Partition of: t2 FOR VALUES IN (5, 6, 7)
 Partition constraint: ((a IS NOT NULL) AND (a = ANY (ARRAY[5, 6, 7])))
 Indexes:
-    "t201_pkey" PRIMARY KEY, btree (a, b)
-    "t201_a_b_c_key" UNIQUE CONSTRAINT, btree (a, b, c)
-    "t201_a_c_d_idx" UNIQUE, btree (a, c, d DESC)
-    "t201_c_a" UNIQUE, btree (c, a DESC)
-    "t201_d_g_idx" btree (d, g DESC)
+    "t201_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST)
+    "t201_a_b_c_key" UNIQUE CONSTRAINT, btree (a NULLS FIRST, b NULLS FIRST, c NULLS FIRST)
+    "t201_a_c_d_idx" UNIQUE, btree (a NULLS FIRST, c NULLS FIRST, d DESC NULLS LAST)
+    "t201_c_a" UNIQUE, btree (c NULLS FIRST, a DESC NULLS LAST)
+    "t201_d_g_idx" btree (d NULLS FIRST, g DESC NULLS LAST)
 Options: shard=1
 
 create table t202 partition of t2 for values in (8,9,10)
@@ -1099,12 +1099,12 @@ Partitions: t200 FOR VALUES IN (1, 2, 3, 4),
 Partition of: t2 FOR VALUES IN (5, 6, 7)
 Partition constraint: ((a IS NOT NULL) AND (a = ANY (ARRAY[5, 6, 7])))
 Indexes:
-    "t201_pkey" PRIMARY KEY, btree (a, b)
-    "t201_a_b_c_key" UNIQUE CONSTRAINT, btree (a, b, c)
-    "t201_a_c_d_idx" UNIQUE, btree (a, c, d DESC)
-    "t201_c_a" UNIQUE, btree (c, a DESC)
-    "t201_d_g_idx" btree (d, g DESC)
-    "t201_g_f_idx" btree (g DESC, f)
+    "t201_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST)
+    "t201_a_b_c_key" UNIQUE CONSTRAINT, btree (a NULLS FIRST, b NULLS FIRST, c NULLS FIRST)
+    "t201_a_c_d_idx" UNIQUE, btree (a NULLS FIRST, c NULLS FIRST, d DESC NULLS LAST)
+    "t201_c_a" UNIQUE, btree (c NULLS FIRST, a DESC NULLS LAST)
+    "t201_d_g_idx" btree (d NULLS FIRST, g DESC NULLS LAST)
+    "t201_g_f_idx" btree (g DESC NULLS LAST, f NULLS FIRST)
 Options: shard=1
 
 \d+ t202;

@@ -1,0 +1,159 @@
+show autocommit;
+ autocommit 
+------------
+ on
+(1 row)
+
+drop schema if exists autocommit_schm cascade;
+NOTICE:  schema "autocommit_schm" does not exist, skipping
+create schema autocommit_schm;
+use autocommit_schm;
+WARNING:  unrecognized node type: 343
+WARNING:  unrecognized node type: 343
+show search_path;
+   search_path   
+-----------------
+ autocommit_schm
+(1 row)
+
+create table t1(a serial primary key,  b int);
+insert into t1(b) values(17);
+select*from t1;
+ a | b  
+---+----
+ 1 | 17
+(1 row)
+
+set autocommit=off;
+insert into t1(b) values(19);
+commit;
+-- better check before and after above commit in another session
+select*from t1;
+ a | b  
+---+----
+ 1 | 17
+ 2 | 19
+(2 rows)
+
+set autocommit=on;
+insert into t1(b) values(31);
+select*from t1;
+ a | b  
+---+----
+ 1 | 17
+ 2 | 19
+ 3 | 31
+(3 rows)
+
+begin;insert into t1(b) values(37);commit;
+-- better check before and after above commit in another session
+select*from t1;
+ a | b  
+---+----
+ 1 | 17
+ 2 | 19
+ 3 | 31
+ 4 | 37
+(4 rows)
+
+set autocommit to off;
+insert into t1(b) values(53);
+commit;
+-- better check before and after above commit in another session
+select*from t1;
+ a | b  
+---+----
+ 1 | 17
+ 2 | 19
+ 3 | 31
+ 4 | 37
+ 5 | 53
+(5 rows)
+
+BEGIN;BEGIN;
+insert into t1(b) values(59);
+commit;
+-- better check before and after above commit and BEGIN in another session
+select*from t1;
+ a | b  
+---+----
+ 1 | 17
+ 2 | 19
+ 3 | 31
+ 4 | 37
+ 5 | 53
+ 6 | 59
+(6 rows)
+
+BEGIN;BEGIN;BEGIN;
+insert into t1(b) values(61);
+BEGIN; -- implicitly commit
+insert into t1(b) values(67);
+begin; -- implicitly commit
+commit;
+-- better check before and after above commit and each BEGIN stmt in another session
+select*from t1;
+ a | b  
+---+----
+ 1 | 17
+ 2 | 19
+ 3 | 31
+ 4 | 37
+ 5 | 53
+ 6 | 59
+ 7 | 61
+ 8 | 67
+(8 rows)
+
+show autocommit;
+ autocommit 
+------------
+ off
+(1 row)
+
+insert into t1(b) values(71);
+insert into t1(b) values(73);
+set autocommit=true; -- implicitly commit
+-- better check before and after above stmt in another session
+select*from t1;
+ a  | b  
+----+----
+  1 | 17
+  2 | 19
+  3 | 31
+  4 | 37
+  5 | 53
+  6 | 59
+  7 | 61
+  8 | 67
+  9 | 71
+ 10 | 73
+(10 rows)
+
+set autocommit=off;
+insert into t1(b) values(79);
+begin; -- implicitly commit
+insert into t1(b) values(83);
+set autocommit=1; -- implicitly commit
+insert into t1(b) values(89);
+-- better check before and after above begin and "set autocommit=1" stmt in another session
+select*from t1;
+ a  | b  
+----+----
+  1 | 17
+  2 | 19
+  3 | 31
+  4 | 37
+  5 | 53
+  6 | 59
+  7 | 61
+  8 | 67
+  9 | 71
+ 10 | 73
+ 11 | 79
+ 12 | 83
+ 13 | 89
+(13 rows)
+
+drop schema if exists autocommit_schm cascade;
+NOTICE:  drop cascades to table t1

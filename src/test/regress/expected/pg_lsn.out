@@ -10,7 +10,7 @@ CREATE TABLE
 INSERT INTO PG_LSN_TBL VALUES ('0/0');
 INSERT 0 1
 INSERT INTO PG_LSN_TBL VALUES ('FFFFFFFF/FFFFFFFF');
-psql:sql/pg_lsn.sql:10: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1054, Unknown column 'FFFFFFFF' in 'field list'.
+INSERT 0 1
 -- Incorrect input
 INSERT INTO PG_LSN_TBL VALUES ('G/0');
 psql:sql/pg_lsn.sql:13: ERROR:  invalid input syntax for type pg_lsn: "G/0"

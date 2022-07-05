@@ -130,7 +130,7 @@ INSERT 0 10
  dauthor | name    |           |          | 
  dtitle  | text    |           |          | 
 Indexes:
-    "document_pkey" PRIMARY KEY, btree (did)
+    "document_pkey" PRIMARY KEY, btree (did NULLS FIRST)
 
 SELECT * FROM pg_policies WHERE schemaname = 'regress_rls_schema' AND tablename = 'document' ORDER BY policyname;
  schemaname | tablename | policyname | permissive | roles | cmd | qual | with_check 

@@ -265,9 +265,9 @@ CREATE TABLE
 INSERT INTO pagg_tab_m(a,b,c) SELECT i % 30, i % 40, i % 50 FROM generate_series(0, 2999) i;
 INSERT 0 3000
 EXPLAIN (COSTS OFF)
-SELECT a, sum(b), avg(c), count(*) FROM pagg_tab_m GROUP BY a, (a+b)/2 HAVING sum(b) < 50 ORDER BY 1, 2, 3;
+SELECT a, sum(b), avg(c), count(*) FROM pagg_tab_m GROUP BY a, (a+b)/2 HAVING sum(b) < 50 ORDER BY 1;
 
-SELECT a, sum(b), avg(c), count(*) FROM pagg_tab_m GROUP BY a, (a+b)/2 HAVING sum(b) < 50 ORDER BY 1, 2, 3;
+SELECT a, sum(b), avg(c), count(*) FROM pagg_tab_m GROUP BY a, (a+b)/2 HAVING sum(b) < 50 ORDER BY 1;
  a  | sum |         avg         | count 
 ----+-----+---------------------+-------
   0 |   0 | 20.0000000000000000 |    25
@@ -279,9 +279,9 @@ SELECT a, sum(b), avg(c), count(*) FROM pagg_tab_m GROUP BY a, (a+b)/2 HAVING su
 (6 rows)
 
 EXPLAIN (COSTS OFF)
-SELECT a, c, sum(b), avg(c), count(*) FROM pagg_tab_m GROUP BY (a+b)/2, 2, 1 HAVING sum(b) = 50 AND avg(c) > 25 ORDER BY 1, 2, 3;
+SELECT a, c, sum(b), avg(c), count(*) FROM pagg_tab_m GROUP BY (a+b)/2, 2, 1 HAVING sum(b) = 50 AND avg(c) > 25 ORDER BY a,c;
 
-SELECT a, c, sum(b), avg(c), count(*) FROM pagg_tab_m GROUP BY (a+b)/2, 2, 1 HAVING sum(b) = 50 AND avg(c) > 25 ORDER BY 1, 2, 3;
+SELECT a, c, sum(b), avg(c), count(*) FROM pagg_tab_m GROUP BY (a+b)/2, 2, 1 HAVING sum(b) = 50 AND avg(c) > 25 ORDER BY a,c;
  a  | c  | sum |         avg         | count 
 ----+----+-----+---------------------+-------
   0 | 30 |  50 | 30.0000000000000000 |     5
@@ -292,15 +292,38 @@ SELECT a, c, sum(b), avg(c), count(*) FROM pagg_tab_m GROUP BY (a+b)/2, 2, 1 HAV
  20 | 40 |  50 | 40.0000000000000000 |     5
 (6 rows)
 
-SELECT a, sum(b), avg(c))::numeric(64,4), count(*) FROM pagg_tab_m GROUP BY a,b HAVING sum(b) < 2000 and avg(c) > 27 ORDER BY 1, 2;
-psql:sql/remote_dml2.sql:103: ERROR:  syntax error at or near ")"
-LINE 1: SELECT a, sum(b), avg(c))::numeric(64,4), count(*) FROM pagg...
-                                ^
+SELECT a, sum(b), avg(c)::numeric(64,4), count(*) FROM pagg_tab_m GROUP BY a,b HAVING sum(b) < 2000 and avg(c) > 27 ORDER BY 1, 2;
+ a  | sum |   avg   | count 
+----+-----+---------+-------
+  8 | 200 | 28.0000 |    25
+  8 | 450 | 28.0000 |    25
+  8 | 700 | 28.0000 |    25
+  8 | 950 | 28.0000 |    25
+  9 | 225 | 29.0000 |    25
+  9 | 475 | 29.0000 |    25
+  9 | 725 | 29.0000 |    25
+  9 | 975 | 29.0000 |    25
+ 18 | 200 | 28.0000 |    25
+ 18 | 450 | 28.0000 |    25
+ 18 | 700 | 28.0000 |    25
+ 18 | 950 | 28.0000 |    25
+ 19 | 225 | 29.0000 |    25
+ 19 | 475 | 29.0000 |    25
+ 19 | 725 | 29.0000 |    25
+ 19 | 975 | 29.0000 |    25
+ 28 | 200 | 28.0000 |    25
+ 28 | 450 | 28.0000 |    25
+ 28 | 700 | 28.0000 |    25
+ 28 | 950 | 28.0000 |    25
+ 29 | 225 | 29.0000 |    25
+ 29 | 475 | 29.0000 |    25
+ 29 | 725 | 29.0000 |    25
+ 29 | 975 | 29.0000 |    25
+(24 rows)
+
 explain (verbose)
-SELECT a, sum(b), avg(c))::numeric(64,4), count(*) FROM pagg_tab_m GROUP BY a,b HAVING sum(b) < 2000 and avg(c) > 27 ORDER BY 1, 2;
-psql:sql/remote_dml2.sql:105: ERROR:  syntax error at or near ")"
-LINE 2: SELECT a, sum(b), avg(c))::numeric(64,4), count(*) FROM pagg...
-                                ^
+SELECT a, sum(b), avg(c)::numeric(64,4), count(*) FROM pagg_tab_m GROUP BY a,b HAVING sum(b) < 2000 and avg(c) > 27 ORDER BY 1, 2;
+
 -- bug 53
 drop table if exists trunc_stats_test1 cascade;
 psql:sql/remote_dml2.sql:108: NOTICE:  table "trunc_stats_test1" does not exist, skipping
@@ -1436,6 +1459,8 @@ DETAIL:  drop cascades to table testschema.foo
 drop cascades to sequence testschema.seq1
 DROP SCHEMA
 -- bug 44 todo
+SET enable_partitionwise_join=off;
+SET
 drop table if exists tenk1 cascade;
 DROP TABLE
 drop table if exists INT4_TBL cascade;
@@ -1482,39 +1507,19 @@ explain (verbose, costs off)
         right join int4_tbl i2 on i2.f1 = b.tenthous
         order by 1;
 
-set enable_nestloop=false;
-SET
     select b.unique1 from
         tenk1 a join tenk1 b on a.unique1 = b.unique2
         left join tenk1 c on b.unique1 = 42 and c.thousand = a.thousand
         join int4_tbl i1 on b.thousand = f1
         right join int4_tbl i2 on i2.f1 = b.tenthous
         order by 1;
-psql:sql/remote_dml2.sql:657: ERROR:  canceling statement due to statement timeout
-set enable_nestloop=false;
-SET
+psql:sql/remote_dml2.sql:658: ERROR:  canceling statement due to statement timeout
     select b.unique1 from
         tenk1 a join tenk1 b on a.unique1 = b.unique2
         join int4_tbl i1 on b.thousand = f1
         right join int4_tbl i2 on i2.f1 = b.tenthous
         order by 1;
- unique1 
----------
-       1
-       2
-       3
-       4
-       5
-       6
-       7
-       8
-       9
-      10
-      11
-      12
-      13
-(13 rows)
-
+psql:sql/remote_dml2.sql:666: ERROR:  canceling statement due to statement timeout
 --set enable_remote_join_pushdown = false;
 explain (costs off)
     select b.unique1 from
@@ -1531,46 +1536,26 @@ explain (costs off)
         right join int4_tbl i2 on i2.f1 = b.tenthous
         order by 1;
 
-set enable_nestloop=false;
-SET
     select b.unique1 from
         tenk1 a join tenk1 b on a.unique1 = b.unique2
         left join tenk1 c on b.unique1 = 42 and c.thousand = a.thousand
         join int4_tbl i1 on b.thousand = f1
         right join int4_tbl i2 on i2.f1 = b.tenthous
         order by 1;
-psql:sql/remote_dml2.sql:688: ERROR:  canceling statement due to statement timeout
-set enable_nestloop=false;
-SET
+psql:sql/remote_dml2.sql:690: ERROR:  canceling statement due to statement timeout
     select b.unique1 from
         tenk1 a join tenk1 b on a.unique1 = b.unique2
         join int4_tbl i1 on b.thousand = f1
         right join int4_tbl i2 on i2.f1 = b.tenthous
         order by 1;
- unique1 
----------
-       1
-       2
-       3
-       4
-       5
-       6
-       7
-       8
-       9
-      10
-      11
-      12
-      13
-(13 rows)
-
+psql:sql/remote_dml2.sql:698: ERROR:  canceling statement due to statement timeout
 -- below portion is fixed, above portion not yet. TODO
  drop table if exists mlparted cascade;
 DROP TABLE
 drop table if exists mlparted1 cascade;
 DROP TABLE
 drop table if exists mlparted11 cascade;
-psql:sql/remote_dml2.sql:699: NOTICE:  table "mlparted11" does not exist, skipping
+psql:sql/remote_dml2.sql:703: NOTICE:  table "mlparted11" does not exist, skipping
 DROP TABLE
 create table mlparted (a int, b int) partition by range (a, b);
 CREATE TABLE
@@ -1583,10 +1568,10 @@ ALTER TABLE
 alter table mlparted attach partition mlparted1 for values from (1, 2) to (1, 10);
 ALTER TABLE
 with ins (a, b, c) as (insert into mlparted (b, a) select s.a, 1 from generate_series(2, 39) s(a) returning tableoid::regclass, *) select a, b, min(c), max(c) from ins group by a, b order by 1;
-psql:sql/remote_dml2.sql:705: ERROR:  no partition of relation "mlparted1" found for row
+psql:sql/remote_dml2.sql:709: ERROR:  no partition of relation "mlparted1" found for row
 DETAIL:  Partition key of the failing row contains ((b + 0)) = (5).
 with ins (a, b, c) as (insert into mlparted (b, a) select s.a, 1 from generate_series(2, 39) s(a) returning tableoid::regclass, *) select a, b, min(c), max(c) from ins group by a, b order by 1;
-psql:sql/remote_dml2.sql:706: ERROR:  no partition of relation "mlparted1" found for row
+psql:sql/remote_dml2.sql:710: ERROR:  no partition of relation "mlparted1" found for row
 DETAIL:  Partition key of the failing row contains ((b + 0)) = (5).
 -- bug 41
  drop table if exists INT8_TBL cascade;
@@ -1623,27 +1608,27 @@ SET
 SET row_security = on;
 SET
 drop table if exists r1 cascade;
-psql:sql/remote_dml2.sql:732: ERROR:  must be owner of table r1
+psql:sql/remote_dml2.sql:736: ERROR:  must be owner of table r1
 CREATE TABLE r1 (a int primary key);
-psql:sql/remote_dml2.sql:733: ERROR:  relation "r1" already exists
+psql:sql/remote_dml2.sql:737: ERROR:  relation "r1" already exists
 INSERT INTO r1 VALUES (10), (20);
-psql:sql/remote_dml2.sql:734: ERROR:  permission denied for table r1
+psql:sql/remote_dml2.sql:738: ERROR:  permission denied for table r1
 --CREATE POLICY p1 ON r1 USING (false);
 --ALTER TABLE r1 ENABLE ROW LEVEL SECURITY;
 --ALTER TABLE r1 FORCE ROW LEVEL SECURITY;
 TABLE r1;
-psql:sql/remote_dml2.sql:738: ERROR:  permission denied for table r1
+psql:sql/remote_dml2.sql:742: ERROR:  permission denied for table r1
 INSERT INTO r1 VALUES (1);
-psql:sql/remote_dml2.sql:739: ERROR:  permission denied for table r1
+psql:sql/remote_dml2.sql:743: ERROR:  permission denied for table r1
 UPDATE r1 SET a = 1;
-psql:sql/remote_dml2.sql:740: ERROR:  permission denied for table r1
+psql:sql/remote_dml2.sql:744: ERROR:  permission denied for table r1
 DELETE FROM r1;
-psql:sql/remote_dml2.sql:741: ERROR:  permission denied for table r1
+psql:sql/remote_dml2.sql:745: ERROR:  permission denied for table r1
 SET SESSION AUTHORIZATION abc;
 SET
 -- bug 57
 drop table if exists temptest1 cascade;
-psql:sql/remote_dml2.sql:745: NOTICE:  table "temptest1" does not exist, skipping
+psql:sql/remote_dml2.sql:749: NOTICE:  table "temptest1" does not exist, skipping
 DROP TABLE
 begin;
 BEGIN
@@ -1661,7 +1646,7 @@ select*from temptest1;
 commit;
 COMMIT
 drop table if exists temptest2 cascade;
-psql:sql/remote_dml2.sql:752: NOTICE:  table "temptest2" does not exist, skipping
+psql:sql/remote_dml2.sql:756: NOTICE:  table "temptest2" does not exist, skipping
 DROP TABLE
 begin;
 BEGIN
@@ -1680,7 +1665,7 @@ commit;
 COMMIT
 -- bug 84
 drop table if exists collate_test10 cascade;
-psql:sql/remote_dml2.sql:760: NOTICE:  table "collate_test10" does not exist, skipping
+psql:sql/remote_dml2.sql:764: NOTICE:  table "collate_test10" does not exist, skipping
 DROP TABLE
  CREATE TABLE collate_test10 (
     a int primary key,
@@ -1692,10 +1677,10 @@ INSERT INTO collate_test10 VALUES (1, 'hij', 'hij'), (2, 'HIJ', 'HIJ');
 INSERT 0 2
 --select x < y from collate_test10;
 drop table if exists collate_test1 cascade;
-psql:sql/remote_dml2.sql:771: NOTICE:  table "collate_test1" does not exist, skipping
+psql:sql/remote_dml2.sql:775: NOTICE:  table "collate_test1" does not exist, skipping
 DROP TABLE
 drop table if exists collate_test2 cascade;
-psql:sql/remote_dml2.sql:772: NOTICE:  table "collate_test2" does not exist, skipping
+psql:sql/remote_dml2.sql:776: NOTICE:  table "collate_test2" does not exist, skipping
 DROP TABLE
 CREATE TABLE collate_test1 (id serial primary key, a int, b varchar(50) COLLATE "C" NOT NULL);
 CREATE TABLE
@@ -1716,24 +1701,24 @@ SELECT a, b FROM collate_test2 WHERE a < 4 INTERSECT SELECT a, b FROM collate_te
 CREATE TABLE moneyp (a money) PARTITION BY LIST (a);
 CREATE TABLE
 CREATE TABLE moneyp_10 PARTITION OF moneyp FOR VALUES IN (10);
-psql:sql/remote_dml2.sql:782: ERROR:  specified value cannot be cast to type money for column "a"
+psql:sql/remote_dml2.sql:786: ERROR:  specified value cannot be cast to type money for column "a"
 LINE 1: ...EATE TABLE moneyp_10 PARTITION OF moneyp FOR VALUES IN (10);
                                                                    ^
 DETAIL:  The cast requires a non-immutable conversion.
 HINT:  Try putting the literal value in single quotes.
 drop table if exists list_parted cascade;
-psql:sql/remote_dml2.sql:783: NOTICE:  table "list_parted" does not exist, skipping
+psql:sql/remote_dml2.sql:787: NOTICE:  table "list_parted" does not exist, skipping
 DROP TABLE
 CREATE TABLE list_parted (a int) PARTITION BY LIST (a);
 CREATE TABLE
 CREATE TABLE part_1 PARTITION OF list_parted FOR VALUES IN ('1');
 CREATE TABLE
 CREATE TABLE fail_part PARTITION OF list_parted FOR VALUES IN (int '1');
-psql:sql/remote_dml2.sql:786: ERROR:  syntax error at or near "int"
+psql:sql/remote_dml2.sql:790: ERROR:  syntax error at or near "int"
 LINE 1: ... fail_part PARTITION OF list_parted FOR VALUES IN (int '1');
                                                               ^
 CREATE TABLE fail_part PARTITION OF list_parted FOR VALUES IN ('1'::int);
-psql:sql/remote_dml2.sql:787: ERROR:  syntax error at or near "::"
+psql:sql/remote_dml2.sql:791: ERROR:  syntax error at or near "::"
 LINE 1: ...fail_part PARTITION OF list_parted FOR VALUES IN ('1'::int);
                                                                 ^
 -- bug 72
@@ -1762,7 +1747,7 @@ CREATE UNIQUE INDEX onek_idx ON onek (unique2 nulls first,unique1);
 CREATE INDEX
 -- bug 34
 drop table if exists part_attmp cascade;
-psql:sql/remote_dml2.sql:813: NOTICE:  table "part_attmp" does not exist, skipping
+psql:sql/remote_dml2.sql:817: NOTICE:  table "part_attmp" does not exist, skipping
 DROP TABLE
 CREATE TABLE part_attmp (a int primary key) partition by range (a);
 CREATE TABLE
@@ -1782,7 +1767,7 @@ ALTER INDEX part_attmp1_b_idx RENAME TO part_attmp1_b_index;
 ALTER INDEX
 -- bug 14
 drop table if exists test_default_tab cascade;
-psql:sql/remote_dml2.sql:825: NOTICE:  table "test_default_tab" does not exist, skipping
+psql:sql/remote_dml2.sql:829: NOTICE:  table "test_default_tab" does not exist, skipping
 DROP TABLE
 CREATE TABLE test_default_tab(pk serial primary key, id int);
 CREATE TABLE
@@ -1791,7 +1776,7 @@ CREATE INDEX
 ALTER TABLE test_default_tab ALTER id TYPE bigint;
 ALTER TABLE
 drop table if exists anothertab cascade;
-psql:sql/remote_dml2.sql:830: NOTICE:  table "anothertab" does not exist, skipping
+psql:sql/remote_dml2.sql:834: NOTICE:  table "anothertab" does not exist, skipping
 DROP TABLE
 create table anothertab(f1 int primary key, f2 int unique,f3 int, f4 int, f5 int);
 CREATE TABLE
@@ -1850,7 +1835,7 @@ ALTER TABLE
 --
 -- bug 56
 drop table if exists pc_list_parted  cascade;
-psql:sql/remote_dml2.sql:883: NOTICE:  table "pc_list_parted" does not exist, skipping
+psql:sql/remote_dml2.sql:887: NOTICE:  table "pc_list_parted" does not exist, skipping
 DROP TABLE
 create table pc_list_parted (a int primary key) partition by list(a);
 CREATE TABLE
@@ -1859,11 +1844,11 @@ CREATE TABLE
 create table pc_list_part_1 partition of pc_list_parted for values in (1);
 CREATE TABLE
 insert into pc_list_part_1 values(2);
-psql:sql/remote_dml2.sql:887: ERROR:  new row for relation "pc_list_part_1" violates partition constraint
+psql:sql/remote_dml2.sql:891: ERROR:  new row for relation "pc_list_part_1" violates partition constraint
 DETAIL:  Failing row contains (2).
 -- bug 25
 drop table if exists concur_heap cascade;
-psql:sql/remote_dml2.sql:890: NOTICE:  table "concur_heap" does not exist, skipping
+psql:sql/remote_dml2.sql:894: NOTICE:  table "concur_heap" does not exist, skipping
 DROP TABLE
 CREATE TABLE concur_heap (id serial primary key, f1 int, f2 int);
 CREATE TABLE
@@ -1909,10 +1894,10 @@ select * from tt17v;
 
 -- bug 111
 drop table if exists persons cascade;
-psql:sql/remote_dml2.sql:908: NOTICE:  table "persons" does not exist, skipping
+psql:sql/remote_dml2.sql:912: NOTICE:  table "persons" does not exist, skipping
 DROP TABLE
 drop type if exists person_type cascade;
-psql:sql/remote_dml2.sql:909: NOTICE:  type "person_type" does not exist, skipping
+psql:sql/remote_dml2.sql:913: NOTICE:  type "person_type" does not exist, skipping
 DROP TYPE
 CREATE TYPE person_type AS (id int, name varchar(50));
 CREATE TYPE
@@ -1920,10 +1905,10 @@ CREATE TABLE persons OF person_type;
 CREATE TABLE
 -- bug 112
 drop table if exists base_tbl cascade;
-psql:sql/remote_dml2.sql:914: NOTICE:  drop cascades to view rw_view1
+psql:sql/remote_dml2.sql:918: NOTICE:  drop cascades to view rw_view1
 DROP TABLE
 drop view if existrs rw_view1;
-psql:sql/remote_dml2.sql:915: ERROR:  syntax error at or near "existrs"
+psql:sql/remote_dml2.sql:919: ERROR:  syntax error at or near "existrs"
 LINE 1: drop view if existrs rw_view1;
                      ^
 CREATE TABLE base_tbl (a int, b int DEFAULT 10);
@@ -1934,7 +1919,7 @@ INSERT 0 3
 --INSERT INTO rw_view1 values(3,2),(4,3), (3,4);
 -- bug 114
 drop table if exists update_test cascade;
-psql:sql/remote_dml2.sql:922: NOTICE:  table "update_test" does not exist, skipping
+psql:sql/remote_dml2.sql:926: NOTICE:  table "update_test" does not exist, skipping
 DROP TABLE
 CREATE TABLE update_test (a INT DEFAULT 10, b INT, c TEXT);
 CREATE TABLE
@@ -1945,7 +1930,7 @@ INSERT 0 1
 --UPDATE update_test t SET (a, b) = (SELECT b, a FROM --update_test s WHERE s.a = t.a) WHERE CURRENT_USER = --SESSION_USER;
 -- bug 116
 drop table if exists t1 cascade;
-psql:sql/remote_dml2.sql:929: NOTICE:  table "t1" does not exist, skipping
+psql:sql/remote_dml2.sql:933: NOTICE:  table "t1" does not exist, skipping
 DROP TABLE
 create table t1(pk int not null primary key);
 CREATE TABLE
@@ -1990,7 +1975,7 @@ DELETE 3
 -- bug 127
 -- TODO: verify the stmt is sent to ddl log after each ddl stmt. so far we don't have such test facility.
 DROP SCHEMA if exists testschema cascade;
-psql:sql/remote_dml2.sql:944: NOTICE:  schema "testschema" does not exist, skipping
+psql:sql/remote_dml2.sql:948: NOTICE:  schema "testschema" does not exist, skipping
 DROP SCHEMA
 CREATE SCHEMA testschema;
 CREATE SCHEMA
@@ -2034,7 +2019,7 @@ select*from testschema.part1 ;
 drop index testschema.part1_b_c;
 DROP INDEX
 insert into testschema.part1 (b,c) values(11, 'abc'),(12,'bcd'),(13,'cde');
-psql:sql/remote_dml2.sql:958: ERROR:  no partition of relation "part1" found for row
+psql:sql/remote_dml2.sql:962: ERROR:  no partition of relation "part1" found for row
 DETAIL:  Partition key of the failing row contains (a) = (9).
 select*from testschema.part1 ;
  a | b  |  c  
@@ -2048,11 +2033,11 @@ select*from testschema.part1 ;
 (6 rows)
 
 drop schema testschema cascade;
-psql:sql/remote_dml2.sql:960: NOTICE:  drop cascades to table testschema.part1
+psql:sql/remote_dml2.sql:964: NOTICE:  drop cascades to table testschema.part1
 DROP SCHEMA
 -- bug 121
 drop table if exists indext1 cascade;
-psql:sql/remote_dml2.sql:963: NOTICE:  table "indext1" does not exist, skipping
+psql:sql/remote_dml2.sql:967: NOTICE:  table "indext1" does not exist, skipping
 DROP TABLE
 create table indext1(id integer);
 CREATE TABLE
@@ -2200,7 +2185,7 @@ update t2 set good = false where id = 1;
 UPDATE 1
 -- bug 199
 drop table if exists t4 cascade;
-psql:sql/remote_dml2.sql:1018: NOTICE:  table "t4" does not exist, skipping
+psql:sql/remote_dml2.sql:1022: NOTICE:  table "t4" does not exist, skipping
 DROP TABLE
 create table t4(a money);
 CREATE TABLE
@@ -2222,9 +2207,9 @@ select*from t4;
 (4 rows)
 
 insert into t4 values (-92233720368547758.09); -- bigint out of range
-psql:sql/remote_dml2.sql:1026: ERROR:  bigint out of range
+psql:sql/remote_dml2.sql:1030: ERROR:  bigint out of range
 insert into t4 values (+92233720368547758.08); -- bigint out of range
-psql:sql/remote_dml2.sql:1027: ERROR:  bigint out of range
+psql:sql/remote_dml2.sql:1031: ERROR:  bigint out of range
 insert into t4 values (-1111);
 INSERT 0 1
 select*from t4;
@@ -2239,7 +2224,7 @@ select*from t4;
 
 -- bug 94
  drop table if exists FLOAT4_TBL cascade;
-psql:sql/remote_dml2.sql:1033: NOTICE:  table "float4_tbl" does not exist, skipping
+psql:sql/remote_dml2.sql:1037: NOTICE:  table "float4_tbl" does not exist, skipping
 DROP TABLE
 CREATE TABLE FLOAT4_TBL (f1 float4);
 CREATE TABLE
@@ -2264,10 +2249,9 @@ select f1 from float4_tbl;
 (5 rows)
 
 SELECT f.* FROM FLOAT4_TBL f WHERE f.f1 = 1004.3;
-   f1   
---------
- 1004.3
-(1 row)
+ f1 
+----
+(0 rows)
 
 SELECT f.* FROM FLOAT4_TBL f WHERE f.f1 <> '1004.3';
      f1      
@@ -2359,7 +2343,7 @@ set enable_mergejoin=false;
 SET
 set enable_nestloop=true;
 SET
-SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x ORDER BY 1, 2, 3;
+SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x;
  x  | sum  | count 
 ----+------+-------
   0 |  500 |   100
@@ -2370,9 +2354,9 @@ SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2
 (5 rows)
 
 EXPLAIN (verbose, COSTS OFF)
-SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x ORDER BY 1, 2, 3;
+SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x;
 
-SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.y HAVING avg(t1.x) > 10 ORDER BY 1, 2, 3;
+SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.y HAVING avg(t1.x) > 10;
  y  | sum  | count 
 ----+------+-------
   2 |  600 |    50
@@ -2384,7 +2368,7 @@ SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2
 (6 rows)
 
 EXPLAIN (verbose, COSTS OFF)
-SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.y HAVING avg(t1.x) > 10 ORDER BY 1, 2, 3;
+SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.y HAVING avg(t1.x) > 10;
 
 SELECT b.y, sum(a.y) FROM pagg_tab1 a LEFT JOIN pagg_tab2 b ON a.x = b.y GROUP BY b.y ORDER BY 1 NULLS LAST;
  y  | sum  
@@ -2513,7 +2497,7 @@ set enable_mergejoin=false;
 SET
 set enable_nestloop=false;
 SET
-SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x ORDER BY 1, 2, 3;
+SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x ORDER BY 1;
  x  | sum  | count 
 ----+------+-------
   0 |  500 |   100
@@ -2524,9 +2508,9 @@ SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2
 (5 rows)
 
 EXPLAIN (verbose, COSTS OFF)
-SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x ORDER BY 1, 2, 3;
+SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x ORDER BY 1;
 
-SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.y HAVING avg(t1.x) > 10 ORDER BY 1, 2, 3;
+SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.y HAVING avg(t1.x) > 10 ORDER BY 1;
  y  | sum  | count 
 ----+------+-------
   2 |  600 |    50
@@ -2538,7 +2522,7 @@ SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2
 (6 rows)
 
 EXPLAIN (verbose, COSTS OFF)
-SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.y HAVING avg(t1.x) > 10 ORDER BY 1, 2, 3;
+SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.y HAVING avg(t1.x) > 10 ORDER BY 1;
 
 SELECT b.y, sum(a.y) FROM pagg_tab1 a LEFT JOIN pagg_tab2 b ON a.x = b.y GROUP BY b.y ORDER BY 1 NULLS LAST;
  y  | sum  
@@ -2667,7 +2651,7 @@ set enable_mergejoin=true;
 SET
 set enable_nestloop=false;
 SET
-SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x ORDER BY 1, 2, 3;
+SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x ORDER BY 1;
  x  | sum  | count 
 ----+------+-------
   0 |  500 |   100
@@ -2678,9 +2662,9 @@ SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2
 (5 rows)
 
 EXPLAIN (verbose, COSTS OFF)
-SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x ORDER BY 1, 2, 3;
+SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x ORDER BY 1;
 
-SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.y HAVING avg(t1.x) > 10 ORDER BY 1, 2, 3;
+SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.y HAVING avg(t1.x) > 10 ORDER BY 1;
  y  | sum  | count 
 ----+------+-------
   2 |  600 |    50
@@ -2692,7 +2676,7 @@ SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2
 (6 rows)
 
 EXPLAIN (verbose, COSTS OFF)
-SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.y HAVING avg(t1.x) > 10 ORDER BY 1, 2, 3;
+SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.y HAVING avg(t1.x) > 10 ORDER BY 1;
 
 SELECT b.y, sum(a.y) FROM pagg_tab1 a LEFT JOIN pagg_tab2 b ON a.x = b.y GROUP BY b.y ORDER BY 1 NULLS LAST;
  y  | sum  
@@ -2815,6 +2799,8 @@ SELECT t1.* FROM prt1 t1 WHERE t1.a IN (SELECT t1.b FROM prt2 t1, prt1_e t2 WHER
 EXPLAIN (verbose, COSTS OFF)
 SELECT t1.* FROM prt1 t1 WHERE t1.a IN (SELECT t1.b FROM prt2 t1, prt1_e t2 WHERE t1.a = 0 AND t1.b = (t2.a + t2.b)/2) AND t1.b = 0 ORDER BY t1.a;
 
+set enable_nestloop =on;
+SET
 -- bug 226 Wrong Assert causing failure when an expression target is pushed down
 DROP TABLE if exists SUBSELECT_TBL cascade;
 DROP TABLE

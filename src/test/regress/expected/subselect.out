@@ -765,6 +765,8 @@ select '1'::text in (select '1'::name union all select '1'::name);
 --
 -- Test case for planner bug with nested EXISTS handling
 --
+set enable_nestloop =off;
+SET
 select a.thousand from tenk1 a, tenk1 b
 where a.thousand = b.thousand
   and exists ( select 1 from tenk1 c where b.hundred = c.hundred
@@ -774,6 +776,8 @@ where a.thousand = b.thousand
 ----------
 (0 rows)
 
+set enable_nestloop =on;
+SET
 --
 -- Check that nested sub-selects are not pulled up if they contain volatiles
 --
@@ -931,12 +935,12 @@ select * from
 select * from
   (select 9 as x, unnest(array[1,2,3,11,12,13]) as u) ss
   where tattle(x, 8);
-psql:sql/subselect.sql:535: NOTICE:  x = 9, y = 8
-psql:sql/subselect.sql:535: NOTICE:  x = 9, y = 8
-psql:sql/subselect.sql:535: NOTICE:  x = 9, y = 8
-psql:sql/subselect.sql:535: NOTICE:  x = 9, y = 8
-psql:sql/subselect.sql:535: NOTICE:  x = 9, y = 8
-psql:sql/subselect.sql:535: NOTICE:  x = 9, y = 8
+psql:sql/subselect.sql:539: NOTICE:  x = 9, y = 8
+psql:sql/subselect.sql:539: NOTICE:  x = 9, y = 8
+psql:sql/subselect.sql:539: NOTICE:  x = 9, y = 8
+psql:sql/subselect.sql:539: NOTICE:  x = 9, y = 8
+psql:sql/subselect.sql:539: NOTICE:  x = 9, y = 8
+psql:sql/subselect.sql:539: NOTICE:  x = 9, y = 8
  x | u  
 ---+----
  9 |  1
@@ -958,7 +962,7 @@ select * from
 select * from
   (select 9 as x, unnest(array[1,2,3,11,12,13]) as u) ss
   where tattle(x, 8);
-psql:sql/subselect.sql:548: NOTICE:  x = 9, y = 8
+psql:sql/subselect.sql:552: NOTICE:  x = 9, y = 8
  x | u  
 ---+----
  9 |  1
@@ -978,12 +982,12 @@ select * from
 select * from
   (select 9 as x, unnest(array[1,2,3,11,12,13]) as u) ss
   where tattle(x, u);
-psql:sql/subselect.sql:558: NOTICE:  x = 9, y = 1
-psql:sql/subselect.sql:558: NOTICE:  x = 9, y = 2
-psql:sql/subselect.sql:558: NOTICE:  x = 9, y = 3
-psql:sql/subselect.sql:558: NOTICE:  x = 9, y = 11
-psql:sql/subselect.sql:558: NOTICE:  x = 9, y = 12
-psql:sql/subselect.sql:558: NOTICE:  x = 9, y = 13
+psql:sql/subselect.sql:562: NOTICE:  x = 9, y = 1
+psql:sql/subselect.sql:562: NOTICE:  x = 9, y = 2
+psql:sql/subselect.sql:562: NOTICE:  x = 9, y = 3
+psql:sql/subselect.sql:562: NOTICE:  x = 9, y = 11
+psql:sql/subselect.sql:562: NOTICE:  x = 9, y = 12
+psql:sql/subselect.sql:562: NOTICE:  x = 9, y = 13
  x | u 
 ---+---
  9 | 1

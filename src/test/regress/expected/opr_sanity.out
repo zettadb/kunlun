@@ -380,7 +380,8 @@ ORDER BY 1;
  5124 | my_cstring_out
  5125 | my_timetz_in
  5126 | my_timestamptz_in
-(7 rows)
+ 5129 | my_pg_lsn_in
+(8 rows)
 
 -- Likewise, look for functions that return cstring and aren't datatype output
 -- functions nor typmod output functions.
@@ -422,7 +423,8 @@ ORDER BY 1;
  5124 | my_cstring_out
  5127 | my_enum_out
  5128 | my_cash_out
-(27 rows)
+ 5130 | my_pg_lsn_out
+(28 rows)
 
 -- Check for length inconsistencies between the various argument-info arrays.
 SELECT p1.oid, p1.proname

@@ -516,10 +516,10 @@ psql:sql/collate.sql:167: ERROR:  collations are not supported by type integer
 LINE 1: ...ATE INDEX collate_test1_idx6 ON collate_test1 ((a COLLATE "P...
                                                              ^
 SELECT relname, pg_get_indexdef(oid) FROM pg_class WHERE relname LIKE 'collate_test%_idx%' ORDER BY 1;
-      relname       |                                        pg_get_indexdef                                         
---------------------+------------------------------------------------------------------------------------------------
- collate_test1_idx1 | CREATE INDEX collate_test1_idx1 ON collate_tests.collate_test1 USING btree (b)
- collate_test1_idx3 | CREATE INDEX collate_test1_idx3 ON collate_tests.collate_test1 USING btree (b COLLATE "POSIX")
+      relname       |                                              pg_get_indexdef                                               
+--------------------+------------------------------------------------------------------------------------------------------------
+ collate_test1_idx1 | CREATE INDEX collate_test1_idx1 ON collate_tests.collate_test1 USING btree (b NULLS FIRST)
+ collate_test1_idx3 | CREATE INDEX collate_test1_idx3 ON collate_tests.collate_test1 USING btree (b COLLATE "POSIX" NULLS FIRST)
 (2 rows)
 
 -- foreign keys

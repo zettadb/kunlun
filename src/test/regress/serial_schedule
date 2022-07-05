@@ -1,5 +1,6 @@
 # src/test/regress/serial_schedule
 # This should probably be in an order similar to parallel_schedule.
+test: autocommit
 test: schema
 test: boolean
 test: char
@@ -193,10 +194,13 @@ test: datatypes_simple
 test: remote
 test: remote_dml
 test: remote_dml2
+test: remote_dml3
+test: remote_dml4
 test: remote_opt
 test: alter_table2
 test: alter_table3
 test: sequence_noalter
+test: lex_quotes_pg
 test: kunlun_alter_table
 test: kunlun_remote
 test: kunlun_remote_dml

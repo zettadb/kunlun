@@ -5,11 +5,14 @@ show autocommit;
 (1 row)
 
 drop schema if exists autocommit_schm cascade;
-NOTICE:  schema "autocommit_schm" does not exist, skipping
+psql:sql/autocommit.sql:2: NOTICE:  schema "autocommit_schm" does not exist, skipping
+DROP SCHEMA
 create schema autocommit_schm;
+CREATE SCHEMA
 use autocommit_schm;
-WARNING:  unrecognized node type: 343
-WARNING:  unrecognized node type: 343
+psql:sql/autocommit.sql:4: WARNING:  unrecognized node type: 343
+psql:sql/autocommit.sql:4: WARNING:  unrecognized node type: 343
+???
 show search_path;
    search_path   
 -----------------
@@ -17,7 +20,9 @@ show search_path;
 (1 row)
 
 create table t1(a serial primary key,  b int);
+CREATE TABLE
 insert into t1(b) values(17);
+INSERT 0 1
 select*from t1;
  a | b  
 ---+----
@@ -25,8 +30,11 @@ select*from t1;
 (1 row)
 
 set autocommit=off;
+SET
 insert into t1(b) values(19);
+INSERT 0 1
 commit;
+COMMIT
 -- better check before and after above commit in another session
 select*from t1;
  a | b  
@@ -36,7 +44,9 @@ select*from t1;
 (2 rows)
 
 set autocommit=on;
+SET
 insert into t1(b) values(31);
+INSERT 0 1
 select*from t1;
  a | b  
 ---+----
@@ -46,6 +56,9 @@ select*from t1;
 (3 rows)
 
 begin;insert into t1(b) values(37);commit;
+BEGIN
+INSERT 0 1
+COMMIT
 -- better check before and after above commit in another session
 select*from t1;
  a | b  
@@ -57,8 +70,11 @@ select*from t1;
 (4 rows)
 
 set autocommit to off;
+SET
 insert into t1(b) values(53);
+INSERT 0 1
 commit;
+COMMIT
 -- better check before and after above commit in another session
 select*from t1;
  a | b  
@@ -71,8 +87,12 @@ select*from t1;
 (5 rows)
 
 BEGIN;BEGIN;
+BEGIN
+BEGIN
 insert into t1(b) values(59);
+INSERT 0 1
 commit;
+COMMIT
 -- better check before and after above commit and BEGIN in another session
 select*from t1;
  a | b  
@@ -86,11 +106,19 @@ select*from t1;
 (6 rows)
 
 BEGIN;BEGIN;BEGIN;
+BEGIN
+BEGIN
+BEGIN
 insert into t1(b) values(61);
+INSERT 0 1
 BEGIN; -- implicitly commit
+BEGIN
 insert into t1(b) values(67);
+INSERT 0 1
 begin; -- implicitly commit
+BEGIN
 commit;
+COMMIT
 -- better check before and after above commit and each BEGIN stmt in another session
 select*from t1;
  a | b  
@@ -112,8 +140,11 @@ show autocommit;
 (1 row)
 
 insert into t1(b) values(71);
+INSERT 0 1
 insert into t1(b) values(73);
+INSERT 0 1
 set autocommit=true; -- implicitly commit
+SET
 -- better check before and after above stmt in another session
 select*from t1;
  a  | b  
@@ -131,11 +162,17 @@ select*from t1;
 (10 rows)
 
 set autocommit=off;
+SET
 insert into t1(b) values(79);
+INSERT 0 1
 begin; -- implicitly commit
+BEGIN
 insert into t1(b) values(83);
+INSERT 0 1
 set autocommit=1; -- implicitly commit
+SET
 insert into t1(b) values(89);
+INSERT 0 1
 -- better check before and after above begin and "set autocommit=1" stmt in another session
 select*from t1;
  a  | b  
@@ -156,4 +193,5 @@ select*from t1;
 (13 rows)
 
 drop schema if exists autocommit_schm cascade;
-NOTICE:  drop cascades to table t1
+psql:sql/autocommit.sql:66: NOTICE:  drop cascades to table t1
+DROP SCHEMA

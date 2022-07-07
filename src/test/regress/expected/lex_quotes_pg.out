@@ -198,29 +198,47 @@
 -- above can only be run in mysql connections
 -- Part II. Symbols quoting tests
 set mysql_ansi_quotes = true;
+SET
 drop schema if exists lexer_quotes cascade;
-NOTICE:  schema "lexer_quotes" does not exist, skipping
+psql:sql/lex_quotes_pg.sql:205: NOTICE:  schema "lexer_quotes" does not exist, skipping
+DROP SCHEMA
 create schema lexer_quotes;
+CREATE SCHEMA
 set search_path= 'lexer_quotes';
+SET
 create table if not exists t1(a int);
+CREATE TABLE
 create view "t""1" as select*from t1;
+CREATE VIEW
 set mysql_ansi_quotes=true;
+SET
 create view `t""1` as select*from t1;
+CREATE VIEW
 drop view "t""1";
+DROP VIEW
 drop view `t""1`;
+DROP VIEW
 create view "t""1" as select*from t1;
+CREATE VIEW
 drop view `t"1`;
 create view "t`1" as select*from t1;
 drop view `t``1`;
 create view `t"2` as select*from t1;
+CREATE VIEW
 drop view "t""2";
+DROP VIEW
 create view "t`1" as select*from t1;
+CREATE VIEW
 drop view "t`1";
+DROP VIEW
+-- unlike mtr test driver, pg's make install simply give the file to psql so
+-- below 3 queries are parsed as one query, but they should have been sent as 3
+-- independent queries. so result isn't same as that of mtr.
 create view `abc`" as select*from t1;
 create view "abc"` as select*from t1;
 
 create view `abc"` as select*from t1;
-ERROR:  syntax error at or near "" as select*from t1;
+psql:sql/lex_quotes_pg.sql:230: ERROR:  syntax error at or near "" as select*from t1;
 create view ""
 LINE 1: create view `abc`" as select*from t1;
                          ^
@@ -237,13 +255,13 @@ create view "abc``" as select*from t1;
 drop view "abc``";
 
 create view `abc`d" as select*from t1;
-ERROR:  syntax error at or near "d"
+psql:sql/lex_quotes_pg.sql:243: ERROR:  syntax error at or near "d"
 LINE 13: create view `abc`d" as select*from t1;
                           ^
 create view "abc\"d`" as select*from t1;
 
 create view `abc"d` as select*from t1;
-ERROR:  syntax error at or near "d"
+psql:sql/lex_quotes_pg.sql:247: ERROR:  syntax error at or near "d"
 LINE 1: create view "abc\"d`" as select*from t1;
                           ^
 drop view `abc"d`;
@@ -256,8 +274,11 @@ drop view "abc""""d";
 
 create view "abc""d" as select*from t1;
 drop view `abc"d`;
-ERROR:  view "abc"d" does not exist
+psql:sql/lex_quotes_pg.sql:257: ERROR:  view "abc"d" does not exist
 create view "abc``d" as select*from t1;
+CREATE VIEW
 drop view `abc````d`;
+DROP VIEW
 drop schema if exists lexer_quotes cascade;
-NOTICE:  drop cascades to table t1
+psql:sql/lex_quotes_pg.sql:261: NOTICE:  drop cascades to table t1
+DROP SCHEMA

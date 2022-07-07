@@ -278,7 +278,7 @@ drop table tab_boolean;
 CREATE TYPE mood AS ENUM ('sad', 'ok', 'happy');
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-drop table if exists person cacsade;
+drop table if exists person cascade;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE person (id int2,a text,b mood);

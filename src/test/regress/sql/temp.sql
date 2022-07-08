@@ -293,7 +293,6 @@ begin;
 --create type pg_temp.twophase_type as (a int);
 --DDL_STATEMENT_END--
 --prepare transaction 'twophase_type';
-begin;
 --DDL_STATEMENT_BEGIN--
 create view pg_temp.twophase_view as select 1;
 --DDL_STATEMENT_END--

@@ -1,8 +1,11 @@
 -- bug 215 Crash when no column needed from a RemoteJoin node 
 drop table if exists atest5 cascade;
-NOTICE:  table "atest5" does not exist, skipping
+psql:sql/remote_dml3.sql:2: NOTICE:  table "atest5" does not exist, skipping
+DROP TABLE
 CREATE TABLE atest5 (one int, two int unique, three int, four int unique);
+CREATE TABLE
 INSERT INTO atest5 VALUES (1,2,3);
+INSERT 0 1
 SELECT 1 FROM atest5 a JOIN atest5 b USING (one);
  ?column? 
 ----------
@@ -17,6 +20,7 @@ SELECT 1 FROM atest5;
 
 -- bug #223 Crash when no column needed from a remote node 
 drop table if exists onek cascade;
+DROP TABLE
 CREATE TABLE onek (
     unique1 int4,
     unique2 int4,
@@ -35,7 +39,9 @@ CREATE TABLE onek (
     stringu2 name,
     string4 name
 );
+CREATE TABLE
 insert into onek(unique1, unique2,two,four,ten) select i,i,i%2, i%4,i%10 from generate_series(1,1000) i;
+INSERT 0 1000
 select ten, sum(distinct four) from onek a
 group by grouping sets((ten,four),(ten))
 having exists (select 1 from onek b where sum(distinct a.four) = b.four);
@@ -84,12 +90,19 @@ SELECT SUM(COUNT(ten)) OVER () FROM onek WHERE four=3;
 
 -- create own table
 DROP table if exists INT4_TBL cascade;
+DROP TABLE
 CREATE TABLE INT4_TBL(f1 int4);
+CREATE TABLE
 INSERT INTO INT4_TBL(f1) VALUES (' 0 ');
+INSERT 0 1
 INSERT INTO INT4_TBL(f1) VALUES ('123456 ');
+INSERT 0 1
 INSERT INTO INT4_TBL(f1) VALUES (' -123456');
+INSERT 0 1
 INSERT INTO INT4_TBL(f1) VALUES ('2147483647');
+INSERT 0 1
 INSERT INTO INT4_TBL(f1) VALUES ('-2147483647');
+INSERT 0 1
 SELECT SUM(COUNT(f1)) OVER () FROM int4_tbl WHERE f1=42;
  sum 
 -----
@@ -104,12 +117,20 @@ SELECT SUM(COUNT(f1)) OVER () FROM int4_tbl WHERE f1=0;
 
 -- bug 228 Column name may overflow if qualified with its owner table name 
 drop table if exists INT8_TBL cascade;
+psql:sql/remote_dml3.sql:52: NOTICE:  drop cascades to view tt17v
+DROP TABLE
 CREATE TABLE INT8_TBL(q1 int8, q2 int8);
+CREATE TABLE
 INSERT INTO INT8_TBL VALUES(' 123 ',' 456');
+INSERT 0 1
 INSERT INTO INT8_TBL VALUES('123 ','4567890123456789');
+INSERT 0 1
 INSERT INTO INT8_TBL VALUES('4567890123456789','123');
+INSERT 0 1
 INSERT INTO INT8_TBL VALUES(+4567890123456789,'4567890123456789');
+INSERT 0 1
 INSERT INTO INT8_TBL VALUES('+4567890123456789','-4567890123456789');
+INSERT 0 1
 SELECT * FROM INT8_TBL;
         q1        |        q2         
 ------------------+-------------------
@@ -124,8 +145,9 @@ create view tt18v as
     select * from int8_tbl xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxy
     union all
     select * from int8_tbl xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz;
-NOTICE:  identifier "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxy" will be truncated to "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-NOTICE:  identifier "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz" will be truncated to "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+psql:sql/remote_dml3.sql:66: NOTICE:  identifier "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxy" will be truncated to "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+psql:sql/remote_dml3.sql:66: NOTICE:  identifier "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxz" will be truncated to "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+CREATE VIEW
 explain (costs off) select * from tt18v;
 
 select * from tt18v;
@@ -143,19 +165,31 @@ select * from tt18v;
  4567890123456789 | -4567890123456789
 (10 rows)
 
--- bug #229 partition_join.sql,connection to server was lost 
+-- bug #229 partition_join.sql,connection to server was lost
 DROP TABLE if exists prt2 cascade;
+DROP TABLE
 CREATE TABLE prt2 (a int, b int, c varchar) PARTITION BY RANGE(b);
+CREATE TABLE
 CREATE TABLE prt2_p1 PARTITION OF prt2 FOR VALUES FROM (0) TO (250);
+CREATE TABLE
 CREATE TABLE prt2_p2 PARTITION OF prt2 FOR VALUES FROM (250) TO (500);
+CREATE TABLE
 CREATE TABLE prt2_p3 PARTITION OF prt2 FOR VALUES FROM (500) TO (600);
+CREATE TABLE
 INSERT INTO prt2 SELECT i % 25, i, to_char(i, 'FM0000') FROM generate_series(0, 599) i WHERE i % 3 = 0;
+INSERT 0 200
 DROP TABLE if exists prt1 cascade;
+DROP TABLE
 CREATE TABLE prt1 (a int, b int, c varchar) PARTITION BY RANGE(a);
+CREATE TABLE
 CREATE TABLE prt1_p1 PARTITION OF prt1 FOR VALUES FROM (0) TO (250);
+CREATE TABLE
 CREATE TABLE prt1_p3 PARTITION OF prt1 FOR VALUES FROM (500) TO (600);
+CREATE TABLE
 CREATE TABLE prt1_p2 PARTITION OF prt1 FOR VALUES FROM (250) TO (500);
+CREATE TABLE
 INSERT INTO prt1 SELECT i, i % 25, to_char(i, 'FM0000') FROM generate_series(0, 599) i WHERE i % 2 = 0;
+INSERT 0 300
 EXPLAIN (COSTS OFF)
 SELECT t1.a, t1.c, t2.b, t2.c FROM prt1 t1, prt2 t2 WHERE t1.a = t2.b AND t1.a < 450 AND t2.b > 250 AND t1.b = 0 ORDER BY t1.a, t2.b;
 
@@ -189,9 +223,12 @@ EXPLAIN SELECT 1 AS three UNION SELECT 3 UNION SELECT 2 UNION ALL SELECT 2 ORDER
 
 -- bug 245 Sort should not be pushed down if it uses a set returning funcs or exprs to sort
 drop table if exists few cascade;
-NOTICE:  table "few" does not exist, skipping
+psql:sql/remote_dml3.sql:98: NOTICE:  table "few" does not exist, skipping
+DROP TABLE
 CREATE TABLE few(id int, dataa text, datab text);
+CREATE TABLE
 INSERT INTO few VALUES(1, 'a', 'foo'),(2, 'a', 'bar'),(3, 'b', 'bar');
+INSERT 0 3
 SELECT few.id, generate_series(1,3) g FROM few ORDER BY id, g DESC;
  id | g 
 ----+---
@@ -220,6 +257,7 @@ EXPLAIN SELECT few.id  FROM few ORDER BY id, random() DESC;
 
 -- bug #221 string_agg omitted from agg pushdown 
 CREATE TABLE ctv_data (v varchar(30), h varchar(30), c varchar(30), i int, d date);
+CREATE TABLE
 insert into ctv_data VALUES
     ('v1','h2','foo', 3, '2015-04-01'::date),
     ('v2','h1','bar', 3, '2015-01-02'),
@@ -228,6 +266,7 @@ insert into ctv_data VALUES
     ('v0','h4','dbl', -3, '2014-12-15'),
     ('v0',NULL,'qux', 5, '2014-07-15'),
     ('v1','h2','quux',7, '2015-04-04');
+INSERT 0 7
     SELECT v,h, string_agg(c, E'\n') AS c, row_number() OVER(ORDER BY h) AS r
 FROM ctv_data GROUP BY v, h ORDER BY 1,3,2
     \crosstabview v h c r
@@ -242,8 +281,11 @@ FROM ctv_data GROUP BY v, h ORDER BY 1,3,2
 
 -- bug  #244 Agg not pushed down for count(1) 
 drop table if exists atest5 cascade;
+DROP TABLE
 CREATE TABLE atest5 (one int, two int unique, three int, four int unique);
+CREATE TABLE
 INSERT INTO atest5 VALUES (1,2,3),(2,3,4),(3,4,5),(5,6,7);
+INSERT 0 4
 SELECT count(1) FROM atest5 a JOIN atest5 b USING (one);
  count 
 -------
@@ -277,16 +319,24 @@ SELECT sum(2+3) FROM atest5;
 EXPLAIN SELECT sum(2+3) FROM atest5;
 
 -- bug  #234 View derived conflicting RemoteScans not materialized 
-drop table if exists test1;
-NOTICE:  table "test1" does not exist, skipping
+drop table if exists test1 cascade;
+psql:sql/remote_dml3.sql:141: NOTICE:  table "test1" does not exist, skipping
+DROP TABLE
 create table test1 (id serial, t text);
+CREATE TABLE
 insert into test1 (t) values ('a');
+INSERT 0 1
 insert into test1 (t) values ('b');
+INSERT 0 1
 insert into test1 (t) values ('c');
+INSERT 0 1
 insert into test1 (t) values ('d');
+INSERT 0 1
 insert into test1 (t) values ('e');
+INSERT 0 1
 create view v_test1
 as select 'v_' || t from test1;
+CREATE VIEW
 copy (select t from test1 where id = 1 UNION select * from v_test1 ORDER BY 1) to stdout;
 a
 v_a
@@ -303,19 +353,29 @@ v_d
 v_e
 -- bug  #257 subquery produces more content than expected 
 DROP TABLE if exists SUBSELECT_TBL cascade;
+DROP TABLE
 CREATE TABLE SUBSELECT_TBL (
     f1 integer,
     f2 integer,
     f3 float
 );
+CREATE TABLE
 INSERT INTO SUBSELECT_TBL VALUES (1, 2, 3);
+INSERT 0 1
 INSERT INTO SUBSELECT_TBL VALUES (2, 3, 4);
+INSERT 0 1
 INSERT INTO SUBSELECT_TBL VALUES (3, 4, 5);
+INSERT 0 1
 INSERT INTO SUBSELECT_TBL VALUES (1, 1, 1);
+INSERT 0 1
 INSERT INTO SUBSELECT_TBL VALUES (2, 2, 2);
+INSERT 0 1
 INSERT INTO SUBSELECT_TBL VALUES (3, 3, 3);
+INSERT 0 1
 INSERT INTO SUBSELECT_TBL VALUES (6, 7, 8);
+INSERT 0 1
 INSERT INTO SUBSELECT_TBL VALUES (8, 9, NULL);
+INSERT 0 1
 SELECT f1, f2
     FROM SUBSELECT_TBL
     WHERE (f1, f2) NOT IN (SELECT f2, CAST(f3 AS int4) FROM SUBSELECT_TBL
@@ -329,9 +389,13 @@ SELECT f1, f2
 
 -- bug  #230 value too long for type character 
 DROP TABLE if exists TEXT_TBL cascade;
+DROP TABLE
 CREATE TABLE TEXT_TBL (f1 text);
+CREATE TABLE
 INSERT INTO TEXT_TBL VALUES ('doh!');
+INSERT 0 1
 INSERT INTO TEXT_TBL VALUES ('hi de ho neighbor');
+INSERT 0 1
 SELECT CAST(f1 AS char(10)) AS "char(text)" FROM TEXT_TBL;
  char(text) 
 ------------
@@ -341,19 +405,33 @@ SELECT CAST(f1 AS char(10)) AS "char(text)" FROM TEXT_TBL;
 
 -- bug #
 DROP table if exists INT4_TBL cascade;
+DROP TABLE
 CREATE TABLE INT4_TBL(f1 int4);
+CREATE TABLE
 INSERT INTO INT4_TBL(f1) VALUES (' 0 ');
+INSERT 0 1
 INSERT INTO INT4_TBL(f1) VALUES ('123456 ');
+INSERT 0 1
 INSERT INTO INT4_TBL(f1) VALUES (' -123456');
+INSERT 0 1
 INSERT INTO INT4_TBL(f1) VALUES ('2147483647');
+INSERT 0 1
 INSERT INTO INT4_TBL(f1) VALUES ('-2147483647');
+INSERT 0 1
 DROP table if exists FLOAT8_TBL cascade;
+DROP TABLE
 CREATE TABLE FLOAT8_TBL(f1 float8);
+CREATE TABLE
 INSERT INTO FLOAT8_TBL(f1) VALUES ('    0.0   ');
+INSERT 0 1
 INSERT INTO FLOAT8_TBL(f1) VALUES ('1004.30  ');
+INSERT 0 1
 INSERT INTO FLOAT8_TBL(f1) VALUES ('   -34.84');
+INSERT 0 1
 INSERT INTO FLOAT8_TBL(f1) VALUES ('1.2345678901234e+200');
+INSERT 0 1
 INSERT INTO FLOAT8_TBL(f1) VALUES ('1.2345678901234e-200');
+INSERT 0 1
 SELECT f1 AS five FROM FLOAT8_TBL
   WHERE f1 BETWEEN -1e6 AND 1e6
 UNION
@@ -368,4 +446,108 @@ ORDER BY 1;
                1004.3
                123456
 (5 rows)
+
+-- bug#  #318 Connection invalid after it's killed by timeout mechanism 
+drop table if exists join_foo;
+DROP TABLE
+create table join_foo(id integer, t varchar(50));
+CREATE TABLE
+insert into join_foo select generate_series(1, 3) as id, 'xxxxx'::varchar(50) as t;
+INSERT 0 3
+--alter table join_foo set (parallel_workers = 0);
+drop table if exists join_bar;
+DROP TABLE
+create table join_bar(id integer, t varchar(50));
+CREATE TABLE
+insert into join_bar select generate_series(1, 10000) as id, 'xxxxx'::varchar(50) as t;
+INSERT 0 10000
+--alter table join_bar set (parallel_workers = 2);
+-- single-batch with rescan, parallel-oblivious
+begin;
+BEGIN
+-- multi-batch with rescan, parallel-oblivious
+savepoint settings;
+SAVEPOINT
+set enable_parallel_hash = off;
+SET
+set parallel_leader_participation = off;
+SET
+set min_parallel_table_scan_size = 0;
+SET
+set parallel_setup_cost = 0;
+SET
+set parallel_tuple_cost = 0;
+SET
+set max_parallel_workers_per_gather = 2;
+SET
+set enable_material = off;
+SET
+set enable_mergejoin = off;
+SET
+set work_mem = '64kB';
+SET
+explain (costs off)
+  select count(*) from join_foo
+    left join (select b1.id, b1.t from join_bar b1 join join_bar b2 using (id)) ss
+    on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1;
+
+select count(*) from join_foo
+  left join (select b1.id, b1.t from join_bar b1 join join_bar b2 using (id)) ss
+  on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1;
+ count 
+-------
+     3
+(1 row)
+
+set statement_timeout=5000;
+SET
+set mysql_read_timeout=5;
+SET
+-- times out and connections to storage shards killed
+select final > 1 as multibatch
+  from hash_join_batches(
+$$
+  select count(*) from join_foo
+    left join (select b1.id, b1.t from join_bar b1 join join_bar b2 using (id)) ss
+    on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1;
+$$);
+psql:sql/remote_dml3.sql:255: ERROR:  canceling statement due to statement timeout
+CONTEXT:  PL/pgSQL function hash_join_batches(character varying) line 6 at FOR over EXECUTE statement
+-- rollback cmds fail because conns invalid and we do not reconnect in this case
+rollback to settings;
+ROLLBACK
+-- local txn aborted
+commit;
+COMMIT
+set statement_timeout=5000;
+SET
+set mysql_read_timeout=5;
+SET
+-- times out and connections to storage shards killed
+select final > 1 as multibatch
+  from hash_join_batches(
+$$
+  select count(*) from join_foo
+    left join (select b1.id, b1.t from join_bar b1 join join_bar b2 using (id)) ss
+    on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1;
+$$);
+psql:sql/remote_dml3.sql:271: ERROR:  canceling statement due to statement timeout
+CONTEXT:  PL/pgSQL function hash_join_batches(character varying) line 6 at FOR over EXECUTE statement
+-- automatically reconnects but query times out again
+select count(*) from join_foo
+  left join (select b1.id, b1.t from join_bar b1 join join_bar b2 using (id)) ss
+  on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1;
+psql:sql/remote_dml3.sql:275: ERROR:  canceling statement due to statement timeout
+set statement_timeout=50000;
+SET
+set mysql_read_timeout=50;
+SET
+-- automatically reconnects again and query succeeds
+select count(*) from join_foo
+  left join (select b1.id, b1.t from join_bar b1 join join_bar b2 using (id)) ss
+  on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1;
+ count 
+-------
+     3
+(1 row)
 

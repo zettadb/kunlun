@@ -758,6 +758,7 @@ CREATE TABLE
 show last_remote_sql;
 psql:sql/kunlun_remote.sql:144: ERROR:  unrecognized configuration parameter "last_remote_sql"
 drop table if exists t2;
+psql:sql/kunlun_remote.sql:147: NOTICE:  table "t2" does not exist, skipping
 DROP TABLE
 create table t2(a int, b int, c varchar(32), d char(16), primary key(a,b), unique(b,c)) partition by hash(b);
 CREATE TABLE

@@ -10,9 +10,7 @@ DROP SCHEMA
 create schema autocommit_schm;
 CREATE SCHEMA
 use autocommit_schm;
-psql:sql/autocommit.sql:4: WARNING:  unrecognized node type: 343
-psql:sql/autocommit.sql:4: WARNING:  unrecognized node type: 343
-???
+USE
 show search_path;
    search_path   
 -----------------

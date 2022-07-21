@@ -29,15 +29,17 @@ SELECT b, c FROM test_having
  b |    c     
 ---+----------
  1 | XXXX    
-(1 row)
+ 3 | bbbb    
+(2 rows)
 
 -- HAVING is effectively equivalent to WHERE in this case
 SELECT b, c FROM test_having
 	GROUP BY b, c HAVING b = 3 ORDER BY b, c;
  b |    c     
 ---+----------
+ 3 | bbbb    
  3 | BBBB    
-(1 row)
+(2 rows)
 
 SELECT lower(c), count(c) FROM test_having
 	GROUP BY lower(c) HAVING count(*) > 2 OR min(a) = max(a)
@@ -54,10 +56,9 @@ SELECT c, max(a) FROM test_having
 	ORDER BY c;
     c     | max 
 ----------+-----
- BBBB     |   5
- cccc     |   9
+ bbbb     |   5
  XXXX     |   0
-(3 rows)
+(2 rows)
 
 -- test degenerate cases involving HAVING without GROUP BY
 -- Per SQL spec, these should generate 0 or 1 row, even without aggregates

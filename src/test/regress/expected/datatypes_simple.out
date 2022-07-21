@@ -507,158 +507,55 @@ DROP TABLE
 --Enumerated Types--  枚举类型
 CREATE TYPE mood AS ENUM ('sad', 'ok', 'happy');
 CREATE TYPE
-drop table if exists person;
-psql:sql/datatypes_simple.sql:224: ERROR:  cannot drop table person because other objects depend on it
-DETAIL:  function hobbies(person) depends on type person
-HINT:  Use DROP ... CASCADE to drop the dependent objects too.
+drop table if exists person cascade;
+psql:sql/datatypes_simple.sql:224: NOTICE:  drop cascades to function hobbies(person)
+DROP TABLE
 CREATE TABLE person (id int2,a text,b mood);
-psql:sql/datatypes_simple.sql:225: ERROR:  relation "person" already exists
+CREATE TABLE
 INSERT INTO person VALUES (1,'Moe', 'happy');
-psql:sql/datatypes_simple.sql:226: ERROR:  INSERT has more expressions than target columns
-LINE 1: INSERT INTO person VALUES (1,'Moe', 'happy');
-                                            ^
+INSERT 0 1
 INSERT INTO person VALUES (2,'Larry', 'sad');
-psql:sql/datatypes_simple.sql:227: ERROR:  INSERT has more expressions than target columns
-LINE 1: INSERT INTO person VALUES (2,'Larry', 'sad');
-                                              ^
+INSERT 0 1
 INSERT INTO person VALUES (3,DEFAULT, DEFAULT);
-psql:sql/datatypes_simple.sql:228: ERROR:  INSERT has more expressions than target columns
-LINE 1: INSERT INTO person VALUES (3,DEFAULT, DEFAULT);
-                                              ^
+INSERT 0 1
 select * from person;
-  name   | age 
----------+-----
- mike    |  40
- joe     |  20
- sally   |  34
- sandra  |  19
- alex    |  30
- sue     |  50
- denise  |  24
- sarah   |  88
- teresa  |  38
- nan     |  28
- leah    |  68
- wendy   |  78
- melissa |  28
- joan    |  18
- mary    |   8
- jane    |  58
- liza    |  38
- jean    |  28
- jenifer |  38
- juanita |  58
- susan   |  78
- zena    |  98
- martie  |  88
- chris   |  78
- pat     |  18
- zola    |  58
- louise  |  98
- edna    |  18
- bertha  |  88
- sumi    |  38
- koko    |  88
- gina    |  18
- rean    |  48
- sharon  |  78
- paula   |  68
- julie   |  68
- belinda |  38
- karen   |  48
- carina  |  58
- diane   |  18
- esther  |  98
- trudy   |  88
- fanny   |   8
- carmen  |  78
- lita    |  25
- pamela  |  48
- sandy   |  38
- trisha  |  88
- uma     |  78
- velma   |  68
-(50 rows)
+ id |   a   |   b   
+----+-------+-------
+  1 | Moe   | happy
+  2 | Larry | sad
+  3 |       | 
+(3 rows)
 
 UPDATE person set a='Curly' where id=3;
-psql:sql/datatypes_simple.sql:230: ERROR:  column "id" does not exist
-LINE 1: UPDATE person set a='Curly' where id=3;
-                                          ^
+UPDATE 1
 UPDATE person set b='ok' where id=3;
-psql:sql/datatypes_simple.sql:231: ERROR:  column "id" does not exist
-LINE 1: UPDATE person set b='ok' where id=3;
-                                       ^
+UPDATE 1
 select * from person;
-  name   | age 
----------+-----
- mike    |  40
- joe     |  20
- sally   |  34
- sandra  |  19
- alex    |  30
- sue     |  50
- denise  |  24
- sarah   |  88
- teresa  |  38
- nan     |  28
- leah    |  68
- wendy   |  78
- melissa |  28
- joan    |  18
- mary    |   8
- jane    |  58
- liza    |  38
- jean    |  28
- jenifer |  38
- juanita |  58
- susan   |  78
- zena    |  98
- martie  |  88
- chris   |  78
- pat     |  18
- zola    |  58
- louise  |  98
- edna    |  18
- bertha  |  88
- sumi    |  38
- koko    |  88
- gina    |  18
- rean    |  48
- sharon  |  78
- paula   |  68
- julie   |  68
- belinda |  38
- karen   |  48
- carina  |  58
- diane   |  18
- esther  |  98
- trudy   |  88
- fanny   |   8
- carmen  |  78
- lita    |  25
- pamela  |  48
- sandy   |  38
- trisha  |  88
- uma     |  78
- velma   |  68
-(50 rows)
+ id |   a   |   b   
+----+-------+-------
+  1 | Moe   | happy
+  2 | Larry | sad
+  3 | Curly | ok
+(3 rows)
 
 SELECT * FROM person WHERE b > 'sad';
-psql:sql/datatypes_simple.sql:233: ERROR:  column "b" does not exist
-LINE 1: SELECT * FROM person WHERE b > 'sad';
-                                   ^
+ id |   a   |   b   
+----+-------+-------
+  1 | Moe   | happy
+  3 | Curly | ok
+(2 rows)
+
 SELECT * FROM person WHERE b > 'sad' ORDER BY b;
-psql:sql/datatypes_simple.sql:234: ERROR:  column "b" does not exist
-LINE 1: SELECT * FROM person WHERE b > 'sad' ORDER BY b;
-                                   ^
+ id |   a   |   b   
+----+-------+-------
+  3 | Curly | ok
+  1 | Moe   | happy
+(2 rows)
+
 delete from person where b='ok';
-psql:sql/datatypes_simple.sql:235: ERROR:  column "b" does not exist
-LINE 1: delete from person where b='ok';
-                                 ^
+DELETE 1
 drop table person;
-psql:sql/datatypes_simple.sql:237: ERROR:  cannot drop table person because other objects depend on it
-DETAIL:  function hobbies(person) depends on type person
-HINT:  Use DROP ... CASCADE to drop the dependent objects too.
+DROP TABLE
 DROP TYPE mood; 
 DROP TYPE
 --Network Address Types-- 网络地址类型

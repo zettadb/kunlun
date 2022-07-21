@@ -42,12 +42,13 @@ SELECT '' AS six, c.*
    WHERE c.f1 <> 'a';
  six | f1 
 -----+----
+     | A
      | 1
      | 2
      | 3
      | 
      | c
-(5 rows)
+(6 rows)
 
 SELECT '' AS one, c.*
    FROM VARCHAR_TBL c
@@ -55,8 +56,7 @@ SELECT '' AS one, c.*
  one | f1 
 -----+----
      | a
-     | A
-(2 rows)
+(1 row)
 
 SELECT '' AS five, c.*
    FROM VARCHAR_TBL c
@@ -75,20 +75,20 @@ SELECT '' AS six, c.*
  six | f1 
 -----+----
      | a
-     | A
      | 1
      | 2
      | 3
      | 
-(6 rows)
+(5 rows)
 
 SELECT '' AS one, c.*
    FROM VARCHAR_TBL c
    WHERE c.f1 > 'a';
  one | f1 
 -----+----
+     | A
      | c
-(1 row)
+(2 rows)
 
 SELECT '' AS two, c.*
    FROM VARCHAR_TBL c

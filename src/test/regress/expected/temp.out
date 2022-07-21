@@ -94,17 +94,19 @@ BEGIN
 CREATE TEMP TABLE temptest(col int) ON COMMIT DROP;
 CREATE TABLE
 INSERT INTO temptest VALUES (1);
-INSERT 0 1
+psql:sql/temp.sql:74: ERROR:  relation "temptest" does not exist
+LINE 1: INSERT INTO temptest VALUES (1);
+                    ^
 INSERT INTO temptest VALUES (2);
-INSERT 0 1
+psql:sql/temp.sql:75: ERROR:  relation "temptest" does not exist
+LINE 1: INSERT INTO temptest VALUES (2);
+                    ^
 SELECT * FROM temptest;
- col 
------
-   1
-   2
-(2 rows)
-
+psql:sql/temp.sql:77: ERROR:  relation "temptest" does not exist
+LINE 1: SELECT * FROM temptest;
+                      ^
 COMMIT;
+psql:sql/temp.sql:78: WARNING:  there is no transaction in progress
 COMMIT
 SELECT * FROM temptest;
 psql:sql/temp.sql:80: ERROR:  relation "temptest" does not exist
@@ -193,6 +195,7 @@ CREATE TABLE
 insert into temp_parted_oncommit values (1);
 INSERT 0 1
 commit;
+psql:sql/temp.sql:126: WARNING:  there is no transaction in progress
 COMMIT
 -- partitions are emptied by the previous commit
 select * from temp_parted_oncommit;
@@ -213,14 +216,17 @@ CREATE TABLE
 create temp table temp_parted_oncommit_test1
   partition of temp_parted_oncommit_test
   for values in (1) on commit delete rows;
-CREATE TABLE
+psql:sql/temp.sql:139: ERROR:  relation "temp_parted_oncommit_test" does not exist
 create temp table temp_parted_oncommit_test2
   partition of temp_parted_oncommit_test
   for values in (2) on commit drop;
-CREATE TABLE
+psql:sql/temp.sql:142: ERROR:  relation "temp_parted_oncommit_test" does not exist
 insert into temp_parted_oncommit_test values (1), (2);
-INSERT 0 2
+psql:sql/temp.sql:143: ERROR:  relation "temp_parted_oncommit_test" does not exist
+LINE 1: insert into temp_parted_oncommit_test values (1), (2);
+                    ^
 commit;
+psql:sql/temp.sql:144: WARNING:  there is no transaction in progress
 COMMIT
 -- no relations remain in this case.
 select relname from pg_class where relname like 'temp_parted_oncommit_test%';
@@ -244,16 +250,17 @@ create temp table temp_parted_oncommit_test2
   for values in (2) on commit drop;
 CREATE TABLE
 insert into temp_parted_oncommit_test values (1), (2);
-INSERT 0 2
+psql:sql/temp.sql:158: ERROR:  no partition of relation "temp_parted_oncommit_test" found for row
+DETAIL:  Partition key of the failing row contains (a) = (2).
 commit;
+psql:sql/temp.sql:159: WARNING:  there is no transaction in progress
 COMMIT
 -- Data from the remaining partition is still here as its rows are
 -- preserved.
 select * from temp_parted_oncommit_test;
  a 
 ---
- 1
-(1 row)
+(0 rows)
 
 -- two relations remain in this case.
 select relname from pg_class where relname like 'temp_parted_oncommit_test%';
@@ -273,10 +280,13 @@ create temp table temp_inh_oncommit_test (a int) on commit drop;
 CREATE TABLE
 create temp table temp_inh_oncommit_test1 ()
   inherits(temp_inh_oncommit_test) on commit delete rows;
-CREATE TABLE
+psql:sql/temp.sql:172: ERROR:  relation "temp_inh_oncommit_test" does not exist
 insert into temp_inh_oncommit_test1 values (1);
-INSERT 0 1
+psql:sql/temp.sql:173: ERROR:  relation "temp_inh_oncommit_test1" does not exist
+LINE 1: insert into temp_inh_oncommit_test1 values (1);
+                    ^
 commit;
+psql:sql/temp.sql:174: WARNING:  there is no transaction in progress
 COMMIT
 -- no relations remain in this case
 select relname from pg_class where relname like 'temp_inh_oncommit_test%';
@@ -293,10 +303,13 @@ create temp table temp_inh_oncommit_test1 ()
   inherits(temp_inh_oncommit_test) on commit drop;
 CREATE TABLE
 insert into temp_inh_oncommit_test1 values (1);
-INSERT 0 1
+psql:sql/temp.sql:182: ERROR:  relation "temp_inh_oncommit_test1" does not exist
+LINE 1: insert into temp_inh_oncommit_test1 values (1);
+                    ^
 insert into temp_inh_oncommit_test values (1);
 INSERT 0 1
 commit;
+psql:sql/temp.sql:184: WARNING:  there is no transaction in progress
 COMMIT
 select * from temp_inh_oncommit_test;
  a 
@@ -347,19 +360,16 @@ begin;
 BEGIN
 --create type pg_temp.twophase_type as (a int);
 --prepare transaction 'twophase_type';
-begin;
-psql:sql/temp.sql:216: WARNING:  there is already a transaction in progress
-BEGIN
 create view pg_temp.twophase_view as select 1;
 CREATE VIEW
 prepare transaction 'twophase_view';
-psql:sql/temp.sql:218: ERROR:  cannot PREPARE a transaction that has operated on temporary tables
+psql:sql/temp.sql:217: ERROR:  cannot PREPARE a transaction that has operated on temporary tables
 begin;
 BEGIN
 create sequence pg_temp.twophase_seq;
 CREATE SEQUENCE
 prepare transaction 'twophase_sequence';
-psql:sql/temp.sql:221: ERROR:  cannot PREPARE a transaction that has operated on temporary tables
+psql:sql/temp.sql:220: ERROR:  cannot PREPARE a transaction that has operated on temporary tables
 -- Temporary tables cannot be used with two-phase commit.
 create temp table twophase_tab (a int);
 CREATE TABLE
@@ -371,25 +381,26 @@ select a from twophase_tab;
 (0 rows)
 
 prepare transaction 'twophase_tab';
-psql:sql/temp.sql:227: ERROR:  cannot PREPARE a transaction that has operated on temporary tables
+psql:sql/temp.sql:226: ERROR:  cannot PREPARE a transaction that has operated on temporary tables
 begin;
 BEGIN
 insert into twophase_tab values (1);
 INSERT 0 1
 prepare transaction 'twophase_tab';
-psql:sql/temp.sql:230: ERROR:  cannot PREPARE a transaction that has operated on temporary tables
+psql:sql/temp.sql:229: ERROR:  cannot PREPARE a transaction that has operated on temporary tables
 begin;
 BEGIN
 lock twophase_tab in access exclusive mode;
 LOCK TABLE
 prepare transaction 'twophase_tab';
-psql:sql/temp.sql:233: ERROR:  cannot PREPARE a transaction that has operated on temporary tables
+psql:sql/temp.sql:232: ERROR:  cannot PREPARE a transaction that has operated on temporary tables
 begin;
 BEGIN
 drop table twophase_tab;
 DROP TABLE
 prepare transaction 'twophase_tab';
-psql:sql/temp.sql:236: ERROR:  cannot PREPARE a transaction that has operated on temporary tables
+psql:sql/temp.sql:235: WARNING:  there is no transaction in progress
+ROLLBACK
 -- Corner case: current_schema may create a temporary schema if namespace
 -- creation is pending, so check after that.  First reset the connection
 -- to remove the temporary namespace, and make sure that non-parallel plans
@@ -411,4 +422,4 @@ SELECT current_schema() ~ 'pg_temp' AS is_temp_schema;
 (1 row)
 
 PREPARE TRANSACTION 'twophase_search';
-psql:sql/temp.sql:248: ERROR:  cannot PREPARE a transaction that has operated on temporary objects
+psql:sql/temp.sql:247: ERROR:  cannot PREPARE a transaction that has operated on temporary objects

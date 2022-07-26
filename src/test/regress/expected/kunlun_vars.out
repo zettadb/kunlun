@@ -227,11 +227,13 @@ show global variables like 'innodb_lock_wait_timeout' strict;
 (1 row)
 
 set shard local innodb_lock_wait_timeout = 1;
-???
+psql:sql/kunlun_vars.sql:40: ERROR:  syntax error at or near "local"
+LINE 1: set shard local innodb_lock_wait_timeout = 1;
+                  ^
 show session variables like 'innodb_lock_wait_timeout' strict;
       Variable_name       | Value 
 --------------------------+-------
- innodb_lock_wait_timeout | 1
+ innodb_lock_wait_timeout | 3
 (1 row)
 
 show global variables like 'innodb_lock_wait_timeout' strict;
@@ -245,7 +247,7 @@ set shard persist innodb_lock_wait_timeout = 9;
 show session variables like 'innodb_lock_wait_timeout' strict;
       Variable_name       | Value 
 --------------------------+-------
- innodb_lock_wait_timeout | 1
+ innodb_lock_wait_timeout | 3
 (1 row)
 
 show global variables like 'innodb_lock_wait_timeout' strict;
@@ -259,7 +261,7 @@ set shard persist_only innodb_lock_wait_timeout = 11;
 show session variables like 'innodb_lock_wait_timeout' strict;
       Variable_name       | Value 
 --------------------------+-------
- innodb_lock_wait_timeout | 1
+ innodb_lock_wait_timeout | 3
 (1 row)
 
 show global variables like 'innodb_lock_wait_timeout' strict;
@@ -299,13 +301,11 @@ show global variables like 'innodb_lock_wait_timeout';
 (1 row)
 
 set @@innodb_lock_wait_timeout = 2;
-psql:sql/kunlun_vars.sql:61: ERROR:  syntax error at or near "innodb_lock_wait_timeout"
-LINE 1: set @@innodb_lock_wait_timeout = 2;
-              ^
+???
 show session variables like 'innodb_lock_wait_timeout';
       Variable_name       | Value 
 --------------------------+-------
- innodb_lock_wait_timeout | 3
+ innodb_lock_wait_timeout | 2
 (1 row)
 
 show global variables like 'innodb_lock_wait_timeout';
@@ -315,11 +315,13 @@ show global variables like 'innodb_lock_wait_timeout';
 (1 row)
 
 set @@local.innodb_lock_wait_timeout = 1;
-???
+psql:sql/kunlun_vars.sql:65: ERROR:  syntax error at or near "local"
+LINE 1: set @@local.innodb_lock_wait_timeout = 1;
+              ^
 show local variables like 'innodb_lock_wait_timeout';
       Variable_name       | Value 
 --------------------------+-------
- innodb_lock_wait_timeout | 1
+ innodb_lock_wait_timeout | 2
 (1 row)
 
 show global variables like 'innodb_lock_wait_timeout';
@@ -329,13 +331,15 @@ show global variables like 'innodb_lock_wait_timeout';
 (1 row)
 
 set @@local.innodb_lock_wait_timeout = 5;
-???
+psql:sql/kunlun_vars.sql:69: ERROR:  syntax error at or near "local"
+LINE 1: set @@local.innodb_lock_wait_timeout = 5;
+              ^
 set @@persist.innodb_lock_wait_timeout = 9;
 ???
 show local variables like 'innodb_lock_wait_timeout' strict;
       Variable_name       | Value 
 --------------------------+-------
- innodb_lock_wait_timeout | 5
+ innodb_lock_wait_timeout | 2
 (1 row)
 
 show global variables like 'innodb_lock_wait_timeout';
@@ -349,7 +353,7 @@ set @@persist_only.innodb_lock_wait_timeout = 11;
 show innodb_lock_wait_timeout;
       Variable_name       | Value 
 --------------------------+-------
- innodb_lock_wait_timeout | 5
+ innodb_lock_wait_timeout | 2
 (1 row)
 
 show global variables like 'innodb_lock_wait_timeout';
@@ -364,7 +368,9 @@ show persist_only variables like 'innodb_lock_wait_timeout' strict;
 psql:sql/kunlun_vars.sql:79: ERROR:  In 'SHOW scope VARIABLES' stmt, scope can only be SESSION or GLOBAL
 -- bug 139 set [shard][@@]global/session/local/persist/persist_only varname=value come to nothing 
 set @@local.innodb_lock_wait_timeout = 5;
-???
+psql:sql/kunlun_vars.sql:82: ERROR:  syntax error at or near "local"
+LINE 1: set @@local.innodb_lock_wait_timeout = 5;
+              ^
 set @@persist.innodb_lock_wait_timeout = 9;
 ???
 set @@session.innodb_lock_wait_timeout = 3;
@@ -391,7 +397,7 @@ set session debug='+d,crash_before_flush_binlog';
 SET
 -- connection breaks
 update tt set b=b+1;
-psql:sql/kunlun_vars.sql:98: WARNING:  Error(512) doing 1st phase prepare of transaction 1-1655857663-11947, will abort it.
+psql:sql/kunlun_vars.sql:98: WARNING:  Error(512) doing 1st phase prepare of transaction 1-1658698467-17590, will abort it.
 psql:sql/kunlun_vars.sql:98: ERROR:  Kunlun-db: Connection with MySQL storage node (1, 1) is gone: 2013, Lost connection to MySQL server during query. Resend the statement.
 DETAIL:  Disconnected all connections to MySQL storage nodes.
 ERROR:  Kunlun-db: Connection with MySQL storage node (1, 1) is gone: 2013, Lost connection to MySQL server during query. Resend the statement.
@@ -509,7 +515,7 @@ show variables;
  automatic_sp_privileges                                  | ON
  avoid_temporal_upgrade                                   | OFF
  back_log                                                 | 10000
- basedir                                                  | /home/kunlun/oneshardbase/kunlun-storage-0.9.2/
+ basedir                                                  | /home/kunlun/oneshardbase/kunlun-storage-0.9.3/
  bg_worker_threads                                        | 16
  big_tables                                               | OFF
  bind_address                                             | 192.168.0.128
@@ -529,7 +535,7 @@ show variables;
  binlog_order_commits                                     | OFF
  binlog_rotate_encryption_master_key_at_startup           | OFF
  binlog_row_event_max_size                                | 8192
- binlog_row_image                                         | MINIMAL
+ binlog_row_image                                         | FULL
  binlog_row_metadata                                      | MINIMAL
  binlog_row_value_options                                 | PARTIAL_JSON
  binlog_rows_query_log_events                             | ON
@@ -546,20 +552,20 @@ show variables;
  caching_sha2_password_digest_rounds                      | 5000
  caching_sha2_password_private_key_path                   | private_key.pem
  caching_sha2_password_public_key_path                    | public_key.pem
- character_set_client                                     | utf8mb3
- character_set_connection                                 | utf8mb3
+ character_set_client                                     | utf8mb4
+ character_set_connection                                 | utf8mb4
  character_set_database                                   | utf8mb4
  character_set_filesystem                                 | binary
- character_set_results                                    | utf8mb3
+ character_set_results                                    | utf8mb4
  character_set_server                                     | utf8mb4
  character_set_system                                     | utf8mb3
- character_sets_dir                                       | /home/kunlun/oneshardbase/kunlun-storage-0.9.2/share/charsets/
+ character_sets_dir                                       | /home/kunlun/oneshardbase/kunlun-storage-0.9.3/share/charsets/
  check_proxy_users                                        | OFF
  clone_binlog_phy_consistency                             | ON
  cluster_id                                               | 0
- collation_connection                                     | utf8_general_ci
- collation_database                                       | utf8mb4_0900_ai_ci
- collation_server                                         | utf8mb4_0900_ai_ci
+ collation_connection                                     | utf8mb4_0900_as_cs
+ collation_database                                       | utf8mb4_0900_as_cs
+ collation_server                                         | utf8mb4_0900_as_cs
  completion_type                                          | NO_CHAIN
  computing_node_id                                        | 0
  concurrent_insert                                        | AUTO
@@ -609,19 +615,19 @@ show variables;
  ft_query_extra_word_chars                                | OFF
  ft_stopword_file                                         | (built-in)
  fullsync_consistency_level                               | 1
- fullsync_fsync_ack_least_event_bytes                     | 262144
- fullsync_fsync_ack_least_txns                            | 1000
- fullsync_fsync_ack_wait_max_milli_secs                   | 10
+ fullsync_fsync_ack_least_event_bytes                     | 4096
+ fullsync_fsync_ack_least_txns                            | 10
+ fullsync_fsync_ack_wait_max_milli_secs                   | 2
  fullsync_relaylog_fsync_ack_level                        | 2
  fullsync_timeout                                         | 30000
- fullsync_warning_timeout                                 | 3000
+ fullsync_warning_timeout                                 | 5000
  general_log                                              | OFF
  general_log_file                                         | /home/kunlun/onesharddata/data1/dbdata_raw/data/kunlun-test6.log
  generated_random_password_length                         | 20
  global_conn_id                                           | 0
  group_concat_max_len                                     | 1024
  group_replication_consistency                            | EVENTUAL
- gtid_executed                                            | 42c837a3-f1ba-11ec-9e83-fc3497a73395:1-7457
+ gtid_executed                                            | 23b8dfb7-0b90-11ed-929f-fc3497a73395:1-7643
  gtid_executed_compression_period                         | 0
  gtid_mode                                                | ON
  gtid_next                                                | AUTOMATIC
@@ -883,7 +889,7 @@ show variables;
  large_pages                                              | OFF
  last_insert_id                                           | 0
  lc_messages                                              | en_US
- lc_messages_dir                                          | /home/kunlun/oneshardbase/kunlun-storage-0.9.2/share/
+ lc_messages_dir                                          | /home/kunlun/oneshardbase/kunlun-storage-0.9.3/share/
  lc_time_names                                            | en_US
  license                                                  | GPL
  local_infile                                             | ON
@@ -1073,10 +1079,10 @@ show variables;
  persist_only_admin_x509_subject                          | 
  persisted_globals_load                                   | ON
  pid_file                                                 | /home/kunlun/onesharddata/data1/prod/mysql.pid
- plugin_dir                                               | /home/kunlun/oneshardbase/kunlun-storage-0.9.2/lib/plugin/
+ plugin_dir                                               | /home/kunlun/oneshardbase/kunlun-storage-0.9.3/lib/plugin/
  port                                                     | 16011
  preload_buffer_size                                      | 32768
- print_extra_info_verbosity                               | 2
+ print_extra_info_verbosity                               | 1
  print_identified_with_as_hex                             | OFF
  profiling                                                | OFF
  profiling_history_size                                   | 15
@@ -1135,6 +1141,7 @@ show variables;
  require_secure_transport                                 | OFF
  resultset_metadata                                       | FULL
  rpl_read_size                                            | 8192
+ rpl_skip_in_xa_trx                                       | OFF
  rpl_stop_replica_timeout                                 | 31536000
  rpl_stop_slave_timeout                                   | 31536000
  schema_definition_cache                                  | 256
@@ -1145,7 +1152,7 @@ show variables;
  select_into_disk_sync_delay                              | 0
  server_id                                                | 1
  server_id_bits                                           | 32
- server_uuid                                              | 42c837a3-f1ba-11ec-9e83-fc3497a73395
+ server_uuid                                              | 23b8dfb7-0b90-11ed-929f-fc3497a73395
  session_track_gtids                                      | OFF
  session_track_schema                                     | ON
  session_track_state_change                               | OFF
@@ -1251,7 +1258,7 @@ show variables;
  thread_stack                                             | 196608
  thread_statistics                                        | OFF
  time_zone                                                | SYSTEM
- timestamp                                                | 1655857678.909267
+ timestamp                                                | 1658698483.064651
  tls_ciphersuites                                         | 
  tls_version                                              | TLSv1,TLSv1.1,TLSv1.2,TLSv1.3
  tmp_table_size                                           | 33554432
@@ -1277,7 +1284,7 @@ show variables;
  warning_count                                            | 0
  windowing_use_high_precision                             | ON
  xa_prep_cop_binlog_last                                  | 1
-(788 rows)
+(789 rows)
 
 show variables strict;
            Variable_name           |                                                                                                                                                                                                                                                                                               Value                                                                                                                                                                                                                                                                                               
@@ -1286,17 +1293,17 @@ show variables strict;
  auto_increment_offset             | 1
  big_tables                        | OFF
  binlog_format                     | ROW
- binlog_row_image                  | MINIMAL
+ binlog_row_image                  | FULL
  binlog_row_value_options          | PARTIAL_JSON
  binlog_rows_query_log_events      | ON
  binlog_stmt_cache_size            | 32768
  bulk_insert_buffer_size           | 8388608
- character_set_client              | utf8mb3
+ character_set_client              | utf8mb4
  character_set_filesystem          | binary
- character_set_results             | utf8mb3
- collation_connection              | utf8_general_ci
- collation_database                | utf8mb4_0900_ai_ci
- collation_server                  | utf8mb4_0900_ai_ci
+ character_set_results             | utf8mb4
+ collation_connection              | utf8mb4_0900_as_cs
+ collation_database                | utf8mb4_0900_as_cs
+ collation_server                  | utf8mb4_0900_as_cs
  completion_type                   | NO_CHAIN
  cte_max_recursion_depth           | 1000
  debug                             | d,crash_before_flush_binlog
@@ -1378,7 +1385,7 @@ show variables strict;
  sql_require_primary_key           | OFF
  ssl_fips_mode                     | OFF
  time_zone                         | SYSTEM
- timestamp                         | 1655857678.915699
+ timestamp                         | 1658698483.071147
  tmp_table_size                    | 33554432
  transaction_isolation             | READ-COMMITTED
  transaction_read_only             | OFF
@@ -1411,7 +1418,7 @@ show global variables;
  automatic_sp_privileges                                  | ON
  avoid_temporal_upgrade                                   | OFF
  back_log                                                 | 10000
- basedir                                                  | /home/kunlun/oneshardbase/kunlun-storage-0.9.2/
+ basedir                                                  | /home/kunlun/oneshardbase/kunlun-storage-0.9.3/
  bg_worker_threads                                        | 16
  big_tables                                               | OFF
  bind_address                                             | 192.168.0.128
@@ -1431,7 +1438,7 @@ show global variables;
  binlog_order_commits                                     | OFF
  binlog_rotate_encryption_master_key_at_startup           | OFF
  binlog_row_event_max_size                                | 8192
- binlog_row_image                                         | MINIMAL
+ binlog_row_image                                         | FULL
  binlog_row_metadata                                      | MINIMAL
  binlog_row_value_options                                 | PARTIAL_JSON
  binlog_rows_query_log_events                             | ON
@@ -1455,13 +1462,13 @@ show global variables;
  character_set_results                                    | utf8mb4
  character_set_server                                     | utf8mb4
  character_set_system                                     | utf8mb3
- character_sets_dir                                       | /home/kunlun/oneshardbase/kunlun-storage-0.9.2/share/charsets/
+ character_sets_dir                                       | /home/kunlun/oneshardbase/kunlun-storage-0.9.3/share/charsets/
  check_proxy_users                                        | OFF
  clone_binlog_phy_consistency                             | ON
  cluster_id                                               | 0
- collation_connection                                     | utf8mb4_0900_ai_ci
- collation_database                                       | utf8mb4_0900_ai_ci
- collation_server                                         | utf8mb4_0900_ai_ci
+ collation_connection                                     | utf8mb4_0900_as_cs
+ collation_database                                       | utf8mb4_0900_as_cs
+ collation_server                                         | utf8mb4_0900_as_cs
  completion_type                                          | NO_CHAIN
  concurrent_insert                                        | AUTO
  connect_timeout                                          | 10
@@ -1507,18 +1514,18 @@ show global variables;
  ft_query_extra_word_chars                                | OFF
  ft_stopword_file                                         | (built-in)
  fullsync_consistency_level                               | 1
- fullsync_fsync_ack_least_event_bytes                     | 262144
- fullsync_fsync_ack_least_txns                            | 1000
- fullsync_fsync_ack_wait_max_milli_secs                   | 10
+ fullsync_fsync_ack_least_event_bytes                     | 4096
+ fullsync_fsync_ack_least_txns                            | 10
+ fullsync_fsync_ack_wait_max_milli_secs                   | 2
  fullsync_relaylog_fsync_ack_level                        | 2
  fullsync_timeout                                         | 30000
- fullsync_warning_timeout                                 | 3000
+ fullsync_warning_timeout                                 | 5000
  general_log                                              | OFF
  general_log_file                                         | /home/kunlun/onesharddata/data1/dbdata_raw/data/kunlun-test6.log
  generated_random_password_length                         | 20
  group_concat_max_len                                     | 1024
  group_replication_consistency                            | EVENTUAL
- gtid_executed                                            | 42c837a3-f1ba-11ec-9e83-fc3497a73395:1-7457
+ gtid_executed                                            | 23b8dfb7-0b90-11ed-929f-fc3497a73395:1-7643
  gtid_executed_compression_period                         | 0
  gtid_mode                                                | ON
  gtid_owned                                               | 
@@ -1775,7 +1782,7 @@ show global variables;
  large_page_size                                          | 0
  large_pages                                              | OFF
  lc_messages                                              | en_US
- lc_messages_dir                                          | /home/kunlun/oneshardbase/kunlun-storage-0.9.2/share/
+ lc_messages_dir                                          | /home/kunlun/oneshardbase/kunlun-storage-0.9.3/share/
  lc_time_names                                            | en_US
  license                                                  | GPL
  local_infile                                             | ON
@@ -1962,10 +1969,10 @@ show global variables;
  persist_only_admin_x509_subject                          | 
  persisted_globals_load                                   | ON
  pid_file                                                 | /home/kunlun/onesharddata/data1/prod/mysql.pid
- plugin_dir                                               | /home/kunlun/oneshardbase/kunlun-storage-0.9.2/lib/plugin/
+ plugin_dir                                               | /home/kunlun/oneshardbase/kunlun-storage-0.9.3/lib/plugin/
  port                                                     | 16011
  preload_buffer_size                                      | 32768
- print_extra_info_verbosity                               | 2
+ print_extra_info_verbosity                               | 1
  print_identified_with_as_hex                             | OFF
  profiling                                                | OFF
  profiling_history_size                                   | 15
@@ -2016,6 +2023,7 @@ show global variables;
  report_user                                              | 
  require_secure_transport                                 | OFF
  rpl_read_size                                            | 8192
+ rpl_skip_in_xa_trx                                       | OFF
  rpl_stop_replica_timeout                                 | 31536000
  rpl_stop_slave_timeout                                   | 31536000
  schema_definition_cache                                  | 256
@@ -2026,7 +2034,7 @@ show global variables;
  select_into_disk_sync_delay                              | 0
  server_id                                                | 1
  server_id_bits                                           | 32
- server_uuid                                              | 42c837a3-f1ba-11ec-9e83-fc3497a73395
+ server_uuid                                              | 23b8dfb7-0b90-11ed-929f-fc3497a73395
  session_track_gtids                                      | OFF
  session_track_schema                                     | ON
  session_track_state_change                               | OFF
@@ -2152,7 +2160,7 @@ show global variables;
  wait_timeout                                             | 28800
  windowing_use_high_precision                             | ON
  xa_prep_cop_binlog_last                                  | 1
-(761 rows)
+(762 rows)
 
 show global variables strict;
            Variable_name           |                                                                                                                                                                                                                                                                                               Value                                                                                                                                                                                                                                                                                               
@@ -2161,7 +2169,7 @@ show global variables strict;
  auto_increment_offset             | 1
  big_tables                        | OFF
  binlog_format                     | ROW
- binlog_row_image                  | MINIMAL
+ binlog_row_image                  | FULL
  binlog_row_value_options          | PARTIAL_JSON
  binlog_rows_query_log_events      | ON
  binlog_stmt_cache_size            | 32768
@@ -2169,9 +2177,9 @@ show global variables strict;
  character_set_client              | utf8mb4
  character_set_filesystem          | binary
  character_set_results             | utf8mb4
- collation_connection              | utf8mb4_0900_ai_ci
- collation_database                | utf8mb4_0900_ai_ci
- collation_server                  | utf8mb4_0900_ai_ci
+ collation_connection              | utf8mb4_0900_as_cs
+ collation_database                | utf8mb4_0900_as_cs
+ collation_server                  | utf8mb4_0900_as_cs
  completion_type                   | NO_CHAIN
  cte_max_recursion_depth           | 1000
  debug                             | 

@@ -485,9 +485,8 @@ WHERE proallargtypes IS NOT NULL AND
         WHERE proargmodes IS NULL OR proargmodes[i] IN ('i', 'b', 'v'));
  oid  |   proname   | proargtypes | proallargtypes | proargmodes 
 ------+-------------+-------------+----------------+-------------
- 5051 | show_tables | 25          | {25,25}        | {o,o}
  5052 | syntax_help | 25          | {25,25,25}     | {o,o,o}
-(2 rows)
+(1 row)
 
 -- Check for protransform functions with the wrong signature
 SELECT p1.oid, p1.proname, p2.oid, p2.proname

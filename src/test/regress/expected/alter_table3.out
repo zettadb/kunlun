@@ -13,8 +13,10 @@ drop table if exists t30;
 psql:sql/alter_table3.sql:6: NOTICE:  table "t30" does not exist, skipping
 DROP TABLE
 drop table if exists t301;
+psql:sql/alter_table3.sql:7: NOTICE:  table "t301" does not exist, skipping
 DROP TABLE
 drop table if exists t302;
+psql:sql/alter_table3.sql:8: NOTICE:  table "t302" does not exist, skipping
 DROP TABLE
 drop table if exists t303;
 psql:sql/alter_table3.sql:9: NOTICE:  table "t303" does not exist, skipping

@@ -1,18 +1,30 @@
 DROP TABLE IF EXISTS t1;
-NOTICE:  table "t1" does not exist, skipping
+DROP TABLE
 DROP TABLE IF EXISTS t2;
-NOTICE:  table "t2" does not exist, skipping
+DROP TABLE
+DROP TABLE IF EXISTS t3 CASCADE;
+DROP TABLE
 CREATE TABLE t1(A INT PRIMARY KEY, B INT NOT NULL UNIQUE);
+CREATE TABLE
 CREATE TEMP TABLE t2(A INT PRIMARY KEY, B INT NOT NULL UNIQUE);
+CREATE TABLE
 CREATE TABLE t3 (A INT PRIMARY KEY, B INT) PARTITION BY RANGE(a);
+CREATE TABLE
 CREATE TABLE t3p1 PARTITION OF t3 FOR VALUES FROM (0) TO (100);
+CREATE TABLE
 CREATE TABLE t3p2 PARTITION OF t3 FOR VALUES FROM (100) TO (200);
+CREATE TABLE
 CREATE TEMP TABLE t4 (A INT PRIMARY KEY, B INT) PARTITION BY RANGE(a);
+CREATE TABLE
 CREATE TEMP TABLE t4p1 PARTITION OF t4 FOR VALUES FROM (0) TO (100);
+CREATE TABLE
 CREATE TEMP TABLE t4p2 PARTITION OF t4 FOR VALUES FROM (100) TO (200);
+CREATE TABLE
 -- insert ignore
 INSERT INTO t1 VALUES(1,1), (2,2);
+INSERT 0 2
 INSERT IGNORE INTO t1 VALUES(1,2);
+INSERT 0 0
 SELECT * FROM t1;
  a | b 
 ---+---
@@ -21,10 +33,12 @@ SELECT * FROM t1;
 (2 rows)
 
 INSERT IGNORE INTO t1 VALUES(1, NULL); -- should be fail
-ERROR:  null value in column "b" violates not-null constraint
+psql:sql/remote_dml4.sql:17: ERROR:  null value in column "b" violates not-null constraint
 DETAIL:  Failing row contains (1, null).
 INSERT INTO t2 SELECT * FROM T1;
+INSERT 0 2
 INSERT IGNORE INTO t2 VALUES(1,2);
+INSERT 0 0
 SELECT * FROM t1;
  a | b 
 ---+---
@@ -33,11 +47,13 @@ SELECT * FROM t1;
 (2 rows)
 
 INSERT IGNORE INTO t1 VALUES(1, NULL); -- should be fail
-ERROR:  null value in column "b" violates not-null constraint
+psql:sql/remote_dml4.sql:22: ERROR:  null value in column "b" violates not-null constraint
 DETAIL:  Failing row contains (1, null).
 -- insert on duplicate key update
 INSERT INTO t1 VALUES(1,1) ON DUPLICATE KEY UPDATE  b=-1;
+INSERT 0 2
 INSERT INTO t1 VALUES(3,3), (3,4) ON DUPLICATE KEY UPDATE b=excluded.b+1;
+INSERT 0 3
 SELECT *  FROM t1;
  a | b  
 ---+----
@@ -48,17 +64,20 @@ SELECT *  FROM t1;
 
 -- The temp table is stored in kunlun's postgres and does not allow more than two updates to a tuple.
 INSERT INTO t2 VALUES(3,3), (3,4) ON DUPLICATE KEY UPDATE b=excluded.b+1; -- should be fail
-ERROR:  ON CONFLICT DO UPDATE command cannot affect row a second time
+psql:sql/remote_dml4.sql:30: ERROR:  ON CONFLICT DO UPDATE command cannot affect row a second time
 HINT:  Ensure that no rows proposed for insertion within the same command have duplicate constrained values.
 INSERT INTO t3 SELECT GENERATE_SERIES(0,400) % 200, 0 ON DUPLICATE KEY UPDATE b=t3.b+1;
+INSERT 0 602
 -- update partition key is not allowed
 INSERT INTO t3 SELECT GENERATE_SERIES(0,400) % 200, 0 ON DUPLICATE KEY UPDATE a=200-t3.a; -- should be fail
-ERROR:  Kunlun-db: Can not update partition key of a remote relation.
+psql:sql/remote_dml4.sql:35: ERROR:  Kunlun-db: Can not update partition key of a remote relation.
 --- replace
 DELETE  FROM t1;
+DELETE 3
 INSERT INTO t1 VALUES(1,1), (1,2);
-ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '1' for key 't1.PRIMARY'.
+psql:sql/remote_dml4.sql:40: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '1' for key 't1.PRIMARY'.
 REPLACE INTO t1 VALUES(1,2);
+INSERT 0 1
 SELECT * FROM t1;
  a | b 
 ---+---
@@ -66,6 +85,7 @@ SELECT * FROM t1;
 (1 row)
 
 REPLACE INTO t1 VALUES (3,3), (3,4), (3,5);
+INSERT 0 5
 SELECT * FROM t1;
  a | b 
 ---+---
@@ -74,9 +94,13 @@ SELECT * FROM t1;
 (2 rows)
 
 DELETE FROM t2;
+DELETE 2
 REPLACE INTO t1 VALUES (3,3), (3,4), (3,5); -- should be fail
+INSERT 0 6
 DELETE FROM t3;
+DELETE 200
 REPLACE INTO t3 SELECT GENERATE_SERIES(0,400) % 200, GENERATE_SERIES(0,400);
+INSERT 0 602
 SELECT count(1) FROM t3;
  count 
 -------
@@ -84,19 +108,24 @@ SELECT count(1) FROM t3;
 (1 row)
 
 DELETE FROM t4;
+DELETE 0
 REPLACE INTO t4 SELECT GENERATE_SERIES(0,400) % 200, GENERATE_SERIES(0,400); -- should be fail
-ERROR:  REPLACE INTO command cannot affect row a second time
+psql:sql/remote_dml4.sql:55: ERROR:  REPLACE INTO command cannot affect row a second time
 HINT:  Ensure that no rows proposed for insertion within the same command have duplicate constrained values.
 -- update limit
 DELETE FROM t1;
+DELETE 2
 INSERT INTO t1 SELECT GENERATE_SERIES(0,20), GENERATE_SERIES(0,20);
+INSERT 0 21
 UPDATE t1 SET b=-b ORDER BY a LIMIT 1;
+UPDATE 0
 SELECT * FROM t1 WHERE b < 0;
  a | b 
 ---+---
 (0 rows)
 
 UPDATE t1 SET b=-b ORDER BY a DESC LIMIT 1;
+UPDATE 1
 SELECT * FROM t1 WHERE b < 0;
  a  |  b  
 ----+-----
@@ -104,13 +133,14 @@ SELECT * FROM t1 WHERE b < 0;
 (1 row)
 
 UPDATE t3 SET b=-b ORDER BY a LIMIT 1; -- should be fail, global order is not supported
-ERROR:  Kunlun-db: Cannot push down plan
+psql:sql/remote_dml4.sql:66: ERROR:  Kunlun-db: Cannot push down sort
 UPDATE t3 SET b=-b WHERE a<100 ORDER BY a LIMIT 1 RETURNING *;
  a |  b   
 ---+------
  0 | -400
 (1 row)
 
+UPDATE 1
 WITH foo as (UPDATE t3 SET b=-b WHERE b > 0 LIMIT 10 RETURNING *) SELECT count(1) FROM foo;
  count 
 -------
@@ -124,8 +154,9 @@ SELECT count(1) FROM t3 where b<0;
 (1 row)
 
 INSERT INTO t4 SELECT GENERATE_SERIES(0,100);
+INSERT 0 101
 UPDATE t4 SET a=a+10 ORDER BY a; -- should be fail
-ERROR:  duplicate key value violates unique constraint "t4p1_pkey"
+psql:sql/remote_dml4.sql:74: ERROR:  duplicate key value violates unique constraint "t4p1_pkey"
 DETAIL:  Key (a)=(10) already exists.
 UPDATE t4 SET a=a+10 ORDER BY a DESC LIMIT 30 RETURNING *;
   a  | b 
@@ -162,3 +193,4 @@ UPDATE t4 SET a=a+10 ORDER BY a DESC LIMIT 30 RETURNING *;
   81 |  
 (30 rows)
 
+UPDATE 30

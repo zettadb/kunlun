@@ -1644,6 +1644,7 @@ select*from temptest1;
 (2 rows)
 
 commit;
+psql:sql/remote_dml2.sql:754: WARNING:  there is no transaction in progress
 COMMIT
 drop table if exists temptest2 cascade;
 psql:sql/remote_dml2.sql:756: NOTICE:  table "temptest2" does not exist, skipping
@@ -1657,11 +1658,10 @@ INSERT 0 2
 select*from temptest2;
  col 
 -----
-   1
-   2
-(2 rows)
+(0 rows)
 
 commit;
+psql:sql/remote_dml2.sql:761: WARNING:  there is no transaction in progress
 COMMIT
 -- bug 84
 drop table if exists collate_test10 cascade;

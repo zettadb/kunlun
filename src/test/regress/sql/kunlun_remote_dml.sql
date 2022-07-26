@@ -1,4 +1,5 @@
 drop table if exists t1;
+drop table if exists tfail;
 
 create table t1(a int primary key, b serial) partition by hash(a);
 create table t100 partition of t1 for values with (modulus 4, remainder 0); 
@@ -21,6 +22,8 @@ create table tfail(a int);
 delete from t1;
 select*from t1;
 commit;
+
+insert into t1 values(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
 
 start transaction;
 delete from t1;

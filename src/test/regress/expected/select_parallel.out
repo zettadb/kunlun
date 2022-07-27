@@ -688,7 +688,11 @@ SET LOCAL force_parallel_mode = 1;
 psql:sql/select_parallel.sql:384: WARNING:  SET LOCAL can only be used in transaction blocks
 SET
 select stringu1::int2 from tenk1 where unique1 = 1;
-psql:sql/select_parallel.sql:385: ERROR:  invalid input syntax for integer: "BAAAAA"
+ stringu1 
+----------
+        0
+(1 row)
+
 --ROLLBACK TO SAVEPOINT settings;
 -- test interaction with set-returning functions
 SAVEPOINT settings;

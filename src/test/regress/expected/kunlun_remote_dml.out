@@ -1,5 +1,7 @@
 drop table if exists t1;
 DROP TABLE
+drop table if exists tfail;
+DROP TABLE
 
 create table t1(a int primary key, b serial) partition by hash(a);
 CREATE TABLE
@@ -62,7 +64,7 @@ select * from t1 where a in (3,7,11, 13);
 (4 rows)
 
 update t1 set a=a+1 where a > 1 and a < 5;
-psql:sql/kunlun_remote_dml.sql:12: ERROR:  Kunlun-db: Can not update partition key of remote relation
+psql:sql/kunlun_remote_dml.sql:13: ERROR:  Kunlun-db: Can not update partition key of remote relation
 delete from t1 where a %5=0;
 DELETE 4
 select * from t1 where a %5=0;
@@ -110,18 +112,25 @@ select*from t1;
 (8 rows)
 
 create table tfail(a int);
-psql:sql/kunlun_remote_dml.sql:20: ERROR:  relation "tfail" already exists
+CREATE TABLE
 delete from t1;
-psql:sql/kunlun_remote_dml.sql:21: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+DELETE 8
 select*from t1;
-psql:sql/kunlun_remote_dml.sql:22: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+ a | b 
+---+---
+(0 rows)
+
 commit;
-ROLLBACK
+psql:sql/kunlun_remote_dml.sql:24: WARNING:  there is no transaction in progress
+COMMIT
+
+insert into t1 values(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
+INSERT 0 20
 
 start transaction;
 START TRANSACTION
 delete from t1;
-DELETE 16
+DELETE 20
 select*from t1;
  a | b 
 ---+---
@@ -132,23 +141,27 @@ ROLLBACK
 select*from t1;
  a  | b  
 ----+----
-  1 |  1
- 12 | 12
- 14 | 14
- 16 | 16
- 17 | 17
-  3 |  3
-  8 |  8
-  9 |  9
- 11 | 11
- 19 | 19
-  2 |  2
- 13 | 13
- 18 | 18
-  4 |  4
-  6 |  6
-  7 |  7
-(16 rows)
+  1 | 21
+ 12 | 32
+ 14 | 34
+ 16 | 36
+ 17 | 37
+  3 | 23
+  5 | 25
+  8 | 28
+  9 | 29
+ 11 | 31
+ 19 | 39
+ 20 | 40
+  2 | 22
+ 13 | 33
+ 18 | 38
+  4 | 24
+  6 | 26
+  7 | 27
+ 10 | 30
+ 15 | 35
+(20 rows)
 
 
 
@@ -206,17 +219,19 @@ PREPARE q2(int, int) AS SELECT * FROM t1 WHERE a between $1 and $2 order by 1;
 PREPARE
 
 EXECUTE q2(0, 10);
- a | b 
----+---
- 1 | 1
- 2 | 2
- 3 | 3
- 4 | 4
- 6 | 6
- 7 | 7
- 8 | 8
- 9 | 9
-(8 rows)
+ a  | b  
+----+----
+  1 | 21
+  2 | 22
+  3 | 23
+  4 | 24
+  5 | 25
+  6 | 26
+  7 | 27
+  8 | 28
+  9 | 29
+ 10 | 30
+(10 rows)
 
 EXECUTE q1(10, 30);
  a  |           b            |  c  
@@ -229,19 +244,23 @@ EXECUTE q1(10, 30);
 EXECUTE q2(5, 40);
  a  | b  
 ----+----
-  6 |  6
-  7 |  7
-  8 |  8
-  9 |  9
- 11 | 11
- 12 | 12
- 13 | 13
- 14 | 14
- 16 | 16
- 17 | 17
- 18 | 18
- 19 | 19
-(12 rows)
+  5 | 25
+  6 | 26
+  7 | 27
+  8 | 28
+  9 | 29
+ 10 | 30
+ 11 | 31
+ 12 | 32
+ 13 | 33
+ 14 | 34
+ 15 | 35
+ 16 | 36
+ 17 | 37
+ 18 | 38
+ 19 | 39
+ 20 | 40
+(16 rows)
 
 deallocate q1;
 DEALLOCATE
@@ -275,15 +294,17 @@ EXECUTE q3(6, 16);
 
 
 EXECUTE q1(0, 30);
-psql:sql/kunlun_remote_dml.sql:63: ERROR:  prepared statement "q1" does not exist
+psql:sql/kunlun_remote_dml.sql:66: ERROR:  prepared statement "q1" does not exist
 EXECUTE q2(5, 10);
- a | b 
----+---
- 6 | 6
- 7 | 7
- 8 | 8
- 9 | 9
-(4 rows)
+ a  | b  
+----+----
+  5 | 25
+  6 | 26
+  7 | 27
+  8 | 28
+  9 | 29
+ 10 | 30
+(6 rows)
 
 deallocate q2;
 DEALLOCATE
@@ -293,23 +314,27 @@ PREPARE
 select*from t1;
  a  | b  
 ----+----
-  1 |  1
- 12 | 12
- 14 | 14
- 16 | 16
- 17 | 17
-  3 |  3
-  8 |  8
-  9 |  9
- 11 | 11
- 19 | 19
-  2 |  2
- 13 | 13
- 18 | 18
-  4 |  4
-  6 |  6
-  7 |  7
-(16 rows)
+  1 | 21
+ 12 | 32
+ 14 | 34
+ 16 | 36
+ 17 | 37
+  3 | 23
+  5 | 25
+  8 | 28
+  9 | 29
+ 11 | 31
+ 19 | 39
+ 20 | 40
+  2 | 22
+ 13 | 33
+ 18 | 38
+  4 | 24
+  6 | 26
+  7 | 27
+ 10 | 30
+ 15 | 35
+(20 rows)
 
 EXECUTE q4(10, 9);
 UPDATE 1
@@ -339,7 +364,7 @@ EXECUTE q3(0, 40);
 (20 rows)
 
 EXECUTE q4(11, 10);
-UPDATE 0
+UPDATE 1
 
 begin;
 BEGIN
@@ -350,10 +375,11 @@ UPDATE 1
 select*from t1 where a between 9 and 12;
  a  | b  
 ----+----
- 12 | 12
+ 12 | 32
   9 | 10
  11 | 12
-(3 rows)
+ 10 | 11
+(4 rows)
 
 commit;
 COMMIT
@@ -367,7 +393,7 @@ DROP TABLE
 
 -- bug 30
 drop table if exists uv_iocu_tab cascade;
-psql:sql/kunlun_remote_dml.sql:84: NOTICE:  drop cascades to view uv_iocu_view
+psql:sql/kunlun_remote_dml.sql:87: NOTICE:  drop cascades to view uv_iocu_view
 DROP TABLE
 create table uv_iocu_tab (a serial primary key, b varchar(50));
 CREATE TABLE
@@ -820,7 +846,7 @@ DROP TABLE
 create table t2(a int);
 CREATE TABLE
 create index on t2(a,a);
-psql:sql/kunlun_remote_dml.sql:224: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1060, Duplicate column name 'a'.
+psql:sql/kunlun_remote_dml.sql:227: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1060, Duplicate column name 'a'.
 
 
 -- bug 13
@@ -831,7 +857,7 @@ SELECT SESSION_USER, CURRENT_USER;
 (1 row)
 
 drop schema if exists testschema cascade;
-psql:sql/kunlun_remote_dml.sql:229: NOTICE:  schema "testschema" does not exist, skipping
+psql:sql/kunlun_remote_dml.sql:232: NOTICE:  schema "testschema" does not exist, skipping
 DROP SCHEMA
 CREATE SCHEMA if not exists testschema;
 CREATE SCHEMA
@@ -863,7 +889,7 @@ select testschema.seq1.nextval, nextval('testschema.seq1');
 (1 row)
 
 drop schema testschema cascade;
-psql:sql/kunlun_remote_dml.sql:238: NOTICE:  drop cascades to 2 other objects
+psql:sql/kunlun_remote_dml.sql:241: NOTICE:  drop cascades to 2 other objects
 DETAIL:  drop cascades to table testschema.foo
 drop cascades to sequence testschema.seq1
 DROP SCHEMA
@@ -873,7 +899,7 @@ DROP SCHEMA
 
 -- bug 50 THIS BUG Is postponed
 create user user1;
-psql:sql/kunlun_remote_dml.sql:244: ERROR:  role "user1" already exists
+psql:sql/kunlun_remote_dml.sql:247: ERROR:  role "user1" already exists
 drop table if exists r1 cascade;
 DROP TABLE
 SET SESSION AUTHORIZATION user1;
@@ -898,7 +924,7 @@ TABLE r1;
 INSERT INTO r1 VALUES (1);
 INSERT 0 1
 UPDATE r1 SET a = 1;
-psql:sql/kunlun_remote_dml.sql:256: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '1' for key 'r1.PRIMARY'.
+psql:sql/kunlun_remote_dml.sql:259: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '1' for key 'r1.PRIMARY'.
 DELETE FROM r1;
 DELETE 3
 SET SESSION AUTHORIZATION abc;
@@ -956,7 +982,7 @@ INSERT 0 1
 INSERT INTO update_test(b, a) VALUES (15, 10);
 INSERT 0 1
 UPDATE update_test t SET (a, b) = (SELECT b, a FROM update_test s WHERE s.a = t.a) WHERE CURRENT_USER = SESSION_USER;
-psql:sql/kunlun_remote_dml.sql:286: ERROR:  In kunlun-db unable to serialize value expression of target column a in update statement UPDATE update_test t SET (a, b) = (SELECT b, a FROM update_test s WHERE s.a = t.a) WHERE CURRENT_USER = SESSION_USER;.
+psql:sql/kunlun_remote_dml.sql:289: ERROR:  In kunlun-db unable to serialize value expression of target column a in update statement UPDATE update_test t SET (a, b) = (SELECT b, a FROM update_test s WHERE s.a = t.a) WHERE CURRENT_USER = SESSION_USER;.
 
 -- bug 121
 drop table if exists indext1 cascade;

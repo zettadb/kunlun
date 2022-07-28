@@ -5,12 +5,12 @@
 -- \set
 -- fail: invalid name
 \set invalid/name foo
-psql:sql/psql.sql:9: invalid variable name: "invalid/name"
+psql:sql/psql.sql:9: error: invalid variable name: "invalid/name"
 -- fail: invalid value for special variable
 \set AUTOCOMMIT foo
-psql:sql/psql.sql:11: unrecognized value "foo" for "AUTOCOMMIT": Boolean expected
+psql:sql/psql.sql:11: error: unrecognized value "foo" for "AUTOCOMMIT": Boolean expected
 \set FETCH_COUNT foo
-psql:sql/psql.sql:12: invalid value "foo" for "FETCH_COUNT": integer expected
+psql:sql/psql.sql:12: error: invalid value "foo" for "FETCH_COUNT": integer expected
 -- check handling of built-in boolean variable
 \echo :ON_ERROR_ROLLBACK
 off
@@ -18,7 +18,7 @@ off
 \echo :ON_ERROR_ROLLBACK
 on
 \set ON_ERROR_ROLLBACK foo
-psql:sql/psql.sql:17: unrecognized value "foo" for "ON_ERROR_ROLLBACK"
+psql:sql/psql.sql:17: error: unrecognized value "foo" for "ON_ERROR_ROLLBACK"
 Available values are: on, off, interactive.
 \echo :ON_ERROR_ROLLBACK
 on
@@ -83,7 +83,7 @@ select 10 as test01, 20 as test02, 'Hello' as test03 \gset pref01_
 -- should fail: bad variable name
 select 10 as "bad name"
 \gset
-psql:sql/psql.sql:49: invalid variable name: "bad name"
+psql:sql/psql.sql:49: error: invalid variable name: "bad name"
 -- multiple backslash commands in one line
 select 1 as x, 2 as y \gset pref01_ \\ \echo :pref01_x
 1
@@ -111,9 +111,9 @@ select 1 as var1, NULL as var2, 3 as var3 \gset
 1 :var2 3
 -- \gset requires just one tuple
 select 10 as test01, 20 as test02 from generate_series(1,3) \gset
-psql:sql/psql.sql:63: more than one row returned for \gset
+psql:sql/psql.sql:63: error: more than one row returned for \gset
 select 10 as test01, 20 as test02 from generate_series(1,0) \gset
-psql:sql/psql.sql:64: no rows returned for \gset
+psql:sql/psql.sql:64: error: no rows returned for \gset
 -- \gset should work in FETCH_COUNT mode too
 \set FETCH_COUNT 1
 select 1 as x, 2 as y \gset pref01_ \\ \echo :pref01_x
@@ -122,9 +122,9 @@ select 3 as x, 4 as y \gset pref01_ \echo :pref01_x \echo :pref01_y
 3
 4
 select 10 as test01, 20 as test02 from generate_series(1,3) \gset
-psql:sql/psql.sql:71: more than one row returned for \gset
+psql:sql/psql.sql:71: error: more than one row returned for \gset
 select 10 as test01, 20 as test02 from generate_series(1,0) \gset
-psql:sql/psql.sql:72: no rows returned for \gset
+psql:sql/psql.sql:72: error: no rows returned for \gset
 \unset FETCH_COUNT
 -- \gdesc
 SELECT
@@ -265,6 +265,7 @@ select '2000-01-01'::date as party_over
 \pset
 border                   1
 columns                  0
+csv_fieldsep             ','
 expanded                 off
 fieldsep                 '|'
 fieldsep_zero            off
@@ -3093,7 +3094,7 @@ second thing true
 \endif
 -- invalid boolean expressions are false
 \if invalid boolean expression
-psql:sql/psql.sql:504: unrecognized value "invalid boolean expression" for "\if expression": Boolean expected
+psql:sql/psql.sql:504: error: unrecognized value "invalid boolean expression" for "\if expression": Boolean expected
 	\echo 'will not print #6-1'
 \else
 	\echo 'will print anyway #6-2'
@@ -3101,24 +3102,24 @@ will print anyway #6-2
 \endif
 -- test un-matched endif
 \endif
-psql:sql/psql.sql:511: \endif: no matching \if
+psql:sql/psql.sql:511: error: \endif: no matching \if
 -- test un-matched else
 \else
-psql:sql/psql.sql:514: \else: no matching \if
+psql:sql/psql.sql:514: error: \else: no matching \if
 -- test un-matched elif
 \elif
-psql:sql/psql.sql:517: \elif: no matching \if
+psql:sql/psql.sql:517: error: \elif: no matching \if
 -- test double-else error
 \if true
 \else
 \else
-psql:sql/psql.sql:522: \else: cannot occur after \else
+psql:sql/psql.sql:522: error: \else: cannot occur after \else
 \endif
 -- test elif out-of-order
 \if false
 \else
 \elif
-psql:sql/psql.sql:528: \elif: cannot occur after \else
+psql:sql/psql.sql:528: error: \elif: cannot occur after \else
 \endif
 -- test if-endif matching in a false branch
 \if false
@@ -3138,10 +3139,10 @@ should print #7-4
 bar 'bar' "bar"
 \pset fieldsep | `nosuchcommand` :foo :'foo' :"foo"
 Field separator is "|".
-psql:sql/psql.sql:546: \pset: extra argument "nosuchcommand" ignored
-psql:sql/psql.sql:546: \pset: extra argument ":foo" ignored
-psql:sql/psql.sql:546: \pset: extra argument ":'foo'" ignored
-psql:sql/psql.sql:546: \pset: extra argument ":"foo"" ignored
+psql:sql/psql.sql:546: warning: \pset: extra argument "nosuchcommand" ignored
+psql:sql/psql.sql:546: warning: \pset: extra argument ":foo" ignored
+psql:sql/psql.sql:546: warning: \pset: extra argument ":'foo'" ignored
+psql:sql/psql.sql:546: warning: \pset: extra argument ":"foo"" ignored
 -- show that vars and backticks are not expanded and commands are ignored
 -- when in a false if-branch
 \set try_to_quit '\\q'

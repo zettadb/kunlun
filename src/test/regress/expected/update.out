@@ -407,7 +407,7 @@ INSERT 0 6
 DELETE 6
 INSERT 0 6
 \d+ part_def
-psql:sql/update.sql:289: Did not find any relation named "part_def".
+psql:sql/update.sql:289: error: Did not find any relation named "part_def".
 insert into range_parted values ('c', 9);
 psql:sql/update.sql:290: ERROR:  no partition of relation "range_parted" found for row
 DETAIL:  Partition key of the failing row contains (a, b) = (c, 9).

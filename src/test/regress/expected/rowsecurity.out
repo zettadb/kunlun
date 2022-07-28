@@ -697,7 +697,7 @@ INSERT INTO part_document VALUES
     (10, 99, 2, 'regress_rls_dave', 'awesome technology book');
 INSERT 0 10
 \d+ part_document
-                          Table "regress_rls_schema.part_document"
+                    Partitioned table "regress_rls_schema.part_document"
  Column  |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
 ---------+---------+-----------+----------+---------+----------+--------------+-------------
  did     | integer |           |          |         | plain    |              | 

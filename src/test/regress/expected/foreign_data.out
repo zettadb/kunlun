@@ -1652,9 +1652,9 @@ Server: s0
 FDW options: (delimiter ',', quote '"', "be quoted" 'value')
 
 \d+ ct3
-psql:sql/foreign_data.sql:584: Did not find any relation named "ct3".
+psql:sql/foreign_data.sql:584: error: Did not find any relation named "ct3".
 \d+ ft3
-psql:sql/foreign_data.sql:585: Did not find any relation named "ft3".
+psql:sql/foreign_data.sql:585: error: Did not find any relation named "ft3".
 -- alter attributes recursively
 ALTER TABLE fd_pt1 ALTER COLUMN c4 SET DEFAULT 0;
 ALTER TABLE
@@ -1864,7 +1864,7 @@ CREATE FOREIGN TABLE fd_pt2_1 PARTITION OF fd_pt2 FOR VALUES IN (1)
   SERVER s0 OPTIONS (delimiter ',', quote '"', "be quoted" 'value');
 CREATE FOREIGN TABLE
 \d+ fd_pt2
-                                   Table "public.fd_pt2"
+                             Partitioned table "public.fd_pt2"
  Column |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+---------+-----------+----------+---------+----------+--------------+-------------
  c1     | integer |           | not null |         | plain    |              | 
@@ -1892,7 +1892,7 @@ psql:sql/foreign_data.sql:668: ERROR:  cannot add column to a partition
 ALTER TABLE fd_pt2_1 ALTER c3 SET NOT NULL;
 ALTER TABLE
 \d+ fd_pt2
-                                   Table "public.fd_pt2"
+                             Partitioned table "public.fd_pt2"
  Column |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+---------+-----------+----------+---------+----------+--------------+-------------
  c1     | integer |           | not null |         | plain    |              | 
@@ -1920,7 +1920,7 @@ psql:sql/foreign_data.sql:675: ERROR:  column "c1" is marked NOT NULL in parent 
 ALTER TABLE fd_pt2 ALTER c2 SET NOT NULL;
 ALTER TABLE
 \d+ fd_pt2
-                                   Table "public.fd_pt2"
+                             Partitioned table "public.fd_pt2"
  Column |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+---------+-----------+----------+---------+----------+--------------+-------------
  c1     | integer |           | not null |         | plain    |              | 
@@ -2006,6 +2006,6 @@ SELECT srvname, srvoptions FROM pg_foreign_server;\
  integer    | 
 (2 rows)
 
-psql:sql/foreign_data.sql:707: invalid command \
+psql:sql/foreign_data.sql:707: error: invalid command \
 --Its value changes frequently and is temporarily cancelled
 --SELECT * FROM pg_user_mapping;

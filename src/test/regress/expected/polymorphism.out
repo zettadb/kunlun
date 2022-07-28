@@ -1574,7 +1574,7 @@ psql:sql/polymorphism.sql:810: ERROR:  relation "dfview" does not exist
 LINE 1: select * from dfview;
                       ^
 \d+ dfview
-psql:sql/polymorphism.sql:812: Did not find any relation named "dfview".
+psql:sql/polymorphism.sql:812: error: Did not find any relation named "dfview".
 drop view dfview;
 psql:sql/polymorphism.sql:814: ERROR:  view "dfview" does not exist
 drop function dfunc(anyelement, anyelement, bool);

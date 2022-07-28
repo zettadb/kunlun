@@ -138,7 +138,7 @@ CREATE TABLE
 show last_remote_sql;
 psql:sql/kunlun_remote.sql:56: ERROR:  unrecognized configuration parameter "last_remote_sql"
 \d+ t3;
-                                    Table "public.t3"
+                              Partitioned table "public.t3"
  Column |  Type   | Collation | Nullable | Default | Storage | Stats target | Description 
 --------+---------+-----------+----------+---------+---------+--------------+-------------
  a      | integer |           |          |         | plain   |              | 
@@ -182,7 +182,7 @@ CREATE INDEX
 show last_remote_sql;
 psql:sql/kunlun_remote.sql:70: ERROR:  unrecognized configuration parameter "last_remote_sql"
 \d+ t3;
-                                               Table "public.t3"
+                                         Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer                     |           |          |         | plain    |              | 
@@ -219,7 +219,7 @@ Indexes:
 Options: shard=1
 
 \d+ t3;
-                                               Table "public.t3"
+                                         Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer                     |           |          |         | plain    |              | 
@@ -256,7 +256,7 @@ Indexes:
 Options: shard=1
 
 \d+ t3;
-                                               Table "public.t3"
+                                         Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer                     |           |          |         | plain    |              | 
@@ -320,7 +320,7 @@ Indexes:
 Options: shard=1
 
 \d+ t3;
-                                               Table "public.t3"
+                                         Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer                     |           |          |         | plain    |              | 
@@ -345,7 +345,7 @@ CREATE TABLE
 show last_remote_sql;
 psql:sql/kunlun_remote.sql:95: ERROR:  unrecognized configuration parameter "last_remote_sql"
 \d+ t3;
-                                               Table "public.t3"
+                                         Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer                     |           |          |         | plain    |              | 
@@ -426,7 +426,7 @@ CREATE TABLE
 show last_remote_sql;
 psql:sql/kunlun_remote.sql:102: ERROR:  unrecognized configuration parameter "last_remote_sql"
 \d+ t3;
-                                               Table "public.t3"
+                                         Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer                     |           |          |         | plain    |              | 
@@ -548,7 +548,7 @@ Indexes:
 Options: shard=1
 
 \d+ t3;
-                                               Table "public.t3"
+                                         Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer                     |           |          |         | plain    |              | 
@@ -594,7 +594,7 @@ Indexes:
 Options: shard=1
 
 \d+ t3;
-                                               Table "public.t3"
+                                         Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer                     |           |          |         | plain    |              | 
@@ -703,7 +703,7 @@ Indexes:
 Options: shard=1
 
 \d+ t3;
-                                               Table "public.t3"
+                                         Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer                     |           |          |         | plain    |              | 
@@ -733,7 +733,7 @@ CREATE TABLE
 show last_remote_sql;
 psql:sql/kunlun_remote.sql:135: ERROR:  unrecognized configuration parameter "last_remote_sql"
 \d+ t1;
-                                    Table "public.t1"
+                              Partitioned table "public.t1"
  Column |  Type   | Collation | Nullable | Default | Storage | Stats target | Description 
 --------+---------+-----------+----------+---------+---------+--------------+-------------
  a      | integer |           |          |         | plain   |              | 
@@ -765,7 +765,7 @@ CREATE TABLE
 show last_remote_sql;
 psql:sql/kunlun_remote.sql:149: ERROR:  unrecognized configuration parameter "last_remote_sql"
 \d+ t2;
-                                            Table "public.t2"
+                                      Partitioned table "public.t2"
  Column |         Type          | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer               |           | not null |         | plain    |              | 
@@ -805,7 +805,7 @@ CREATE INDEX
 show last_remote_sql;
 psql:sql/kunlun_remote.sql:168: ERROR:  unrecognized configuration parameter "last_remote_sql"
 \d+ t2_c_d;
-                            Index "public.t2_c_d"
+                      Partitioned index "public.t2_c_d"
  Column |         Type          | Key? | Definition | Storage  | Stats target 
 --------+-----------------------+------+------------+----------+--------------
  d      | character(16)         | yes  | d          | extended | 
@@ -863,7 +863,7 @@ CREATE INDEX
 show last_remote_sql;
 psql:sql/kunlun_remote.sql:180: ERROR:  unrecognized configuration parameter "last_remote_sql"
 \d+ t1;
-                                               Table "public.t1"
+                                         Partitioned table "public.t1"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | character varying(30)       |           | not null |         | extended |              | 
@@ -918,7 +918,7 @@ CREATE TABLE
 show last_remote_sql;
 psql:sql/kunlun_remote.sql:206: ERROR:  unrecognized configuration parameter "last_remote_sql"
 \d+ t2;
-                                              Table "public.t2"
+                                        Partitioned table "public.t2"
  Column |            Type             | Collation | Nullable | Default | Storage | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+---------+--------------+-------------
  a      | integer                     |           | not null |         | plain   |              | 
@@ -961,7 +961,7 @@ CREATE INDEX
 show last_remote_sql;
 psql:sql/kunlun_remote.sql:212: ERROR:  unrecognized configuration parameter "last_remote_sql"
 \d+ t2;
-                                              Table "public.t2"
+                                        Partitioned table "public.t2"
  Column |            Type             | Collation | Nullable | Default | Storage | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+---------+--------------+-------------
  a      | integer                     |           | not null |         | plain   |              | 
@@ -1025,7 +1025,7 @@ CREATE INDEX
 show last_remote_sql;
 psql:sql/kunlun_remote.sql:220: ERROR:  unrecognized configuration parameter "last_remote_sql"
 \d+ t2;
-                                              Table "public.t2"
+                                        Partitioned table "public.t2"
  Column |            Type             | Collation | Nullable | Default | Storage | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+---------+--------------+-------------
  a      | integer                     |           | not null |         | plain   |              | 
@@ -1115,7 +1115,7 @@ psql:sql/kunlun_remote.sql:230: ERROR:  syntax error at or near "show"
 LINE 2: show last_remote_sql;
         ^
 \d+ t202;
-psql:sql/kunlun_remote.sql:231: Did not find any relation named "t202".
+psql:sql/kunlun_remote.sql:231: error: Did not find any relation named "t202".
 create index on t2(b,e);
 CREATE INDEX
 show last_remote_sql;
@@ -1125,7 +1125,7 @@ CREATE INDEX
 show last_remote_sql;
 psql:sql/kunlun_remote.sql:235: ERROR:  unrecognized configuration parameter "last_remote_sql"
 \d+ t2;
-                                              Table "public.t2"
+                                        Partitioned table "public.t2"
  Column |            Type             | Collation | Nullable | Default | Storage | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+---------+--------------+-------------
  a      | integer                     |           | not null |         | plain   |              | 
@@ -1170,7 +1170,7 @@ Indexes:
 Options: shard=1
 
 \d+ t202;
-psql:sql/kunlun_remote.sql:238: Did not find any relation named "t202".
+psql:sql/kunlun_remote.sql:238: error: Did not find any relation named "t202".
 drop table if exists t10 cascade;
 psql:sql/kunlun_remote.sql:240: NOTICE:  drop cascades to default value for column a of table t13
 DROP TABLE

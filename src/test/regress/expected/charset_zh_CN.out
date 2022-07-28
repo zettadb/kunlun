@@ -30,7 +30,7 @@ select * from 地球.中国;
 (0 rows)
 
 \d
-psql:sql/charset_zh_CN.sql:17: Did not find any relations.
+psql:sql/charset_zh_CN.sql:17: error: Did not find any relations.
 drop schema 地球  CASCADE;
 psql:sql/charset_zh_CN.sql:18: NOTICE:  drop cascades to table "地球"."中国"
 DROP SCHEMA

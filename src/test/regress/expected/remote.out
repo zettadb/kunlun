@@ -120,7 +120,7 @@ create table t3(a int) partition by list(a);
 CREATE TABLE
 --show last_remote_sql;
 \d+ t3;
-                                    Table "public.t3"
+                              Partitioned table "public.t3"
  Column |  Type   | Collation | Nullable | Default | Storage | Stats target | Description 
 --------+---------+-----------+----------+---------+---------+--------------+-------------
  a      | integer |           |          |         | plain   |              | 
@@ -161,7 +161,7 @@ create index on t3(c);
 CREATE INDEX
 --show last_remote_sql;
 \d+ t3;
-                                               Table "public.t3"
+                                         Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer                     |           |          |         | plain    |              | 
@@ -197,7 +197,7 @@ Indexes:
 Options: shard=1
 
 \d+ t3;
-                                               Table "public.t3"
+                                         Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer                     |           |          |         | plain    |              | 
@@ -233,7 +233,7 @@ Indexes:
 Options: shard=1
 
 \d+ t3;
-                                               Table "public.t3"
+                                         Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer                     |           |          |         | plain    |              | 
@@ -295,7 +295,7 @@ Indexes:
 Options: shard=1
 
 \d+ t3;
-                                               Table "public.t3"
+                                         Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer                     |           |          |         | plain    |              | 
@@ -319,7 +319,7 @@ create table t302 partition of t3 for values from ('2010-01-01') to ('2019-12-31
 CREATE TABLE
 --show last_remote_sql;
 \d+ t3;
-                                               Table "public.t3"
+                                         Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer                     |           |          |         | plain    |              | 
@@ -399,7 +399,7 @@ create table t304 partition of t3 for values from ('2030-01-01') to ('2049-12-31
 CREATE TABLE
 --show last_remote_sql;
 \d+ t3;
-                                               Table "public.t3"
+                                         Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer                     |           |          |         | plain    |              | 
@@ -520,7 +520,7 @@ Indexes:
 Options: shard=1
 
 \d+ t3;
-                                               Table "public.t3"
+                                         Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer                     |           |          |         | plain    |              | 
@@ -565,7 +565,7 @@ Indexes:
 Options: shard=1
 
 \d+ t3;
-                                               Table "public.t3"
+                                         Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer                     |           |          |         | plain    |              | 
@@ -673,7 +673,7 @@ Indexes:
 Options: shard=1
 
 \d+ t3;
-                                               Table "public.t3"
+                                         Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer                     |           |          |         | plain    |              | 
@@ -703,7 +703,7 @@ create table t1(a int, b int) partition by hash(a,b);
 CREATE TABLE
 --show last_remote_sql;
 \d+ t1;
-                                    Table "public.t1"
+                              Partitioned table "public.t1"
  Column |  Type   | Collation | Nullable | Default | Storage | Stats target | Description 
 --------+---------+-----------+----------+---------+---------+--------------+-------------
  a      | integer |           |          |         | plain   |              | 
@@ -730,7 +730,7 @@ create table t2(a int, b int, c varchar(32), d char(16), primary key(a,b), uniqu
 CREATE TABLE
 --show last_remote_sql;
 \d+ t2;
-                                            Table "public.t2"
+                                      Partitioned table "public.t2"
  Column |         Type          | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------+-----------+----------+---------+----------+--------------+-------------
  a      | integer               |           | not null |         | plain    |              | 
@@ -765,7 +765,7 @@ CREATE INDEX
 -- four statements generated by above 'create index' stmt.
 --show last_remote_sql;
 \d+ t2_c_d;
-                            Index "public.t2_c_d"
+                      Partitioned index "public.t2_c_d"
  Column |         Type          | Key? | Definition | Storage  | Stats target 
 --------+-----------------------+------+------------+----------+--------------
  d      | character(16)         | yes  | d          | extended | 
@@ -821,7 +821,7 @@ create index t1_f on t1(f);
 CREATE INDEX
 --show last_remote_sql;
 \d+ t1;
-                                               Table "public.t1"
+                                         Partitioned table "public.t1"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
  a      | character varying(30)       |           | not null |         | extended |              | 
@@ -867,7 +867,7 @@ create table t2(a int, b timestamptz, c timestamp, d money, e numeric(7,4), f re
 CREATE TABLE
 --show last_remote_sql;
 \d+ t2;
-                                              Table "public.t2"
+                                        Partitioned table "public.t2"
  Column |            Type             | Collation | Nullable | Default | Storage | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+---------+--------------+-------------
  a      | integer                     |           | not null |         | plain   |              | 
@@ -908,7 +908,7 @@ create index t2_d_g on t2(d,g desc);
 CREATE INDEX
 --show last_remote_sql;
 \d+ t2;
-                                              Table "public.t2"
+                                        Partitioned table "public.t2"
  Column |            Type             | Collation | Nullable | Default | Storage | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+---------+--------------+-------------
  a      | integer                     |           | not null |         | plain   |              | 
@@ -969,7 +969,7 @@ create unique index t2_c_d on t2(a,c,d desc);
 CREATE INDEX
 --show last_remote_sql;
 \d+ t2;
-                                              Table "public.t2"
+                                        Partitioned table "public.t2"
  Column |            Type             | Collation | Nullable | Default | Storage | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+---------+--------------+-------------
  a      | integer                     |           | not null |         | plain   |              | 
@@ -1055,7 +1055,7 @@ Options: shard=1
 create table t202 partition of t2 for values in (8,9,10)
 --show last_remote_sql;
 \d+ t202;
-psql:sql/remote.sql:226: Did not find any relation named "t202".
+psql:sql/remote.sql:226: error: Did not find any relation named "t202".
 create index on t2(b,e);
 psql:sql/remote.sql:227: ERROR:  syntax error at or near "create"
 LINE 3: create index on t2(b,e);
@@ -1065,7 +1065,7 @@ create index on t2(g desc,f);
 CREATE INDEX
 --show last_remote_sql;
 \d+ t2;
-                                              Table "public.t2"
+                                        Partitioned table "public.t2"
  Column |            Type             | Collation | Nullable | Default | Storage | Stats target | Description 
 --------+-----------------------------+-----------+----------+---------+---------+--------------+-------------
  a      | integer                     |           | not null |         | plain   |              | 
@@ -1108,7 +1108,7 @@ Indexes:
 Options: shard=1
 
 \d+ t202;
-psql:sql/remote.sql:233: Did not find any relation named "t202".
+psql:sql/remote.sql:233: error: Did not find any relation named "t202".
 --create table t10 (a decimal(66));
 create table t10 (a decimal(10,31));
 psql:sql/remote.sql:236: ERROR:  NUMERIC scale 31 must be between 0 and precision 10

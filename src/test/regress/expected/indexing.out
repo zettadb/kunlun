@@ -271,7 +271,7 @@ Indexes:
     "idxpart1_a_idx" btree (a NULLS FIRST)
 
 \d idxpart2
-              Table "public.idxpart2"
+        Partitioned table "public.idxpart2"
  Column |  Type   | Collation | Nullable | Default 
 --------+---------+-----------+----------+---------
  a      | integer |           |          | 
@@ -314,7 +314,7 @@ where indexrelid::regclass::text like 'idxpart%'
 
 -- attaching idxpart22 is not enough to set idxpart22_a_idx valid ...
 \d idxpart2
-              Table "public.idxpart2"
+        Partitioned table "public.idxpart2"
  Column |  Type   | Collation | Nullable | Default 
 --------+---------+-----------+----------+---------
  a      | integer |           |          | 
@@ -328,7 +328,7 @@ Number of partitions: 2 (Use \d+ to list them.)
 create index on idxpart21 (a);
 CREATE INDEX
 \d idxpart2
-              Table "public.idxpart2"
+        Partitioned table "public.idxpart2"
  Column |  Type   | Collation | Nullable | Default 
 --------+---------+-----------+----------+---------
  a      | integer |           |          | 
@@ -722,7 +722,7 @@ DROP TABLE
 create table idxpart (a int primary key, b int) partition by range (a);
 CREATE TABLE
 \d idxpart
-              Table "public.idxpart"
+        Partitioned table "public.idxpart"
  Column |  Type   | Collation | Nullable | Default 
 --------+---------+-----------+----------+---------
  a      | integer |           | not null | 
@@ -792,7 +792,7 @@ DETAIL:  PRIMARY KEY constraint on table "idxpart" lacks column "b" which is par
 alter table idxpart add primary key (a, b);	-- this works
 ALTER TABLE
 \d idxpart
-              Table "public.idxpart"
+        Partitioned table "public.idxpart"
  Column |  Type   | Collation | Nullable | Default 
 --------+---------+-----------+----------+---------
  a      | integer |           | not null | 
@@ -827,7 +827,7 @@ DETAIL:  UNIQUE constraint on table "idxpart" lacks column "b" which is part of 
 alter table idxpart add unique (b, a);		-- this works
 ALTER TABLE
 \d idxpart
-              Table "public.idxpart"
+        Partitioned table "public.idxpart"
  Column |  Type   | Collation | Nullable | Default 
 --------+---------+-----------+----------+---------
  a      | integer |           |          | 

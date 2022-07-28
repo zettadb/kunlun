@@ -408,7 +408,7 @@ CREATE TABLE partitioned2 (
 CREATE TABLE
 -- Partition key in describe output
 \d partitioned
-            Table "public.partitioned"
+      Partitioned table "public.partitioned"
  Column |  Type   | Collation | Nullable | Default 
 --------+---------+-----------+----------+---------
  a      | integer |           |          | 
@@ -419,7 +419,7 @@ Partition key: RANGE (a oid_ops, plusone(b), c, d COLLATE "C")
 Number of partitions: 0
 
 \d+ partitioned2
-                                Table "public.partitioned2"
+                          Partitioned table "public.partitioned2"
  Column |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+---------+-----------+----------+---------+----------+--------------+-------------
  a      | integer |           |          |         | plain    |              | 
@@ -840,7 +840,7 @@ Options: shard=1
 
 -- Both partition bound and partition key in describe output
 \d+ part_c
-                                   Table "public.part_c"
+                             Partitioned table "public.part_c"
  Column |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
 --------+---------+-----------+----------+---------+----------+--------------+-------------
  a      | text    |           |          |         | extended |              | 
@@ -866,7 +866,7 @@ Options: shard=1
 -- output could vary depending on the order in which partition oids are
 -- returned.
 \d parted
-               Table "public.parted"
+         Partitioned table "public.parted"
  Column |  Type   | Collation | Nullable | Default 
 --------+---------+-----------+----------+---------
  a      | text    |           |          | 
@@ -875,7 +875,7 @@ Partition key: LIST (a)
 Number of partitions: 3 (Use \d+ to list them.)
 
 \d hash_parted
-            Table "public.hash_parted"
+      Partitioned table "public.hash_parted"
  Column |  Type   | Collation | Nullable | Default 
 --------+---------+-----------+----------+---------
  a      | integer |           |          | 
@@ -995,7 +995,7 @@ SELECT obj_description('parted_col_comment'::regclass);
 (1 row)
 
 \d+ parted_col_comment
-                              Table "public.parted_col_comment"
+                        Partitioned table "public.parted_col_comment"
  Column |  Type   | Collation | Nullable | Default | Storage  | Stats target |  Description  
 --------+---------+-----------+----------+---------+----------+--------------+---------------
  a      | integer |           |          |         | plain    |              | Partition key
@@ -1013,7 +1013,7 @@ CREATE TABLE
 create table boolspart_f partition of boolspart for values in (false);
 CREATE TABLE
 \d+ boolspart
-                                 Table "public.boolspart"
+                           Partitioned table "public.boolspart"
  Column |  Type   | Collation | Nullable | Default | Storage | Stats target | Description 
 --------+---------+-----------+----------+---------+---------+--------------+-------------
  a      | boolean |           |          |         | plain   |              | 

@@ -1653,7 +1653,7 @@ ALTER TYPE
 ALTER TYPE test_typex DROP ATTRIBUTE a CASCADE;
 psql:sql/alter_table.sql:869: ERROR:  column "a" of relation "test_typex" does not exist
 \d test_tblx
-psql:sql/alter_table.sql:870: Did not find any relation named "test_tblx".
+psql:sql/alter_table.sql:870: error: Did not find any relation named "test_tblx".
 DROP TYPE test_typex;
 DROP TYPE
 --

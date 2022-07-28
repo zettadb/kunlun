@@ -1777,7 +1777,6 @@ ALTER TABLE
 select * from usersview;  -- expect clean failure
 psql:sql/rangefuncs.sql:551: ERROR:  attribute 5 of type record has been dropped
 rollback;
-psql:sql/rangefuncs.sql:552: WARNING:  there is no transaction in progress
 ROLLBACK
 alter table users alter column seq type numeric;
 ALTER TABLE

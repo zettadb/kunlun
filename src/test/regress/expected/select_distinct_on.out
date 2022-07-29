@@ -3,7 +3,7 @@
 --
 DELETE from tenk1;
 DELETE 10000
-COPY tenk1 FROM '/home/jenkins/pgregressdata/data/tenk.data';
+COPY tenk1 FROM '/home/kunlun/pgregressdata/data/tenk.data';
 COPY 10000
 SELECT DISTINCT ON (string4) string4, two, ten
    FROM tenk1

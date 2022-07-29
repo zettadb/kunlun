@@ -12,6 +12,16 @@ cat serial_schedule | grep -v '^#' | sed '/^[ 	]*$/d' | awk '{print $2}' | while
 		bash run_single.sh "sql/$f.sql"
 		mv 1.out.p $f.out
 		test "$LOCFROM" = "" || test "$LOCTO" = "" || sed -i "s#$LOCFROM#$LOCTO#g" $f.out
+		# Preprocessing the output and expected output if necessary before comparing.
+		sed -i 's/shard=[0-9]*/shard=1/g' $f.out
+		sed -i 's/MySQL storage node ([0-9]*, [0-9]*)/MySQL storage node (1, 1)/g' $f.out
+		sed -i 's/transaction [0-9]*-[0-9]*-[0-9]*/transaction x-x-x/g' $f.out
+		test -f "expected/$f.out" && sed -i 's/transaction [0-9]*-[0-9]*-[0-9]*/transaction x-x-x/g' expected/$f.out
+		sed -i 's/at ([0-9.]*, [0-9]*)/at (x, x)/g' $f.out
+		sed -i "s/on '[0-9.]*'/on 'x'/g" $f.out
+		test -f "expected/$f.out" && sed -i 's/at ([0-9.]*, [0-9]*)/at (x, x)/g' expected/$f.out
+		test -f "expected/$f.out" && sed -i "s/on '[0-9.]*'/on 'x'/g" expected/$f.out
+
 		if test -f "expected/$f.out"; then
 		    diff "$f.out" "expected/$f.out" >/dev/null
 		    ret2="$?"

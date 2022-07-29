@@ -3,19 +3,19 @@
 --
 DELETE from aggtest;
 DELETE 4
-COPY aggtest FROM '/home/jenkins/pgregressdata/data/agg.data';
+COPY aggtest FROM '/home/kunlun/pgregressdata/data/agg.data';
 COPY 4
 DELETE from student;
 DELETE 2
-COPY student FROM '/home/jenkins/pgregressdata/data/student.data';
+COPY student FROM '/home/kunlun/pgregressdata/data/student.data';
 COPY 2
 DELETE from tenk1;
 DELETE 10000
-COPY tenk1 FROM '/home/jenkins/pgregressdata/data/tenk.data';
+COPY tenk1 FROM '/home/kunlun/pgregressdata/data/tenk.data';
 COPY 10000
 DELETE from onek;
 DELETE 1000
-COPY onek FROM '/home/jenkins/pgregressdata/data/onek.data';
+COPY onek FROM '/home/kunlun/pgregressdata/data/onek.data';
 COPY 1000
 SELECT avg(four)::numeric(64,4) AS avg_1 FROM onek;
  avg_1  

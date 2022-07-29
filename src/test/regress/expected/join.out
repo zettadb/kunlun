@@ -2138,7 +2138,7 @@ select * from x left join y on (x1 = y1 and y2 is not null);
 
 delete from tenk1;
 DELETE 10000
-COPY tenk1 FROM '/home/jenkins/pgregressdata/data/tenk.data';
+COPY tenk1 FROM '/home/kunlun/pgregressdata/data/tenk.data';
 COPY 10000
 --
 -- regression test: check for bug with propagation of implied equality

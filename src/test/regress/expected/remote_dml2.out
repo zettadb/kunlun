@@ -984,7 +984,7 @@ DROP TABLE
 CREATE TABLE
 DELETE from tenk1;
 DELETE 0
-COPY tenk1 FROM '/home/jenkins/pgregressdata/data/tenk.data';
+COPY tenk1 FROM '/home/kunlun/pgregressdata/data/tenk.data';
 COPY 10000
 CREATE TABLE INT4_TBL(f1 int4);
 CREATE TABLE
@@ -1488,7 +1488,7 @@ CREATE TABLE
 -- unique1, unique2, two, four, ten, twenty, hundred, thousand, twothousand, fivethous, tenthous, odd, even, stringu1 , stringu2 ,string4 
 CREATE TABLE INT4_TBL(id serial primary key, f1 int4);
 CREATE TABLE
-COPY tenk1(unique1, unique2, two, four, ten, twenty, hundred, thousand, twothousand, fivethous, tenthous, odd, even, stringu1 , stringu2 ,string4) FROM '/home/jenkins/pgregressdata/data/tenk.data';
+COPY tenk1(unique1, unique2, two, four, ten, twenty, hundred, thousand, twothousand, fivethous, tenthous, odd, even, stringu1 , stringu2 ,string4) FROM '/home/kunlun/pgregressdata/data/tenk.data';
 COPY 10000
 insert into int4_tbl (f1) select generate_series(1,13);
 INSERT 0 13

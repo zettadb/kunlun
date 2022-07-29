@@ -11,6 +11,7 @@ cat serial_schedule | grep -v '^#' | sed '/^[ 	]*$/d' | awk '{print $2}' | while
 		cp -f "$f.sql" "sql/$f.sql"
 		bash run_single.sh "sql/$f.sql"
 		mv 1.out.p $f.out
+		test "$LOCFROM" = "" || test "$LOCTO" = "" || sed -i "s#$LOCFROM#$LOCTO#g" $f.out
 		if test -f "expected/$f.out"; then
 		    diff "$f.out" "expected/$f.out" >/dev/null
 		    ret2="$?"

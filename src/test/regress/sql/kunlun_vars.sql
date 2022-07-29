@@ -106,13 +106,13 @@ select pg_sleep(7);
 select*from tt;
 show innodb_lock_wait_timeout;
 show local variables like 'innodb_lock_wait_timeout';
-show variables like 'debug';
-show session variables like '%debug%';
+-- show variables like 'debug';
+-- show session variables like '%debug%';
 show global variables like 'innodb_lock_wait_timeout' strict;
 
-show variables;
-show variables strict;
-show global variables;
+-- show variables;
+-- show variables strict;
+-- show global variables;
 show global variables strict;
 drop table if exists tt;
 drop table if exists tt;

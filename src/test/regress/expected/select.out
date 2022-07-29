@@ -3,7 +3,7 @@
 --
 DELETE FROM onek;
 DELETE 1000
-COPY onek FROM '/home/kunlun/pgregressdata/data/onek.data';
+COPY onek FROM '/home/jenkins/pgregressdata/data/onek.data';
 COPY 1000
 -- btree index
 -- awk '{if($1<10){print;}else{next;}}' onek.data | sort +0n -1

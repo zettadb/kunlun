@@ -984,7 +984,7 @@ DROP TABLE
 CREATE TABLE
 DELETE from tenk1;
 DELETE 0
-COPY tenk1 FROM '/home/kunlun/pgregressdata/data/tenk.data';
+COPY tenk1 FROM '/home/jenkins/pgregressdata/data/tenk.data';
 COPY 10000
 CREATE TABLE INT4_TBL(f1 int4);
 CREATE TABLE
@@ -1488,7 +1488,7 @@ CREATE TABLE
 -- unique1, unique2, two, four, ten, twenty, hundred, thousand, twothousand, fivethous, tenthous, odd, even, stringu1 , stringu2 ,string4 
 CREATE TABLE INT4_TBL(id serial primary key, f1 int4);
 CREATE TABLE
-COPY tenk1(unique1, unique2, two, four, ten, twenty, hundred, thousand, twothousand, fivethous, tenthous, odd, even, stringu1 , stringu2 ,string4) FROM '/home/kunlun/pgregressdata/data/tenk.data';
+COPY tenk1(unique1, unique2, two, four, ten, twenty, hundred, thousand, twothousand, fivethous, tenthous, odd, even, stringu1 , stringu2 ,string4) FROM '/home/jenkins/pgregressdata/data/tenk.data';
 COPY 10000
 insert into int4_tbl (f1) select generate_series(1,13);
 INSERT 0 13
@@ -1644,7 +1644,6 @@ select*from temptest1;
 (2 rows)
 
 commit;
-psql:sql/remote_dml2.sql:754: WARNING:  there is no transaction in progress
 COMMIT
 drop table if exists temptest2 cascade;
 psql:sql/remote_dml2.sql:756: NOTICE:  table "temptest2" does not exist, skipping
@@ -1658,10 +1657,11 @@ INSERT 0 2
 select*from temptest2;
  col 
 -----
-(0 rows)
+   1
+   2
+(2 rows)
 
 commit;
-psql:sql/remote_dml2.sql:761: WARNING:  there is no transaction in progress
 COMMIT
 -- bug 84
 drop table if exists collate_test10 cascade;
@@ -2356,7 +2356,7 @@ SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2
 EXPLAIN (verbose, COSTS OFF)
 SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x;
 
-SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.y HAVING avg(t1.x) > 10;
+SELECT t1.y, sum(t1.x), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.y HAVING avg(t1.x) > 10 order by 1;
  y  | sum  | count 
 ----+------+-------
   2 |  600 |    50

@@ -685,7 +685,8 @@ Datum my_cash_out(PG_FUNCTION_ARGS)
         {
                 /* make the amount positive for digit-reconstruction loop */
                 value = -value;
-        }
+				neg = true;
+		}
 
         /* we build the digits+decimal-point+sep string right-to-left in buf[] */
         bufptr = buf + sizeof(buf) - 1;

@@ -2326,6 +2326,13 @@ ExecModifyTable(PlanState *pstate)
 	*/
 	if (node->is_pushdown_updel)
 	{
+		if (!node->remote_updel)
+		{
+			// Assert(mtstate->mt_nplans < 2);
+			node->remote_updel = (RemoteUD *)palloc0(sizeof(RemoteUD) * node->mt_nplans);
+			RemoteUDSetup((PlanState *)node, node->remote_updel);
+		}
+
 		return ExecPushdownUpDel(node);
 	}
 
@@ -2845,7 +2852,8 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 
 				RemotePrintExprContext rpec;
 				InitRemotePrintExprContext(&rpec, mtstate->ps.state->es_plannedstmt->rtable);
-				rpec.ignore_param_quals = true;
+				rpec.estate = mtstate->ps.state;
+				rpec.exec_param_quals = true;
 				rpec.excluded_table_columns = columns; /* 'excluded' table on do update exprs */
 
 				if (list_length(node->onConflictSet) != list_length(columns))
@@ -3296,15 +3304,6 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 
 	if (eflags & EXEC_FLAG_EXPLAIN_ONLY) goto end;
 
-
-	if (mtstate->is_pushdown_updel)
-	{
-		RemotePrintExprContext rpec;
-		InitRemotePrintExprContext(&rpec, estate->es_plannedstmt->rtable);
-		mtstate->remote_updel = (RemoteUD*)palloc0(sizeof(RemoteUD) * mtstate->mt_nplans);
-		RemoteUDSetup((PlanState*)mtstate, mtstate->remote_updel);
-	}
-
 	if (mtstate->remoteReturningTupleSlot)
 		init_type_input_info(&mtstate->typeInputInfo,
 			mtstate->remoteReturningTupleSlot, estate);
@@ -3478,11 +3477,14 @@ ExecPushdownUpDel(ModifyTableState *node)
 
 	StringInfoData sql;
 	RemotePrintExprContext rpec;
+	PlanState *child = node->mt_plans[0];
 	initStringInfo2(&sql, 256, TopTransactionContext);
 	InitRemotePrintExprContext(&rpec, node->ps.state->es_plannedstmt->rtable);
-	rpec.rpec_param_exec_vals =
-	    (node->ps.ps_ExprContext ? node->ps.ps_ExprContext->ecxt_param_exec_vals : NULL);
+	rpec.estate = node->ps.state;
+	rpec.exec_param_quals = true;
 	rpec.rpec_param_list_info = node->ps.state->es_param_list_info;
+	rpec.rpec_param_exec_vals =
+		(child->ps_ExprContext ? child->ps_ExprContext->ecxt_param_exec_vals : NULL);
 
 	/* TODO: for now we only produce one sequence number even if multi rows
 	 * will be updated. for example:
@@ -3502,6 +3504,9 @@ next_stmt:
 			if (remote_updel->planIndex < node->mt_nplans - 1)
 			{
 				node->remote_updel = ++remote_updel;
+				child = node->mt_plans[remote_updel->planIndex];
+				rpec.rpec_param_exec_vals =
+					(child->ps_ExprContext ? child->ps_ExprContext->ecxt_param_exec_vals : NULL);
 				goto next_stmt;
 			}
 		}

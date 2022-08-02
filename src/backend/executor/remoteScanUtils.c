@@ -31,13 +31,15 @@ void InitScanTupleGenContext(ScanTupleGenContext *context, PlanState *planstate,
 
 	// rpec
 	InitRemotePrintExprContext(&context->rpec, estate->es_plannedstmt->rtable);
-	context->rpec.ignore_param_quals = true;
 	context->rpec.rpec_param_exec_vals =
 		(planstate->ps_ExprContext ? planstate->ps_ExprContext->ecxt_param_exec_vals : NULL);
 	context->rpec.rpec_param_list_info = estate->es_param_list_info;
 
 	if (IsA(planstate, RemoteScanState))
-		context->rpec.ignore_param_quals = !((RemoteScanState *)planstate)->param_driven;
+	{
+		context->rpec.exec_param_quals = !((RemoteScanState *)planstate)->param_driven;
+		context->rpec.estate = planstate->state;
+	}
 }
 
 Var* lookup_scanvar_for_expr(ScanTupleGenContext *context, Expr *expr)

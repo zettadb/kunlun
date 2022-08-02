@@ -65,7 +65,7 @@ void InitRemotePrintExprContext(RemotePrintExprContext *rpec, List *rtable)
 {
 	memset(rpec, 0, sizeof(*rpec));
 	rpec->rtable = rtable;
-	rpec->ignore_param_quals = true;
+	rpec->exec_param_quals = false;
 }
 
 bool CheckPartitionKeyModified(Relation relation, Index attrno)

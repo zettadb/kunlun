@@ -21,17 +21,19 @@
 #define nodeDisplay(x)		pprint(x)
 typedef struct RemotePrintExprContext
 {
+	EState *estate;
 	const List *rtable;
 	/*
 	  All Params' 'paramid' indexes refer to this array.
 	*/
 	ParamExecData *rpec_param_exec_vals;
 	ParamListInfo rpec_param_list_info;
+
 	/*
-	  If true, Param node will be treated as unsupported, otherwise
-	  the qual containing the param will be serialized.
-	*/
-	bool ignore_param_quals;
+	 * If true, param node will be executed if it does not refer to
+	 * external parameters, otherwise it will be treated unsupported
+	 */
+	bool exec_param_quals;
 	int num_vals;
 
 	/* Column name of excluded table in on conflict clause */

@@ -181,6 +181,8 @@ bool cache_remotetup(TupleTableSlot *slot, ResultRelInfo *resultRelInfo)
 	int			i;
 	size_t tuplen = 0, attrlen = 0, brlen;
 	StringInfo self = &myState->buf;
+	pg_tz   *origtz = NULL;
+	int      extra_float_digits_saved = extra_float_digits;
 
 	if (self->len > (1024*1024))
 	{
@@ -209,8 +211,7 @@ bool cache_remotetup(TupleTableSlot *slot, ResultRelInfo *resultRelInfo)
 	brlen = bracket_tuple(true, myState);
 	tuplen += brlen;
 
-	pg_tz *gmt_tz = pg_tzset("GMT"), *origtz = NULL;
-
+	extra_float_digits = 3;
 	/*
 	 * cache the attributes of this tuple
 	 */
@@ -246,10 +247,10 @@ bool cache_remotetup(TupleTableSlot *slot, ResultRelInfo *resultRelInfo)
 		 * Temporarily modify the 3 session vars to do so and restore
 		 * them after done.
 		 * */
-		if (origtz && is_date_time_type(atttypid))
+		if (!origtz && is_date_time_type(atttypid))
 		{
 			origtz = session_timezone;
-			session_timezone = gmt_tz;
+			session_timezone = pg_tzset("GMT");
 		}
 
 		outputstr = OutputFunctionCall(&thisState->finfo, attr);
@@ -263,6 +264,7 @@ bool cache_remotetup(TupleTableSlot *slot, ResultRelInfo *resultRelInfo)
 		tuplen += attrlen;
 	}
 
+	extra_float_digits = extra_float_digits_saved;
 	if (origtz)
 	{
 		session_timezone = origtz;

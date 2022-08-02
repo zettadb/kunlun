@@ -192,6 +192,11 @@ void remote_create_table(Relation rel)
 	{
 		StringInfoData remote_sql;
 		initStringInfo(&remote_sql);
+
+		appendStringInfo(&remote_sql, "create database if not exists %s_$$_%s;",
+                                get_database_name(MyDatabaseId),
+                                get_namespace_name(RelationGetNamespace(rel)));
+
 		appendStringInfo(&remote_sql, "CREATE TABLE IF NOT EXISTS %s (",
 						 make_qualified_name(RelationGetNamespace(rel),
 											 RelationGetRelationName(rel), NULL));
@@ -516,6 +521,10 @@ void remote_alter_table(Relation rel)
 		
 		if (new_nspid != RelationGetNamespace(rel))
 		{
+			appendStringInfo(&remote_sql, "create database if not exists %s_$$_%s;",
+                                                      get_database_name(MyDatabaseId),
+                                                      get_namespace_name(new_nspid));
+
 			appendStringInfo(&remote_sql, "rename table %s to %s",
 							 make_qualified_name(RelationGetNamespace(rel),
 												 RelationGetRelationName(rel),
@@ -948,7 +957,7 @@ bool remote_truncate_table(TruncateStmt *stmt)
                                                reloids = lappend_oid(reloids, childrel->rd_id);
                                                do_remote_truncate(childrel, stmt->restart_seqs);
                                        }
-                                       heap_close(childoid, NoLock);
+                                       heap_close(childrel, NoLock);
                                }
                        }
                }

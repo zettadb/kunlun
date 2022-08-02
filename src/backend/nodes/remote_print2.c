@@ -1322,6 +1322,10 @@ int snprint_const_type_value(StringInfo str, bool isnull, Oid type,
 	typoutput = my_output_funcoid(type, NULL);
 	if (typoutput != InvalidOid)
 	{
+		int extra_float_digits_saved = extra_float_digits;
+		/* add more digits as possible*/
+		extra_float_digits = 3;
+
 		// Some types of partial values in pg cannot be converted to mysql's format.
 		// and may throw exception
 		PG_TRY();
@@ -1335,6 +1339,8 @@ int snprint_const_type_value(StringInfo str, bool isnull, Oid type,
 			nw = -1;
 		}
 		PG_END_TRY();
+
+		extra_float_digits = extra_float_digits_saved;
 	}
 	else if (type_is_array_category(type))
 	{

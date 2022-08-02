@@ -508,40 +508,55 @@ GetNewRelFileNode(Oid reltablespace, Relation pg_class, char relpersistence)
 }
 
 
-extern bool enable_remote_relations;
-
 inline bool IsRemoteRelation(Relation rel)
 {
 	const Form_pg_class rdrel = rel->rd_rel;
 	const char relkind = rdrel->relkind;
-	/*
-	  should be an remote relation, or already is a remote relation.
-	  RefreshMatViewStmt execution will create a transient & intermediate
-	  relation (relkind=='r' && relpersistence=='p') on current computing
-	  node to store select query result, and drop it at end of stmt execution,
-	  this relation should never be remote; also, the matview's own relation
-	  should also be stored locally.
-	*/
-	return (enable_remote_relations &&
-			IsNormalProcessingMode() && IsUnderPostmaster &&
-		   !(IsSystemRelation(rel) ||
-			 (rdrel->relpersistence == RELPERSISTENCE_TEMP)) &&
-		   (relkind == RELKIND_RELATION ||
-			relkind == RELKIND_INDEX ||
-			relkind == RELKIND_SEQUENCE)) ||
-		   (rel->rd_rel && rel->rd_rel->relshardid != InvalidOid);
+
+	if (rdrel->relshardid != InvalidOid)
+		return true;
+
+	if (rdrel->relpersistence == RELPERSISTENCE_TEMP)
+		return false;
+
+	/* The relation may not have a relshard assigned yet, and further checks are
+	 * needed to see if the relation will be assigned a relshard in the futrue.
+	 */
+
+	/* All the table created in boosting or init mode are local "system" relation,
+	 * only check the relation created in normal processing mode.
+	 */
+	if (IsNormalProcessingMode() && IsUnderPostmaster)
+	{
+		/* is it system relations ?  */
+		if (IsSystemRelation(rel) ||
+				IsInformationSchema(RelationGetNamespace(rel)))
+			return false;
+
+		return (relkind == RELKIND_RELATION ||
+				relkind == RELKIND_INDEX ||
+				relkind == RELKIND_SEQUENCE);
+	}
+
+	return false;
 }
-
-
 
 inline bool IsRemoteRelationParent(Relation rel)
 {
 	const Form_pg_class rdrel = rel->rd_rel;
 	const char relkind = rdrel->relkind;
+	if (rdrel->relpersistence == RELPERSISTENCE_TEMP)
+		return false;
 
-	return enable_remote_relations &&
-		   !(IsSystemRelation(rel) ||
-			 (rdrel->relpersistence == RELPERSISTENCE_TEMP)) &&
-		   (relkind == RELKIND_PARTITIONED_TABLE ||
-			relkind == RELKIND_PARTITIONED_INDEX);
+	if (IsNormalProcessingMode() && IsUnderPostmaster)
+	{
+		if (IsSystemRelation(rel) ||
+				IsInformationSchema(RelationGetNamespace(rel)))
+			return false;
+
+		return (relkind == RELKIND_PARTITIONED_TABLE ||
+				relkind == RELKIND_PARTITIONED_INDEX);
+	}
+
+	return false;
 }

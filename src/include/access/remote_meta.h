@@ -25,7 +25,6 @@
 #include "catalog/pg_sequence.h"
 typedef struct PGPROC PGPROC;
 extern bool replaying_ddl_log;
-extern bool enable_remote_relations;
 extern char *remote_stmt_ptr;
 
 extern Oid find_root_base_type(Oid typid0);

@@ -89,7 +89,6 @@ extern Remote_ddl_trans *g_remote_ddl_trans;
 extern Remote_ddl_context *g_remote_ddl_context;
 
 extern int apply_ddl_log_mode;
-extern bool enable_remote_relations;
 
 static inline void
 remoteddl_alloc_trans(void)
@@ -259,7 +258,6 @@ static inline bool remoteddl_reanalyze_temp_dependent()
 */
 static inline bool enable_remote_ddl(void)
 {
-	return enable_remote_relations && IsNormalProcessingMode() &&
-		   IsUnderPostmaster && apply_ddl_log_mode == 0;
+	return IsNormalProcessingMode() && IsUnderPostmaster && apply_ddl_log_mode == 0;
 }
 #endif

@@ -192,6 +192,12 @@ void log_create_stmt(PlannedStmt *pstmt, CreateStmt *stmt, const char *query)
 	Relation rel = relation_open(relid, NoLock);
 	Oid shardid = rel->rd_rel->relshardid;
 
+	if (IsInformationSchema(RelationGetNamespace(rel)))
+	{
+		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					errmsg("Kunlun: Creating table in information_schema is not allowed.")));
+	}
+
 	/* is temp table, do nothing */
 	if (rel->rd_rel->relpersistence != RELPERSISTENCE_TEMP)
 	{
@@ -238,7 +244,13 @@ void log_create_index(PlannedStmt *pstmt, IndexStmt *stmt, const char *query)
 	RangeVar *relation = stmt->relation;
 	Oid relid = RangeVarGetRelid(relation, NoLock, false);
 	Relation rel = relation_open(relid, NoLock);
-	
+
+	if (IsInformationSchema(RelationGetNamespace(rel)))
+	{
+		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					errmsg("Kunlun: Creating index in information_schema is not allowed.")));
+	}
+
 	if (rel->rd_rel->relpersistence != RELPERSISTENCE_TEMP)
 	{
 		log_ddl_add(DDL_OP_Type_create,
@@ -517,6 +529,12 @@ void log_create_sequence(PlannedStmt *pstmt, CreateSeqStmt *stmt, const char *qu
 	Relation seq_rel = relation_open(seq_relid, NoLock);
 	Oid shardid = seq_rel->rd_rel->relshardid;
 	query = CURRENT_QUERY(pstmt, query);
+
+	if (IsInformationSchema(RelationGetNamespace(seq_rel)))
+	{
+		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					errmsg("Kunlun: Creating sequence in information_schema is not allowed.")));
+	}
 
 	/* Append shard=N to the ddl */
 	if (stmt->shardid == InvalidOid)

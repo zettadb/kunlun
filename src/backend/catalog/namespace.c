@@ -4532,3 +4532,13 @@ pg_is_other_temp_schema(PG_FUNCTION_ARGS)
 
 	PG_RETURN_BOOL(isOtherTempNamespace(oid));
 }
+
+bool IsInformationSchema(Oid schemaoid)
+{
+	static Oid information_schema = InvalidOid;
+
+	if (!information_schema)
+		information_schema = get_namespace_oid("information_schema", true);
+
+	return information_schema == schemaoid;
+}

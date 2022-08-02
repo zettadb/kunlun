@@ -55,7 +55,6 @@
 #include "utils/builtins.h"
 #include "catalog/dependency.h"
 
-bool enable_remote_relations = true;
 bool use_mysql_native_seq;
 
 extern const char *format_type_remote(Oid type_oid);

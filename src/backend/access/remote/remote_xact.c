@@ -110,16 +110,32 @@ void SendRollbackRemote(const char *txnid, bool xa_end, bool written_only)
 	}
 	PG_CATCH();
 	{
+		ErrorData *errdata;
+		MemoryContext context;
+
+		/* Save error */
+		context = MemoryContextSwitchTo(TopMemoryContext);
+		errdata = CopyErrorData();
+		MemoryContextSwitchTo(context);
+
 		PG_TRY();
 		{
-		disconnect_storage_shards();
-		request_topo_checks_used_shards();
+			disconnect_storage_shards();
+			request_topo_checks_used_shards();
 		}
 		PG_CATCH();
 		{
-
+			FlushErrorState();
 		}
 		PG_END_TRY();
+
+		/* Restore error */
+		PG_TRY();
+		{
+			ReThrowError(errdata);
+		}
+		PG_END_TRY();
+		FreeErrorData(errdata);
 	}
 	PG_END_TRY();
 

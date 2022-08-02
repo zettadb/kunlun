@@ -1307,59 +1307,44 @@ static int FindMetaShardAllNodes(CMNConnInfo *cmnodes, size_t n)
 
 Storage_HA_Mode storage_ha_mode()
 {
-	bool need_txn = !IsTransactionState();
-	if (need_txn)
+	static Storage_HA_Mode ha_mode_cache = HA_INVALID;
+
+	if (ha_mode_cache == HA_INVALID && IsTransactionState())
 	{
-		SetCurrentStatementStartTimestamp();
-		StartTransactionCommand();
-		PushActiveSnapshot(GetTransactionSnapshot());
+		HeapTuple ctup = SearchSysCache1(CLUSTER_META, comp_node_id);
+		if (!HeapTupleIsValid(ctup))
+		{
+			ereport(ERROR,
+					(errcode(ERRCODE_INTERNAL_ERROR),
+					 errmsg("Kunlun-db: Cache lookup failed for pg_cluster_meta by comp_node_id %u", comp_node_id),
+					 errhint("comp_node_id variable must equal to pg_cluster_meta's single row's comp_node_id field.")));
+		}
+		ha_mode_cache = ((Form_pg_cluster_meta)GETSTRUCT(ctup))->ha_mode;
+		ReleaseSysCache(ctup);
 	}
 
-	HeapTuple ctup = SearchSysCache1(CLUSTER_META, comp_node_id);
-	if (!HeapTupleIsValid(ctup))
-	{
-		ereport(ERROR,
-				(errcode(ERRCODE_INTERNAL_ERROR),
-				 errmsg("Kunlun-db: Cache lookup failed for pg_cluster_meta by comp_node_id %u", comp_node_id),
-				 errhint("comp_node_id variable must equal to pg_cluster_meta's single row's comp_node_id field.")));
-	}
-	Form_pg_cluster_meta cmeta = (Form_pg_cluster_meta)GETSTRUCT(ctup);
-	Storage_HA_Mode ret = cmeta ? cmeta->ha_mode : HA_NO_REP;
-	if (ctup) ReleaseSysCache(ctup);
-	if (need_txn)
-	{
-		PopActiveSnapshot();
-		CommitTransactionCommand();
-	}
-	return ret;
+	return ha_mode_cache;
 }
 
 Storage_HA_Mode metaserver_ha_mode()
 {
-	bool need_txn = !IsTransactionState();
-	if (need_txn)
+	static Storage_HA_Mode ha_mode_cache = HA_INVALID;
+
+	if (ha_mode_cache == HA_INVALID && IsTransactionState())
 	{
-		SetCurrentStatementStartTimestamp();
-		StartTransactionCommand();
-		PushActiveSnapshot(GetTransactionSnapshot());
+		HeapTuple ctup = SearchSysCache1(CLUSTER_META, comp_node_id);
+		if (!HeapTupleIsValid(ctup))
+		{
+			ereport(ERROR, 
+					(errcode(ERRCODE_INTERNAL_ERROR),
+					 errmsg("Kunlun-db: Cache lookup failed for pg_cluster_meta by comp_node_id %u", comp_node_id),
+					 errhint("comp_node_id variable must equal to pg_cluster_meta's single row's comp_node_id field.")));
+		}
+		Form_pg_cluster_meta cmeta = (Form_pg_cluster_meta)GETSTRUCT(ctup);
+		ha_mode_cache = cmeta->meta_ha_mode;
+		ReleaseSysCache(ctup);
 	}
 
-	HeapTuple ctup = SearchSysCache1(CLUSTER_META, comp_node_id);
-	if (!HeapTupleIsValid(ctup))
-	{
-		ereport(ERROR, 
-				(errcode(ERRCODE_INTERNAL_ERROR),
-				 errmsg("Kunlun-db: Cache lookup failed for pg_cluster_meta by comp_node_id %u", comp_node_id),
-				 errhint("comp_node_id variable must equal to pg_cluster_meta's single row's comp_node_id field.")));
-	}
-	Form_pg_cluster_meta cmeta = (Form_pg_cluster_meta)GETSTRUCT(ctup);
-	Storage_HA_Mode ret = cmeta ? cmeta->meta_ha_mode : HA_NO_REP;
-	if (ctup) ReleaseSysCache(ctup);
-	if (need_txn)
-	{
-		PopActiveSnapshot();
-		CommitTransactionCommand();
-	}
-	return ret;
+	return ha_mode_cache;
 }
 

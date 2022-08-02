@@ -638,7 +638,7 @@ void remote_alter_sequence(Relation rel)
 			else if (strcmp(defel->defname, "restart") == 0)
 			{
 				if (defel->arg == NULL)
-					appendStringInfo(&option_update, " curval = %ld", seqform->seqstart);
+					appendStringInfo(&option_update, " curval = %ld", InvalidSeqVal);
 				else
 					appendStringInfo(&option_update, " curval = %ld", defGetInt64(defel));
 			}
@@ -849,6 +849,120 @@ void remote_alter_type(Oid typid)
 		}
 		relation_close(rel, NoLock);
 	}
+}
+static void
+do_remote_truncate(Relation rel, bool restart_seqs)
+{
+       StringInfoData remote_sql;
+       initStringInfo(&remote_sql);
+
+       if (restart_seqs)
+       {
+               List *seqlist = getOwnedSequences(RelationGetRelid(rel), 0);
+               ListCell *lc;
+
+               foreach (lc, seqlist)
+               {
+                       Oid seqoid;
+                       HeapTuple tuple;
+                       Form_pg_sequence form_seq;
+                       Relation seqrel;
+
+                       seqoid = lfirst_oid(lc);
+                       tuple = SearchSysCache1(SEQRELID, ObjectIdGetDatum(seqoid));
+                       if (!HeapTupleIsValid(tuple))
+                               elog(ERROR, "cache lookup failed for sequence %u", seqoid);
+                       form_seq = (Form_pg_sequence)GETSTRUCT(tuple);
+                       seqrel = heap_open(seqoid, NoLock);
+                       {
+                               resetStringInfo(&remote_sql);
+                               appendStringInfo(&remote_sql, "update kunlun_sysdb.sequences set curval = %ld where db='%s_%s_%s' and name='%s'",
+                                                InvalidSeqVal,
+                                                get_database_name(MyDatabaseId),
+                                                use_mysql_native_seq ? "@0024@0024" : "$$",
+                                                get_namespace_name(RelationGetNamespace(seqrel)),
+                                                RelationGetRelationName(seqrel));
+                               enque_remote_ddl(SQLCOM_UPDATE,
+                                                seqrel->rd_rel->relshardid,
+                                                &remote_sql,
+                                                false);
+                       }
+                       heap_close(seqrel, NoLock);
+                       ReleaseSysCache(tuple);
+
+                       /* Truncate table not invoke object alter hook, so have to handle it here */
+                       invalidate_seq_shared_cache(MyDatabaseId, seqoid, false);
+               }
+       }
+
+       resetStringInfo(&remote_sql);
+       appendStringInfo(&remote_sql, "truncate table %s",
+                        make_qualified_name(RelationGetNamespace(rel), RelationGetRelationName(rel), NULL));
+       enque_remote_ddl(SQLCOM_TRUNCATE,
+                        rel->rd_rel->relshardid,
+                        &remote_sql,
+                        false);
+}
+
+bool remote_truncate_table(TruncateStmt *stmt)
+{
+       ListCell *lc;
+       List *reloids = NIL;
+       int numTemp = 0;
+       int numNonTemp = 0;
+
+       foreach (lc, stmt->relations)
+       {
+               RangeVar *rv = lfirst(lc);
+               Relation rel = heap_openrv(rv, NoLock);
+
+               if (rel->rd_rel->relpersistence == RELPERSISTENCE_TEMP)
+               {
+                       numTemp ++;
+                       heap_close(rel, NoLock);
+                       continue;;
+               }
+               numNonTemp ++;
+
+               if (IS_REMOTE_RTE(rel->rd_rel) &&
+                   !list_member_oid(reloids, rel->rd_id))
+               {
+                       reloids = lappend_oid(reloids, rel->rd_id);
+                       do_remote_truncate(rel, stmt->restart_seqs);
+               }
+
+               if (rv->inh)
+               {
+                       List *children;
+                       ListCell *child;
+
+                       children = find_all_inheritors(rel->rd_id, NoLock, NULL);
+                       foreach (child, children)
+                       {
+                               Oid childoid = lfirst_oid(child);
+                               if (!list_member_oid(reloids, rel->rd_id))
+                               {
+                                       Relation childrel = heap_open(childoid, NoLock);
+                                       if (IS_REMOTE_RTE(childrel->rd_rel))
+                                       {
+                                               reloids = lappend_oid(reloids, childrel->rd_id);
+                                               do_remote_truncate(childrel, stmt->restart_seqs);
+                                       }
+                                       heap_close(childoid, NoLock);
+                               }
+                       }
+               }
+
+               heap_close(rel, NoLock);
+       }
+
+       if (numTemp && numNonTemp)
+       {
+               ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+                               errmsg("Kunlun-db: Statement 'truncate' not support temporary object mixied normal object")));
+       }
+
+       return numNonTemp > 0;
 }
 
 typedef struct Remote_ddl_sql

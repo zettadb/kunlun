@@ -562,6 +562,75 @@ void log_drop_stmt(DropStmt *stmt, const char *query)
 }
 
 static void
+make_restart_owned_sequence(Oid reloid, StringInfo sql)
+{
+       ListCell *lc;
+       List *seqlist;
+
+       seqlist = getOwnedSequences(reloid, 0);
+       foreach (lc, seqlist)
+       {
+               Oid seqoid = lfirst_oid(lc);
+               Relation seqrel = heap_open(seqoid, NoLock);
+               {
+                       appendStringInfo(sql, "alter  sequence if exists %s.%s.%s restart;",
+                                        get_database_name(MyDatabaseId),
+                                        get_namespace_name(RelationGetNamespace(seqrel)),
+                                        RelationGetRelationName(seqrel));
+               }
+               heap_close(seqrel, NoLock);
+       }
+}
+
+static void
+log_truncate_stmt(TruncateStmt *stmt, const char *query)
+{
+       StringInfoData restart_stmts;
+
+       initStringInfo(&restart_stmts);
+       if (stmt->restart_seqs)
+       {
+               /**
+                * for now, truncate table not invoke object alter hook,
+                * so we have to convert it to 'alter sequence restart' statement
+                * which can invalid the remote sequence cache by hook mechanism.
+                */
+               ListCell *lc;
+               foreach (lc, stmt->relations)
+               {
+                       RangeVar *rv = lfirst(lc);
+                       Relation rel = heap_openrv(rv, NoLock);
+                       make_restart_owned_sequence(rel->rd_id, &restart_stmts) ;
+                       heap_close(rel, NoLock);
+               }
+       }
+
+       if (restart_stmts.len > 0)
+       {
+               log_ddl_add(DDL_OP_Type_alter,
+                           DDL_ObjType_seq,
+                           get_database_name(MyDatabaseId),
+                           NULL, NULL,
+                           restart_stmts.data, 0, NULL);
+       }
+       else
+       {
+               RangeVar *rv = linitial(stmt->relations);
+               Relation rel = heap_openrv(rv, NoLock);
+               if (rel->rd_rel->relpersistence != RELPERSISTENCE_TEMP)
+               {
+                       log_ddl_add(DDL_OP_Type_generic,
+                                   DDL_ObjType_table,
+                                   get_database_name(MyDatabaseId),
+                                   get_namespace_name(RelationGetNamespace(rel)),
+                                   RelationGetRelationName(rel),
+                                   query, 0, NULL);
+               }
+               heap_close(rel, NoLock);
+       }
+}
+
+static void
 log_create_alter_role(Node *stmt, const char *query)
 {
 	List *options;
@@ -984,7 +1053,6 @@ void pre_handle_ddl(Node *parsetree, const char *query)
 	case T_CreateDomainStmt:
 	case T_AlterDomainStmt:
 
-	case T_TruncateStmt:  /* may support in future but not now */
 	case T_DropOwnedStmt: // DropOwnedObjects
 	case T_CreateTableAsStmt:
 	case T_CreateStatsStmt:
@@ -1069,6 +1137,15 @@ void post_handle_ddl(Node *parsetree, const char *query)
 	{
 		/* encrypt password before write ddl query into log */
 		log_create_alter_role(parsetree, query);
+		break;
+	}
+	case T_TruncateStmt:
+	{
+		TruncateStmt *stmt = (TruncateStmt *)parsetree;
+		if (remote_truncate_table(stmt))
+		{
+			log_truncate_stmt(stmt, query);
+		}
 		break;
 	}
 	case T_GrantStmt:

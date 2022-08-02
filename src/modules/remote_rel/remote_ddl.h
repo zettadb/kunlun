@@ -67,4 +67,6 @@ extern void remote_alter_index(Relation);
 extern void remote_alter_column(Relation rel, int attrnum, ObjectAccessType type);
 
 extern void remote_alter_type(Oid typeid);
+extern bool remote_truncate_table(TruncateStmt *stmt);
+
 #endif

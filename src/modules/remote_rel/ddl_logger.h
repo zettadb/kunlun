@@ -23,11 +23,11 @@
 /**
  * @brief Check and log client ddl statements before ProcessUtility()
  */
-extern void pre_handle_ddl(Node *parsetree, const char *query);
+extern void pre_handle_ddl(PlannedStmt *pstmt, Node *parsetree, const char *query, bool *done);
 
 /**
  * @brief Check and log client ddl statements after ProcessUtility() 
  */
-extern void post_handle_ddl(Node *parsetree, const char *query);
+extern void post_handle_ddl(PlannedStmt *pstmt, Node *parsetree, const char *query);
 
 #endif

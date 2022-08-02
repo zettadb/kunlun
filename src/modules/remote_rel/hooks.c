@@ -490,7 +490,7 @@ remoteddl_utility_command(PlannedStmt *pstmt,
 			}
 
 			/* Check & make ddl log event before normal handle */
-			pre_handle_ddl(parsetree, queryString);
+			pre_handle_ddl(pstmt, parsetree, queryString);
 		}
 
 		if (next_ProcessUtility_hook)
@@ -511,7 +511,7 @@ remoteddl_utility_command(PlannedStmt *pstmt,
 			remote_make_sql_delayed();
 
 			/* Check & make ddl log event after normal handle */
-			post_handle_ddl(parsetree, queryString);
+			post_handle_ddl(pstmt, parsetree, queryString);
 		}
 	}
 	PG_CATCH();

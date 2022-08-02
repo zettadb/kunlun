@@ -47,40 +47,50 @@
 #include "remote_ddl.h"
 #include "utils.h"
 
-static void log_create_db(CreatedbStmt *stmt, const char *query);
-static void log_drop_db(DropdbStmt *stmt, const char *query);
-static void log_create_schema(CreateSchemaStmt *stmt, const char *query);
-static void log_create_stmt(CreateStmt *stmt, const char *query);
-static void log_create_index(IndexStmt *stmt, const char *query);
-static void log_create_sequence(CreateSeqStmt *stmt, const char *query);
-static void log_drop_stmt(DropStmt *stmt, const char *query);
-static void log_alter_table(AlterTableStmt *stmt, const char *query);
-static void log_alter_seq(AlterSeqStmt *stmt, const char *query);
+static void log_create_db(PlannedStmt *pstmt, CreatedbStmt *stmt, const char *query);
+static void log_drop_db(PlannedStmt *pstmt, DropdbStmt *stmt, const char *query);
+static void log_create_schema(PlannedStmt *pstmt, CreateSchemaStmt *stmt, const char *query);
+static void log_create_stmt(PlannedStmt *pstmt, CreateStmt *stmt, const char *query);
+static void log_create_index(PlannedStmt *pstmt, IndexStmt *stmt, const char *query);
+static void log_create_sequence(PlannedStmt *pstmt, CreateSeqStmt *stmt, const char *query);
+static void log_drop_stmt(PlannedStmt *pstmt, DropStmt *stmt, const char *query);
+static void log_alter_table(PlannedStmt *pstmt, AlterTableStmt *stmt, const char *query);
+static void log_alter_seq(PlannedStmt *pstmt, AlterSeqStmt *stmt, const char *query);
+static void log_truncate_stmt(PlannedStmt *pstmt, TruncateStmt *stmt, const char *query);
 
-void log_create_db(CreatedbStmt *stmt, const char *query)
+static const char *
+CURRENT_QUERY(PlannedStmt *pstmt, const char *query)
+{
+	if (pstmt->stmt_len)
+		return pnstrdup(query + pstmt->stmt_location, pstmt->stmt_len);
+
+	return pstrdup(query + pstmt->stmt_location);
+}
+
+void log_create_db(PlannedStmt *pstmt, CreatedbStmt *stmt, const char *query)
 {
 	log_ddl_add(DDL_OP_Type_create,
 				DDL_ObjType_db,
 				stmt->dbname,
 				NULL,
 				stmt->dbname,
-				query,
+				CURRENT_QUERY(pstmt, query),
 				InvalidOid,
 				NULL);
 }
 
-void log_drop_db(DropdbStmt *stmt, const char *query)
+void log_drop_db(PlannedStmt *pstmt, DropdbStmt *stmt, const char *query)
 {
 	log_ddl_add(DDL_OP_Type_drop,
 				DDL_ObjType_db,
 				stmt->dbname,
 				NULL,
 				stmt->dbname,
-				query,
+				CURRENT_QUERY(pstmt, query),
 				InvalidOid, NULL);
 }
 
-void log_create_schema(CreateSchemaStmt *stmt, const char *query)
+void log_create_schema(PlannedStmt *pstmt, CreateSchemaStmt *stmt, const char *query)
 {
 	Assert(list_length(stmt->schemaElts) == 0);
 	log_ddl_add(DDL_OP_Type_create,
@@ -88,14 +98,14 @@ void log_create_schema(CreateSchemaStmt *stmt, const char *query)
 				get_database_name(MyDatabaseId),
 				stmt->schemaname,
 				stmt->schemaname,
-				query,
+				CURRENT_QUERY(pstmt, query),
 				InvalidOid,
 				NULL);
 }
 
 /* Rewrite create table query to add option "SHARD=N" to it */
 static void
-rewrite_create_create_query(CreateStmt *stmt, Relation relation, const char *queryString, StringInfo query)
+rewrite_create_create_query(PlannedStmt *pstmt, CreateStmt *stmt, Relation relation, const char *queryString, StringInfo query)
 {
 	ListCell *lc;
 	bool found = false;
@@ -112,6 +122,9 @@ rewrite_create_create_query(CreateStmt *stmt, Relation relation, const char *que
 			}
 		}
 	}
+
+	int stmt_localtion = pstmt->stmt_location;
+	queryString = CURRENT_QUERY(pstmt, queryString) ;
 
 	if (found || shardid == InvalidOid)
 	{
@@ -131,16 +144,15 @@ rewrite_create_create_query(CreateStmt *stmt, Relation relation, const char *que
 				break;
 			--len;
 		}
-		appendStringInfo(query, "%.*s WITH (SHARD=%d)",
-										 len, queryString, shardid);
+		appendStringInfo(query, "%.*s WITH (SHARD=%d)", len, queryString, shardid);
 	}
 	else
 	{
 		appendStringInfo(query, "%.*s WITH (SHARD=%d, ",
-										 stmt->opts_location, queryString, shardid);
+				 stmt->opts_location - stmt_localtion, queryString, shardid);
 
 		DefElem *elem = (DefElem *)linitial(stmt->options);
-		int loc = elem->location;
+		int loc = elem->location - stmt_localtion;
 
 		/* Change WITH/WITHOUT OIDS to WITH (OIDS=TURE/FALSE) */
 		do
@@ -172,7 +184,7 @@ rewrite_create_create_query(CreateStmt *stmt, Relation relation, const char *que
 	}
 }
 
-void log_create_stmt(CreateStmt *stmt, const char *query)
+void log_create_stmt(PlannedStmt *pstmt, CreateStmt *stmt, const char *query)
 {
 	/* Open the relation to get the shardid of it */
 	RangeVar *relation = stmt->relation;
@@ -206,7 +218,7 @@ void log_create_stmt(CreateStmt *stmt, const char *query)
 		StringInfoData sql;
 		initStringInfo(&sql);
 		
-		rewrite_create_create_query(stmt, rel, query, &sql);
+		rewrite_create_create_query(pstmt, stmt, rel, query, &sql);
 		
 		log_ddl_add(DDL_OP_Type_create,
 					DDL_ObjType_table,
@@ -221,7 +233,7 @@ void log_create_stmt(CreateStmt *stmt, const char *query)
 	relation_close(rel, NoLock);
 }
 
-void log_create_index(IndexStmt *stmt, const char *query)
+void log_create_index(PlannedStmt *pstmt, IndexStmt *stmt, const char *query)
 {
 	RangeVar *relation = stmt->relation;
 	Oid relid = RangeVarGetRelid(relation, NoLock, false);
@@ -234,7 +246,7 @@ void log_create_index(IndexStmt *stmt, const char *query)
 					get_database_name(MyDatabaseId),
 					get_namespace_name(rel->rd_rel->relnamespace),
 					relation->relname,
-					query,
+					CURRENT_QUERY(pstmt, query),
 					InvalidOid,
 					NULL);
 	}
@@ -301,7 +313,7 @@ add_extra_for_serial_column(Relation rel, ColumnDef *column, StringInfo stmts)
 }
 
 static const char*
-transform_serial_type(Relation rel, ColumnDef *column, const char *query, StringInfo stmts)
+transform_serial_type(PlannedStmt *pstmt, Relation rel, ColumnDef *column, const char *query, StringInfo stmts)
 {
 	char *typname = strVal(linitial(column->typeName->names));
 	int len = strlen(typname);
@@ -326,7 +338,7 @@ transform_serial_type(Relation rel, ColumnDef *column, const char *query, String
 	}
 	/* rewrite the original type with int2/4/8 */
 	int i = 0;
-	int offset = column->typeName->location;
+	int offset = column->typeName->location - pstmt->stmt_location;
 	char *sql = pstrdup(query);
 	for (; i < strlen(typname); ++i)
 		sql[offset++] = typname[i];
@@ -339,7 +351,7 @@ transform_serial_type(Relation rel, ColumnDef *column, const char *query, String
 	return sql;
 }
 
-void log_alter_table(AlterTableStmt *stmt, const char *query)
+void log_alter_table(PlannedStmt *pstmt, AlterTableStmt *stmt, const char *query)
 {
 	RangeVar *relvar = stmt->relation;
 	Oid relid = RangeVarGetRelid(relvar, NoLock, stmt->missing_ok);
@@ -360,7 +372,7 @@ void log_alter_table(AlterTableStmt *stmt, const char *query)
 		Oid seqid;
 		StringInfoData extra_stmts;
  		initStringInfo(&extra_stmts);
-
+		query = CURRENT_QUERY(pstmt, query);
 
 		foreach (lc, stmt->cmds)
 		{
@@ -381,7 +393,7 @@ void log_alter_table(AlterTableStmt *stmt, const char *query)
 					list_length(column->typeName->names) == 1 &&
 					!column->typeName->pct_type)
 				{
-					query = transform_serial_type(rel, column, query, &extra_stmts);
+					query = transform_serial_type(pstmt, rel, column, query, &extra_stmts);
 				}
 			}
 		}
@@ -431,14 +443,14 @@ void log_alter_table(AlterTableStmt *stmt, const char *query)
 				if (list_length(constraint->options) > 0)
 				{
 					add_brackets = false;
-					location = lfirst_node(DefElem, list_tail(constraint->options))->location;
+					location = lfirst_node(DefElem, list_tail(constraint->options))->location - pstmt->stmt_location;
 					while (query[location] != ')')
 						++location;
 				}
 				else
 				{
 					add_brackets = true;
-					location = constraint->location;
+					location = constraint->location - pstmt->stmt_location;
 					while ((c = query[location]) && c != ',' && c != ';')
 						++location;
 				}
@@ -474,7 +486,7 @@ void log_alter_table(AlterTableStmt *stmt, const char *query)
 	relation_close(rel, NoLock);
 }
 
-void log_alter_seq(AlterSeqStmt *stmt, const char *query)
+void log_alter_seq(PlannedStmt *pstmt, AlterSeqStmt *stmt, const char *query)
 {
 	RangeVar *relvar = stmt->sequence;
 	Oid relid = RangeVarGetRelid(relvar, NoLock, stmt->missing_ok);
@@ -488,14 +500,14 @@ void log_alter_seq(AlterSeqStmt *stmt, const char *query)
 					get_database_name(MyDatabaseId),
 					get_namespace_name(rel->rd_rel->relnamespace),
 					rel->rd_rel->relname.data,
-					query,
+					CURRENT_QUERY(pstmt, query),
 					rel->rd_rel->relshardid,
 					NULL);
 	}
 	relation_close(rel, NoLock);
 }
 
-void log_create_sequence(CreateSeqStmt *stmt, const char *query)
+void log_create_sequence(PlannedStmt *pstmt, CreateSeqStmt *stmt, const char *query)
 {
 	if (stmt->sequence->relpersistence == RELPERSISTENCE_TEMP)
 		return;
@@ -504,6 +516,7 @@ void log_create_sequence(CreateSeqStmt *stmt, const char *query)
 	Oid seq_relid = RangeVarGetRelid(relation, NoLock, false);
 	Relation seq_rel = relation_open(seq_relid, NoLock);
 	Oid shardid = seq_rel->rd_rel->relshardid;
+	query = CURRENT_QUERY(pstmt, query);
 
 	/* Append shard=N to the ddl */
 	if (stmt->shardid == InvalidOid)
@@ -534,7 +547,7 @@ void log_create_sequence(CreateSeqStmt *stmt, const char *query)
 	relation_close(seq_rel, NoLock);
 }
 
-void log_drop_stmt(DropStmt *stmt, const char *query)
+void log_drop_stmt(PlannedStmt *pstmt, DropStmt *stmt, const char *query)
 {
 	DDL_ObjTypes type = DDL_ObjType_schema;
 	if (stmt->removeType != OBJECT_SCHEMA)
@@ -556,7 +569,7 @@ void log_drop_stmt(DropStmt *stmt, const char *query)
 				get_database_name(MyDatabaseId),
 				"",
 				NULL,
-				query,
+				CURRENT_QUERY(pstmt, query),
 				InvalidOid,
 				NULL);
 }
@@ -583,7 +596,7 @@ make_restart_owned_sequence(Oid reloid, StringInfo sql)
 }
 
 static void
-log_truncate_stmt(TruncateStmt *stmt, const char *query)
+log_truncate_stmt(PlannedStmt *pstmt, TruncateStmt *stmt, const char *query)
 {
        StringInfoData restart_stmts;
 
@@ -624,18 +637,20 @@ log_truncate_stmt(TruncateStmt *stmt, const char *query)
                                    get_database_name(MyDatabaseId),
                                    get_namespace_name(RelationGetNamespace(rel)),
                                    RelationGetRelationName(rel),
-                                   query, 0, NULL);
+                                   CURRENT_QUERY(pstmt, query), 0, NULL); 
                }
                heap_close(rel, NoLock);
        }
 }
 
 static void
-log_create_alter_role(Node *stmt, const char *query)
+log_create_alter_role(PlannedStmt *pstmt, Node *stmt, const char *query)
 {
 	List *options;
 	const char *role;
 	bool iscreate = false;
+
+	query = CURRENT_QUERY(pstmt, query);
 
 	if (IsA(stmt, CreateRoleStmt))
 	{
@@ -667,7 +682,7 @@ log_create_alter_role(Node *stmt, const char *query)
 			else if (lnext(lc))
 			{
 				/* get the location of the next option element*/
-				next_location = lfirst_node(DefElem, lnext(lc))->location;
+				next_location = lfirst_node(DefElem, lnext(lc))->location - pstmt->stmt_location;
 			}
 			break;
 		}
@@ -689,7 +704,7 @@ log_create_alter_role(Node *stmt, const char *query)
 		else
 		{
 			appendStringInfo(&buff, "%.*s encrypted password '%s' %s",
-					passwd_elem->location, query,  /* query body before password*/
+					passwd_elem->location - pstmt->stmt_location, query,   /* query body before password*/
 					shadow_pwd,                            /* encrypted password */
 					(next_location > 0 ? query + next_location : "")); /* remaining options */
 
@@ -946,7 +961,7 @@ bool is_simple_ddl(Node* stmt)
 	}
 }
 
-void pre_handle_ddl(Node *parsetree, const char *query)
+void pre_handle_ddl(PlannedStmt *pstmt, Node *parsetree, const char *query)
 {
 	bool is_top_stmt = (remoteddl_top_stmt() == parsetree);
 
@@ -957,7 +972,7 @@ void pre_handle_ddl(Node *parsetree, const char *query)
 		/* Check if the removed object is temp, and do log if neccessary */
 		DropStmt *stmt = (DropStmt *)parsetree;
 		if (is_top_stmt)
-			log_drop_stmt(stmt, query);
+			log_drop_stmt(pstmt, stmt, query);
 		break;
 	}
 	case T_RenameStmt:
@@ -1072,7 +1087,7 @@ void pre_handle_ddl(Node *parsetree, const char *query)
 	}
 }
 
-void post_handle_ddl(Node *parsetree, const char *query)
+void post_handle_ddl(PlannedStmt *pstmt, Node *parsetree, const char *query)
 {
 	/* For now, only log client ddl into meta server here */
 	if (remoteddl_top_stmt() != parsetree)
@@ -1087,56 +1102,56 @@ void post_handle_ddl(Node *parsetree, const char *query)
 	case T_CreatedbStmt:
 	{
 		CreatedbStmt *create_stmt = (CreatedbStmt *)parsetree;
-		log_create_db(create_stmt, query);
+		log_create_db(pstmt, create_stmt, query);
 		break;
 	}
 	case T_DropdbStmt:
 	{
 		DropdbStmt *stmt = (DropdbStmt *)parsetree;
-		log_drop_db(stmt, query);
+		log_drop_db(pstmt, stmt, query);
 		break;
 	}
 	case T_CreateSchemaStmt:
 	{
 		CreateSchemaStmt *create_stmt = (CreateSchemaStmt *)parsetree;
-		log_create_schema(create_stmt, query);
+		log_create_schema(pstmt, create_stmt, query);
 		break;
 	}
 	case T_CreateStmt:
 	{
 		CreateStmt *create_stmt = (CreateStmt *)parsetree;
-		log_create_stmt(create_stmt, query);
+		log_create_stmt(pstmt, create_stmt, query);
 		break;
 	}
 	case T_IndexStmt:
 	{
 		IndexStmt *index_stmt = (IndexStmt *)parsetree;
-		log_create_index(index_stmt, query);
+		log_create_index(pstmt, index_stmt, query);
 		break;
 	}
 	case T_CreateSeqStmt:
 	{
 		CreateSeqStmt *seq_stmt = (CreateSeqStmt *)parsetree;
-		log_create_sequence(seq_stmt, query);
+		log_create_sequence(pstmt, seq_stmt, query);
 		break;
 	}
 	case T_AlterTableStmt:
 	{
 		AlterTableStmt *alter_stmt = (AlterTableStmt *)parsetree;
-		log_alter_table(alter_stmt, query);
+		log_alter_table(pstmt, alter_stmt, query);
 		break;
 	}
 	case T_AlterSeqStmt:
 	{
 		AlterSeqStmt *alter_stmt = (AlterSeqStmt*)parsetree;
-		log_alter_seq(alter_stmt, query);
+		log_alter_seq(pstmt, alter_stmt, query);
 		break;
 	}
 	case T_CreateRoleStmt:
 	case T_AlterRoleStmt:
 	{
 		/* encrypt password before write ddl query into log */
-		log_create_alter_role(parsetree, query);
+		log_create_alter_role(pstmt, parsetree, query);
 		break;
 	}
 	case T_TruncateStmt:
@@ -1144,7 +1159,7 @@ void post_handle_ddl(Node *parsetree, const char *query)
 		TruncateStmt *stmt = (TruncateStmt *)parsetree;
 		if (remote_truncate_table(stmt))
 		{
-			log_truncate_stmt(stmt, query);
+			log_truncate_stmt(pstmt, stmt, query);
 		}
 		break;
 	}
@@ -1200,8 +1215,10 @@ void post_handle_ddl(Node *parsetree, const char *query)
 				obj = DDL_ObjType_user;
 
 			log_ddl_add(DDL_OP_Type_generic, obj,
-						get_database_name(MyDatabaseId),
-						NULL, NULL, query, 0, NULL);
+				    get_database_name(MyDatabaseId),
+				    NULL, NULL,
+				    CURRENT_QUERY(pstmt, query),
+				    0, NULL);
 		}
 		break;
 	}

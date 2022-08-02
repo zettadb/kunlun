@@ -599,7 +599,6 @@ void remote_alter_sequence(Relation rel)
 	HeapTuple tuple = SearchSysCache1(SEQRELID, ObjectIdGetDatum(seq_relid));
 	if (!HeapTupleIsValid(tuple))
 		elog(ERROR, "cache lookup failed for sequence %u", seq_relid);
-	Form_pg_sequence seqform = (Form_pg_sequence)GETSTRUCT(tuple);
 
 	if (nodeTag(top_stmt) == T_RenameStmt)
 	{

@@ -78,6 +78,9 @@ RemoteNext(RemoteScanState *node)
 		return slot;
 	}
 
+	MemoryContext *saved =
+         MemoryContextSwitchTo(node->ss.ps.ps_ExprContext->ecxt_per_tuple_memory);
+
 	MYSQL_ROW mysql_row = get_stmt_next_row(node->handle);
 	if (mysql_row)
 	{
@@ -97,6 +100,9 @@ RemoteNext(RemoteScanState *node)
 		Assert(is_stmt_eof(node->handle));
 		ExecClearTuple(slot);
 	}
+
+	MemoryContextSwitchTo(saved);
+
 	return slot;
 }
 

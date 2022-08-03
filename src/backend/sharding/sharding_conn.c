@@ -2443,6 +2443,7 @@ cancel_all_stmts_impl(AsyncStmtInfo *asi[], int cnt)
 	{
 		PG_TRY();
 		{
+			FlushErrorState();
 			ReThrowError(errdata);
 		}
 		PG_END_TRY();

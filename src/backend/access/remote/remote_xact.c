@@ -123,15 +123,12 @@ void SendRollbackRemote(const char *txnid, bool xa_end, bool written_only)
 			disconnect_storage_shards();
 			request_topo_checks_used_shards();
 		}
-		PG_CATCH();
-		{
-			FlushErrorState();
-		}
 		PG_END_TRY();
 
 		/* Restore error */
 		PG_TRY();
 		{
+			FlushErrorState();
 			ReThrowError(errdata);
 		}
 		PG_END_TRY();

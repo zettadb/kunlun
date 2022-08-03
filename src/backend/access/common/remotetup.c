@@ -56,13 +56,14 @@ typedef struct RemotetupCacheState
 	StringInfoData buf;      /* public part, must be 1st field. */
 	TupleDesc	attrinfo;		/* The attr info we are set up for */
 	int			nattrs;
-	/* The offset of the end of the last valid tuple stored in buffer */
-	size_t      last_tup_end_offset;
 	RemotetupAttrInfo *myinfo;	/* Cached info about each attr */
 	Relation target_rel;        /* inserting into this relation. */
 	AsyncStmtInfo *pasi;        /* stmt sending port */
 	enum OnConflictAction action;
 	StringInfoData action_str;
+
+	int affected_rows;	/* the accumulative number of affected rows */
+	List *inflight_handles; /* inflight insert stmts */
 } RemotetupCacheState;
 
 
@@ -155,7 +156,6 @@ remotetup_prepare_info(RemotetupCacheState*myState,
 
 	shrinkStringInfo(&myState->buf, 2); // remove last ,
 	appendStringInfoString(&myState->buf, ") values ");
-	myState->last_tup_end_offset = lengthStringInfo(&myState->buf);
 }
 
 bool column_name_is_dropped(const char *colname)
@@ -274,9 +274,6 @@ bool cache_remotetup(TupleTableSlot *slot, ResultRelInfo *resultRelInfo)
 	tuplen -= 2; // the last field's trailing ", " is removed.
 	tuplen += brlen;
 
-	myState->last_tup_end_offset += tuplen;
-	Assert(myState->last_tup_end_offset == lengthStringInfo(self));
-
 	MemoryContextSwitchTo(mem_saved);
 	MemoryContextDelete(mem);
 
@@ -300,29 +297,70 @@ static size_t bracket_tuple(bool start, RemotetupCacheState *s)
 	return ret;
 }
 
+static void check_inflight_insert_stmts(struct RemotetupCacheState *s)
+{
+	ListCell *lc;
+	StmtSafeHandle *handle;
+
+	/* Free the handle of finished statement,
+	   and accumulated the number of affected rows
+	   */
+	while ((lc = list_head(s->inflight_handles)))
+	{
+		handle = (StmtSafeHandle *)lfirst(lc);
+		if (is_stmt_eof(*handle) == false)
+			break;
+
+		s->affected_rows += get_stmt_affected_rows(*handle);
+		release_stmt_handle(*handle);
+		pfree(handle);
+		s->inflight_handles = list_delete_first(s->inflight_handles);
+	}
+}
+
 /*
   @retval true if at least one tuple is sent to remote; false if no tuple sent.
 */
 bool end_remote_insert_stmt(struct RemotetupCacheState *s, bool end_of_stmt)
 {
-	StringInfo self = &s->buf;
-	if (lengthStringInfo(self) == 0)
+	StmtSafeHandle *handle;
+	StringInfo stmt = &s->buf;
+	size_t stmtlen = lengthStringInfo(stmt);
+
+	if (stmtlen == 0)
 		return false;
 
 	// Each tuple ends with 2 chars ',' and ' ', which is not needed for the
 	// last tuple of an insert stmt.
-	shrinkStringInfo(self, 2);
-
-	s->last_tup_end_offset -= 2;
+	shrinkStringInfo(stmt, 2);
 
 	// append our stmt to the AsyncStmtInfo port.
-	size_t stmtlen = lengthStringInfo(self);
-	send_stmt_async_nowarn(s->pasi, donateStringInfo(self), stmtlen, CMD_INSERT, true, SQLCOM_INSERT);
+	stmtlen = lengthStringInfo(stmt);
+	handle = palloc0(sizeof(*handle));
+
+	*handle = send_stmt_async(s->pasi,
+			donateStringInfo(stmt),
+			stmtlen, 
+			CMD_INSERT, 
+			true, 
+			SQLCOM_INSERT,
+			false);
+
+	s->inflight_handles = lappend(s->inflight_handles, handle);
+
 	// the buffer is given to async, can't be used anymore in memory buffer.
 	if (!end_of_stmt)
-		initStringInfo2(self, BLCKSZ * remote_insert_blocks, TopTransactionContext);
+		initStringInfo2(stmt, BLCKSZ * remote_insert_blocks, TopTransactionContext);
+
+	check_inflight_insert_stmts(s);
 
 	return true;
+}
+
+int get_remote_insert_stmts_affected(struct RemotetupCacheState *s)
+{
+	check_inflight_insert_stmts(s);
+	return s->affected_rows;
 }
 
 /*

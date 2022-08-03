@@ -2245,6 +2245,54 @@ tupconv_map_for_partition(ModifyTableState *mtstate, int partidx)
 		ExecSetupChildParentMapForLeaf(proute);
 	return TupConvMapForLeaf(proute, getTargetResultRelInfo(mtstate), partidx);
 }
+
+static void
+EndRemoteInsert(ModifyTableState *node)
+{
+	Assert(node->operation == CMD_INSERT);
+	List *cache_list = NIL;
+	ListCell *lc;
+
+	for (int i = 0; i < node->mt_nplans; ++i)
+	{
+		ResultRelInfo *resultRelInfo = node->resultRelInfo + i;
+		PartitionTupleRouting *proute = node->mt_partition_tuple_routing;
+		if (proute)
+		{
+			for (int partidx = 0; partidx < proute->num_partitions; partidx++)
+			{
+				ResultRelInfo *partrel = proute->partitions[partidx];
+				if (partrel && partrel->ri_RemotetupCache)
+				{
+					end_remote_insert_stmt(partrel->ri_RemotetupCache, true);
+					cache_list = lappend(cache_list, partrel->ri_RemotetupCache);
+				}
+			}
+		}
+		else
+		{
+			if (resultRelInfo->ri_RemotetupCache)
+			{
+				end_remote_insert_stmt(resultRelInfo->ri_RemotetupCache, true);
+				cache_list = lappend(cache_list, resultRelInfo->ri_RemotetupCache);
+			}
+		}
+	}
+
+	flush_all_stmts();
+
+	if (node->canSetTag)
+	{
+		foreach (lc, cache_list)
+		{
+			node->ps.state->es_processed +=
+			    get_remote_insert_stmts_affected((struct RemotetupCacheState *)lfirst(lc));
+		}
+	}
+
+	list_free(cache_list);
+}
+
 /* ----------------------------------------------------------------
  *	   ExecModifyTable
  *
@@ -2573,6 +2621,9 @@ ExecModifyTable(PlanState *pstate)
 
 	/* Restore es_result_relation_info before exiting */
 	estate->es_result_relation_info = saved_resultRelInfo;
+
+	if (node->operation == CMD_INSERT)
+		EndRemoteInsert(node);
 
 	/*
 	 * We're done, but fire AFTER STATEMENT triggers before exiting.
@@ -3336,36 +3387,7 @@ ExecEndModifyTable(ModifyTableState *node)
 			resultRelInfo->ri_FdwRoutine->EndForeignModify != NULL)
 			resultRelInfo->ri_FdwRoutine->EndForeignModify(node->ps.state,
 														   resultRelInfo);
-
-		/*
-		 * dzw: end remote tuple caching for each leaf partition of a
-		 * partition table, or the regular table.
-		 */
-		PartitionTupleRouting *proute = node->mt_partition_tuple_routing;
-		if (proute)
-		{
-			for (int partidx = 0; partidx < proute->num_partitions; partidx++)
-			{
-				ResultRelInfo *partrel = proute->partitions[partidx];
-				if (partrel && partrel->ri_RemotetupCache)
-					end_remote_insert_stmt(partrel->ri_RemotetupCache, true);
-			}
-		}
-		else
-		{
-			if (node->operation == CMD_INSERT && resultRelInfo->ri_RemotetupCache)
-				end_remote_insert_stmt(resultRelInfo->ri_RemotetupCache, true);
-		}
 	}
-
-	/*
-	 * dzw: send accumulated remote statements to remote storage nodes.
-	 for update&delete, this was already done in ExecModifyTable().
-	 * */
-	if (node->operation == CMD_INSERT)
-		flush_all_stmts();
-
-	node->ps.state->es_processed = GetRemoteAffectedRows();
 
 	/* Close all the partitioned tables, leaf partitions, and their indices */
 	if (node->mt_partition_tuple_routing)
@@ -3467,17 +3489,19 @@ ExecInitRemoteReturningTupleSlotTL(EState *estate, ModifyTableState *mts,
 static TupleTableSlot*
 ExecPushdownUpDel(ModifyTableState *node)
 {
+	EState *estate = node->ps.state;
 	AsyncStmtInfo *asi;
 	StmtSafeHandle handle;
 	MYSQL_ROW row;
 	RemoteUD *remote_updel = node->remote_updel;
-
-	int64_t dummy = 0;
-	int64_t *pcount = (remote_updel->limit > 0 ? &remote_updel->limit : &dummy);
-
 	StringInfoData sql;
 	RemotePrintExprContext rpec;
 	PlanState *child = node->mt_plans[0];
+	int64_t dummy = 0, *pcount = &dummy;
+
+	if (remote_updel->limit > 0)
+		pcount = &remote_updel->limit;
+
 	initStringInfo2(&sql, 256, TopTransactionContext);
 	InitRemotePrintExprContext(&rpec, node->ps.state->es_plannedstmt->rtable);
 	rpec.estate = node->ps.state;
@@ -3604,6 +3628,8 @@ next_stmt:
 			}
 			if (is_stmt_eof(handle))
 			{
+				if (node->canSetTag)
+					estate->es_processed += get_stmt_affected_rows(handle);
 				release_stmt_handle(handle);
 				node->nactive_stmts--;
 				if (node->nactive_stmts > 0)
@@ -3625,6 +3651,9 @@ next_stmt:
 	/* release stmt handles */
 	for (int i = 0; i < node->nactive_stmts; ++i)
 	{
+		if (node->canSetTag)
+			estate->es_processed += get_stmt_affected_rows(node->active_stmts[i]);
+
 		release_stmt_handle(node->active_stmts[i]);
 	}
 	node->nactive_stmts = 0;

@@ -167,13 +167,6 @@ ProcessQuery(PlannedStmt *plan,
 	 */
 	if (completionTag)
 	{
-		/*
-		  dzw: sum up affected rows for DELETE and UPDATE.
-		*/
-		if (CMD_UPDATE == queryDesc->operation ||
-			CMD_DELETE == queryDesc->operation)
-			queryDesc->estate->es_processed += GetRemoteAffectedRows();
-
 		Oid			lastOid;
 		/*
 		 * dzw: melt into pg's optimizer&executor framework, set the
@@ -216,17 +209,6 @@ ProcessQuery(PlannedStmt *plan,
 	 */
 	ExecutorFinish(queryDesc);
 	ExecutorEnd(queryDesc);
-	/*
-	 * dzw:
-	 * Remote insert is done lazily at end of executor, so we can only get
-	 * correct 'affected rows' until now.
-	 * queryDesc->estate is NULL after ExecutorEnd() call.
-	 * */
-	uint64_t nremote_afrows = GetRemoteAffectedRows();
-	if (completionTag && strcmp("INSERT 0 0", completionTag) == 0 &&
-		nremote_afrows > 0)
-		snprintf(completionTag, COMPLETION_TAG_BUFSIZE,
-				"INSERT %u " UINT64_FORMAT, 0, nremote_afrows);
 
 	FreeQueryDesc(queryDesc);
 }

@@ -32,6 +32,7 @@ extern void set_remote_onconflict_action(struct RemotetupCacheState *cachestate,
 extern bool cache_remotetup(TupleTableSlot *slot, ResultRelInfo *rri);
 extern bool end_remote_insert_stmt(struct RemotetupCacheState *s, bool eos);
 extern char *pg_to_mysql_const(Oid typid, char *c);
+extern int get_remote_insert_stmts_affected(struct RemotetupCacheState *s);
 
 inline static bool is_date_time_type(Oid typid)
 {

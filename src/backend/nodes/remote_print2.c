@@ -878,7 +878,7 @@ snprint_nextval(StringInfo str, RemotePrintExprContext *rpec, NextValueExpr *exp
 	if (rpec->consume_sequence)
 		nw += eval_nextval_expr(str, rpec, expr);
 	else
-		APPEND_STR("0");
+		nw = -1;
 
 	return nw;
 }

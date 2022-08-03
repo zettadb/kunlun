@@ -200,6 +200,7 @@ typedef FormData_pg_attribute *Form_pg_attribute;
 
 #define		  ATTRIBUTE_IDENTITY_ALWAYS		'a'
 #define		  ATTRIBUTE_IDENTITY_BY_DEFAULT 'd'
+#define		  ATTRIBUTE_IDENTITY_AUTO_INCREMENT 'i'
 
 #endif							/* EXPOSE_TO_CLIENT_CODE */
 

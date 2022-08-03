@@ -2362,6 +2362,22 @@ alter_table_cmd:
 
 					$$ = (Node *)n;
 				}
+			| ALTER opt_column ColId ADD_P AUTO_INCREMENT OptParenthesizedSeqOptList
+				{
+					AlterTableCmd *n = makeNode(AlterTableCmd);
+					Constraint *c = makeNode(Constraint);
+
+					c->contype = CONSTR_IDENTITY;
+					c->generated_when = ATTRIBUTE_IDENTITY_AUTO_INCREMENT;
+					c->options = $6;
+					c->location = @5;
+
+					n->subtype = AT_AddIdentity;
+					n->name = $3;
+					n->def = (Node *) c;
+
+					$$ = (Node *)n;
+				}
 			/* ALTER TABLE <name> ALTER [COLUMN] <colname> SET <sequence options>/RESET */
 			| ALTER opt_column ColId alter_identity_column_option_list
 				{
@@ -3732,12 +3748,12 @@ ColConstraintElem:
 					n->location = @1;
 					$$ = (Node *)n;
 				}
-			| AUTO_INCREMENT
+			| AUTO_INCREMENT OptParenthesizedSeqOptList 
 				{
 					Constraint *n = makeNode(Constraint);
 					n->contype = CONSTR_IDENTITY;
-					n->generated_when = ATTRIBUTE_IDENTITY_BY_DEFAULT;
-					n->options = NIL;
+					n->generated_when = ATTRIBUTE_IDENTITY_AUTO_INCREMENT;
+					n->options = $2;
 					n->location = @1;
 					$$ = (Node *)n;
 				}

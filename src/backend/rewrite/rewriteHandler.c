@@ -24,6 +24,7 @@
 #include "access/remote_dml.h"
 #include "catalog/catalog.h"
 #include "catalog/dependency.h"
+#include "catalog/pg_namespace.h"
 #include "catalog/pg_type.h"
 #include "commands/trigger.h"
 #include "foreign/fdwapi.h"
@@ -39,6 +40,7 @@
 #include "rewrite/rowsecurity.h"
 #include "utils/builtins.h"
 #include "utils/lsyscache.h"
+#include "utils/syscache.h"
 #include "utils/rel.h"
 #include "catalog/index.h"
 
@@ -661,6 +663,81 @@ adjustJoinTreeList(Query *parsetree, bool removert, int rt_index)
 }
 
 
+static Expr*
+apply_default_if_zero_or_null(Expr *expr, Expr *default_expr)
+{
+	CaseExpr *case_expr = makeNode(CaseExpr);
+	case_expr->casetype = exprType((Node *)expr);
+	case_expr->casecollid = exprCollation((Node *)expr);
+	case_expr->defresult = expr;
+
+	// When expr is null then default_expr
+	CaseWhen *case_null = makeNode(CaseWhen);
+	NullTest *null_test = makeNode(NullTest);
+	null_test->nulltesttype = IS_NULL;
+	null_test->arg = expr;
+	case_null->expr = (Expr *)null_test;
+	case_null->result = default_expr;
+	case_null->location = -1;
+
+	// When expr is zero then default_expr
+	int len;
+	NameData eqfunc;
+	switch (case_expr->casetype)
+	{
+	case INT2OID:
+		len = sizeof(int16);
+		strncpy(eqfunc.data, "int2eq", sizeof(eqfunc.data));
+		break;
+	case INT4OID:
+		len = sizeof(int32);
+		strncpy(eqfunc.data, "int4eq", sizeof(eqfunc.data));
+		break;
+	case INT8OID:
+		len = sizeof(int64);
+		strncpy(eqfunc.data, "int8eq", sizeof(eqfunc.data));
+		break;
+	default:
+		elog(ERROR, "integer type expected for auto-increment column.");
+		break;
+	}
+	Expr *const_zero = (Expr *)makeConst(case_expr->casetype,
+					     -1,
+					     InvalidOid,
+					     len,
+					     0,
+					     false,
+					     true);
+
+	FuncExpr *func_expr = makeNode(FuncExpr);
+	func_expr->args = list_make2(expr, const_zero);
+	func_expr->funccollid = InvalidOid;
+	func_expr->funcresulttype = BOOLOID;
+	func_expr->funcretset = false;
+	func_expr->funcvariadic = false;
+	func_expr->funcformat = COERCE_EXPLICIT_CALL;
+	func_expr->location = -1;
+
+	Oid oids[2];
+	oids[0] = oids[1] = case_expr->casetype;
+	func_expr->funcid = GetSysCacheOid3(PROCNAMEARGSNSP,
+					    PointerGetDatum(&eqfunc),
+					    PointerGetDatum(buildoidvector(oids, 2)),
+					    ObjectIdGetDatum(PG_CATALOG_NAMESPACE));
+
+	if (func_expr->funcid == InvalidOid)
+		elog(ERROR, "cache lookup failed for pg_proc '%s'", eqfunc.data);
+
+	CaseWhen *case_zero = makeNode(CaseWhen);
+	case_zero->expr = (Expr *)func_expr;
+	case_zero->result = default_expr;
+	case_zero->location = -1;
+
+	case_expr->args = list_make2(case_null, case_zero);
+
+	return case_expr;
+}
+
 /*
  * rewriteTargetListIU - rewrite INSERT/UPDATE targetlist into standard form
  *
@@ -788,6 +865,7 @@ rewriteTargetListIU(List *targetList,
 	{
 		TargetEntry *new_tle = new_tles[attrno - 1];
 		bool		apply_default;
+		bool		apply_when_zero_or_null;
 
 		att_tup = TupleDescAttr(target_relation->rd_att, attrno - 1);
 
@@ -802,6 +880,7 @@ rewriteTargetListIU(List *targetList,
 		 */
 		apply_default = ((new_tle == NULL && commandType == CMD_INSERT) ||
 						 (new_tle && new_tle->expr && IsA(new_tle->expr, SetToDefault)));
+		apply_when_zero_or_null = false;
 
 		if (commandType == CMD_INSERT)
 		{
@@ -818,6 +897,12 @@ rewriteTargetListIU(List *targetList,
 
 			if (att_tup->attidentity == ATTRIBUTE_IDENTITY_BY_DEFAULT && override == OVERRIDING_USER_VALUE)
 				apply_default = true;
+			
+			if (att_tup->attidentity == ATTRIBUTE_IDENTITY_AUTO_INCREMENT && !apply_default)
+			{
+				apply_default = true;
+				apply_when_zero_or_null = true;
+			}
 		}
 
 		if (commandType == CMD_UPDATE)
@@ -869,6 +954,10 @@ rewriteTargetListIU(List *targetList,
 
 			if (new_expr)
 			{
+				if (apply_when_zero_or_null && new_tle)
+				{
+					new_expr = (Node *)apply_default_if_zero_or_null(new_tle->expr, (Expr *)new_expr);
+				}
 				new_tle = makeTargetEntry((Expr *) new_expr,
 										  attrno,
 										  pstrdup(NameStr(att_tup->attname)),

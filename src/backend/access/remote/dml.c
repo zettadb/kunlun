@@ -379,7 +379,7 @@ bool CanPushdownRemoteUD(PlanState *state, List *unused_tl, int *nleafs, const c
 	case T_RemoteScanState:
 	{
 		(*nleafs)++;
-		if (IsRemoteScanTotallyPushdown((RemoteScanState*) state, unused_tl))
+		if (!IsRemoteScanTotallyPushdown((RemoteScanState*) state, unused_tl))
 		{
 			*reason = "Exression cannot be serialized";
 			return false;

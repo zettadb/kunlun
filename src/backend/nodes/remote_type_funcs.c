@@ -20,8 +20,11 @@
 #include "utils/syscache.h"
 #include "utils/varbit.h"
 #include "utils/pg_locale.h"
+#include "utils/pg_lsn.h"
 
 #include <stdlib.h>
+#define MAXPG_LSNLEN            17
+
 extern Datum jsonb_out(PG_FUNCTION_ARGS);
 extern Datum timestamptz_in(PG_FUNCTION_ARGS);
 extern Datum timetz_in(PG_FUNCTION_ARGS);
@@ -710,4 +713,36 @@ Datum my_cash_out(PG_FUNCTION_ARGS)
                 *(--bufptr) = '-';
 
         PG_RETURN_CSTRING(pstrdup(bufptr));
+}
+
+Datum
+my_pg_lsn_in(PG_FUNCTION_ARGS)
+{
+   char *str = PG_GETARG_CSTRING(0);
+   char *end;
+   unsigned long val;
+
+   val = strtoul(str, &end, 10);
+
+   if (errno == ERANGE)
+   {
+       ereport(ERROR,
+           (errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
+            errmsg("invalid input syntax for type %s from shard: \"%s\"",
+               "pg_lsn", str)));
+   }
+
+   PG_RETURN_LSN((uint64_t)val);
+}
+
+Datum
+my_pg_lsn_out(PG_FUNCTION_ARGS)
+{
+   XLogRecPtr lsn = PG_GETARG_LSN(0);
+   char buf[MAXPG_LSNLEN + 3];
+   char *result;
+
+   snprintf(buf, sizeof buf, "0x%LX", lsn);
+   result = pstrdup(buf);
+   PG_RETURN_CSTRING(result);
 }

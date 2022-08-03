@@ -29,7 +29,7 @@
  {typname => 'name', mytype => 'varchar(64)', mycast => 'char(64)' , myinput => 'namein', myoutput => 'my_nameout' },
  {typname => 'numeric', mytype => 'numeric', mycast => 'numeric', myinput => 'numeric_in', myoutput => 'numeric_out' },
  {typname => 'oid', mytype => 'int unsigned', mycast => 'unsigned', myinput => 'oidin', myoutput => 'oidout'},
- {typname => 'pg_lsn', mytype => 'bigint unsigned', myinput => 'pg_lsn_in', myoutput => 'pg_lsn_out'},
+ {typname => 'pg_lsn', mytype => 'bigint unsigned', myinput => 'my_pg_lsn_in', myoutput => 'my_pg_lsn_out'},
  {typname => 'text', mytype => 'longtext',  myinput => 'textin', myoutput => 'my_textout'},
  {typname => 'time', mytype => 'time', mycast => 'time', myinput => 'time_in', myoutput => 'my_time_out' },
  {typname => 'timestamp', mytype => 'datetime', mycast => 'datetime', myinput => 'timestamp_in', myoutput => 'my_timestamp_out' },

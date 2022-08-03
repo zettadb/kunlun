@@ -10297,4 +10297,11 @@
   proname => 'my_cash_out', provolatile => 's', prorettype => 'cstring',
   proargtypes => 'money', prosrc => 'my_cash_out' },
 
+{ oid => '5129', descr => 'I/O',
+  proname => 'my_pg_lsn_in', prorettype => 'pg_lsn', proargtypes => 'cstring',
+  prosrc => 'my_pg_lsn_in' },
+{ oid => '5130', descr => 'I/O',
+  proname => 'my_pg_lsn_out', prorettype => 'cstring', proargtypes => 'pg_lsn',
+  prosrc => 'my_pg_lsn_out' },
+
 ]

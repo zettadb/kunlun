@@ -26,6 +26,7 @@
 #include "catalog/indexing.h"
 #include "commands/dbcommands.h"
 #include "miscadmin.h"
+#include "parser/parser.h"
 #include "pgstat.h"
 #include "tcop/debug_injection.h"
 #include "sharding/cluster_meta.h"
@@ -36,6 +37,13 @@
 #include "common.h"
 #include "ddl_applier.h"
 #include "remote_ddl.h"
+
+extern bool standard_conforming_strings;
+extern int  backslash_quote;
+extern bool quote_all_identifiers;
+
+#define ADD_SETTING_IF(cond, name, value) \
+	if (cond) appendStringInfo(&sql, "SET %s = %s;", (name), (value));
 
 /**
  * @brief DDL information to be logged to the metaserver
@@ -239,9 +247,32 @@ void log_ddl_add(DDL_OP_Types op,
 				 Oid shardid,
 				 const char *info)
 {
-	Assert(!g_remote_ddl_context->ddllog_context);
+	StringInfoData sql;
 	MemoryContext oldctx = MemoryContextSwitchTo(g_remote_ddl_trans->mem_ctx);
 
+	ADD_SETTING_IF((!standard_conforming_strings),
+			"standard_conforming_strings", "off");
+	ADD_SETTING_IF((backslash_quote != BACKSLASH_QUOTE_SAFE_ENCODING),
+			"backslash_quote", backslash_quote ? "on" : "off");
+	ADD_SETTING_IF((quote_all_identifiers),
+			"quote_all_identifiers", "on");
+
+	/* Add extra settings to restore guc to default*/
+	if (sql.len > 0)
+	{
+		appendStringInfoString(&sql, query);
+		appendStringInfoChar(&sql, ';');
+
+		ADD_SETTING_IF((!standard_conforming_strings),
+				"standard_conforming_strings", "on");
+		ADD_SETTING_IF((backslash_quote != BACKSLASH_QUOTE_SAFE_ENCODING),
+				"backslash_quote", "safe_encoding");
+		ADD_SETTING_IF((quote_all_identifiers),
+				"quote_all_identifiers", "off");
+		query = sql.data;
+	}
+
+	Assert(!g_remote_ddl_context->ddllog_context);
 	DDLLogContext *context = (DDLLogContext *)palloc0(sizeof(DDLLogContext));
 	context->optype = op;
 	context->objtype = objtype;
@@ -258,6 +289,8 @@ void log_ddl_add(DDL_OP_Types op,
 	g_remote_ddl_context->ddllog_context = context;
 
 	MemoryContextSwitchTo(oldctx);
+
+	pfree(sql.data);
 
 	/* Make sure we have got the name of current user */
 	if (!context->user)

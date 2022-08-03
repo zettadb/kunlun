@@ -396,6 +396,31 @@ invalid_shardid:
 	elog(ERROR, "The shardid in remap_shardid req is invalid");
 }
 
+/**
+ * @brief Extract the pre set stmts added by log_ddl_add(...)
+ */
+static bool get_pre_set_stmts(const char *stmt, char **pre_stmt, int *len)
+{
+	const char *p = stmt;
+	int size = 0;
+
+	SKIP_SPACE(p);
+	while (strncasecmp(p, STRING_WITH_LEN("SET ")) == 0)
+	{
+		if (!(p = strchr(p, ';')))
+			break;
+		++p;
+		size = p - stmt;
+		SKIP_SPACE(p);
+	}
+
+	if (size > 0)
+		*pre_stmt = pnstrdup(stmt, size);
+	*len = size;
+
+	return size > 0;
+}
+
 static int apply_log_internal(int id, const char *user, const char *role, const char *path, const char *op, const char *sql)
 {
 	bool end_txn = false;
@@ -429,10 +454,26 @@ static int apply_log_internal(int id, const char *user, const char *role, const 
 	}
 	else
 	{
+		char *pre_sql;
+		int size;
+		
 		/* We can now execute queries via SPI */
 		SPI_connect();
-		ret = SPI_execute(sql, false, 0);
-                SPI_finish();
+		/*
+		 * pg will first parse the entire string, and then execute the sql one by one. 
+		 * If not executed separately, the ddl statement will not be parsed under our 
+		 * expected guc configuration. So, we have to execute the pre added sql first.
+		 **/
+		if (get_pre_set_stmts(sql, &pre_sql, &size))
+		{
+			ret = SPI_execute(pre_sql, false, 0);
+			pfree(pre_sql);
+			sql += size;
+		}
+
+		if (ret >= 0)
+			ret = SPI_execute(sql, false, 0);
+		SPI_finish();
 	}
 
 	PushActiveSnapshot(GetTransactionSnapshot());

@@ -865,7 +865,6 @@ rewriteTargetListIU(List *targetList,
 	{
 		TargetEntry *new_tle = new_tles[attrno - 1];
 		bool		apply_default;
-		bool		apply_when_zero_or_null;
 
 		att_tup = TupleDescAttr(target_relation->rd_att, attrno - 1);
 
@@ -880,7 +879,6 @@ rewriteTargetListIU(List *targetList,
 		 */
 		apply_default = ((new_tle == NULL && commandType == CMD_INSERT) ||
 						 (new_tle && new_tle->expr && IsA(new_tle->expr, SetToDefault)));
-		apply_when_zero_or_null = false;
 
 		if (commandType == CMD_INSERT)
 		{
@@ -897,12 +895,6 @@ rewriteTargetListIU(List *targetList,
 
 			if (att_tup->attidentity == ATTRIBUTE_IDENTITY_BY_DEFAULT && override == OVERRIDING_USER_VALUE)
 				apply_default = true;
-			
-			if (att_tup->attidentity == ATTRIBUTE_IDENTITY_AUTO_INCREMENT && !apply_default)
-			{
-				apply_default = true;
-				apply_when_zero_or_null = true;
-			}
 		}
 
 		if (commandType == CMD_UPDATE)
@@ -919,8 +911,21 @@ rewriteTargetListIU(List *targetList,
 		{
 			Node	   *new_expr;
 
-			new_expr = build_column_default(target_relation, attrno);
-
+			if (commandType == CMD_INSERT &&
+			    att_tup->attidentity == ATTRIBUTE_IDENTITY_AUTO_INCREMENT)
+			{
+				/* Delay the rewrite of auto-increment column to the rewriteTargetListAutoIncrement(..)*/
+				SetToDefault *n = makeNode(SetToDefault);
+				n->typeId = att_tup->atttypid;
+				n->typeMod = att_tup->atttypmod;
+				n->collation = att_tup->attcollation;
+				n->location = -1;
+				new_expr = (Node *)n;
+			}
+			else
+			{
+				new_expr = build_column_default(target_relation, attrno);
+			}
 			/*
 			 * If there is no default (ie, default is effectively NULL), we
 			 * can omit the tlist entry in the INSERT case, since the planner
@@ -954,10 +959,6 @@ rewriteTargetListIU(List *targetList,
 
 			if (new_expr)
 			{
-				if (apply_when_zero_or_null && new_tle)
-				{
-					new_expr = (Node *)apply_default_if_zero_or_null(new_tle->expr, (Expr *)new_expr);
-				}
 				new_tle = makeTargetEntry((Expr *) new_expr,
 										  attrno,
 										  pstrdup(NameStr(att_tup->attname)),
@@ -997,6 +998,37 @@ rewriteTargetListIU(List *targetList,
 	return list_concat(new_tlist, junk_tlist);
 }
 
+static void
+rewriteTargetListAutoIncrement(List *targetList, Relation target_relation)
+{
+	ListCell *lc;
+	Expr *new_expr;
+	Form_pg_attribute att_tup;
+	int attrno;
+
+	foreach (lc, targetList)
+	{
+		TargetEntry *new_tle = lfirst_node(TargetEntry, lc);
+		attrno = new_tle->resno;
+		att_tup = TupleDescAttr(target_relation->rd_att, attrno - 1);
+
+		/* We can (and must) ignore deleted attributes */
+		if (att_tup->attisdropped)
+			continue;
+
+		/* We can handle auto-increment column here */
+		if (att_tup->attidentity != ATTRIBUTE_IDENTITY_AUTO_INCREMENT)
+			continue;
+
+		new_expr = (Expr *)build_column_default(target_relation, attrno);
+
+		if (!IsA(new_tle->expr, SetToDefault))
+		{
+			new_expr = apply_default_if_zero_or_null(new_tle->expr, (Expr *)new_expr);
+		}
+		new_tle->expr = new_expr;
+	}
+}
 
 /*
  * Convert a matched TLE from the original tlist into a correct new TLE.
@@ -3717,6 +3749,8 @@ RewriteQuery(Query *parsetree, List *rewrite_events)
 										parsetree->resultRelation,
 										parsetree);
 			}
+
+			rewriteTargetListAutoIncrement(parsetree->targetList, rt_entry_relation);
 
 			if (parsetree->onConflict &&
 				parsetree->onConflict->action == ONCONFLICT_UPDATE)

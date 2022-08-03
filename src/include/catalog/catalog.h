@@ -30,7 +30,9 @@ extern bool IsSystemNamespace(Oid namespaceId);
 extern bool IsToastNamespace(Oid namespaceId);
 
 extern bool IsRemoteRelation(Relation rel);
+extern bool IsRemoteRelationOid(Oid reloid);
 extern bool IsRemoteRelationParent(Relation rel);
+extern bool IsRemoteRelationParentOid(Oid reloid);
 
 extern bool IsReservedName(const char *name);
 

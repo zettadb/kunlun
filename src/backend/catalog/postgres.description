@@ -2125,6 +2125,8 @@
 5126	pg_proc	0	I/O
 5127	pg_proc	0	I/O
 5128	pg_proc	0	I/O
+5129	pg_proc	0	I/O
+5130	pg_proc	0	I/O
 16	pg_type	0	boolean, 'true'/'false'
 17	pg_type	0	variable-length string, binary values escaped
 18	pg_type	0	single character

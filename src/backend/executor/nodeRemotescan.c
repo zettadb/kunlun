@@ -823,6 +823,7 @@ ExecRemoteScanInitializeWorker(RemoteScanState *node,
 static void generate_remote_sql(RemoteScanState *rss)
 {
 	StringInfo str = &rss->remote_sql;
+	PlannedStmt *pstmt = ((PlanState *)rss)->state->es_plannedstmt;
 	Relation rel = rss->ss.ss_currentRelation;
 	RemoteScan *rs = (RemoteScan *)rss->ss.ps.plan;
 	List *qual = rs->plan.qual;
@@ -879,6 +880,40 @@ static void generate_remote_sql(RemoteScanState *rss)
 
 	if (rss->check_exists)
 		appendStringInfoString(str, " limit 1");
+
+	/* print locks */
+	foreach(lc, pstmt->rowMarks)
+	{
+		PlanRowMark *rc = lfirst_node(PlanRowMark, lc);
+		if (rc->rti == rs->scanrelid)
+		{
+			if (rc->strength == LCS_FORUPDATE || rc->strength == LCS_FORNOKEYUPDATE)
+			{
+				appendStringInfo(str, " FOR UPDATE ");
+			}
+			else if (rc->strength == LCS_FORSHARE || rc->strength == LCS_FORNOKEYUPDATE)
+			{
+				appendStringInfo(str, " FOR SHARE ");
+			}
+			else
+			{
+				ereport(ERROR,
+						(errcode(ERRCODE_INTERNAL_ERROR),
+						 errmsg("Kunlun-db: Remote shard not support such lock mode.")));
+			}
+
+			if (rc->waitPolicy == LockWaitSkip)
+			{
+				appendStringInfo(str, "SKIP LOCKED");
+			}
+			else if (rc->waitPolicy == LockWaitError)
+			{
+				appendStringInfo(str, "NOWAIT");
+			}
+
+			break;
+		}
+	}
 }
 
 void ExecStoreRemoteTuple(TypeInputInfo *tii, MYSQL_ROW row,

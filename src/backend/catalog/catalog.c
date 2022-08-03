@@ -25,6 +25,7 @@
 #include <unistd.h>
 
 #include "access/genam.h"
+#include "access/heapam.h"
 #include "access/sysattr.h"
 #include "access/transam.h"
 #include "catalog/catalog.h"
@@ -559,4 +560,28 @@ inline bool IsRemoteRelationParent(Relation rel)
 	}
 
 	return false;
+}
+
+bool IsRemoteRelationOid(Oid relid)
+{
+       Relation relation;
+       bool result;
+
+       relation = heap_open(relid, NoLock);
+       result = IsRemoteRelation(relation);
+       heap_close(relation, NoLock);
+
+       return result;
+}
+
+bool IsRemoteRelationParentOid(Oid relid)
+{
+       Relation relation;
+       bool result;
+
+       relation = heap_open(relid, NoLock);
+       result = IsRemoteRelationParent(relation);
+       heap_close(relation, NoLock);
+
+       return result;
 }

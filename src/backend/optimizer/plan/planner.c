@@ -2677,6 +2677,10 @@ select_rowmark_type(RangeTblEntry *rte, LockClauseStrength strength)
 		/* If it's not a table at all, use ROW_MARK_COPY */
 		return ROW_MARK_COPY;
 	}
+	else if (IS_REMOTE_RTE(rte) || IS_REMOTE_PARENT_RTE(rte))
+	{
+		return ROW_MARK_COPY;
+	}
 	else if (rte->relkind == RELKIND_FOREIGN_TABLE)
 	{
 		/* Let the FDW select the rowmark type, if it wants to */

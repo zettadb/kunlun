@@ -16,8 +16,8 @@
 #include "tcop/debug_funcs.h"
 #include "tcop/runtime.h"
 
-StringInfoData session_debug;
-StringInfoData global_debug;
+char* session_debug;
+char* global_debug;
 
 void init_debug_sys()
 {

@@ -22,6 +22,7 @@
 #ifndef PARSENODES_H
 #define PARSENODES_H
 
+#include "catalog/catalog.h"
 #include "nodes/bitmapset.h"
 #include "nodes/lockoptions.h"
 #include "nodes/primnodes.h"
@@ -1082,6 +1083,7 @@ typedef struct RangeTblEntry
 } RangeTblEntry;
 
 #define IS_REMOTE_RTE(rte) ((rte)->relshardid != InvalidOid)
+#define IS_REMOTE_PARENT_RTE(rte) (IsRemoteRelationParentOid((rte)->relid))
 
 /*
  * RangeTblFunction -

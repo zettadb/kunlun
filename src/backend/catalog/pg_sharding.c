@@ -1160,6 +1160,7 @@ Oid GetShardMasterNodeId(Oid shardid)
 
 
 static bool got_sigterm = false;
+static bool got_sighup = true;
 static void
 topo_service_sigterm(SIGNAL_ARGS)
 {
@@ -1169,6 +1170,12 @@ topo_service_sigterm(SIGNAL_ARGS)
 	SetLatch(MyLatch);
 
 	errno = save_errno;
+}
+
+static void
+topo_service_sighup(SIGNAL_ARGS)
+{
+       got_sighup = true;
 }
 
 static void
@@ -1200,6 +1207,7 @@ int get_topo_service_pid()
  */
 void TopoServiceMain(void)
 {
+	pqsignal(SIGHUP, topo_service_sighup);
 	pqsignal(SIGTERM, topo_service_sigterm);
 	pqsignal(SIGUSR2, topo_service_siguser2);
 	InitializeTimeouts();
@@ -1219,7 +1227,6 @@ void TopoServiceMain(void)
 	Assert (ptopo_service_pid);
 	*ptopo_service_pid = MyProcPid;
 
-	bool got_sighup = true;
 	while (!got_sigterm)
 	{
 		/*

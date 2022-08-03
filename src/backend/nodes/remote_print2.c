@@ -1024,7 +1024,17 @@ snprint_coerce_io(StringInfo str, CoerceViaIO *expr, RemotePrintExprContext *rpe
 	}
 	else
 	{
-		APPEND_EXPR(expr->arg);
+		const char *sztype = mysql_can_cast(typoid);
+		if (sztype)
+		{
+			APPEND_STR("cast(");
+			APPEND_EXPR(expr->arg);
+			APPEND_STR_FMT(" as %s)", sztype);
+		}
+		else
+		{
+			nw = -1;
+		}
 	}
 
 	return nw;

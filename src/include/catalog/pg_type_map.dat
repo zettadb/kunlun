@@ -26,7 +26,7 @@
  {typname => 'macaddr', mytype => 'char(18) character set latin1', myinput => 'macaddr_in', myoutput => 'my_macaddr_out'},
  {typname => 'macaddr8', mytype => 'char(24) character set latin1', myinput => 'macaddr8_in', myoutput => 'my_macaddr8_out'},
  {typname => 'money', mytype => 'numeric', mycast => 'decimal(65,8)', myinput => 'cash_in', myoutput => 'my_cash_out'},
- {typname => 'name', mytype => 'varchar(64)', mycast => 'char(64)' , myinput => 'namein', myoutput => 'my_nameout' },
+ {typname => 'name', mytype => 'varchar(64)', mycast => 'char(64) collate latin1_bin' , myinput => 'namein', myoutput => 'my_nameout' },
  {typname => 'numeric', mytype => 'numeric', mycast => 'numeric', myinput => 'numeric_in', myoutput => 'numeric_out' },
  {typname => 'oid', mytype => 'int unsigned', mycast => 'unsigned', myinput => 'oidin', myoutput => 'oidout'},
  {typname => 'pg_lsn', mytype => 'bigint unsigned', myinput => 'my_pg_lsn_in', myoutput => 'my_pg_lsn_out'},

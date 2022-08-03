@@ -1238,32 +1238,45 @@ void TopoServiceMain(void)
 			ProcessConfigFile(PGC_SIGHUP);
 		}
 
-		PG_TRY();
+		int step = 0;
+		while (step < 2)
 		{
-			// task 1: handle topology update requests.
-			enable_remote_timeout();
-			ProcessShardingTopoReqs();
-			disable_remote_timeout();
-
-			// task 2: kill connections/queries
+			PG_TRY();
 			{
 				StartTransactionCommand();
-				reapShardConnKillReqs();
+				switch (step)
+				{
+					case 0:
+						// task 1: handle topology update requests.
+						enable_remote_timeout();
+						ProcessShardingTopoReqs();
+						disable_remote_timeout();
+						break;
+					case 1:
+						// task 2: kill connections/queries
+						reapShardConnKillReqs();
+						break;
+					default:
+						break;
+				}
 				CommitTransactionCommand();
 			}
+			PG_CATCH();
+			{
+				EmitErrorReport();
+				FlushErrorState();
+				if (IsTransactionState())
+					AbortCurrentTransaction();
 
-			wait_latch(5000);
+				/* in case of crazy log */
+				wait_latch(1000);
+			}
+			PG_END_TRY();
+
+			step ++;
 		}
-		PG_CATCH();
-		{
-			EmitErrorReport();
-			FlushErrorState();
-			if (IsTransactionState())
-				AbortCurrentTransaction();
-			/* in case of crazy log */
-			wait_latch(1000);
-		}
-		PG_END_TRY();
+		
+		wait_latch(5000);
 	}
 
 	proc_exit(0);

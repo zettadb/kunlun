@@ -260,6 +260,11 @@ enum enum_field_types *get_stmt_field_types(StmtSafeHandle handle);
 size_t *get_stmt_row_lengths(StmtSafeHandle handle);
 
 /**
+ * @brief Get the affected rows of the statement
+ */
+extern int32 get_stmt_affected_rows(StmtSafeHandle handle);
+
+/**
  * @brief Rewind the result of the statement
  * 
  * @param handle 		handle returned from send_stmt_async

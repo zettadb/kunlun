@@ -21,6 +21,7 @@
 #include "lib/stringinfo.h"
 #include "nodes/pg_list.h"
 #include "nodes/nodes.h"
+#include "nodes/parsenodes.h"
 #include "utils/relcache.h"
 
 #include "sharding/mysql/server/private/sql_cmd.h"

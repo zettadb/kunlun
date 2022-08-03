@@ -18,12 +18,13 @@
 #include "postgres.h"
 
 #include "nodes/parsenodes.h"
+#include "nodes/plannodes.h"
 #include "utils/relcache.h"
 
 /**
  * @brief Check and log client ddl statements before ProcessUtility()
  */
-extern void pre_handle_ddl(PlannedStmt *pstmt, Node *parsetree, const char *query, bool *done);
+extern void pre_handle_ddl(PlannedStmt *pstmt, Node *parsetree, const char *query);
 
 /**
  * @brief Check and log client ddl statements after ProcessUtility() 

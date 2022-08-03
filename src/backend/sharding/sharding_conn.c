@@ -1828,6 +1828,12 @@ size_t *get_stmt_row_lengths(StmtSafeHandle handle)
 	return handle.handle->lengths;
 }
 
+int32 get_stmt_affected_rows(StmtSafeHandle handle)
+{
+	CHECK_HANDLE_EPOCH(handle);
+	return handle.handle->affected_rows;
+}
+
 static bool
 stmt_handles_member(StmtSafeHandle *handles, int size, StmtHandle *handle)
 {

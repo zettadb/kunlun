@@ -18,7 +18,7 @@
 #include "catalog/pg_proc.h"
 #include "catalog/pg_proc_map.h"
 #include "commands/sequence.h"
-#include "executor/spi.h"
+#include "executor/executor.h"
 #include "lib/stringinfo.h"
 #include "miscadmin.h"
 #include "nodes/makefuncs.h"

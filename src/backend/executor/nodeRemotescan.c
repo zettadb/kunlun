@@ -885,7 +885,7 @@ static void generate_remote_sql(RemoteScanState *rss)
 	foreach(lc, pstmt->rowMarks)
 	{
 		PlanRowMark *rc = lfirst_node(PlanRowMark, lc);
-		if (rc->rti == rs->scanrelid)
+		if (rc->rti == rs->scanrelid && rc->strength != LCS_NONE)
 		{
 			if (rc->strength == LCS_FORUPDATE || rc->strength == LCS_FORNOKEYUPDATE)
 			{

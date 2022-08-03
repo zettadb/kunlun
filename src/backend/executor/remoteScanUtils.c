@@ -196,6 +196,29 @@ Node* replace_expr_with_scanvar_mutator(Node *node, ScanTupleGenContext *context
 	if (!node)
 		return node;
 
+	/* expand the whole row var */
+	if (IsA(node, Var) && ((Var *)node)->varattno == 0)
+	{
+		Var *var = (Var *)node;
+		List *fields = NULL;
+		List *rtables = context->estate->es_plannedstmt->rtable;
+		RangeTblEntry *rte = list_nth(rtables, var->varno - 1);
+		expandRTE(rte,
+				var->varno,
+				var->varlevelsup,
+				var->location,
+				false, NULL,
+				&fields);
+		
+		RowExpr *rowexpr = makeNode(RowExpr);
+		rowexpr->args = fields;
+		rowexpr->row_typeid = var->vartype;
+		rowexpr->row_format = COERCE_IMPLICIT_CAST;
+		rowexpr->colnames = (rte->alias ? rte->alias->colnames : NIL);
+		rowexpr->location = var->location;
+		node = rowexpr;
+	}
+
 	ListCell *lc1, *lc2;
 	forboth(lc1, context->exprs, lc2, context->vars)
 	{

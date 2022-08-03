@@ -373,11 +373,8 @@ AsyncStmtInfo *GetAsyncStmtInfoNode(Oid shardid, Oid shardNodeId, bool req_chk_o
 		AsyncStmtInfo *pasi = cur_session.asis + i;
 		if (pasi->shard_id == shardid && pasi->node_id == shardNodeId)
 		{
-			if (pasi->conn != NULL)
-				return pasi;
-			
-			asi = pasi;
-			goto make_conn;
+			/* return what we have, do not support reconnect in transaction */
+			return pasi;
 		}
 	}
 
@@ -2252,7 +2249,7 @@ void send_stmt_to_all_inuse_sync(char *stmt, size_t len, CmdType cmdtype, bool o
 		if (written_only && !asi->did_write)
 			continue;
 
-		if (cmdtype == CMD_TXN_MGMT && !asi->txn_in_progress)
+		if (cmdtype == CMD_TXN_MGMT && ASIConnected(asi)  && !asi->txn_in_progress)
 			continue;
 
 		/* add it to asi's stmt queue  */

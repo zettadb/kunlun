@@ -792,16 +792,13 @@ DefineIndex(Oid relationId,
 
 		for (i = FirstLowInvalidHeapAttributeNumber + 1; i < 0; i++)
 		{
-			if (i != ObjectIdAttributeNumber &&
-				bms_is_member(i - FirstLowInvalidHeapAttributeNumber,
-							  indexattrs))
+			if (bms_is_member(i - FirstLowInvalidHeapAttributeNumber,
+						indexattrs))
+			{
 				ereport(ERROR,
 						(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
 						 errmsg("index creation on system columns is not supported")));
-			if (i == ObjectIdAttributeNumber && IsRemoteRelation(rel))
-				ereport(ERROR,
-						(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-						 errmsg("index creation on oid system column is not supported for remote tables")));
+			}
 		}
 	}
 

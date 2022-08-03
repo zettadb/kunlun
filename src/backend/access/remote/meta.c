@@ -605,6 +605,13 @@ void build_column_data_type(StringInfo str, Oid typid,
 			else
 				appendStringInfo(str, "(%d)", precision);
 		}
+		else if (typid == VARCHAROID || typid == BPCHAROID)
+		{
+			if (typmod < VARHDRSZ)
+				elog(ERROR, "invalid typmod (%u), need > %d", typmod, VARHDRSZ);
+
+			appendStringInfo(str, "(%d)", typmod - VARHDRSZ);
+		}
 		else
 		{
 			appendStringInfo(str, "(%d)", typmod);

@@ -35,6 +35,7 @@
 #include "commands/defrem.h"
 #include "executor/executor.h"
 #include "nodes/print.h"
+#include "nodes/nodeFuncs.h"
 #include "optimizer/planner.h"
 #include "postmaster/postmaster.h"
 #include "rewrite/rewriteHandler.h"
@@ -369,6 +370,27 @@ is_alter_table_column_only(Node *node)
 	return false;
 }
 
+/* Build a minimal RTE for the rel */
+static RangeTblEntry*
+create_minimal_rte(Relation relation)
+{
+	RangeTblEntry *rte;
+
+	rte = makeNode(RangeTblEntry);
+	rte->rtekind = RTE_RELATION;
+	rte->relid = RelationGetRelid(relation);
+	rte->relkind = RELKIND_RELATION;	/* Don't be too picky. */
+	rte->lateral = false;
+	rte->inh = false;
+	rte->inFromCl = true;
+	rte->relshardid = relation->rd_rel->relshardid;
+	rte->eref = makeNode(Alias);
+	rte->eref->aliasname = pstrdup(RelationGetRelationName(relation));
+	rte->eref->colnames = NIL;
+
+	return rte;
+}
+
 void remote_add_index(Relation indexrel)
 {
 	Node *top_stmt = remoteddl_top_stmt();
@@ -412,20 +434,72 @@ void remote_add_index(Relation indexrel)
 						 indexname,
 						 indexrel->rd_rel->relam == BTREE_AM_OID ? "BTREE" : "HASH");
 
-		char keypartlenstr[32] = {'\0'};
+		List *indexprs = NIL;
+		ListCell *lc;
+		StringInfoData buff;
+		RemotePrintExprContext rpec;
+		char kplenstr[32] = {'\0'};
+
+		initStringInfo(&buff);
+		InitRemotePrintExprContext(&rpec, list_make1(create_minimal_rte(heaprel)));
+
 		// the first indnkeyattrs fields are key columns, the rest are included columns.
 		for (int natt = 0; natt < IndexRelationGetNumberOfKeyAttributes(indexrel); natt++)
 		{
 			int attno = indexrel->rd_index->indkey.values[natt];
-			if (attno <= 0)
-				ereport(ERROR, (errcode(ERRCODE_INVALID_TABLE_DEFINITION),
-								errmsg("Can not index system columns.")));
+			char *attname;
+			Oid typid;
+			int32 typmod;
 
-			keypartlenstr[0] = '\0';
-			Form_pg_attribute attrs = heaprel->rd_att->attrs + attno - 1;
-			if (needs_mysql_keypart_len(attrs->atttypid, attrs->atttypmod))
+			kplenstr[0] = '\0';
+			/* It's a expression, not a simple column */
+			if (attno > 0)
 			{
-				snprintf(keypartlenstr, sizeof(keypartlenstr), "(%d)", str_key_part_len);
+				Form_pg_attribute attrs;
+				attrs = heaprel->rd_att->attrs + attno - 1;
+				typid = attrs->atttypid;
+				typmod = attrs->atttypmod;
+				attname = attrs->attname.data;
+				if (needs_mysql_keypart_len(typid, typmod))
+				{
+					snprintf(kplenstr, sizeof(kplenstr), "(%d)", str_key_part_len);
+				}
+			}
+			else if (attno == 0)
+			{
+				if (!indexprs)
+				{
+					bool isnull;
+					Datum exprsDatum = SysCacheGetAttr(INDEXRELID,
+									   indexrel->rd_indextuple,
+									   Anum_pg_index_indexprs,
+									   &isnull);
+					char *exprsString = TextDatumGetCString(exprsDatum);
+					indexprs = (List *)stringToNode(exprsString);
+					pfree(exprsString);
+					lc = list_head(indexprs);
+				}
+
+				if (lc == NULL)
+					elog(ERROR, "Got wrong number of index");
+
+				Expr *expr = (Expr *)lfirst(lc);
+
+				resetStringInfo(&buff);
+				appendStringInfoChar(&buff, '(');
+				if (snprint_expr(&buff, expr, &rpec) < 0)
+				{
+					elog(ERROR, "index expression cannot serialized to shard.");
+				}
+				appendStringInfoChar(&buff, ')');
+				attname = buff.data;
+
+				lc = lnext(lc);
+			}
+			else if (attno < 0)
+			{
+				ereport(ERROR, (errcode(ERRCODE_INVALID_TABLE_DEFINITION),
+						errmsg("Can not index system columns.")));
 			}
 
 			const char *order_option = "";
@@ -433,7 +507,7 @@ void remote_add_index(Relation indexrel)
 				order_option = (indexrel->rd_indoption[natt] & INDOPTION_DESC) ? "DESC" : "ASC";
 
 			appendStringInfo(&remote_ddl, "%s%s %s, ",
-							 attrs->attname.data, keypartlenstr, order_option);
+					 attname, kplenstr, order_option);
 		}
 
 		remote_ddl.len -= 2;

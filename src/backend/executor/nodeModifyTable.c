@@ -3560,25 +3560,32 @@ next_stmt:
 		/* Get the matched row */
 		if (remote_updel->limit > 0)
 		{
-			const char query[] = "select found_rows()";
-			/*
-			 * TODO: the FOUND_ROWS() will be removed in a future release,
-			 * fix it in the future
-			 */
-			handle = send_stmt_async(RAW_HANDLE(handle)->asi,
-						 (char *)query,
-						 sizeof(query) - 1,
-						 CMD_SELECT,
-						 false,
-						 SQLCOM_SELECT,
-						 false);
-
-			if ((row = get_stmt_next_row(handle)))
+			if (node->operation == CMD_UPDATE)
 			{
-				*pcount -= strtol(row[0], NULL, 10);
-			}
+				const char query[] = "select found_rows()";
+				/*
+				 * TODO: the FOUND_ROWS() will be removed in a future release,
+				 * fix it in the future
+				 */
+				handle = send_stmt_async(RAW_HANDLE(handle)->asi,
+						(char *)query,
+						sizeof(query) - 1,
+						CMD_SELECT,
+						false,
+						SQLCOM_SELECT,
+						false);
 
-			release_stmt_handle(handle);
+				if ((row = get_stmt_next_row(handle)))
+				{
+					*pcount -= strtol(row[0], NULL, 10);
+				}
+
+				release_stmt_handle(handle);
+			}
+			else
+			{
+				*pcount -= get_stmt_affected_rows(handle);
+			}
 		}
 	}
 	else

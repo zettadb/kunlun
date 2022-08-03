@@ -31,6 +31,7 @@
 #include "catalog/pg_am_d.h"
 #include "commands/seclabel.h"
 #include "commands/dbcommands.h"
+#include "commands/defrem.h"
 #include "libpq/crypt.h"
 #include "sharding/sharding_conn.h"
 #include "sharding/cluster_meta.h"
@@ -65,6 +66,14 @@ CURRENT_QUERY(PlannedStmt *pstmt, const char *query)
 		return pnstrdup(query + pstmt->stmt_location, pstmt->stmt_len);
 
 	return pstrdup(query + pstmt->stmt_location);
+}
+
+static bool
+is_template_db(Oid dbid)
+{
+	NameData name;
+	get_database_name3(dbid, &name);
+	return strcasecmp(name.data, "template1") == 0 || strcasecmp(name.data, "template0") == 0;
 }
 
 void log_create_db(PlannedStmt *pstmt, CreatedbStmt *stmt, const char *query)
@@ -198,6 +207,12 @@ void log_create_stmt(PlannedStmt *pstmt, CreateStmt *stmt, const char *query)
 					errmsg("Kunlun: Creating table in information_schema is not allowed.")));
 	}
 
+	if (is_template_db(MyDatabaseId))
+	{
+		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				errmsg("Kunlun: Creating table in template database is not allowed.")));
+	}
+
 	/* is temp table, do nothing */
 	if (rel->rd_rel->relpersistence != RELPERSISTENCE_TEMP)
 	{
@@ -249,6 +264,12 @@ void log_create_index(PlannedStmt *pstmt, IndexStmt *stmt, const char *query)
 	{
 		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
 					errmsg("Kunlun: Creating index in information_schema is not allowed.")));
+	}
+
+	if (is_template_db(MyDatabaseId))
+	{
+		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				errmsg("Kunlun: Creating index in template database is not allowed.")));
 	}
 
 	if (rel->rd_rel->relpersistence != RELPERSISTENCE_TEMP)
@@ -536,6 +557,13 @@ void log_create_sequence(PlannedStmt *pstmt, CreateSeqStmt *stmt, const char *qu
 					errmsg("Kunlun: Creating sequence in information_schema is not allowed.")));
 	}
 
+	if (is_template_db(MyDatabaseId))
+	{
+		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				errmsg("Kunlun: Creating sequence in template database is not allowed.")));
+	}
+
+
 	/* Append shard=N to the ddl */
 	if (stmt->shardid == InvalidOid)
 	{
@@ -739,7 +767,6 @@ log_create_alter_role(PlannedStmt *pstmt, Node *stmt, const char *query)
 			InvalidOid,
 			NULL);
 }
-
 
 static
 bool is_alter_table_supported(AlterTableStmt *stmt)
@@ -991,6 +1018,25 @@ void pre_handle_ddl(PlannedStmt *pstmt, Node *parsetree, const char *query)
 		DropStmt *stmt = (DropStmt *)parsetree;
 		if (is_top_stmt)
 			log_drop_stmt(pstmt, stmt, query);
+		break;
+	}
+	case T_CreatedbStmt:
+	{
+		ListCell *lc;
+		foreach (lc, ((CreatedbStmt *)parsetree)->options)
+		{
+			DefElem *defel = (DefElem *)lfirst(lc);
+			if (strcmp(defel->defname, "template") == 0)
+			{
+				char *templatedb = defGetString(defel);
+				if (strcasecmp(templatedb, "template1") != 0 &&
+				    strcasecmp(templatedb, "template0") != 0)
+				{
+					ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+							errmsg("Kunlun: The template option only support template{0/1}.")));
+				}
+			}
+		}
 		break;
 	}
 	case T_RenameStmt:

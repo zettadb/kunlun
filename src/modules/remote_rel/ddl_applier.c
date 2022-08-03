@@ -647,6 +647,18 @@ static void free_applier_connection(Oid dbid)
 	}
 
 	PQclear(res);
+
+	/* Disconnect if database is template/template0, 
+	  otherwise it will block other create database command
+	  */
+	NameData name;
+	get_database_name3(dbid, &name);
+
+	if (strcasecmp(name.data, "template0") == 0 ||
+	    strcasecmp(name.data, "template1"))
+	{
+		free_applier_connection(dbid);
+	}
 }
 
 static void apply_ddl_log_local(Oid dbid, DDL_log_event *event)

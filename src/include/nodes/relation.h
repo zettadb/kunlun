@@ -612,6 +612,9 @@ typedef enum RelOptKind
 	 (rel)->reloptkind == RELOPT_OTHER_JOINREL || \
 	 (rel)->reloptkind == RELOPT_OTHER_UPPER_REL)
 
+#define IS_REMOTE_RELOPT(root, rel) \
+       ((rel)->relshardid && rt_fetch((rel)->relid, (root)->parse->rtable)->relkind == RELKIND_RELATION)
+
 typedef struct RelOptInfo
 {
 	NodeTag		type;

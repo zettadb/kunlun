@@ -728,8 +728,7 @@ set_plain_rel_pathlist(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *rte)
 	 * that's the job of the mysql storage node. Use dedicated plan
 	 * node(T_Remote_Scan) for better readablility in explain result.
 	 * */
-	if (IS_REMOTE_RTE(rel) || (rel->reloptkind == RELOPT_BASEREL &&
-							   rte->relkind == RELKIND_PARTITIONED_TABLE))
+	if (IS_REMOTE_RELOPT(root, rel))
 	{
 		add_path(rel, create_remotescan_path(root, rel, required_outer, 0));
 		/*

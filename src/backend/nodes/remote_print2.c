@@ -695,7 +695,7 @@ snprint_param_expr(StringInfo str, RemotePrintExprContext *rpec, Param *param)
 	if (param->paramkind == PARAM_EXEC)
 	{
 		/* Check if internal parameter is not ok or caller expects no internal params*/
-		if (!rpec->rpec_param_exec_vals || rpec->exec_param_quals)
+		if (!rpec->rpec_param_exec_vals || !rpec->exec_param_quals)
 			return -2;
 		ParamExecData *exec_data = rpec->rpec_param_exec_vals + param->paramid;
 		Assert(exec_data);

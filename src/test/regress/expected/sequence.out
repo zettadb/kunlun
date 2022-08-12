@@ -236,7 +236,7 @@ SELECT setval('sequence_test'::text, 99, false);
 SELECT nextval('sequence_test'::regclass);
  nextval 
 ---------
-     100
+      99
 (1 row)
 
 SELECT setval('sequence_test'::regclass, 32);
@@ -260,7 +260,7 @@ SELECT setval('sequence_test'::regclass, 99, false);
 SELECT nextval('sequence_test'::text);
  nextval 
 ---------
-     100
+      99
 (1 row)
 
 DISCARD SEQUENCES;
@@ -367,7 +367,7 @@ ALTER SEQUENCE
 SELECT nextval('sequence_test2');
  nextval 
 ---------
-      28
+      24
 (1 row)
 
 SELECT nextval('sequence_test4');
@@ -395,6 +395,12 @@ ALTER SEQUENCE
 SELECT nextval('sequence_test2');
  nextval 
 ---------
+      24
+(1 row)
+
+SELECT nextval('sequence_test2');
+ nextval 
+---------
       28
 (1 row)
 
@@ -410,16 +416,10 @@ SELECT nextval('sequence_test2');
       36
 (1 row)
 
-SELECT nextval('sequence_test2');
- nextval 
----------
-       5
-(1 row)
-
 SELECT nextval('sequence_test2');  -- cycled
  nextval 
 ---------
-       9
+       5
 (1 row)
 
 ALTER SEQUENCE sequence_test2 RESTART WITH 24
@@ -428,6 +428,12 @@ ALTER SEQUENCE
 SELECT nextval('sequence_test2');
  nextval 
 ---------
+      24
+(1 row)
+
+SELECT nextval('sequence_test2');
+ nextval 
+---------
       28
 (1 row)
 
@@ -443,21 +449,17 @@ SELECT nextval('sequence_test2');
       36
 (1 row)
 
-SELECT nextval('sequence_test2');
- nextval 
----------
-       5
-(1 row)
-
 SELECT nextval('sequence_test2');  -- error
- nextval 
----------
-       9
-(1 row)
-
+psql:sql/sequence.sql:209: ERROR:  Kunlun-db: nextval(): exhausted all values of sequence "sequence_test2" 
 ALTER SEQUENCE sequence_test2 RESTART WITH -24 START WITH -24
   INCREMENT BY -4 MINVALUE -36 MAXVALUE -5 CYCLE;
 ALTER SEQUENCE
+SELECT nextval('sequence_test2');
+ nextval 
+---------
+     -24
+(1 row)
+
 SELECT nextval('sequence_test2');
  nextval 
 ---------
@@ -476,16 +478,10 @@ SELECT nextval('sequence_test2');
      -36
 (1 row)
 
-SELECT nextval('sequence_test2');
- nextval 
----------
-      -5
-(1 row)
-
 SELECT nextval('sequence_test2');  -- cycled
  nextval 
 ---------
-      -9
+      -5
 (1 row)
 
 ALTER SEQUENCE sequence_test2 RESTART WITH -24
@@ -494,6 +490,12 @@ ALTER SEQUENCE
 SELECT nextval('sequence_test2');
  nextval 
 ---------
+     -24
+(1 row)
+
+SELECT nextval('sequence_test2');
+ nextval 
+---------
      -28
 (1 row)
 
@@ -509,18 +511,8 @@ SELECT nextval('sequence_test2');
      -36
 (1 row)
 
-SELECT nextval('sequence_test2');
- nextval 
----------
-      -5
-(1 row)
-
 SELECT nextval('sequence_test2');  -- error
- nextval 
----------
-      -9
-(1 row)
-
+psql:sql/sequence.sql:225: ERROR:  Kunlun-db: nextval(): exhausted all values of sequence "sequence_test2" 
 -- reset
 ALTER SEQUENCE IF EXISTS sequence_test2 RESTART WITH 32 START WITH 32
   INCREMENT BY 4 MAXVALUE 36 MINVALUE 5 CYCLE;
@@ -575,7 +567,7 @@ WHERE sequencename ~ ANY(ARRAY['sequence_test', 'serialtest'])
  public     | sequence_test12    |          -1 |          -2147483648 |                  -1 |           -1 | f     |          1 |           
  public     | sequence_test13    |      -32768 |          -2147483648 |          2147483647 |            1 | f     |          1 |           
  public     | sequence_test14    |       32767 |          -2147483648 |          2147483647 |           -1 | f     |          1 |           
- public     | sequence_test2     |          32 |                    5 |                  36 |            4 | t     |          1 |        -33
+ public     | sequence_test2     |          32 |                    5 |                  36 |            4 | t     |          1 |        -36
  public     | sequence_test3     |           1 |                    1 | 9223372036854775807 |            1 | f     |          1 |           
  public     | sequence_test4     |          -1 | -9223372036854775808 |                  -1 |           -1 | f     |          1 |       -100
  public     | sequence_test5     |           1 |                    1 |               32767 |            1 | f     |          1 |           

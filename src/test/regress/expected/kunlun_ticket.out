@@ -1,0 +1,565 @@
+drop table if exists tenk1;
+psql:kunlun_ticket.sql:1: NOTICE:  table "tenk1" does not exist, skipping
+DROP TABLE
+ CREATE TABLE tenk1 (
+ unique1  int4,
+ unique2  int4,
+ two   int4,
+ four  int4,
+ ten   int4,
+ twenty  int4,
+ hundred  int4,
+ thousand int4,
+ twothousand int4,
+ fivethous int4,
+ tenthous int4,
+ odd   int4,
+ even  int4,
+ stringu1 name,
+ stringu2 name,
+ string4  name
+);
+CREATE TABLE
+COPY tenk1 FROM '/home/vito/pgregressdata/data/tenk.data';
+COPY 10000
+select count(*) from tenk1;
+ count 
+-------
+ 10000
+(1 row)
+
+drop table if exists FLOAT8_TBL;
+psql:kunlun_ticket.sql:23: NOTICE:  table "float8_tbl" does not exist, skipping
+DROP TABLE
+CREATE TABLE FLOAT8_TBL(f1 float8);
+CREATE TABLE
+INSERT INTO FLOAT8_TBL(f1) VALUES ('    0.0   ');
+INSERT 0 1
+INSERT INTO FLOAT8_TBL(f1) VALUES ('1004.30  ');
+INSERT 0 1
+INSERT INTO FLOAT8_TBL(f1) VALUES ('   -34.84');
+INSERT 0 1
+INSERT INTO FLOAT8_TBL(f1) VALUES ('1.2345678901234e+200');
+INSERT 0 1
+INSERT INTO FLOAT8_TBL(f1) VALUES ('1.2345678901234e-200');
+INSERT 0 1
+drop table if exists INT4_TBL;
+psql:kunlun_ticket.sql:32: NOTICE:  table "int4_tbl" does not exist, skipping
+DROP TABLE
+CREATE TABLE INT4_TBL(f1 int4);
+CREATE TABLE
+INSERT INTO INT4_TBL(f1) VALUES ('   0  ');
+INSERT 0 1
+INSERT INTO INT4_TBL(f1) VALUES ('123456     ');
+INSERT 0 1
+INSERT INTO INT4_TBL(f1) VALUES ('    -123456');
+INSERT 0 1
+INSERT INTO INT4_TBL(f1) VALUES ('34.5');
+psql:kunlun_ticket.sql:37: ERROR:  invalid input syntax for integer: "34.5"
+LINE 1: INSERT INTO INT4_TBL(f1) VALUES ('34.5');
+                                         ^
+drop table if exists INT8_TBL cascade;
+psql:kunlun_ticket.sql:40: NOTICE:  drop cascades to 2 other objects
+DETAIL:  drop cascades to function extractq2(int8_tbl)
+drop cascades to function extractq2_2(int8_tbl)
+DROP TABLE
+CREATE TABLE INT8_TBL(q1 int8, q2 int8);
+CREATE TABLE
+INSERT INTO INT8_TBL VALUES('  123   ','  456');
+INSERT 0 1
+INSERT INTO INT8_TBL VALUES('123   ','4567890123456789');
+INSERT 0 1
+INSERT INTO INT8_TBL VALUES('4567890123456789','123');
+INSERT 0 1
+INSERT INTO INT8_TBL VALUES(+4567890123456789,'4567890123456789');
+INSERT 0 1
+INSERT INTO INT8_TBL VALUES('+4567890123456789','-4567890123456789');
+INSERT 0 1
+-- ticket:946
+show create table tenk1;
+ Table |     Create Table      
+-------+-----------------------
+ tenk1 | CREATE TABLE tenk1 ( +
+       |  unique1 integer,    +
+       |  unique2 integer,    +
+       |  two integer,        +
+       |  four integer,       +
+       |  ten integer,        +
+       |  twenty integer,     +
+       |  hundred integer,    +
+       |  thousand integer,   +
+       |  twothousand integer,+
+       |  fivethous integer,  +
+       |  tenthous integer,   +
+       |  odd integer,        +
+       |  even integer,       +
+       |  stringu1 name,      +
+       |  stringu2 name,      +
+       |  string4 name        +
+       | ) WITH (shard='1')
+(1 row)
+
+update pg_class set reltuples=10000 where relname = 'tenk1';
+UPDATE 1
+ explain select count(*)
+from
+  (select t3.tenthous as x1, coalesce(t1.stringu1, t2.stringu1) as x2
+   from tenk1 t1
+   left join tenk1 t2 on t1.unique1 = t2.unique1
+   join tenk1 t3 on t1.unique2 = t3.unique2) ss,
+  tenk1 t4,
+  tenk1 t5
+where t4.thousand = t5.unique1 and ss.x1 = t4.tenthous and ss.x2 = t5.stringu1;
+
+--ticket:291
+select f1, (select min(unique1) from tenk1 where unique1 > f1) AS gt from int4_tbl;
+   f1    | gt 
+---------+----
+       0 |  1
+  123456 |   
+ -123456 |  0
+(3 rows)
+
+--ticket:882
+drop table if exists t2;
+DROP TABLE
+CREATE TABLE t2 (
+    a integer AUTO_INCREMENT
+);
+CREATE TABLE
+INSERT INTO t2 VALUES (NULL);
+INSERT 0 1
+-- ticket:842
+drop table if exists t2;
+DROP TABLE
+create  table t2(a int );	
+CREATE TABLE
+create index on t2(a);
+CREATE INDEX
+drop index t2_a_idx; create index on t2(a);
+DROP INDEX
+CREATE INDEX
+ \d+ t2;
+                                    Table "public.t2"
+ Column |  Type   | Collation | Nullable | Default | Storage | Stats target | Description 
+--------+---------+-----------+----------+---------+---------+--------------+-------------
+ a      | integer |           |          |         | plain   |              | 
+Indexes:
+    "t2_a_idx" btree (a NULLS FIRST)
+Options: shard=0
+
+ 
+ 
+-- ticket:826
+drop table if exists t1; 
+DROP TABLE
+create table t1(a int, b int, c int, d int);
+CREATE TABLE
+create index on t1(a);
+CREATE INDEX
+insert into t1 select generate_series(1,1000);
+INSERT 0 1000
+analyze t1;
+ANALYZE
+explain select * from t1 where t1.a=1;
+
+drop index t1_a_idx;
+DROP INDEX
+explain select * from t1 where t1.a=1;
+
+-- ticket:908
+drop table if exists t1,t2; 
+DROP TABLE
+create table t1(a int, b int) with(shard=1);
+CREATE TABLE
+create table t2(a int, b int) with(shard=2);
+CREATE TABLE
+create index on t1(a);
+CREATE INDEX
+create index on t2(a);
+CREATE INDEX
+-- 准备数据
+insert into t1 select  random()*100, generate_series(1,100) % 10;
+INSERT 0 100
+insert into t2 select generate_series(1,100), random()*100;
+INSERT 0 100
+analyze t1, t2;
+ANALYZE
+-- 禁止hash/merge join，以及物化优化
+set enable_hashjoin =off;
+SET
+set enable_mergejoin =off;
+SET
+set enable_material =off;
+SET
+-- 产生NestLoop JOIN执行计划
+explain select * from t1, t2 where t1.b=t2.a and t1.a < 40;
+
+-- ticket:881
+select 'CREATE USER MAPPING FOR \"current_user\" SERVER sv2 OPTIONS (user ''\"current_user\"'')';
+                                       ?column?                                        
+---------------------------------------------------------------------------------------
+ CREATE USER MAPPING FOR \"current_user\" SERVER sv2 OPTIONS (user '\"current_user\"')
+(1 row)
+
+--ticket:900
+drop table if exists t; 
+psql:kunlun_ticket.sql:118: NOTICE:  table "t" does not exist, skipping
+DROP TABLE
+create table t(a int auto_increment);
+CREATE TABLE
+insert into t values(default), (default);
+INSERT 0 2
+drop table t;
+DROP TABLE
+--ticket:895
+drop table if exists t1; 
+DROP TABLE
+create table t1(a int, b varchar(10));
+CREATE TABLE
+insert into t1 select 1, ' 01';
+INSERT 0 1
+select a::text::float =b::float from t1;
+ ?column? 
+----------
+ t
+(1 row)
+
+drop table t1;
+DROP TABLE
+-- ticket:887
+drop table if exists t1; 
+psql:kunlun_ticket.sql:133: NOTICE:  table "t1" does not exist, skipping
+DROP TABLE
+create table t1(a int, b int);
+CREATE TABLE
+insert into t1 values(1,0),(2,0),(3,0),(4,0),(5,0);
+INSERT 0 5
+WITH t AS (UPDATE t1 SET b=b+1 limit 4 returning *)
+SELECT *
+FROM t limit 1;
+ a | b 
+---+---
+ 1 | 1
+(1 row)
+
+select * from t1;
+ a | b 
+---+---
+ 1 | 1
+ 2 | 1
+ 3 | 1
+ 4 | 1
+ 5 | 0
+(5 rows)
+
+drop table t1;
+DROP TABLE
+--ticket:332
+CREATE SEQUENCE sequence_test2 START WITH 32; 	
+CREATE SEQUENCE
+ALTER SEQUENCE IF EXISTS sequence_test2 RESTART WITH 24
+  INCREMENT BY 4 MAXVALUE 36 MINVALUE 5 CYCLE;
+ALTER SEQUENCE
+SELECT nextval('sequence_test2');
+ nextval 
+---------
+      24
+(1 row)
+
+--ticket:897
+drop database abc;
+psql:kunlun_ticket.sql:158: ERROR:  database "abc" does not exist
+create database abc；
+create database if not exists abc;
+psql:kunlun_ticket.sql:160: ERROR:  syntax error at or near "create"
+LINE 2: create database if not exists abc;
+        ^
+--ticket:898
+--SHOW name;
+--SHOW ALL;
+--SHOW DATABASES;
+--SHOW SCHEMAS;
+--SHOW TABLES;
+--SHOW PROCESSLIST;
+--ticket:936
+select length(stringu1) from tenk1 group by length(stringu1);
+ length 
+--------
+      6
+(1 row)
+
+CREATE FUNCTION f_leak (text)
+       RETURNS bool LANGUAGE 'plpgsql' COST 0.0000001
+       AS 'BEGIN RAISE NOTICE ''f_leak => %'', $1; RETURN true; END';
+CREATE FUNCTION
+	   
+drop table if exists customer;   
+psql:kunlun_ticket.sql:178: NOTICE:  table "customer" does not exist, skipping
+DROP TABLE
+CREATE TABLE customer (
+       cid      int primary key,
+       name     text not null,
+       tel      text,
+       passwd   text);
+CREATE TABLE
+CREATE VIEW my_property_normal AS
+       SELECT * FROM customer WHERE name = current_user;
+CREATE VIEW
+	   
+GRANT SELECT ON my_property_normal TO public;
+GRANT
+SELECT * FROM my_property_normal WHERE f_leak(passwd);
+ cid | name | tel | passwd 
+-----+------+-----+--------
+(0 rows)
+
+drop table customer cascade;
+psql:kunlun_ticket.sql:191: NOTICE:  drop cascades to view my_property_normal
+DROP TABLE
+drop FUNCTION f_leak;
+DROP FUNCTION
+--ticket:920
+drop sequence if exists s1;
+psql:kunlun_ticket.sql:195: NOTICE:  sequence "s1" does not exist, skipping
+DROP SEQUENCE
+create sequence s1;
+CREATE SEQUENCE
+select * from s1;
+ last_value | log_cnt | is_called 
+------------+---------+-----------
+          1 |       0 | f
+(1 row)
+
+drop sequence s1;
+DROP SEQUENCE
+--ticket:932
+drop table if exists temptest2 cascade;
+psql:kunlun_ticket.sql:201: NOTICE:  table "temptest2" does not exist, skipping
+DROP TABLE
+begin;
+BEGIN
+CREATE TEMP TABLE temptest2(col int PRIMARY KEY) ON COMMIT DELETE ROWS;
+CREATE TABLE
+insert into temptest2 values (1),(2);
+INSERT 0 2
+select*from temptest2;
+ col 
+-----
+   1
+   2
+(2 rows)
+
+commit;
+COMMIT
+-- ticket:109
+drop table if exists tf1;
+psql:kunlun_ticket.sql:209: NOTICE:  table "tf1" does not exist, skipping
+DROP TABLE
+create table tf1(v float8);
+CREATE TABLE
+insert into tf1 values(34.84);
+INSERT 0 1
+select int4(v) from tf1;
+ int4 
+------
+   35
+(1 row)
+
+drop table tf1;
+DROP TABLE
+-- ticket:93
+select q1 | q2 from int8_tbl;
+     ?column?     
+------------------
+              507
+ 4567890123456895
+ 4567890123456895
+ 4567890123456789
+               -1
+(5 rows)
+
+select q1 -- q2 from int8_tbl;
+select ~q1 from int8_tbl;
+psql:kunlun_ticket.sql:219: ERROR:  syntax error at or near "select"
+LINE 2: select ~q1 from int8_tbl;
+        ^
+select ~q2 from int8_tbl;
+     ?column?      
+-------------------
+              -457
+ -4567890123456790
+              -124
+ -4567890123456790
+  4567890123456788
+(5 rows)
+
+-- ticket:12
+drop table if exists attmp;
+psql:kunlun_ticket.sql:224: NOTICE:  table "attmp" does not exist, skipping
+DROP TABLE
+CREATE TABLE attmp (initial int4);
+CREATE TABLE
+ALTER TABLE attmp ADD COLUMN a int4 default 3;
+ALTER TABLE
+ALTER TABLE attmp ADD COLUMN b name;
+ALTER TABLE
+ALTER TABLE attmp ADD COLUMN c text;
+ALTER TABLE
+ALTER TABLE attmp ADD COLUMN d float8;
+ALTER TABLE
+ALTER TABLE attmp ADD COLUMN e float4;
+ALTER TABLE
+CREATE INDEX attmp_idx ON attmp (a, (d + e), b);
+CREATE INDEX
+drop table attmp;
+DROP TABLE
+-- ticket:82
+drop table if exists bytea_test_table;
+psql:kunlun_ticket.sql:239: NOTICE:  table "bytea_test_table" does not exist, skipping
+DROP TABLE
+create table bytea_test_table(v bytea);
+CREATE TABLE
+insert into bytea_test_table values(decode('ff','hex'));
+INSERT 0 1
+select string_agg(v,'') from bytea_test_table;
+ string_agg 
+------------
+ \xff
+(1 row)
+
+drop table bytea_test_table;
+DROP TABLE
+-- ticket:130
+drop table if exists list_parted cascade;
+psql:kunlun_ticket.sql:249: NOTICE:  table "list_parted" does not exist, skipping
+DROP TABLE
+create table list_parted ( a text, b int) partition by list (lower(a));
+CREATE TABLE
+create table part_ee_ff partition of list_parted for values in ('ee', 'ff') partition by range (b);
+CREATE TABLE
+drop table list_parted;
+DROP TABLE
+-- ticket:49
+drop table if exists ts1;
+psql:kunlun_ticket.sql:257: NOTICE:  table "ts1" does not exist, skipping
+DROP TABLE
+create table ts1(id int, info text);
+CREATE TABLE
+select * from ts1 for share;
+ id | info 
+----+------
+(0 rows)
+
+drop table ts1;
+DROP TABLE
+drop table if exists INT8_TBL cascade;
+DROP TABLE
+CREATE TABLE INT8_TBL(q1 int8, q2 int8);
+CREATE TABLE
+create function extractq2(t int8_tbl) returns int8 as $$
+select t.q2
+$$ language sql immutable;
+CREATE FUNCTION
+create function extractq2_2(t int8_tbl) returns table(ret1 int8) as $$
+select extractq2(t) offset 0
+$$ language sql immutable;
+CREATE FUNCTION
+select x from int8_tbl, extractq2_2(int8_tbl) f(x);
+ x 
+---
+(0 rows)
+
+--ticket:120
+DROP SEQUENCE IF EXISTS sequence_test;
+psql:kunlun_ticket.sql:275: NOTICE:  sequence "sequence_test" does not exist, skipping
+DROP SEQUENCE
+CREATE SEQUENCE sequence_test;
+CREATE SEQUENCE
+SELECT setval('sequence_test'::text, 99, false); -- this returns 99
+ setval 
+--------
+     99
+(1 row)
+
+SELECT nextval('sequence_test'::text); -- this should returns 99, but it returns 100
+ nextval 
+---------
+      99
+(1 row)
+
+DROP SEQUENCE sequence_test;
+DROP SEQUENCE
+--ticket:332
+drop sequence  IF EXISTS sequence_test2;
+DROP SEQUENCE
+CREATE SEQUENCE sequence_test2 START WITH 32; 	
+CREATE SEQUENCE
+ALTER SEQUENCE IF EXISTS sequence_test2 RESTART WITH 24
+  INCREMENT BY 4 MAXVALUE 36 MINVALUE 5 CYCLE;
+ALTER SEQUENCE
+SELECT nextval('sequence_test2'); -- this returns 24
+ nextval 
+---------
+      24
+(1 row)
+
+ALTER SEQUENCE sequence_test2 RESTART WITH 32
+NO CYCLE;
+ALTER SEQUENCE
+SELECT nextval('sequence_test2');
+ nextval 
+---------
+      32
+(1 row)
+
+SELECT nextval('sequence_test2');
+ nextval 
+---------
+      36
+(1 row)
+
+SELECT nextval('sequence_test2'); -- error
+psql:kunlun_ticket.sql:298: ERROR:  Kunlun-db: nextval(): exhausted all values of sequence "sequence_test2" 
+drop sequence sequence_test2;
+DROP SEQUENCE
+--ticket:914
+set enable_mergejoin = off, enable_hashjoin = off;
+SET
+SET SESSION NET_READ_TIMEOUT= 86400, @@SESSION.NET_WRITE_TIMEOUT= 86400;
+SET
+SET SESSION NET_READ_TIMEOUT= 86400, @@SESSION.NET_WRITE_TIMEOUT= 86400, enable_hashjoin = off;
+SET
+--ticket:905 
+CREATE DATABASE dbname TEMPLATE template0;
+psql:kunlun_ticket.sql:312: ERROR:  database "dbname" already exists
+--ticket:901
+drop table if exists t1;
+psql:kunlun_ticket.sql:317: NOTICE:  table "t1" does not exist, skipping
+DROP TABLE
+create table t1(a int, b int);
+CREATE TABLE
+    
+begin;
+BEGIN
+insert into t1 values(1,1);
+INSERT 0 1
+savepoint s1;
+SAVEPOINT
+insert into t1 values(2,2);
+INSERT 0 1
+insert into t1 values(2,2);
+INSERT 0 1
+commit;
+COMMIT
+drop table tenk1;
+DROP TABLE
+drop table FLOAT8_TBL;
+DROP TABLE
+drop table INT4_TBL;
+DROP TABLE
+drop table INT8_TBL cascade;
+psql:kunlun_ticket.sql:335: NOTICE:  drop cascades to 2 other objects
+DETAIL:  drop cascades to function extractq2(int8_tbl)
+drop cascades to function extractq2_2(int8_tbl)
+DROP TABLE

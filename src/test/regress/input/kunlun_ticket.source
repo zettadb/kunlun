@@ -1,0 +1,335 @@
+drop table if exists tenk1;
+ CREATE TABLE tenk1 (
+ unique1  int4,
+ unique2  int4,
+ two   int4,
+ four  int4,
+ ten   int4,
+ twenty  int4,
+ hundred  int4,
+ thousand int4,
+ twothousand int4,
+ fivethous int4,
+ tenthous int4,
+ odd   int4,
+ even  int4,
+ stringu1 name,
+ stringu2 name,
+ string4  name
+);
+COPY tenk1 FROM '@abs_srcdir@/data/tenk.data';
+
+select count(*) from tenk1;
+drop table if exists FLOAT8_TBL;
+CREATE TABLE FLOAT8_TBL(f1 float8);
+
+INSERT INTO FLOAT8_TBL(f1) VALUES ('    0.0   ');
+INSERT INTO FLOAT8_TBL(f1) VALUES ('1004.30  ');
+INSERT INTO FLOAT8_TBL(f1) VALUES ('   -34.84');
+INSERT INTO FLOAT8_TBL(f1) VALUES ('1.2345678901234e+200');
+INSERT INTO FLOAT8_TBL(f1) VALUES ('1.2345678901234e-200');
+
+drop table if exists INT4_TBL;
+CREATE TABLE INT4_TBL(f1 int4);
+INSERT INTO INT4_TBL(f1) VALUES ('   0  ');
+INSERT INTO INT4_TBL(f1) VALUES ('123456     ');
+INSERT INTO INT4_TBL(f1) VALUES ('    -123456');
+INSERT INTO INT4_TBL(f1) VALUES ('34.5');
+
+
+drop table if exists INT8_TBL cascade;
+CREATE TABLE INT8_TBL(q1 int8, q2 int8);
+
+INSERT INTO INT8_TBL VALUES('  123   ','  456');
+INSERT INTO INT8_TBL VALUES('123   ','4567890123456789');
+INSERT INTO INT8_TBL VALUES('4567890123456789','123');
+INSERT INTO INT8_TBL VALUES(+4567890123456789,'4567890123456789');
+INSERT INTO INT8_TBL VALUES('+4567890123456789','-4567890123456789');
+-- ticket:946
+show create table tenk1;
+update pg_class set reltuples=10000 where relname = 'tenk1';
+ explain select count(*)
+from
+  (select t3.tenthous as x1, coalesce(t1.stringu1, t2.stringu1) as x2
+   from tenk1 t1
+   left join tenk1 t2 on t1.unique1 = t2.unique1
+   join tenk1 t3 on t1.unique2 = t3.unique2) ss,
+  tenk1 t4,
+  tenk1 t5
+where t4.thousand = t5.unique1 and ss.x1 = t4.tenthous and ss.x2 = t5.stringu1;
+
+
+--ticket:291
+select f1, (select min(unique1) from tenk1 where unique1 > f1) AS gt from int4_tbl;
+
+
+
+--ticket:882
+
+drop table if exists t2;
+CREATE TABLE t2 (
+    a integer AUTO_INCREMENT
+);
+
+INSERT INTO t2 VALUES (NULL);
+-- ticket:842
+drop table if exists t2;
+create  table t2(a int );	
+create index on t2(a);
+drop index t2_a_idx; create index on t2(a);
+ \d+ t2;
+ 
+ 
+-- ticket:826
+drop table if exists t1; 
+create table t1(a int, b int, c int, d int);
+create index on t1(a);
+insert into t1 select generate_series(1,1000);
+analyze t1;
+explain select * from t1 where t1.a=1;
+drop index t1_a_idx;
+explain select * from t1 where t1.a=1;
+
+
+-- ticket:908
+drop table if exists t1,t2; 
+create table t1(a int, b int) with(shard=1);
+create table t2(a int, b int) with(shard=2);
+create index on t1(a);
+create index on t2(a);
+-- 准备数据
+insert into t1 select  random()*100, generate_series(1,100) % 10;
+insert into t2 select generate_series(1,100), random()*100;
+analyze t1, t2;
+-- 禁止hash/merge join，以及物化优化
+set enable_hashjoin =off;
+set enable_mergejoin =off;
+set enable_material =off;
+
+-- 产生NestLoop JOIN执行计划
+explain select * from t1, t2 where t1.b=t2.a and t1.a < 40;
+
+
+-- ticket:881
+select 'CREATE USER MAPPING FOR \"current_user\" SERVER sv2 OPTIONS (user ''\"current_user\"'')';
+
+
+--ticket:900
+drop table if exists t; 
+create table t(a int auto_increment);
+insert into t values(default), (default);
+drop table t;
+
+--ticket:895
+drop table if exists t1; 
+create table t1(a int, b varchar(10));
+insert into t1 select 1, ' 01';
+
+select a::text::float =b::float from t1;
+drop table t1;
+
+
+-- ticket:887
+drop table if exists t1; 
+create table t1(a int, b int);
+
+insert into t1 values(1,0),(2,0),(3,0),(4,0),(5,0);
+
+WITH t AS (UPDATE t1 SET b=b+1 limit 4 returning *)
+SELECT *
+FROM t limit 1;
+select * from t1;
+
+drop table t1;
+
+
+--ticket:332
+
+
+CREATE SEQUENCE sequence_test2 START WITH 32; 	
+
+ALTER SEQUENCE IF EXISTS sequence_test2 RESTART WITH 24
+  INCREMENT BY 4 MAXVALUE 36 MINVALUE 5 CYCLE;
+
+SELECT nextval('sequence_test2');
+
+
+--ticket:897
+drop database abc;
+create database abc；
+create database if not exists abc;
+
+--ticket:898
+
+--SHOW name;
+--SHOW ALL;
+--SHOW DATABASES;
+--SHOW SCHEMAS;
+--SHOW TABLES;
+--SHOW PROCESSLIST;
+
+--ticket:936
+select length(stringu1) from tenk1 group by length(stringu1);
+
+CREATE FUNCTION f_leak (text)
+       RETURNS bool LANGUAGE 'plpgsql' COST 0.0000001
+       AS 'BEGIN RAISE NOTICE ''f_leak => %'', $1; RETURN true; END';
+	   
+drop table if exists customer;   
+CREATE TABLE customer (
+       cid      int primary key,
+       name     text not null,
+       tel      text,
+       passwd   text);
+CREATE VIEW my_property_normal AS
+       SELECT * FROM customer WHERE name = current_user;
+	   
+GRANT SELECT ON my_property_normal TO public;
+
+SELECT * FROM my_property_normal WHERE f_leak(passwd);
+
+drop table customer cascade;
+drop FUNCTION f_leak;
+
+--ticket:920
+drop sequence if exists s1;
+create sequence s1;
+select * from s1;
+drop sequence s1;
+
+--ticket:932
+drop table if exists temptest2 cascade;
+begin;
+CREATE TEMP TABLE temptest2(col int PRIMARY KEY) ON COMMIT DELETE ROWS;
+insert into temptest2 values (1),(2);
+select*from temptest2;
+commit;
+
+-- ticket:109
+drop table if exists tf1;
+create table tf1(v float8);
+insert into tf1 values(34.84);
+select int4(v) from tf1;
+
+drop table tf1;
+
+-- ticket:93
+select q1 | q2 from int8_tbl;
+select q1 -- q2 from int8_tbl;
+select ~q1 from int8_tbl;
+select ~q2 from int8_tbl;
+
+-- ticket:12
+
+drop table if exists attmp;
+CREATE TABLE attmp (initial int4);
+ALTER TABLE attmp ADD COLUMN a int4 default 3;
+ALTER TABLE attmp ADD COLUMN b name;
+ALTER TABLE attmp ADD COLUMN c text;
+ALTER TABLE attmp ADD COLUMN d float8;
+ALTER TABLE attmp ADD COLUMN e float4;
+CREATE INDEX attmp_idx ON attmp (a, (d + e), b);
+
+drop table attmp;
+
+
+
+-- ticket:82
+
+drop table if exists bytea_test_table;
+create table bytea_test_table(v bytea);
+insert into bytea_test_table values(decode('ff','hex'));
+select string_agg(v,'') from bytea_test_table;
+
+drop table bytea_test_table;
+
+
+-- ticket:130
+
+drop table if exists list_parted cascade;
+create table list_parted ( a text, b int) partition by list (lower(a));
+create table part_ee_ff partition of list_parted for values in ('ee', 'ff') partition by range (b);
+drop table list_parted;
+
+
+
+-- ticket:49
+drop table if exists ts1;
+create table ts1(id int, info text);
+select * from ts1 for share;
+drop table ts1;
+
+drop table if exists INT8_TBL cascade;
+CREATE TABLE INT8_TBL(q1 int8, q2 int8);
+create function extractq2(t int8_tbl) returns int8 as $$
+select t.q2
+$$ language sql immutable;
+
+create function extractq2_2(t int8_tbl) returns table(ret1 int8) as $$
+select extractq2(t) offset 0
+$$ language sql immutable;
+select x from int8_tbl, extractq2_2(int8_tbl) f(x);
+
+
+--ticket:120
+DROP SEQUENCE IF EXISTS sequence_test;
+CREATE SEQUENCE sequence_test;
+SELECT setval('sequence_test'::text, 99, false); -- this returns 99
+SELECT nextval('sequence_test'::text); -- this should returns 99, but it returns 100
+DROP SEQUENCE sequence_test;
+
+--ticket:332
+drop sequence  IF EXISTS sequence_test2;
+
+CREATE SEQUENCE sequence_test2 START WITH 32; 	
+
+ALTER SEQUENCE IF EXISTS sequence_test2 RESTART WITH 24
+  INCREMENT BY 4 MAXVALUE 36 MINVALUE 5 CYCLE;
+
+SELECT nextval('sequence_test2'); -- this returns 24
+
+
+ALTER SEQUENCE sequence_test2 RESTART WITH 32
+NO CYCLE;
+
+
+SELECT nextval('sequence_test2');
+SELECT nextval('sequence_test2');
+SELECT nextval('sequence_test2'); -- error
+
+drop sequence sequence_test2;
+
+
+
+--ticket:914
+
+set enable_mergejoin = off, enable_hashjoin = off;
+SET SESSION NET_READ_TIMEOUT= 86400, @@SESSION.NET_WRITE_TIMEOUT= 86400;
+SET SESSION NET_READ_TIMEOUT= 86400, @@SESSION.NET_WRITE_TIMEOUT= 86400, enable_hashjoin = off;
+
+--ticket:905 
+
+CREATE DATABASE dbname TEMPLATE template0;
+
+
+--ticket:901
+
+drop table if exists t1;
+create table t1(a int, b int);
+    
+begin;
+
+insert into t1 values(1,1);
+
+savepoint s1;
+
+insert into t1 values(2,2);
+insert into t1 values(2,2);
+
+commit;
+
+
+drop table tenk1;
+drop table FLOAT8_TBL;
+drop table INT4_TBL;
+drop table INT8_TBL cascade;

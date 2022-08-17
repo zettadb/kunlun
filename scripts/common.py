@@ -60,9 +60,9 @@ def mysql_shard_check(shard_conn_params, ha_mode):
 	for node in shard_conn_params:
 		node['use_pure'] = True
 		if ha_mode == 'mgr':
-			node_mip, node_mport = mysql_node_check_mgr(node)
+                    node_mip, node_mport = mysql_node_check_mgr(node)
                 else:
-			node_mip, node_mport = mysql_node_check_norep(node)
+                    node_mip, node_mport = mysql_node_check_norep(node)
 		if cur_prim_port == 0:
 			cur_prim_ip = node_mip
 			cur_prim_port = node_mport
@@ -77,6 +77,10 @@ def mysql_shard_check(shard_conn_params, ha_mode):
 	prim_node = copy.deepcopy(prim_node)
 	prim_node['host'] = prim_node['ip']
 	del prim_node['ip']
+        # delete invalid properties when connecting.
+        for attr in ['is_primary', 'data_dir_path', 'nodemgr_bin_path', 'ro_weight', 'master_priority']:
+            if attr in prim_node:
+                del prim_node[attr]
 	return prim_node
 
 if __name__ == '__main__':
@@ -84,13 +88,14 @@ if __name__ == '__main__':
 	parser.add_argument('--config', help="shard config file path")
 	parser.add_argument('--meta_config', type=str, help="metadata cluster config file path")
         parser.add_argument('--ha_mode', type=str, default='mgr', choices=['mgr','no_rep'])
+        parser.add_argument('--meta_ha_mode', type=str, default='mgr', choices=['mgr','no_rep'])
 
 	args = parser.parse_args()
 
 	meta_jsconf = open(args.meta_config)
 	meta_jstr = meta_jsconf.read()
 	meta_jscfg = json.loads(meta_jstr)
-	mysql_conn_params = mysql_shard_check(meta_jscfg, args.ha_mode)
+	mysql_conn_params = mysql_shard_check(meta_jscfg, args.meta_ha_mode)
 	print "Meta shard primary node: {}".format(str(mysql_conn_params))
 
 	jsconf = open(args.config)

@@ -21,13 +21,14 @@ parser.add_argument('--cluster_name', type=str)
 parser.add_argument('--cluster_owner', type=str); # owner name, e.g. department/group name, or employee name
 parser.add_argument('--cluster_biz', type=str); # used in which business ?
 parser.add_argument('--ha_mode', type=str, default='mgr', choices=['mgr','no_rep'])
+parser.add_argument('--meta_ha_mode', type=str, default='mgr', choices=['mgr','no_rep'])
 
 args = parser.parse_args()
 
 meta_jsconf = open(args.meta_config)
 meta_jstr = meta_jsconf.read()
 meta_jscfg = json.loads(meta_jstr)
-mysql_conn_params = common.mysql_shard_check(meta_jscfg, args.ha_mode)
+mysql_conn_params = common.mysql_shard_check(meta_jscfg, args.meta_ha_mode)
 mysql_conn_params['database'] = 'Kunlun_Metadata_DB'
 
 meta_conn = mysql.connector.connect(**mysql_conn_params)
@@ -36,14 +37,14 @@ meta_cursor = meta_conn.cursor(prepared=True)
 meta_cursor0 = meta_conn.cursor()
 
 # insert cluster info into db_clusters
-stmt = "insert into db_clusters(name, owner, ddl_log_tblname, business, ha_mode) values(%s, %s, %s, %s, %s)"
+stmt = "insert into db_clusters(name, nick_name, owner, ddl_log_tblname, business, memo, ha_mode) values(%s, %s, %s, %s, %s, %s, %s)"
 ddl_log_tblname='ddl_ops_log_'+args.cluster_name  # must be like this, don't change the format
 
 print "Creating database cluster " + args.cluster_name
 print "Step 1. Inserting meta-data row for database cluster " + args.cluster_name
 meta_cursor0.execute("start transaction")
 
-meta_cursor.execute(stmt, (args.cluster_name, args.cluster_owner, ddl_log_tblname, args.cluster_biz, args.ha_mode))
+meta_cursor.execute(stmt, (args.cluster_name, args.cluster_biz, args.cluster_owner, ddl_log_tblname, args.cluster_biz, args.cluster_biz, args.ha_mode))
 
 meta_cursor0.execute("commit")
 

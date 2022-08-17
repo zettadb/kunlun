@@ -8,7 +8,7 @@ import argparse
 
 #arg: port
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='start the computing node')
+    parser = argparse.ArgumentParser(description='stop the computing node')
     parser.add_argument('--port', type=str, help="Port of the Computing node", required=True)
     args = parser.parse_args()
     port = args.port
@@ -34,10 +34,7 @@ if __name__ == "__main__":
 
     fp_conf_list.close()
 
-
-    pg_logfp = datadir + "/logfile-" + port
-
     cmd0 = "export LD_LIBRARY_PATH=" + install_path + "/lib:$LD_LIBRARY_PATH;"
     cmd1 = 'export LD_PRELOAD="' + install_path + '/resources/libjemalloc.so.3.6.0"; ulimit -c unlimited; '
-    startup_cmd = cmd0 + cmd1 + install_path + '/bin/postgres -D ' + datadir + " > " + pg_logfp + " 2>&1 &"
-    os.system(startup_cmd)
+    stop_cmd = cmd0 + cmd1 + install_path + '/bin/pg_ctl stop -D ' + datadir + " -m immediate "
+    os.system(stop_cmd)

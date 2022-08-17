@@ -68,6 +68,7 @@ def install_pg(config_template_file, install_path, compcfg):
     cnf_file.close()
     os.system('echo "host all all ' + compcfg['ip'].strip() + '/32 trust" >> ' + datadir + '/pg_hba.conf')
     os.system('echo "host all all 127.0.0.1/32  trust" >> ' + datadir + '/pg_hba.conf')
+    os.system('echo "host all agent 0.0.0.0/0 reject" >> ' + datadir + '/pg_hba.conf')
     os.system('echo "host all all 0.0.0.0/0 md5" >> ' + datadir + '/pg_hba.conf')
 
     # startup postgres, put log file in datadir too
@@ -78,7 +79,7 @@ def install_pg(config_template_file, install_path, compcfg):
 
     # add initial user for clients to use later.
     # TODO: use more restricted privs than superuser
-    sql = "set skip_tidsync = true; CREATE USER " + compcfg['user'].strip() + " PASSWORD '" + compcfg['password'] + '\' superuser;'
+    sql = "set skip_tidsync = true; CREATE USER agent PASSWORD 'agent_pwd' superuser; CREATE USER " + compcfg['user'].strip() + " PASSWORD '" + compcfg['password'] + '\' superuser;'
     psql_cmd = cmd0 + install_path + "/bin/psql -h localhost -p" + str(compcfg['port']) + " -U " + getpass.getuser() + " -d postgres -c \"" + sql + "\""
     os.system(psql_cmd)
 

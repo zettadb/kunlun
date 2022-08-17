@@ -155,6 +155,7 @@ if __name__ == '__main__':
     parser.add_argument('--cluster_name', type=str)
     parser.add_argument('--targets', type=str, help="target shards to install, specified by shard names. If none, add all shards.")
     parser.add_argument('--ha_mode', type=str, default='mgr', choices=['mgr','no_rep'])
+    parser.add_argument('--meta_ha_mode', type=str, default='mgr', choices=['mgr','no_rep'])
 
     args = parser.parse_args()
     install_names = []
@@ -174,7 +175,7 @@ if __name__ == '__main__':
     meta_jscfg = json.loads(meta_jstr)
     mysql_conn_params = {}
 
-    mysql_conn_params = common.mysql_shard_check(meta_jscfg, args.ha_mode)
+    mysql_conn_params = common.mysql_shard_check(meta_jscfg, args.meta_ha_mode)
     mysql_conn_params['database'] = 'Kunlun_Metadata_DB'
     num_done = add_shards_to_cluster(mysql_conn_params, args.cluster_name, args.config, install_names, args.ha_mode)
     print "Shard nodes successfully added to cluster {} : {}".format(args.cluster_name, num_done)

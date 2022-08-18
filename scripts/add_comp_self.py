@@ -92,12 +92,12 @@ def add_comp_self(install_path, config_template_file, mysql_conn_params, config_
         if args.docker:
             os.system("sed -i 's/comp_node_id.*=.*/comp_node_id=%d/g' %s/postgresql.conf" % (maxid, args.datadir))
             os.system("su postgres -c 'cd /kunlun && . ./env.sh && pg_ctl -D %s stop -m immediate' " % args.datadir)
-            os.system("su postgres -c 'cd /kunlun && . ./env.sh && cd $PG_DIR/scripts && python2 start_pg.py port=%d' " % args.port)
+            os.system("su postgres -c 'cd /kunlun && . ./env.sh && cd $PG_DIR/scripts && python2 start_pg.py --port=%d' " % args.port)
         else:
             os.system("sed -i 's/comp_node_id.*=.*/comp_node_id=%d/g' %s/postgresql.conf" % (maxid, args.datadir))
             os.system(cmd0 + cmd1 + "pg_ctl -D %s stop -m immediate " % args.datadir)
             # start_pg.py set the env well.
-            os.system("python2 start_pg.py port=%d " % args.port)
+            os.system("python2 start_pg.py --port=%d " % args.port)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Add current computing node to the cluster.')

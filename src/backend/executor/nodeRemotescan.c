@@ -831,9 +831,9 @@ static void generate_remote_sql(RemoteScanState *rss)
 	
 	RemotePrintExprContext rpec;
 	InitRemotePrintExprContext(&rpec, rss->ss.ps.state->es_plannedstmt->rtable);
-	rpec.exec_param_quals = rss->param_driven;
+	rpec.exec_param_quals = false;
 	rpec.estate = ((PlanState *)rss)->state;
-	rpec.rpec_param_exec_vals = rss->ss.ps.ps_ExprContext->ecxt_param_exec_vals;
+	rpec.rpec_param_list_info = rss->ss.ps.state->es_param_list_info;
 
 	/*
 	 * SELECT target index.

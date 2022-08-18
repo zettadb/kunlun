@@ -250,6 +250,7 @@ void log_ddl_add(DDL_OP_Types op,
 	StringInfoData sql;
 	MemoryContext oldctx = MemoryContextSwitchTo(g_remote_ddl_trans->mem_ctx);
 
+	initStringInfo(&sql);
 	ADD_SETTING_IF((!standard_conforming_strings),
 			"standard_conforming_strings", "off");
 	ADD_SETTING_IF((backslash_quote != BACKSLASH_QUOTE_SAFE_ENCODING),

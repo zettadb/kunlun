@@ -37,7 +37,7 @@ void InitScanTupleGenContext(ScanTupleGenContext *context, PlanState *planstate,
 
 	if (IsA(planstate, RemoteScanState))
 	{
-		context->rpec.exec_param_quals = !((RemoteScanState *)planstate)->param_driven;
+		context->rpec.exec_param_quals = false;
 		context->rpec.estate = planstate->state;
 	}
 }

@@ -719,8 +719,9 @@ snprint_param_expr(StringInfo str, RemotePrintExprContext *rpec, Param *param)
 		/* External parameters is not ready yet, print as a placeholder '?'*/
 		if (!rpec->rpec_param_list_info)
 		{
-			APPEND_STR("?");
-			return nw;
+			// APPEND_STR("?");
+			// return nw;
+			return -1;
 		}
 		ParamExternData *extern_data = eval_extern_param_val(rpec->rpec_param_list_info, param->paramid);
 		Assert(extern_data != NULL);

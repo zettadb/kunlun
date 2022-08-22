@@ -33,7 +33,7 @@
 #include "utils/syscache.h"
 #include "utils/arrayaccess.h"
 
-bool remote_print_warning = true;
+bool remote_print_warning = false;
 
 #undef APPEND_CHAR
 #undef APPEND_EXPR

@@ -150,6 +150,7 @@ extern bool trace_syncscan;
 #ifdef DEBUG_BOUNDED_SORT
 extern bool optimize_bounded_sort;
 #endif
+extern bool remote_print_warning;
 
 static int	GUC_check_errcode_value;
 
@@ -1935,6 +1936,16 @@ static struct config_bool ConfigureNamesBool[] =
 			GUC_NOT_IN_SAMPLE
 		},
 		&use_mysql_native_seq,
+		false,
+		NULL, NULL, NULL
+	},
+	{
+		{"remote_print_warning", PGC_USERSET, DEVELOPER_OPTIONS,
+			gettext_noop("Enable warnings if some operators/functions cannot be pushed down."),
+			NULL,
+			GUC_NOT_IN_SAMPLE
+		},
+		&remote_print_warning,
 		false,
 		NULL, NULL, NULL
 	},

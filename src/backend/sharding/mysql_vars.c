@@ -463,17 +463,11 @@ void cache_var(const char *var_name, const char *var_val)
 char *produce_set_var_stmts(int *plen)
 {
 	Var_section *s = &all_cached_vars;
-	static StringInfoData set_var_buf;
+	StringInfoData set_var_buf;
 	const char *delim = NULL;
 
 	Assert(plen);
-
-	if (!set_var_buf.data)
-	{
-		initStringInfo2(&set_var_buf, 256, TopMemoryContext);
-	}
-	else
-		set_var_buf.len = 0;
+	initStringInfo2(&set_var_buf, 256, TopTransactionContext);
 
 	while (s != NULL)
 	{

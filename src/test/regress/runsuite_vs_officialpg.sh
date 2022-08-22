@@ -1,8 +1,9 @@
 #! /bin/bash
 
 seconds="${1:-10}"
+listfile="${2:-serial_schedule}"
 
-cat serial_schedule | grep -v '^#' | sed '/^[ 	]*$/d' | awk '{print $2}' | while read f; do
+cat $listfile | grep -v '^#' | sed '/^[ 	]*$/d' | awk '{print $2}' | while read f; do
 	if test -f "skips/$f.skip"; then
 		echo "Skipping sql/$f.sql currently ......"
 	elif test ! -f "sql/$f.sql"; then

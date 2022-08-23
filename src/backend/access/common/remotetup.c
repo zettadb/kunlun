@@ -334,6 +334,9 @@ bool end_remote_insert_stmt(struct RemotetupCacheState *s, bool end_of_stmt)
 	// last tuple of an insert stmt.
 	shrinkStringInfo(stmt, 2);
 
+	if (s->action == ONCONFLICT_UPDATE)
+		appendBinaryStringInfo(stmt, s->action_str.data, s->action_str.len);
+
 	// append our stmt to the AsyncStmtInfo port.
 	stmtlen = lengthStringInfo(stmt);
 	handle = palloc0(sizeof(*handle));

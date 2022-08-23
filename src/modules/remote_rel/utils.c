@@ -303,6 +303,51 @@ void change_relation_shardid(Oid relid, Oid shardid)
 	CommandCounterIncrement();
 }
 
+void change_index_options(Oid indrelid, Datum indoption)
+{
+	Datum values[Natts_pg_index];
+	bool nulls[Natts_pg_index];
+	bool replaces[Natts_pg_index];
+
+	ScanKeyData key;
+
+	ScanKeyInit(&key,
+				Anum_pg_index_indexrelid,
+				BTEqualStrategyNumber,
+				F_OIDEQ, indrelid);
+
+	Relation index_rel = relation_open(IndexRelationId, RowExclusiveLock);
+
+	SysScanDesc scan = systable_beginscan(index_rel,
+										  IndexRelidIndexId,
+										  true,
+										  NULL, 1, &key);
+	HeapTuple tuple = NULL;
+	if ((tuple = systable_getnext(scan)) == NULL)
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_INTERNAL_ERROR),
+				 errmsg("Kunlun-db: Failed to adjust index option")));
+	}
+
+	memset(values, 0, sizeof(values));
+	memset(nulls, 0, sizeof(nulls));
+	memset(replaces, 0, sizeof(replaces));
+
+	replaces[Anum_pg_index_indoption - 1] = true;
+	values[Anum_pg_index_indoption - 1] = indoption;
+
+	HeapTuple newtuple = heap_modify_tuple(tuple, RelationGetDescr(index_rel), values, nulls, replaces);
+
+	CatalogTupleUpdate(index_rel, &newtuple->t_self, newtuple);
+
+	systable_endscan(scan);
+
+	relation_close(index_rel, RowExclusiveLock);
+
+	CommandCounterIncrement();
+}
+
 /**
  * @brief Change all the relations with shardid=from to shardid=to.
  *

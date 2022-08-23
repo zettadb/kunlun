@@ -391,6 +391,44 @@ create_minimal_rte(Relation relation)
 	return rte;
 }
 
+static void
+remote_adjust_index_options(Relation indrel, HeapTuple indexTuple)
+{
+	/* Check if index is null first or not */
+	bool isnull, adjust;
+	int2vector *indoption;
+	int2vector *indoption_new;
+	Form_pg_index indexForm = (Form_pg_index)GETSTRUCT(indexTuple);
+
+	indoption = (int2vector *)SysCacheGetAttr(INDEXRELID,
+						  indexTuple, Anum_pg_index_indoption, &isnull);
+
+	indoption_new = buildint2vector(indoption->values, indexForm->indnatts);
+	adjust = false;
+	for (int i = 0; i < indexForm->indnatts; ++i)
+	{
+		int16 opt = indoption->values[i];
+		if (opt & INDOPTION_DESC)
+		{
+			if (opt & INDOPTION_NULLS_FIRST)
+			{
+				// elog(WARNING, "Innodb not support index option 'DESC NULLS FIRST'.");
+				indoption_new->values[i] = opt & (~INDOPTION_NULLS_FIRST);
+				adjust = true;
+			}
+		}
+		else if (!(opt & INDOPTION_NULLS_FIRST))
+		{
+			// elog(WARNING, "Innodb not support index option 'ASC NULLS LAST'.");
+			indoption_new->values[i] = opt | (int16)INDOPTION_NULLS_FIRST;
+			adjust = true;
+		}
+	}
+
+	if (adjust)
+		change_index_options(indrel->rd_id, PointerGetDatum(indoption_new));
+}
+
 void remote_add_index(Relation indexrel)
 {
 	Node *top_stmt = remoteddl_top_stmt();
@@ -412,7 +450,6 @@ void remote_add_index(Relation indexrel)
 		indexForm->indisprimary ? "primary" : (indexForm->indisunique ? "unique" : "");
 	const char *indexname =
 	 	indexForm->indisprimary ? "" : RelationGetRelationName(indexrel);
-	ReleaseSysCache(indexTuple);
 
 	{
 		StringInfoData remote_ddl;
@@ -516,6 +553,10 @@ void remote_add_index(Relation indexrel)
 		enque_remote_ddl(SQLCOM_CREATE_INDEX, heaprel->rd_rel->relshardid, &remote_ddl, false);
 	}
 
+	/* adjust index options if needed */
+	remote_adjust_index_options(indexrel, indexTuple);
+
+	ReleaseSysCache(indexTuple);
 	relation_close(heaprel, NoLock);
 }
 

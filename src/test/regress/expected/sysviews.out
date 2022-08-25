@@ -98,11 +98,12 @@ select name, setting from pg_settings where name like 'enable%';
  enable_remote_orderby_pushdown            | on
  enable_replica_read                       | off
  enable_seqscan                            | on
+ enable_shard_binary_protocol              | off
  enable_sort                               | on
  enable_sql_log                            | off
  enable_stacktrace                         | on
  enable_tidscan                            | on
-(30 rows)
+(31 rows)
 
 -- Test that the pg_timezone_names and pg_timezone_abbrevs views are
 -- more-or-less working.  We can't test their contents in any great detail

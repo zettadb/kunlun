@@ -61,9 +61,7 @@ ALTER TABLE attmp ADD COLUMN i char;
 ALTER TABLE attmp ADD COLUMN k int4;
 --DDL_STATEMENT_END--
 
---DDL_STATEMENT_BEGIN--
 --ALTER TABLE attmp ADD COLUMN l tid;
---DDL_STATEMENT_END--
 
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE attmp ADD COLUMN m xid;
@@ -123,9 +121,7 @@ ALTER TABLE attmp ADD COLUMN i char;
 ALTER TABLE attmp ADD COLUMN k int4;
 --DDL_STATEMENT_END--
 
---DDL_STATEMENT_BEGIN--
 --ALTER TABLE attmp ADD COLUMN l tid;
---DDL_STATEMENT_END--
 
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE attmp ADD COLUMN m xid;
@@ -292,8 +288,8 @@ ALTER INDEX onek_unique1_constraint RENAME TO onek_unique1_constraint_foo;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE onek DROP CONSTRAINT onek_unique1_constraint_foo;
-
 --DDL_STATEMENT_END--
+
 -- renaming constraint should rename index as well
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE onek ADD CONSTRAINT onek_unique1_constraint UNIQUE (unique1);
@@ -340,17 +336,11 @@ create table atacc1 ( test int );
 alter table atacc1 add constraint atacc_test1 unique (test);
 --DDL_STATEMENT_END--
 -- insert first value
---DDL_STATEMENT_BEGIN--
 insert into atacc1 (test) values (2);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 -- should fail
 insert into atacc1 (test) values (2);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 -- should succeed
 insert into atacc1 (test) values (4);
---DDL_STATEMENT_END--
 -- try adding a unique oid constraint
 -- try to create duplicates via alter table using - should fail
 --DDL_STATEMENT_BEGIN--
@@ -517,8 +507,8 @@ create table atacc1 ( test int, test2 int);
 --DDL_STATEMENT_BEGIN--
 alter table atacc1 add constraint atacc_test1 primary key (test, test2);
 --DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 -- try adding a second primary key - should fail
+--DDL_STATEMENT_BEGIN--
 alter table atacc1 add constraint atacc_test2 primary key (test);
 --DDL_STATEMENT_END--
 -- insert initial value
@@ -544,8 +534,9 @@ create table atacc1 (test int, test2 int, primary key(test));
 insert into atacc1 (test2, test) values (3, 3);
 insert into atacc1 (test2, test) values (2, 3);
 insert into atacc1 (test2, test) values (1, NULL);
+--DDL_STATEMENT_BEGIN--
 drop table atacc1;
-
+--DDL_STATEMENT_END--
 -- alter table / alter column [set/drop] not null tests
 -- try altering system catalogs, should fail
 --DDL_STATEMENT_BEGIN--
@@ -838,7 +829,6 @@ alter table atacc1 drop d;
 --not support to drop all table(by MySQL): alter table atacc1 drop b;
 select * from atacc1;
 --DDL_STATEMENT_BEGIN--
-
 drop table atacc1;
 --DDL_STATEMENT_END--
 
@@ -896,12 +886,12 @@ drop table attest;
 --DDL_STATEMENT_BEGIN--
 alter table only p1 drop column name;
 --DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 -- should work. Now c1.name is local and inhcount is 0.
+--DDL_STATEMENT_BEGIN--
 alter table p2 drop column name;
 --DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 -- should work and drop the attribute in all tables
+--DDL_STATEMENT_BEGIN--
 alter table p2 drop column height;
 --DDL_STATEMENT_END--
 
@@ -975,17 +965,13 @@ select * from anothertab;
 				 
 
 select * from anothertab;
---DDL_STATEMENT_BEGIN--
 -- alter table anothertab alter column atcol1 type boolean
 --        using case when atcol1 % 2 = 0 then true else false end; -- fails
---DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 alter table anothertab alter column atcol1 drop default;
 --DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 --alter table anothertab alter column atcol1 type boolean
 --        using case when atcol1 % 2 = 0 then true else false end; -- fails
---DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 alter table anothertab drop constraint anothertab_chk;
 --DDL_STATEMENT_END--
@@ -996,10 +982,8 @@ alter table anothertab drop constraint anothertab_chk; -- fails
 alter table anothertab drop constraint IF EXISTS anothertab_chk; -- succeeds
 --DDL_STATEMENT_END--
 
---DDL_STATEMENT_BEGIN--
 -- alter table anothertab alter column atcol1 type boolean
 --        using case when atcol1 % 2 = 0 then true else false end;
---DDL_STATEMENT_END--
 
 select * from anothertab;
 
@@ -1051,11 +1035,9 @@ insert into another values(3, 'three');
 
 select * from another;
 
---DDL_STATEMENT_BEGIN--
 --alter table another
 --  alter f1 type text using f2 || ' more',
 --  alter f2 type bigint using f1 * 10;
---DDL_STATEMENT_END--
 
 select * from another;
 
@@ -1175,10 +1157,8 @@ INSERT INTO test_type_diff2 VALUES (7, 8, 9);
 ALTER TABLE test_type_diff2 ALTER COLUMN int_four TYPE int8 USING int_four::int8;
 --DDL_STATEMENT_END--
 -- whole-row references are disallowed
---DDL_STATEMENT_BEGIN--
 --ALTER TABLE test_type_diff2 ALTER COLUMN int_four TYPE int4 
 -- USING (pg_column_size(test_type_diff2));
---DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 drop table test_type_diff;
 --DDL_STATEMENT_END--
@@ -1825,7 +1805,7 @@ ALTER TABLE ONLY list_parted2 ALTER b DROP NOT NULL;
 -- It's alright though, if no partitions are yet created
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE parted_no_parts (a int) PARTITION BY LIST (a);
---DDL_STATEMENT_END--
+--DDL_STATEENT_END--
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE ONLY parted_no_parts ALTER a SET NOT NULL;
 --DDL_STATEMENT_END--

@@ -1334,40 +1334,27 @@ explain (costs off) delete from pp_lp where a = 1;
 drop table pp_lp;
 --DDL_STATEMENT_END--
 
--- Ensure enable_partition_prune does not affect non-partitioned tables.
+-- Ensure enable_partition_prune does not affect non-partitioned tables. 不支持check,先注释相关内容
+-- drop table if exists inh_lp;
+-- create table inh_lp (a int, value int);
+-- create table inh_lp1 (a int, value int, check(a = 1)) inherits (inh_lp);
+-- create table inh_lp2 (a int, value int, check(a = 2)) inherits (inh_lp);
 
---DDL_STATEMENT_BEGIN--
-drop table if exists inh_lp;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-create table inh_lp (a int, value int);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-create table inh_lp1 (a int, value int, check(a = 1)) inherits (inh_lp);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-create table inh_lp2 (a int, value int, check(a = 2)) inherits (inh_lp);
---DDL_STATEMENT_END--
-
-set constraint_exclusion = 'partition';
-
--- inh_lp2 should be removed in the following 3 cases.
-explain (costs off) select * from inh_lp where a = 1;
-explain (costs off) update inh_lp set value = 10 where a = 1;
-explain (costs off) delete from inh_lp where a = 1;
+-- set constraint_exclusion = 'partition';
+--inh_lp2 should be removed in the following 3 cases.
+-- explain (costs off) select * from inh_lp where a = 1;
+-- explain (costs off) update inh_lp set value = 10 where a = 1;
+-- explain (costs off) delete from inh_lp where a = 1;
 
 -- Ensure we don't exclude normal relations when we only expect to exclude
 -- inheritance children
-explain (costs off) update inh_lp1 set value = 10 where a = 2;
+-- explain (costs off) update inh_lp1 set value = 10 where a = 2;
+-- \set VERBOSITY terse	\\ -- suppress cascade details
+-- drop table inh_lp cascade;
+-- \set VERBOSITY default
 
-\set VERBOSITY terse	\\ -- suppress cascade details
---DDL_STATEMENT_BEGIN--
-drop table inh_lp cascade;
---DDL_STATEMENT_END--
-\set VERBOSITY default
-
-reset enable_partition_pruning;
-reset constraint_exclusion;
+-- reset enable_partition_pruning;
+-- reset constraint_exclusion;
 
 -- Check pruning for a partition tree containing only temporary relations
 --DDL_STATEMENT_BEGIN--

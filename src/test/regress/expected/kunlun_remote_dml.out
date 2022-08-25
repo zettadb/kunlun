@@ -64,7 +64,7 @@ select * from t1 where a in (3,7,11, 13);
 (4 rows)
 
 update t1 set a=a+1 where a > 1 and a < 5;
-psql:sql/kunlun_remote_dml.sql:13: ERROR:  Kunlun-db: Can not update partition key of remote relation
+psql:sql/kunlun_remote_dml.sql:13: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '5' for key 't101.PRIMARY'.
 delete from t1 where a %5=0;
 DELETE 4
 select * from t1 where a %5=0;
@@ -982,7 +982,7 @@ INSERT 0 1
 INSERT INTO update_test(b, a) VALUES (15, 10);
 INSERT 0 1
 UPDATE update_test t SET (a, b) = (SELECT b, a FROM update_test s WHERE s.a = t.a) WHERE CURRENT_USER = SESSION_USER;
-psql:sql/kunlun_remote_dml.sql:289: ERROR:  In kunlun-db unable to serialize value expression of target column a in update statement UPDATE update_test t SET (a, b) = (SELECT b, a FROM update_test s WHERE s.a = t.a) WHERE CURRENT_USER = SESSION_USER;.
+UPDATE 2
 
 -- bug 121
 drop table if exists indext1 cascade;

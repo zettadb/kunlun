@@ -141,9 +141,13 @@ WHERE p1.oid != p2.oid AND
     p1.proname = p2.proname AND
     p1.pronargs = p2.pronargs AND
     p1.proargtypes = p2.proargtypes;
- oid | proname | oid | proname 
------+---------+-----+---------
-(0 rows)
+  oid  |    proname     |  oid  |    proname     
+-------+----------------+-------+----------------
+ 16387 | unix_timestamp |  5150 | unix_timestamp
+ 16388 | unix_timestamp |  5151 | unix_timestamp
+  5150 | unix_timestamp | 16387 | unix_timestamp
+  5151 | unix_timestamp | 16388 | unix_timestamp
+(4 rows)
 
 -- Considering only built-in procs (prolang = 12), look for multiple uses
 -- of the same internal function (ie, matching prosrc fields).  It's OK to

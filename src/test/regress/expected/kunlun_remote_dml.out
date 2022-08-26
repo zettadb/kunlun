@@ -982,7 +982,7 @@ INSERT 0 1
 INSERT INTO update_test(b, a) VALUES (15, 10);
 INSERT 0 1
 UPDATE update_test t SET (a, b) = (SELECT b, a FROM update_test s WHERE s.a = t.a) WHERE CURRENT_USER = SESSION_USER;
-UPDATE 2
+psql:sql/kunlun_remote_dml.sql:289: ERROR:  Kunlun-db: can't access target table 'update_test' being modified.
 
 -- bug 121
 drop table if exists indext1 cascade;

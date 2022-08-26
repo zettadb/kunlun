@@ -525,7 +525,16 @@ INSERT 0 1
 insert into hp values (1, 'abcde');
 INSERT 0 1
 select tableoid::regclass, * from hp order by 1;
-psql:sql/partition_prune.sql:336: ERROR:  Could not find input function to deserialize kunlun storage result to pg type.
+ tableoid | a |   b   
+----------+---+-------
+ hp0      |   | 
+ hp0      | 1 | xxx
+ hp3      | 2 | xxx
+ hp1      | 1 | 
+ hp2      |   | xxx
+ hp2      | 1 | abcde
+(6 rows)
+
 -- partial keys won't prune, nor would non-equality conditions
 explain (costs off) select * from hp where a = 1;
 
@@ -952,7 +961,7 @@ insert into ab values (1,2);
 INSERT 0 1
 explain (costs off, summary off, timing off)
 update ab_a1 set b = 3 from ab where ab.a = 1 and ab.a = ab_a1.a;
-psql:sql/partition_prune.sql:578: ERROR:  No other tables than the update target table are allowed when updating a remote relation.
+psql:sql/partition_prune.sql:578: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 table ab;
  a | b 
 ---+---
@@ -1473,44 +1482,24 @@ explain (costs off) delete from pp_lp where a = 1;
 
 drop table pp_lp;
 DROP TABLE
--- Ensure enable_partition_prune does not affect non-partitioned tables.
-drop table if exists inh_lp;
-psql:sql/partition_prune.sql:893: NOTICE:  table "inh_lp" does not exist, skipping
-DROP TABLE
-create table inh_lp (a int, value int);
-CREATE TABLE
-create table inh_lp1 (a int, value int, check(a = 1)) inherits (inh_lp);
-psql:sql/partition_prune.sql:895: WARNING:  Table check constraints not supported in Kunlun, it's ignored here.
-psql:sql/partition_prune.sql:895: NOTICE:  merging column "a" with inherited definition
-psql:sql/partition_prune.sql:895: NOTICE:  merging column "value" with inherited definition
-CREATE TABLE
-create table inh_lp2 (a int, value int, check(a = 2)) inherits (inh_lp);
-psql:sql/partition_prune.sql:896: WARNING:  Table check constraints not supported in Kunlun, it's ignored here.
-psql:sql/partition_prune.sql:896: NOTICE:  merging column "a" with inherited definition
-psql:sql/partition_prune.sql:896: NOTICE:  merging column "value" with inherited definition
-CREATE TABLE
-set constraint_exclusion = 'partition';
-SET
--- inh_lp2 should be removed in the following 3 cases.
-explain (costs off) select * from inh_lp where a = 1;
-
-explain (costs off) update inh_lp set value = 10 where a = 1;
-
-explain (costs off) delete from inh_lp where a = 1;
-
+-- Ensure enable_partition_prune does not affect non-partitioned tables. 不支持check,先注释相关内容
+-- drop table if exists inh_lp;
+-- create table inh_lp (a int, value int);
+-- create table inh_lp1 (a int, value int, check(a = 1)) inherits (inh_lp);
+-- create table inh_lp2 (a int, value int, check(a = 2)) inherits (inh_lp);
+-- set constraint_exclusion = 'partition';
+--inh_lp2 should be removed in the following 3 cases.
+-- explain (costs off) select * from inh_lp where a = 1;
+-- explain (costs off) update inh_lp set value = 10 where a = 1;
+-- explain (costs off) delete from inh_lp where a = 1;
 -- Ensure we don't exclude normal relations when we only expect to exclude
 -- inheritance children
-explain (costs off) update inh_lp1 set value = 10 where a = 2;
-
-\set VERBOSITY terse	\\ -- suppress cascade details
-drop table inh_lp cascade;
-psql:sql/partition_prune.sql:910: NOTICE:  drop cascades to 2 other objects
-DROP TABLE
-\set VERBOSITY default
-reset enable_partition_pruning;
-RESET
-reset constraint_exclusion;
-RESET
+-- explain (costs off) update inh_lp1 set value = 10 where a = 2;
+-- \set VERBOSITY terse	\\ -- suppress cascade details
+-- drop table inh_lp cascade;
+-- \set VERBOSITY default
+-- reset enable_partition_pruning;
+-- reset constraint_exclusion;
 -- Check pruning for a partition tree containing only temporary relations
 create temp table pp_temp_parent (a int) partition by list (a);
 CREATE TABLE
@@ -1579,7 +1568,7 @@ DROP TABLE
 -- Ensure run-time pruning works correctly when we match a partitioned table
 -- on the first level but find no matching partitions on the second level.
 drop table if exists listp;
-psql:sql/partition_prune.sql:965: NOTICE:  table "listp" does not exist, skipping
+psql:sql/partition_prune.sql:962: NOTICE:  table "listp" does not exist, skipping
 DROP TABLE
 create table listp (a int, b int) partition by list (a);
 CREATE TABLE
@@ -1605,14 +1594,14 @@ SET
 explain (costs off) select * from listp1 where a = 2;
 
 explain (costs off) update listp1 set a = 1 where a = 2;
-
+psql:sql/partition_prune.sql:982: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 -- constraint exclusion enabled
 set constraint_exclusion to 'on';
 SET
 explain (costs off) select * from listp1 where a = 2;
 
 explain (costs off) update listp1 set a = 1 where a = 2;
-
+psql:sql/partition_prune.sql:986: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 reset constraint_exclusion;
 RESET
 reset enable_partition_pruning;

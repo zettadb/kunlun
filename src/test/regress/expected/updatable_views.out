@@ -2018,6 +2018,9 @@ DROP TABLE
 -- Test CREATE OR REPLACE VIEW turning a non-updatable view into an
 -- auto-updatable view and adding check options in a single step
 --
+drop table if exists t1;
+psql:sql/updatable_views.sql:901: NOTICE:  table "t1" does not exist, skipping
+DROP TABLE
 CREATE TABLE t1 (a int, b varchar(50));
 CREATE TABLE
 CREATE VIEW v1 AS SELECT null::int AS a;
@@ -2035,7 +2038,7 @@ DROP TABLE t1;
 DROP TABLE
 -- check that an auto-updatable view on a partitioned table works correctly
 drop table if exists uv_pt;
-psql:sql/updatable_views.sql:913: NOTICE:  table "uv_pt" does not exist, skipping
+psql:sql/updatable_views.sql:914: NOTICE:  table "uv_pt" does not exist, skipping
 DROP TABLE
 create table uv_pt (a int, b int, v varchar) partition by range (a, b);
 CREATE TABLE
@@ -2094,12 +2097,12 @@ DROP VIEW
 drop table uv_pt;
 DROP TABLE
 drop table uv_pt1;
-psql:sql/updatable_views.sql:935: ERROR:  table "uv_pt1" does not exist
+psql:sql/updatable_views.sql:936: ERROR:  table "uv_pt1" does not exist
 drop table uv_pt11;
-psql:sql/updatable_views.sql:936: ERROR:  table "uv_pt11" does not exist
+psql:sql/updatable_views.sql:937: ERROR:  table "uv_pt11" does not exist
 -- work fine with partitioned tables
 drop table if exists wcowrtest cascade;
-psql:sql/updatable_views.sql:939: NOTICE:  table "wcowrtest" does not exist, skipping
+psql:sql/updatable_views.sql:940: NOTICE:  table "wcowrtest" does not exist, skipping
 DROP TABLE
 create table wcowrtest (a int) partition by list (a);
 CREATE TABLE
@@ -2114,7 +2117,7 @@ ALTER TABLE
 create table wcowrtest2 partition of wcowrtest for values in (2);
 CREATE TABLE
 drop table if exists sometable;
-psql:sql/updatable_views.sql:948: NOTICE:  table "sometable" does not exist, skipping
+psql:sql/updatable_views.sql:949: NOTICE:  table "sometable" does not exist, skipping
 DROP TABLE
 create table sometable (a int, b varchar(50));
 CREATE TABLE
@@ -2138,7 +2141,7 @@ DROP TABLE
 -- Check INSERT .. ON CONFLICT DO UPDATE works correctly when the view's
 -- columns are named and ordered differently than the underlying table's.
 drop table if exists uv_iocu_tab;
-psql:sql/updatable_views.sql:966: NOTICE:  table "uv_iocu_tab" does not exist, skipping
+psql:sql/updatable_views.sql:967: NOTICE:  table "uv_iocu_tab" does not exist, skipping
 DROP TABLE
 create table uv_iocu_tab (a varchar(50) unique, b float);
 CREATE TABLE
@@ -2230,7 +2233,7 @@ CREATE ROLE
 set session authorization regress_view_user1;
 SET
 drop table if exists base_tbl;
-psql:sql/updatable_views.sql:1010: NOTICE:  table "base_tbl" does not exist, skipping
+psql:sql/updatable_views.sql:1011: NOTICE:  table "base_tbl" does not exist, skipping
 DROP TABLE
 create table base_tbl(a int unique, b varchar(50), c float);
 CREATE TABLE
@@ -2309,7 +2312,7 @@ DROP ROLE
 -- Test single- and multi-row inserts with table and view defaults.
 -- Table defaults should be used, unless overridden by view defaults.
 drop table if exists base_tab_def;
-psql:sql/updatable_views.sql:1051: NOTICE:  table "base_tab_def" does not exist, skipping
+psql:sql/updatable_views.sql:1052: NOTICE:  table "base_tab_def" does not exist, skipping
 DROP TABLE
 create table base_tab_def (a int, b varchar(50) default 'Table default',
                            c varchar(50) default 'Table default', d varchar(50), e varchar(50));
@@ -2403,7 +2406,7 @@ select * from base_tab_def order by a;
 -- Using an unconditional DO INSTEAD rule should also cause NULLs to be
 -- inserted where there are no view defaults.
 drop function base_tab_def_view_instrig_func;
-psql:sql/updatable_views.sql:1086: ERROR:  could not find a function named "base_tab_def_view_instrig_func"
+psql:sql/updatable_views.sql:1087: ERROR:  could not find a function named "base_tab_def_view_instrig_func"
 delete from base_tab_def;
 DELETE 14
 insert into base_tab_def values (1);

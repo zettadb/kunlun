@@ -471,11 +471,11 @@ CREATE OPERATOR FAMILY
 SET ROLE regress_alter_generic_user5;
 SET
 ALTER OPERATOR FAMILY alt_opf5 USING btree ADD OPERATOR 1 < (int4, int2), FUNCTION 1 btint42cmp(int4, int2);
-psql:sql/alter_generic.sql:310: ERROR:  must be superuser to alter an operator family
+psql:sql/alter_generic.sql:312: ERROR:  must be superuser to alter an operator family
 RESET ROLE;
-psql:sql/alter_generic.sql:311: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+psql:sql/alter_generic.sql:313: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 DROP OPERATOR FAMILY alt_opf5 USING btree;
-psql:sql/alter_generic.sql:312: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+psql:sql/alter_generic.sql:314: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 ROLLBACK;
 ROLLBACK
 -- Should fail. Need rights to namespace for ALTER OPERATOR FAMILY .. ADD / DROP
@@ -492,7 +492,7 @@ CREATE OPERATOR FAMILY
 SET ROLE regress_alter_generic_user6;
 SET
 ALTER OPERATOR FAMILY alt_nsp6.alt_opf6 USING btree ADD OPERATOR 1 < (int4, int2);
-psql:sql/alter_generic.sql:322: ERROR:  permission denied for schema alt_nsp6
+psql:sql/alter_generic.sql:324: ERROR:  permission denied for schema alt_nsp6
 ROLLBACK;
 ROLLBACK
 DROP SCHEMA alt_nsp6;
@@ -503,7 +503,7 @@ CREATE OPERATOR FAMILY
 ALTER OPERATOR FAMILY alt_opf7 USING btree ADD OPERATOR 1 < (int4, int2);
 ALTER OPERATOR FAMILY
 ALTER OPERATOR FAMILY alt_opf7 USING btree DROP OPERATOR 1 (int4, int2, int8);
-psql:sql/alter_generic.sql:329: ERROR:  one or two argument types must be specified
+psql:sql/alter_generic.sql:333: ERROR:  one or two argument types must be specified
 DROP OPERATOR FAMILY alt_opf7 USING btree;
 DROP OPERATOR FAMILY
 -- Should work. During ALTER OPERATOR FAMILY ... DROP OPERATOR
@@ -525,7 +525,7 @@ DROP OPERATOR FAMILY
 CREATE OPERATOR FAMILY alt_opf10 USING btree;
 CREATE OPERATOR FAMILY
 ALTER OPERATOR FAMILY alt_opf10 USING btree ADD OPERATOR 1 < (int4, int4) FOR ORDER BY float_ops;
-psql:sql/alter_generic.sql:345: ERROR:  access method "btree" does not support ordering operators
+psql:sql/alter_generic.sql:349: ERROR:  access method "btree" does not support ordering operators
 DROP OPERATOR FAMILY alt_opf10 USING btree;
 DROP OPERATOR FAMILY
 -- Should work. Textbook case of ALTER OPERATOR FAMILY ... ADD OPERATOR with FOR ORDER BY
@@ -545,9 +545,9 @@ CREATE OPERATOR FAMILY
 CREATE FUNCTION fn_opf12  (int4, int2) RETURNS BIGINT AS 'SELECT NULL::BIGINT;' LANGUAGE SQL;
 CREATE FUNCTION
 ALTER OPERATOR FAMILY alt_opf12 USING btree ADD FUNCTION 1 fn_opf12(int4, int2);
-psql:sql/alter_generic.sql:358: ERROR:  btree comparison functions must return integer
+psql:sql/alter_generic.sql:364: ERROR:  btree comparison functions must return integer
 DROP OPERATOR FAMILY alt_opf12 USING btree;
-psql:sql/alter_generic.sql:359: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+psql:sql/alter_generic.sql:365: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 ROLLBACK;
 ROLLBACK
 -- Should fail. hash comparison functions should return INTEGER in ALTER OPERATOR FAMILY ... ADD FUNCTION
@@ -558,9 +558,9 @@ CREATE OPERATOR FAMILY
 CREATE FUNCTION fn_opf13  (int4) RETURNS BIGINT AS 'SELECT NULL::BIGINT;' LANGUAGE SQL;
 CREATE FUNCTION
 ALTER OPERATOR FAMILY alt_opf13 USING hash ADD FUNCTION 1 fn_opf13(int4);
-psql:sql/alter_generic.sql:366: ERROR:  hash function 1 must return integer
+psql:sql/alter_generic.sql:375: ERROR:  hash function 1 must return integer
 DROP OPERATOR FAMILY alt_opf13 USING hash;
-psql:sql/alter_generic.sql:367: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+psql:sql/alter_generic.sql:376: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 ROLLBACK;
 ROLLBACK
 -- Should fail. btree comparison functions should have two arguments in ALTER OPERATOR FAMILY ... ADD FUNCTION
@@ -571,9 +571,9 @@ CREATE OPERATOR FAMILY
 CREATE FUNCTION fn_opf14 (int4) RETURNS BIGINT AS 'SELECT NULL::BIGINT;' LANGUAGE SQL;
 CREATE FUNCTION
 ALTER OPERATOR FAMILY alt_opf14 USING btree ADD FUNCTION 1 fn_opf14(int4);
-psql:sql/alter_generic.sql:374: ERROR:  btree comparison functions must have two arguments
+psql:sql/alter_generic.sql:383: ERROR:  btree comparison functions must have two arguments
 DROP OPERATOR FAMILY alt_opf14 USING btree;
-psql:sql/alter_generic.sql:375: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+psql:sql/alter_generic.sql:384: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 ROLLBACK;
 ROLLBACK
 -- Should fail. hash comparison functions should have one argument in ALTER OPERATOR FAMILY ... ADD FUNCTION
@@ -584,9 +584,9 @@ CREATE OPERATOR FAMILY
 CREATE FUNCTION fn_opf15 (int4, int2) RETURNS BIGINT AS 'SELECT NULL::BIGINT;' LANGUAGE SQL;
 CREATE FUNCTION
 ALTER OPERATOR FAMILY alt_opf15 USING hash ADD FUNCTION 1 fn_opf15(int4, int2);
-psql:sql/alter_generic.sql:382: ERROR:  hash function 1 must have one argument
+psql:sql/alter_generic.sql:391: ERROR:  hash function 1 must have one argument
 DROP OPERATOR FAMILY alt_opf15 USING hash;
-psql:sql/alter_generic.sql:383: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+psql:sql/alter_generic.sql:392: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 ROLLBACK;
 ROLLBACK
 -- Should fail. In gist throw an error when giving different data types for function argument
@@ -594,18 +594,18 @@ ROLLBACK
 CREATE OPERATOR FAMILY alt_opf16 USING gist;
 CREATE OPERATOR FAMILY
 ALTER OPERATOR FAMILY alt_opf16 USING gist ADD FUNCTION 1 btint42cmp(int4, int2);
-psql:sql/alter_generic.sql:389: ERROR:  associated data types must be specified for index support function
+psql:sql/alter_generic.sql:398: ERROR:  associated data types must be specified for index support function
 DROP OPERATOR FAMILY alt_opf16 USING gist;
 DROP OPERATOR FAMILY
 -- Should fail. duplicate operator number / function number in ALTER OPERATOR FAMILY ... ADD FUNCTION
 CREATE OPERATOR FAMILY alt_opf17 USING btree;
 CREATE OPERATOR FAMILY
 ALTER OPERATOR FAMILY alt_opf17 USING btree ADD OPERATOR 1 < (int4, int4), OPERATOR 1 < (int4, int4); -- operator # appears twice in same statement
-psql:sql/alter_generic.sql:394: ERROR:  operator number 1 for (integer,integer) appears more than once
+psql:sql/alter_generic.sql:403: ERROR:  operator number 1 for (integer,integer) appears more than once
 ALTER OPERATOR FAMILY alt_opf17 USING btree ADD OPERATOR 1 < (int4, int4); -- operator 1 requested first-time
 ALTER OPERATOR FAMILY
 ALTER OPERATOR FAMILY alt_opf17 USING btree ADD OPERATOR 1 < (int4, int4); -- operator 1 requested again in separate statement
-psql:sql/alter_generic.sql:396: ERROR:  operator 1(integer,integer) already exists in operator family "alt_opf17"
+psql:sql/alter_generic.sql:405: ERROR:  operator 1(integer,integer) already exists in operator family "alt_opf17"
 ALTER OPERATOR FAMILY alt_opf17 USING btree ADD
   OPERATOR 1 < (int4, int2) ,
   OPERATOR 2 <= (int4, int2) ,
@@ -614,7 +614,7 @@ ALTER OPERATOR FAMILY alt_opf17 USING btree ADD
   OPERATOR 5 > (int4, int2) ,
   FUNCTION 1 btint42cmp(int4, int2) ,
   FUNCTION 1 btint42cmp(int4, int2);    -- procedure 1 appears twice in same statement
-psql:sql/alter_generic.sql:404: ERROR:  function number 1 for (integer,smallint) appears more than once
+psql:sql/alter_generic.sql:413: ERROR:  function number 1 for (integer,smallint) appears more than once
 ALTER OPERATOR FAMILY alt_opf17 USING btree ADD
   OPERATOR 1 < (int4, int2) ,
   OPERATOR 2 <= (int4, int2) ,
@@ -630,7 +630,7 @@ ALTER OPERATOR FAMILY alt_opf17 USING btree ADD
   OPERATOR 4 >= (int4, int2) ,
   OPERATOR 5 > (int4, int2) ,
   FUNCTION 1 btint42cmp(int4, int2);    -- procedure 1 requested again in separate statement
-psql:sql/alter_generic.sql:418: ERROR:  operator 1(integer,smallint) already exists in operator family "alt_opf17"
+psql:sql/alter_generic.sql:427: ERROR:  operator 1(integer,smallint) already exists in operator family "alt_opf17"
 DROP OPERATOR FAMILY alt_opf17 USING btree;
 DROP OPERATOR FAMILY
 -- Should fail. Ensure that DROP requests for missing OPERATOR / FUNCTIONS
@@ -638,7 +638,7 @@ DROP OPERATOR FAMILY
 CREATE OPERATOR FAMILY alt_opf18 USING btree;
 CREATE OPERATOR FAMILY
 ALTER OPERATOR FAMILY alt_opf18 USING btree DROP OPERATOR 1 (int4, int4);
-psql:sql/alter_generic.sql:425: ERROR:  operator 1(integer,integer) does not exist in operator family "alt_opf18"
+psql:sql/alter_generic.sql:434: ERROR:  operator 1(integer,integer) does not exist in operator family "alt_opf18"
 ALTER OPERATOR FAMILY alt_opf18 USING btree ADD
   OPERATOR 1 < (int4, int2) ,
   OPERATOR 2 <= (int4, int2) ,
@@ -648,7 +648,7 @@ ALTER OPERATOR FAMILY alt_opf18 USING btree ADD
   FUNCTION 1 btint42cmp(int4, int2);
 ALTER OPERATOR FAMILY
 ALTER OPERATOR FAMILY alt_opf18 USING btree DROP FUNCTION 2 (int4, int4);
-psql:sql/alter_generic.sql:433: ERROR:  function 2(integer,integer) does not exist in operator family "alt_opf18"
+psql:sql/alter_generic.sql:442: ERROR:  function 2(integer,integer) does not exist in operator family "alt_opf18"
 DROP OPERATOR FAMILY alt_opf18 USING btree;
 DROP OPERATOR FAMILY
 --
@@ -661,11 +661,11 @@ CREATE TEXT SEARCH DICTIONARY
 CREATE TEXT SEARCH DICTIONARY alt_ts_dict2 (template=simple);
 CREATE TEXT SEARCH DICTIONARY
 ALTER TEXT SEARCH DICTIONARY alt_ts_dict1 RENAME TO alt_ts_dict2;  -- failed (name conflict)
-psql:sql/alter_generic.sql:444: ERROR:  text search dictionary "alt_ts_dict2" already exists in schema "alt_nsp1"
+psql:sql/alter_generic.sql:453: ERROR:  text search dictionary "alt_ts_dict2" already exists in schema "alt_nsp1"
 ALTER TEXT SEARCH DICTIONARY alt_ts_dict1 RENAME TO alt_ts_dict3;  -- OK
 ALTER TEXT SEARCH DICTIONARY
 ALTER TEXT SEARCH DICTIONARY alt_ts_dict2 OWNER TO regress_alter_generic_user2;  -- failed (no role membership)
-psql:sql/alter_generic.sql:446: ERROR:  must be member of role "regress_alter_generic_user2"
+psql:sql/alter_generic.sql:455: ERROR:  must be member of role "regress_alter_generic_user2"
 ALTER TEXT SEARCH DICTIONARY alt_ts_dict2 OWNER TO regress_alter_generic_user3;  -- OK
 ALTER TEXT SEARCH DICTIONARY
 ALTER TEXT SEARCH DICTIONARY alt_ts_dict2 SET SCHEMA alt_nsp2;  -- OK
@@ -677,17 +677,17 @@ CREATE TEXT SEARCH DICTIONARY
 CREATE TEXT SEARCH DICTIONARY alt_ts_dict2 (template=simple);
 CREATE TEXT SEARCH DICTIONARY
 ALTER TEXT SEARCH DICTIONARY alt_ts_dict3 RENAME TO alt_ts_dict4;  -- failed (not owner)
-psql:sql/alter_generic.sql:454: ERROR:  must be owner of text search dictionary alt_ts_dict3
+psql:sql/alter_generic.sql:463: ERROR:  must be owner of text search dictionary alt_ts_dict3
 ALTER TEXT SEARCH DICTIONARY alt_ts_dict1 RENAME TO alt_ts_dict4;  -- OK
 ALTER TEXT SEARCH DICTIONARY
 ALTER TEXT SEARCH DICTIONARY alt_ts_dict3 OWNER TO regress_alter_generic_user2;  -- failed (not owner)
-psql:sql/alter_generic.sql:456: ERROR:  must be owner of text search dictionary alt_ts_dict3
+psql:sql/alter_generic.sql:465: ERROR:  must be owner of text search dictionary alt_ts_dict3
 ALTER TEXT SEARCH DICTIONARY alt_ts_dict2 OWNER TO regress_alter_generic_user3;  -- failed (no role membership)
-psql:sql/alter_generic.sql:457: ERROR:  must be member of role "regress_alter_generic_user3"
+psql:sql/alter_generic.sql:466: ERROR:  must be member of role "regress_alter_generic_user3"
 ALTER TEXT SEARCH DICTIONARY alt_ts_dict3 SET SCHEMA alt_nsp2;  -- failed (not owner)
-psql:sql/alter_generic.sql:458: ERROR:  must be owner of text search dictionary alt_ts_dict3
+psql:sql/alter_generic.sql:467: ERROR:  must be owner of text search dictionary alt_ts_dict3
 ALTER TEXT SEARCH DICTIONARY alt_ts_dict2 SET SCHEMA alt_nsp2;  -- failed (name conflict)
-psql:sql/alter_generic.sql:459: ERROR:  text search dictionary "alt_ts_dict2" already exists in schema "alt_nsp2"
+psql:sql/alter_generic.sql:468: ERROR:  text search dictionary "alt_ts_dict2" already exists in schema "alt_nsp2"
 RESET SESSION AUTHORIZATION;
 RESET
 SELECT nspname, dictname, rolname
@@ -713,11 +713,11 @@ CREATE TEXT SEARCH CONFIGURATION
 CREATE TEXT SEARCH CONFIGURATION alt_ts_conf2 (copy=english);
 CREATE TEXT SEARCH CONFIGURATION
 ALTER TEXT SEARCH CONFIGURATION alt_ts_conf1 RENAME TO alt_ts_conf2;  -- failed (name conflict)
-psql:sql/alter_generic.sql:476: ERROR:  text search configuration "alt_ts_conf2" already exists in schema "alt_nsp1"
+psql:sql/alter_generic.sql:485: ERROR:  text search configuration "alt_ts_conf2" already exists in schema "alt_nsp1"
 ALTER TEXT SEARCH CONFIGURATION alt_ts_conf1 RENAME TO alt_ts_conf3;  -- OK
 ALTER TEXT SEARCH CONFIGURATION
 ALTER TEXT SEARCH CONFIGURATION alt_ts_conf2 OWNER TO regress_alter_generic_user2;  -- failed (no role membership)
-psql:sql/alter_generic.sql:478: ERROR:  must be member of role "regress_alter_generic_user2"
+psql:sql/alter_generic.sql:487: ERROR:  must be member of role "regress_alter_generic_user2"
 ALTER TEXT SEARCH CONFIGURATION alt_ts_conf2 OWNER TO regress_alter_generic_user3;  -- OK
 ALTER TEXT SEARCH CONFIGURATION
 ALTER TEXT SEARCH CONFIGURATION alt_ts_conf2 SET SCHEMA alt_nsp2;  -- OK
@@ -729,17 +729,17 @@ CREATE TEXT SEARCH CONFIGURATION
 CREATE TEXT SEARCH CONFIGURATION alt_ts_conf2 (copy=english);
 CREATE TEXT SEARCH CONFIGURATION
 ALTER TEXT SEARCH CONFIGURATION alt_ts_conf3 RENAME TO alt_ts_conf4;  -- failed (not owner)
-psql:sql/alter_generic.sql:486: ERROR:  must be owner of text search configuration alt_ts_conf3
+psql:sql/alter_generic.sql:495: ERROR:  must be owner of text search configuration alt_ts_conf3
 ALTER TEXT SEARCH CONFIGURATION alt_ts_conf1 RENAME TO alt_ts_conf4;  -- OK
 ALTER TEXT SEARCH CONFIGURATION
 ALTER TEXT SEARCH CONFIGURATION alt_ts_conf3 OWNER TO regress_alter_generic_user2;  -- failed (not owner)
-psql:sql/alter_generic.sql:488: ERROR:  must be owner of text search configuration alt_ts_conf3
+psql:sql/alter_generic.sql:497: ERROR:  must be owner of text search configuration alt_ts_conf3
 ALTER TEXT SEARCH CONFIGURATION alt_ts_conf2 OWNER TO regress_alter_generic_user3;  -- failed (no role membership)
-psql:sql/alter_generic.sql:489: ERROR:  must be member of role "regress_alter_generic_user3"
+psql:sql/alter_generic.sql:498: ERROR:  must be member of role "regress_alter_generic_user3"
 ALTER TEXT SEARCH CONFIGURATION alt_ts_conf3 SET SCHEMA alt_nsp2;  -- failed (not owner)
-psql:sql/alter_generic.sql:490: ERROR:  must be owner of text search configuration alt_ts_conf3
+psql:sql/alter_generic.sql:499: ERROR:  must be owner of text search configuration alt_ts_conf3
 ALTER TEXT SEARCH CONFIGURATION alt_ts_conf2 SET SCHEMA alt_nsp2;  -- failed (name conflict)
-psql:sql/alter_generic.sql:491: ERROR:  text search configuration "alt_ts_conf2" already exists in schema "alt_nsp2"
+psql:sql/alter_generic.sql:500: ERROR:  text search configuration "alt_ts_conf2" already exists in schema "alt_nsp2"
 RESET SESSION AUTHORIZATION;
 RESET
 SELECT nspname, cfgname, rolname
@@ -763,7 +763,7 @@ CREATE TEXT SEARCH TEMPLATE
 CREATE TEXT SEARCH TEMPLATE alt_ts_temp2 (lexize=dsimple_lexize);
 CREATE TEXT SEARCH TEMPLATE
 ALTER TEXT SEARCH TEMPLATE alt_ts_temp1 RENAME TO alt_ts_temp2; -- failed (name conflict)
-psql:sql/alter_generic.sql:507: ERROR:  text search template "alt_ts_temp2" already exists in schema "alt_nsp1"
+psql:sql/alter_generic.sql:516: ERROR:  text search template "alt_ts_temp2" already exists in schema "alt_nsp1"
 ALTER TEXT SEARCH TEMPLATE alt_ts_temp1 RENAME TO alt_ts_temp3; -- OK
 ALTER TEXT SEARCH TEMPLATE
 ALTER TEXT SEARCH TEMPLATE alt_ts_temp2 SET SCHEMA alt_nsp2;    -- OK
@@ -771,10 +771,10 @@ ALTER TEXT SEARCH TEMPLATE
 CREATE TEXT SEARCH TEMPLATE alt_ts_temp2 (lexize=dsimple_lexize);
 CREATE TEXT SEARCH TEMPLATE
 ALTER TEXT SEARCH TEMPLATE alt_ts_temp2 SET SCHEMA alt_nsp2;    -- failed (name conflict)
-psql:sql/alter_generic.sql:512: ERROR:  text search template "alt_ts_temp2" already exists in schema "alt_nsp2"
+psql:sql/alter_generic.sql:521: ERROR:  text search template "alt_ts_temp2" already exists in schema "alt_nsp2"
 -- invalid: non-lowercase quoted identifiers
 CREATE TEXT SEARCH TEMPLATE tstemp_case ("Init" = init_function);
-psql:sql/alter_generic.sql:515: ERROR:  text search template parameter "Init" not recognized
+psql:sql/alter_generic.sql:524: ERROR:  text search template parameter "Init" not recognized
 SELECT nspname, tmplname
   FROM pg_ts_template t, pg_namespace n
   WHERE t.tmplnamespace = n.oid AND nspname like 'alt_nsp%'
@@ -796,7 +796,7 @@ CREATE TEXT SEARCH PARSER alt_ts_prs2
     (start = prsd_start, gettoken = prsd_nexttoken, end = prsd_end, lextypes = prsd_lextype);
 CREATE TEXT SEARCH PARSER
 ALTER TEXT SEARCH PARSER alt_ts_prs1 RENAME TO alt_ts_prs2; -- failed (name conflict)
-psql:sql/alter_generic.sql:531: ERROR:  text search parser "alt_ts_prs2" already exists in schema "alt_nsp1"
+psql:sql/alter_generic.sql:540: ERROR:  text search parser "alt_ts_prs2" already exists in schema "alt_nsp1"
 ALTER TEXT SEARCH PARSER alt_ts_prs1 RENAME TO alt_ts_prs3; -- OK
 ALTER TEXT SEARCH PARSER
 ALTER TEXT SEARCH PARSER alt_ts_prs2 SET SCHEMA alt_nsp2;   -- OK
@@ -805,10 +805,10 @@ CREATE TEXT SEARCH PARSER alt_ts_prs2
     (start = prsd_start, gettoken = prsd_nexttoken, end = prsd_end, lextypes = prsd_lextype);
 CREATE TEXT SEARCH PARSER
 ALTER TEXT SEARCH PARSER alt_ts_prs2 SET SCHEMA alt_nsp2;   -- failed (name conflict)
-psql:sql/alter_generic.sql:537: ERROR:  text search parser "alt_ts_prs2" already exists in schema "alt_nsp2"
+psql:sql/alter_generic.sql:546: ERROR:  text search parser "alt_ts_prs2" already exists in schema "alt_nsp2"
 -- invalid: non-lowercase quoted identifiers
 CREATE TEXT SEARCH PARSER tspars_case ("Start" = start_function);
-psql:sql/alter_generic.sql:540: ERROR:  text search parser parameter "Start" not recognized
+psql:sql/alter_generic.sql:549: ERROR:  text search parser parameter "Start" not recognized
 SELECT nspname, prsname
   FROM pg_ts_parser t, pg_namespace n
   WHERE t.prsnamespace = n.oid AND nspname like 'alt_nsp%'
@@ -825,20 +825,20 @@ SELECT nspname, prsname
 ---
 \set VERBOSITY terse \\ -- suppress cascade details
 DROP FOREIGN DATA WRAPPER alt_fdw2 CASCADE;
-psql:sql/alter_generic.sql:552: NOTICE:  drop cascades to server alt_fserv2
+psql:sql/alter_generic.sql:561: NOTICE:  drop cascades to server alt_fserv2
 DROP FOREIGN DATA WRAPPER
 DROP FOREIGN DATA WRAPPER alt_fdw3 CASCADE;
-psql:sql/alter_generic.sql:553: NOTICE:  drop cascades to server alt_fserv3
+psql:sql/alter_generic.sql:562: NOTICE:  drop cascades to server alt_fserv3
 DROP FOREIGN DATA WRAPPER
 DROP LANGUAGE alt_lang2 CASCADE;
 DROP LANGUAGE
 DROP LANGUAGE alt_lang3 CASCADE;
 DROP LANGUAGE
 DROP SCHEMA alt_nsp1 CASCADE;
-psql:sql/alter_generic.sql:558: NOTICE:  drop cascades to 26 other objects
+psql:sql/alter_generic.sql:567: NOTICE:  drop cascades to 26 other objects
 DROP SCHEMA
 DROP SCHEMA alt_nsp2 CASCADE;
-psql:sql/alter_generic.sql:559: NOTICE:  drop cascades to 9 other objects
+psql:sql/alter_generic.sql:568: NOTICE:  drop cascades to 9 other objects
 DROP SCHEMA
 DROP USER regress_alter_generic_user1;
 DROP ROLE

@@ -972,7 +972,7 @@ INSERT 0 1
 insert into idxpart (b, a) values ('one', 142857), ('two', 285714);
 INSERT 0 2
 insert into idxpart select a * 2, b || b from idxpart where a between 2^16 and 2^19;
-INSERT 0 5
+psql:sql/indexing.sql:415: ERROR:  Kunlun-db: can't access target table 'idxpart1' being modified.
 insert into idxpart values (572814, 'five');
 INSERT 0 1
 insert into idxpart values (857142, 'six');

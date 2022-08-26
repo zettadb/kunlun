@@ -550,7 +550,7 @@ show global variables strict;
  tmp_table_size                    | 33554432
  transaction_isolation             | READ-COMMITTED
  transaction_read_only             | OFF
- transaction_write_set_extraction  | OFF
+ transaction_write_set_extraction  | XXHASH64
  updatable_views_with_limit        | YES
  windowing_use_high_precision      | ON
 (93 rows)

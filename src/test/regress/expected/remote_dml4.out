@@ -70,7 +70,7 @@ INSERT INTO t3 SELECT GENERATE_SERIES(0,400) % 200, 0 ON DUPLICATE KEY UPDATE b=
 INSERT 0 602
 -- update partition key is not allowed
 INSERT INTO t3 SELECT GENERATE_SERIES(0,400) % 200, 0 ON DUPLICATE KEY UPDATE a=200-t3.a; -- should be fail
-psql:sql/remote_dml4.sql:35: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '200' for key 't3p1.PRIMARY'.
+psql:sql/remote_dml4.sql:35: ERROR:  Kunlun-db: Can not update partition key of a remote relation.
 --- replace
 DELETE  FROM t1;
 DELETE 3
@@ -133,11 +133,11 @@ SELECT * FROM t1 WHERE b < 0;
 (1 row)
 
 UPDATE t3 SET b=-b ORDER BY a LIMIT 1; -- should be fail, global order is not supported
-UPDATE 1
+psql:sql/remote_dml4.sql:66: ERROR:  Kunlun-db: Cannot push down sort
 UPDATE t3 SET b=-b WHERE a<100 ORDER BY a LIMIT 1 RETURNING *;
- a |  b  
----+-----
- 0 | 400
+ a |  b   
+---+------
+ 0 | -400
 (1 row)
 
 UPDATE 1
@@ -150,7 +150,7 @@ WITH foo as (UPDATE t3 SET b=-b WHERE b > 0 LIMIT 10 RETURNING *) SELECT count(1
 SELECT count(1) FROM t3 where b<0;
  count 
 -------
-    10
+    11
 (1 row)
 
 INSERT INTO t4 SELECT GENERATE_SERIES(0,100);

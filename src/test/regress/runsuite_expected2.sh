@@ -27,10 +27,10 @@ cat $listfile | grep -v '^#' | sed '/^[ 	]*$/d' | awk '{print $2}' | while read 
 		    diff "$f.out" "expected/$f.out" >/dev/null
 		    ret2="$?"
 		    if test "$ret2" = 0; then
-			echo "EXPECTED: same with expected output"
+			echo "EXPECTED: same with expected output - $f.sql"
 		    else
-			echo "UNEXPECTED: Different with expected output"
-			echo "======= diff content with expected output =========="
+			echo "UNEXPECTED: Different with expected output - $f.sql"
+			echo "======= diff content with expected output - $f.sql =========="
 			diff "$f.out" "expected/$f.out"
 		    fi
 		else

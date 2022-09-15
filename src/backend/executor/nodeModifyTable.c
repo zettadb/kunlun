@@ -2897,6 +2897,7 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 			{
 				List *rtables = mtstate->ps.state->es_plannedstmt->rtable;
 				int rti = resultRelInfo->ri_RangeTableIndex;
+				TupleDesc tupledesc = RelationGetDescr(resultRelInfo->ri_RelationDesc);
 				RangeTblEntry *rte = list_nth(rtables, rti - 1);
 				List *columns = NIL;
 				expandRTE(rte, rti, 0, -1, false, &columns, NULL);
@@ -2906,11 +2907,6 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 				rpec.estate = mtstate->ps.state;
 				rpec.exec_param_quals = true;
 				rpec.excluded_table_columns = columns; /* 'excluded' table on do update exprs */
-
-				if (list_length(node->onConflictSet) != list_length(columns))
-				{
-					elog(ERROR, "On conflict action has illegle number of set exprs");
-				}
 
 				/* conflict where clause */
 				if (node->onConflictWhere)
@@ -2923,40 +2919,27 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 				StringInfo action_str = &mtstate->mt_remote_action_clause;
 				appendStringInfo(action_str, " on duplicate key update ");
 
-				int varno = 1, count = 0;
-				bool first = true, make_dummy = false;
-				ListCell *lc1, *lc2;
+				int varno = 1;
+				bool first = true;
+				ListCell *lc;
 
-			Make_action:
-				forboth(lc1, columns, lc2, node->onConflictSet)
+				foreach (lc, node->onConflictSet)
 				{
-					Value *col = (Value *)lfirst(lc1);
-					Expr *expr = lfirst_node(TargetEntry, lc2)->expr;
+					Form_pg_attribute att = TupleDescAttr(tupledesc, varno - 1);
+					Expr *expr = lfirst_node(TargetEntry, lc)->expr;
 
-					if (IsA(expr, Var) &&
-						((Var *)expr)->varattno == varno &&
-						((Var *)expr)->varno == rti &&
-						!make_dummy)
-					{
-						/* set a=a, do nothing */
-					}
-					else
+					if (bms_is_member(varno - FirstLowInvalidHeapAttributeNumber, rte->updatedCols))
 					{
 						if (!first)
 							appendStringInfoChar(action_str, ',');
 						first = false;
-						appendStringInfo(action_str, " `%s`=", col->val.str);
+						appendStringInfo(action_str, " `%s`=", NameStr(att->attname));
 						if (snprint_expr(action_str, expr, &rpec) <= 0)
 						{
 							ereport(ERROR,
 								(errcode(ERRCODE_INTERNAL_ERROR),
 								 errmsg("Kunlun-db: The on conflict action cannot be serialized")));
 						}
-						++ count;
-
-						/* add a dummy expr to avoid syntax error */
-						if (make_dummy)
-							break;
 
 						/* check the partition key is updated */
 						if (CheckPartitionKeyModified(resultRelInfo->ri_RelationDesc, varno))
@@ -2967,12 +2950,6 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 						}
 					}
 					++varno;
-				}
-
-				if (count == 0 && !make_dummy)
-				{
-					make_dummy = true;
-					goto Make_action;
 				}
 			}
 		}

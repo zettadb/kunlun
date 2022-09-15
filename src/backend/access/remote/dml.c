@@ -524,68 +524,12 @@ void RemoteUDSetup(PlanState *planstate, RemoteUD *remote_updel)
 	case T_RemoteScanState:
 	{
 		RemoteScanState *rss = (RemoteScanState *)planstate;
-		ListCell *lc;
-		/*
-		 * For update/delete, the result relation also acts as a source relation,
-		 * and contain tableoid in the targetlist if the result relation is a
-		 * partitioned table
-		 */
-		ResultRelInfo *result = remote_updel->relinfo;
-		bool is_result = (result->ri_RelationDesc == rss->ss.ss_currentRelation);
-		if (!is_result)
-		{
-			/* check the tableoid */
-			foreach (lc, rss->scanexprs)
-			{
-				Expr *expr = (Expr *)lfirst(lc);
-				if (IsA(expr, Var) &&
-				    ((Var *)expr)->varattno == TableOidAttributeNumber)
-				{
-					is_result = true;
-					break;
-				}
-			}
-		}
-
-		if (is_result)
-		{
-			RemoteScan *rs = (RemoteScan *)planstate->plan;
-			remote_updel->rellist = lappend_int(remote_updel->rellist, rs->scanrelid);
-			remote_updel->quallist = lappend(remote_updel->quallist, rss->quals_pushdown);
-			/* Remember the index of first target RTE */
-			if (remote_updel->rti == -1)
-			{
-				remote_updel->rti = rs->scanrelid;
-				/* check if the query is a noop update, 'update t set c=c' ? */
-				if (remote_updel->mtstate->operation == CMD_UPDATE)
-				{
-					bool is_noop = true;
-					foreach (lc, remote_updel->tlist)
-					{
-						TargetEntry *tle = lfirst_node(TargetEntry, lc);
-						/* skip junk expr, we do not use it in remote sql */
-						if (tle->resjunk)
-							continue;
-						if (tle->resname && column_name_is_dropped(tle->resname))
-							continue;
-
-						/* Convert special var to normal expr*/
-						int planIndex = remote_updel->planIndex;
-						Expr *expr = ConvertSpecialVarRecursive(tle->expr, remote_updel->mtstate->mt_plans[planIndex]);
-						if (IsA(expr, Var))
-						{
-							if (((Var *)expr)->varno == remote_updel->rti &&
-							    ((Var *)expr)->varattno == tle->resno)
-								continue;
-						}
-						is_noop = false;
-						break;
-					}
-					if (is_noop)
-						remote_updel->limit = 0;
-				}
-			}
-		}
+		RemoteScan *rs = (RemoteScan *)planstate->plan;
+		remote_updel->rellist = lappend_int(remote_updel->rellist, rs->scanrelid);
+		remote_updel->quallist = lappend(remote_updel->quallist, rss->quals_pushdown);
+		/* Remember the index of first target RTE */
+		if (remote_updel->rti == -1)
+			remote_updel->rti = rs->scanrelid;
 		break;
 	}
 	default:
@@ -622,10 +566,12 @@ static void RemoteUDBuild(RemoteUD *remote_updel, RemotePrintExprContext *rpec, 
 			/* skip junk expr, we do not use it in remote sql */
 			if (tle->resjunk)
 				continue;
-			if (tle->resname && column_name_is_dropped(tle->resname))
-				continue;
 
-			Form_pg_attribute attr = TupleDescAttr(remote_updel->rel->rd_att, tle->resno - 1);
+			Form_pg_attribute attr = TupleDescAttr(remote_updel->parent->rd_att, tle->resno - 1);
+			if (attr->attisdropped ||
+			    !bms_is_member(tle->resno - FirstLowInvalidHeapAttributeNumber,
+					   remote_updel->parent_rte->updatedCols))
+				continue;
 
 			/* Convert special var to normal expr*/
 			Expr *expr = ConvertSpecialVarRecursive(tle->expr, remote_updel->mtstate->mt_plans[planIndex]);
@@ -739,12 +685,18 @@ bool RemoteUDNext(RemoteUD *remote_updel, RemotePrintExprContext *rpec, StringIn
 		return false;
 
 	Index rteid = list_nth_int(remote_updel->rellist, remote_updel->index);
-	RangeTblEntry *tle = list_nth(remote_updel->mtstate->ps.state->es_plannedstmt->rtable, rteid - 1);
-	remote_updel->rel = relation_open(tle->relid, AccessShareLock);
+	List *rtable = remote_updel->mtstate->ps.state->es_plannedstmt->rtable;
+	RangeTblEntry *rte = list_nth(rtable, rteid - 1);
+	remote_updel->parent_rte = list_nth(rtable, remote_updel->relinfo->ri_RangeTableIndex - 1);
+	remote_updel->parent = relation_open(remote_updel->parent_rte->relid, NoLock);
+	remote_updel->rel = relation_open(rte->relid, AccessShareLock);
 	remote_updel->qual = list_nth(remote_updel->quallist, remote_updel->index);
 	remote_updel->index++;
 	*shardid = remote_updel->rel->rd_rel->relshardid;
+
 	RemoteUDBuild(remote_updel, rpec, sql);
+
+	relation_close(remote_updel->parent, NoLock);
 	relation_close(remote_updel->rel, AccessShareLock);
 	remote_updel->rel = NULL;
 	return true;

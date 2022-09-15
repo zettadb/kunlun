@@ -17,6 +17,7 @@
 #define REMOTE_DML_H
 #include "utils/relcache.h"
 #include "nodes/nodes.h"
+#include "nodes/parsenodes.h"
 #include "nodes/pg_list.h"
 #include "nodes/primnodes.h"
 #include "nodes/execnodes.h"
@@ -73,6 +74,8 @@ typedef struct RemoteUD
    ModifyTableState *mtstate;
    int planIndex;
    int index;       /* Index of current result relation */
+   RangeTblEntry *parent_rte;
+   Relation parent;
    Relation rel;    /* Current result relation */
    int rti;         /* RTE number of current result relation */
    List *tlist;     /* Update target list */

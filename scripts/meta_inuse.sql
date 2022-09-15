@@ -32,17 +32,18 @@ use Kunlun_Metadata_DB;
 --
 -- Table structure for table `commit_log`
 --
-
 DROP TABLE IF EXISTS `commit_log_template_table`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
  SET character_set_client = utf8mb4 ;
 CREATE TABLE `commit_log_template_table` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
   `comp_node_id` int unsigned NOT NULL, -- no FK for perf
   `txn_id` bigint unsigned NOT NULL,
   `next_txn_cmd` enum('commit','abort') NOT NULL,
   `prepare_ts` timestamp(6) default current_timestamp(6),
-  `written_shards` json NOT NULL,
-  PRIMARY KEY (`txn_id`,`comp_node_id`)
+  `written_shards` json,
+  PRIMARY KEY (`id`,`comp_node_id`,`txn_id`),
+  UNIQUE KEY `commit_log_unik` (`comp_node_id`,`txn_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 /*!50100 PARTITION BY LIST (`comp_node_id`)
 SUBPARTITION BY HASH (((`txn_id` >> 32) DIV 86400))
@@ -102,6 +103,7 @@ CREATE TABLE `db_clusters` (
   `when_created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `business` varchar(120) NOT NULL,
   `memo` text,
+  `status` enum('inuse','deleted') DEFAULT 'inuse',
   `ha_mode` enum('no_rep','mgr','rbr') not null,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
@@ -132,7 +134,7 @@ CREATE TABLE `comp_nodes` (
   `when_created` timestamp NULL DEFAULT (now()),
   `user_name` varchar(64) NOT NULL,
   `passwd` varchar(16) NOT NULL,
-  `status` enum('creating','inactive','active') DEFAULT 'creating',
+  `status` enum('creating','inactive','active','deleted','manual_stop') DEFAULT 'creating',
   `svr_node_id` int unsigned NOT NULL,
 
   -- resource limits, 0 means unlimited
@@ -141,6 +143,7 @@ CREATE TABLE `comp_nodes` (
   max_conns int unsigned NOT NULL DEFAULT 0,
 
   extra_props text,
+  `coldbackup_period` varchar(50) NOT NULL default '01:00:00-02:00:00',
 
   PRIMARY KEY (db_cluster_id, `id`),
   UNIQUE KEY `cluster_id_name` (db_cluster_id, `name`),
@@ -198,7 +201,7 @@ CREATE TABLE `meta_db_nodes` (
   `replica_delay` int NOT NULL default 0,
   `degrade_conf_time` int NOT NULL default 0,
   `sync_num` smallint unsigned NOT NULL DEFAULT 1,
-  `datadir` varchar(8192) DEFAULT NULL,
+  `nodemgr_bin_path` varchar(8192) DEFAULT NULL,
   UNIQUE KEY `id` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -208,7 +211,7 @@ CREATE TABLE `meta_db_nodes` (
 --
 DROP TABLE IF EXISTS `server_nodes`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
- SET character_set_client = utf8mb4 ;
+SET character_set_client = utf8mb4 ;
 CREATE TABLE `server_nodes` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `hostaddr` varchar(8192) character set latin1 NOT NULL,
@@ -236,14 +239,22 @@ CREATE TABLE `server_nodes` (
   -- when the server started to be in use
   `svc_since` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   -- the port number the node_mgr on this server is listening on, if not using default one. NULL: using default app defined port.
-  nodemgr_port int,
-  nodemgr_tmp_data_abs_path text DEFAULT NULL,
-  extra_props text,
+  `nodemgr_port` int,
+  `nodemgr_bin_path` text,
+  `nodemgr_tmp_data_abs_path` text DEFAULT NULL,
+  `extra_props` text,
   `node_stats` enum('running','idle','dead') DEFAULT 'running',
+  `nodemgr_tcp_port` int DEFAULT NULL,
+  `nodemgr_prometheus_port` int DEFAULT NULL,
+  `current_port_pos` int DEFAULT NULL,
+  `machine_type` enum('storage','computer') DEFAULT NULL,
+  `port_range` varchar(256) DEFAULT NULL,
+  `used_port` text,
+  `installing_port` text,
   PRIMARY KEY (`id`),
   UNIQUE KEY `hostaddr_dcid_uniq` (`hostaddr`(512),`dc_id`),
   FOREIGN KEY (dc_id) references data_centers(id)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 -- Insert a pseudo server row in order to create cluster without registering valid server nodes.
 insert into server_nodes(hostaddr, total_mem, total_cpu_cores) values('pseudo_server_useless',16*1024,8);
@@ -296,6 +307,8 @@ CREATE TABLE `shards` (
   `degrade_conf_state` enum('ON','OFF') DEFAULT 'OFF',
   `degrade_run_state` enum('ON','OFF') DEFAULT 'OFF',
   `degrade_conf_time` int NOT NULL default 0,
+  `status` enum('inuse','deleted') DEFAULT 'inuse',
+  `coldbackup_period` varchar(50) NOT NULL default '01:00:00-02:00:00',
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (db_cluster_id, `name`),
   FOREIGN KEY (db_cluster_id)  references db_clusters(id)
@@ -321,7 +334,7 @@ CREATE TABLE `shard_nodes` (
   `svr_node_id` int unsigned NOT NULL,
   `when_created` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `master_priority` smallint NOT NULL default 1,
-  `status` enum('creating','inactive','active') DEFAULT 'creating',
+  `status` enum('creating','inactive','active','deleted','manual_stop') DEFAULT 'creating',
 
   -- resource limits, 0 means unlimited
   cpu_cores smallint unsigned NOT NULL default 0,
@@ -340,7 +353,6 @@ CREATE TABLE `shard_nodes` (
   `backup_node` enum ('OFF', 'ON') DEFAULT 'OFF',
 
   PRIMARY KEY (`id`),
-  UNIQUE KEY `hostaddr_port_svrnodeid_uniq` (`hostaddr`(512),`port`,`svr_node_id`),
   FOREIGN KEY (db_cluster_id) references db_clusters(id),
   FOREIGN KEY (svr_node_id) references server_nodes(id),
   FOREIGN KEY (shard_id) references shards(id)
@@ -441,26 +453,24 @@ create table backup_storage(
 ) ENGINE=InnoDB DEFAULT charset=utf8;
  
 -- available successful cluster backups, which can be used to restore clusters
--- rows in this table comes from cluster_shard_backup_restore_log when a backup succeeds.
-create table cluster_backups (
+create table cluster_coldbackups (
 	id serial primary key,
 	-- which backup media is this backup stored into ?
-	storage_id int unsigned not null,
+	storage_id int not null default 0,
 	-- which kunlun cluster is this from?
-	cluster_id int unsigned not null,
+	cluster_id int not null default 0,
+	-- which kunlun shard is this from?
+	shard_id int not null default 0,
+	-- which kunlun compute node is this from?
+	comp_id int not null default 0,
 	-- type of backup: all storage shards, only metadata shard, metadata shard and all storage shards
-	backup_type enum('storage_shards', 'meta_shard', 'meta_and_storage_shards') not null,
-	-- does the backup contain a computing node's full logical dump?
-	has_comp_node_dump bool not null,
-	-- start&end timestamps, comes from cluster_shard_backup_restore_log.
-	start_ts timestamp(6) not null,
-	end_ts timestamp(6) not null,
-	name varchar(256), -- a human readable string to identify the backup
+	backup_type enum('storage', 'compute') default NULL,
+	status enum('not_started', 'ongoing', 'done', 'failed') not null default 'not_started',
+	start_ts timestamp(6) not null default current_timestamp(6),
+	end_ts timestamp(6) not null default 0 ON UPDATE CURRENT_TIMESTAMP(6),
 	-- extra info for expanding 
 	memo text default null,
-	backup_addr varchar(1024), -- the root path and/or directory of the backup files.
-    FOREIGN KEY (storage_id) references backup_storage(id),
- 	FOREIGN KEY (cluster_id) references db_clusters(id)
+	backup_addr varchar(1024) -- the root path and/or directory of the backup files.
 ) ENGINE=InnoDB DEFAULT charset=utf8;
 
 -- if a cluster backup or restore fails half way, try to avoid repeated shard node backups/restores which have
@@ -505,22 +515,6 @@ create table cluster_general_job_log (
 	user_name varchar(128)
 ) ENGINE=InnoDB DEFAULT charset=utf8;
 
--- general jobs including the create and drop of a cluster, a computing node, a shard and a shard node.
--- log them in order to recover from failures halfway.
--- create table cluster_general_job_log (
---	id serial primary key,
---  related_id varchar(128) DEFAULT NULL,
---	job_type varchar(128) DEFAULT null,
---	-- an operation's status goes through the 3 phases: not_started -> ongoing -> done/failed
---	status enum ('not_started', 'ongoing', 'done', 'failed') not null default 'not_started',
---	-- extra info for expanding 
---	memo text default null,
---	when_started timestamp(6) not null default current_timestamp(6), -- when the operation was issued
---	when_ended timestamp(6), -- when the operation ended(either done or failed)
---	job_info text default null, -- optional
---	user_name varchar(128)
--- ) ENGINE=InnoDB DEFAULT charset=utf8;
-
 -- roll back record for install error
 create table cluster_roll_back_record (
 	id serial primary key,
@@ -550,13 +544,10 @@ create table table_move_jobs (
 	tab_file_format enum('logical', 'physical', 'dyn_clone') not null,
 	when_started timestamp(6) not null default current_timestamp(6),
 	when_ended timestamp(6) NULL default null,
-	status enum('not_started', 'dumped', 'transmitted', 'loaded', 'caught_up', 'renamed', 'rerouted', 'done', 'failed') not null default 'not_started',
+	status varchar(128) not null default 'not_started', -- ('not_started', 'dumped', 'transmitted', 'loaded', 'caught_up', 'renamed', 'rerouted', 'done', 'failed'),
+	stage varchar(128) not null default 'not_started', -- ('not_started', 'dumped', 'transmitted', 'loaded', 'caught_up', 'renamed', 'rerouted', 'done', 'failed'),
 	-- extra info for expanding 
-	memo text default null,
- 	FOREIGN KEY (src_shard)  references shards(id),
- 	FOREIGN KEY (src_shard_node) references shard_nodes(id),
- 	FOREIGN KEY (dest_shard)  references shards(id),
- 	FOREIGN KEY (dest_shard_node) references shard_nodes(id)
+	memo text default null
 ) ENGINE=InnoDB DEFAULT charset=utf8;
 
 -- Rbr failover table
@@ -564,8 +555,8 @@ DROP TABLE IF EXISTS `rbr_consfailover`;
 CREATE TABLE `rbr_consfailover` (
 	`id` int unsigned NOT NULL AUTO_INCREMENT,
 	`host` varchar(8192) NOT NULL,
-	`shard_id` int unsigned NOT NULL,
-	`cluster_id` int unsigned NOT NULL,
+	`shard_id` int  NOT NULL,
+	`cluster_id` int  NOT NULL,
 	`taskid` varchar(255) NOT NULL,
 	`step` varchar(255) NOT NULL,
 	`new_master_host` varchar(255) DEFAULT NULL,
@@ -593,8 +584,57 @@ CREATE TABLE `cluster_mgr_nodes` (
 	`id` int unsigned NOT NULL AUTO_INCREMENT,
 	`hostaddr` varchar(8192) character set latin1 NOT NULL,
 	`port` int unsigned DEFAULT NULL,
+	`prometheus_port` int unsigned DEFAULT NULL,
 	`member_state` enum('source','replica') DEFAULT 'replica',
 	PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT charset=utf8;
 
+DROP TABLE IF EXISTS `node_map_master`;
+CREATE TABLE `node_map_master` (
+	`id` int unsigned NOT NULL AUTO_INCREMENT,
+	`cluster_id` int NOT NULL,
+	`node_host` varchar(255) NOT NULL,
+	`master_host` varchar(255) NOT NULL,
+	`master_uuid` varchar(1024) NOT NULL,
+	PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT charset=utf8;
+
+DROP TABLE IF EXISTS `mysql_pg_install_log`;
+CREATE TABLE `mysql_pg_install_log` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `general_log_id` bigint unsigned DEFAULT NULL,
+  `install_type` varchar(50) DEFAULT NULL,
+  `when_started` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `when_ended` timestamp(6) NOT NULL DEFAULT 0 ON UPDATE CURRENT_TIMESTAMP(6),
+  `status` enum('not_started','ongoing','done','failed') NOT NULL DEFAULT 'not_started',
+  `job_info` text default NULL,
+  `memo` text default NULL,
+  PRIMARY KEY (`id`),
+  KEY `general_log_id` (`general_log_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+DROP TABLE IF EXISTS `restore_log`;
+CREATE TABLE `restore_log` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `general_log_id` bigint unsigned DEFAULT NULL,
+  `restore_type` varchar(50) DEFAULT NULL,
+  `when_started` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `when_ended` timestamp(6) NOT NULL DEFAULT 0 ON UPDATE CURRENT_TIMESTAMP(6),
+  `status` enum('not_started','ongoing','done','failed') NOT NULL DEFAULT 'not_started',
+  `job_info` text default NULL,
+  `memo` text default NULL,
+  PRIMARY KEY (`id`),
+  KEY `general_log_id` (`general_log_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+DROP TABLE IF EXISTS `cluster_shard_topology`;
+CREATE TABLE `cluster_shard_topology` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `cluster_id` int unsigned NOT NULL,
+  `shard_id` text,
+  `max_commit_log_id` int unsigned NOT NULL,
+  `max_ddl_log_id` int unsigned NOT NULL,
+  `timestamp` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 -- Dump completed on 2020-01-04 11:14:45

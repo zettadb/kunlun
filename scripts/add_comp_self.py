@@ -107,6 +107,8 @@ if __name__ == '__main__':
     parser.add_argument('--password', type=str, help="The password")
     parser.add_argument('--hostname', type=str, help="The hostname", default=gethostip())
     parser.add_argument('--port', type=int, help="The port", default=5432)
+    # This option does not take effect, it is just used to provide the same interface as enterprise version.
+    parser.add_argument('--mysql_port', type=int, help="The mysql protocol port", default=0)
     parser.add_argument('--datadir', type=str, help="The data directory", default='/pgdatadir')
     parser.add_argument('--install', help="install it first", default=False, action='store_true')
     parser.add_argument('--docker', help="process is in docker container", default=False, action='store_true')

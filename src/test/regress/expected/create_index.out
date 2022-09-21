@@ -3,7 +3,7 @@
 -- Create ancillary data structures (i.e. indices)
 --
 set default_nulls_smallest = off;
-SET
+psql:sql/create_index.sql:5: ERROR:  unrecognized mysql configuration parameter "default_nulls_smallest"
 --
 -- BTREE
 --

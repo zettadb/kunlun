@@ -167,7 +167,7 @@ SELECT '' AS three, i.* FROM INT2_TBL i WHERE (i.f1 % int4 '2') = int2 '0';
 (3 rows)
 
 SELECT '' AS five, i.f1, i.f1 * int2 '2' AS x FROM INT2_TBL i;
-psql:sql/int2.sql:63: ERROR:  value "65534" is out of range for type smallint
+psql:sql/int2.sql:63: ERROR:  smallint out of range
 SELECT '' AS five, i.f1, i.f1 * int2 '2' AS x FROM INT2_TBL i
 WHERE abs(f1) < 16384;
  five |  f1   |   x   
@@ -188,7 +188,7 @@ SELECT '' AS five, i.f1, i.f1 * int4 '2' AS x FROM INT2_TBL i;
 (5 rows)
 
 SELECT '' AS five, i.f1, i.f1 + int2 '2' AS x FROM INT2_TBL i;
-psql:sql/int2.sql:70: ERROR:  value "32769" is out of range for type smallint
+psql:sql/int2.sql:70: ERROR:  smallint out of range
 SELECT '' AS five, i.f1, i.f1 + int2 '2' AS x FROM INT2_TBL i
 WHERE f1 < 32766;
  five |   f1   |   x    
@@ -210,7 +210,7 @@ SELECT '' AS five, i.f1, i.f1 + int4 '2' AS x FROM INT2_TBL i;
 (5 rows)
 
 SELECT '' AS five, i.f1, i.f1 - int2 '2' AS x FROM INT2_TBL i;
-psql:sql/int2.sql:77: ERROR:  value "-32769" is out of range for type smallint
+psql:sql/int2.sql:77: ERROR:  smallint out of range
 SELECT '' AS five, i.f1, i.f1 - int2 '2' AS x FROM INT2_TBL i
 WHERE f1 > -32767;
  five |  f1   |   x   

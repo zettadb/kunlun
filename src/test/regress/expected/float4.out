@@ -231,15 +231,7 @@ SELECT '' AS three, f.f1, f.f1 - '-10' AS x FROM FLOAT4_TBL f
 
 -- test divide by zero
 SELECT '' AS bad, f.f1 / '0.0' from FLOAT4_TBL f;
- bad | ?column? 
------+----------
-     |         
-     |         
-     |         
-     |         
-     |         
-(5 rows)
-
+psql:sql/float4.sql:73: ERROR:  division by zero
 SELECT '' AS five, * FROM FLOAT4_TBL  order by f1;
  five |     f1      
 ------+-------------

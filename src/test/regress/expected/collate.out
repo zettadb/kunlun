@@ -10,7 +10,7 @@
  * since any departure from C sorting behavior will show as a failure.
  */
  set default_nulls_smallest = off;
-SET
+psql:sql/collate.sql:12: ERROR:  unrecognized mysql configuration parameter "default_nulls_smallest"
 CREATE SCHEMA collate_tests;
 CREATE SCHEMA
 SET search_path = collate_tests;

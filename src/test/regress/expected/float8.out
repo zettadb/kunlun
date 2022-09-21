@@ -428,9 +428,9 @@ UPDATE FLOAT8_TBL
    WHERE FLOAT8_TBL.f1 > '0.0';
 UPDATE 3
 SELECT '' AS bad, f.f1 * '1e200' from FLOAT8_TBL f;
-psql:sql/float8.sql:136: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1690, DOUBLE value is out of range in '(`regress_$$_public`.`f`.`f1` * 9.9999999999999997e+199)'.
+psql:sql/float8.sql:136: ERROR:  value out of range: overflow
 SELECT '' AS bad, f.f1 ^ '1e200' from FLOAT8_TBL f;
-psql:sql/float8.sql:138: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1690, DOUBLE value is out of range in 'pow(`regress_$$_public`.`f`.`f1`,9.9999999999999997e+199)'.
+psql:sql/float8.sql:138: ERROR:  value out of range: overflow
 SELECT 0 ^ 0 + 0 ^ 1 + 0 ^ 0.0 + 0 ^ 0.5;
  ?column? 
 ----------
@@ -438,40 +438,13 @@ SELECT 0 ^ 0 + 0 ^ 1 + 0 ^ 0.0 + 0 ^ 0.5;
 (1 row)
 
 SELECT '' AS bad, ln(f.f1) from FLOAT8_TBL f where f.f1 = '0.0' ;
- bad | ln 
------+----
-     |   
-(1 row)
-
+psql:sql/float8.sql:142: ERROR:  cannot take logarithm of zero
 SELECT '' AS bad, ln(f.f1) from FLOAT8_TBL f where f.f1 < '0.0' ;
- bad | ln 
------+----
-     |   
-     |   
-     |   
-     |   
-(4 rows)
-
+psql:sql/float8.sql:144: ERROR:  cannot take logarithm of a negative number
 SELECT '' AS bad, exp(f.f1) from FLOAT8_TBL f;
- bad |         exp          
------+----------------------
-     |                    1
-     |                    0
-     | 7.39912306090513e-16
-     |                    0
-     |                    1
-(5 rows)
-
+psql:sql/float8.sql:146: ERROR:  value out of range: underflow
 SELECT '' AS bad, f.f1 / '0.0' from FLOAT8_TBL f;
- bad | ?column? 
------+----------
-     |         
-     |         
-     |         
-     |         
-     |         
-(5 rows)
-
+psql:sql/float8.sql:148: ERROR:  division by zero
 SELECT '' AS five, * FROM FLOAT8_TBL  order by f1;
  five |          f1           
 ------+-----------------------

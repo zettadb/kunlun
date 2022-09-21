@@ -3919,23 +3919,23 @@ CREATE TABLE transition_table_status
 -- create initial test data
 INSERT INTO transition_table_level1 (level1_no)
   SELECT generate_series(1,200);
-ANALYZE transition_table_level1;
+--ANALYZE transition_table_level1;
 
 INSERT INTO transition_table_level2 (level2_no, parent_no)
   SELECT level2_no, level2_no / 50 + 1 AS parent_no
     FROM generate_series(1,9999) level2_no;
-ANALYZE transition_table_level2;
+--ANALYZE transition_table_level2;
 
 INSERT INTO transition_table_status (level, node_no, status)
   SELECT 1, level1_no, 0 FROM transition_table_level1;
 
 INSERT INTO transition_table_status (level, node_no, status)
   SELECT 2, level2_no, 0 FROM transition_table_level2;
-ANALYZE transition_table_status;
+--ANALYZE transition_table_status;
 
 INSERT INTO transition_table_level1(level1_no)
   SELECT generate_series(201,1000);
-ANALYZE transition_table_level1;
+--ANALYZE transition_table_level1;
 
 -- behave reasonably if someone tries to modify a transition table
 --CREATE TRIGGER transition_table_level2_bad_usage_trigger

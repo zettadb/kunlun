@@ -1186,6 +1186,7 @@ DROP TABLE tx3;
 -- Test CREATE OR REPLACE VIEW turning a non-updatable view into an
 -- auto-updatable view and adding check options in a single step
 --
+drop table t1 acscade;
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE t1 (a int, b varchar(50));
 --DDL_STATEMENT_END--
@@ -1206,7 +1207,7 @@ DROP VIEW v1;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE t1;
 --DDL_STATEMENT_END--
-
+UPDATE rw_view2 SET aa=aa, cc=cc; 
 -- check that an auto-updatable view on a partitioned table works correctly
 --DDL_STATEMENT_BEGIN--
 drop table if exists uv_pt;

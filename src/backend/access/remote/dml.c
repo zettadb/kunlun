@@ -573,15 +573,6 @@ static void RemoteUDBuild(RemoteUD *remote_updel, RemotePrintExprContext *rpec, 
 					   remote_updel->parent_rte->updatedCols))
 				continue;
 
-			/* Convert special var to normal expr*/
-			Expr *expr = ConvertSpecialVarRecursive(tle->expr, remote_updel->mtstate->mt_plans[planIndex]);
-			if (IsA(expr, Var))
-			{
-				if (((Var *)expr)->varno == remote_updel->rti &&
-				    ((Var *)expr)->varattno == tle->resno)
-					continue;
-			}
-
 			appendStringInfo(sql,
 					 " %s %s=", first ? "set" : ",",
 					 attr->attname.data);

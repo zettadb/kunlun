@@ -160,39 +160,39 @@ LINE 1: SELECT E'De\\678dBeEf'::bytea;
 SET bytea_output TO escape;
 SET
 SELECT E'\\xDeAdBeEf'::bytea;
-   bytea    
-------------
- \xdeadbeef
+      bytea       
+------------------
+ \336\255\276\357
 (1 row)
 
 SELECT E'\\x De Ad Be Ef '::bytea;
-   bytea    
-------------
- \xdeadbeef
+      bytea       
+------------------
+ \336\255\276\357
 (1 row)
 
 SELECT E'\\xDe00BeEf'::bytea;
-   bytea    
-------------
- \xde00beef
+      bytea       
+------------------
+ \336\000\276\357
 (1 row)
 
 SELECT E'DeAdBeEf'::bytea;
-       bytea        
---------------------
- \x4465416442654566
+  bytea   
+----------
+ DeAdBeEf
 (1 row)
 
 SELECT E'De\\000dBeEf'::bytea;
-       bytea        
---------------------
- \x4465006442654566
+    bytea    
+-------------
+ De\000dBeEf
 (1 row)
 
 SELECT E'De\\123dBeEf'::bytea;
-       bytea        
---------------------
- \x4465536442654566
+  bytea   
+----------
+ DeSdBeEf
 (1 row)
 
 --
@@ -1176,14 +1176,7 @@ SELECT substr(f1, -1, 5) from toasttest;
 
 -- If the length is less than zero, an ERROR is thrown.
 SELECT substr(f1, 5, -1) from toasttest;
- substr 
---------
- 
- 
- 
- 
-(4 rows)
-
+psql:sql/strings.sql:363: ERROR:  negative substring length not allowed
 -- If no third argument (length) is provided, the length to the end of the
 -- string is assumed.
 SELECT substr(f1, 99995) from toasttest;
@@ -1255,44 +1248,37 @@ INSERT 0 1
 -- If the starting position is zero or less, then return from the start of the string
 -- adjusting the length to be consistent with the "negative start" per SQL.
 SELECT substr(f1, -1, 5) from toasttest;
-  substr  
-----------
- \x313233
- \x313233
- \x313233
- \x313233
+ substr 
+--------
+ 123
+ 123
+ 123
+ 123
 (4 rows)
 
 -- If the length is less than zero, an ERROR is thrown.
 SELECT substr(f1, 5, -1) from toasttest;
- substr 
---------
- \x
- \x
- \x
- \x
-(4 rows)
-
+psql:sql/strings.sql:414: ERROR:  negative substring length not allowed
 -- If no third argument (length) is provided, the length to the end of the
 -- string is assumed.
 SELECT substr(f1, 99995) from toasttest;
-     substr     
-----------------
- \x353637383930
- \x353637383930
- \x353637383930
- \x353637383930
+ substr 
+--------
+ 567890
+ 567890
+ 567890
+ 567890
 (4 rows)
 
 -- If start plus length is > string length, the result is truncated to
 -- string length
 SELECT substr(f1, 99995, 10) from toasttest;
-     substr     
-----------------
- \x353637383930
- \x353637383930
- \x353637383930
- \x353637383930
+ substr 
+--------
+ 567890
+ 567890
+ 567890
+ 567890
 (4 rows)
 
 DROP TABLE toasttest;
@@ -1764,27 +1750,27 @@ SELECT repeat('Pg', -4);
 (1 row)
 
 SELECT trim(E'\\000'::bytea from E'\\000Tom\\000'::bytea);
-  btrim   
-----------
- \x546f6d
+ btrim 
+-------
+ Tom
 (1 row)
 
 SELECT btrim(E'\\000trim\\000'::bytea, E'\\000'::bytea);
-   btrim    
-------------
- \x7472696d
+ btrim 
+-------
+ trim
 (1 row)
 
 SELECT btrim(''::bytea, E'\\000'::bytea);
  btrim 
 -------
- \x
+ 
 (1 row)
 
 SELECT btrim(E'\\000trim\\000'::bytea, ''::bytea);
-     btrim      
-----------------
- \x007472696d00
+    btrim     
+--------------
+ \000trim\000
 (1 row)
 
 SELECT encode(overlay(E'Th\\000omas'::bytea placing E'Th\\001omas'::bytea from 2),'escape');

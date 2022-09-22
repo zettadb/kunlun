@@ -1186,7 +1186,7 @@ DROP TABLE tx3;
 -- Test CREATE OR REPLACE VIEW turning a non-updatable view into an
 -- auto-updatable view and adding check options in a single step
 --
-drop table t1 acscade;
+drop table if exists t1 cascade;
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE t1 (a int, b varchar(50));
 --DDL_STATEMENT_END--

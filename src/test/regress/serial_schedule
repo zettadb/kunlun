@@ -205,5 +205,5 @@ test: kunlun_alter_table
 test: kunlun_remote
 test: kunlun_remote_dml
 test: kunlun_sequence_noalter
-test: kunlun_vars
+#test: kunlun_vars
 test: kunlun_ticket

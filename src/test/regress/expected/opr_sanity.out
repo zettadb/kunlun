@@ -314,14 +314,10 @@ SELECT p1.oid, p1.proname
 FROM pg_proc as p1
 WHERE p1.prorettype = 'internal'::regtype AND NOT
     'internal'::regtype = ANY (p1.proargtypes);
- oid  |         proname         
-------+-------------------------
+ oid  |   proname   
+------+-------------
  2304 | internal_in
- 5223 | accum_sum_count_int4
- 5224 | accum_sum_count_int8
- 5225 | accum_sum_count_float
- 5226 | accum_sum_count_numeric
-(5 rows)
+(1 row)
 
 -- Look for functions that return a polymorphic type and do not have any
 -- polymorphic argument.  Calls of such functions would be unresolvable

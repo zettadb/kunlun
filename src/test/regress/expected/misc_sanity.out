@@ -70,6 +70,7 @@ loop
   end if;
 end loop;
 end$$;
+psql:sql/misc_sanity.sql:74: NOTICE:  pg_attrdef contains unpinned initdb-created object(s)
 psql:sql/misc_sanity.sql:74: NOTICE:  pg_constraint contains unpinned initdb-created object(s)
 psql:sql/misc_sanity.sql:74: NOTICE:  pg_conversion contains unpinned initdb-created object(s)
 psql:sql/misc_sanity.sql:74: NOTICE:  pg_database contains unpinned initdb-created object(s)

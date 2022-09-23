@@ -74,6 +74,7 @@ select name, setting from pg_settings where name like 'enable%';
 -------------------------------------------+---------
  enable_bitmapscan                         | on
  enable_coredump                           | on
+ enable_debug_remote_path                  | off
  enable_gathermerge                        | on
  enable_global_deadlock_detection          | on
  enable_hashagg                            | on
@@ -83,8 +84,8 @@ select name, setting from pg_settings where name like 'enable%';
  enable_material                           | on
  enable_mergejoin                          | on
  enable_nestloop                           | on
- enable_parallel_append                    | on
- enable_parallel_hash                      | on
+ enable_parallel_append                    | off
+ enable_parallel_hash                      | off
  enable_parallel_remotescan                | off
  enable_partition_pruning                  | on
  enable_partitionwise_aggregate            | on
@@ -96,7 +97,6 @@ select name, setting from pg_settings where name like 'enable%';
  enable_remote_join_pushdown               | on
  enable_remote_limit_pushdown              | on
  enable_remote_orderby_pushdown            | on
- enable_remote_shared_mvcc                 | off
  enable_replica_read                       | off
  enable_seqscan                            | on
  enable_shard_binary_protocol              | off

@@ -91,23 +91,23 @@ drop index t1_a_idx;
 explain select * from t1 where t1.a=1;
 
 
--- ticket:908
-drop table if exists t1,t2; 
-create table t1(a int, b int) with(shard=1);
-create table t2(a int, b int) with(shard=2);
-create index on t1(a);
-create index on t2(a);
+-- ticket:908 单shard不做测试
+-- drop table if exists t1,t2; 
+-- create table t1(a int, b int) with(shard=1);
+-- create table t2(a int, b int) with(shard=2);
+-- create index on t1(a);
+-- create index on t2(a);
 -- 准备数据
-insert into t1 select  random()*100, generate_series(1,100) % 10;
-insert into t2 select generate_series(1,100), random()*100;
-analyze t1, t2;
+-- insert into t1 select  random()*100, generate_series(1,100) % 10;
+-- insert into t2 select generate_series(1,100), random()*100;
+-- analyze t1, t2;
 -- 禁止hash/merge join，以及物化优化
-set enable_hashjoin =off;
-set enable_mergejoin =off;
-set enable_material =off;
+-- set enable_hashjoin =off;
+-- set enable_mergejoin =off;
+-- set enable_material =off;
 
 -- 产生NestLoop JOIN执行计划
-explain select * from t1, t2 where t1.b=t2.a and t1.a < 40;
+-- explain select * from t1, t2 where t1.b=t2.a and t1.a < 40;
 
 
 -- ticket:881
@@ -244,6 +244,7 @@ SELECT count(1) FROM t3 where b<0;
 drop table t3;
 
 --ticket:936
+drop FUNCTION if exists f_leak;
 select length(stringu1) from tenk1 group by length(stringu1);
 
 CREATE FUNCTION f_leak (text)

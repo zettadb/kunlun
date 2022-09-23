@@ -1058,6 +1058,9 @@ Indexes:
     "anothertab_f2_key" UNIQUE CONSTRAINT, btree (f2 NULLS FIRST)
     "anothertab_f4_idx" UNIQUE, btree (f4 NULLS FIRST)
     "anothertab_f2_f3_idx" btree (f2 NULLS FIRST, f3 NULLS FIRST)
+Statistics objects:
+    "public"."anothertab_f1_f4_key_pfx_2" () ON f1, f4 FROM anothertab
+    "public"."anothertab_f2_f3_idx_pfx_2" () ON f2, f3 FROM anothertab
 
 alter table anothertab alter column f1 type bigint;
 ALTER TABLE

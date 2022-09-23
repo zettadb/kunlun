@@ -494,13 +494,18 @@ insert into dropcol(key1, keep1, keep2) values(1, '4', 4) on conflict(key1)
     where excluded.keep1 is not null and excluded.keep2 is not null
           and dropcol.keep1 is not null and dropcol.keep2 is not null
     returning *;
-psql:sql/insert_conflict.sql:338: ERROR:  On conflict action has illegle number of set exprs
+psql:sql/insert_conflict.sql:338: ERROR:  Kunlun-db: On conflict action do not support where clause.
 ;
 -- set using existing table
 insert into dropcol(key1, keep1, keep2) values(1, '5', 5) on conflict(key1)
     do update set keep1 = dropcol.keep1, keep2 = dropcol.keep2
     returning *;
-psql:sql/insert_conflict.sql:343: ERROR:  On conflict action has illegle number of set exprs
+ key1 | keep1 | keep2 
+------+-------+-------
+    1 | 5     |     5
+(1 row)
+
+INSERT 0 0
 ;
 drop table dropcol;
 DROP TABLE
@@ -630,9 +635,9 @@ CREATE TABLE
 delete from parted_conflict_test;
 DELETE 1
 insert into parted_conflict_test (a, b) values (4, 'a') on conflict (a) do update set b = excluded.b;
-psql:sql/insert_conflict.sql:424: ERROR:  On conflict action has illegle number of set exprs
+psql:sql/insert_conflict.sql:424: ERROR:  Kunlun-db: The on conflict action cannot be serialized
 insert into parted_conflict_test (a, b) values (4, 'b') on conflict (a) do update set b = excluded.b where parted_conflict_test.b = 'a';
-psql:sql/insert_conflict.sql:425: ERROR:  On conflict action has illegle number of set exprs
+psql:sql/insert_conflict.sql:425: ERROR:  Kunlun-db: On conflict action do not support where clause.
 -- should see (4, 'b')
 select * from parted_conflict_test order by a;
  a | b 
@@ -647,9 +652,9 @@ CREATE TABLE
 delete from parted_conflict_test;
 DELETE 0
 insert into parted_conflict_test (a, b) values (5, 'a') on conflict (a) do update set b = excluded.b;
-psql:sql/insert_conflict.sql:434: ERROR:  On conflict action has illegle number of set exprs
+psql:sql/insert_conflict.sql:434: ERROR:  Kunlun-db: The on conflict action cannot be serialized
 insert into parted_conflict_test (a, b) values (5, 'b') on conflict (a) do update set b = excluded.b where parted_conflict_test.b = 'a';
-psql:sql/insert_conflict.sql:435: ERROR:  On conflict action has illegle number of set exprs
+psql:sql/insert_conflict.sql:435: ERROR:  Kunlun-db: On conflict action do not support where clause.
 -- should see (5, 'b')
 select * from parted_conflict_test order by a;
  a | b 
@@ -660,9 +665,9 @@ select * from parted_conflict_test order by a;
 delete from parted_conflict_test;
 DELETE 0
 insert into parted_conflict_test (a, b) values (1, 'a'), (2, 'a'), (4, 'a') on conflict (a) do update set b = excluded.b where excluded.b = 'b';
-psql:sql/insert_conflict.sql:442: ERROR:  On conflict action has illegle number of set exprs
+psql:sql/insert_conflict.sql:442: ERROR:  Kunlun-db: On conflict action do not support where clause.
 insert into parted_conflict_test (a, b) values (1, 'b'), (2, 'c'), (4, 'b') on conflict (a) do update set b = excluded.b where excluded.b = 'b';
-psql:sql/insert_conflict.sql:443: ERROR:  On conflict action has illegle number of set exprs
+psql:sql/insert_conflict.sql:443: ERROR:  Kunlun-db: On conflict action do not support where clause.
 -- should see (1, 'b'), (2, 'a'), (4, 'b')
 select * from parted_conflict_test order by a;
  a | b 

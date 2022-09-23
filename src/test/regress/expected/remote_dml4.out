@@ -133,11 +133,11 @@ SELECT * FROM t1 WHERE b < 0;
 (1 row)
 
 UPDATE t3 SET b=-b ORDER BY a LIMIT 1; -- should be fail, global order is not supported
-psql:sql/remote_dml4.sql:66: ERROR:  Kunlun-db: Cannot push down sort
+UPDATE 1
 UPDATE t3 SET b=-b WHERE a<100 ORDER BY a LIMIT 1 RETURNING *;
- a |  b   
----+------
- 0 | -400
+ a |  b  
+---+-----
+ 0 | 400
 (1 row)
 
 UPDATE 1
@@ -150,7 +150,7 @@ WITH foo as (UPDATE t3 SET b=-b WHERE b > 0 LIMIT 10 RETURNING *) SELECT count(1
 SELECT count(1) FROM t3 where b<0;
  count 
 -------
-    11
+    10
 (1 row)
 
 INSERT INTO t4 SELECT GENERATE_SERIES(0,100);

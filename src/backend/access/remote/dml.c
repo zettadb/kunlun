@@ -577,6 +577,7 @@ static void RemoteUDBuild(RemoteUD *remote_updel, RemotePrintExprContext *rpec, 
 					 " %s %s=", first ? "set" : ",",
 					 attr->attname.data);
 
+			Expr *expr = ConvertSpecialVarRecursive(tle->expr, remote_updel->mtstate->mt_plans[planIndex]);
 			if (snprint_expr(sql, expr, rpec) < 0)
 				ereport(ERROR,
 					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),

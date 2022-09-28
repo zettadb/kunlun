@@ -92,6 +92,7 @@ select name, setting from pg_settings where name like 'enable%';
  enable_partitionwise_join                 | on
  enable_pg_mysql_charset_mapping_deduction | on
  enable_remote_agg_pushdown                | on
+ enable_remote_cursor                      | off
  enable_remote_distinct_pushdown           | on
  enable_remote_indexscan                   | on
  enable_remote_join_pushdown               | on
@@ -104,7 +105,7 @@ select name, setting from pg_settings where name like 'enable%';
  enable_sql_log                            | off
  enable_stacktrace                         | on
  enable_tidscan                            | on
-(32 rows)
+(33 rows)
 
 -- Test that the pg_timezone_names and pg_timezone_abbrevs views are
 -- more-or-less working.  We can't test their contents in any great detail

@@ -251,7 +251,7 @@ CREATE FUNCTION f_leak (text)
        RETURNS bool LANGUAGE 'plpgsql' COST 0.0000001
        AS 'BEGIN RAISE NOTICE ''f_leak => %'', $1; RETURN true; END';
 	   
-drop table if exists customer;   
+drop table if exists customer cascade;   
 CREATE TABLE customer (
        cid      int primary key,
        name     text not null,

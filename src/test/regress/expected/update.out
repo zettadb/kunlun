@@ -144,7 +144,7 @@ EXPLAIN (VERBOSE, COSTS OFF)
 UPDATE update_test t
   SET (a, b) = (SELECT b, a FROM update_test s WHERE s.a = t.a)
   WHERE CURRENT_USER = SESSION_USER;
-
+psql:sql/update.sql:78: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 --not support: UPDATE update_test t
 --  SET (a, b) = (SELECT b, a FROM update_test s WHERE s.a = t.a)
 --  WHERE CURRENT_USER = SESSION_USER;
@@ -195,7 +195,7 @@ CREATE TABLE
 -- Check that partition-key UPDATE works sanely on a partitioned table that
 -- does not have any child partitions.
 UPDATE part_b_10_b_20 set b = b - 6;
-psql:sql/update.sql:117: ERROR:  Kunlun-db: Can not update partition key of remote relation
+psql:sql/update.sql:117: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 -- Create some more partitions following the above pattern of descending bound
 -- order, but let's make the situation a bit more complex by having the
 -- attribute numbers of the columns vary from their parent partition.
@@ -224,7 +224,7 @@ LINE 1: select * from range_parted ORDER BY 1, 2, 3, 4, 5, 6;
 -- fail, no partition key update, so no attempt to move tuple,
 -- but "a = 'a'" violates partition constraint enforced by root partition)
 UPDATE part_b_10_b_20 set a = 'a';
-psql:sql/update.sql:141: ERROR:  Kunlun-db: Can not update partition key of remote relation
+psql:sql/update.sql:141: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 -- ok, partition key update, no constraint violation
 -- Can not update partition key of a remote relation.
 --UPDATE range_parted set d = d - 10 WHERE d > 10;
@@ -233,7 +233,7 @@ UPDATE range_parted set e = d;
 UPDATE 6
 -- No row found
 UPDATE part_c_1_100 set c = c + 20 WHERE c = 98;
-UPDATE 0
+psql:sql/update.sql:148: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 -- ok, row movement
 -- Can not update partition key of a remote relation.
 --UPDATE part_b_10_b_20 set c = c + 20 returning c, b, a;
@@ -428,7 +428,7 @@ LINE 1: select * from range_parted ORDER BY 1, 2, 3, 4, 5, 6;
 -- Update row movement from non-default to default partition.
 -- fail, default partition is not under part_a_10_a_20;
 UPDATE part_a_10_a_20 set a = 'ad' WHERE a = 'a';
-UPDATE 1
+psql:sql/update.sql:300: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 -- ok
 --UPDATE range_parted set a = 'ad' WHERE a = 'a';
 --UPDATE range_parted set a = 'bd' WHERE a = 'b';
@@ -487,7 +487,7 @@ INSERT 0 1
 -- Test partition constraint violation when intermediate ancestor is used and
 -- constraint is inherited from upper root.
 UPDATE sub_parted set a = 2 WHERE c = 10;
-psql:sql/update.sql:342: ERROR:  Kunlun-db: Can not update partition key of remote relation
+psql:sql/update.sql:342: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 -- Test update-partition-key, where the unpruned partitions do not have their
 -- partition keys updated.
 SELECT * FROM list_parted WHERE a = 2 ORDER BY 1;
@@ -497,51 +497,51 @@ SELECT * FROM list_parted WHERE a = 2 ORDER BY 1;
 (1 row)
 
 UPDATE list_parted set b = c + a WHERE a = 2;
-UPDATE 1
+psql:sql/update.sql:347: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 SELECT * FROM list_parted WHERE a = 2 ORDER BY 1;
-           a            | b  | c  
-------------------------+----+----
- 2.00000000000000000000 | 52 | 50
+           a            | b | c  
+------------------------+---+----
+ 2.00000000000000000000 | 5 | 50
 (1 row)
 
 SELECT * FROM list_parted ORDER BY 1, 2, 3;
-           a            | b  | c  
-------------------------+----+----
- 1.00000000000000000000 |  1 | 60
- 1.00000000000000000000 |  2 | 10
- 2.00000000000000000000 | 52 | 50
- 3.00000000000000000000 |  6 | 60
+           a            | b | c  
+------------------------+---+----
+ 1.00000000000000000000 | 1 | 60
+ 1.00000000000000000000 | 2 | 10
+ 2.00000000000000000000 | 5 | 50
+ 3.00000000000000000000 | 6 | 60
 (4 rows)
 
 UPDATE list_parted set c = 70 WHERE b  = 1;
 UPDATE 1
 SELECT * FROM list_parted ORDER BY 1, 2, 3;
-           a            | b  | c  
-------------------------+----+----
- 1.00000000000000000000 |  1 | 70
- 1.00000000000000000000 |  2 | 10
- 2.00000000000000000000 | 52 | 50
- 3.00000000000000000000 |  6 | 60
+           a            | b | c  
+------------------------+---+----
+ 1.00000000000000000000 | 1 | 70
+ 1.00000000000000000000 | 2 | 10
+ 2.00000000000000000000 | 5 | 50
+ 3.00000000000000000000 | 6 | 60
 (4 rows)
 
 --UPDATE list_parted set b = 1 WHERE c = 70;
 SELECT * FROM list_parted ORDER BY 1, 2, 3;
-           a            | b  | c  
-------------------------+----+----
- 1.00000000000000000000 |  1 | 70
- 1.00000000000000000000 |  2 | 10
- 2.00000000000000000000 | 52 | 50
- 3.00000000000000000000 |  6 | 60
+           a            | b | c  
+------------------------+---+----
+ 1.00000000000000000000 | 1 | 70
+ 1.00000000000000000000 | 2 | 10
+ 2.00000000000000000000 | 5 | 50
+ 3.00000000000000000000 | 6 | 60
 (4 rows)
 
 --UPDATE list_parted set b = 1 WHERE c = 70;
 SELECT * FROM list_parted ORDER BY 1, 2, 3;
-           a            | b  | c  
-------------------------+----+----
- 1.00000000000000000000 |  1 | 70
- 1.00000000000000000000 |  2 | 10
- 2.00000000000000000000 | 52 | 50
- 3.00000000000000000000 |  6 | 60
+           a            | b | c  
+------------------------+---+----
+ 1.00000000000000000000 | 1 | 70
+ 1.00000000000000000000 | 2 | 10
+ 2.00000000000000000000 | 5 | 50
+ 3.00000000000000000000 | 6 | 60
 (4 rows)
 
 -- UPDATE partition-key with FROM clause. If join produces multiple output
@@ -556,12 +556,12 @@ INSERT into non_parted VALUES (1), (1), (1), (2), (2), (2), (3), (3), (3);
 INSERT 0 9
 -- not supported: UPDATE list_parted t1 set a = 2 FROM non_parted t2 WHERE t1.a = t2.id and a = 1;
 SELECT * FROM list_parted ORDER BY 1, 2, 3;
-           a            | b  | c  
-------------------------+----+----
- 1.00000000000000000000 |  1 | 70
- 1.00000000000000000000 |  2 | 10
- 2.00000000000000000000 | 52 | 50
- 3.00000000000000000000 |  6 | 60
+           a            | b | c  
+------------------------+---+----
+ 1.00000000000000000000 | 1 | 70
+ 1.00000000000000000000 | 2 | 10
+ 2.00000000000000000000 | 5 | 50
+ 3.00000000000000000000 | 6 | 60
 (4 rows)
 
 DROP TABLE non_parted;
@@ -601,13 +601,13 @@ insert into hpart4 values (3, 4);
 INSERT 0 1
 -- fail
 update hpart1 set a = 3, b=4 where a = 1;
-UPDATE 1
+psql:sql/update.sql:393: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 -- ok, row movement
 update hash_parted set b = b - 1 where b = 1;
-psql:sql/update.sql:395: ERROR:  Kunlun-db: Can not update partition key of remote relation
+psql:sql/update.sql:395: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 -- ok
 update hash_parted set b = b + 8 where b = 1;
-psql:sql/update.sql:397: ERROR:  Kunlun-db: Can not update partition key of remote relation
+psql:sql/update.sql:397: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 -- cleanup
 drop table hash_parted;
 DROP TABLE

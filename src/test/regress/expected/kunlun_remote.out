@@ -115,7 +115,7 @@ psql:sql/kunlun_remote.sql:40: ERROR:  operator class "zh_pinyin_cmp" does not e
 create index t7_b on t7(b zh_stroke_cmp);
 psql:sql/kunlun_remote.sql:41: ERROR:  operator class "zh_stroke_cmp" does not exist for access method "btree"
 create index t7_a on t7((a+c));
-psql:sql/kunlun_remote.sql:42: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1072, Key column '((t7.a + t7.c))' doesn't exist in table.
+CREATE INDEX
 create index t7_a on t7 (a) where a between 100 and 200;
 psql:sql/kunlun_remote.sql:43: ERROR:  partial index isn't supported for remote relations
 create index t7_b on t7(b nulls first);

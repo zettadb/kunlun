@@ -283,7 +283,7 @@ SELECT a, b FROM collate_test2 WHERE a < 4 INTERSECT SELECT a, b FROM collate_te
 
 -- bug 114
 drop table if exists update_test cascade;
-CREATE TABLE update_test (a INT DEFAULT 10, b INT, c TEXT);
+CREATE TABLE update_test (a INT DEFAULT 10, b INT primary key, c TEXT);
 INSERT INTO update_test VALUES (5, 10, 'foo');
 INSERT INTO update_test(b, a) VALUES (15, 10);
 UPDATE update_test t SET (a, b) = (SELECT b, a FROM update_test s WHERE s.a = t.a) WHERE CURRENT_USER = SESSION_USER;

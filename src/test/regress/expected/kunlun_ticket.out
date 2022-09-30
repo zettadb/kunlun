@@ -1,5 +1,4 @@
 drop table if exists tenk1;
-psql:kunlun_ticket.sql:1: NOTICE:  table "tenk1" does not exist, skipping
 DROP TABLE
  CREATE TABLE tenk1 (
  unique1  int4,
@@ -20,7 +19,7 @@ DROP TABLE
  string4  name
 );
 CREATE TABLE
-COPY tenk1 FROM '/home/vito/pgregressdata/data/tenk.data';
+COPY tenk1 FROM '/home/kunlun/pgregressdata/data/tenk.data';
 COPY 10000
 select count(*) from tenk1;
  count 
@@ -29,7 +28,6 @@ select count(*) from tenk1;
 (1 row)
 
 drop table if exists FLOAT8_TBL;
-psql:kunlun_ticket.sql:23: NOTICE:  table "float8_tbl" does not exist, skipping
 DROP TABLE
 CREATE TABLE FLOAT8_TBL(f1 float8);
 CREATE TABLE
@@ -44,7 +42,6 @@ INSERT 0 1
 INSERT INTO FLOAT8_TBL(f1) VALUES ('1.2345678901234e-200');
 INSERT 0 1
 drop table if exists INT4_TBL;
-psql:kunlun_ticket.sql:32: NOTICE:  table "int4_tbl" does not exist, skipping
 DROP TABLE
 CREATE TABLE INT4_TBL(f1 int4);
 CREATE TABLE
@@ -55,13 +52,11 @@ INSERT 0 1
 INSERT INTO INT4_TBL(f1) VALUES ('    -123456');
 INSERT 0 1
 INSERT INTO INT4_TBL(f1) VALUES ('34.5');
-psql:kunlun_ticket.sql:37: ERROR:  invalid input syntax for integer: "34.5"
+psql:sql/kunlun_ticket.sql:37: ERROR:  invalid input syntax for integer: "34.5"
 LINE 1: INSERT INTO INT4_TBL(f1) VALUES ('34.5');
                                          ^
 drop table if exists INT8_TBL cascade;
-psql:kunlun_ticket.sql:40: NOTICE:  drop cascades to 2 other objects
-DETAIL:  drop cascades to function extractq2(int8_tbl)
-drop cascades to function extractq2_2(int8_tbl)
+psql:sql/kunlun_ticket.sql:40: NOTICE:  drop cascades to view tt18v
 DROP TABLE
 CREATE TABLE INT8_TBL(q1 int8, q2 int8);
 CREATE TABLE
@@ -96,7 +91,7 @@ show create table tenk1;
        |  stringu1 name,      +
        |  stringu2 name,      +
        |  string4 name        +
-       | ) WITH (shard='1')
+       | ) WITH (shard=1'1')
 (1 row)
 
 update pg_class set reltuples=10000 where relname = 'tenk1';
@@ -146,12 +141,13 @@ CREATE INDEX
  a      | integer |           |          |         | plain   |              | 
 Indexes:
     "t2_a_idx" btree (a NULLS FIRST)
-Options: shard=0
+Options: shard=1
 
  
  
 -- ticket:826
 drop table if exists t1; 
+psql:sql/kunlun_ticket.sql:84: NOTICE:  table "t1" does not exist, skipping
 DROP TABLE
 create table t1(a int, b int, c int, d int);
 CREATE TABLE
@@ -167,34 +163,22 @@ drop index t1_a_idx;
 DROP INDEX
 explain select * from t1 where t1.a=1;
 
--- ticket:908
-drop table if exists t1,t2; 
-DROP TABLE
-create table t1(a int, b int) with(shard=1);
-CREATE TABLE
-create table t2(a int, b int) with(shard=2);
-CREATE TABLE
-create index on t1(a);
-CREATE INDEX
-create index on t2(a);
-CREATE INDEX
+-- ticket:908 单shard不做测试
+-- drop table if exists t1,t2; 
+-- create table t1(a int, b int) with(shard=1);
+-- create table t2(a int, b int) with(shard=1);
+-- create index on t1(a);
+-- create index on t2(a);
 -- 准备数据
-insert into t1 select  random()*100, generate_series(1,100) % 10;
-INSERT 0 100
-insert into t2 select generate_series(1,100), random()*100;
-INSERT 0 100
-analyze t1, t2;
-ANALYZE
+-- insert into t1 select  random()*100, generate_series(1,100) % 10;
+-- insert into t2 select generate_series(1,100), random()*100;
+-- analyze t1, t2;
 -- 禁止hash/merge join，以及物化优化
-set enable_hashjoin =off;
-SET
-set enable_mergejoin =off;
-SET
-set enable_material =off;
-SET
+-- set enable_hashjoin =off;
+-- set enable_mergejoin =off;
+-- set enable_material =off;
 -- 产生NestLoop JOIN执行计划
-explain select * from t1, t2 where t1.b=t2.a and t1.a < 40;
-
+-- explain select * from t1, t2 where t1.b=t2.a and t1.a < 40;
 -- ticket:881
 select 'CREATE USER MAPPING FOR \"current_user\" SERVER sv2 OPTIONS (user ''\"current_user\"'')';
                                        ?column?                                        
@@ -204,7 +188,6 @@ select 'CREATE USER MAPPING FOR \"current_user\" SERVER sv2 OPTIONS (user ''\"cu
 
 --ticket:900
 drop table if exists t; 
-psql:kunlun_ticket.sql:118: NOTICE:  table "t" does not exist, skipping
 DROP TABLE
 create table t(a int auto_increment);
 CREATE TABLE
@@ -229,7 +212,7 @@ drop table t1;
 DROP TABLE
 -- ticket:887
 drop table if exists t1; 
-psql:kunlun_ticket.sql:133: NOTICE:  table "t1" does not exist, skipping
+psql:sql/kunlun_ticket.sql:133: NOTICE:  table "t1" does not exist, skipping
 DROP TABLE
 create table t1(a int, b int);
 CREATE TABLE
@@ -253,11 +236,9 @@ select * from t1;
  5 | 0
 (5 rows)
 
-drop table t1;
-DROP TABLE
 --ticket:332
 CREATE SEQUENCE sequence_test2 START WITH 32; 	
-CREATE SEQUENCE
+psql:sql/kunlun_ticket.sql:147: ERROR:  relation "sequence_test2" already exists
 ALTER SEQUENCE IF EXISTS sequence_test2 RESTART WITH 24
   INCREMENT BY 4 MAXVALUE 36 MINVALUE 5 CYCLE;
 ALTER SEQUENCE
@@ -269,20 +250,511 @@ SELECT nextval('sequence_test2');
 
 --ticket:897
 drop database abc;
-psql:kunlun_ticket.sql:158: ERROR:  database "abc" does not exist
+psql:sql/kunlun_ticket.sql:156: ERROR:  database "abc" does not exist
 create database abc；
 create database if not exists abc;
-psql:kunlun_ticket.sql:160: ERROR:  syntax error at or near "create"
+psql:sql/kunlun_ticket.sql:158: ERROR:  syntax error at or near "create"
 LINE 2: create database if not exists abc;
         ^
 --ticket:898
---SHOW name;
---SHOW ALL;
---SHOW DATABASES;
---SHOW SCHEMAS;
---SHOW TABLES;
---SHOW PROCESSLIST;
+SHOW DATABASES;
+ Database  
+-----------
+ testdb1
+ template1
+ template0
+ regress
+ postgres
+(5 rows)
+
+SHOW SCHEMAS;
+      Schemas       
+--------------------
+ pg_toast
+ pg_temp_1
+ pg_toast_temp_1
+ pg_catalog
+ public
+ information_schema
+ pg_temp_9
+ pg_toast_temp_9
+ pg_temp_11
+ pg_toast_temp_11
+ pg_temp_12
+ pg_toast_temp_12
+(12 rows)
+
+SHOW TABLES;
+               Tables                
+-------------------------------------
+ complex
+ a
+ aggtype
+ a_star
+ at_base_table
+ b
+ pagg_tab2_p3
+ quad
+ parted_conflict
+ btree_tall_tbl
+ clstr_tst
+ clstr_tst_inh
+ hobbies_r
+ plt1_e_p1
+ tfail
+ alter_table_under_transition_tables
+ my_credit_card_normal
+ join_foo
+ cantcompare
+ mlparted
+ my_property_secure
+ my_credit_card_secure
+ my_credit_card_usage_normal
+ my_credit_card_usage_secure
+ my_property_normal
+ aggtest
+ key_dependent_view
+ toyemp
+ at_partitioned_1
+ key_dependent_view_no_cols
+ at_partitioned
+ jpop
+ jpop2
+ hslot
+ hub
+ mlparted11
+ plt1_e_p3
+ prt1_m_p1
+ prt1_p2
+ parted_conflict_1
+ check_con_tbl
+ donothingbrtrig_test1
+ donothingbrtrig_test2
+ t2
+ ec0
+ partitioned_table
+ float8_tbl
+ int4_tbl
+ int8_tbl
+ tenk1
+ t1
+ gstest1
+ iface
+ inhe
+ nums
+ returningwrtest
+ pagg_tab1_p3
+ pc_list_parted
+ pfield_v1
+ sums_1_100
+ pagg_tab_m_p1
+ record_type
+ rngfunc_rescan_t
+ pagg_tab_m_p2
+ pc_list_part_1
+ concur_heap
+ prt1_m
+ person_type
+ insertconflicttest1
+ pagg_tab_ml_p2_s1
+ int2_tbl
+ prt2_m
+ pagg_tab_ml_p2_s2
+ pagg_tab2_p1
+ pagg_tab2_p2
+ plt1
+ pagg_tab_ml_p1
+ t30
+ itest1
+ pagg_tab_p1
+ plt2
+ pagg_tab_p2
+ pagg_tab_p3
+ plt1_e
+ prt1_l
+ hash_txt_heap
+ pagg_tab_para_p2
+ pagg_tab_para_p3
+ pht1
+ pht1_e
+ pht2
+ prt1_l_p2
+ like_op_noprune2
+ pagg_tab_m_p3
+ part_attmp1
+ part_p1
+ pagg_tab
+ prt1_l_p3
+ prt2_l
+ mvtest_t
+ no_oids
+ onek
+ prt2_l_p2
+ prt2_l_p3
+ parted_conflict_1_1
+ bigger_than_it_looks
+ dept
+ pc_list_part_null
+ persons
+ boolvalues
+ brintest
+ bt_f8_heap
+ bt_i4_heap
+ bt_name_heap
+ bt_txt_heap
+ char_tbl
+ customer
+ default_tbl
+ defaultexpr_tbl
+ pht1_e_p1
+ extremely_skewed
+ hash_f8_heap
+ inhf
+ join_bar
+ pht1_e_p3
+ t3
+ pagg_tab_ml_p3_s2
+ pagg_tab_para_p1
+ pht1_p1
+ prt1_n
+ prt2_n
+ pht2_p1
+ pht1_p2
+ pht1_p3
+ prt3_n
+ pht2_p2
+ pht2_p3
+ pline
+ plt1_e_p2
+ t302
+ plt1_p1
+ prt4_n
+ like_op_noprune
+ plt1_p2
+ plt1_p3
+ plt2_p1
+ plt2_p2
+ plt2_p3
+ prt1_l_p1
+ prt1_l_p2_p1
+ part
+ prt1_l_p3_p1
+ prt1_l_p3_p2
+ prt1_m_p2
+ prt1_m_p3
+ prt1_n_p1
+ prt1_n_p2
+ pagg_tab_ml
+ pagg_tab_ml_p2
+ prt3_n_p3
+ prt4_n_p1
+ pagg_tab_para
+ pagg_tab_ml_p3
+ prt2_l_p1
+ prt2_l_p3_p1
+ prt2_l_p3_p2
+ clstr_tst_s
+ comment_test
+ prt2_m_p1
+ text_tbl
+ transition_table_base
+ transition_table_level1
+ prt2_m_p2
+ prt2_m_p3
+ t10
+ t120
+ at_view_1
+ at_view_2
+ t12
+ pagg_tab_m
+ credit_card
+ prt2_n_p2
+ prt3_n_p1
+ t13
+ prt4_n_p2
+ prt4_n_p3
+ r2
+ stuffs
+ system
+ t121
+ t122
+ t123
+ t14
+ t301
+ t303
+ t304
+ tas_case
+ test1
+ transition_table_level2
+ transition_table_status
+ trunc_stats_test1
+ tvehicles
+ tx1
+ varchar_tbl
+ view_base_table
+ wide
+ wslot
+ base_tbl
+ prt1_p1
+ prt1_p3
+ prt1
+ subselect_tbl
+ uv_iocu_tab
+ rw_view1
+ uv_iocu_view
+ deptest1
+ emp
+ itest13
+ pfield
+ phone
+ prt2_p1
+ prt2_p3
+ prt2_p2
+ prt2
+ credit_usage
+ itest6
+ part_2
+ r1
+ update_test
+ collate_test1
+ collate_test10
+ collate_test2
+ equipment_r
+ hash_i4_heap
+ hash_name_heap
+ indext1
+ prt3_n_p2
+ pt_part1
+ pht1_e_p2
+ prt1_l_p2_p2
+ float4_tbl
+ prt2_l_p2_p1
+ tt
+ tt1
+ tt2
+ tt3
+ tt4
+ pt_part2
+ itest7
+ random_tbl
+ itest9
+ rc_test
+ returningwrtest1
+ revalidate_bug
+ rngfunc2
+ room
+ simple
+ stud_emp
+ student
+ pslot
+ tenk2
+ test_missing_target
+ testjsonb
+ testu1
+ timestamp_tbl
+ timestamptz_tbl
+ mlparted1
+ anothertab
+ like_op_noprune1
+ part_1
+ test_default_tab
+ moneyp
+ part_attmp
+ list_parted
+ pagg_tab1_p1
+ pagg_tab1_p2
+ pagg_tab1
+ pagg_tab2
+ prt1_e_p1
+ prt1_e_p2
+ prt1_e_p3
+ prt1_e
+ prt2_e
+ prt2_e_p1
+ prt2_e_p2
+ prt2_e_p3
+ atest5
+ ctv_data
+ few
+ v_test1
+ prt2_l_p2_p2
+ prt2_n_p1
+ xacttest
+(293 rows)
+
+SHOW TABLES like 't1';
+ Tables 
+--------
+ t1
+(1 row)
+
+show create table t1;
+ Table |    Create Table    
+-------+--------------------
+ t1    | CREATE TABLE t1 ( +
+       |  a integer,       +
+       |  b integer        +
+       | ) WITH (shard=1'1')
+(1 row)
+
+SHOW PROCESSLIST;
+   Pid   |  User   |        Host         |    db    | State  |       Query       | Wait_event | xact_sec | query_sec | backend_sec | state_change 
+---------+---------+---------------------+----------+--------+-------------------+------------+----------+-----------+-------------+--------------
+ 4195212 | abc     | 192.168.0.113:38786 | postgres | idle   |                   | ClientRead |          | 13.769024 | 13.774111   | 13.76866
+ 4194313 | jenkins | unix socket         | postgres | idle   |                   | ClientRead |          | 0.020692  | 3736.978438 | 0.02015
+ 4195213 | abc     | 192.168.0.113:38798 | regress  | active | SHOW PROCESSLIST; |            | 0.000976 | 0.000976  | 9.567688    | 0.000976
+ 4194361 | jenkins | unix socket         | regress  | idle   |                   | ClientRead |          | 0.743434  | 3717.420233 | 0.74291
+(4 rows)
+
+show errors;
+ Level | Code | Message 
+-------+------+---------
+(0 rows)
+
+show warnings;
+ Level | Code | Message 
+-------+------+---------
+(0 rows)
+
+drop table if exists t6;
+psql:sql/kunlun_ticket.sql:172: NOTICE:  table "t6" does not exist, skipping
+DROP TABLE
+create temp table t6(a int primary key, b int unique);
+CREATE TABLE
+replace into t6 values(1,1),(2,2);
+INSERT 0 2
+--替换之前的数据
+replace into t6 values(1,3),(2,6); 
+INSERT 0 4
+drop table t6;
+DROP TABLE
+--ticket:827
+drop table if exists t1,t2,t3;
+DROP TABLE
+create table t1(a int);
+CREATE TABLE
+create table t2(a int);
+CREATE TABLE
+create table t3(a int, b int);
+CREATE TABLE
+insert into t1 values (1),(2);
+INSERT 0 2
+insert into t2 values (3),(4);
+INSERT 0 2
+insert into t3 values (1,1);
+INSERT 0 1
+update t3 set (a,b) = ((select max(a) from t1), (select max(a) from t2));
+UPDATE 1
+drop table t1,t2,t3;
+DROP TABLE
+--ticket:574
+drop table if exists t1;
+psql:sql/kunlun_ticket.sql:193: NOTICE:  table "t1" does not exist, skipping
+DROP TABLE
+create table t1 (a int PRIMARY KEY , b int not null,CONSTRAINT t1_b_key UNIQUE (b));
+CREATE TABLE
+-- 违背唯一约束，不进行插入
+insert ignore into t1(a,b) values (4,4);
+INSERT 0 1
+	
+insert ignore into t1(a,b) values (4,4);
+INSERT 0 0
+insert into t1(a,b) values (3,3);
+INSERT 0 1
+-- 等价的PG语法
+insert into t1 values(3,3) on conflict do nothing;
+INSERT 0 0
+-- 不忽略违背约束的错误（例如分区约束、非null约束）
+insert ignore into t1(a,b) values (4,NULL); --error
+psql:sql/kunlun_ticket.sql:207: ERROR:  null value in column "b" violates not-null constraint
+DETAIL:  Failing row contains (4, null).
+-- insert on duplicate key update
+-- 更新第一个冲突的元组
+select * from t1;
+ a | b 
+---+---
+ 3 | 3
+ 4 | 4
+(2 rows)
+
+insert into t1 values(3,4) on duplicate key update b=2;
+INSERT 0 2
+select * from t1;
+ a | b 
+---+---
+ 3 | 2
+ 4 | 4
+(2 rows)
+
+-- 等价的PG语法
+insert into t1 values(3,3) on conflict do update set b=3;
+INSERT 0 2
+--ticket:575
+select * from t1;
+ a | b 
+---+---
+ 3 | 3
+ 4 | 4
+(2 rows)
+
+replace into t1 values(3,4);
+INSERT 0 3
+replace into t1 values(1,1),(1,2);
+INSERT 0 3
+select * from t1;
+ a | b 
+---+---
+ 1 | 2
+ 3 | 4
+(2 rows)
+
+create temp table t1(a int primary key, b int unique);
+CREATE TABLE
+replace into t1 values(1,1),(1,2);
+psql:sql/kunlun_ticket.sql:226: ERROR:  REPLACE INTO command cannot affect row a second time
+HINT:  Ensure that no rows proposed for insertion within the same command have duplicate constrained values.
+drop table t1;
+DROP TABLE
+--ticket:581
+drop table if exists t3 cascade;
+psql:sql/kunlun_ticket.sql:231: NOTICE:  table "t3" does not exist, skipping
+DROP TABLE
+CREATE TABLE t3 (A INT PRIMARY KEY, B INT) PARTITION BY RANGE(a);
+CREATE TABLE
+CREATE TABLE t3p1 PARTITION OF t3 FOR VALUES FROM (0) TO (100);
+CREATE TABLE
+CREATE TABLE t3p2 PARTITION OF t3 FOR VALUES FROM (100) TO (200);
+CREATE TABLE
+REPLACE INTO t3 SELECT GENERATE_SERIES(0,400) % 200, GENERATE_SERIES(0,400);
+INSERT 0 602
+-- 分区表暂不支持全局有序的删除
+UPDATE t3 SET b=-b ORDER BY a LIMIT 1; -- should be fail, global order is not supported
+UPDATE 1
+-- 支持不跨越分区的有序删除
+UPDATE t3 SET b=-b WHERE a<100 ORDER BY a LIMIT 1 RETURNING *;
+ a |  b  
+---+-----
+ 0 | 400
+(1 row)
+
+UPDATE 1
+WITH foo as (UPDATE t3 SET b=-b WHERE b > 0 LIMIT 10 RETURNING *) SELECT count(1) FROM foo;
+ count 
+-------
+    10
+(1 row)
+
+SELECT count(1) FROM t3 where b<0;
+ count 
+-------
+    10
+(1 row)
+
+drop table t3;
+DROP TABLE
 --ticket:936
+drop FUNCTION if exists f_leak;
+DROP FUNCTION
 select length(stringu1) from tenk1 group by length(stringu1);
  length 
 --------
@@ -294,8 +766,14 @@ CREATE FUNCTION f_leak (text)
        AS 'BEGIN RAISE NOTICE ''f_leak => %'', $1; RETURN true; END';
 CREATE FUNCTION
 	   
-drop table if exists customer;   
-psql:kunlun_ticket.sql:178: NOTICE:  table "customer" does not exist, skipping
+drop table if exists customer cascade;   
+psql:sql/kunlun_ticket.sql:254: NOTICE:  drop cascades to 6 other objects
+DETAIL:  drop cascades to view my_property_normal
+drop cascades to view my_property_secure
+drop cascades to view my_credit_card_normal
+drop cascades to view my_credit_card_secure
+drop cascades to view my_credit_card_usage_normal
+drop cascades to view my_credit_card_usage_secure
 DROP TABLE
 CREATE TABLE customer (
        cid      int primary key,
@@ -315,13 +793,13 @@ SELECT * FROM my_property_normal WHERE f_leak(passwd);
 (0 rows)
 
 drop table customer cascade;
-psql:kunlun_ticket.sql:191: NOTICE:  drop cascades to view my_property_normal
+psql:sql/kunlun_ticket.sql:267: NOTICE:  drop cascades to view my_property_normal
 DROP TABLE
 drop FUNCTION f_leak;
 DROP FUNCTION
 --ticket:920
 drop sequence if exists s1;
-psql:kunlun_ticket.sql:195: NOTICE:  sequence "s1" does not exist, skipping
+psql:sql/kunlun_ticket.sql:271: NOTICE:  sequence "s1" does not exist, skipping
 DROP SEQUENCE
 create sequence s1;
 CREATE SEQUENCE
@@ -335,7 +813,7 @@ drop sequence s1;
 DROP SEQUENCE
 --ticket:932
 drop table if exists temptest2 cascade;
-psql:kunlun_ticket.sql:201: NOTICE:  table "temptest2" does not exist, skipping
+psql:sql/kunlun_ticket.sql:277: NOTICE:  table "temptest2" does not exist, skipping
 DROP TABLE
 begin;
 BEGIN
@@ -352,9 +830,11 @@ select*from temptest2;
 
 commit;
 COMMIT
+drop table temptest2;
+DROP TABLE
 -- ticket:109
 drop table if exists tf1;
-psql:kunlun_ticket.sql:209: NOTICE:  table "tf1" does not exist, skipping
+psql:sql/kunlun_ticket.sql:286: NOTICE:  table "tf1" does not exist, skipping
 DROP TABLE
 create table tf1(v float8);
 CREATE TABLE
@@ -381,7 +861,7 @@ select q1 | q2 from int8_tbl;
 
 select q1 -- q2 from int8_tbl;
 select ~q1 from int8_tbl;
-psql:kunlun_ticket.sql:219: ERROR:  syntax error at or near "select"
+psql:sql/kunlun_ticket.sql:296: ERROR:  syntax error at or near "select"
 LINE 2: select ~q1 from int8_tbl;
         ^
 select ~q2 from int8_tbl;
@@ -396,7 +876,7 @@ select ~q2 from int8_tbl;
 
 -- ticket:12
 drop table if exists attmp;
-psql:kunlun_ticket.sql:224: NOTICE:  table "attmp" does not exist, skipping
+psql:sql/kunlun_ticket.sql:301: NOTICE:  table "attmp" does not exist, skipping
 DROP TABLE
 CREATE TABLE attmp (initial int4);
 CREATE TABLE
@@ -416,7 +896,7 @@ drop table attmp;
 DROP TABLE
 -- ticket:82
 drop table if exists bytea_test_table;
-psql:kunlun_ticket.sql:239: NOTICE:  table "bytea_test_table" does not exist, skipping
+psql:sql/kunlun_ticket.sql:316: NOTICE:  table "bytea_test_table" does not exist, skipping
 DROP TABLE
 create table bytea_test_table(v bytea);
 CREATE TABLE
@@ -432,7 +912,6 @@ drop table bytea_test_table;
 DROP TABLE
 -- ticket:130
 drop table if exists list_parted cascade;
-psql:kunlun_ticket.sql:249: NOTICE:  table "list_parted" does not exist, skipping
 DROP TABLE
 create table list_parted ( a text, b int) partition by list (lower(a));
 CREATE TABLE
@@ -442,7 +921,7 @@ drop table list_parted;
 DROP TABLE
 -- ticket:49
 drop table if exists ts1;
-psql:kunlun_ticket.sql:257: NOTICE:  table "ts1" does not exist, skipping
+psql:sql/kunlun_ticket.sql:334: NOTICE:  table "ts1" does not exist, skipping
 DROP TABLE
 create table ts1(id int, info text);
 CREATE TABLE
@@ -472,7 +951,7 @@ select x from int8_tbl, extractq2_2(int8_tbl) f(x);
 
 --ticket:120
 DROP SEQUENCE IF EXISTS sequence_test;
-psql:kunlun_ticket.sql:275: NOTICE:  sequence "sequence_test" does not exist, skipping
+psql:sql/kunlun_ticket.sql:352: NOTICE:  sequence "sequence_test" does not exist, skipping
 DROP SEQUENCE
 CREATE SEQUENCE sequence_test;
 CREATE SEQUENCE
@@ -520,7 +999,7 @@ SELECT nextval('sequence_test2');
 (1 row)
 
 SELECT nextval('sequence_test2'); -- error
-psql:kunlun_ticket.sql:298: ERROR:  Kunlun-db: nextval(): exhausted all values of sequence "sequence_test2" 
+psql:sql/kunlun_ticket.sql:375: ERROR:  Kunlun-db: nextval(): exhausted all values of sequence "sequence_test2" 
 drop sequence sequence_test2;
 DROP SEQUENCE
 --ticket:914
@@ -532,10 +1011,9 @@ SET SESSION NET_READ_TIMEOUT= 86400, @@SESSION.NET_WRITE_TIMEOUT= 86400, enable_
 SET
 --ticket:905 
 CREATE DATABASE dbname TEMPLATE template0;
-psql:kunlun_ticket.sql:312: ERROR:  database "dbname" already exists
+CREATE DATABASE
 --ticket:901
 drop table if exists t1;
-psql:kunlun_ticket.sql:317: NOTICE:  table "t1" does not exist, skipping
 DROP TABLE
 create table t1(a int, b int);
 CREATE TABLE
@@ -559,7 +1037,7 @@ DROP TABLE
 drop table INT4_TBL;
 DROP TABLE
 drop table INT8_TBL cascade;
-psql:kunlun_ticket.sql:335: NOTICE:  drop cascades to 2 other objects
+psql:sql/kunlun_ticket.sql:413: NOTICE:  drop cascades to 2 other objects
 DETAIL:  drop cascades to function extractq2(int8_tbl)
 drop cascades to function extractq2_2(int8_tbl)
 DROP TABLE

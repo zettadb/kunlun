@@ -4,7 +4,7 @@
 --
 -- do this to produce pg style null field ordering to match expected results, at the expense of disabled ORDER BY push-down.
 set honor_nulls_dir =true;
-SET
+psql:sql/join.sql:6: ERROR:  unrecognized mysql configuration parameter "honor_nulls_dir"
 DROP TABLE if exists J1_TBL;
 psql:sql/join.sql:7: NOTICE:  table "j1_tbl" does not exist, skipping
 DROP TABLE
@@ -3876,14 +3876,14 @@ explain (costs off)
   from int4_tbl x cross join lateral (select unique2 from tenk1 where f1 = unique1) ss;
 
 select unique2, x.*
-from int4_tbl x left join lateral (select unique1, unique2 from tenk1 where f1 = unique1) ss on true;
+from int4_tbl x left join lateral (select unique1, unique2 from tenk1 where f1 = unique1) ss on true order by 1,2;
  unique2 |     f1      
 ---------+-------------
     9998 |           0
-         |      123456
-         |     -123456
-         |  2147483647
          | -2147483647
+         |     -123456
+         |      123456
+         |  2147483647
 (5 rows)
 
 explain (costs off)
@@ -4928,7 +4928,7 @@ $$
 $$);
  initially_multibatch | increased_batches 
 ----------------------+-------------------
-                      | 
+ f                    | f
 (1 row)
 
 rollback to settings;
@@ -4958,7 +4958,7 @@ $$
 $$);
  initially_multibatch | increased_batches 
 ----------------------+-------------------
-                      | 
+ f                    | f
 (1 row)
 
 rollback to settings;
@@ -4988,7 +4988,7 @@ $$
 $$);
  initially_multibatch | increased_batches 
 ----------------------+-------------------
-                      | 
+ f                    | f
 (1 row)
 
 rollback to settings;
@@ -5019,7 +5019,7 @@ $$
 $$);
  initially_multibatch | increased_batches 
 ----------------------+-------------------
-                      | 
+ f                    | t
 (1 row)
 
 rollback to settings;
@@ -5049,7 +5049,7 @@ $$
 $$);
  initially_multibatch | increased_batches 
 ----------------------+-------------------
-                      | 
+ f                    | t
 (1 row)
 
 rollback to settings;
@@ -5079,7 +5079,7 @@ $$
 $$);
  initially_multibatch | increased_batches 
 ----------------------+-------------------
-                      | 
+ f                    | t
 (1 row)
 
 rollback to settings;
@@ -5111,7 +5111,7 @@ $$
 $$);
  initially_multibatch | increased_batches 
 ----------------------+-------------------
-                      | 
+ f                    | t
 (1 row)
 
 rollback to settings;
@@ -5141,7 +5141,7 @@ $$
 $$);
  initially_multibatch | increased_batches 
 ----------------------+-------------------
-                      | 
+ f                    | t
 (1 row)
 
 rollback to settings;
@@ -5171,7 +5171,7 @@ $$
 $$);
  initially_multibatch | increased_batches 
 ----------------------+-------------------
-                      | 
+ f                    | t
 (1 row)
 
 rollback to settings;
@@ -5203,7 +5203,7 @@ $$
 $$);
  original | final 
 ----------+-------
-          |      
+        1 |     8
 (1 row)
 
 rollback to settings;
@@ -5232,7 +5232,7 @@ $$
 $$);
  original | final 
 ----------+-------
-          |      
+        1 |     8
 (1 row)
 
 rollback to settings;
@@ -5261,7 +5261,7 @@ $$
 $$);
  original | final 
 ----------+-------
-          |      
+        1 |     8
 (1 row)
 
 rollback to settings;
@@ -5282,7 +5282,7 @@ $$
 $$);
  original | final 
 ----------+-------
-          |      
+        1 |     1
 (1 row)
 
 rollback to settings;
@@ -5352,7 +5352,7 @@ $$
 $$);
  multibatch 
 ------------
- 
+ t
 (1 row)
 
 rollback to settings;
@@ -5401,7 +5401,7 @@ $$
 $$);
  multibatch 
 ------------
- 
+ f
 (1 row)
 
 rollback to settings;
@@ -5449,7 +5449,7 @@ $$
 $$);
  multibatch 
 ------------
- 
+ t
 (1 row)
 
 rollback to settings;
@@ -5497,7 +5497,7 @@ $$
 $$);
  multibatch 
 ------------
- 
+ f
 (1 row)
 
 rollback to settings;
@@ -5600,7 +5600,7 @@ $$
 $$);
  multibatch 
 ------------
- 
+ f
 (1 row)
 
 rollback to settings;

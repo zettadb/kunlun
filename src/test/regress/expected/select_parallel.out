@@ -540,9 +540,9 @@ explain (costs off)
 select avg(unique1::int8) from tenk1;
 
 select avg(unique1::int8) from tenk1;
-    avg    
------------
- 4999.5000
+          avg          
+-----------------------
+ 4999.5000000000000000
 (1 row)
 
 -- gather merge test with a LIMIT
@@ -688,11 +688,7 @@ SET LOCAL force_parallel_mode = 1;
 psql:sql/select_parallel.sql:384: WARNING:  SET LOCAL can only be used in transaction blocks
 SET
 select stringu1::int2 from tenk1 where unique1 = 1;
- stringu1 
-----------
-        0
-(1 row)
-
+psql:sql/select_parallel.sql:385: ERROR:  invalid input syntax for integer: "BAAAAA"
 --ROLLBACK TO SAVEPOINT settings;
 -- test interaction with set-returning functions
 SAVEPOINT settings;

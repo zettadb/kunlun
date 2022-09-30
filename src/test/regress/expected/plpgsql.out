@@ -171,7 +171,7 @@ begin
     if mytype = ''PS'' then
         select into rec * from PSlot where slotname = myname;
 	if not found then
-	    raise exception ''% does not exist'', myname;
+	    raise exception 'x'% does not exist'', myname;
 	end if;
 	if rec.slotlink != blname then
 	    update PSlot set slotlink = blname where slotname = myname;
@@ -181,7 +181,7 @@ begin
     if mytype = ''WS'' then
         select into rec * from WSlot where slotname = myname;
 	if not found then
-	    raise exception ''% does not exist'', myname;
+	    raise exception 'x'% does not exist'', myname;
 	end if;
 	if rec.slotlink != blname then
 	    update WSlot set slotlink = blname where slotname = myname;
@@ -191,7 +191,7 @@ begin
     if mytype = ''IF'' then
         select into rec * from IFace where slotname = myname;
 	if not found then
-	    raise exception ''% does not exist'', myname;
+	    raise exception 'x'% does not exist'', myname;
 	end if;
 	if rec.slotlink != blname then
 	    update IFace set slotlink = blname where slotname = myname;
@@ -201,7 +201,7 @@ begin
     if mytype = ''HS'' then
         select into rec * from HSlot where slotname = myname;
 	if not found then
-	    raise exception ''% does not exist'', myname;
+	    raise exception 'x'% does not exist'', myname;
 	end if;
 	if rec.slotlink != blname then
 	    update HSlot set slotlink = blname where slotname = myname;
@@ -211,14 +211,14 @@ begin
     if mytype = ''PH'' then
         select into rec * from PHone where slotname = myname;
 	if not found then
-	    raise exception ''% does not exist'', myname;
+	    raise exception 'x'% does not exist'', myname;
 	end if;
 	if rec.slotlink != blname then
 	    update PHone set slotlink = blname where slotname = myname;
 	end if;
 	return 0;
     end if;
-    raise exception ''illegal slotlink beginning with %'', mytype;
+    raise exception 'x'illegal slotlink beginning with %'', mytype;
 end;
 ' language plpgsql;
 CREATE FUNCTION
@@ -1500,7 +1500,7 @@ BEGIN
 set statement_timeout to 2000;
 SET
 select trap_timeout();
-psql:sql/plpgsql.sql:963: NOTICE:  caught others?
+psql:sql/plpgsql.sql:963: NOTICE:  nyeah nyeah, can't stop me
 psql:sql/plpgsql.sql:963: ERROR:  end of function
 CONTEXT:  PL/pgSQL function trap_timeout() line 15 at RAISE
 rollback;
@@ -4749,27 +4749,23 @@ CREATE TABLE
 INSERT INTO transition_table_level1 (level1_no)
   SELECT generate_series(1,200);
 INSERT 0 200
-ANALYZE transition_table_level1;
-ANALYZE
+--ANALYZE transition_table_level1;
 INSERT INTO transition_table_level2 (level2_no, parent_no)
   SELECT level2_no, level2_no / 50 + 1 AS parent_no
     FROM generate_series(1,9999) level2_no;
 INSERT 0 9999
-ANALYZE transition_table_level2;
-ANALYZE
+--ANALYZE transition_table_level2;
 INSERT INTO transition_table_status (level, node_no, status)
   SELECT 1, level1_no, 0 FROM transition_table_level1;
 INSERT 0 200
 INSERT INTO transition_table_status (level, node_no, status)
   SELECT 2, level2_no, 0 FROM transition_table_level2;
 INSERT 0 9999
-ANALYZE transition_table_status;
-ANALYZE
+--ANALYZE transition_table_status;
 INSERT INTO transition_table_level1(level1_no)
   SELECT generate_series(201,1000);
 INSERT 0 800
-ANALYZE transition_table_level1;
-ANALYZE
+--ANALYZE transition_table_level1;
 -- behave reasonably if someone tries to modify a transition table
 --CREATE TRIGGER transition_table_level2_bad_usage_trigger
 --  AFTER DELETE ON transition_table_level2

@@ -525,7 +525,16 @@ INSERT 0 1
 insert into hp values (1, 'abcde');
 INSERT 0 1
 select tableoid::regclass, * from hp order by 1;
-psql:sql/partition_prune.sql:336: ERROR:  Could not find input function to deserialize kunlun storage result to pg type.
+ tableoid | a |   b   
+----------+---+-------
+ hp0      |   | 
+ hp0      | 1 | xxx
+ hp3      | 2 | xxx
+ hp1      | 1 | 
+ hp2      |   | xxx
+ hp2      | 1 | abcde
+(6 rows)
+
 -- partial keys won't prune, nor would non-equality conditions
 explain (costs off) select * from hp where a = 1;
 
@@ -1495,9 +1504,9 @@ SET
 explain (costs off) select * from inh_lp where a = 1;
 
 explain (costs off) update inh_lp set value = 10 where a = 1;
-
+psql:sql/partition_prune.sql:902: ERROR:  Kunlun-db: Exression cannot be serialized
 explain (costs off) delete from inh_lp where a = 1;
-
+psql:sql/partition_prune.sql:903: ERROR:  Kunlun-db: Exression cannot be serialized
 -- Ensure we don't exclude normal relations when we only expect to exclude
 -- inheritance children
 explain (costs off) update inh_lp1 set value = 10 where a = 2;

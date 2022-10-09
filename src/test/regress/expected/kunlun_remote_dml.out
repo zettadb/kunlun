@@ -64,7 +64,7 @@ select * from t1 where a in (3,7,11, 13);
 (4 rows)
 
 update t1 set a=a+1 where a > 1 and a < 5;
-psql:sql/kunlun_remote_dml.sql:13: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '5' for key 't101.PRIMARY'.
+psql:sql/kunlun_remote_dml.sql:13: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '3' for key 't101.PRIMARY'.
 delete from t1 where a %5=0;
 DELETE 4
 select * from t1 where a %5=0;
@@ -975,7 +975,7 @@ SELECT a, b FROM collate_test2 WHERE a < 4 INTERSECT SELECT a, b FROM collate_te
 -- bug 114
 drop table if exists update_test cascade;
 DROP TABLE
-CREATE TABLE update_test (a INT DEFAULT 10, b INT, c TEXT);
+CREATE TABLE update_test (a INT DEFAULT 10, b INT primary key, c TEXT);
 CREATE TABLE
 INSERT INTO update_test VALUES (5, 10, 'foo');
 INSERT 0 1

@@ -159,14 +159,14 @@ create database if not exists abc;
 
 --ticket:898
 
-SHOW DATABASES;
-SHOW SCHEMAS;
-SHOW TABLES;
-SHOW TABLES like 't1';
-show create table t1;
-SHOW PROCESSLIST;
-show errors;
-show warnings;
+--SHOW DATABASES;
+--SHOW SCHEMAS;
+--SHOW TABLES;
+--SHOW TABLES like 't1';
+--show create table t1;
+--SHOW PROCESSLIST;
+--show errors;
+--show warnings;
 
 
 drop table if exists t6;

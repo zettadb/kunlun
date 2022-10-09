@@ -138,8 +138,8 @@ SELECT relname, n_tup_ins, n_tup_upd, n_tup_del, n_live_tup, n_dead_tup
  WHERE relname like 'trunc_stats_test%' order by relname;
       relname      | n_tup_ins | n_tup_upd | n_tup_del | n_live_tup | n_dead_tup 
 -------------------+-----------+-----------+-----------+------------+------------
- trunc_stats_test  |         1 |         0 |         0 |          1 |          0
- trunc_stats_test1 |         0 |         0 |         0 |          0 |          0
+ trunc_stats_test  |         3 |         0 |         3 |          0 |          3
+ trunc_stats_test1 |         3 |         0 |         0 |          3 |          0
  trunc_stats_test2 |         0 |         0 |         0 |          0 |          0
  trunc_stats_test3 |         0 |         0 |         0 |          0 |          0
  trunc_stats_test4 |         0 |         0 |         0 |          0 |          0

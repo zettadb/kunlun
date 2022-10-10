@@ -199,7 +199,6 @@ test: remote_opt
 test: alter_table2
 test: alter_table3
 test: sequence_noalter
-test: lex_quotes_pg
 test: kunlun_alter_table
 test: kunlun_remote
 test: kunlun_remote_dml

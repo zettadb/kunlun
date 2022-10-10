@@ -896,7 +896,10 @@ void remote_alter_column(Relation rel, int attrnum, ObjectAccessType type)
 
 			print_pg_attribute(rel->rd_id, attrnum, false, &remote_sql);
 
-			Expr *defexpr = (Expr*)build_column_default(rel, attrnum);
+			Expr *defexpr = NULL;
+			if (TupleDescAttr(rel->rd_att, attrnum - 1)->atthasdef)
+				defexpr = (Expr*)build_column_default(rel, attrnum);
+
 			if (defexpr && type == OAT_POST_CREATE)
 			{
 				RemotePrintExprContext rpec;

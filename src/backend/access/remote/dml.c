@@ -369,7 +369,7 @@ bool CanPushdownRemoteUD(PlanState *state, List *unused_tl, int *nleafs, const c
 			return false;
 
 		/* Only pushdown sort if there is only one leaf target table */	
-		if (*nleafs > 1 && state->type == T_Sort)
+		if (*nleafs > 1 && state->type == T_SortState)
 		{
 			*reason = "Cannot push down sort";
 			return false;

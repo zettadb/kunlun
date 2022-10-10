@@ -45,6 +45,108 @@ INSERT INTO INT8_TBL VALUES('123   ','4567890123456789');
 INSERT INTO INT8_TBL VALUES('4567890123456789','123');
 INSERT INTO INT8_TBL VALUES(+4567890123456789,'4567890123456789');
 INSERT INTO INT8_TBL VALUES('+4567890123456789','-4567890123456789');
+
+-- ticket:38
+drop table if exists base_tbl;
+CREATE TABLE base_tbl(a int, b varchar(50), c float);
+INSERT INTO base_tbl VALUES (1, 'Row 1', 1.0);
+CREATE VIEW rw_view1 AS SELECT * FROM base_tbl;
+SELECT * FROM rw_view1 FOR UPDATE;
+
+drop table base_tbl;
+
+
+-- ticket:760
+drop table if exists t2;
+create table t2 (f1 int not null primary key 
+                 auto_increment, f2 varchar(255));
+
+insert into t2 values (null,'b');
+
+select * from t2;
+
+drop table t2;
+
+
+-- ticket:776
+drop schema if exists `s 1` cascade;
+create schema `s 1`;
+set search_path="s 1";
+create table `t 1` (`a 1` int auto_increment primary key, `a 2` int);
+create table `t 2` (`a 1` int auto_increment primary key, `a 2` int);
+
+alter table `t 1` add column `a 3` varchar(100);
+create index `i 1` on `t 1`(`a 2`);
+create index `i 2` on `t 1`(`a 3`);
+drop index `i 1`, `i 2`;
+alter table `t 1` alter column `a 3` type int using `a 3`::int;
+alter table `t 1` drop column `a 3`;
+
+insert into `t 1` (`a 2`) select generate_series(1, 100);
+insert into `t 2` (`a 2`) select `a 1` from `t 1`;
+
+explain analyze select * from `t 1` t1(a,b), `t 2` t2(a,b) where t1.a=t2.a;
+
+insert into `t 1` values(1,1) on duplicate key update `a 2` = excluded.`a 2`;
+update `t 1` set `a 2` = `a 1` + 10 where `a 1` = 1;
+delete from `t 1` where `a 1` = 1;
+update `t 1` set `a 2` = t.a from `t 2` as t(a, _) where t.a = `t 1`.`a 1`;
+
+drop schema `s 1` cascade;
+
+
+-- ticket:930
+drop table if exists t;
+create table t(a int auto_increment primary key,b int, c timestamptz on update current_timestamp);
+insert into t(a,b) values(1,1);
+
+select * from t;
+
+-- 更新之后，时间自动更新
+update t set b=b+1;
+select * from t;
+
+
+-- replace相当于delete + insert，所以不会变化
+replace into t values(1,1);
+
+select * from t;
+-- 对insert .. on duplicate key update ... 同样有效
+insert into t (a,b) values(1,1) on duplicate key update b=t.b+1;
+select * from t;
+
+drop table t;
+
+-- ticket:959
+drop table if exists t1;
+create table t1 (a int ,b int);
+create index concurrently on t1(a);
+
+
+-- ticket:992
+
+show tables where tables='t1';
+show databases where database='postgres';
+show schemas where schemas='public';
+
+-- ticket:1000
+show table status;
+show table status where name = 't1';
+drop table t1;
+
+-- ticket:972
+drop  table if exists t1;
+
+create table t1(a serial primary key, b int) partition by range(a);
+create table t1p1 partition of t1 for values from (0) to (100);
+create table t1p2 partition of t1 for values from (100) to (200);
+
+create table t1p3 (b int, a int not null);
+alter table t1 attach partition t1p3 for values from (200) to (300);
+
+drop table t1;              
+
+
 -- ticket:946
 show create table tenk1;
 update pg_class set reltuples=10000 where relname = 'tenk1';
@@ -405,6 +507,105 @@ insert into t1 values(2,2);
 insert into t1 values(2,2);
 
 commit;
+--ticket:991 
+show variables where Variable_name='admin_port';
+show variables where Value='1';
+
+--ticket:998
+drop table t;
+create table t(a int , b int);
+insert into t select generate_series(1,20),generate_series(20,39);
+select * from t limit 10,2;
+-- 等价于
+select * from t limit 2 offset 10;
+
+--ticket:999
+explain select * from t order by a limit 2 offset 4;
+
+drop table t;
+
+--ticket:1016
+DROP TABLE if exists prt1;
+CREATE TABLE prt1 (a int, b int, c varchar) PARTITION BY RANGE(a);
+DROP TABLE if exists prt1;
+CREATE TABLE prt1 (a int, b int, c varchar) PARTITION BY RANGE(a);
+CREATE TABLE prt1_p1 PARTITION OF prt1 FOR VALUES FROM (0) TO (250);
+CREATE TABLE prt1_p3 PARTITION OF prt1 FOR VALUES FROM (500) TO (600);
+CREATE TABLE prt1_p2 PARTITION OF prt1 FOR VALUES FROM (250) TO (500);
+INSERT INTO prt1 SELECT i, i % 25, to_char(i, 'FM0000') FROM 
+ generate_series(0, 599) i WHERE i % 2 = 0;
+CREATE INDEX iprt1_p1_a on prt1_p1(a);
+CREATE INDEX iprt1_p2_a on prt1_p2(a);
+CREATE INDEX iprt1_p3_a on prt1_p3(a);
+
+DROP TABLE if exists prt2;
+CREATE TABLE prt2 (a int, b int, c varchar) PARTITION BY RANGE(b);
+CREATE TABLE prt2_p1 PARTITION OF prt2 FOR VALUES FROM (0) TO (250);
+CREATE TABLE prt2_p2 PARTITION OF prt2 FOR VALUES FROM (250) TO (500);
+CREATE TABLE prt2_p3 PARTITION OF prt2 FOR VALUES FROM (500) TO (600);
+INSERT INTO prt2 SELECT i % 25, i, to_char(i, 'FM0000') FROM 
+ generate_series(0, 599) i WHERE i % 3 = 0;
+CREATE INDEX iprt2_p1_b on prt2_p1(b);
+CREATE INDEX iprt2_p2_b on prt2_p2(b);
+CREATE INDEX iprt2_p3_b on prt2_p3(b);
+
+analyze prt1;
+analyze prt2;
+
+EXPLAIN (COSTS OFF)
+SELECT t1.a, t1.c, t2.b, t2.c FROM prt1 t1, prt2 t2
+ WHERE t1.a = t2.b AND t2.a = 0 ORDER BY t1.a, t2.b limit 4;
+ 
+drop table prt1 cascade;
+drop table prt2 cascade;
+
+--ticket:1030
+drop table if exists t1;
+create table t1(a int primary key, b int);
+alter table t1 add column c int;
+alter table t1 add column d int;
+alter table t1 drop column c; -- 此时c列被drop，但仍然存在于系统表中
+
+insert into t1 values(1,1,1);
+-- 报错
+insert into t1 values(1,1,1) on duplicate key update b = excluded.b;
+
+-- 2、update 未考虑子表和父表列序不一致的问题
+drop table if exists t2 cascade;
+create table t2(a int, b int) partition by range(a);
+create table t2p1 partition of t2 for values from (0) to (100);
+
+create table t2p2 (b int, a int); -- 创建一个列序不同的子表
+alter table t2 attach partition t2p2 for values from (100) to (200);
+
+insert into t2 values(50, 50),(150, 150);
+update t2 set b=b+100;
+select * from t2; -- 可以观察到，t2p2错误地更新了列a
+
+-- 3、不支持的查询，未报错
+update t1 set b=b+1 where a in (select a from t2);
+drop table t1;
+drop table t2 cascade;
+
+--ticket:1029
+create schema pg_stmt;
+
+create schema 12345;
+create schema 模式;
+
+create schema adc;
+create schema adc;
+
+create schema adc1;
+
+create schema _adc1;
+
+drop schema 模式;
+drop schema adc;
+drop schema adc1;
+drop schema _adc1;
+
+
 
 
 drop table tenk1;

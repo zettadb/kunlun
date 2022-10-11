@@ -1519,7 +1519,23 @@ psql:sql/remote_dml2.sql:658: ERROR:  canceling statement due to statement timeo
         join int4_tbl i1 on b.thousand = f1
         right join int4_tbl i2 on i2.f1 = b.tenthous
         order by 1;
-psql:sql/remote_dml2.sql:666: ERROR:  canceling statement due to statement timeout
+ unique1 
+---------
+       1
+       2
+       3
+       4
+       5
+       6
+       7
+       8
+       9
+      10
+      11
+      12
+      13
+(13 rows)
+
 --set enable_remote_join_pushdown = false;
 explain (costs off)
     select b.unique1 from
@@ -1548,7 +1564,23 @@ psql:sql/remote_dml2.sql:690: ERROR:  canceling statement due to statement timeo
         join int4_tbl i1 on b.thousand = f1
         right join int4_tbl i2 on i2.f1 = b.tenthous
         order by 1;
-psql:sql/remote_dml2.sql:698: ERROR:  canceling statement due to statement timeout
+ unique1 
+---------
+       1
+       2
+       3
+       4
+       5
+       6
+       7
+       8
+       9
+      10
+      11
+      12
+      13
+(13 rows)
+
 -- below portion is fixed, above portion not yet. TODO
  drop table if exists mlparted cascade;
 DROP TABLE

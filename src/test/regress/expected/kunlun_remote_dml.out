@@ -64,7 +64,7 @@ select * from t1 where a in (3,7,11, 13);
 (4 rows)
 
 update t1 set a=a+1 where a > 1 and a < 5;
-psql:sql/kunlun_remote_dml.sql:13: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '3' for key 't101.PRIMARY'.
+psql:sql/kunlun_remote_dml.sql:13: ERROR:  Kunlun-db: Can not update partition key of remote relation
 delete from t1 where a %5=0;
 DELETE 4
 select * from t1 where a %5=0;
@@ -112,25 +112,21 @@ select*from t1;
 (8 rows)
 
 create table tfail(a int);
-CREATE TABLE
+psql:sql/kunlun_remote_dml.sql:21: ERROR:  Can not execute such DDL statements in an explicit transaction in kunlun-db.
 delete from t1;
-DELETE 8
+psql:sql/kunlun_remote_dml.sql:22: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 select*from t1;
- a | b 
----+---
-(0 rows)
-
+psql:sql/kunlun_remote_dml.sql:23: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 commit;
-psql:sql/kunlun_remote_dml.sql:24: WARNING:  there is no transaction in progress
-COMMIT
+ROLLBACK
 
 insert into t1 values(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
-INSERT 0 20
+psql:sql/kunlun_remote_dml.sql:26: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '1' for key 't100.PRIMARY'.
 
 start transaction;
 START TRANSACTION
 delete from t1;
-DELETE 20
+DELETE 16
 select*from t1;
  a | b 
 ---+---
@@ -141,27 +137,23 @@ ROLLBACK
 select*from t1;
  a  | b  
 ----+----
-  1 | 21
- 12 | 32
- 14 | 34
- 16 | 36
- 17 | 37
-  3 | 23
-  5 | 25
-  8 | 28
-  9 | 29
- 11 | 31
- 19 | 39
- 20 | 40
-  2 | 22
- 13 | 33
- 18 | 38
-  4 | 24
-  6 | 26
-  7 | 27
- 10 | 30
- 15 | 35
-(20 rows)
+  1 |  1
+ 12 | 12
+ 14 | 14
+ 16 | 16
+ 17 | 17
+  3 |  3
+  8 |  8
+  9 |  9
+ 11 | 11
+ 19 | 19
+  2 |  2
+ 13 | 13
+ 18 | 18
+  4 |  4
+  6 |  6
+  7 |  7
+(16 rows)
 
 
 
@@ -219,19 +211,17 @@ PREPARE q2(int, int) AS SELECT * FROM t1 WHERE a between $1 and $2 order by 1;
 PREPARE
 
 EXECUTE q2(0, 10);
- a  | b  
-----+----
-  1 | 21
-  2 | 22
-  3 | 23
-  4 | 24
-  5 | 25
-  6 | 26
-  7 | 27
-  8 | 28
-  9 | 29
- 10 | 30
-(10 rows)
+ a | b 
+---+---
+ 1 | 1
+ 2 | 2
+ 3 | 3
+ 4 | 4
+ 6 | 6
+ 7 | 7
+ 8 | 8
+ 9 | 9
+(8 rows)
 
 EXECUTE q1(10, 30);
  a  |           b            |  c  
@@ -244,23 +234,19 @@ EXECUTE q1(10, 30);
 EXECUTE q2(5, 40);
  a  | b  
 ----+----
-  5 | 25
-  6 | 26
-  7 | 27
-  8 | 28
-  9 | 29
- 10 | 30
- 11 | 31
- 12 | 32
- 13 | 33
- 14 | 34
- 15 | 35
- 16 | 36
- 17 | 37
- 18 | 38
- 19 | 39
- 20 | 40
-(16 rows)
+  6 |  6
+  7 |  7
+  8 |  8
+  9 |  9
+ 11 | 11
+ 12 | 12
+ 13 | 13
+ 14 | 14
+ 16 | 16
+ 17 | 17
+ 18 | 18
+ 19 | 19
+(12 rows)
 
 deallocate q1;
 DEALLOCATE
@@ -296,15 +282,13 @@ EXECUTE q3(6, 16);
 EXECUTE q1(0, 30);
 psql:sql/kunlun_remote_dml.sql:66: ERROR:  prepared statement "q1" does not exist
 EXECUTE q2(5, 10);
- a  | b  
-----+----
-  5 | 25
-  6 | 26
-  7 | 27
-  8 | 28
-  9 | 29
- 10 | 30
-(6 rows)
+ a | b 
+---+---
+ 6 | 6
+ 7 | 7
+ 8 | 8
+ 9 | 9
+(4 rows)
 
 deallocate q2;
 DEALLOCATE
@@ -314,27 +298,23 @@ PREPARE
 select*from t1;
  a  | b  
 ----+----
-  1 | 21
- 12 | 32
- 14 | 34
- 16 | 36
- 17 | 37
-  3 | 23
-  5 | 25
-  8 | 28
-  9 | 29
- 11 | 31
- 19 | 39
- 20 | 40
-  2 | 22
- 13 | 33
- 18 | 38
-  4 | 24
-  6 | 26
-  7 | 27
- 10 | 30
- 15 | 35
-(20 rows)
+  1 |  1
+ 12 | 12
+ 14 | 14
+ 16 | 16
+ 17 | 17
+  3 |  3
+  8 |  8
+  9 |  9
+ 11 | 11
+ 19 | 19
+  2 |  2
+ 13 | 13
+ 18 | 18
+  4 |  4
+  6 |  6
+  7 |  7
+(16 rows)
 
 EXECUTE q4(10, 9);
 UPDATE 1
@@ -364,7 +344,7 @@ EXECUTE q3(0, 40);
 (20 rows)
 
 EXECUTE q4(11, 10);
-UPDATE 1
+UPDATE 0
 
 begin;
 BEGIN
@@ -375,11 +355,10 @@ UPDATE 1
 select*from t1 where a between 9 and 12;
  a  | b  
 ----+----
- 12 | 32
+ 12 | 12
   9 | 10
  11 | 12
- 10 | 11
-(4 rows)
+(3 rows)
 
 commit;
 COMMIT
@@ -944,12 +923,8 @@ CREATE TABLE
 INSERT INTO collate_test10 VALUES (1, 'hij', 'hij'), (2, 'HIJ', 'HIJ');
 INSERT 0 2
 select x < y from collate_test10;
- ?column? 
-----------
- f
- f
-(2 rows)
-
+psql:sql/kunlun_remote_dml.sql:273: ERROR:  could not determine which collation to use for string comparison
+HINT:  Use the COLLATE clause to set the collation explicitly.
 
 drop table if exists collate_test1 cascade;
 DROP TABLE
@@ -975,14 +950,14 @@ SELECT a, b FROM collate_test2 WHERE a < 4 INTERSECT SELECT a, b FROM collate_te
 -- bug 114
 drop table if exists update_test cascade;
 DROP TABLE
-CREATE TABLE update_test (a INT DEFAULT 10, b INT primary key, c TEXT);
+CREATE TABLE update_test (a INT DEFAULT 10, b INT, c TEXT);
 CREATE TABLE
 INSERT INTO update_test VALUES (5, 10, 'foo');
 INSERT 0 1
 INSERT INTO update_test(b, a) VALUES (15, 10);
 INSERT 0 1
 UPDATE update_test t SET (a, b) = (SELECT b, a FROM update_test s WHERE s.a = t.a) WHERE CURRENT_USER = SESSION_USER;
-UPDATE 2
+psql:sql/kunlun_remote_dml.sql:289: ERROR:  In kunlun-db unable to serialize value expression of target column a in update statement UPDATE update_test t SET (a, b) = (SELECT b, a FROM update_test s WHERE s.a = t.a) WHERE CURRENT_USER = SESSION_USER;.
 
 -- bug 121
 drop table if exists indext1 cascade;

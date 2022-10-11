@@ -47,13 +47,13 @@ INSERT INTO INT8_TBL VALUES(+4567890123456789,'4567890123456789');
 INSERT INTO INT8_TBL VALUES('+4567890123456789','-4567890123456789');
 
 -- ticket:38
-drop table if exists base_tbl;
+drop table if exists base_tbl cascade;
 CREATE TABLE base_tbl(a int, b varchar(50), c float);
 INSERT INTO base_tbl VALUES (1, 'Row 1', 1.0);
 CREATE VIEW rw_view1 AS SELECT * FROM base_tbl;
 SELECT * FROM rw_view1 FOR UPDATE;
 
-drop table base_tbl;
+drop table base_tbl cascade;
 
 
 -- ticket:760

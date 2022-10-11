@@ -299,11 +299,13 @@ show global variables like 'innodb_lock_wait_timeout';
 (1 row)
 
 set @@innodb_lock_wait_timeout = 2;
-SET
+psql:sql/kunlun_vars.sql:61: ERROR:  syntax error at or near "innodb_lock_wait_timeout"
+LINE 1: set @@innodb_lock_wait_timeout = 2;
+              ^
 show session variables like 'innodb_lock_wait_timeout';
       Variable_name       | Value 
 --------------------------+-------
- innodb_lock_wait_timeout | 2
+ innodb_lock_wait_timeout | 3
 (1 row)
 
 show global variables like 'innodb_lock_wait_timeout';
@@ -462,12 +464,11 @@ show global variables strict;
 -----------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  auto_increment_increment          | 1
  auto_increment_offset             | 1
- autocommit                        | ON
  big_tables                        | OFF
  binlog_format                     | ROW
  binlog_row_image                  | FULL
  binlog_row_value_options          | PARTIAL_JSON
- binlog_rows_query_log_events      | OFF
+ binlog_rows_query_log_events      | ON
  binlog_stmt_cache_size            | 32768
  bulk_insert_buffer_size           | 8388608
  character_set_client              | utf8mb4
@@ -491,7 +492,7 @@ show global variables strict;
  group_replication_consistency     | EVENTUAL
  histogram_generation_max_mem_size | 20000000
  information_schema_stats_expiry   | 86400
- innodb_buffer_pool_size           | 2147483648
+ innodb_buffer_pool_size           | 67108864
  innodb_change_buffer_max_size     | 25
  innodb_lock_wait_timeout          | 11
  internal_tmp_mem_storage_engine   | TempTable
@@ -543,9 +544,6 @@ show global variables strict;
  session_track_transaction_info    | OFF
  show_create_table_verbosity       | OFF
  show_old_temporals                | OFF
- slow_query_log                    | ON
- sql_mode                          | STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
- sql_quote_show_create             | ON
  sql_require_primary_key           | OFF
  ssl_fips_mode                     | OFF
  time_zone                         | SYSTEM
@@ -555,7 +553,7 @@ show global variables strict;
  transaction_write_set_extraction  | XXHASH64
  updatable_views_with_limit        | YES
  windowing_use_high_precision      | ON
-(95 rows)
+(91 rows)
 
 drop table if exists tt;
 psql:sql/kunlun_vars.sql:117: ERROR:  Kunlun-db: Connection with MySQL storage node (1, 1) is gone: 2013, Lost connection to MySQL server during query. Resend the statement.

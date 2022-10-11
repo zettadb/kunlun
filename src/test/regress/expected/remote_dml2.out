@@ -362,12 +362,12 @@ psql:sql/remote_dml2.sql:119: ERROR:  Kunlun-db: MySQL storage node (1, 1) retur
 INSERT INTO itest1 VALUES (10, 'xyz');
 INSERT 0 1
 UPDATE itest1 SET a = DEFAULT WHERE a = 2;
-UPDATE 1
+psql:sql/remote_dml2.sql:121: ERROR:  Kunlun-db: Exression cannot be serialized
 select*from itest1 order by a;
  a  |  b  
 ----+-----
   1 | 
-  3 | bbb
+  2 | bbb
  10 | xyz
 (3 rows)
 
@@ -379,7 +379,7 @@ select*from itest1 order by a;
  a  |  b  | c 
 ----+-----+---
   1 |     | 3
-  3 | bbb | 3
+  2 | bbb | 3
  10 | xyz | 3
 (3 rows)
 
@@ -389,8 +389,8 @@ select*from itest1 order by a;
  a  |  b  | c  
 ----+-----+----
   1 |     |  3
-  3 | bbb |  3
-  4 | aaa | 44
+  2 | bbb |  3
+  3 | aaa | 44
  10 | xyz |  3
 (4 rows)
 
@@ -400,8 +400,8 @@ select*from itest1 order by a;
  a  |  b  | c  
 ----+-----+----
   1 |     |  3
-  3 | bbb |  3
-  4 | aaa | 44
+  2 | bbb |  3
+  3 | aaa | 44
  10 | xyz |  3
 (4 rows)
 
@@ -411,33 +411,33 @@ select*from itest1 order by a ;
  a  |  b  | c  
 ----+-----+----
   1 |     |  3
-  3 | bbb |  3
+  2 | bbb |  3
+  3 | aaa | 44
   4 | aaa | 44
-  5 | aaa | 44
  10 | xyz |  3
 (5 rows)
 
 UPDATE itest1 SET c = DEFAULT WHERE a = 3;
-UPDATE 0
-select*from itest1 order by a;
- a  |  b  | c  
-----+-----+----
-  1 |     |  3
-  3 | bbb |  3
-  4 | aaa | 44
-  5 | aaa | 44
- 10 | xyz |  3
-(5 rows)
-
-UPDATE itest1 SET a = DEFAULT WHERE a = 3;
 UPDATE 1
 select*from itest1 order by a;
  a  |  b  | c  
 ----+-----+----
   1 |     |  3
+  2 | bbb |  3
+  3 | aaa |  3
   4 | aaa | 44
-  5 | aaa | 44
-  6 | bbb |  3
+ 10 | xyz |  3
+(5 rows)
+
+UPDATE itest1 SET a = DEFAULT WHERE a = 3;
+psql:sql/remote_dml2.sql:135: ERROR:  Kunlun-db: Exression cannot be serialized
+select*from itest1 order by a;
+ a  |  b  | c  
+----+-----+----
+  1 |     |  3
+  2 | bbb |  3
+  3 | aaa |  3
+  4 | aaa | 44
  10 | xyz |  3
 (5 rows)
 
@@ -447,11 +447,11 @@ select*from itest1 order by a;
  a  |  b  |  c  
 ----+-----+-----
   1 |     |   3
+  2 | bbb |   3
+  3 | aaa |   3
   4 | aaa |  44
-  5 | aaa |  44
-  6 | bbb |   3
-  7 | xxx | 333
-  8 | yyy | 444
+  5 | xxx | 333
+  6 | yyy | 444
  10 | xyz |   3
 (7 rows)
 
@@ -1519,7 +1519,7 @@ psql:sql/remote_dml2.sql:658: ERROR:  canceling statement due to statement timeo
         join int4_tbl i1 on b.thousand = f1
         right join int4_tbl i2 on i2.f1 = b.tenthous
         order by 1;
-psql:sql/remote_dml2.sql:666: ERROR:  canceling statement due to statement timeout
+psql:sql/remote_dml2.sql:666: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1317, Query execution was interrupted.
 --set enable_remote_join_pushdown = false;
 explain (costs off)
     select b.unique1 from
@@ -1542,13 +1542,45 @@ explain (costs off)
         join int4_tbl i1 on b.thousand = f1
         right join int4_tbl i2 on i2.f1 = b.tenthous
         order by 1;
-psql:sql/remote_dml2.sql:690: ERROR:  canceling statement due to statement timeout
+ unique1 
+---------
+       1
+       2
+       3
+       4
+       5
+       6
+       7
+       8
+       9
+      10
+      11
+      12
+      13
+(13 rows)
+
     select b.unique1 from
         tenk1 a join tenk1 b on a.unique1 = b.unique2
         join int4_tbl i1 on b.thousand = f1
         right join int4_tbl i2 on i2.f1 = b.tenthous
         order by 1;
-psql:sql/remote_dml2.sql:698: ERROR:  canceling statement due to statement timeout
+ unique1 
+---------
+       1
+       2
+       3
+       4
+       5
+       6
+       7
+       8
+       9
+      10
+      11
+      12
+      13
+(13 rows)
+
 -- below portion is fixed, above portion not yet. TODO
  drop table if exists mlparted cascade;
 DROP TABLE
@@ -2346,11 +2378,11 @@ SET
 SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x;
  x  | sum  | count 
 ----+------+-------
-  0 |  500 |   100
-  6 | 1100 |   100
- 12 |  700 |   100
  18 | 1300 |   100
  24 |  900 |   100
+  6 | 1100 |   100
+  0 |  500 |   100
+ 12 |  700 |   100
 (5 rows)
 
 EXPLAIN (verbose, COSTS OFF)

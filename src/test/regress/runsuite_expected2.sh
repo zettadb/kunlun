@@ -1,8 +1,9 @@
 #! /bin/bash
 
 seconds="${1:-10}"
+listfile="${2:-serial_schedule}"
 
-cat serial_schedule | grep -v '^#' | sed '/^[ 	]*$/d' | awk '{print $2}' | while read f; do
+cat $listfile | grep -v '^#' | sed '/^[ 	]*$/d' | awk '{print $2}' | while read f; do
 	if test ! -f "sql/$f.sql"; then
 		echo "sql/$f.sql : No such file or directory"
 	else
@@ -26,10 +27,10 @@ cat serial_schedule | grep -v '^#' | sed '/^[ 	]*$/d' | awk '{print $2}' | while
 		    diff "$f.out" "expected/$f.out" >/dev/null
 		    ret2="$?"
 		    if test "$ret2" = 0; then
-			echo "EXPECTED: same with expected output"
+			echo "EXPECTED: same with expected output - $f.sql"
 		    else
-			echo "UNEXPECTED: Different with expected output"
-			echo "======= diff content with expected output =========="
+			echo "UNEXPECTED: Different with expected output - $f.sql"
+			echo "======= diff content with expected output - $f.sql =========="
 			diff "$f.out" "expected/$f.out"
 		    fi
 		else

@@ -2232,12 +2232,12 @@ update pg_class
 
 -- Make a relation with a couple of enormous tuples.
 --DDL_STATEMENT_BEGIN--
-drop table if exset local max_parallel_workers_per_gather = 2;
-set local work_mem = '4MB';
-set local enable_parallel_hash = off;
-explain (costs off)
-  select count(*) from simple r join simple s using (id);
-select count(*) from simple r join simple s using (id);
+drop table if exists wide;
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
+create table wide (id integer, t text);
+--DDL_STATEMENT_END--
+insert into wide select generate_series(1, 2) as id, rpad('', 320000, select count(*) from simple r join simple s using (id);
 select original > 1 as initially_multibatch, final > original as increased_batches
   from hash_join_batches(
 $$

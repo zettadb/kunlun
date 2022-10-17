@@ -93,7 +93,7 @@ delete from `t 1` where `a 1` = 1;
 update `t 1` set `a 2` = t.a from `t 2` as t(a, _) where t.a = `t 1`.`a 1`;
 
 drop schema `s 1` cascade;
-
+set search_path="public";
 
 -- ticket:930
 drop table if exists t;

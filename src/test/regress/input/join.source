@@ -369,60 +369,7 @@ COPY tenk1 FROM '@abs_srcdir@/data/tenk.data';
 select count(*) from tenk1 a where unique1 in
   (select unique1 from tenk1 b join tenk1 c using (unique1)
    where b.unique2 = 42);
-
---
--- regression test: check for failure to generate a plan with multiple
--- degenerate IN clauses
---
-select count(*) from tenk1 x where
-  x.unique1 in (select a.f1 from int4_tbl a,float8_tbl b where a.f1=b.f1) and
-  x.unique1 = 0 and
-  x.unique1 in (select aa.f1 from int4_tbl aa,float8_tbl bb where aa.f1=bb.f1);
-
--- try that with GEQO too
----begin;
----set geqo = on;
----set geqo_threshold = 2;
----select count(*) from tenk1 x where
----  x.unique1 in (select a.f1 from int4_tbl a,float8_tbl b where a.f1=b.f1) and
----  x.unique1 = 0 and
----  x.unique1 in (select aa.f1 from int4_tbl aa,float8_tbl bb where aa.f1=bb.f1);
----rollback;
-
---DDL_STATEMENT_BEGIN--
-CREATE TABLE a (aa TEXT);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-CREATE TABLE b (aa text, bb TEXT);
---DDL_STATEMENT_END--
-
-INSERT INTO a(aa) VALUES('aaa');
-INSERT INTO a(aa) VALUES('aaaa');
-INSERT INTO a(aa) VALUES('aaaaa');
-INSERT INTO a(aa) VALUES('aaaaaa');
-INSERT INTO a(aa) VALUES('aaaaaaa');
-INSERT INTO a(aa) VALUES('aaaaaaaa');
-insert into b select*from a;
-INSERT INTO b(aa) VALUES('bbb');
-INSERT INTO b(aa) VALUES('bbbb');
-INSERT INTO b(aa) VALUES('bbbbb');
-INSERT INTO b(aa) VALUES('bbbbbb');
-INSERT INTO b(aa) VALUES('bbbbbbb');
-INSERT INTO b(aa) VALUES('bbbbbbbb');
---
--- regression test: be sure we cope with proven-dummy append rels
---
-explain (costs off)
-select aa, bb, unique1, unique1
-  from tenk1 right join b on aa = unique1
-  where bb < bb and bb is null;
-
-select aa, bb, unique1, unique1
-  from tenk1 right join b on aa = unique1
-  where bb < bb and bb is null;
-
---
--- regression test: check handling of empty-FROM subquery underneath outer join
+-- regression test: check for failure to generate a st: check handling of empty-FROM subquery underneath outer join
 --
 explain (costs off)
 select * from int8_tbl i1 left join (int8_tbl i2 join
@@ -813,6 +760,7 @@ group by t1.q2 order by 1;
 --
 -- test incorrect failure to NULL pulled-up subexpressions
 --
+begin;
 --DDL_STATEMENT_BEGIN--
 drop table a;
 --DDL_STATEMENT_END--
@@ -843,7 +791,7 @@ create temp table c (
 );
 --DDL_STATEMENT_END--
 
-begin;
+
 insert into a (code) values ('p');
 insert into a (code) values ('q');
 insert into b (a, num) values ('p', 1);
@@ -1409,7 +1357,7 @@ select ss2.* from
     on i8.q1 = ss1.c2
   on i41.f1 = ss1.c1,
   lateral (select i41.*, i8.*, ss1.* from text_tbl limit 1) ss2
-where ss1.c2 = 0; 
+where ss1.c2 = 0;
 
 --
 -- test successful handling of full join underneath left join (bug #14105)
@@ -1461,6 +1409,7 @@ reset enable_nestloop;
 --
 -- test join removal
 --
+begin;
 --DDL_STATEMENT_BEGIN--
 drop table if exists a;
 --DDL_STATEMENT_END--
@@ -1486,7 +1435,7 @@ drop table if exists d;
 CREATE TEMP TABLE d (a int, b int);
 --DDL_STATEMENT_END--
 
-begin;
+
 INSERT INTO a VALUES (0, 0), (1, NULL);
 INSERT INTO b VALUES (0, 0), (1, NULL);
 INSERT INTO c VALUES (0), (1);
@@ -1588,6 +1537,7 @@ select p.* from
   where p.k = 1 and p.k = 2;
 
 -- bug 5255: this is not optimizable by join removal
+begin;
 --DDL_STATEMENT_BEGIN--
 drop table if exists a;
 --DDL_STATEMENT_END--
@@ -1601,7 +1551,7 @@ drop table if exists b;
 CREATE TEMP TABLE b (id int PRIMARY KEY, a_id int);
 --DDL_STATEMENT_END--
 
-begin;
+
 
 INSERT INTO a VALUES (0), (1);
 INSERT INTO b VALUES (0, 0), (1, NULL);
@@ -1612,11 +1562,12 @@ SELECT b.* FROM b LEFT JOIN a ON (b.a_id = a.id) WHERE (a.id IS NULL OR a.id > 0
 rollback;
 
 -- another join removal bug: this is not optimizable, either
+begin;
 --DDL_STATEMENT_BEGIN--
 create temp table innertab (id int8 primary key, dat1 int8);
 --DDL_STATEMENT_END--
 
-begin;
+
 
 insert into innertab values(123, 42);
 
@@ -1630,12 +1581,13 @@ SELECT * FROM
 rollback;
 
 -- another join removal bug: we must clean up correctly when removing a PHV
+begin;	  
 
 --DDL_STATEMENT_BEGIN--
 create temp table uniquetbl (f1 varchar(50) unique);
 --DDL_STATEMENT_END--
 
-begin;
+
 
 explain (costs off)
 select t1.* from
@@ -1815,6 +1767,7 @@ select v.* from
 create temp table dual();
 --DDL_STATEMENT_END--
 insert into dual default values;
+analyze dual;
 select v.* from
   (int8_tbl x left join (select q1,(select coalesce(q2,0)) q2 from int8_tbl) y on x.q2 = y.q1)
   left join int4_tbl z on z.f1 = x.q2,
@@ -1833,20 +1786,9 @@ select * from
   lateral (select *, coalesce(a.q2, 42) as x from int8_tbl b) ss on a.q2 = ss.q1;
 select * from
   int8_tbl a left join
-  lateral (select *, coalesce(a.q2, 42) as x from int8_tbl b) ss on a.q2 = ss.q1 order by 1,2,3,4,5;
+  lateral (select *, coalesce(a.q2, 42) as x from int8_tbl b) ss on a.q2 = ss.q1;
 
--- lateral can result in join conditions appearing below their
--- real semantic level
-explain (verbose, costs off)
-select * from int4_tbl i left join
-  lateral (select * from int2_tbl j where i.f1 = j.f1) k on true;
-select * from int4_tbl i left join
-  lateral (select * from int2_tbl j where i.f1 = j.f1) k on true order by 1,2;
-explain (verbose, costs off)
-select * from int4_tbl i left join
-  lateral (select coalesce(i) from int2_tbl j where i.f1 = j.f1) k on true;
-select * from int4_tbl i left join
-  lateral (select coalesce(i) from int2_tbl j where i.f1 = j.f1) k on true;
+
 explain (verbose, costs off)
 select * from int4_tbl a,
   lateral (
@@ -2009,7 +1951,7 @@ drop table join_ut1;
 --
 -- test that foreign key join estimation performs sanely for outer joins
 --
-
+begin;
 --DDL_STATEMENT_BEGIN--
 create temp table fkest (a int, b int, c int unique, primary key(a,b));
 --DDL_STATEMENT_END--
@@ -2017,13 +1959,15 @@ create temp table fkest (a int, b int, c int unique, primary key(a,b));
 create temp table fkest1 (a int, b int, primary key(a,b));
 --DDL_STATEMENT_END--
 
-begin;
+
 
 insert into fkest select x/10, x%10, x from generate_series(1,1000) x;
 insert into fkest1 select x/10, x%10 from generate_series(1,1000) x;
 
 --alter table fkest1
 --  add constraint fkest1_a_b_fkey foreign key (a,b) references fkest;
+analyze fkest;
+analyze fkest1;
 
 explain (costs off)
 select *
@@ -2053,6 +1997,9 @@ insert into j1 values(1),(2),(3);
 insert into j2 values(1),(2),(3);
 insert into j3 values(1),(1);
 
+analyze j1;
+analyze j2;
+analyze j3;
 
 -- ensure join is properly marked as unique
 explain (verbose, costs off)
@@ -2122,6 +2069,9 @@ insert into j1 values(1,1),(1,2);
 insert into j2 values(1,1);
 insert into j3 values(1,1);
 
+analyze j1;
+analyze j2;
+analyze j3;
 -- ensure there's no unique join when not all columns which are part of the
 -- unique index are seen in the join clause
 explain (verbose, costs off)
@@ -2240,6 +2190,8 @@ create table wide (id integer, t text);
 insert into wide select generate_series(1, 2) as id, rpad('', 320000, 'x') as t;
 --alter table wide set (parallel_workers = 2);
 
+																					
+											
 
 begin;
 set local min_parallel_table_scan_size = 0;
@@ -2502,8 +2454,6 @@ rollback to settings;
 
 -- Exercise rescans.  We'll turn off parallel_leader_participation so
 -- that we can check that instrumentation comes back correctly.
-commit;
-
 --DDL_STATEMENT_BEGIN--
 drop table if exists join_foo;
 --DDL_STATEMENT_END--
@@ -2519,8 +2469,8 @@ drop table if exists join_bar;
 create table join_bar(id integer, t varchar(50));
 --DDL_STATEMENT_END--
 insert into join_bar select generate_series(1, 10000) as id, 'xxxxx'::varchar(50) as t;
+												  
 --alter table join_bar set (parallel_workers = 2);
-
 begin;
 -- multi-batch with rescan, parallel-oblivious
 savepoint settings;

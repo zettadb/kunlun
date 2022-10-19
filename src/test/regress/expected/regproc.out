@@ -18,11 +18,9 @@ SELECT regoperator('+(int4,int4)');
 (1 row)
 
 SELECT regproc('now');
- regproc 
----------
- now
-(1 row)
-
+psql:sql/regproc.sql:13: ERROR:  more than one function named "now"
+LINE 1: SELECT regproc('now');
+                       ^
 SELECT regprocedure('abs(numeric)');
  regprocedure 
 --------------
@@ -56,7 +54,7 @@ SELECT to_regoperator('+(int4,int4)');
 SELECT to_regproc('now');
  to_regproc 
 ------------
- now
+ 
 (1 row)
 
 SELECT to_regprocedure('abs(numeric)');
@@ -91,11 +89,9 @@ SELECT regoperator('pg_catalog.+(int4,int4)');
 (1 row)
 
 SELECT regproc('pg_catalog.now');
- regproc 
----------
- now
-(1 row)
-
+psql:sql/regproc.sql:29: ERROR:  more than one function named "pg_catalog.now"
+LINE 1: SELECT regproc('pg_catalog.now');
+                       ^
 SELECT regprocedure('pg_catalog.abs(numeric)');
  regprocedure 
 --------------
@@ -123,7 +119,7 @@ SELECT to_regoper('pg_catalog.||/');
 SELECT to_regproc('pg_catalog.now');
  to_regproc 
 ------------
- now
+ 
 (1 row)
 
 SELECT to_regprocedure('pg_catalog.abs(numeric)');

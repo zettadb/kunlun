@@ -70,6 +70,449 @@ INSERT INTO INT8_TBL VALUES(+4567890123456789,'4567890123456789');
 INSERT 0 1
 INSERT INTO INT8_TBL VALUES('+4567890123456789','-4567890123456789');
 INSERT 0 1
+-- ticket:38
+drop table if exists base_tbl cascade;
+psql:sql/kunlun_ticket.sql:50: NOTICE:  drop cascades to view rw_view1
+DROP TABLE
+CREATE TABLE base_tbl(a int, b varchar(50), c float);
+CREATE TABLE
+INSERT INTO base_tbl VALUES (1, 'Row 1', 1.0);
+INSERT 0 1
+CREATE VIEW rw_view1 AS SELECT * FROM base_tbl;
+CREATE VIEW
+SELECT * FROM rw_view1 FOR UPDATE;
+ a |   b   | c 
+---+-------+---
+ 1 | Row 1 | 1
+(1 row)
+
+drop table base_tbl cascade;
+psql:sql/kunlun_ticket.sql:56: NOTICE:  drop cascades to view rw_view1
+DROP TABLE
+-- ticket:760
+drop table if exists t2;
+DROP TABLE
+create table t2 (f1 int not null primary key 
+                 auto_increment, f2 varchar(255));
+CREATE TABLE
+insert into t2 values (null,'b');
+INSERT 0 1
+select * from t2;
+ f1 | f2 
+----+----
+  1 | b
+(1 row)
+
+drop table t2;
+DROP TABLE
+-- ticket:776
+drop schema if exists `s 1` cascade;
+psql:sql/kunlun_ticket.sql:72: NOTICE:  schema "s 1" does not exist, skipping
+DROP SCHEMA
+create schema `s 1`;
+CREATE SCHEMA
+set search_path="s 1";
+SET
+create table `t 1` (`a 1` int auto_increment primary key, `a 2` int);
+CREATE TABLE
+create table `t 2` (`a 1` int auto_increment primary key, `a 2` int);
+CREATE TABLE
+alter table `t 1` add column `a 3` varchar(100);
+ALTER TABLE
+create index `i 1` on `t 1`(`a 2`);
+CREATE INDEX
+create index `i 2` on `t 1`(`a 3`);
+CREATE INDEX
+drop index `i 1`, `i 2`;
+DROP INDEX
+alter table `t 1` alter column `a 3` type int using `a 3`::int;
+ALTER TABLE
+alter table `t 1` drop column `a 3`;
+ALTER TABLE
+insert into `t 1` (`a 2`) select generate_series(1, 100);
+INSERT 0 100
+insert into `t 2` (`a 2`) select `a 1` from `t 1`;
+INSERT 0 100
+explain analyze select * from `t 1` t1(a,b), `t 2` t2(a,b) where t1.a=t2.a;
+
+insert into `t 1` values(1,1) on duplicate key update `a 2` = excluded.`a 2`;
+INSERT 0 0
+update `t 1` set `a 2` = `a 1` + 10 where `a 1` = 1;
+UPDATE 1
+delete from `t 1` where `a 1` = 1;
+DELETE 1
+update `t 1` set `a 2` = t.a from `t 2` as t(a, _) where t.a = `t 1`.`a 1`;
+UPDATE 99
+drop schema `s 1` cascade;
+psql:sql/kunlun_ticket.sql:95: NOTICE:  drop cascades to 2 other objects
+DETAIL:  drop cascades to table "t 1"
+drop cascades to table "t 2"
+DROP SCHEMA
+set search_path="public";
+SET
+-- ticket:930
+drop table if exists t;
+DROP TABLE
+create table t(a int auto_increment primary key,b int, c timestamptz on update current_timestamp);
+CREATE TABLE
+insert into t(a,b) values(1,1);
+INSERT 0 1
+select * from t;
+ a | b | c 
+---+---+---
+ 1 | 1 | 
+(1 row)
+
+-- 更新之后，时间自动更新
+update t set b=b+1;
+UPDATE 1
+select * from t;
+ a | b |           c            
+---+---+------------------------
+ 1 | 2 | 2022-10-19 06:51:23+08
+(1 row)
+
+-- replace相当于delete + insert，所以不会变化
+replace into t values(1,1);
+INSERT 0 2
+select * from t;
+ a | b | c 
+---+---+---
+ 1 | 1 | 
+(1 row)
+
+-- 对insert .. on duplicate key update ... 同样有效
+insert into t (a,b) values(1,1) on duplicate key update b=t.b+1;
+INSERT 0 2
+select * from t;
+ a | b |           c            
+---+---+------------------------
+ 1 | 2 | 2022-10-19 06:51:23+08
+(1 row)
+
+drop table t;
+DROP TABLE
+-- ticket:959
+drop table if exists t1;
+psql:sql/kunlun_ticket.sql:121: NOTICE:  table "t1" does not exist, skipping
+DROP TABLE
+create table t1 (a int ,b int);
+CREATE TABLE
+create index concurrently on t1(a);
+CREATE INDEX
+-- ticket:992
+show tables where tables='t1';
+ Tables 
+--------
+ t1
+(1 row)
+
+show databases where database='postgres';
+ Database 
+----------
+ postgres
+(1 row)
+
+show schemas where schemas='public';
+ Schemas 
+---------
+ public
+(1 row)
+
+-- ticket:1000
+show table status;
+                Name                 | Engine | Version | Row_format | Rows  | Avg_row_length | Data_length | Max_data_length | Index_length | Data_free | Auto_increment |     Create_time     |     Update_time     | Check_time |     Collation      | Checksum | Create_options | Comment 
+-------------------------------------+--------+---------+------------+-------+----------------+-------------+-----------------+--------------+-----------+----------------+---------------------+---------------------+------------+--------------------+----------+----------------+---------
+ a                                   | InnoDB |      10 | Dynamic    |     6 |           2730 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:07:50 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ a_star                              | InnoDB |      10 | Dynamic    |     3 |           5461 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:21:05 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ aggtest                             | InnoDB |      10 | Dynamic    |     4 |           4096 |       16384 |               0 |            0 |         0 |                | 2022-10-19 05:57:54 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ alter_table_under_transition_tables | InnoDB |      10 | Dynamic    |     3 |           5461 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:28:49 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ anothertab                          | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |        65536 |         0 |                | 2022-10-19 06:45:15 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ at_base_table                       | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:37:49 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ at_partitioned_1                    | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:45:15 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ atest5                              | InnoDB |      10 | Dynamic    |     4 |           4096 |       16384 |               0 |        32768 |         0 |                | 2022-10-19 06:45:55 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ b                                   | InnoDB |      10 | Dynamic    |    12 |           1365 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:07:50 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ bigger_than_it_looks                | InnoDB |      10 | Dynamic    | 19702 |             80 |     1589248 |               0 |            0 |   4194304 |                | 2022-10-19 06:09:09 | 2022-10-19 06:09:18 |            | utf8mb4_0900_as_cs |          |                | 
+ boolvalues                          | InnoDB |      10 | Dynamic    |     2 |           8192 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:32:11 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ brintest                            | InnoDB |      10 | Dynamic    |   125 |           1048 |      131072 |               0 |            0 |         0 |                | 2022-10-19 06:18:10 | 2022-10-19 06:18:12 |            | utf8mb4_0900_as_cs |          |                | 
+ bt_f8_heap                          | InnoDB |      10 | Dynamic    | 10266 |             43 |      442368 |               0 |            0 |         0 |                | 2022-10-19 05:59:56 | 2022-10-19 05:59:00 |            | utf8mb4_0900_as_cs |          |                | 
+ bt_i4_heap                          | InnoDB |      10 | Dynamic    | 10157 |             38 |      393216 |               0 |            0 |         0 |                | 2022-10-19 05:59:55 | 2022-10-19 05:58:48 |            | utf8mb4_0900_as_cs |          |                | 
+ bt_name_heap                        | InnoDB |      10 | Dynamic    | 10330 |             39 |      409600 |               0 |            0 |         0 |                | 2022-10-19 05:59:55 | 2022-10-19 05:58:52 |            | utf8mb4_0900_as_cs |          |                | 
+ bt_txt_heap                         | InnoDB |      10 | Dynamic    | 10329 |             39 |      409600 |               0 |            0 |         0 |                | 2022-10-19 05:57:55 | 2022-10-19 05:58:56 |            | utf8mb4_0900_as_cs |          |                | 
+ btree_tall_tbl                      | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:16:33 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ char_tbl                            | InnoDB |      10 | Dynamic    |     4 |           4096 |       16384 |               0 |            0 |         0 |                | 2022-10-19 05:48:54 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ check_con_tbl                       | InnoDB |      10 | Dynamic    |     3 |           5461 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:28:17 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ clstr_tst                           | InnoDB |      10 | Dynamic    |    33 |          16384 |      540672 |               0 |        65536 |         0 |                | 2022-10-19 06:24:18 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ clstr_tst_inh                       | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:24:18 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ clstr_tst_s                         | InnoDB |      10 | Dynamic    |    32 |            512 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:24:17 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ collate_test1                       | InnoDB |      10 | Dynamic    |     4 |           4096 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:50:16 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ collate_test10                      | InnoDB |      10 | Dynamic    |     2 |           8192 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:50:15 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ collate_test2                       | InnoDB |      10 | Dynamic    |     4 |           4096 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:50:16 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ comment_test                        | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |        16384 |         0 |                | 2022-10-19 06:30:08 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ concur_heap                         | InnoDB |      10 | Dynamic    |     4 |           4096 |       16384 |               0 |        16384 |         0 |                | 2022-10-19 06:45:16 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ credit_card                         | InnoDB |      10 | Dynamic    |     3 |           5461 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:24:06 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ credit_usage                        | InnoDB |      10 | Dynamic    |     9 |           1820 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:24:06 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ ctv_data                            | InnoDB |      10 | Dynamic    |     7 |           2340 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:45:55 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ customer                            | InnoDB |      10 | Dynamic    |     3 |           5461 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:24:06 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ default_tbl                         | InnoDB |      10 | Dynamic    |     5 |           3276 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:02:12 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ defaultexpr_tbl                     | InnoDB |      10 | Dynamic    |     4 |           4096 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:02:12 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ dept                                | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 05:57:54 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ deptest1                            | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:24:39 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ donothingbrtrig_test1               | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 05:57:05 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ donothingbrtrig_test2               | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 05:57:05 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ ec0                                 | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:27:40 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ emp                                 | InnoDB |      10 | Dynamic    |     3 |           5461 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:03:39 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ equipment_r                         | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 05:57:53 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ extremely_skewed                    | InnoDB |      10 | Dynamic    | 19702 |             80 |     1589248 |               0 |            0 |   4194304 |                | 2022-10-19 06:09:18 | 2022-10-19 06:09:27 |            | utf8mb4_0900_as_cs |          |                | 
+ few                                 | InnoDB |      10 | Dynamic    |     3 |           5461 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:45:54 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ float4_tbl                          | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:50:24 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ float8_tbl                          | InnoDB |      10 | Dynamic    |     5 |           3276 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:51:19 | 2022-10-19 06:51:19 |            | utf8mb4_0900_as_cs |          |                | 
+ hash_f8_heap                        | InnoDB |      10 | Dynamic    | 10266 |             43 |      442368 |               0 |            0 |         0 |                | 2022-10-19 05:59:56 | 2022-10-19 05:58:43 |            | utf8mb4_0900_as_cs |          |                | 
+ hash_i4_heap                        | InnoDB |      10 | Dynamic    | 10157 |             38 |      393216 |               0 |            0 |         0 |                | 2022-10-19 05:59:56 | 2022-10-19 05:58:31 |            | utf8mb4_0900_as_cs |          |                | 
+ hash_name_heap                      | InnoDB |      10 | Dynamic    |  9985 |             45 |      458752 |               0 |            0 |         0 |                | 2022-10-19 05:59:56 | 2022-10-19 05:58:35 |            | utf8mb4_0900_as_cs |          |                | 
+ hash_txt_heap                       | InnoDB |      10 | Dynamic    |  9985 |             45 |      458752 |               0 |            0 |         0 |                | 2022-10-19 05:57:54 | 2022-10-19 05:58:39 |            | utf8mb4_0900_as_cs |          |                | 
+ hobbies_r                           | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 05:57:53 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ hslot                               | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |        32768 |         0 |                | 2022-10-19 06:28:30 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ hub                                 | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:28:30 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ iface                               | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:28:30 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ indext1                             | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:50:17 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ inhe                                | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:02:23 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ inhf                                | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:02:23 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ insertconflicttest1                 | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:38:09 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ int2_tbl                            | InnoDB |      10 | Dynamic    |     5 |           3276 |       16384 |               0 |            0 |         0 |                | 2022-10-19 05:49:35 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ int4_tbl                            | InnoDB |      10 | Dynamic    |     3 |           5461 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:51:19 | 2022-10-19 06:51:19 |            | utf8mb4_0900_as_cs |          |                | 
+ int8_tbl                            | InnoDB |      10 | Dynamic    |     5 |           3276 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:51:19 | 2022-10-19 06:51:19 |            | utf8mb4_0900_as_cs |          |                | 
+ itest1                              | InnoDB |      10 | Dynamic    |     7 |           2340 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:37:53 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ itest13                             | InnoDB |      10 | Dynamic    |     3 |           5461 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:50:13 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ itest6                              | InnoDB |      10 | Dynamic    |     3 |           5461 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:50:14 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ itest7                              | InnoDB |      10 | Dynamic    |     5 |           3276 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:38:19 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ itest9                              | InnoDB |      10 | Dynamic    |     4 |           4096 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:17 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ join_bar                            | InnoDB |      10 | Dynamic    |  9991 |             40 |      409600 |               0 |            0 |         0 |                | 2022-10-19 06:45:56 | 2022-10-19 06:46:01 |            | utf8mb4_0900_as_cs |          |                | 
+ join_foo                            | InnoDB |      10 | Dynamic    |     3 |           5461 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:45:56 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ like_op_noprune1                    | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:58 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ like_op_noprune2                    | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:58 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ mlparted11                          | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:45:09 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ mvtest_t                            | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:37:54 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ no_oids                             | InnoDB |      10 | Dynamic    |     2 |           8192 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:28:17 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ onek                                | InnoDB |      10 | Dynamic    |  1000 |             81 |       81920 |               0 |            0 |         0 |                | 2022-10-19 06:45:48 | 2022-10-19 06:45:49 |            | utf8mb4_0900_as_cs |          |                | 
+ pagg_tab1_p1                        | InnoDB |      10 | Dynamic    |    50 |            327 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:45:31 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ pagg_tab1_p2                        | InnoDB |      10 | Dynamic    |    50 |            327 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:45:31 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ pagg_tab1_p3                        | InnoDB |      10 | Dynamic    |    50 |            327 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:45:31 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ pagg_tab2_p1                        | InnoDB |      10 | Dynamic    |    40 |            409 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:45:31 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ pagg_tab2_p2                        | InnoDB |      10 | Dynamic    |    30 |            546 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:45:31 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ pagg_tab2_p3                        | InnoDB |      10 | Dynamic    |    30 |            546 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:45:31 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ pagg_tab_m_p1                       | InnoDB |      10 | Dynamic    |  1025 |             63 |       65536 |               0 |            0 |         0 |                | 2022-10-19 06:37:50 | 2022-10-19 06:37:52 |            | utf8mb4_0900_as_cs |          |                | 
+ pagg_tab_m_p2                       | InnoDB |      10 | Dynamic    |  1025 |             63 |       65536 |               0 |            0 |         0 |                | 2022-10-19 06:37:50 | 2022-10-19 06:37:52 |            | utf8mb4_0900_as_cs |          |                | 
+ pagg_tab_m_p3                       | InnoDB |      10 | Dynamic    |   950 |             68 |       65536 |               0 |            0 |         0 |                | 2022-10-19 06:37:50 | 2022-10-19 06:37:52 |            | utf8mb4_0900_as_cs |          |                | 
+ pagg_tab_ml_p1                      | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:35:08 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ pagg_tab_ml_p2_s1                   | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:35:08 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ pagg_tab_ml_p2_s2                   | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:35:08 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ pagg_tab_ml_p3_s2                   | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:35:08 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ pagg_tab_p1                         | InnoDB |      10 | Dynamic    |  1000 |             81 |       81920 |               0 |            0 |         0 |                | 2022-10-19 06:35:02 | 2022-10-19 06:35:03 |            | utf8mb4_0900_as_cs |          |                | 
+ pagg_tab_p2                         | InnoDB |      10 | Dynamic    |  1000 |             81 |       81920 |               0 |            0 |         0 |                | 2022-10-19 06:35:02 | 2022-10-19 06:35:03 |            | utf8mb4_0900_as_cs |          |                | 
+ pagg_tab_p3                         | InnoDB |      10 | Dynamic    |  1000 |             81 |       81920 |               0 |            0 |         0 |                | 2022-10-19 06:35:02 | 2022-10-19 06:35:03 |            | utf8mb4_0900_as_cs |          |                | 
+ pagg_tab_para_p1                    | InnoDB |      10 | Dynamic    | 10157 |             38 |      393216 |               0 |            0 |         0 |                | 2022-10-19 06:35:09 | 2022-10-19 06:35:23 |            | utf8mb4_0900_as_cs |          |                | 
+ pagg_tab_para_p2                    | InnoDB |      10 | Dynamic    | 10157 |             38 |      393216 |               0 |            0 |         0 |                | 2022-10-19 06:35:09 | 2022-10-19 06:35:23 |            | utf8mb4_0900_as_cs |          |                | 
+ pagg_tab_para_p3                    | InnoDB |      10 | Dynamic    | 10157 |             38 |      393216 |               0 |            0 |         0 |                | 2022-10-19 06:35:09 | 2022-10-19 06:35:23 |            | utf8mb4_0900_as_cs |          |                | 
+ part_1                              | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:45:10 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ part_2                              | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:30:09 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ part_attmp1                         | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:45:11 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ part_p1                             | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:57 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ parted_conflict_1_1                 | InnoDB |      10 | Dynamic    |     1 |          16384 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:37:55 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ pc_list_part_1                      | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:45:15 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ pc_list_part_null                   | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:45:15 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ persons                             | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:45:17 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ pfield                              | InnoDB |      10 | Dynamic    |     4 |           4096 |       16384 |               0 |        16384 |         0 |                | 2022-10-19 06:28:29 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ phone                               | InnoDB |      10 | Dynamic    |     4 |           4096 |       16384 |               0 |        16384 |         0 |                | 2022-10-19 06:28:31 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ pht1_e_p1                           | InnoDB |      10 | Dynamic    |    25 |            655 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:38 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ pht1_e_p2                           | InnoDB |      10 | Dynamic    |    50 |            327 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:39 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ pht1_e_p3                           | InnoDB |      10 | Dynamic    |    75 |            218 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:39 | 2022-10-19 06:31:39 |            | utf8mb4_0900_as_cs |          |                | 
+ pht1_p1                             | InnoDB |      10 | Dynamic    |    50 |            327 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:38 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ pht1_p2                             | InnoDB |      10 | Dynamic    |   125 |            131 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:38 | 2022-10-19 06:31:38 |            | utf8mb4_0900_as_cs |          |                | 
+ pht1_p3                             | InnoDB |      10 | Dynamic    |   125 |            131 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:38 | 2022-10-19 06:31:38 |            | utf8mb4_0900_as_cs |          |                | 
+ pht2_p1                             | InnoDB |      10 | Dynamic    |    32 |            512 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:38 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ pht2_p2                             | InnoDB |      10 | Dynamic    |    84 |            195 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:38 | 2022-10-19 06:31:38 |            | utf8mb4_0900_as_cs |          |                | 
+ pht2_p3                             | InnoDB |      10 | Dynamic    |    84 |            195 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:38 | 2022-10-19 06:31:38 |            | utf8mb4_0900_as_cs |          |                | 
+ pline                               | InnoDB |      10 | Dynamic    |    20 |            819 |       16384 |               0 |        16384 |         0 |                | 2022-10-19 06:28:29 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ plt1_e_p1                           | InnoDB |      10 | Dynamic    |   100 |            163 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:37 | 2022-10-19 06:31:37 |            | utf8mb4_0900_as_cs |          |                | 
+ plt1_e_p2                           | InnoDB |      10 | Dynamic    |   100 |            163 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:37 | 2022-10-19 06:31:37 |            | utf8mb4_0900_as_cs |          |                | 
+ plt1_e_p3                           | InnoDB |      10 | Dynamic    |   100 |            163 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:37 | 2022-10-19 06:31:37 |            | utf8mb4_0900_as_cs |          |                | 
+ plt1_p1                             | InnoDB |      10 | Dynamic    |   100 |            163 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:36 | 2022-10-19 06:31:37 |            | utf8mb4_0900_as_cs |          |                | 
+ plt1_p2                             | InnoDB |      10 | Dynamic    |   100 |            163 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:36 | 2022-10-19 06:31:37 |            | utf8mb4_0900_as_cs |          |                | 
+ plt1_p3                             | InnoDB |      10 | Dynamic    |   100 |            163 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:36 | 2022-10-19 06:31:37 |            | utf8mb4_0900_as_cs |          |                | 
+ plt2_p1                             | InnoDB |      10 | Dynamic    |    68 |            240 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:37 | 2022-10-19 06:31:37 |            | utf8mb4_0900_as_cs |          |                | 
+ plt2_p2                             | InnoDB |      10 | Dynamic    |    66 |            248 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:37 | 2022-10-19 06:31:37 |            | utf8mb4_0900_as_cs |          |                | 
+ plt2_p3                             | InnoDB |      10 | Dynamic    |    66 |            248 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:37 | 2022-10-19 06:31:37 |            | utf8mb4_0900_as_cs |          |                | 
+ prt1_e_p1                           | InnoDB |      10 | Dynamic    |   125 |            131 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:45:34 | 2022-10-19 06:45:35 |            | utf8mb4_0900_as_cs |          |                | 
+ prt1_e_p2                           | InnoDB |      10 | Dynamic    |   125 |            131 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:45:34 | 2022-10-19 06:45:35 |            | utf8mb4_0900_as_cs |          |                | 
+ prt1_e_p3                           | InnoDB |      10 | Dynamic    |    50 |            327 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:45:34 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ prt1_l_p1                           | InnoDB |      10 | Dynamic    |   125 |            131 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:38:05 | 2022-10-19 06:38:06 |            | utf8mb4_0900_as_cs |          |                | 
+ prt1_l_p2_p1                        | InnoDB |      10 | Dynamic    |    62 |            264 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:38:05 | 2022-10-19 06:38:06 |            | utf8mb4_0900_as_cs |          |                | 
+ prt1_l_p2_p2                        | InnoDB |      10 | Dynamic    |    63 |            260 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:38:05 | 2022-10-19 06:38:06 |            | utf8mb4_0900_as_cs |          |                | 
+ prt1_l_p3_p1                        | InnoDB |      10 | Dynamic    |    26 |            630 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:38:06 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ prt1_l_p3_p2                        | InnoDB |      10 | Dynamic    |    24 |            682 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:38:06 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ prt1_m_p1                           | InnoDB |      10 | Dynamic    |   125 |            131 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:35 | 2022-10-19 06:31:35 |            | utf8mb4_0900_as_cs |          |                | 
+ prt1_m_p2                           | InnoDB |      10 | Dynamic    |   125 |            131 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:35 | 2022-10-19 06:31:35 |            | utf8mb4_0900_as_cs |          |                | 
+ prt1_m_p3                           | InnoDB |      10 | Dynamic    |    50 |            327 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:35 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ prt1_n_p1                           | InnoDB |      10 | Dynamic    |   125 |            131 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:40 | 2022-10-19 06:31:41 |            | utf8mb4_0900_as_cs |          |                | 
+ prt1_n_p2                           | InnoDB |      10 | Dynamic    |   125 |            131 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:41 | 2022-10-19 06:31:41 |            | utf8mb4_0900_as_cs |          |                | 
+ prt1_p1                             | InnoDB |      10 | Dynamic    |   125 |            131 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:50:09 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ prt1_p2                             | InnoDB |      10 | Dynamic    |   125 |            131 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:50:10 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ prt1_p3                             | InnoDB |      10 | Dynamic    |    50 |            327 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:50:09 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ prt2_e_p1                           | InnoDB |      10 | Dynamic    |    84 |            195 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:45:35 | 2022-10-19 06:45:35 |            | utf8mb4_0900_as_cs |          |                | 
+ prt2_e_p2                           | InnoDB |      10 | Dynamic    |    83 |            197 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:45:35 | 2022-10-19 06:45:35 |            | utf8mb4_0900_as_cs |          |                | 
+ prt2_e_p3                           | InnoDB |      10 | Dynamic    |    33 |            496 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:45:35 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ prt2_l_p1                           | InnoDB |      10 | Dynamic    |    84 |            195 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:38:07 | 2022-10-19 06:38:09 |            | utf8mb4_0900_as_cs |          |                | 
+ prt2_l_p2_p1                        | InnoDB |      10 | Dynamic    |    41 |            399 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:38:07 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ prt2_l_p2_p2                        | InnoDB |      10 | Dynamic    |    42 |            390 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:38:08 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ prt2_l_p3_p1                        | InnoDB |      10 | Dynamic    |    17 |            963 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:38:08 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ prt2_l_p3_p2                        | InnoDB |      10 | Dynamic    |    16 |           1024 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:38:08 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ prt2_m_p1                           | InnoDB |      10 | Dynamic    |    84 |            195 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:35 | 2022-10-19 06:31:36 |            | utf8mb4_0900_as_cs |          |                | 
+ prt2_m_p2                           | InnoDB |      10 | Dynamic    |    83 |            197 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:35 | 2022-10-19 06:31:36 |            | utf8mb4_0900_as_cs |          |                | 
+ prt2_m_p3                           | InnoDB |      10 | Dynamic    |    33 |            496 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:36 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ prt2_n_p1                           | InnoDB |      10 | Dynamic    |   300 |             54 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:41 | 2022-10-19 06:31:42 |            | utf8mb4_0900_as_cs |          |                | 
+ prt2_n_p2                           | InnoDB |      10 | Dynamic    |   300 |             54 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:41 | 2022-10-19 06:31:42 |            | utf8mb4_0900_as_cs |          |                | 
+ prt2_p1                             | InnoDB |      10 | Dynamic    |    84 |            195 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:50:11 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ prt2_p2                             | InnoDB |      10 | Dynamic    |    83 |            197 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:50:11 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ prt2_p3                             | InnoDB |      10 | Dynamic    |    33 |            496 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:50:11 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ prt3_n_p1                           | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:42 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ prt3_n_p2                           | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:42 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ prt3_n_p3                           | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:42 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ prt4_n_p1                           | InnoDB |      10 | Dynamic    |   150 |            109 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:42 | 2022-10-19 06:31:42 |            | utf8mb4_0900_as_cs |          |                | 
+ prt4_n_p2                           | InnoDB |      10 | Dynamic    |   100 |            163 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:42 | 2022-10-19 06:31:42 |            | utf8mb4_0900_as_cs |          |                | 
+ prt4_n_p3                           | InnoDB |      10 | Dynamic    |    50 |            327 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:31:42 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ pslot                               | InnoDB |      10 | Dynamic    |    66 |            248 |       16384 |               0 |        16384 |         0 |                | 2022-10-19 06:28:29 | 2022-10-19 06:28:32 |            | utf8mb4_0900_as_cs |          |                | 
+ pt_part1                            | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:28:50 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ pt_part2                            | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:28:50 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ r1                                  | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:50:15 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ r2                                  | InnoDB |      10 | Dynamic    |     2 |           8192 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:37:49 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ random_tbl                          | InnoDB |      10 | Dynamic    |     4 |           4096 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:16:09 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ rc_test                             | InnoDB |      10 | Dynamic    |     3 |           5461 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:28:34 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ returningwrtest1                    | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 05:57:07 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ revalidate_bug                      | InnoDB |      10 | Dynamic    |     2 |           8192 |       16384 |               0 |        16384 |         0 |                | 2022-10-19 06:38:21 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ rngfunc2                            | InnoDB |      10 | Dynamic    |     3 |           5461 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:37:55 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ room                                | InnoDB |      10 | Dynamic    |    10 |           1638 |       16384 |               0 |        16384 |         0 |                | 2022-10-19 06:28:28 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ simple                              | InnoDB |      10 | Dynamic    | 20210 |             78 |     1589248 |               0 |            0 |   4194304 |                | 2022-10-19 06:09:00 | 2022-10-19 06:09:09 |            | utf8mb4_0900_as_cs |          |                | 
+ stud_emp                            | InnoDB |      10 | Dynamic    |     3 |           5461 |       16384 |               0 |            0 |         0 |                | 2022-10-19 05:57:54 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ student                             | InnoDB |      10 | Dynamic    |     2 |           8192 |       16384 |               0 |            0 |         0 |                | 2022-10-19 05:57:54 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ stuffs                              | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:28:37 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ subselect_tbl                       | InnoDB |      10 | Dynamic    |     8 |           2048 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:50:09 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ system                              | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:28:30 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ t1                                  | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:51:23 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ t10                                 | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:49:53 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ t120                                | InnoDB |      10 | Dynamic    |     6 |           2730 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:47:30 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ t121                                | InnoDB |      10 | Dynamic    |     2 |           8192 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:47:30 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ t122                                | InnoDB |      10 | Dynamic    |    17 |            963 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:47:30 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ t123                                | InnoDB |      10 | Dynamic    |     7 |           2340 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:47:31 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ t13                                 | InnoDB |      10 | Dynamic    |    32 |            512 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:47:31 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ t14                                 | InnoDB |      10 | Dynamic    |     8 |           2048 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:47:31 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ t301                                | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:49:40 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ t302                                | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:49:40 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ t303                                | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:49:40 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ t304                                | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:49:40 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ tas_case                            | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 05:57:55 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ tenk1                               | InnoDB |      10 | Dynamic    | 10000 |              1 |       16384 |               0 |            0 |   4194304 |                | 2022-10-19 06:51:14 | 2022-10-19 06:51:19 |            | utf8mb4_0900_as_cs |          |                | 
+ tenk2                               | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 05:59:55 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ test1                               | InnoDB |      10 | Dynamic    |     5 |           3276 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:45:55 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ test_default_tab                    | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |        16384 |         0 |                | 2022-10-19 06:45:12 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ test_missing_target                 | InnoDB |      10 | Dynamic    |    10 |           1638 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:38:19 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ testjsonb                           | InnoDB |      10 | Dynamic    |  1012 |            129 |      131072 |               0 |            0 |         0 |                | 2022-10-19 05:57:55 | 2022-10-19 05:58:43 |            | utf8mb4_0900_as_cs |          |                | 
+ testu1                              | InnoDB |      10 | Dynamic    |     2 |           8192 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:37:48 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ text_tbl                            | InnoDB |      10 | Dynamic    |     2 |           8192 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:45:56 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ tfail                               | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:50:05 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ timestamp_tbl                       | InnoDB |      10 | Dynamic    |    62 |            264 |       16384 |               0 |            0 |         0 |                | 2022-10-19 05:54:26 | 2022-10-19 05:54:27 |            | utf8mb4_0900_as_cs |          |                | 
+ timestamptz_tbl                     | InnoDB |      10 | Dynamic    |    63 |            260 |       16384 |               0 |            0 |         0 |                | 2022-10-19 05:54:38 | 2022-10-19 05:54:39 |            | utf8mb4_0900_as_cs |          |                | 
+ transition_table_base               | InnoDB |      10 | Dynamic    |     4 |           4096 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:28:38 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ transition_table_level1             | InnoDB |      10 | Dynamic    |   199 |             82 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:28:38 | 2022-10-19 06:28:49 |            | utf8mb4_0900_as_cs |          |                | 
+ transition_table_level2             | InnoDB |      10 | Dynamic    |  9999 |             32 |      327680 |               0 |            0 |         0 |                | 2022-10-19 06:28:38 | 2022-10-19 06:28:44 |            | utf8mb4_0900_as_cs |          |                | 
+ transition_table_status             | InnoDB |      10 | Dynamic    | 10199 |             36 |      376832 |               0 |            0 |         0 |                | 2022-10-19 06:28:38 | 2022-10-19 06:28:48 |            | utf8mb4_0900_as_cs |          |                | 
+ trunc_stats_test1                   | InnoDB |      10 | Dynamic    |     2 |           8192 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:37:53 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ tt1                                 | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:50:47 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ tt2                                 | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:50:48 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ tt3                                 | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:50:48 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ tt4                                 | InnoDB |      10 | Dynamic    |     1 |          16384 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:50:48 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ tvehicles                           | InnoDB |      10 | Dynamic    |     3 |           5461 |       16384 |               0 |            0 |         0 |                | 2022-10-19 05:51:33 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ tx1                                 | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:37:46 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ update_test                         | InnoDB |      10 | Dynamic    |     2 |           8192 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:50:16 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ uv_iocu_tab                         | InnoDB |      10 | Dynamic    |     3 |           5461 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:50:08 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ varchar_tbl                         | InnoDB |      10 | Dynamic    |     4 |           4096 |       16384 |               0 |            0 |         0 |                | 2022-10-19 05:49:14 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ view_base_table                     | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:01:23 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ wide                                | InnoDB |      10 | Dynamic    |     2 |         794624 |     1589248 |               0 |            0 |         0 |                | 2022-10-19 06:09:27 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ wslot                               | InnoDB |      10 | Dynamic    |    42 |            390 |       16384 |               0 |        16384 |         0 |                | 2022-10-19 06:28:29 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ xacttest                            | InnoDB |      10 | Dynamic    |     0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:15:57 |                     |            | utf8mb4_0900_as_cs |          |                | 
+ prt1                                | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ partitioned_table                   | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ returningwrtest                     | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ prt2                                | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ t30                                 | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ prt1_m                              | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ mlparted                            | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ mlparted1                           | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ moneyp                              | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ list_parted                         | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ part_attmp                          | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ prt2_m                              | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ plt1                                | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ plt2                                | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ plt1_e                              | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ t12                                 | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ pht1                                | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ pht1_e                              | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ pht2                                | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ pagg_tab                            | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ at_partitioned                      | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ prt1_n                              | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ pc_list_parted                      | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ prt2_n                              | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ prt3_n                              | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ prt4_n                              | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ t3                                  | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ pagg_tab_ml_p2                      | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ pagg_tab_ml                         | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ pagg_tab_ml_p3                      | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ pagg_tab_para                       | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ part                                | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ tt                                  | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ pagg_tab1                           | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ pagg_tab_m                          | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ pagg_tab2                           | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ like_op_noprune                     | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ prt1_e                              | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ prt2_e                              | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ parted_conflict                     | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ parted_conflict_1                   | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ prt1_l                              | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ prt1_l_p2                           | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ prt1_l_p3                           | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ prt2_l                              | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ prt2_l_p2                           | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+ prt2_l_p3                           | InnoDB |      10 | Dynamic    |     0 |              0 |           0 |               0 |            0 |         0 |                |                     |                     |            | utf8mb4_0900_as_cs |          | partitioned    | 
+(264 rows)
+
+show table status where name = 't1';
+ Name | Engine | Version | Row_format | Rows | Avg_row_length | Data_length | Max_data_length | Index_length | Data_free | Auto_increment |     Create_time     | Update_time | Check_time |     Collation      | Checksum | Create_options | Comment 
+------+--------+---------+------------+------+----------------+-------------+-----------------+--------------+-----------+----------------+---------------------+-------------+------------+--------------------+----------+----------------+---------
+ t1   | InnoDB |      10 | Dynamic    |    0 |              0 |       16384 |               0 |            0 |         0 |                | 2022-10-19 06:51:23 |             |            | utf8mb4_0900_as_cs |          |                | 
+(1 row)
+
+drop table t1;
+DROP TABLE
+-- ticket:972
+drop  table if exists t1;
+psql:sql/kunlun_ticket.sql:138: NOTICE:  table "t1" does not exist, skipping
+DROP TABLE
+create table t1(a serial primary key, b int) partition by range(a);
+CREATE TABLE
+create table t1p1 partition of t1 for values from (0) to (100);
+CREATE TABLE
+create table t1p2 partition of t1 for values from (100) to (200);
+CREATE TABLE
+create table t1p3 (b int, a int not null);
+CREATE TABLE
+alter table t1 attach partition t1p3 for values from (200) to (300);
+ALTER TABLE
+drop table t1;              
+DROP TABLE
 -- ticket:946
 show create table tenk1;
  Table |     Create Table      
@@ -117,6 +560,7 @@ select f1, (select min(unique1) from tenk1 where unique1 > f1) AS gt from int4_t
 
 --ticket:882
 drop table if exists t2;
+psql:sql/kunlun_ticket.sql:171: NOTICE:  table "t2" does not exist, skipping
 DROP TABLE
 CREATE TABLE t2 (
     a integer AUTO_INCREMENT
@@ -147,7 +591,7 @@ Options: shard=1
  
 -- ticket:826
 drop table if exists t1; 
-psql:sql/kunlun_ticket.sql:84: NOTICE:  table "t1" does not exist, skipping
+psql:sql/kunlun_ticket.sql:186: NOTICE:  table "t1" does not exist, skipping
 DROP TABLE
 create table t1(a int, b int, c int, d int);
 CREATE TABLE
@@ -188,6 +632,7 @@ select 'CREATE USER MAPPING FOR \"current_user\" SERVER sv2 OPTIONS (user ''\"cu
 
 --ticket:900
 drop table if exists t; 
+psql:sql/kunlun_ticket.sql:220: NOTICE:  table "t" does not exist, skipping
 DROP TABLE
 create table t(a int auto_increment);
 CREATE TABLE
@@ -212,7 +657,7 @@ drop table t1;
 DROP TABLE
 -- ticket:887
 drop table if exists t1; 
-psql:sql/kunlun_ticket.sql:133: NOTICE:  table "t1" does not exist, skipping
+psql:sql/kunlun_ticket.sql:235: NOTICE:  table "t1" does not exist, skipping
 DROP TABLE
 create table t1(a int, b int);
 CREATE TABLE
@@ -238,7 +683,7 @@ select * from t1;
 
 --ticket:332
 CREATE SEQUENCE sequence_test2 START WITH 32; 	
-psql:sql/kunlun_ticket.sql:147: ERROR:  relation "sequence_test2" already exists
+psql:sql/kunlun_ticket.sql:249: ERROR:  relation "sequence_test2" already exists
 ALTER SEQUENCE IF EXISTS sequence_test2 RESTART WITH 24
   INCREMENT BY 4 MAXVALUE 36 MINVALUE 5 CYCLE;
 ALTER SEQUENCE
@@ -250,374 +695,23 @@ SELECT nextval('sequence_test2');
 
 --ticket:897
 drop database abc;
-psql:sql/kunlun_ticket.sql:156: ERROR:  database "abc" does not exist
+psql:sql/kunlun_ticket.sql:258: ERROR:  database "abc" does not exist
 create database abc；
 create database if not exists abc;
-psql:sql/kunlun_ticket.sql:158: ERROR:  syntax error at or near "create"
+psql:sql/kunlun_ticket.sql:260: ERROR:  syntax error at or near "create"
 LINE 2: create database if not exists abc;
         ^
 --ticket:898
-SHOW DATABASES;
- Database  
------------
- testdb1
- template1
- template0
- regress
- postgres
-(5 rows)
-
-SHOW SCHEMAS;
-      Schemas       
---------------------
- pg_toast
- pg_temp_1
- pg_toast_temp_1
- pg_catalog
- public
- information_schema
- pg_temp_9
- pg_toast_temp_9
- pg_temp_11
- pg_toast_temp_11
- pg_temp_12
- pg_toast_temp_12
-(12 rows)
-
-SHOW TABLES;
-               Tables                
--------------------------------------
- complex
- a
- aggtype
- a_star
- at_base_table
- b
- pagg_tab2_p3
- quad
- parted_conflict
- btree_tall_tbl
- clstr_tst
- clstr_tst_inh
- hobbies_r
- plt1_e_p1
- tfail
- alter_table_under_transition_tables
- my_credit_card_normal
- join_foo
- cantcompare
- mlparted
- my_property_secure
- my_credit_card_secure
- my_credit_card_usage_normal
- my_credit_card_usage_secure
- my_property_normal
- aggtest
- key_dependent_view
- toyemp
- at_partitioned_1
- key_dependent_view_no_cols
- at_partitioned
- jpop
- jpop2
- hslot
- hub
- mlparted11
- plt1_e_p3
- prt1_m_p1
- prt1_p2
- parted_conflict_1
- check_con_tbl
- donothingbrtrig_test1
- donothingbrtrig_test2
- t2
- ec0
- partitioned_table
- float8_tbl
- int4_tbl
- int8_tbl
- tenk1
- t1
- gstest1
- iface
- inhe
- nums
- returningwrtest
- pagg_tab1_p3
- pc_list_parted
- pfield_v1
- sums_1_100
- pagg_tab_m_p1
- record_type
- rngfunc_rescan_t
- pagg_tab_m_p2
- pc_list_part_1
- concur_heap
- prt1_m
- person_type
- insertconflicttest1
- pagg_tab_ml_p2_s1
- int2_tbl
- prt2_m
- pagg_tab_ml_p2_s2
- pagg_tab2_p1
- pagg_tab2_p2
- plt1
- pagg_tab_ml_p1
- t30
- itest1
- pagg_tab_p1
- plt2
- pagg_tab_p2
- pagg_tab_p3
- plt1_e
- prt1_l
- hash_txt_heap
- pagg_tab_para_p2
- pagg_tab_para_p3
- pht1
- pht1_e
- pht2
- prt1_l_p2
- like_op_noprune2
- pagg_tab_m_p3
- part_attmp1
- part_p1
- pagg_tab
- prt1_l_p3
- prt2_l
- mvtest_t
- no_oids
- onek
- prt2_l_p2
- prt2_l_p3
- parted_conflict_1_1
- bigger_than_it_looks
- dept
- pc_list_part_null
- persons
- boolvalues
- brintest
- bt_f8_heap
- bt_i4_heap
- bt_name_heap
- bt_txt_heap
- char_tbl
- customer
- default_tbl
- defaultexpr_tbl
- pht1_e_p1
- extremely_skewed
- hash_f8_heap
- inhf
- join_bar
- pht1_e_p3
- t3
- pagg_tab_ml_p3_s2
- pagg_tab_para_p1
- pht1_p1
- prt1_n
- prt2_n
- pht2_p1
- pht1_p2
- pht1_p3
- prt3_n
- pht2_p2
- pht2_p3
- pline
- plt1_e_p2
- t302
- plt1_p1
- prt4_n
- like_op_noprune
- plt1_p2
- plt1_p3
- plt2_p1
- plt2_p2
- plt2_p3
- prt1_l_p1
- prt1_l_p2_p1
- part
- prt1_l_p3_p1
- prt1_l_p3_p2
- prt1_m_p2
- prt1_m_p3
- prt1_n_p1
- prt1_n_p2
- pagg_tab_ml
- pagg_tab_ml_p2
- prt3_n_p3
- prt4_n_p1
- pagg_tab_para
- pagg_tab_ml_p3
- prt2_l_p1
- prt2_l_p3_p1
- prt2_l_p3_p2
- clstr_tst_s
- comment_test
- prt2_m_p1
- text_tbl
- transition_table_base
- transition_table_level1
- prt2_m_p2
- prt2_m_p3
- t10
- t120
- at_view_1
- at_view_2
- t12
- pagg_tab_m
- credit_card
- prt2_n_p2
- prt3_n_p1
- t13
- prt4_n_p2
- prt4_n_p3
- r2
- stuffs
- system
- t121
- t122
- t123
- t14
- t301
- t303
- t304
- tas_case
- test1
- transition_table_level2
- transition_table_status
- trunc_stats_test1
- tvehicles
- tx1
- varchar_tbl
- view_base_table
- wide
- wslot
- base_tbl
- prt1_p1
- prt1_p3
- prt1
- subselect_tbl
- uv_iocu_tab
- rw_view1
- uv_iocu_view
- deptest1
- emp
- itest13
- pfield
- phone
- prt2_p1
- prt2_p3
- prt2_p2
- prt2
- credit_usage
- itest6
- part_2
- r1
- update_test
- collate_test1
- collate_test10
- collate_test2
- equipment_r
- hash_i4_heap
- hash_name_heap
- indext1
- prt3_n_p2
- pt_part1
- pht1_e_p2
- prt1_l_p2_p2
- float4_tbl
- prt2_l_p2_p1
- tt
- tt1
- tt2
- tt3
- tt4
- pt_part2
- itest7
- random_tbl
- itest9
- rc_test
- returningwrtest1
- revalidate_bug
- rngfunc2
- room
- simple
- stud_emp
- student
- pslot
- tenk2
- test_missing_target
- testjsonb
- testu1
- timestamp_tbl
- timestamptz_tbl
- mlparted1
- anothertab
- like_op_noprune1
- part_1
- test_default_tab
- moneyp
- part_attmp
- list_parted
- pagg_tab1_p1
- pagg_tab1_p2
- pagg_tab1
- pagg_tab2
- prt1_e_p1
- prt1_e_p2
- prt1_e_p3
- prt1_e
- prt2_e
- prt2_e_p1
- prt2_e_p2
- prt2_e_p3
- atest5
- ctv_data
- few
- v_test1
- prt2_l_p2_p2
- prt2_n_p1
- xacttest
-(293 rows)
-
-SHOW TABLES like 't1';
- Tables 
---------
- t1
-(1 row)
-
-show create table t1;
- Table |    Create Table    
--------+--------------------
- t1    | CREATE TABLE t1 ( +
-       |  a integer,       +
-       |  b integer        +
-       | ) WITH (shard=1'1')
-(1 row)
-
-SHOW PROCESSLIST;
-   Pid   |  User   |        Host         |    db    | State  |       Query       | Wait_event | xact_sec | query_sec | backend_sec | state_change 
----------+---------+---------------------+----------+--------+-------------------+------------+----------+-----------+-------------+--------------
- 4195212 | abc     | 192.168.0.113:38786 | postgres | idle   |                   | ClientRead |          | 13.769024 | 13.774111   | 13.76866
- 4194313 | jenkins | unix socket         | postgres | idle   |                   | ClientRead |          | 0.020692  | 3736.978438 | 0.02015
- 4195213 | abc     | 192.168.0.113:38798 | regress  | active | SHOW PROCESSLIST; |            | 0.000976 | 0.000976  | 9.567688    | 0.000976
- 4194361 | jenkins | unix socket         | regress  | idle   |                   | ClientRead |          | 0.743434  | 3717.420233 | 0.74291
-(4 rows)
-
-show errors;
- Level | Code | Message 
--------+------+---------
-(0 rows)
-
-show warnings;
- Level | Code | Message 
--------+------+---------
-(0 rows)
-
+--SHOW DATABASES;
+--SHOW SCHEMAS;
+--SHOW TABLES;
+--SHOW TABLES like 't1';
+--show create table t1;
+--SHOW PROCESSLIST;
+--show errors;
+--show warnings;
 drop table if exists t6;
-psql:sql/kunlun_ticket.sql:172: NOTICE:  table "t6" does not exist, skipping
+psql:sql/kunlun_ticket.sql:274: NOTICE:  table "t6" does not exist, skipping
 DROP TABLE
 create temp table t6(a int primary key, b int unique);
 CREATE TABLE
@@ -649,7 +743,7 @@ drop table t1,t2,t3;
 DROP TABLE
 --ticket:574
 drop table if exists t1;
-psql:sql/kunlun_ticket.sql:193: NOTICE:  table "t1" does not exist, skipping
+psql:sql/kunlun_ticket.sql:295: NOTICE:  table "t1" does not exist, skipping
 DROP TABLE
 create table t1 (a int PRIMARY KEY , b int not null,CONSTRAINT t1_b_key UNIQUE (b));
 CREATE TABLE
@@ -666,7 +760,7 @@ insert into t1 values(3,3) on conflict do nothing;
 INSERT 0 0
 -- 不忽略违背约束的错误（例如分区约束、非null约束）
 insert ignore into t1(a,b) values (4,NULL); --error
-psql:sql/kunlun_ticket.sql:207: ERROR:  null value in column "b" violates not-null constraint
+psql:sql/kunlun_ticket.sql:309: ERROR:  null value in column "b" violates not-null constraint
 DETAIL:  Failing row contains (4, null).
 -- insert on duplicate key update
 -- 更新第一个冲突的元组
@@ -711,13 +805,13 @@ select * from t1;
 create temp table t1(a int primary key, b int unique);
 CREATE TABLE
 replace into t1 values(1,1),(1,2);
-psql:sql/kunlun_ticket.sql:226: ERROR:  REPLACE INTO command cannot affect row a second time
+psql:sql/kunlun_ticket.sql:328: ERROR:  REPLACE INTO command cannot affect row a second time
 HINT:  Ensure that no rows proposed for insertion within the same command have duplicate constrained values.
 drop table t1;
 DROP TABLE
 --ticket:581
 drop table if exists t3 cascade;
-psql:sql/kunlun_ticket.sql:231: NOTICE:  table "t3" does not exist, skipping
+psql:sql/kunlun_ticket.sql:333: NOTICE:  table "t3" does not exist, skipping
 DROP TABLE
 CREATE TABLE t3 (A INT PRIMARY KEY, B INT) PARTITION BY RANGE(a);
 CREATE TABLE
@@ -767,7 +861,7 @@ CREATE FUNCTION f_leak (text)
 CREATE FUNCTION
 	   
 drop table if exists customer cascade;   
-psql:sql/kunlun_ticket.sql:254: NOTICE:  drop cascades to 6 other objects
+psql:sql/kunlun_ticket.sql:356: NOTICE:  drop cascades to 6 other objects
 DETAIL:  drop cascades to view my_property_normal
 drop cascades to view my_property_secure
 drop cascades to view my_credit_card_normal
@@ -793,13 +887,13 @@ SELECT * FROM my_property_normal WHERE f_leak(passwd);
 (0 rows)
 
 drop table customer cascade;
-psql:sql/kunlun_ticket.sql:267: NOTICE:  drop cascades to view my_property_normal
+psql:sql/kunlun_ticket.sql:369: NOTICE:  drop cascades to view my_property_normal
 DROP TABLE
 drop FUNCTION f_leak;
 DROP FUNCTION
 --ticket:920
 drop sequence if exists s1;
-psql:sql/kunlun_ticket.sql:271: NOTICE:  sequence "s1" does not exist, skipping
+psql:sql/kunlun_ticket.sql:373: NOTICE:  sequence "s1" does not exist, skipping
 DROP SEQUENCE
 create sequence s1;
 CREATE SEQUENCE
@@ -813,7 +907,7 @@ drop sequence s1;
 DROP SEQUENCE
 --ticket:932
 drop table if exists temptest2 cascade;
-psql:sql/kunlun_ticket.sql:277: NOTICE:  table "temptest2" does not exist, skipping
+psql:sql/kunlun_ticket.sql:379: NOTICE:  table "temptest2" does not exist, skipping
 DROP TABLE
 begin;
 BEGIN
@@ -834,7 +928,7 @@ drop table temptest2;
 DROP TABLE
 -- ticket:109
 drop table if exists tf1;
-psql:sql/kunlun_ticket.sql:286: NOTICE:  table "tf1" does not exist, skipping
+psql:sql/kunlun_ticket.sql:388: NOTICE:  table "tf1" does not exist, skipping
 DROP TABLE
 create table tf1(v float8);
 CREATE TABLE
@@ -861,7 +955,7 @@ select q1 | q2 from int8_tbl;
 
 select q1 -- q2 from int8_tbl;
 select ~q1 from int8_tbl;
-psql:sql/kunlun_ticket.sql:296: ERROR:  syntax error at or near "select"
+psql:sql/kunlun_ticket.sql:398: ERROR:  syntax error at or near "select"
 LINE 2: select ~q1 from int8_tbl;
         ^
 select ~q2 from int8_tbl;
@@ -876,7 +970,7 @@ select ~q2 from int8_tbl;
 
 -- ticket:12
 drop table if exists attmp;
-psql:sql/kunlun_ticket.sql:301: NOTICE:  table "attmp" does not exist, skipping
+psql:sql/kunlun_ticket.sql:403: NOTICE:  table "attmp" does not exist, skipping
 DROP TABLE
 CREATE TABLE attmp (initial int4);
 CREATE TABLE
@@ -896,7 +990,7 @@ drop table attmp;
 DROP TABLE
 -- ticket:82
 drop table if exists bytea_test_table;
-psql:sql/kunlun_ticket.sql:316: NOTICE:  table "bytea_test_table" does not exist, skipping
+psql:sql/kunlun_ticket.sql:418: NOTICE:  table "bytea_test_table" does not exist, skipping
 DROP TABLE
 create table bytea_test_table(v bytea);
 CREATE TABLE
@@ -921,7 +1015,7 @@ drop table list_parted;
 DROP TABLE
 -- ticket:49
 drop table if exists ts1;
-psql:sql/kunlun_ticket.sql:334: NOTICE:  table "ts1" does not exist, skipping
+psql:sql/kunlun_ticket.sql:436: NOTICE:  table "ts1" does not exist, skipping
 DROP TABLE
 create table ts1(id int, info text);
 CREATE TABLE
@@ -951,7 +1045,7 @@ select x from int8_tbl, extractq2_2(int8_tbl) f(x);
 
 --ticket:120
 DROP SEQUENCE IF EXISTS sequence_test;
-psql:sql/kunlun_ticket.sql:352: NOTICE:  sequence "sequence_test" does not exist, skipping
+psql:sql/kunlun_ticket.sql:454: NOTICE:  sequence "sequence_test" does not exist, skipping
 DROP SEQUENCE
 CREATE SEQUENCE sequence_test;
 CREATE SEQUENCE
@@ -999,7 +1093,7 @@ SELECT nextval('sequence_test2');
 (1 row)
 
 SELECT nextval('sequence_test2'); -- error
-psql:sql/kunlun_ticket.sql:375: ERROR:  Kunlun-db: nextval(): exhausted all values of sequence "sequence_test2" 
+psql:sql/kunlun_ticket.sql:477: ERROR:  Kunlun-db: nextval(): exhausted all values of sequence "sequence_test2" 
 drop sequence sequence_test2;
 DROP SEQUENCE
 --ticket:914
@@ -1030,6 +1124,192 @@ insert into t1 values(2,2);
 INSERT 0 1
 commit;
 COMMIT
+--ticket:991 
+show variables where Variable_name='admin_port';
+ Variable_name | Value 
+---------------+-------
+ admin_port    | 33062
+(1 row)
+
+show variables where Value='1';
+          Variable_name           | Value 
+----------------------------------+-------
+ auto_increment_increment         | 1
+ auto_increment_offset            | 1
+ ddc_mode                         | 1
+ fullsync_consistency_level       | 1
+ innodb_encryption_rotate_key_age | 1
+ innodb_fast_shutdown             | 1
+ innodb_flush_log_at_timeout      | 1
+ innodb_flush_log_at_trx_commit   | 1
+ log_slow_rate_limit              | 1
+ lower_case_table_names           | 1
+ myisam_repair_threads            | 1
+ mysqlx_port                      | 1
+ optimizer_prune_level            | 1
+ optimizer_trace_limit            | 1
+ print_extra_info_verbosity       | 1
+ server_id                        | 1
+ sync_binlog                      | 1
+ thread_pool_listen_eager_mode    | 1
+ xa_prep_cop_binlog_last          | 1
+(19 rows)
+
+--ticket:998
+drop table t;
+psql:sql/kunlun_ticket.sql:515: ERROR:  table "t" does not exist
+create table t(a int , b int);
+CREATE TABLE
+insert into t select generate_series(1,20),generate_series(20,39);
+INSERT 0 20
+select * from t limit 10,2;
+ a  | b  
+----+----
+ 11 | 30
+ 12 | 31
+(2 rows)
+
+-- 等价于
+select * from t limit 2 offset 10;
+ a  | b  
+----+----
+ 11 | 30
+ 12 | 31
+(2 rows)
+
+--ticket:999
+explain select * from t order by a limit 2 offset 4;
+
+drop table t;
+DROP TABLE
+--ticket:1016
+DROP TABLE if exists prt1;
+DROP TABLE
+CREATE TABLE prt1 (a int, b int, c varchar) PARTITION BY RANGE(a);
+CREATE TABLE
+DROP TABLE if exists prt1;
+DROP TABLE
+CREATE TABLE prt1 (a int, b int, c varchar) PARTITION BY RANGE(a);
+CREATE TABLE
+CREATE TABLE prt1_p1 PARTITION OF prt1 FOR VALUES FROM (0) TO (250);
+CREATE TABLE
+CREATE TABLE prt1_p3 PARTITION OF prt1 FOR VALUES FROM (500) TO (600);
+CREATE TABLE
+CREATE TABLE prt1_p2 PARTITION OF prt1 FOR VALUES FROM (250) TO (500);
+CREATE TABLE
+INSERT INTO prt1 SELECT i, i % 25, to_char(i, 'FM0000') FROM 
+ generate_series(0, 599) i WHERE i % 2 = 0;
+INSERT 0 300
+CREATE INDEX iprt1_p1_a on prt1_p1(a);
+CREATE INDEX
+CREATE INDEX iprt1_p2_a on prt1_p2(a);
+CREATE INDEX
+CREATE INDEX iprt1_p3_a on prt1_p3(a);
+CREATE INDEX
+DROP TABLE if exists prt2;
+DROP TABLE
+CREATE TABLE prt2 (a int, b int, c varchar) PARTITION BY RANGE(b);
+CREATE TABLE
+CREATE TABLE prt2_p1 PARTITION OF prt2 FOR VALUES FROM (0) TO (250);
+CREATE TABLE
+CREATE TABLE prt2_p2 PARTITION OF prt2 FOR VALUES FROM (250) TO (500);
+CREATE TABLE
+CREATE TABLE prt2_p3 PARTITION OF prt2 FOR VALUES FROM (500) TO (600);
+CREATE TABLE
+INSERT INTO prt2 SELECT i % 25, i, to_char(i, 'FM0000') FROM 
+ generate_series(0, 599) i WHERE i % 3 = 0;
+INSERT 0 200
+CREATE INDEX iprt2_p1_b on prt2_p1(b);
+CREATE INDEX
+CREATE INDEX iprt2_p2_b on prt2_p2(b);
+CREATE INDEX
+CREATE INDEX iprt2_p3_b on prt2_p3(b);
+CREATE INDEX
+analyze prt1;
+ANALYZE
+analyze prt2;
+ANALYZE
+EXPLAIN (COSTS OFF)
+SELECT t1.a, t1.c, t2.b, t2.c FROM prt1 t1, prt2 t2
+ WHERE t1.a = t2.b AND t2.a = 0 ORDER BY t1.a, t2.b limit 4;
+
+ 
+drop table prt1 cascade;
+DROP TABLE
+drop table prt2 cascade;
+DROP TABLE
+--ticket:1030
+drop table if exists t1;
+DROP TABLE
+create table t1(a int primary key, b int);
+CREATE TABLE
+alter table t1 add column c int;
+ALTER TABLE
+alter table t1 add column d int;
+ALTER TABLE
+alter table t1 drop column c; -- 此时c列被drop，但仍然存在于系统表中
+ALTER TABLE
+insert into t1 values(1,1,1);
+INSERT 0 1
+-- 报错
+insert into t1 values(1,1,1) on duplicate key update b = excluded.b;
+INSERT 0 0
+-- 2、update 未考虑子表和父表列序不一致的问题
+drop table if exists t2 cascade;
+psql:sql/kunlun_ticket.sql:574: NOTICE:  table "t2" does not exist, skipping
+DROP TABLE
+create table t2(a int, b int) partition by range(a);
+CREATE TABLE
+create table t2p1 partition of t2 for values from (0) to (100);
+CREATE TABLE
+create table t2p2 (b int, a int); -- 创建一个列序不同的子表
+CREATE TABLE
+alter table t2 attach partition t2p2 for values from (100) to (200);
+ALTER TABLE
+insert into t2 values(50, 50),(150, 150);
+INSERT 0 2
+update t2 set b=b+100;
+UPDATE 2
+select * from t2; -- 可以观察到，t2p2错误地更新了列a
+  a  |  b  
+-----+-----
+  50 | 150
+ 150 | 250
+(2 rows)
+
+-- 3、不支持的查询，未报错
+update t1 set b=b+1 where a in (select a from t2);
+UPDATE 0
+drop table t1;
+DROP TABLE
+drop table t2 cascade;
+DROP TABLE
+--ticket:1029
+create schema pg_stmt;
+psql:sql/kunlun_ticket.sql:591: ERROR:  unacceptable schema name "pg_stmt"
+DETAIL:  The prefix "pg_" is reserved for system schemas.
+create schema 12345;
+psql:sql/kunlun_ticket.sql:593: ERROR:  syntax error at or near "12345"
+LINE 1: create schema 12345;
+                      ^
+create schema 模式;
+CREATE SCHEMA
+create schema adc;
+CREATE SCHEMA
+create schema adc;
+psql:sql/kunlun_ticket.sql:597: ERROR:  schema "adc" already exists
+create schema adc1;
+CREATE SCHEMA
+create schema _adc1;
+CREATE SCHEMA
+drop schema 模式;
+DROP SCHEMA
+drop schema adc;
+DROP SCHEMA
+drop schema adc1;
+DROP SCHEMA
+drop schema _adc1;
+DROP SCHEMA
 drop table tenk1;
 DROP TABLE
 drop table FLOAT8_TBL;
@@ -1037,7 +1317,7 @@ DROP TABLE
 drop table INT4_TBL;
 DROP TABLE
 drop table INT8_TBL cascade;
-psql:sql/kunlun_ticket.sql:413: NOTICE:  drop cascades to 2 other objects
+psql:sql/kunlun_ticket.sql:614: NOTICE:  drop cascades to 2 other objects
 DETAIL:  drop cascades to function extractq2(int8_tbl)
 drop cascades to function extractq2_2(int8_tbl)
 DROP TABLE

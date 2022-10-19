@@ -814,9 +814,13 @@ order by 1;
 SELECT p1.oid, p1.proname
 FROM pg_proc AS p1
 WHERE provolatile = 'i' AND proparallel = 'u';
- oid | proname 
------+---------
-(0 rows)
+  oid  |     proname      
+-------+------------------
+ 16402 | numeric_text_eq
+ 16403 | numeric_text_neq
+ 16408 | text_numeric_eq
+ 16409 | text_numeric_neq
+(4 rows)
 
 -- **************** pg_cast ****************
 -- Catch bogus values in pg_cast columns (other than cases detected by
@@ -1381,9 +1385,29 @@ WHERE a.aggfnoid = p.oid AND
          NOT physically_coercible(p.proargtypes[2], ptr.proargtypes[3]))
      -- we could carry the check further, but 3 args is enough for now
     );
- aggfnoid | proname | oid | proname 
-----------+---------+-----+---------
-(0 rows)
+ aggfnoid | proname | oid  |   proname   
+----------+---------+------+-------------
+     5301 | any     | 5300 | any_transfn
+     5302 | any     | 5300 | any_transfn
+     5303 | any     | 5300 | any_transfn
+     5304 | any     | 5300 | any_transfn
+     5305 | any     | 5300 | any_transfn
+     5306 | any     | 5300 | any_transfn
+     5307 | any     | 5300 | any_transfn
+     5308 | any     | 5300 | any_transfn
+     5309 | any     | 5300 | any_transfn
+     5310 | any     | 5300 | any_transfn
+     5311 | any     | 5300 | any_transfn
+     5312 | any     | 5300 | any_transfn
+     5313 | any     | 5300 | any_transfn
+     5314 | any     | 5300 | any_transfn
+     5315 | any     | 5300 | any_transfn
+     5316 | any     | 5300 | any_transfn
+     5317 | any     | 5300 | any_transfn
+     5318 | any     | 5300 | any_transfn
+     5319 | any     | 5300 | any_transfn
+     5320 | any     | 5300 | any_transfn
+(20 rows)
 
 -- Cross-check finalfn (if present) against its entry in pg_proc.
 SELECT a.aggfnoid::oid, p.proname, pfn.oid, pfn.proname
@@ -1425,9 +1449,29 @@ SELECT ctid, aggfnoid::oid
 FROM pg_aggregate as p1
 WHERE aggmtranstype != 0 AND
     (aggmtransfn = 0 OR aggminvtransfn = 0);
- ctid | aggfnoid 
-------+----------
-(0 rows)
+  ctid  | aggfnoid 
+--------+----------
+ (1,65) |     5301
+ (1,66) |     5302
+ (1,67) |     5303
+ (1,68) |     5304
+ (1,69) |     5305
+ (1,70) |     5306
+ (1,71) |     5307
+ (1,72) |     5308
+ (2,1)  |     5309
+ (2,2)  |     5310
+ (2,3)  |     5311
+ (2,4)  |     5312
+ (2,5)  |     5313
+ (2,6)  |     5314
+ (2,7)  |     5315
+ (2,8)  |     5316
+ (2,9)  |     5317
+ (2,10) |     5318
+ (2,11) |     5319
+ (2,12) |     5320
+(20 rows)
 
 SELECT ctid, aggfnoid::oid
 FROM pg_aggregate as p1
@@ -1467,9 +1511,29 @@ WHERE a.aggfnoid = p.oid AND
          NOT physically_coercible(p.proargtypes[2], ptr.proargtypes[3]))
      -- we could carry the check further, but 3 args is enough for now
     );
- aggfnoid | proname | oid | proname 
-----------+---------+-----+---------
-(0 rows)
+ aggfnoid | proname | oid  |   proname   
+----------+---------+------+-------------
+     5301 | any     | 5300 | any_transfn
+     5302 | any     | 5300 | any_transfn
+     5303 | any     | 5300 | any_transfn
+     5304 | any     | 5300 | any_transfn
+     5305 | any     | 5300 | any_transfn
+     5306 | any     | 5300 | any_transfn
+     5307 | any     | 5300 | any_transfn
+     5308 | any     | 5300 | any_transfn
+     5309 | any     | 5300 | any_transfn
+     5310 | any     | 5300 | any_transfn
+     5311 | any     | 5300 | any_transfn
+     5312 | any     | 5300 | any_transfn
+     5313 | any     | 5300 | any_transfn
+     5314 | any     | 5300 | any_transfn
+     5315 | any     | 5300 | any_transfn
+     5316 | any     | 5300 | any_transfn
+     5317 | any     | 5300 | any_transfn
+     5318 | any     | 5300 | any_transfn
+     5319 | any     | 5300 | any_transfn
+     5320 | any     | 5300 | any_transfn
+(20 rows)
 
 -- Cross-check minvtransfn (if present) against its entry in pg_proc.
 SELECT a.aggfnoid::oid, p.proname, ptr.oid, ptr.proname

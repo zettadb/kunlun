@@ -34,7 +34,6 @@ CREATE TABLE INT4_TBL(f1 int4);
 INSERT INTO INT4_TBL(f1) VALUES ('   0  ');
 INSERT INTO INT4_TBL(f1) VALUES ('123456     ');
 INSERT INTO INT4_TBL(f1) VALUES ('    -123456');
-INSERT INTO INT4_TBL(f1) VALUES ('34.5');
 
 
 drop table if exists INT8_TBL cascade;
@@ -55,6 +54,57 @@ SELECT * FROM rw_view1 FOR UPDATE;
 
 drop table base_tbl cascade;
 
+-- ticket:162
+drop table if exists t;
+drop table if exists t1;
+create table t(a int) with(engine=innodb);
+create table t1(a int) with(engine=myrocks);
+drop table t;
+drop table t1;
+
+-- ticket:644
+drop table if exists t1;
+create table t1(a int , b int );
+insert into t1 values(1,2);
+insert t1 values(3,4);
+insert into t1 value(5,6);
+insert into t1 values(7,8),(9,10);
+insert into t1 value(11,12),(13,14);
+insert t1 values(15,16),(17,18);
+insert t1 value(19,20),(21,22);
+
+REPLACE into t1 values(1,100);
+REPLACE t1 values(3,200);
+REPLACE t1 value(5,300);
+REPLACE into t1 value(7,400),(9,500);
+REPLACE t1 value(11,600),(13,700);
+insert t1 value(2,99);
+
+set @@sql_mode='TRADITIONAL';
+-- mysql 报错 
+update t1 set b=a/0 where a=2 returning *;
+
+
+-- update ignore时，mysql忽略错误
+update ignore t1 set b=a/0 where a=2 returning *;
+
+-- 在计算节点常量表达时简化的过程中，仍然会报错，即便此时有update ignore
+update ignore t1 set b=1/0 where a=2 returning *;
+
+-- update 推荐用法
+-- 用于忽略约束报错
+create table t5(a int primary key, b int);
+insert into t5 values(1,1), (2,2);
+update ignore t5 set a=a+1 returning *;
+select * from t5;
+
+-- 使用限制 
+-- 用于简单的可以直接下推的update语句
+explain update ignore t5 set a=a+1 returning *;
+
+explain update ignore t5 set a=a+1 where b in (select a from t1);
+
+set @@sql_mode='STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION';
 
 -- ticket:760
 drop table if exists t2;
@@ -96,27 +146,92 @@ drop schema `s 1` cascade;
 set search_path="public";
 
 -- ticket:930
-drop table if exists t;
-create table t(a int auto_increment primary key,b int, c timestamptz on update current_timestamp);
-insert into t(a,b) values(1,1);
+-- drop table if exists t;
+-- create table t(a int auto_increment primary key,b int, c timestamptz on update current_timestamp);
+-- insert into t(a,b) values(1,1);
 
-select * from t;
+-- select * from t;
 
 -- 更新之后，时间自动更新
-update t set b=b+1;
-select * from t;
+-- update t set b=b+1;
+-- select * from t;
 
 
 -- replace相当于delete + insert，所以不会变化
-replace into t values(1,1);
+-- replace into t values(1,1);
 
-select * from t;
+-- select * from t;
 -- 对insert .. on duplicate key update ... 同样有效
-insert into t (a,b) values(1,1) on duplicate key update b=t.b+1;
-select * from t;
+-- insert into t (a,b) values(1,1) on duplicate key update b=t.b+1;
+-- select * from t;
+
+-- drop table t;
+-- ticket:944
+DROP TABLE IF EXISTS t1;
+CREATE TABLE  t1 (
+  id int NOT NULL,
+  t1_name varchar(255) DEFAULT NULL,
+  sector_id int DEFAULT NULL,
+  salary int DEFAULT NULL,
+  PRIMARY KEY (id)
+);
+
+INSERT INTO t1 VALUES ('1', 'zhnagsan', '1', '10000');
+INSERT INTO t1 VALUES ('2', 'lisi', '2', '13000');
+INSERT INTO t1 VALUES ('3', 'wangwu', '2', '12000');
+INSERT INTO t1 VALUES ('4', 'zhaoliu', '3', '12000');
+INSERT INTO t1 VALUES ('5', '', '4', '18000');
+
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t2 (
+  id int NOT NULL,
+  sector varchar(255) DEFAULT NULL,
+  PRIMARY KEY (id)
+) ;
+
+INSERT INTO t2 VALUES ('1', '研发');
+INSERT INTO t2 VALUES ('2', '财务');
+INSERT INTO t2 VALUES ('3', '运维');
+INSERT INTO t2 VALUES ('4', '安全');
+
+select * from t1 FULL JOIN t2 on t1.sector_id=t2.id;
+
+update t1 set t1_name='qiqi' from t2 where t1.sector_id=t2.id and sector='安全';
+update t1 set t1_name='zhangsan' from t2 where t1.sector_id=t2.id and sector='研发';
+update t1 set salary=15000 where sector_id in ( select id from t2 where sector='财务');
+select * from t1 FULL JOIN t2 on t1.sector_id=t2.id;
+
+-- 失败的
+delete from t1 using t2 where t1.sector_id=t2.id and sector_id=1;
+
+delete from t1 where sector_id in (select id from t2 where sector='安全');
+
+drop table t1;
+drop table t2;
+
+-- ticket:945
+drop table if exists t;
+create table t(a int, b int) partition by range(a);
+create table tp1 partition of t for values from (0) to (100);
+create table tp2 partition of t for values from (100) to (200);
+
+insert into t select i,i from generate_series(1,100) s(i);
+
+
+-- 更新分区列（要求原表必须有主键） 失败
+update t set a=200-a where a=50;
+
+drop table if exists t;
+create table t(a int primary key, b int) partition by range(a);
+create table tp1 partition of t for values from (0) to (100);
+create table tp2 partition of t for values from (100) to (200);
+
+insert into t select i,i from generate_series(1,100) s(i);
+
+-- 更新分区列（要求原表必须有主键）
+update t set a=200-a where a=50;
 
 drop table t;
-
 -- ticket:959
 drop table if exists t1;
 create table t1 (a int ,b int);
@@ -130,8 +245,8 @@ show databases where database='postgres';
 show schemas where schemas='public';
 
 -- ticket:1000
-show table status;
-show table status where name = 't1';
+-- show table status;
+-- show table status where name = 't1';
 drop table t1;
 
 -- ticket:972
@@ -221,6 +336,24 @@ drop table if exists t;
 create table t(a int auto_increment);
 insert into t values(default), (default);
 drop table t;
+
+
+
+-- ticket:959
+drop table if exists t1;
+create table t1(a int, b int);
+insert into t1 select i,i from generate_series(1,1000000)i;
+
+create index concurrently on t1(a)
+-- 验证是否残留invalid状态的索引（预期为空）
+select * from pg_index where indisvalid = false;
+
+create index on t1(a);
+-- 创建新的连接访问表t，看释放会执行中的index阻塞（如果create index很快，可以增加数据）...
+
+drop table t1;
+
+
 
 --ticket:895
 drop table if exists t1; 

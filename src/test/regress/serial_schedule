@@ -94,6 +94,7 @@ test: subselect
 test: union
 test: case
 test: join
+test: join2
 test: aggregates
 test: transactions
 test: random

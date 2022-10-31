@@ -633,4 +633,4 @@ CREATE TEXT SEARCH DICTIONARY tsdict_case
 	"DictFile" = ispell_sample,
 	"AffFile" = ispell_sample
 );
-psql:sql/tsdicts.sql:203: ERROR:  unrecognized Ispell parameter: "DictFile"
+CREATE TEXT SEARCH DICTIONARY

@@ -547,7 +547,7 @@ drop view 个人表_视图;
 DROP VIEW
 \d 
               List of relations
- Schema |      Name       |   Type   | Owner 
+ schema |      name       |   type   | owner 
 --------+-----------------+----------+-------
  public | 个人表          | table    | abc
  public | 个人表_年龄_seq | sequence | abc

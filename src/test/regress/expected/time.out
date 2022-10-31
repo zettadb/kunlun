@@ -33,7 +33,7 @@ psql:sql/time.sql:21: ERROR:  invalid input syntax for type time: "15:36:39 Amer
 LINE 1: INSERT INTO TIME_TBL VALUES ('15:36:39 America/New_York');
                                      ^
 SELECT f1 AS "Time" FROM TIME_TBL;
-    Time     
+    time     
 -------------
  00:00:00
  01:00:00
@@ -48,7 +48,7 @@ SELECT f1 AS "Time" FROM TIME_TBL;
 (10 rows)
 
 SELECT f1 AS "Three" FROM TIME_TBL WHERE f1 < '05:06:07';
-  Three   
+  three   
 ----------
  00:00:00
  01:00:00
@@ -56,7 +56,7 @@ SELECT f1 AS "Three" FROM TIME_TBL WHERE f1 < '05:06:07';
 (3 rows)
 
 SELECT f1 AS "Five" FROM TIME_TBL WHERE f1 > '05:06:07';
-    Five     
+    five     
 -------------
  11:59:00
  12:00:00
@@ -68,12 +68,12 @@ SELECT f1 AS "Five" FROM TIME_TBL WHERE f1 > '05:06:07';
 (7 rows)
 
 SELECT f1 AS "None" FROM TIME_TBL WHERE f1 < '00:00';
- None 
+ none 
 ------
 (0 rows)
 
 SELECT f1 AS "Eight" FROM TIME_TBL WHERE f1 >= '00:00';
-    Eight    
+    eight    
 -------------
  00:00:00
  01:00:00

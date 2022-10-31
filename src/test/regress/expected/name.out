@@ -4,13 +4,13 @@
 --
 -- fixed-length by reference
 SELECT name 'name string' = name 'name string' AS "True";
- True 
+ true 
 ------
  t
 (1 row)
 
 SELECT name 'name string' = name 'name string ' AS "False";
- False 
+ false 
 -------
  f
 (1 row)

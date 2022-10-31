@@ -17,7 +17,7 @@ select prop,
          with ordinality as u(prop,ord)
  where a.amname = 'btree'
  order by ord;
-        prop        | AM | Index | Column 
+        prop        | am | index | column 
 --------------------+----+-------+--------
  asc                |    |       | t
  desc               |    |       | f

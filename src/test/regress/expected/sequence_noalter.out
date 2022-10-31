@@ -367,13 +367,13 @@ SELECT * FROM pg_sequence_parameters('sequence_test4'::regclass);
 
 \d sequence_test4
                        Sequence "public.sequence_test4"
-  Type  | Start |       Minimum        | Maximum | Increment | Cycles? | Cache 
+  type  | start |       minimum        | maximum | increment | cycles? | cache 
 --------+-------+----------------------+---------+-----------+---------+-------
  bigint |    -1 | -9223372036854775808 |      -1 |        -1 | no      |     1
 
 \d serialtest2_f2_seq
                  Sequence "public.serialtest2_f2_seq"
-  Type   | Start | Minimum |  Maximum   | Increment | Cycles? | Cache 
+  type   | start | minimum |  maximum   | increment | cycles? | cache 
 ---------+-------+---------+------------+-----------+---------+-------
  integer |     1 |       1 | 2147483647 |         1 | no      |     1
 Owned by: public.serialtest2.f2

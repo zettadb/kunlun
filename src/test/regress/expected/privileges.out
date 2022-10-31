@@ -1728,7 +1728,7 @@ grant select on dep_priv_test to regress_priv_user5;
 GRANT
 \dp dep_priv_test
                                                Access privileges
- Schema |     Name      | Type  |               Access privileges               | Column privileges | Policies 
+ schema |     name      | type  |               access privileges               | column privileges | policies 
 --------+---------------+-------+-----------------------------------------------+-------------------+----------
  public | dep_priv_test | table | regress_priv_user1=arwdDxt/regress_priv_user1+|                   | 
         |               |       | regress_priv_user2=r*/regress_priv_user1     +|                   | 
@@ -1744,7 +1744,7 @@ revoke select on dep_priv_test from regress_priv_user4 cascade;
 REVOKE
 \dp dep_priv_test
                                                Access privileges
- Schema |     Name      | Type  |               Access privileges               | Column privileges | Policies 
+ schema |     name      | type  |               access privileges               | column privileges | policies 
 --------+---------------+-------+-----------------------------------------------+-------------------+----------
  public | dep_priv_test | table | regress_priv_user1=arwdDxt/regress_priv_user1+|                   | 
         |               |       | regress_priv_user2=r*/regress_priv_user1     +|                   | 
@@ -1759,7 +1759,7 @@ revoke select on dep_priv_test from regress_priv_user4 cascade;
 REVOKE
 \dp dep_priv_test
                                                Access privileges
- Schema |     Name      | Type  |               Access privileges               | Column privileges | Policies 
+ schema |     name      | type  |               access privileges               | column privileges | policies 
 --------+---------------+-------+-----------------------------------------------+-------------------+----------
  public | dep_priv_test | table | regress_priv_user1=arwdDxt/regress_priv_user1+|                   | 
         |               |       | regress_priv_user2=r*/regress_priv_user1     +|                   | 

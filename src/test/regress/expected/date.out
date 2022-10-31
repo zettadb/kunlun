@@ -41,7 +41,7 @@ INSERT 0 1
 INSERT INTO DATE_TBL VALUES ('2040-04-10');
 INSERT 0 1
 SELECT f1 AS "Fifteen" FROM DATE_TBL;
-  Fifteen   
+  fifteen   
 ------------
  1957-04-09
  1957-06-13
@@ -61,7 +61,7 @@ SELECT f1 AS "Fifteen" FROM DATE_TBL;
 (15 rows)
 
 SELECT f1 AS "Nine" FROM DATE_TBL WHERE f1 < '2000-01-01';
-    Nine    
+    nine    
 ------------
  1957-04-09
  1957-06-13
@@ -76,7 +76,7 @@ SELECT f1 AS "Nine" FROM DATE_TBL WHERE f1 < '2000-01-01';
 
 SELECT f1 AS "Three" FROM DATE_TBL
   WHERE f1 BETWEEN '2000-01-01' AND '2001-01-01';
-   Three    
+   three    
 ------------
  2000-04-01
  2000-04-02
@@ -867,7 +867,7 @@ RESET
 -- Leave most of it for the horology tests
 --
 SELECT f1 - date '2000-01-01' AS "Days From 2K" FROM DATE_TBL;
- Days From 2K 
+ days from 2k 
 --------------
        -15607
        -15542
@@ -887,7 +887,7 @@ SELECT f1 - date '2000-01-01' AS "Days From 2K" FROM DATE_TBL;
 (15 rows)
 
 SELECT f1 - date 'epoch' AS "Days From Epoch" FROM DATE_TBL;
- Days From Epoch 
+ days from epoch 
 -----------------
            -4650
            -4585
@@ -907,37 +907,37 @@ SELECT f1 - date 'epoch' AS "Days From Epoch" FROM DATE_TBL;
 (15 rows)
 
 SELECT date 'yesterday' - date 'today' AS "One day";
- One day 
+ one day 
 ---------
       -1
 (1 row)
 
 SELECT date 'today' - date 'tomorrow' AS "One day";
- One day 
+ one day 
 ---------
       -1
 (1 row)
 
 SELECT date 'yesterday' - date 'tomorrow' AS "Two days";
- Two days 
+ two days 
 ----------
        -2
 (1 row)
 
 SELECT date 'tomorrow' - date 'today' AS "One day";
- One day 
+ one day 
 ---------
        1
 (1 row)
 
 SELECT date 'today' - date 'yesterday' AS "One day";
- One day 
+ one day 
 ---------
        1
 (1 row)
 
 SELECT date 'tomorrow' - date 'yesterday' AS "Two days";
- Two days 
+ two days 
 ----------
         2
 (1 row)

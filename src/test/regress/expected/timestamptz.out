@@ -1750,7 +1750,7 @@ SELECT '' AS to_char_11, to_char(d1, 'FMIYYY FMIYY FMIY FMI FMIW FMIDDD FMID')
 SET timezone = '00:00';
 SET
 SELECT to_char(now(), 'OF') as "OF", to_char(now(), 'TZH:TZM') as "TZH:TZM";
- OF  | TZH:TZM 
+ of  | tzh:tzm 
 -----+---------
  +00 | +00:00
 (1 row)
@@ -1758,7 +1758,7 @@ SELECT to_char(now(), 'OF') as "OF", to_char(now(), 'TZH:TZM') as "TZH:TZM";
 SET timezone = '+02:00';
 SET
 SELECT to_char(now(), 'OF') as "OF", to_char(now(), 'TZH:TZM') as "TZH:TZM";
- OF  | TZH:TZM 
+ of  | tzh:tzm 
 -----+---------
  -02 | -02:00
 (1 row)
@@ -1766,7 +1766,7 @@ SELECT to_char(now(), 'OF') as "OF", to_char(now(), 'TZH:TZM') as "TZH:TZM";
 SET timezone = '-13:00';
 SET
 SELECT to_char(now(), 'OF') as "OF", to_char(now(), 'TZH:TZM') as "TZH:TZM";
- OF  | TZH:TZM 
+ of  | tzh:tzm 
 -----+---------
  +13 | +13:00
 (1 row)
@@ -1774,7 +1774,7 @@ SELECT to_char(now(), 'OF') as "OF", to_char(now(), 'TZH:TZM') as "TZH:TZM";
 SET timezone = '-00:30';
 SET
 SELECT to_char(now(), 'OF') as "OF", to_char(now(), 'TZH:TZM') as "TZH:TZM";
-   OF   | TZH:TZM 
+   of   | tzh:tzm 
 --------+---------
  +00:30 | +00:30
 (1 row)
@@ -1782,7 +1782,7 @@ SELECT to_char(now(), 'OF') as "OF", to_char(now(), 'TZH:TZM') as "TZH:TZM";
 SET timezone = '00:30';
 SET
 SELECT to_char(now(), 'OF') as "OF", to_char(now(), 'TZH:TZM') as "TZH:TZM";
-   OF   | TZH:TZM 
+   of   | tzh:tzm 
 --------+---------
  -00:30 | -00:30
 (1 row)
@@ -1790,7 +1790,7 @@ SELECT to_char(now(), 'OF') as "OF", to_char(now(), 'TZH:TZM') as "TZH:TZM";
 SET timezone = '-04:30';
 SET
 SELECT to_char(now(), 'OF') as "OF", to_char(now(), 'TZH:TZM') as "TZH:TZM";
-   OF   | TZH:TZM 
+   of   | tzh:tzm 
 --------+---------
  +04:30 | +04:30
 (1 row)
@@ -1798,7 +1798,7 @@ SELECT to_char(now(), 'OF') as "OF", to_char(now(), 'TZH:TZM') as "TZH:TZM";
 SET timezone = '04:30';
 SET
 SELECT to_char(now(), 'OF') as "OF", to_char(now(), 'TZH:TZM') as "TZH:TZM";
-   OF   | TZH:TZM 
+   of   | tzh:tzm 
 --------+---------
  -04:30 | -04:30
 (1 row)
@@ -1806,7 +1806,7 @@ SELECT to_char(now(), 'OF') as "OF", to_char(now(), 'TZH:TZM') as "TZH:TZM";
 SET timezone = '-04:15';
 SET
 SELECT to_char(now(), 'OF') as "OF", to_char(now(), 'TZH:TZM') as "TZH:TZM";
-   OF   | TZH:TZM 
+   of   | tzh:tzm 
 --------+---------
  +04:15 | +04:15
 (1 row)
@@ -1814,7 +1814,7 @@ SELECT to_char(now(), 'OF') as "OF", to_char(now(), 'TZH:TZM') as "TZH:TZM";
 SET timezone = '04:15';
 SET
 SELECT to_char(now(), 'OF') as "OF", to_char(now(), 'TZH:TZM') as "TZH:TZM";
-   OF   | TZH:TZM 
+   of   | tzh:tzm 
 --------+---------
  -04:15 | -04:15
 (1 row)

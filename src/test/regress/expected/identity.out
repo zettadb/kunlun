@@ -37,7 +37,7 @@ SELECT pg_get_serial_sequence('itest1', 'a');
 
 \d itest1_a_seq
                     Sequence "public.itest1_a_seq"
-  Type   | Start | Minimum |  Maximum   | Increment | Cycles? | Cache 
+  type   | start | minimum |  maximum   | increment | cycles? | cache 
 ---------+-------+---------+------------+-----------+---------+-------
  integer |     1 |       1 | 2147483647 |         1 | no      |     1
 Sequence for identity column: public.itest1.a

@@ -272,13 +272,13 @@ SET DateStyle = 'Postgres, MDY';
 SET
 -- Check Julian dates BC
 SELECT date 'J1520447' AS "Confucius' Birthday";
- Confucius' Birthday 
+ confucius' birthday 
 ---------------------
  09-28-0551 BC
 (1 row)
 
 SELECT date 'J0' AS "Julian Epoch";
- Julian Epoch  
+ julian epoch  
 ---------------
  11-24-4714 BC
 (1 row)
@@ -287,38 +287,38 @@ SELECT date 'J0' AS "Julian Epoch";
 -- date, time arithmetic
 --
 SELECT date '1981-02-03' + time '04:05:06' AS "Date + Time";
-       Date + Time        
+       date + time        
 --------------------------
  Tue Feb 03 04:05:06 1981
 (1 row)
 
 SELECT date '1991-02-03' + time with time zone '04:05:06 PST' AS "Date + Time PST";
-       Date + Time PST        
+       date + time pst        
 ------------------------------
  Sun Feb 03 20:05:06 1991 CST
 (1 row)
 
 SELECT date '2001-02-03' + time with time zone '04:05:06 UTC' AS "Date + Time UTC";
-       Date + Time UTC        
+       date + time utc        
 ------------------------------
  Sat Feb 03 12:05:06 2001 CST
 (1 row)
 
 SELECT date '1991-02-03' + interval '2 years' AS "Add Two Years";
-      Add Two Years       
+      add two years       
 --------------------------
  Wed Feb 03 00:00:00 1993
 (1 row)
 
 SELECT date '2001-12-13' - interval '2 years' AS "Subtract Two Years";
-    Subtract Two Years    
+    subtract two years    
 --------------------------
  Mon Dec 13 00:00:00 1999
 (1 row)
 
 -- subtract time from date should not make sense; use interval instead
 SELECT date '1991-02-03' - time '04:05:06' AS "Subtract Time";
-      Subtract Time       
+      subtract time       
 --------------------------
  Sat Feb 02 19:54:54 1991
 (1 row)
@@ -332,49 +332,49 @@ HINT:  No operator matches the given name and argument types. You might need to 
 -- timestamp, interval arithmetic
 --
 SELECT timestamp without time zone '1996-03-01' - interval '1 second' AS "Feb 29";
-          Feb 29          
+          feb 29          
 --------------------------
  Thu Feb 29 23:59:59 1996
 (1 row)
 
 SELECT timestamp without time zone '1999-03-01' - interval '1 second' AS "Feb 28";
-          Feb 28          
+          feb 28          
 --------------------------
  Sun Feb 28 23:59:59 1999
 (1 row)
 
 SELECT timestamp without time zone '2000-03-01' - interval '1 second' AS "Feb 29";
-          Feb 29          
+          feb 29          
 --------------------------
  Tue Feb 29 23:59:59 2000
 (1 row)
 
 SELECT timestamp without time zone '1999-12-01' + interval '1 month - 1 second' AS "Dec 31";
-          Dec 31          
+          dec 31          
 --------------------------
  Fri Dec 31 23:59:59 1999
 (1 row)
 
 SELECT timestamp without time zone 'Jan 1, 4713 BC' + interval '106000000 days' AS "Feb 23, 285506";
-       Feb 23, 285506       
+       feb 23, 285506       
 ----------------------------
  Fri Feb 23 00:00:00 285506
 (1 row)
 
 SELECT timestamp without time zone 'Jan 1, 4713 BC' + interval '107000000 days' AS "Jan 20, 288244";
-       Jan 20, 288244       
+       jan 20, 288244       
 ----------------------------
  Sat Jan 20 00:00:00 288244
 (1 row)
 
 SELECT timestamp without time zone 'Jan 1, 4713 BC' + interval '109203489 days' AS "Dec 31, 294276";
-       Dec 31, 294276       
+       dec 31, 294276       
 ----------------------------
  Sun Dec 31 00:00:00 294276
 (1 row)
 
 SELECT timestamp without time zone '12/31/294276' - timestamp without time zone '12/23/1999' AS "106751991 Days";
- 106751991 Days 
+ 106751991 days 
 ----------------
  106751991 days
 (1 row)
@@ -383,61 +383,61 @@ SELECT timestamp without time zone '12/31/294276' - timestamp without time zone 
 -- Not directly usable for regression testing since these are not constants.
 -- So, just try to test parser and hope for the best - thomas 97/04/26
 SELECT (timestamp without time zone 'today' = (timestamp without time zone 'yesterday' + interval '1 day')) as "True";
- True 
+ true 
 ------
  t
 (1 row)
 
 SELECT (timestamp without time zone 'today' = (timestamp without time zone 'tomorrow' - interval '1 day')) as "True";
- True 
+ true 
 ------
  t
 (1 row)
 
 SELECT (timestamp without time zone 'today 10:30' = (timestamp without time zone 'yesterday' + interval '1 day 10 hr 30 min')) as "True";
- True 
+ true 
 ------
  t
 (1 row)
 
 SELECT (timestamp without time zone '10:30 today' = (timestamp without time zone 'yesterday' + interval '1 day 10 hr 30 min')) as "True";
- True 
+ true 
 ------
  t
 (1 row)
 
 SELECT (timestamp without time zone 'tomorrow' = (timestamp without time zone 'yesterday' + interval '2 days')) as "True";
- True 
+ true 
 ------
  t
 (1 row)
 
 SELECT (timestamp without time zone 'tomorrow 16:00:00' = (timestamp without time zone 'today' + interval '1 day 16 hours')) as "True";
- True 
+ true 
 ------
  t
 (1 row)
 
 SELECT (timestamp without time zone '16:00:00 tomorrow' = (timestamp without time zone 'today' + interval '1 day 16 hours')) as "True";
- True 
+ true 
 ------
  t
 (1 row)
 
 SELECT (timestamp without time zone 'yesterday 12:34:56' = (timestamp without time zone 'tomorrow' - interval '2 days - 12:34:56')) as "True";
- True 
+ true 
 ------
  t
 (1 row)
 
 SELECT (timestamp without time zone '12:34:56 yesterday' = (timestamp without time zone 'tomorrow' - interval '2 days - 12:34:56')) as "True";
- True 
+ true 
 ------
  t
 (1 row)
 
 SELECT (timestamp without time zone 'tomorrow' > 'now') as "True";
- True 
+ true 
 ------
  t
 (1 row)
@@ -446,25 +446,25 @@ SELECT (timestamp without time zone 'tomorrow' > 'now') as "True";
 -- This test used to be timestamp(date,time) but no longer allowed by grammar
 -- to enable support for SQL99 timestamp type syntax.
 SELECT date '1994-01-01' + time '11:00' AS "Jan_01_1994_11am";
-     Jan_01_1994_11am     
+     jan_01_1994_11am     
 --------------------------
  Sat Jan 01 11:00:00 1994
 (1 row)
 
 SELECT date '1994-01-01' + time '10:00' AS "Jan_01_1994_10am";
-     Jan_01_1994_10am     
+     jan_01_1994_10am     
 --------------------------
  Sat Jan 01 10:00:00 1994
 (1 row)
 
 SELECT date '1994-01-01' + timetz '11:00-5' AS "Jan_01_1994_8am";
-       Jan_01_1994_8am        
+       jan_01_1994_8am        
 ------------------------------
  Sun Jan 02 00:00:00 1994 CST
 (1 row)
 
 SELECT timestamptz(date '1994-01-01', time with time zone '11:00-5') AS "Jan_01_1994_8am";
-       Jan_01_1994_8am        
+       jan_01_1994_8am        
 ------------------------------
  Sun Jan 02 00:00:00 1994 CST
 (1 row)
@@ -472,49 +472,49 @@ SELECT timestamptz(date '1994-01-01', time with time zone '11:00-5') AS "Jan_01_
 --SELECT '' AS "64", d1 + interval '1 year' AS one_year FROM TIMESTAMP_TBL;
 --SELECT '' AS "64", d1 - interval '1 year' AS one_year FROM TIMESTAMP_TBL;
 SELECT timestamp with time zone '1996-03-01' - interval '1 second' AS "Feb 29";
-            Feb 29            
+            feb 29            
 ------------------------------
  Thu Feb 29 23:59:59 1996 CST
 (1 row)
 
 SELECT timestamp with time zone '1999-03-01' - interval '1 second' AS "Feb 28";
-            Feb 28            
+            feb 28            
 ------------------------------
  Sun Feb 28 23:59:59 1999 CST
 (1 row)
 
 SELECT timestamp with time zone '2000-03-01' - interval '1 second' AS "Feb 29";
-            Feb 29            
+            feb 29            
 ------------------------------
  Tue Feb 29 23:59:59 2000 CST
 (1 row)
 
 SELECT timestamp with time zone '1999-12-01' + interval '1 month - 1 second' AS "Dec 31";
-            Dec 31            
+            dec 31            
 ------------------------------
  Fri Dec 31 23:59:59 1999 CST
 (1 row)
 
 SELECT (timestamp with time zone 'today' = (timestamp with time zone 'yesterday' + interval '1 day')) as "True";
- True 
+ true 
 ------
  t
 (1 row)
 
 SELECT (timestamp with time zone 'today' = (timestamp with time zone 'tomorrow' - interval '1 day')) as "True";
- True 
+ true 
 ------
  t
 (1 row)
 
 SELECT (timestamp with time zone 'tomorrow' = (timestamp with time zone 'yesterday' + interval '2 days')) as "True";
- True 
+ true 
 ------
  t
 (1 row)
 
 SELECT (timestamp with time zone 'tomorrow' > 'now') as "True";
- True 
+ true 
 ------
  t
 (1 row)
@@ -523,25 +523,25 @@ SELECT (timestamp with time zone 'tomorrow' > 'now') as "True";
 SET TIME ZONE 'CST7CDT';
 SET
 SELECT timestamp with time zone '2005-04-02 12:00-07' + interval '1 day' as "Apr 3, 12:00";
-         Apr 3, 12:00         
+         apr 3, 12:00         
 ------------------------------
  Sun Apr 03 12:00:00 2005 CDT
 (1 row)
 
 SELECT timestamp with time zone '2005-04-02 12:00-07' + interval '24 hours' as "Apr 3, 13:00";
-         Apr 3, 13:00         
+         apr 3, 13:00         
 ------------------------------
  Sun Apr 03 13:00:00 2005 CDT
 (1 row)
 
 SELECT timestamp with time zone '2005-04-03 12:00-06' - interval '1 day' as "Apr 2, 12:00";
-         Apr 2, 12:00         
+         apr 2, 12:00         
 ------------------------------
  Sat Apr 02 12:00:00 2005 CST
 (1 row)
 
 SELECT timestamp with time zone '2005-04-03 12:00-06' - interval '24 hours' as "Apr 2, 11:00";
-         Apr 2, 11:00         
+         apr 2, 11:00         
 ------------------------------
  Sat Apr 02 11:00:00 2005 CST
 (1 row)
@@ -549,31 +549,31 @@ SELECT timestamp with time zone '2005-04-03 12:00-06' - interval '24 hours' as "
 RESET TIME ZONE;
 RESET
 SELECT timestamptz(date '1994-01-01', time '11:00') AS "Jan_01_1994_10am";
-       Jan_01_1994_10am       
+       jan_01_1994_10am       
 ------------------------------
  Sat Jan 01 11:00:00 1994 CST
 (1 row)
 
 SELECT timestamptz(date '1994-01-01', time '10:00') AS "Jan_01_1994_9am";
-       Jan_01_1994_9am        
+       jan_01_1994_9am        
 ------------------------------
  Sat Jan 01 10:00:00 1994 CST
 (1 row)
 
 SELECT timestamptz(date '1994-01-01', time with time zone '11:00-8') AS "Jan_01_1994_11am";
-       Jan_01_1994_11am       
+       jan_01_1994_11am       
 ------------------------------
  Sun Jan 02 03:00:00 1994 CST
 (1 row)
 
 SELECT timestamptz(date '1994-01-01', time with time zone '10:00-8') AS "Jan_01_1994_10am";
-       Jan_01_1994_10am       
+       jan_01_1994_10am       
 ------------------------------
  Sun Jan 02 02:00:00 1994 CST
 (1 row)
 
 SELECT timestamptz(date '1994-01-01', time with time zone '11:00-5') AS "Jan_01_1994_8am";
-       Jan_01_1994_8am        
+       jan_01_1994_8am        
 ------------------------------
  Sun Jan 02 00:00:00 1994 CST
 (1 row)
@@ -662,42 +662,42 @@ SELECT CAST(cast(date 'today' + time with time zone '03:30'
 -- test with time zone
 SELECT (timestamp with time zone '2000-11-27', timestamp with time zone '2000-11-28')
   OVERLAPS (timestamp with time zone '2000-11-27 12:00', timestamp with time zone '2000-11-30') AS "True";
- True 
+ true 
 ------
  t
 (1 row)
 
 SELECT (timestamp with time zone '2000-11-26', timestamp with time zone '2000-11-27')
   OVERLAPS (timestamp with time zone '2000-11-27 12:00', timestamp with time zone '2000-11-30') AS "False";
- False 
+ false 
 -------
  f
 (1 row)
 
 SELECT (timestamp with time zone '2000-11-27', timestamp with time zone '2000-11-28')
   OVERLAPS (timestamp with time zone '2000-11-27 12:00', interval '1 day') AS "True";
- True 
+ true 
 ------
  t
 (1 row)
 
 SELECT (timestamp with time zone '2000-11-27', interval '12 hours')
   OVERLAPS (timestamp with time zone '2000-11-27 12:00', timestamp with time zone '2000-11-30') AS "False";
- False 
+ false 
 -------
  f
 (1 row)
 
 SELECT (timestamp with time zone '2000-11-27', interval '12 hours')
   OVERLAPS (timestamp with time zone '2000-11-27', interval '12 hours') AS "True";
- True 
+ true 
 ------
  t
 (1 row)
 
 SELECT (timestamp with time zone '2000-11-27', interval '12 hours')
   OVERLAPS (timestamp with time zone '2000-11-27 12:00', interval '12 hours') AS "False";
- False 
+ false 
 -------
  f
 (1 row)
@@ -705,42 +705,42 @@ SELECT (timestamp with time zone '2000-11-27', interval '12 hours')
 -- test without time zone
 SELECT (timestamp without time zone '2000-11-27', timestamp without time zone '2000-11-28')
   OVERLAPS (timestamp without time zone '2000-11-27 12:00', timestamp without time zone '2000-11-30') AS "True";
- True 
+ true 
 ------
  t
 (1 row)
 
 SELECT (timestamp without time zone '2000-11-26', timestamp without time zone '2000-11-27')
   OVERLAPS (timestamp without time zone '2000-11-27 12:00', timestamp without time zone '2000-11-30') AS "False";
- False 
+ false 
 -------
  f
 (1 row)
 
 SELECT (timestamp without time zone '2000-11-27', timestamp without time zone '2000-11-28')
   OVERLAPS (timestamp without time zone '2000-11-27 12:00', interval '1 day') AS "True";
- True 
+ true 
 ------
  t
 (1 row)
 
 SELECT (timestamp without time zone '2000-11-27', interval '12 hours')
   OVERLAPS (timestamp without time zone '2000-11-27 12:00', timestamp without time zone '2000-11-30') AS "False";
- False 
+ false 
 -------
  f
 (1 row)
 
 SELECT (timestamp without time zone '2000-11-27', interval '12 hours')
   OVERLAPS (timestamp without time zone '2000-11-27', interval '12 hours') AS "True";
- True 
+ true 
 ------
  t
 (1 row)
 
 SELECT (timestamp without time zone '2000-11-27', interval '12 hours')
   OVERLAPS (timestamp without time zone '2000-11-27 12:00', interval '12 hours') AS "False";
- False 
+ false 
 -------
  f
 (1 row)
@@ -748,21 +748,21 @@ SELECT (timestamp without time zone '2000-11-27', interval '12 hours')
 -- test time and interval
 SELECT (time '00:00', time '01:00')
   OVERLAPS (time '00:30', time '01:30') AS "True";
- True 
+ true 
 ------
  t
 (1 row)
 
 SELECT (time '00:00', interval '1 hour')
   OVERLAPS (time '00:30', interval '1 hour') AS "True";
- True 
+ true 
 ------
  t
 (1 row)
 
 SELECT (time '00:00', interval '1 hour')
   OVERLAPS (time '01:30', interval '1 hour') AS "False";
- False 
+ false 
 -------
  f
 (1 row)
@@ -772,7 +772,7 @@ SELECT (time '00:00', interval '1 hour')
 -- intervals can wrap around the day boundary - thomas 2001-09-25
 SELECT (time '00:00', interval '1 hour')
   OVERLAPS (time '01:30', interval '1 day') AS "False";
- False 
+ false 
 -------
  f
 (1 row)

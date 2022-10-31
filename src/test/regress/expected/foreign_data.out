@@ -54,7 +54,7 @@ CREATE FOREIGN DATA WRAPPER foo;
 CREATE FOREIGN DATA WRAPPER
 \dew
                         List of foreign-data wrappers
-    Name    |           Owner           | Handler |        Validator         
+    name    |           owner           | handler |        validator         
 ------------+---------------------------+---------+--------------------------
  addr_fdw   | abc                       | -       | -
  dummy      | regress_foreign_data_user | -       | -
@@ -70,7 +70,7 @@ CREATE FOREIGN DATA WRAPPER foo OPTIONS (testing '1');
 CREATE FOREIGN DATA WRAPPER
 \dew+
                                                  List of foreign-data wrappers
-    Name    |           Owner           | Handler |        Validator         | Access privileges |  FDW options  | Description 
+    name    |           owner           | handler |        validator         | access privileges |  fdw options  | description 
 ------------+---------------------------+---------+--------------------------+-------------------+---------------+-------------
  addr_fdw   | abc                       | -       | -                        |                   |               | 
  dummy      | regress_foreign_data_user | -       | -                        |                   |               | useless
@@ -86,7 +86,7 @@ CREATE FOREIGN DATA WRAPPER foo OPTIONS (testing '1', another '2');
 CREATE FOREIGN DATA WRAPPER
 \dew+
                                                        List of foreign-data wrappers
-    Name    |           Owner           | Handler |        Validator         | Access privileges |        FDW options         | Description 
+    name    |           owner           | handler |        validator         | access privileges |        fdw options         | description 
 ------------+---------------------------+---------+--------------------------+-------------------+----------------------------+-------------
  addr_fdw   | abc                       | -       | -                        |                   |                            | 
  dummy      | regress_foreign_data_user | -       | -                        |                   |                            | useless
@@ -107,7 +107,7 @@ CREATE FOREIGN DATA WRAPPER foo VALIDATOR postgresql_fdw_validator;
 CREATE FOREIGN DATA WRAPPER
 \dew+
                                                 List of foreign-data wrappers
-    Name    |           Owner           | Handler |        Validator         | Access privileges | FDW options | Description 
+    name    |           owner           | handler |        validator         | access privileges | fdw options | description 
 ------------+---------------------------+---------+--------------------------+-------------------+-------------+-------------
  addr_fdw   | abc                       | -       | -                        |                   |             | 
  dummy      | regress_foreign_data_user | -       | -                        |                   |             | useless
@@ -137,7 +137,7 @@ ALTER FOREIGN DATA WRAPPER foo NO VALIDATOR;
 ALTER FOREIGN DATA WRAPPER
 \dew+
                                                 List of foreign-data wrappers
-    Name    |           Owner           | Handler |        Validator         | Access privileges | FDW options | Description 
+    name    |           owner           | handler |        validator         | access privileges | fdw options | description 
 ------------+---------------------------+---------+--------------------------+-------------------+-------------+-------------
  addr_fdw   | abc                       | -       | -                        |                   |             | 
  dummy      | regress_foreign_data_user | -       | -                        |                   |             | useless
@@ -155,7 +155,7 @@ ALTER FOREIGN DATA WRAPPER foo OPTIONS (ADD x '1', DROP x);
 ALTER FOREIGN DATA WRAPPER
 \dew+
                                                  List of foreign-data wrappers
-    Name    |           Owner           | Handler |        Validator         | Access privileges |  FDW options   | Description 
+    name    |           owner           | handler |        validator         | access privileges |  fdw options   | description 
 ------------+---------------------------+---------+--------------------------+-------------------+----------------+-------------
  addr_fdw   | abc                       | -       | -                        |                   |                | 
  dummy      | regress_foreign_data_user | -       | -                        |                   |                | useless
@@ -167,7 +167,7 @@ ALTER FOREIGN DATA WRAPPER foo OPTIONS (DROP a, SET b '3', ADD c '4');
 ALTER FOREIGN DATA WRAPPER
 \dew+
                                                  List of foreign-data wrappers
-    Name    |           Owner           | Handler |        Validator         | Access privileges |  FDW options   | Description 
+    name    |           owner           | handler |        validator         | access privileges |  fdw options   | description 
 ------------+---------------------------+---------+--------------------------+-------------------+----------------+-------------
  addr_fdw   | abc                       | -       | -                        |                   |                | 
  dummy      | regress_foreign_data_user | -       | -                        |                   |                | useless
@@ -181,7 +181,7 @@ ALTER FOREIGN DATA WRAPPER foo OPTIONS (b '4');             -- ERROR
 psql:sql/foreign_data.sql:78: ERROR:  option "b" provided more than once
 \dew+
                                                      List of foreign-data wrappers
-    Name    |           Owner           | Handler |        Validator         | Access privileges |      FDW options      | Description 
+    name    |           owner           | handler |        validator         | access privileges |      fdw options      | description 
 ------------+---------------------------+---------+--------------------------+-------------------+-----------------------+-------------
  addr_fdw   | abc                       | -       | -                        |                   |                       | 
  dummy      | regress_foreign_data_user | -       | -                        |                   |                       | useless
@@ -200,7 +200,7 @@ ALTER FOREIGN DATA WRAPPER foo OPTIONS (ADD d '5');
 ALTER FOREIGN DATA WRAPPER
 \dew+
                                                         List of foreign-data wrappers
-    Name    |           Owner           | Handler |        Validator         | Access privileges |         FDW options          | Description 
+    name    |           owner           | handler |        validator         | access privileges |         fdw options          | description 
 ------------+---------------------------+---------+--------------------------+-------------------+------------------------------+-------------
  addr_fdw   | abc                       | -       | -                        |                   |                              | 
  dummy      | regress_foreign_data_user | -       | -                        |                   |                              | useless
@@ -224,7 +224,7 @@ RESET ROLE;
 RESET
 \dew+
                                                         List of foreign-data wrappers
-    Name    |           Owner           | Handler |        Validator         | Access privileges |         FDW options          | Description 
+    name    |           owner           | handler |        validator         | access privileges |         fdw options          | description 
 ------------+---------------------------+---------+--------------------------+-------------------+------------------------------+-------------
  addr_fdw   | abc                       | -       | -                        |                   |                              | 
  dummy      | regress_foreign_data_user | -       | -                        |                   |                              | useless
@@ -236,7 +236,7 @@ ALTER FOREIGN DATA WRAPPER foo RENAME TO foo1;
 ALTER FOREIGN DATA WRAPPER
 \dew+
                                                         List of foreign-data wrappers
-    Name    |           Owner           | Handler |        Validator         | Access privileges |         FDW options          | Description 
+    name    |           owner           | handler |        validator         | access privileges |         fdw options          | description 
 ------------+---------------------------+---------+--------------------------+-------------------+------------------------------+-------------
  addr_fdw   | abc                       | -       | -                        |                   |                              | 
  dummy      | regress_foreign_data_user | -       | -                        |                   |                              | useless
@@ -264,7 +264,7 @@ psql:sql/foreign_data.sql:107: NOTICE:  foreign-data wrapper "nonexistent" does 
 DROP FOREIGN DATA WRAPPER
 \dew+
                                                              List of foreign-data wrappers
-    Name    |           Owner           |     Handler      |        Validator         | Access privileges |         FDW options          | Description 
+    name    |           owner           |     handler      |        validator         | access privileges |         fdw options          | description 
 ------------+---------------------------+------------------+--------------------------+-------------------+------------------------------+-------------
  addr_fdw   | abc                       | -                | -                        |                   |                              | 
  dummy      | regress_foreign_data_user | -                | -                        |                   |                              | useless
@@ -285,7 +285,7 @@ DROP ROLE regress_test_role_super;
 DROP ROLE
 \dew+
                                                 List of foreign-data wrappers
-    Name    |           Owner           | Handler |        Validator         | Access privileges | FDW options | Description 
+    name    |           owner           | handler |        validator         | access privileges | fdw options | description 
 ------------+---------------------------+---------+--------------------------+-------------------+-------------+-------------
  addr_fdw   | abc                       | -       | -                        |                   |             | 
  dummy      | regress_foreign_data_user | -       | -                        |                   |             | useless
@@ -307,7 +307,7 @@ psql:sql/foreign_data.sql:122: NOTICE:  user mapping for "regress_foreign_data_u
 CREATE USER MAPPING
 \dew+
                                                 List of foreign-data wrappers
-    Name    |           Owner           | Handler |        Validator         | Access privileges | FDW options | Description 
+    name    |           owner           | handler |        validator         | access privileges | fdw options | description 
 ------------+---------------------------+---------+--------------------------+-------------------+-------------+-------------
  addr_fdw   | abc                       | -       | -                        |                   |             | 
  dummy      | regress_foreign_data_user | -       | -                        |                   |             | useless
@@ -317,7 +317,7 @@ CREATE USER MAPPING
 
 \des+
                                                       List of foreign servers
-    Name    |           Owner           | Foreign-data wrapper | Access privileges | Type | Version | FDW options |  Description   
+    name    |           owner           | foreign-data wrapper | access privileges | type | version | fdw options |  description   
 ------------+---------------------------+----------------------+-------------------+------+---------+-------------+----------------
  addr_fserv | abc                       | addr_fdw             |                   |      |         |             | 
  integer    | abc                       | addr_fdw             |                   |      |         |             | 
@@ -326,7 +326,7 @@ CREATE USER MAPPING
 
 \deu+
                List of user mappings
- Server  |         User name         | FDW options 
+ server  |         user name         | fdw options 
 ---------+---------------------------+-------------
  integer | regress_addr_user         | 
  s1      | regress_foreign_data_user | 
@@ -350,7 +350,7 @@ drop cascades to user mapping for regress_foreign_data_user on server s1
 DROP FOREIGN DATA WRAPPER
 \dew+
                                                 List of foreign-data wrappers
-    Name    |           Owner           | Handler |        Validator         | Access privileges | FDW options | Description 
+    name    |           owner           | handler |        validator         | access privileges | fdw options | description 
 ------------+---------------------------+---------+--------------------------+-------------------+-------------+-------------
  addr_fdw   | abc                       | -       | -                        |                   |             | 
  dummy      | regress_foreign_data_user | -       | -                        |                   |             | useless
@@ -359,7 +359,7 @@ DROP FOREIGN DATA WRAPPER
 
 \des+
                                           List of foreign servers
-    Name    | Owner | Foreign-data wrapper | Access privileges | Type | Version | FDW options | Description 
+    name    | owner | foreign-data wrapper | access privileges | type | version | fdw options | description 
 ------------+-------+----------------------+-------------------+------+---------+-------------+-------------
  addr_fserv | abc   | addr_fdw             |                   |      |         |             | 
  integer    | abc   | addr_fdw             |                   |      |         |             | 
@@ -367,7 +367,7 @@ DROP FOREIGN DATA WRAPPER
 
 \deu+
            List of user mappings
- Server  |     User name     | FDW options 
+ server  |     user name     | fdw options 
 ---------+-------------------+-------------
  integer | regress_addr_user | 
 (1 row)
@@ -403,7 +403,7 @@ CREATE SERVER s8 FOREIGN DATA WRAPPER postgresql OPTIONS (host 'localhost', dbna
 CREATE SERVER
 \des+
                                                                 List of foreign servers
-    Name    |           Owner           | Foreign-data wrapper | Access privileges |  Type  | Version |            FDW options            | Description 
+    name    |           owner           | foreign-data wrapper | access privileges |  type  | version |            fdw options            | description 
 ------------+---------------------------+----------------------+-------------------+--------+---------+-----------------------------------+-------------
  addr_fserv | abc                       | addr_fdw             |                   |        |         |                                   | 
  integer    | abc                       | addr_fdw             |                   |        |         |                                   | 
@@ -433,7 +433,7 @@ RESET ROLE;
 RESET
 \des+
                                                                 List of foreign servers
-    Name    |           Owner           | Foreign-data wrapper | Access privileges |  Type  | Version |            FDW options            | Description 
+    name    |           owner           | foreign-data wrapper | access privileges |  type  | version |            fdw options            | description 
 ------------+---------------------------+----------------------+-------------------+--------+---------+-----------------------------------+-------------
  addr_fserv | abc                       | addr_fdw             |                   |        |         |                                   | 
  integer    | abc                       | addr_fdw             |                   |        |         |                                   | 
@@ -466,7 +466,7 @@ CREATE SERVER t2 FOREIGN DATA WRAPPER foo;
 CREATE SERVER
 \des+
                                                                 List of foreign servers
-    Name    |           Owner           | Foreign-data wrapper | Access privileges |  Type  | Version |            FDW options            | Description 
+    name    |           owner           | foreign-data wrapper | access privileges |  type  | version |            fdw options            | description 
 ------------+---------------------------+----------------------+-------------------+--------+---------+-----------------------------------+-------------
  addr_fserv | abc                       | addr_fdw             |                   |        |         |                                   | 
  integer    | abc                       | addr_fdw             |                   |        |         |                                   | 
@@ -505,7 +505,7 @@ GRANT USAGE ON FOREIGN SERVER s6 TO regress_test_role2 WITH GRANT OPTION;
 GRANT
 \des+
                                                                                   List of foreign servers
-    Name    |           Owner           | Foreign-data wrapper |                   Access privileges                   |  Type  | Version |            FDW options            | Description 
+    name    |           owner           | foreign-data wrapper |                   access privileges                   |  type  | version |            fdw options            | description 
 ------------+---------------------------+----------------------+-------------------------------------------------------+--------+---------+-----------------------------------+-------------
  addr_fserv | abc                       | addr_fdw             |                                                       |        |         |                                   | 
  integer    | abc                       | addr_fdw             |                                                       |        |         |                                   | 
@@ -576,7 +576,7 @@ DETAIL:  owner of server s1
 privileges for foreign-data wrapper foo
 \des+
                                                                                     List of foreign servers
-    Name    |           Owner           | Foreign-data wrapper |                   Access privileges                   |  Type  | Version |             FDW options              | Description 
+    name    |           owner           | foreign-data wrapper |                   access privileges                   |  type  | version |             fdw options              | description 
 ------------+---------------------------+----------------------+-------------------------------------------------------+--------+---------+--------------------------------------+-------------
  addr_fserv | abc                       | addr_fdw             |                                                       |        |         |                                      | 
  integer    | abc                       | addr_fdw             |                                                       |        |         |                                      | 
@@ -597,7 +597,7 @@ ALTER SERVER s8 RENAME to s8new;
 ALTER SERVER
 \des+
                                                                                     List of foreign servers
-    Name    |           Owner           | Foreign-data wrapper |                   Access privileges                   |  Type  | Version |             FDW options              | Description 
+    name    |           owner           | foreign-data wrapper |                   access privileges                   |  type  | version |             fdw options              | description 
 ------------+---------------------------+----------------------+-------------------------------------------------------+--------+---------+--------------------------------------+-------------
  addr_fserv | abc                       | addr_fdw             |                                                       |        |         |                                      | 
  integer    | abc                       | addr_fdw             |                                                       |        |         |                                      | 
@@ -624,7 +624,7 @@ psql:sql/foreign_data.sql:212: NOTICE:  server "nonexistent" does not exist, ski
 DROP SERVER
 \des
                     List of foreign servers
-    Name    |           Owner           | Foreign-data wrapper 
+    name    |           owner           | foreign-data wrapper 
 ------------+---------------------------+----------------------
  addr_fserv | abc                       | addr_fdw
  integer    | abc                       | addr_fdw
@@ -650,7 +650,7 @@ RESET ROLE;
 RESET
 \des
                     List of foreign servers
-    Name    |           Owner           | Foreign-data wrapper 
+    name    |           owner           | foreign-data wrapper 
 ------------+---------------------------+----------------------
  addr_fserv | abc                       | addr_fdw
  integer    | abc                       | addr_fdw
@@ -675,7 +675,7 @@ RESET ROLE;
 RESET
 \des
                     List of foreign servers
-    Name    |           Owner           | Foreign-data wrapper 
+    name    |           owner           | foreign-data wrapper 
 ------------+---------------------------+----------------------
  addr_fserv | abc                       | addr_fdw
  integer    | abc                       | addr_fdw
@@ -693,7 +693,7 @@ CREATE USER MAPPING FOR current_user SERVER s3;
 CREATE USER MAPPING
 \deu
         List of user mappings
- Server  |         User name         
+ server  |         user name         
 ---------+---------------------------
  integer | regress_addr_user
  s3      | regress_foreign_data_user
@@ -708,7 +708,7 @@ psql:sql/foreign_data.sql:227: NOTICE:  drop cascades to user mapping for regres
 DROP SERVER
 \des
                     List of foreign servers
-    Name    |           Owner           | Foreign-data wrapper 
+    name    |           owner           | foreign-data wrapper 
 ------------+---------------------------+----------------------
  addr_fserv | abc                       | addr_fdw
  integer    | abc                       | addr_fdw
@@ -723,7 +723,7 @@ DROP SERVER
 
 \deu
     List of user mappings
- Server  |     User name     
+ server  |     user name     
 ---------+-------------------
  integer | regress_addr_user
 (1 row)
@@ -772,7 +772,7 @@ RESET ROLE;
 RESET
 \deu
         List of user mappings
- Server  |         User name         
+ server  |         user name         
 ---------+---------------------------
  integer | regress_addr_user
  s4      | public
@@ -808,7 +808,7 @@ RESET ROLE;
 RESET
 \deu+
                          List of user mappings
- Server  |         User name         |           FDW options            
+ server  |         user name         |           fdw options            
 ---------+---------------------------+----------------------------------
  integer | regress_addr_user         | 
  s4      | public                    | ("this mapping" 'is public')
@@ -848,7 +848,7 @@ DROP SERVER s7;
 DROP SERVER
 \deu
         List of user mappings
- Server  |         User name         
+ server  |         user name         
 ---------+---------------------------
  integer | regress_addr_user
  s4      | public
@@ -919,7 +919,7 @@ Server: s0
 
 \det+
                List of foreign tables
- Schema | Table | Server | FDW options | Description 
+ schema | table | server | fdw options | description 
 --------+-------+--------+-------------+-------------
  public | ft1   | s0     |             | ft1
 (1 row)
@@ -1544,7 +1544,7 @@ CREATE USER MAPPING
 -- owner of server can see some option fields
 \deu+
                   List of user mappings
- Server  |         User name         |    FDW options    
+ server  |         user name         |    fdw options    
 ---------+---------------------------+-------------------
  integer | regress_addr_user         | 
  s10     | public                    | ("user" 'secret')
@@ -1563,7 +1563,7 @@ RESET
 -- superuser can see all option fields
 \deu+
                    List of user mappings
- Server  |         User name         |     FDW options     
+ server  |         user name         |     fdw options     
 ---------+---------------------------+---------------------
  integer | regress_addr_user         | 
  s10     | public                    | ("user" 'secret')
@@ -1582,7 +1582,7 @@ SET ROLE regress_unprivileged_role;
 SET
 \deu+
                List of user mappings
- Server  |         User name         | FDW options 
+ server  |         user name         | fdw options 
 ---------+---------------------------+-------------
  integer | regress_addr_user         | 
  s10     | public                    | 

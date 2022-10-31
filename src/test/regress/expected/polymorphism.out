@@ -975,7 +975,7 @@ select dfunc();
 -- verify it lists properly
 \df dfunc
                                           List of functions
- Schema | Name  | Result data type |                    Argument data types                    | Type 
+ schema | name  | result data type |                    argument data types                    | type 
 --------+-------+------------------+-----------------------------------------------------------+------
  public | dfunc | integer          | a integer DEFAULT 1, OUT sum integer, b integer DEFAULT 2 | func
 (1 row)
@@ -1156,7 +1156,7 @@ psql:sql/polymorphism.sql:637: ERROR:  cannot remove parameter defaults from exi
 HINT:  Use DROP FUNCTION dfunc(integer[]) first.
 \df dfunc
                                      List of functions
- Schema | Name  | Result data type |               Argument data types               | Type 
+ schema | name  | result data type |               argument data types               | type 
 --------+-------+------------------+-------------------------------------------------+------
  public | dfunc | integer          | VARIADIC a integer[] DEFAULT ARRAY[]::integer[] | func
 (1 row)

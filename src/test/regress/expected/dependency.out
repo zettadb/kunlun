@@ -83,7 +83,7 @@ RESET SESSION AUTHORIZATION;
 RESET
 \z deptest1
                                            Access privileges
- schema |   name   | type  |              access privileges              | column privileges | policies 
+ Schema |   Name   | Type  |              Access privileges              | Column privileges | Policies 
 --------+----------+-------+---------------------------------------------+-------------------+----------
  public | deptest1 | table | abc=arwdDxt/abc                            +|                   | 
         |          |       | regress_dep_user1=a*r*w*d*D*x*t*/abc       +|                   | 
@@ -93,7 +93,7 @@ RESET
 -- all grants revoked
 \z deptest1
                                            Access privileges
- schema |   name   | type  |              access privileges              | column privileges | policies 
+ Schema |   Name   | Type  |              Access privileges              | Column privileges | Policies 
 --------+----------+-------+---------------------------------------------+-------------------+----------
  public | deptest1 | table | abc=arwdDxt/abc                            +|                   | 
         |          |       | regress_dep_user1=a*r*w*d*D*x*t*/abc       +|                   | 
@@ -159,7 +159,7 @@ REASSIGN OWNED BY regress_dep_user1 TO regress_dep_user2;
 REASSIGN OWNED
 \dt deptest
               List of relations
- schema |  name   | type  |       owner       
+ Schema |  Name   | Type  |       Owner       
 --------+---------+-------+-------------------
  public | deptest | table | regress_dep_user2
 (1 row)

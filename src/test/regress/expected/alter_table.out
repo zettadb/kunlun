@@ -1669,7 +1669,8 @@ ALTER TABLE IF EXISTS tt8 ADD CONSTRAINT xxx PRIMARY KEY(f);
 psql:sql/alter_table.sql:875: NOTICE:  relation "tt8" does not exist, skipping
 ALTER TABLE
 ALTER TABLE IF EXISTS tt8 ADD CHECK (f BETWEEN 0 AND 10);
-psql:sql/alter_table.sql:876: ERROR:  Kunlun-db: Alter table is not supported
+psql:sql/alter_table.sql:876: NOTICE:  relation "tt8" does not exist, skipping
+ALTER TABLE
 ALTER TABLE IF EXISTS tt8 ALTER COLUMN f SET DEFAULT 0;
 psql:sql/alter_table.sql:877: NOTICE:  relation "tt8" does not exist, skipping
 ALTER TABLE

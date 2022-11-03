@@ -45,7 +45,7 @@ SELECT '3' AS "One",
   CASE
     WHEN 1 < 2 THEN 3
   END AS "Simple WHEN";
- one | simple when 
+ One | Simple WHEN 
 -----+-------------
  3   |           3
 (1 row)
@@ -54,7 +54,7 @@ SELECT '<NULL>' AS "One",
   CASE
     WHEN 1 > 2 THEN 3
   END AS "Simple default";
-  one   | simple default 
+  One   | Simple default 
 --------+----------------
  <NULL> |               
 (1 row)
@@ -64,7 +64,7 @@ SELECT '3' AS "One",
     WHEN 1 < 2 THEN 3
     ELSE 4
   END AS "Simple ELSE";
- one | simple else 
+ One | Simple ELSE 
 -----+-------------
  3   |           3
 (1 row)
@@ -74,7 +74,7 @@ SELECT '4' AS "One",
     WHEN 1 > 2 THEN 3
     ELSE 4
   END AS "ELSE default";
- one | else default 
+ One | ELSE default 
 -----+--------------
  4   |            4
 (1 row)
@@ -85,7 +85,7 @@ SELECT '6' AS "One",
     WHEN 4 < 5 THEN 6
     ELSE 7
   END AS "Two WHEN with default";
- one | two when with default 
+ One | Two WHEN with default 
 -----+-----------------------
  6   |                     6
 (1 row)
@@ -93,7 +93,7 @@ SELECT '6' AS "One",
 SELECT '7' AS "None",
    CASE WHEN random() < 0 THEN 1
    END AS "NULL on no matches";
- none | null on no matches 
+ None | NULL on no matches 
 ------+--------------------
  7    |                   
 (1 row)
@@ -130,7 +130,7 @@ SELECT '' AS "Five",
     WHEN i >= 3 THEN i
   END AS ">= 3 or Null"
   FROM CASE_TBL;
- five | >= 3 or null 
+ Five | >= 3 or Null 
 ------+--------------
       |             
       |             
@@ -143,7 +143,7 @@ SELECT '' AS "Five",
        ELSE i
   END AS "Simplest Math"
   FROM CASE_TBL;
- five | simplest math 
+ Five | Simplest Math 
 ------+---------------
       |             1
       |             2
@@ -159,7 +159,7 @@ SELECT '' AS "Five", i AS "Value",
        ELSE 'big'
   END AS "Category"
   FROM CASE_TBL;
- five | value | category 
+ Five | Value | Category 
 ------+-------+----------
       |     1 | one
       |     2 | two
@@ -175,7 +175,7 @@ SELECT '' AS "Five",
        ELSE 'big'
   END AS "Category"
   FROM CASE_TBL;
- five | category 
+ Five | Category 
 ------+----------
       | one
       | two
@@ -244,7 +244,7 @@ SELECT *
 SELECT '' AS Five, NULLIF(a.i,b.i) AS "NULLIF(a.i,b.i)",
   NULLIF(b.i, 4) AS "NULLIF(b.i,4)"
   FROM CASE_TBL a, CASE2_TBL b order by 2, 3;
- five | nullif(a.i,b.i) | nullif(b.i,4) 
+ five | NULLIF(a.i,b.i) | NULLIF(b.i,4) 
 ------+-----------------+---------------
       |               1 |             2
       |               1 |             2
@@ -275,7 +275,7 @@ SELECT '' AS Five, NULLIF(a.i,b.i) AS "NULLIF(a.i,b.i)",
 SELECT '' AS "Two", *
   FROM CASE_TBL a, CASE2_TBL b
   WHERE COALESCE(f,b.i) = 2;
- two | i | f | i | j  
+ Two | i | f | i | j  
 -----+---+---+---+----
      | 4 |   | 2 | -2
      | 4 |   | 2 | -4

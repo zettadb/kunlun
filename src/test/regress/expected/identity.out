@@ -37,7 +37,7 @@ SELECT pg_get_serial_sequence('itest1', 'a');
 
 \d itest1_a_seq
                     Sequence "public.itest1_a_seq"
-  type   | start | minimum |  maximum   | increment | cycles? | cache 
+  Type   | Start | Minimum |  Maximum   | Increment | Cycles? | Cache 
 ---------+-------+---------+------------+-----------+---------+-------
  integer |     1 |       1 | 2147483647 |         1 | no      |     1
 Sequence for identity column: public.itest1.a
@@ -166,12 +166,12 @@ SELECT * FROM itest2;
 UPDATE itest1 SET a = 101 WHERE a = 1;
 UPDATE 1
 UPDATE itest1 SET a = DEFAULT WHERE a = 2;
-UPDATE 1
+psql:sql/identity.sql:81: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 SELECT * FROM itest1 order by 1,2;
   a  |  b  
 -----+-----
+   2 | 
    3 | xyz
-   4 | 
   10 | xyz
  101 | 
 (4 rows)
@@ -180,12 +180,12 @@ UPDATE itest2 SET a = 101 WHERE a = 1;
 psql:sql/identity.sql:84: ERROR:  column "a" can only be updated to DEFAULT
 DETAIL:  Column "a" is an identity column defined as GENERATED ALWAYS.
 UPDATE itest2 SET a = DEFAULT WHERE a = 2;
-UPDATE 1
+psql:sql/identity.sql:85: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 SELECT * FROM itest2 order by 1,2;
  a  |  b  
 ----+-----
   1 | 
-  3 | 
+  2 | 
  10 | xyz
 (3 rows)
 

@@ -118,9 +118,9 @@ BEGIN
 SELECT * FROM chkrolattr();
        role       | rolekeyword  | canlogin | replication 
 ------------------+--------------+----------+-------------
+ current_user     | -            | f        | f
  None             | -            | f        | f
  Public           | -            | f        | f
- current_user     | -            | f        | f
  regress_testrol1 | session_user | t        | f
  regress_testrol2 | current_user | f        | f
  session_user     | -            | f        | f
@@ -131,9 +131,9 @@ ALTER ROLE
 SELECT * FROM chkrolattr();
        role       | rolekeyword  | canlogin | replication 
 ------------------+--------------+----------+-------------
+ current_user     | -            | f        | f
  None             | -            | f        | f
  Public           | -            | f        | f
- current_user     | -            | f        | f
  regress_testrol1 | session_user | t        | f
  regress_testrol2 | current_user | f        | t
  session_user     | -            | f        | f
@@ -144,9 +144,9 @@ ALTER ROLE
 SELECT * FROM chkrolattr();
        role       | rolekeyword  | canlogin | replication 
 ------------------+--------------+----------+-------------
+ current_user     | -            | f        | t
  None             | -            | f        | f
  Public           | -            | f        | f
- current_user     | -            | f        | t
  regress_testrol1 | session_user | t        | f
  regress_testrol2 | current_user | f        | t
  session_user     | -            | f        | f
@@ -157,9 +157,9 @@ ALTER ROLE
 SELECT * FROM chkrolattr();
        role       | rolekeyword  | canlogin | replication 
 ------------------+--------------+----------+-------------
+ current_user     | -            | f        | t
  None             | -            | f        | f
  Public           | -            | f        | f
- current_user     | -            | f        | t
  regress_testrol1 | session_user | t        | t
  regress_testrol2 | current_user | f        | t
  session_user     | -            | f        | f
@@ -170,9 +170,9 @@ ALTER ROLE
 SELECT * FROM chkrolattr();
        role       | rolekeyword  | canlogin | replication 
 ------------------+--------------+----------+-------------
+ current_user     | -            | f        | t
  None             | -            | f        | f
  Public           | -            | f        | f
- current_user     | -            | f        | t
  regress_testrol1 | session_user | t        | t
  regress_testrol2 | current_user | f        | t
  session_user     | -            | f        | t
@@ -185,9 +185,9 @@ ALTER ROLE
 SELECT * FROM chkrolattr();
        role       | rolekeyword  | canlogin | replication 
 ------------------+--------------+----------+-------------
+ current_user     | -            | f        | t
  None             | -            | f        | t
  Public           | -            | f        | t
- current_user     | -            | f        | t
  regress_testrol1 | session_user | t        | t
  regress_testrol2 | current_user | f        | t
  session_user     | -            | f        | t
@@ -200,9 +200,9 @@ ALTER ROLE
 SELECT * FROM chkrolattr();
        role       | rolekeyword  | canlogin | replication 
 ------------------+--------------+----------+-------------
+ current_user     | -            | f        | t
  None             | -            | f        | t
  Public           | -            | f        | t
- current_user     | -            | f        | t
  regress_testrol1 | session_user | t        | f
  regress_testrol2 | current_user | f        | f
  session_user     | -            | f        | t
@@ -244,9 +244,9 @@ BEGIN
 SELECT * FROM chkrolattr();
        role       | rolekeyword  | canlogin | replication 
 ------------------+--------------+----------+-------------
+ current_user     | -            | f        | f
  None             | -            | f        | f
  Public           | -            | f        | f
- current_user     | -            | f        | f
  regress_testrol1 | session_user | t        | f
  regress_testrol2 | current_user | f        | f
  session_user     | -            | f        | f
@@ -257,9 +257,9 @@ ALTER ROLE
 SELECT * FROM chkrolattr();
        role       | rolekeyword  | canlogin | replication 
 ------------------+--------------+----------+-------------
+ current_user     | -            | f        | f
  None             | -            | f        | f
  Public           | -            | f        | f
- current_user     | -            | f        | f
  regress_testrol1 | session_user | t        | f
  regress_testrol2 | current_user | f        | t
  session_user     | -            | f        | f
@@ -270,9 +270,9 @@ ALTER ROLE
 SELECT * FROM chkrolattr();
        role       | rolekeyword  | canlogin | replication 
 ------------------+--------------+----------+-------------
+ current_user     | -            | f        | t
  None             | -            | f        | f
  Public           | -            | f        | f
- current_user     | -            | f        | t
  regress_testrol1 | session_user | t        | f
  regress_testrol2 | current_user | f        | t
  session_user     | -            | f        | f
@@ -283,9 +283,9 @@ ALTER ROLE
 SELECT * FROM chkrolattr();
        role       | rolekeyword  | canlogin | replication 
 ------------------+--------------+----------+-------------
+ current_user     | -            | f        | t
  None             | -            | f        | f
  Public           | -            | f        | f
- current_user     | -            | f        | t
  regress_testrol1 | session_user | t        | t
  regress_testrol2 | current_user | f        | t
  session_user     | -            | f        | f
@@ -296,9 +296,9 @@ ALTER ROLE
 SELECT * FROM chkrolattr();
        role       | rolekeyword  | canlogin | replication 
 ------------------+--------------+----------+-------------
+ current_user     | -            | f        | t
  None             | -            | f        | f
  Public           | -            | f        | f
- current_user     | -            | f        | t
  regress_testrol1 | session_user | t        | t
  regress_testrol2 | current_user | f        | t
  session_user     | -            | f        | t
@@ -311,9 +311,9 @@ ALTER ROLE
 SELECT * FROM chkrolattr();
        role       | rolekeyword  | canlogin | replication 
 ------------------+--------------+----------+-------------
+ current_user     | -            | f        | t
  None             | -            | f        | t
  Public           | -            | f        | t
- current_user     | -            | f        | t
  regress_testrol1 | session_user | t        | t
  regress_testrol2 | current_user | f        | t
  session_user     | -            | f        | t
@@ -326,9 +326,9 @@ ALTER ROLE
 SELECT * FROM chkrolattr();
        role       | rolekeyword  | canlogin | replication 
 ------------------+--------------+----------+-------------
+ current_user     | -            | f        | t
  None             | -            | f        | t
  Public           | -            | f        | t
- current_user     | -            | f        | t
  regress_testrol1 | session_user | t        | f
  regress_testrol2 | current_user | f        | f
  session_user     | -            | f        | t
@@ -383,8 +383,8 @@ ALTER ROLE
 SELECT * FROM chksetconfig();
  db  |       role       |  rolkeyword  |         setconfig         
 -----+------------------+--------------+---------------------------
- ALL | Public           | -            | {application_name=BARBAR}
  ALL | current_user     | -            | {application_name=FOOFOO}
+ ALL | Public           | -            | {application_name=BARBAR}
  ALL | regress_testrol1 | session_user | {application_name=BAR}
  ALL | regress_testrol2 | current_user | {application_name=FOO}
 (4 rows)
@@ -394,8 +394,8 @@ ALTER ROLE
 SELECT * FROM chksetconfig();
  db  |       role       |  rolkeyword  |         setconfig         
 -----+------------------+--------------+---------------------------
- ALL | Public           | -            | {application_name=BARBAR}
  ALL | current_user     | -            | {application_name=FOOFOO}
+ ALL | Public           | -            | {application_name=BARBAR}
  ALL | regress_testrol1 | session_user | {application_name=SLAM}
  ALL | regress_testrol2 | current_user | {application_name=FOO}
 (4 rows)
@@ -446,8 +446,8 @@ ALTER ROLE
 SELECT * FROM chksetconfig();
  db  |       role       |  rolkeyword  |         setconfig         
 -----+------------------+--------------+---------------------------
- ALL | Public           | -            | {application_name=BARBAR}
  ALL | current_user     | -            | {application_name=FOOFOO}
+ ALL | Public           | -            | {application_name=BARBAR}
  ALL | regress_testrol1 | session_user | {application_name=BAR}
  ALL | regress_testrol2 | current_user | {application_name=FOO}
 (4 rows)
@@ -457,8 +457,8 @@ ALTER ROLE
 SELECT * FROM chksetconfig();
  db  |       role       |  rolkeyword  |         setconfig         
 -----+------------------+--------------+---------------------------
- ALL | Public           | -            | {application_name=BARBAR}
  ALL | current_user     | -            | {application_name=FOOFOO}
+ ALL | Public           | -            | {application_name=BARBAR}
  ALL | regress_testrol1 | session_user | {application_name=SLAM}
  ALL | regress_testrol2 | current_user | {application_name=FOO}
 (4 rows)

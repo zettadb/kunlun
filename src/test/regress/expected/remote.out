@@ -92,9 +92,9 @@ btree, for table "public.t7"
 
 -- forbidden create index clauses start
 create index t7_b on t7(b collate en_US);
-psql:sql/remote.sql:32: ERROR:  collation "en_us" for encoding "UTF8" does not exist
+psql:sql/remote.sql:32: ERROR:  can't override default collate for remote relation's index
 create index t7_b on t7(b collate zh_CN);
-psql:sql/remote.sql:33: ERROR:  collation "zh_cn" for encoding "UTF8" does not exist
+psql:sql/remote.sql:33: ERROR:  can't override default collate for remote relation's index
 --create index t7_b on t7(b ) include (c);
 create index t7_b on t7(b zh_pinyin_cmp);
 psql:sql/remote.sql:36: ERROR:  operator class "zh_pinyin_cmp" does not exist for access method "btree"

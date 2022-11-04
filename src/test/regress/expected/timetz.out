@@ -36,7 +36,7 @@ psql:sql/timetz.sql:22: ERROR:  invalid input syntax for type time with time zon
 LINE 1: INSERT INTO TIMETZ_TBL VALUES ('15:36:39 America/New_York');
                                        ^
 SELECT f1 AS "Time TZ" FROM TIMETZ_TBL;
-    time tz     
+    Time TZ     
 ----------------
  00:01:00+00
  01:00:00+00
@@ -53,7 +53,7 @@ SELECT f1 AS "Time TZ" FROM TIMETZ_TBL;
 (12 rows)
 
 SELECT f1 AS "Three" FROM TIMETZ_TBL WHERE f1 < '05:06:07-07';
-    three    
+    Three    
 -------------
  00:01:00+00
  01:00:00+00
@@ -61,7 +61,7 @@ SELECT f1 AS "Three" FROM TIMETZ_TBL WHERE f1 < '05:06:07-07';
 (3 rows)
 
 SELECT f1 AS "Seven" FROM TIMETZ_TBL WHERE f1 > '05:06:07-07';
-     seven      
+     Seven      
 ----------------
  07:07:00+00
  08:08:00+00
@@ -75,12 +75,12 @@ SELECT f1 AS "Seven" FROM TIMETZ_TBL WHERE f1 > '05:06:07-07';
 (9 rows)
 
 SELECT f1 AS "None" FROM TIMETZ_TBL WHERE f1 < '00:00-07';
- none 
+ None 
 ------
 (0 rows)
 
 SELECT f1 AS "Ten" FROM TIMETZ_TBL WHERE f1 >= '00:00-07';
-      ten       
+      Ten       
 ----------------
  00:01:00+00
  01:00:00+00

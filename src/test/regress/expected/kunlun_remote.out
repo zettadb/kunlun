@@ -105,9 +105,9 @@ btree, for table "public.t7"
 
 -- forbidden create index clauses start
 create index t7_b on t7(b collate en_US);
-psql:sql/kunlun_remote.sql:36: ERROR:  collation "en_us" for encoding "UTF8" does not exist
+psql:sql/kunlun_remote.sql:36: ERROR:  can't override default collate for remote relation's index
 create index t7_b on t7(b collate zh_CN);
-psql:sql/kunlun_remote.sql:37: ERROR:  collation "zh_cn" for encoding "UTF8" does not exist
+psql:sql/kunlun_remote.sql:37: ERROR:  can't override default collate for remote relation's index
 create index t7_b on t7(b ) include (c);
 psql:sql/kunlun_remote.sql:39: ERROR:  can't specifiy INCLUDE collumns for remote relations
 create index t7_b on t7(b zh_pinyin_cmp);

@@ -137,7 +137,7 @@ SELECT
     'foo'::varchar(4) as six,
     CURRENT_DATE AS now
 \gdesc
- column |         type         
+ Column |         Type         
 --------+----------------------
  zero   | text
  one    | integer
@@ -153,14 +153,14 @@ SELECT
 PREPARE test AS SELECT 1 AS first, 2 AS second;
 PREPARE
 EXECUTE test \gdesc
- column |  type   
+ Column |  Type   
 --------+---------
  first  | integer
  second | integer
 (2 rows)
 
 EXPLAIN EXECUTE test \gdesc
-   column   | type 
+   Column   | Type 
 ------------+------
 
 -- should fail cleanly - syntax error
@@ -181,7 +181,7 @@ LINE 1: TABLE bububu;
 -- query buffer should remain unchanged
 SELECT 1 AS x, 'Hello', 2 AS y, true AS "dirty\name"
 \gdesc
-   column   |  type   
+   Column   |  Type   
 ------------+---------
  x          | integer
  ?column?   | text
@@ -197,7 +197,7 @@ SELECT 1 AS x, 'Hello', 2 AS y, true AS "dirty\name"
 
 -- all on one line
 SELECT 3 AS x, 'Hello', 4 AS y, true AS "dirty\name" \gdesc \g
-   column   |  type   
+   Column   |  Type   
 ------------+---------
  x          | integer
  ?column?   | text
@@ -3316,7 +3316,7 @@ last error message: table "this_table_does_not_exist" does not exist
 last error code: 42P01
 -- working \gdesc
 SELECT 3 AS three, 4 AS four \gdesc
- column |  type   
+ Column |  Type   
 --------+---------
  three  | integer
  four   | integer

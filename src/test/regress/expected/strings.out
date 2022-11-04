@@ -8,7 +8,7 @@ SELECT 'first line'
 ' - next line'
 	' - third line'
 	AS "Three lines to one";
-         three lines to one          
+         Three lines to one          
 -------------------------------------
  first line - next line - third line
 (1 row)
@@ -300,7 +300,7 @@ SELECT TRIM(TRAILING FROM '  bunch o blanks  ') = '  bunch o blanks' AS "  bunch
 (1 row)
 
 SELECT TRIM(BOTH 'x' FROM 'xxxxxsome Xsxxxxx') = 'some Xs' AS "some Xs";
- some xs 
+ some Xs 
 ---------
  t
 (1 row)
@@ -327,26 +327,26 @@ SELECT SUBSTRING('abcdefg' FROM 'a#"(b_d)#"%' FOR '#') AS "bcd";
 
 -- No match should return NULL
 SELECT SUBSTRING('abcdefg' FROM '#"(b_d)#"%' FOR '#') IS NULL AS "True";
- true 
+ True 
 ------
  t
 (1 row)
 
 -- Null inputs should return NULL
 SELECT SUBSTRING('abcdefg' FROM '(b|c)' FOR NULL) IS NULL AS "True";
- true 
+ True 
 ------
  t
 (1 row)
 
 SELECT SUBSTRING(NULL FROM '(b|c)' FOR '#') IS NULL AS "True";
- true 
+ True 
 ------
  t
 (1 row)
 
 SELECT SUBSTRING('abcdefg' FROM NULL FOR '#') IS NULL AS "True";
- true 
+ True 
 ------
  t
 (1 row)
@@ -1113,31 +1113,31 @@ SELECT 'jack' LIKE '%____%' AS t;
 --
 -- E021-07 character concatenation
 SELECT 'unknown' || ' and unknown' AS "Concat unknown types";
- concat unknown types 
+ Concat unknown types 
 ----------------------
  unknown and unknown
 (1 row)
 
 SELECT text 'text' || ' and unknown' AS "Concat text to unknown type";
- concat text to unknown type 
+ Concat text to unknown type 
 -----------------------------
  text and unknown
 (1 row)
 
 SELECT char(20) 'characters' || ' and text' AS "Concat char to unknown type";
- concat char to unknown type 
+ Concat char to unknown type 
 -----------------------------
  characters and text
 (1 row)
 
 SELECT text 'text' || char(20) ' and characters' AS "Concat text to char";
- concat text to char 
+ Concat text to char 
 ---------------------
  text and characters
 (1 row)
 
 SELECT text 'text' || varchar ' and varchar' AS "Concat text to varchar";
- concat text to varchar 
+ Concat text to varchar 
 ------------------------
  text and varchar
 (1 row)
@@ -1415,85 +1415,85 @@ select to_hex(256::bigint*256::bigint*256::bigint*256::bigint - 1) AS "ffffffff"
 -- (see: ftp://ftp.rfc-editor.org/in-notes/rfc1321.txt)
 --
 select md5('') = 'd41d8cd98f00b204e9800998ecf8427e' AS "TRUE";
- true 
+ TRUE 
 ------
  t
 (1 row)
 
 select md5('a') = '0cc175b9c0f1b6a831c399e269772661' AS "TRUE";
- true 
+ TRUE 
 ------
  t
 (1 row)
 
 select md5('abc') = '900150983cd24fb0d6963f7d28e17f72' AS "TRUE";
- true 
+ TRUE 
 ------
  t
 (1 row)
 
 select md5('message digest') = 'f96b697d7cb7938d525a2f31aaf161d0' AS "TRUE";
- true 
+ TRUE 
 ------
  t
 (1 row)
 
 select md5('abcdefghijklmnopqrstuvwxyz') = 'c3fcd3d76192e4007dfb496cca67e13b' AS "TRUE";
- true 
+ TRUE 
 ------
  t
 (1 row)
 
 select md5('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789') = 'd174ab98d277d9f5a5611c2c9f419d9f' AS "TRUE";
- true 
+ TRUE 
 ------
  t
 (1 row)
 
 select md5('12345678901234567890123456789012345678901234567890123456789012345678901234567890') = '57edf4a22be3c955ac49da2e2107b67a' AS "TRUE";
- true 
+ TRUE 
 ------
  t
 (1 row)
 
 select md5(''::bytea) = 'd41d8cd98f00b204e9800998ecf8427e' AS "TRUE";
- true 
+ TRUE 
 ------
  t
 (1 row)
 
 select md5('a'::bytea) = '0cc175b9c0f1b6a831c399e269772661' AS "TRUE";
- true 
+ TRUE 
 ------
  t
 (1 row)
 
 select md5('abc'::bytea) = '900150983cd24fb0d6963f7d28e17f72' AS "TRUE";
- true 
+ TRUE 
 ------
  t
 (1 row)
 
 select md5('message digest'::bytea) = 'f96b697d7cb7938d525a2f31aaf161d0' AS "TRUE";
- true 
+ TRUE 
 ------
  t
 (1 row)
 
 select md5('abcdefghijklmnopqrstuvwxyz'::bytea) = 'c3fcd3d76192e4007dfb496cca67e13b' AS "TRUE";
- true 
+ TRUE 
 ------
  t
 (1 row)
 
 select md5('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'::bytea) = 'd174ab98d277d9f5a5611c2c9f419d9f' AS "TRUE";
- true 
+ TRUE 
 ------
  t
 (1 row)
 
 select md5('12345678901234567890123456789012345678901234567890123456789012345678901234567890'::bytea) = '57edf4a22be3c955ac49da2e2107b67a' AS "TRUE";
- true 
+ TRUE 
 ------
  t
 (1 row)

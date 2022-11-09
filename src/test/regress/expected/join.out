@@ -1933,13 +1933,13 @@ INSERT INTO t3 VALUES ( 'cc', 23 );
 INSERT 0 1
 INSERT INTO t3 VALUES ( 'dd', 33 );
 INSERT 0 1
-SELECT * FROM t1 FULL JOIN t2 USING (name) FULL JOIN t3 USING (name);
+SELECT * FROM t1 FULL JOIN t2 USING (name) FULL JOIN t3 USING (name) order by 1;
  name | n  | n  | n  
 ------+----+----+----
  bb   | 11 | 12 | 13
- ee   |    | 42 |   
  cc   |    | 22 | 23
  dd   |    |    | 33
+ ee   |    | 42 |   
 (4 rows)
 
 --
@@ -2033,13 +2033,13 @@ SELECT * FROM
 NATURAL FULL JOIN
 (SELECT name, n as s2_n, 2 as s2_2 FROM t2) as s2
 NATURAL FULL JOIN
-(SELECT name, n as s3_n, 3 as s3_2 FROM t3) s3;
+(SELECT name, n as s3_n, 3 as s3_2 FROM t3) s3 order by 1;
  name | s1_n | s1_1 | s2_n | s2_2 | s3_n | s3_2 
 ------+------+------+------+------+------+------
  bb   |   11 |    1 |   12 |    2 |   13 |    3
- ee   |      |      |   42 |    2 |      |     
  cc   |      |      |   22 |    2 |   23 |    3
  dd   |      |      |      |      |   33 |    3
+ ee   |      |      |   42 |    2 |      |     
 (4 rows)
 
 SELECT * FROM
@@ -2349,7 +2349,7 @@ select * from t1 left join t2 on (t1.a = t2.a);
 
 -- Test matching of column name with wrong alias
 select t1.x from t1 join t3 on (t1.a = t3.x);
-psql:sql/join.sql:516: ERROR:  column t1.x does not exist
+psql:sql/join.sql:474: ERROR:  column t1.x does not exist
 LINE 1: select t1.x from t1 join t3 on (t1.a = t3.x);
                ^
 HINT:  Perhaps you meant to reference the column "t3.x".
@@ -2421,7 +2421,7 @@ RESET
 create temp table tt3(f1 int, f2 varchar(50));
 CREATE TABLE
 insert into tt3 select x, repeat('xyzzy', 100) from generate_series(1,10000) x;
-psql:sql/join.sql:562: ERROR:  value too long for type character varying(50)
+psql:sql/join.sql:520: ERROR:  value too long for type character varying(50)
 create index tt3i on tt3(f1);
 CREATE INDEX
 create temp table tt4(f1 int);
@@ -2680,6 +2680,8 @@ group by t1.q2 order by 1;
 --
 -- test incorrect failure to NULL pulled-up subexpressions
 --
+begin;
+BEGIN
 drop table a;
 DROP TABLE
 create temp table a (
@@ -2696,15 +2698,13 @@ create temp table b (
 );
 CREATE TABLE
 drop table c;
-psql:sql/join.sql:749: ERROR:  table "c" does not exist
+psql:sql/join.sql:708: ERROR:  table "c" does not exist
 create temp table c (
      name char not null,
      a char,
      constraint c_pk primary key (name)
 );
 CREATE TABLE
-begin;
-BEGIN
 insert into a (code) values ('p');
 INSERT 0 1
 insert into a (code) values ('q');
@@ -2736,6 +2736,7 @@ order by c.name;
 (3 rows)
 
 rollback;
+psql:sql/join.sql:734: WARNING:  there is no transaction in progress
 ROLLBACK
 --
 -- test incorrect handling of placeholders that only appear in targetlists,
@@ -3412,7 +3413,7 @@ select ss2.* from
     on i8.q1 = ss1.c2
   on i41.f1 = ss1.c1,
   lateral (select i41.*, i8.*, ss1.* from text_tbl limit 1) ss2
-where ss1.c2 = 0; 
+where ss1.c2 = 0;
  f1 | q1 | q2 | c1 | c2 | c3 
 ----+----+----+----+----+----
 (0 rows)
@@ -3484,6 +3485,8 @@ RESET
 --
 -- test join removal
 --
+begin;
+BEGIN
 drop table if exists a;
 DROP TABLE
 CREATE TEMP TABLE a (id int PRIMARY KEY, b_id int);
@@ -3497,12 +3500,10 @@ DROP TABLE
 CREATE TEMP TABLE c (id int PRIMARY KEY);
 CREATE TABLE
 drop table if exists d;
-psql:sql/join.sql:1374: NOTICE:  table "d" does not exist, skipping
+psql:sql/join.sql:1334: NOTICE:  table "d" does not exist, skipping
 DROP TABLE
 CREATE TEMP TABLE d (a int, b int);
 CREATE TABLE
-begin;
-BEGIN
 INSERT INTO a VALUES (0, 0), (1, NULL);
 INSERT 0 2
 INSERT INTO b VALUES (0, 0), (1, NULL);
@@ -3567,6 +3568,7 @@ select 1 from (select a.id FROM a left join b on a.b_id = b.id) q,
 			  lateral generate_series(1, q.id) gs(i) where q.id = gs.i;
 
 rollback;
+psql:sql/join.sql:1396: WARNING:  there is no transaction in progress
 ROLLBACK
 create temp table parent (k int primary key, pd int);
 CREATE TABLE
@@ -3630,6 +3632,8 @@ select p.* from
   where p.k = 1 and p.k = 2;
 
 -- bug 5255: this is not optimizable by join removal
+begin;
+BEGIN
 drop table if exists a;
 DROP TABLE
 CREATE TEMP TABLE a (id int PRIMARY KEY);
@@ -3638,8 +3642,6 @@ drop table if exists b;
 DROP TABLE
 CREATE TEMP TABLE b (id int PRIMARY KEY, a_id int);
 CREATE TABLE
-begin;
-BEGIN
 INSERT INTO a VALUES (0), (1);
 INSERT 0 2
 INSERT INTO b VALUES (0, 0), (1, NULL);
@@ -3659,10 +3661,10 @@ SELECT b.* FROM b LEFT JOIN a ON (b.a_id = a.id) WHERE (a.id IS NULL OR a.id > 0
 rollback;
 ROLLBACK
 -- another join removal bug: this is not optimizable, either
-create temp table innertab (id int8 primary key, dat1 int8);
-CREATE TABLE
 begin;
 BEGIN
+create temp table innertab (id int8 primary key, dat1 int8);
+CREATE TABLE
 insert into innertab values(123, 42);
 INSERT 0 1
 SELECT * FROM
@@ -3683,10 +3685,10 @@ SELECT * FROM
 rollback;
 ROLLBACK
 -- another join removal bug: we must clean up correctly when removing a PHV
+begin;	  
+BEGIN
 create temp table uniquetbl (f1 varchar(50) unique);
 CREATE TABLE
-begin;
-BEGIN
 explain (costs off)
 select t1.* from
   uniquetbl as t1
@@ -3729,12 +3731,12 @@ ROLLBACK
 -- bug #8444: we've historically allowed duplicate aliases within aliased JOINs
 select * from
   int8_tbl x join (int4_tbl x cross join int4_tbl y) j on q1 = f1; -- error
-psql:sql/join.sql:1550: ERROR:  column reference "f1" is ambiguous
+psql:sql/join.sql:1513: ERROR:  column reference "f1" is ambiguous
 LINE 2: ..._tbl x join (int4_tbl x cross join int4_tbl y) j on q1 = f1;
                                                                     ^
 select * from
   int8_tbl x join (int4_tbl x cross join int4_tbl y) j on q1 = y.f1; -- error
-psql:sql/join.sql:1552: ERROR:  invalid reference to FROM-clause entry for table "y"
+psql:sql/join.sql:1515: ERROR:  invalid reference to FROM-clause entry for table "y"
 LINE 2: ...bl x join (int4_tbl x cross join int4_tbl y) j on q1 = y.f1;
                                                                   ^
 HINT:  There is an entry for table "y", but it cannot be referenced from this part of the query.
@@ -3749,19 +3751,19 @@ select * from
 --
 select t1.uunique1 from
   tenk1 t1 join tenk2 t2 on t1.two = t2.two; -- error, prefer "t1" suggestion
-psql:sql/join.sql:1561: ERROR:  column t1.uunique1 does not exist
+psql:sql/join.sql:1524: ERROR:  column t1.uunique1 does not exist
 LINE 1: select t1.uunique1 from
                ^
 HINT:  Perhaps you meant to reference the column "t1.unique1".
 select t2.uunique1 from
   tenk1 t1 join tenk2 t2 on t1.two = t2.two; -- error, prefer "t2" suggestion
-psql:sql/join.sql:1563: ERROR:  column t2.uunique1 does not exist
+psql:sql/join.sql:1526: ERROR:  column t2.uunique1 does not exist
 LINE 1: select t2.uunique1 from
                ^
 HINT:  Perhaps you meant to reference the column "t2.unique1".
 select uunique1 from
   tenk1 t1 join tenk2 t2 on t1.two = t2.two; -- error, suggest both at once
-psql:sql/join.sql:1565: ERROR:  column "uunique1" does not exist
+psql:sql/join.sql:1528: ERROR:  column "uunique1" does not exist
 LINE 1: select uunique1 from
                ^
 HINT:  Perhaps you meant to reference the column "t1.unique1" or the column "t2.unique1".
@@ -3773,7 +3775,7 @@ select atts.relid::regclass, s.* from pg_stats s join
     a.attrelid::regclass::varchar(50) join (select unnest(indkey) attnum,
     indexrelid from pg_index i) atts on atts.attnum = a.attnum where
     schemaname != 'pg_catalog';
-psql:sql/join.sql:1575: ERROR:  column atts.relid does not exist
+psql:sql/join.sql:1538: ERROR:  column atts.relid does not exist
 LINE 1: select atts.relid::regclass, s.* from pg_stats s join
                ^
 --
@@ -4167,6 +4169,8 @@ create temp table dual();
 CREATE TABLE
 insert into dual default values;
 INSERT 0 1
+analyze dual;
+ANALYZE
 select v.* from
   (int8_tbl x left join (select q1,(select coalesce(q2,0)) q2 from int8_tbl) y on x.q2 = y.q1)
   left join int4_tbl z on z.f1 = x.q2,
@@ -4219,15 +4223,25 @@ select * from
 
 explain (verbose, costs off)
 select * from
-  int8_tbl a left joom int2_tbl j where i.f1 = j.f1) k on true;
-     f1      | coalesce 
--------------+----------
-           0 | (0)
-      123456 | 
-     -123456 | 
-  2147483647 | 
- -2147483647 | 
-(5 rows)
+  int8_tbl a left join
+  lateral (select *, coalesce(a.q2, 42) as x from int8_tbl b) ss on a.q2 = ss.q1;
+
+select * from
+  int8_tbl a left join
+  lateral (select *, coalesce(a.q2, 42) as x from int8_tbl b) ss on a.q2 = ss.q1;
+        q1        |        q2         |        q1        |        q2         |        x         
+------------------+-------------------+------------------+-------------------+------------------
+              123 |               456 |                  |                   |                 
+              123 |  4567890123456789 | 4567890123456789 | -4567890123456789 | 4567890123456789
+              123 |  4567890123456789 | 4567890123456789 |  4567890123456789 | 4567890123456789
+              123 |  4567890123456789 | 4567890123456789 |               123 | 4567890123456789
+ 4567890123456789 |               123 |              123 |  4567890123456789 |              123
+ 4567890123456789 |               123 |              123 |               456 |              123
+ 4567890123456789 |  4567890123456789 | 4567890123456789 | -4567890123456789 | 4567890123456789
+ 4567890123456789 |  4567890123456789 | 4567890123456789 |  4567890123456789 | 4567890123456789
+ 4567890123456789 |  4567890123456789 | 4567890123456789 |               123 | 4567890123456789
+ 4567890123456789 | -4567890123456789 |                  |                   |                 
+(10 rows)
 
 explain (verbose, costs off)
 select * from int4_tbl a,
@@ -4434,45 +4448,45 @@ lateral (select * from int8_tbl t1,
 
 -- test some error cases where LATERAL should have been used but wasn't
 select f1,g from int4_tbl a, (select f1 as g) ss;
-psql:sql/join.sql:1828: ERROR:  column "f1" does not exist
+psql:sql/join.sql:1781: ERROR:  column "f1" does not exist
 LINE 1: select f1,g from int4_tbl a, (select f1 as g) ss;
                                              ^
 HINT:  There is a column named "f1" in table "a", but it cannot be referenced from this part of the query.
 select f1,g from int4_tbl a, (select a.f1 as g) ss;
-psql:sql/join.sql:1829: ERROR:  invalid reference to FROM-clause entry for table "a"
+psql:sql/join.sql:1782: ERROR:  invalid reference to FROM-clause entry for table "a"
 LINE 1: select f1,g from int4_tbl a, (select a.f1 as g) ss;
                                              ^
 HINT:  There is an entry for table "a", but it cannot be referenced from this part of the query.
 select f1,g from int4_tbl a cross join (select f1 as g) ss;
-psql:sql/join.sql:1830: ERROR:  column "f1" does not exist
+psql:sql/join.sql:1783: ERROR:  column "f1" does not exist
 LINE 1: select f1,g from int4_tbl a cross join (select f1 as g) ss;
                                                        ^
 HINT:  There is a column named "f1" in table "a", but it cannot be referenced from this part of the query.
 select f1,g from int4_tbl a cross join (select a.f1 as g) ss;
-psql:sql/join.sql:1831: ERROR:  invalid reference to FROM-clause entry for table "a"
+psql:sql/join.sql:1784: ERROR:  invalid reference to FROM-clause entry for table "a"
 LINE 1: select f1,g from int4_tbl a cross join (select a.f1 as g) ss...
                                                        ^
 HINT:  There is an entry for table "a", but it cannot be referenced from this part of the query.
 -- SQL:2008 says the left table is in scope but illegal to access here
 select f1,g from int4_tbl a right join lateral generate_series(0, a.f1) g on true;
-psql:sql/join.sql:1833: ERROR:  invalid reference to FROM-clause entry for table "a"
+psql:sql/join.sql:1786: ERROR:  invalid reference to FROM-clause entry for table "a"
 LINE 1: ... int4_tbl a right join lateral generate_series(0, a.f1) g on...
                                                              ^
 DETAIL:  The combining JOIN type must be INNER or LEFT for a LATERAL reference.
 select f1,g from int4_tbl a full join lateral generate_series(0, a.f1) g on true;
-psql:sql/join.sql:1834: ERROR:  invalid reference to FROM-clause entry for table "a"
+psql:sql/join.sql:1787: ERROR:  invalid reference to FROM-clause entry for table "a"
 LINE 1: ...m int4_tbl a full join lateral generate_series(0, a.f1) g on...
                                                              ^
 DETAIL:  The combining JOIN type must be INNER or LEFT for a LATERAL reference.
 -- check we complain about ambiguous table references
 select * from
   int8_tbl x cross join (int4_tbl x cross join lateral (select x.f1) ss);
-psql:sql/join.sql:1837: ERROR:  table reference "x" is ambiguous
+psql:sql/join.sql:1790: ERROR:  table reference "x" is ambiguous
 LINE 2: ...cross join (int4_tbl x cross join lateral (select x.f1) ss);
                                                              ^
 -- LATERAL can be used to put an aggregate into the FROM clause of its query
 select 1 from tenk1 a, lateral (select max(a.unique1) from int4_tbl b) ss;
-psql:sql/join.sql:1839: ERROR:  aggregate functions are not allowed in FROM clause of their own query level
+psql:sql/join.sql:1792: ERROR:  aggregate functions are not allowed in FROM clause of their own query level
 LINE 1: select 1 from tenk1 a, lateral (select max(a.unique1) from i...
                                                ^
 --
@@ -4517,18 +4531,22 @@ DROP TABLE
 --
 -- test that foreign key join estimation performs sanely for outer joins
 --
+begin;
+BEGIN
 create temp table fkest (a int, b int, c int unique, primary key(a,b));
 CREATE TABLE
 create temp table fkest1 (a int, b int, primary key(a,b));
 CREATE TABLE
-begin;
-BEGIN
 insert into fkest select x/10, x%10, x from generate_series(1,1000) x;
 INSERT 0 1000
 insert into fkest1 select x/10, x%10 from generate_series(1,1000) x;
 INSERT 0 1000
 --alter table fkest1
 --  add constraint fkest1_a_b_fkey foreign key (a,b) references fkest;
+analyze fkest;
+ANALYZE
+analyze fkest1;
+ANALYZE
 explain (costs off)
 select *
 from fkest f
@@ -4554,6 +4572,12 @@ insert into j2 values(1),(2),(3);
 INSERT 0 3
 insert into j3 values(1),(1);
 INSERT 0 2
+analyze j1;
+ANALYZE
+analyze j2;
+ANALYZE
+analyze j3;
+ANALYZE
 -- ensure join is properly marked as unique
 explain (verbose, costs off)
 select * from j1 inner join j2 on j1.id = j2.id;
@@ -4615,6 +4639,12 @@ insert into j2 values(1,1);
 INSERT 0 1
 insert into j3 values(1,1);
 INSERT 0 1
+analyze j1;
+ANALYZE
+analyze j2;
+ANALYZE
+analyze j3;
+ANALYZE
 -- ensure there's no unique join when not all columns which are part of the
 -- unique index are seen in the join clause
 explain (verbose, costs off)
@@ -4689,7 +4719,7 @@ where exists (select 1 from tenk1 t3
 set enable_nestloop to 0; -- this must be set, otherwise, it will be very very slow.
 SET
 drop table if exists simple;
-psql:sql/join.sql:2021: NOTICE:  table "simple" does not exist, skipping
+psql:sql/join.sql:1982: NOTICE:  table "simple" does not exist, skipping
 DROP TABLE
 create table simple(id integer, info varchar(100));
 CREATE TABLE
@@ -4699,7 +4729,7 @@ INSERT 0 20000
 -- Make a relation whose size we will under-estimate.  We want stats
 -- to say 1000 rows, but actually there are 20,000 rows.
 drop table if exists bigger_than_it_looks;
-psql:sql/join.sql:2028: NOTICE:  table "bigger_than_it_looks" does not exist, skipping
+psql:sql/join.sql:1989: NOTICE:  table "bigger_than_it_looks" does not exist, skipping
 DROP TABLE
 create table bigger_than_it_looks(id integer, info varchar(100));
 CREATE TABLE
@@ -4713,7 +4743,7 @@ UPDATE 1
 -- kind of skew that breaks our batching scheme.  We want stats to say
 -- 2 rows, but actually there are 20,000 rows with the same key.
 drop table if exists extremely_skewed;
-psql:sql/join.sql:2038: NOTICE:  table "extremely_skewed" does not exist, skipping
+psql:sql/join.sql:1999: NOTICE:  table "extremely_skewed" does not exist, skipping
 DROP TABLE
 create table extremely_skewed (id int, t varchar(50));
 CREATE TABLE
@@ -4729,64 +4759,12 @@ update pg_class
 UPDATE 1
 -- Make a relation with a couple of enormous tuples.
 drop table if exists wide;
-psql:sql/join.sql:2050: NOTICE:  table "wide" does not exist, skipping
+psql:sql/join.sql:2011: NOTICE:  table "wide" does not exist, skipping
 DROP TABLE
 create table wide (id integer, t text);
 CREATE TABLE
 insert into wide select generate_series(1, 2) as id, rpad('', 320000, 'x') as t;
 INSERT 0 2
 --alter table wide set (parallel_workers = 2);
-begin;
-BEGIN
-set local min_parallel_table_scan_size = 0;
-SET
-set local parallel_setup_cost = 0;
-SET
-set local enable_hashjoin = on;
-SET
--- Extract bucket and batch counts from an explain analyze plan.  In
--- general we can't make assertions about how many batches (or
--- buckets) will be required because it can vary, but we can in some
--- special cases and we can check for growth.
-create or replace function find_hash(node json)
-returns json language plpgsql
-as
-$$
-declare
-  x json;
-  child json;
-begin
-  if node->>'Node Type' = 'Hash' then
-    return node;
-  else
-    for child in select json_array_elements(node->'Plans')
-    loop
-      x = find_hash(child);
-      if x is not null then
-        return x;
-      end if;
-    end loop;
-    return null;
-  end if;
-end;
-$$;
-CREATE FUNCTION
-create or replace function hash_join_batches(query varchar(50))
-returns table (original int, final int) language plpgsql
-as
-$$
-declare
-  whole_plan json;
-  hash_node json;
-begin
-  for whole_plan in
-    execute 'explain (analyze, format ''json'') ' || query
-  loop
-    hash_node = find_hash(json_extract_path(whole_plan, '0', 'Plan'));
-    original = hash_node->>'Original Hash Batches';
-    final = hash_node->>'Hash Batches';
-    return next;
-  end loop;
-end;
-$$;
-CREATE FUNCTION
+																					
+											

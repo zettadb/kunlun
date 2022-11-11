@@ -1500,9 +1500,9 @@ BEGIN
 set statement_timeout to 2000;
 SET
 select trap_timeout();
-psql:sql/plpgsql.sql:963: NOTICE:  caught others?
-psql:sql/plpgsql.sql:963: ERROR:  end of function
-CONTEXT:  PL/pgSQL function trap_timeout() line 15 at RAISE
+psql:sql/plpgsql.sql:963: WARNING:  AbortSubTransaction while in ABORT state
+psql:sql/plpgsql.sql:963: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1317, Query execution was interrupted.
+CONTEXT:  PL/pgSQL function trap_timeout() line 6 during exception cleanup
 rollback;
 ROLLBACK
 -- Test for pass-by-ref values being stored in proper context

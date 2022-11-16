@@ -282,7 +282,7 @@ ALTER TABLE
  c      | integer |           | not null |                                 | plain   |              | 
 Partition key: HASH (a)
 Indexes:
-    "t1_pkey" PRIMARY KEY, btree (a)
+    "t1_pkey" PRIMARY KEY, btree (a NULLS FIRST)
 Partitions: t100 FOR VALUES WITH (modulus 4, remainder 0),
             t101 FOR VALUES WITH (modulus 4, remainder 1),
             t102 FOR VALUES WITH (modulus 4, remainder 2),
@@ -291,9 +291,9 @@ Partitions: t100 FOR VALUES WITH (modulus 4, remainder 0),
 select*from t1;
  a | b  | c 
 ---+----+---
- 1 | 11 | 0
- 3 | 33 | 0
  2 | 22 | 0
+ 3 | 33 | 0
+ 1 | 11 | 0
 (3 rows)
 
 alter table t1 drop column c;
@@ -301,9 +301,9 @@ ALTER TABLE
 select*from t1;
  a | b  
 ---+----
- 1 | 11
- 3 | 33
  2 | 22
+ 3 | 33
+ 1 | 11
 (3 rows)
 
 
@@ -320,7 +320,7 @@ psql:sql/kunlun_alter_table.sql:83: ERROR:  column "d" of relation "t1" already 
  d      | character varying(32) |           | not null |                                 | extended |              | 
 Partition key: HASH (a)
 Indexes:
-    "t1_pkey" PRIMARY KEY, btree (a)
+    "t1_pkey" PRIMARY KEY, btree (a NULLS FIRST)
 Partitions: t100 FOR VALUES WITH (modulus 4, remainder 0),
             t101 FOR VALUES WITH (modulus 4, remainder 1),
             t102 FOR VALUES WITH (modulus 4, remainder 2),
@@ -329,9 +329,9 @@ Partitions: t100 FOR VALUES WITH (modulus 4, remainder 0),
 select*, d is null as disnull, length(d) from t1;
  a | b  | d | disnull | length 
 ---+----+---+---------+--------
- 1 | 11 |   | f       |      0
- 3 | 33 |   | f       |      0
  2 | 22 |   | f       |      0
+ 3 | 33 |   | f       |      0
+ 1 | 11 |   | f       |      0
 (3 rows)
 
 
@@ -346,7 +346,7 @@ ALTER TABLE
  d      | character varying(32) |           | not null | 'ddd'::character varying        | extended |              | 
 Partition key: HASH (a)
 Indexes:
-    "t1_pkey" PRIMARY KEY, btree (a)
+    "t1_pkey" PRIMARY KEY, btree (a NULLS FIRST)
 Partitions: t100 FOR VALUES WITH (modulus 4, remainder 0),
             t101 FOR VALUES WITH (modulus 4, remainder 1),
             t102 FOR VALUES WITH (modulus 4, remainder 2),
@@ -357,10 +357,10 @@ INSERT 0 1
 select*from t1;
  a | b  |  d  
 ---+----+-----
- 1 | 11 | 
- 3 | 33 | 
- 2 | 22 | 
  4 | 77 | ddd
+ 2 | 22 | 
+ 3 | 33 | 
+ 1 | 11 | 
 (4 rows)
 
 alter table t1 alter column d drop default;
@@ -374,7 +374,7 @@ ALTER TABLE
  d      | character varying(32) |           | not null |                                 | extended |              | 
 Partition key: HASH (a)
 Indexes:
-    "t1_pkey" PRIMARY KEY, btree (a)
+    "t1_pkey" PRIMARY KEY, btree (a NULLS FIRST)
 Partitions: t100 FOR VALUES WITH (modulus 4, remainder 0),
             t101 FOR VALUES WITH (modulus 4, remainder 1),
             t102 FOR VALUES WITH (modulus 4, remainder 2),
@@ -386,10 +386,10 @@ DETAIL:  Failing row contains (5, 77, null).
 select*from t1;
  a | b  |  d  
 ---+----+-----
- 1 | 11 | 
- 3 | 33 | 
- 2 | 22 | 
  4 | 77 | ddd
+ 2 | 22 | 
+ 3 | 33 | 
+ 1 | 11 | 
 (4 rows)
 
 
@@ -427,26 +427,26 @@ INSERT 0 5
 select*from t30;
  a  |   b   | c  
 ----+-------+----
-  1 |    11 |  1
-  2 |    12 |  2
-  3 |    13 |  3
-  4 |    14 |  4
-  5 |    15 |  5
-  6 | 14000 |  6
-  7 | 14001 |  7
-  8 | 14002 |  8
-  9 | 14003 |  9
- 10 | 14004 | 10
- 11 | 25000 | 11
- 12 | 25001 | 12
- 13 | 25002 | 13
- 14 | 25003 | 14
- 15 | 25004 | 15
  16 | 36000 | 16
  17 | 36001 | 17
  18 | 36002 | 18
  19 | 36003 | 19
  20 | 36004 | 20
+ 11 | 25000 | 11
+ 12 | 25001 | 12
+ 13 | 25002 | 13
+ 14 | 25003 | 14
+ 15 | 25004 | 15
+  6 | 14000 |  6
+  7 | 14001 |  7
+  8 | 14002 |  8
+  9 | 14003 |  9
+ 10 | 14004 | 10
+  1 |    11 |  1
+  2 |    12 |  2
+  3 |    13 |  3
+  4 |    14 |  4
+  5 |    15 |  5
 (20 rows)
 
 
@@ -463,26 +463,26 @@ ALTER TABLE
 select*from t30;
  a  |   b   | c  | d 
 ----+-------+----+---
-  1 |    11 |  1 | 0
-  2 |    12 |  2 | 0
-  3 |    13 |  3 | 0
-  4 |    14 |  4 | 0
-  5 |    15 |  5 | 0
-  6 | 14000 |  6 | 0
-  7 | 14001 |  7 | 0
-  8 | 14002 |  8 | 0
-  9 | 14003 |  9 | 0
- 10 | 14004 | 10 | 0
- 11 | 25000 | 11 | 0
- 12 | 25001 | 12 | 0
- 13 | 25002 | 13 | 0
- 14 | 25003 | 14 | 0
- 15 | 25004 | 15 | 0
  16 | 36000 | 16 | 0
  17 | 36001 | 17 | 0
  18 | 36002 | 18 | 0
  19 | 36003 | 19 | 0
  20 | 36004 | 20 | 0
+ 11 | 25000 | 11 | 0
+ 12 | 25001 | 12 | 0
+ 13 | 25002 | 13 | 0
+ 14 | 25003 | 14 | 0
+ 15 | 25004 | 15 | 0
+  6 | 14000 |  6 | 0
+  7 | 14001 |  7 | 0
+  8 | 14002 |  8 | 0
+  9 | 14003 |  9 | 0
+ 10 | 14004 | 10 | 0
+  1 |    11 |  1 | 0
+  2 |    12 |  2 | 0
+  3 |    13 |  3 | 0
+  4 |    14 |  4 | 0
+  5 |    15 |  5 | 0
 (20 rows)
 
 
@@ -511,8 +511,8 @@ ALTER TABLE
  f      | integer |           |          |                                  | plain   |              | 
 Partition key: RANGE (bb)
 Indexes:
-    "t30_pkey" PRIMARY KEY, btree (aa, bb)
-    "t30_b_key" UNIQUE CONSTRAINT, btree (bb)
+    "t30_pkey" PRIMARY KEY, btree (aa NULLS FIRST, bb NULLS FIRST)
+    "t30_b_key" UNIQUE CONSTRAINT, btree (bb NULLS FIRST)
 Partitions: t301 FOR VALUES FROM (0) TO (10000),
             t302 FOR VALUES FROM (10000) TO (20000),
             t303 FOR VALUES FROM (20000) TO (30000),
@@ -525,6 +525,21 @@ UPDATE 24
 select*from t30;
  aa |  bb   | cc | d |  e   |  f   
 ----+-------+----+---+------+------
+ 16 | 36000 | 16 | 0 |    0 | 2222
+ 17 | 36001 | 17 | 0 |    0 | 2222
+ 18 | 36002 | 18 | 0 |    0 | 2222
+ 19 | 36003 | 19 | 0 |    0 | 2222
+ 20 | 36004 | 20 | 0 |    0 | 2222
+ 11 | 25000 | 11 | 0 |    0 | 2222
+ 12 | 25001 | 12 | 0 |    0 | 2222
+ 13 | 25002 | 13 | 0 |    0 | 2222
+ 14 | 25003 | 14 | 0 |    0 | 2222
+ 15 | 25004 | 15 | 0 |    0 | 2222
+  6 | 14000 |  6 | 0 |    0 | 2222
+  7 | 14001 |  7 | 0 |    0 | 2222
+  8 | 14002 |  8 | 0 |    0 | 2222
+  9 | 14003 |  9 | 0 |    0 | 2222
+ 10 | 14004 | 10 | 0 |    0 | 2222
   1 |    11 |  1 | 0 |    0 | 2222
   2 |    12 |  2 | 0 |    0 | 2222
   3 |    13 |  3 | 0 |    0 | 2222
@@ -534,21 +549,6 @@ select*from t30;
  22 |   101 | 22 | 2 | 1111 | 2222
  23 |   102 | 23 | 3 | 1111 | 2222
  24 |   103 | 24 | 4 | 1111 | 2222
-  6 | 14000 |  6 | 0 |    0 | 2222
-  7 | 14001 |  7 | 0 |    0 | 2222
-  8 | 14002 |  8 | 0 |    0 | 2222
-  9 | 14003 |  9 | 0 |    0 | 2222
- 10 | 14004 | 10 | 0 |    0 | 2222
- 11 | 25000 | 11 | 0 |    0 | 2222
- 12 | 25001 | 12 | 0 |    0 | 2222
- 13 | 25002 | 13 | 0 |    0 | 2222
- 14 | 25003 | 14 | 0 |    0 | 2222
- 15 | 25004 | 15 | 0 |    0 | 2222
- 16 | 36000 | 16 | 0 |    0 | 2222
- 17 | 36001 | 17 | 0 |    0 | 2222
- 18 | 36002 | 18 | 0 |    0 | 2222
- 19 | 36003 | 19 | 0 |    0 | 2222
- 20 | 36004 | 20 | 0 |    0 | 2222
 (24 rows)
 
 
@@ -566,8 +566,8 @@ ALTER TABLE
  f      | integer |           | not null | generated by default as identity | plain   |              | 
 Partition key: RANGE (bb)
 Indexes:
-    "t30_pkey" PRIMARY KEY, btree (aa, bb)
-    "t30_b_key" UNIQUE CONSTRAINT, btree (bb)
+    "t30_pkey" PRIMARY KEY, btree (aa NULLS FIRST, bb NULLS FIRST)
+    "t30_b_key" UNIQUE CONSTRAINT, btree (bb NULLS FIRST)
 Partitions: t301 FOR VALUES FROM (0) TO (10000),
             t302 FOR VALUES FROM (10000) TO (20000),
             t303 FOR VALUES FROM (20000) TO (30000),
@@ -578,6 +578,21 @@ INSERT 0 4
 select*from t30;
  aa |  bb   | cc | d |  e   |  f   
 ----+-------+----+---+------+------
+ 16 | 36000 | 16 | 0 |    0 | 2222
+ 17 | 36001 | 17 | 0 |    0 | 2222
+ 18 | 36002 | 18 | 0 |    0 | 2222
+ 19 | 36003 | 19 | 0 |    0 | 2222
+ 20 | 36004 | 20 | 0 |    0 | 2222
+ 11 | 25000 | 11 | 0 |    0 | 2222
+ 12 | 25001 | 12 | 0 |    0 | 2222
+ 13 | 25002 | 13 | 0 |    0 | 2222
+ 14 | 25003 | 14 | 0 |    0 | 2222
+ 15 | 25004 | 15 | 0 |    0 | 2222
+  6 | 14000 |  6 | 0 |    0 | 2222
+  7 | 14001 |  7 | 0 |    0 | 2222
+  8 | 14002 |  8 | 0 |    0 | 2222
+  9 | 14003 |  9 | 0 |    0 | 2222
+ 10 | 14004 | 10 | 0 |    0 | 2222
   1 |    11 |  1 | 0 |    0 | 2222
   2 |    12 |  2 | 0 |    0 | 2222
   3 |    13 |  3 | 0 |    0 | 2222
@@ -591,21 +606,6 @@ select*from t30;
  26 |   201 | 26 | 6 |    2 |    2
  27 |   202 | 27 | 7 |    3 |    3
  28 |   203 | 28 | 8 |    4 |    4
-  6 | 14000 |  6 | 0 |    0 | 2222
-  7 | 14001 |  7 | 0 |    0 | 2222
-  8 | 14002 |  8 | 0 |    0 | 2222
-  9 | 14003 |  9 | 0 |    0 | 2222
- 10 | 14004 | 10 | 0 |    0 | 2222
- 11 | 25000 | 11 | 0 |    0 | 2222
- 12 | 25001 | 12 | 0 |    0 | 2222
- 13 | 25002 | 13 | 0 |    0 | 2222
- 14 | 25003 | 14 | 0 |    0 | 2222
- 15 | 25004 | 15 | 0 |    0 | 2222
- 16 | 36000 | 16 | 0 |    0 | 2222
- 17 | 36001 | 17 | 0 |    0 | 2222
- 18 | 36002 | 18 | 0 |    0 | 2222
- 19 | 36003 | 19 | 0 |    0 | 2222
- 20 | 36004 | 20 | 0 |    0 | 2222
 (28 rows)
 
 

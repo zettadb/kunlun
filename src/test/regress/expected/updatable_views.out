@@ -2346,6 +2346,7 @@ INSERT 0 2
 select * from base_tab_def order by a;
  a  |       b       |       c       |      d       | e 
 ----+---------------+---------------+--------------+---
+    | View default  | Table default | View default | 
   1 | Table default | Table default |              | 
   2 | Table default | Table default |              | 
   3 | Table default | Table default |              | 
@@ -2359,7 +2360,6 @@ select * from base_tab_def order by a;
  15 | View default  | Table default | View default | 
  16 | View default  | Table default | View default | 
  17 | View default  | Table default | View default | 
-    | View default  | Table default | View default | 
 (14 rows)
 
 delete from base_tab_def;
@@ -2387,6 +2387,7 @@ INSERT 0 2
 select * from base_tab_def order by a;
  a  |       b       |       c       |      d       | e 
 ----+---------------+---------------+--------------+---
+    | View default  | Table default | View default | 
   1 | Table default | Table default |              | 
   2 | Table default | Table default |              | 
   3 | Table default | Table default |              | 
@@ -2400,7 +2401,6 @@ select * from base_tab_def order by a;
  15 | View default  | Table default | View default | 
  16 | View default  | Table default | View default | 
  17 | View default  | Table default | View default | 
-    | View default  | Table default | View default | 
 (14 rows)
 
 -- Using an unconditional DO INSTEAD rule should also cause NULLs to be
@@ -2432,6 +2432,7 @@ INSERT 0 2
 select * from base_tab_def order by a;
  a  |       b       |       c       |      d       | e 
 ----+---------------+---------------+--------------+---
+    | View default  | Table default | View default | 
   1 | Table default | Table default |              | 
   2 | Table default | Table default |              | 
   3 | Table default | Table default |              | 
@@ -2445,7 +2446,6 @@ select * from base_tab_def order by a;
  15 | View default  | Table default | View default | 
  16 | View default  | Table default | View default | 
  17 | View default  | Table default | View default | 
-    | View default  | Table default | View default | 
 (14 rows)
 
 -- A DO ALSO rule should cause each row to be inserted twice. The first
@@ -2478,6 +2478,7 @@ INSERT 0 2
 select * from base_tab_def order by a, c NULLS LAST;
  a  |       b       |       c       |      d       | e 
 ----+---------------+---------------+--------------+---
+    | View default  | Table default | View default | 
   1 | Table default | Table default |              | 
   2 | Table default | Table default |              | 
   3 | Table default | Table default |              | 
@@ -2491,7 +2492,6 @@ select * from base_tab_def order by a, c NULLS LAST;
  15 | View default  | Table default | View default | 
  16 | View default  | Table default | View default | 
  17 | View default  | Table default | View default | 
-    | View default  | Table default | View default | 
 (14 rows)
 
 drop view base_tab_def_view;

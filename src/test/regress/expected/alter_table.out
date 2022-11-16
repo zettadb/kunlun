@@ -1081,9 +1081,9 @@ ALTER TABLE
  f4     | bigint |           |          | 
  f5     | bigint |           |          | 
 Indexes:
-    "anothertab_pkey" PRIMARY KEY, btree (f1)
-    "anothertab_f1_f4_key" UNIQUE CONSTRAINT, btree (f1, f4)
-    "anothertab_f2_key" UNIQUE CONSTRAINT, btree (f2)
+    "anothertab_pkey" PRIMARY KEY, btree (f1 NULLS FIRST)
+    "anothertab_f1_f4_key" UNIQUE CONSTRAINT, btree (f1 NULLS FIRST, f4 NULLS FIRST)
+    "anothertab_f2_key" UNIQUE CONSTRAINT, btree (f2 NULLS FIRST)
     "anothertab_f4_idx" UNIQUE, btree (f4 NULLS FIRST)
     "anothertab_f2_f3_idx" btree (f2 NULLS FIRST, f3 NULLS FIRST)
 
@@ -1158,7 +1158,7 @@ ALTER TABLE
 Partition of: at_partitioned FOR VALUES FROM (0) TO (1000)
 Indexes:
     "at_part_1_a_idx" btree (a NULLS FIRST)
-    "at_part_1_b_idx" btree (b)
+    "at_part_1_b_idx" btree (b NULLS FIRST)
 
 drop table at_partitioned;
 DROP TABLE

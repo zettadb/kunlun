@@ -175,9 +175,9 @@ CREATE INDEX
  e      | character varying(64)       |           |          |         | extended |              | 
 Partition key: RANGE (b)
 Indexes:
-    "t3_pkey" PRIMARY KEY, btree (b, d)
-    "t3_c_b_idx" UNIQUE, btree (c, b)
-    "t3_c_idx" btree (c)
+    "t3_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
+    "t3_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
+    "t3_c_idx" btree (c NULLS FIRST)
 Number of partitions: 0
 
 create table t301 partition of t3 for values from ('2000-01-01') to ('2009-12-31');
@@ -211,9 +211,9 @@ Options: shard=1
  e      | character varying(64)       |           |          |         | extended |              | 
 Partition key: RANGE (b)
 Indexes:
-    "t3_pkey" PRIMARY KEY, btree (b, d)
-    "t3_c_b_idx" UNIQUE, btree (c, b)
-    "t3_c_idx" btree (c)
+    "t3_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
+    "t3_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
+    "t3_c_idx" btree (c NULLS FIRST)
 Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31')
 
 create table t303 partition of t3 for values from ('2020-01-01') to ('2029-12-31');
@@ -247,9 +247,9 @@ Options: shard=1
  e      | character varying(64)       |           |          |         | extended |              | 
 Partition key: RANGE (b)
 Indexes:
-    "t3_pkey" PRIMARY KEY, btree (b, d)
-    "t3_c_b_idx" UNIQUE, btree (c, b)
-    "t3_c_idx" btree (c)
+    "t3_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
+    "t3_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
+    "t3_c_idx" btree (c NULLS FIRST)
 Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
             t303 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31')
 
@@ -317,11 +317,11 @@ Options: shard=1
  e      | character varying(64)       |           |          |         | extended |              | 
 Partition key: RANGE (b)
 Indexes:
-    "t3_pkey" PRIMARY KEY, btree (b, d)
-    "t3_b_a_idx" UNIQUE, btree (b, a)
-    "t3_c_b_idx" UNIQUE, btree (c, b)
-    "t3_a_idx" btree (a)
-    "t3_c_idx" btree (c)
+    "t3_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
+    "t3_b_a_idx" UNIQUE, btree (b NULLS FIRST, a NULLS FIRST)
+    "t3_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
+    "t3_a_idx" btree (a NULLS FIRST)
+    "t3_c_idx" btree (c NULLS FIRST)
 Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
             t303 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31')
 
@@ -341,11 +341,11 @@ CREATE TABLE
  e      | character varying(64)       |           |          |         | extended |              | 
 Partition key: RANGE (b)
 Indexes:
-    "t3_pkey" PRIMARY KEY, btree (b, d)
-    "t3_b_a_idx" UNIQUE, btree (b, a)
-    "t3_c_b_idx" UNIQUE, btree (c, b)
-    "t3_a_idx" btree (a)
-    "t3_c_idx" btree (c)
+    "t3_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
+    "t3_b_a_idx" UNIQUE, btree (b NULLS FIRST, a NULLS FIRST)
+    "t3_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
+    "t3_a_idx" btree (a NULLS FIRST)
+    "t3_c_idx" btree (c NULLS FIRST)
 Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
             t302 FOR VALUES FROM ('2010-01-01') TO ('2019-12-31'),
             t303 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31')
@@ -429,11 +429,11 @@ CREATE TABLE
  e      | character varying(64)       |           |          |         | extended |              | 
 Partition key: RANGE (b)
 Indexes:
-    "t3_pkey" PRIMARY KEY, btree (b, d)
-    "t3_b_a_idx" UNIQUE, btree (b, a)
-    "t3_c_b_idx" UNIQUE, btree (c, b)
-    "t3_a_idx" btree (a)
-    "t3_c_idx" btree (c)
+    "t3_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
+    "t3_b_a_idx" UNIQUE, btree (b NULLS FIRST, a NULLS FIRST)
+    "t3_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
+    "t3_a_idx" btree (a NULLS FIRST)
+    "t3_c_idx" btree (c NULLS FIRST)
 Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
             t302 FOR VALUES FROM ('2010-01-01') TO ('2019-12-31'),
             t303 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31'),
@@ -566,11 +566,11 @@ Options: shard=1
  e      | character varying(64)       |           |          |         | extended |              | 
 Partition key: RANGE (b)
 Indexes:
-    "t3_pkey" PRIMARY KEY, btree (b, d)
-    "t3_b_a_idx" UNIQUE, btree (b, a)
-    "t3_c_b_idx" UNIQUE, btree (c, b)
-    "t3_a_idx" btree (a)
-    "t3_c_idx" btree (c)
+    "t3_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
+    "t3_b_a_idx" UNIQUE, btree (b NULLS FIRST, a NULLS FIRST)
+    "t3_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
+    "t3_a_idx" btree (a NULLS FIRST)
+    "t3_c_idx" btree (c NULLS FIRST)
 Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
             t302 FOR VALUES FROM ('2010-01-01') TO ('2019-12-31'),
             t303 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31'),
@@ -615,11 +615,11 @@ Options: shard=1
  e      | character varying(64)       |           |          |         | extended |              | 
 Partition key: RANGE (b)
 Indexes:
-    "t3_pkey" PRIMARY KEY, btree (b, d)
-    "t3_b_a_idx" UNIQUE, btree (b, a)
-    "t3_c_b_idx" UNIQUE, btree (c, b)
-    "t3_a_idx" btree (a)
-    "t3_c_idx" btree (c)
+    "t3_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
+    "t3_b_a_idx" UNIQUE, btree (b NULLS FIRST, a NULLS FIRST)
+    "t3_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
+    "t3_a_idx" btree (a NULLS FIRST)
+    "t3_c_idx" btree (c NULLS FIRST)
 Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
             t302 FOR VALUES FROM ('2010-01-01') TO ('2019-12-31'),
             t303 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31'),
@@ -741,12 +741,12 @@ Options: shard=1
  e      | character varying(64)       |           |          |         | extended |              | 
 Partition key: RANGE (b)
 Indexes:
-    "t3_pkey" PRIMARY KEY, btree (b, d)
-    "t3_b_a_idx" UNIQUE, btree (b, a)
-    "t3_c_b_idx" UNIQUE, btree (c, b)
-    "t3_a_idx" btree (a)
-    "t3_c_idx" btree (c)
-    "t3_e_idx" btree (e)
+    "t3_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
+    "t3_b_a_idx" UNIQUE, btree (b NULLS FIRST, a NULLS FIRST)
+    "t3_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
+    "t3_a_idx" btree (a NULLS FIRST)
+    "t3_c_idx" btree (c NULLS FIRST)
+    "t3_e_idx" btree (e NULLS FIRST)
 Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
             t302 FOR VALUES FROM ('2010-01-01') TO ('2019-12-31'),
             t303 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31'),
@@ -797,8 +797,8 @@ CREATE TABLE
  d      | character(16)         |           |          |         | extended |              | 
 Partition key: HASH (b)
 Indexes:
-    "t2_pkey" PRIMARY KEY, btree (a, b)
-    "t2_b_c_key" UNIQUE CONSTRAINT, btree (b, c)
+    "t2_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST)
+    "t2_b_c_key" UNIQUE CONSTRAINT, btree (b NULLS FIRST, c NULLS FIRST)
 Number of partitions: 0
 
 create table t200 partition of t2 for values with (modulus 4, remainder 0);
@@ -890,9 +890,9 @@ CREATE INDEX
  f      | character(20)               |           |          |         | extended |              | 
 Partition key: HASH (b)
 Indexes:
-    "t1_pkey" PRIMARY KEY, btree (a, b)
-    "t1_e_b_key" UNIQUE CONSTRAINT, btree (e, b)
-    "t1_f" btree (f)
+    "t1_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST)
+    "t1_e_b_key" UNIQUE CONSTRAINT, btree (e NULLS FIRST, b NULLS FIRST)
+    "t1_f" btree (f NULLS FIRST)
 Number of partitions: 0
 
 create table t100 partition of t1 for values with (modulus 4, remainder 0);
@@ -937,8 +937,8 @@ CREATE TABLE
  g      | double precision            |           |          |         | plain   |              | 
 Partition key: LIST (a)
 Indexes:
-    "t2_pkey" PRIMARY KEY, btree (a, b)
-    "t2_a_b_c_key" UNIQUE CONSTRAINT, btree (a, b, c)
+    "t2_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST)
+    "t2_a_b_c_key" UNIQUE CONSTRAINT, btree (a NULLS FIRST, b NULLS FIRST, c NULLS FIRST)
 Number of partitions: 0
 
 create table t200 partition of t2 for values in (1,2,3,4);
@@ -978,9 +978,9 @@ CREATE INDEX
  g      | double precision            |           |          |         | plain   |              | 
 Partition key: LIST (a)
 Indexes:
-    "t2_pkey" PRIMARY KEY, btree (a, b)
-    "t2_a_b_c_key" UNIQUE CONSTRAINT, btree (a, b, c)
-    "t2_d_g" btree (d, g DESC)
+    "t2_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST)
+    "t2_a_b_c_key" UNIQUE CONSTRAINT, btree (a NULLS FIRST, b NULLS FIRST, c NULLS FIRST)
+    "t2_d_g" btree (d NULLS FIRST, g DESC NULLS LAST)
 Partitions: t200 FOR VALUES IN (1, 2, 3, 4)
 
 \d+ t200;
@@ -1043,10 +1043,10 @@ CREATE INDEX
  g      | double precision            |           |          |         | plain   |              | 
 Partition key: LIST (a)
 Indexes:
-    "t2_pkey" PRIMARY KEY, btree (a, b)
-    "t2_a_b_c_key" UNIQUE CONSTRAINT, btree (a, b, c)
-    "t2_c_d" UNIQUE, btree (a, c, d DESC)
-    "t2_d_g" btree (d, g DESC)
+    "t2_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST)
+    "t2_a_b_c_key" UNIQUE CONSTRAINT, btree (a NULLS FIRST, b NULLS FIRST, c NULLS FIRST)
+    "t2_c_d" UNIQUE, btree (a NULLS FIRST, c NULLS FIRST, d DESC NULLS LAST)
+    "t2_d_g" btree (d NULLS FIRST, g DESC NULLS LAST)
 Partitions: t200 FOR VALUES IN (1, 2, 3, 4),
             t201 FOR VALUES IN (5, 6, 7)
 
@@ -1156,11 +1156,11 @@ CREATE INDEX
  g      | double precision            |           |          |         | plain   |              | 
 Partition key: LIST (a)
 Indexes:
-    "t2_pkey" PRIMARY KEY, btree (a, b)
-    "t2_a_b_c_key" UNIQUE CONSTRAINT, btree (a, b, c)
-    "t2_c_d" UNIQUE, btree (a, c, d DESC)
-    "t2_d_g" btree (d, g DESC)
-    "t2_g_f_idx" btree (g DESC, f)
+    "t2_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST)
+    "t2_a_b_c_key" UNIQUE CONSTRAINT, btree (a NULLS FIRST, b NULLS FIRST, c NULLS FIRST)
+    "t2_c_d" UNIQUE, btree (a NULLS FIRST, c NULLS FIRST, d DESC NULLS LAST)
+    "t2_d_g" btree (d NULLS FIRST, g DESC NULLS LAST)
+    "t2_g_f_idx" btree (g DESC NULLS LAST, f NULLS FIRST)
 Partitions: t200 FOR VALUES IN (1, 2, 3, 4),
             t201 FOR VALUES IN (5, 6, 7)
 

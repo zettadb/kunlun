@@ -891,6 +891,7 @@ SELECT first_value(unique1) over (order by unique1 rows between current row and 
 FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
  first_value | unique1 | four 
 -------------+---------+------
+             |       9 |    1
            1 |       0 |    0
            2 |       1 |    1
            3 |       2 |    2
@@ -900,7 +901,6 @@ FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
            7 |       6 |    2
            8 |       7 |    3
            9 |       8 |    0
-             |       9 |    1
 (10 rows)
 
 SELECT first_value(unique1) over (ORDER BY unique1 rows between current row and 2 following exclude group),
@@ -908,6 +908,7 @@ SELECT first_value(unique1) over (ORDER BY unique1 rows between current row and 
 FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
  first_value | unique1 | four 
 -------------+---------+------
+             |       9 |    1
            1 |       0 |    0
            2 |       1 |    1
            3 |       2 |    2
@@ -917,7 +918,6 @@ FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
            7 |       6 |    2
            8 |       7 |    3
            9 |       8 |    0
-             |       9 |    1
 (10 rows)
 
 SELECT first_value(unique1) over (order by unique1 rows between current row and 2 following exclude ties),
@@ -942,6 +942,7 @@ SELECT last_value(unique1) over (order by unique1 rows between current row and 2
 FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
  last_value | unique1 | four 
 ------------+---------+------
+            |       9 |    1
           2 |       0 |    0
           3 |       1 |    1
           4 |       2 |    2
@@ -951,7 +952,6 @@ FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
           8 |       6 |    2
           9 |       7 |    3
           9 |       8 |    0
-            |       9 |    1
 (10 rows)
 
 SELECT last_value(unique1) over (order by unique1 rows between current row and 2 following exclude group),
@@ -959,6 +959,7 @@ SELECT last_value(unique1) over (order by unique1 rows between current row and 2
 FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
  last_value | unique1 | four 
 ------------+---------+------
+            |       9 |    1
           2 |       0 |    0
           3 |       1 |    1
           4 |       2 |    2
@@ -968,7 +969,6 @@ FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
           8 |       6 |    2
           9 |       7 |    3
           9 |       8 |    0
-            |       9 |    1
 (10 rows)
 
 SELECT last_value(unique1) over (order by unique1 rows between current row and 2 following exclude ties),
@@ -993,6 +993,7 @@ SELECT sum(unique1) over (order by unique1 rows between 2 preceding and 1 preced
 FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
  sum | unique1 | four 
 -----+---------+------
+     |       0 |    0
    0 |       1 |    1
    1 |       2 |    2
    3 |       3 |    3
@@ -1002,7 +1003,6 @@ FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
   11 |       7 |    3
   13 |       8 |    0
   15 |       9 |    1
-     |       0 |    0
 (10 rows)
 
 SELECT sum(unique1) over (order by unique1 rows between 1 following and 3 following),
@@ -1010,6 +1010,7 @@ SELECT sum(unique1) over (order by unique1 rows between 1 following and 3 follow
 FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
  sum | unique1 | four 
 -----+---------+------
+     |       9 |    1
    6 |       0 |    0
    9 |       1 |    1
    9 |       8 |    0
@@ -1019,7 +1020,6 @@ FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
   18 |       4 |    0
   21 |       5 |    1
   24 |       6 |    2
-     |       9 |    1
 (10 rows)
 
 SELECT sum(unique1) over (order by unique1 rows between unbounded preceding and 1 following),
@@ -1078,6 +1078,9 @@ SELECT sum(unique1) over (w range between unbounded preceding and current row ex
 FROM tenk1 WHERE unique1 < 10 WINDOW w AS (order by four) order by 1,2,3;
  sum | unique1 | four 
 -----+---------+------
+     |       0 |    0
+     |       4 |    0
+     |       8 |    0
   12 |       1 |    1
   12 |       5 |    1
   12 |       9 |    1
@@ -1085,9 +1088,6 @@ FROM tenk1 WHERE unique1 < 10 WINDOW w AS (order by four) order by 1,2,3;
   27 |       6 |    2
   35 |       3 |    3
   35 |       7 |    3
-     |       0 |    0
-     |       4 |    0
-     |       8 |    0
 (10 rows)
 
 SELECT sum(unique1) over (w range between unbounded preceding and current row exclude ties),
@@ -1273,6 +1273,9 @@ SELECT sum(unique1) over (order by four range between 2::int8 preceding and 1::i
 FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
  sum | unique1 | four 
 -----+---------+------
+     |       0 |    0
+     |       4 |    0
+     |       8 |    0
   12 |       1 |    1
   12 |       5 |    1
   12 |       9 |    1
@@ -1280,9 +1283,6 @@ FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
   23 |       7 |    3
   27 |       2 |    2
   27 |       6 |    2
-     |       0 |    0
-     |       4 |    0
-     |       8 |    0
 (10 rows)
 
 SELECT sum(unique1) over (order by four desc range between 2::int8 preceding and 1::int2 preceding),
@@ -1290,6 +1290,8 @@ SELECT sum(unique1) over (order by four desc range between 2::int8 preceding and
 FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
  sum | unique1 | four 
 -----+---------+------
+     |       3 |    3
+     |       7 |    3
   10 |       2 |    2
   10 |       6 |    2
   18 |       1 |    1
@@ -1298,8 +1300,6 @@ FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
   23 |       0 |    0
   23 |       4 |    0
   23 |       8 |    0
-     |       3 |    3
-     |       7 |    3
 (10 rows)
 
 SELECT sum(unique1) over (order by four range between 2::int8 preceding and 1::int2 preceding exclude no others),
@@ -1307,6 +1307,9 @@ SELECT sum(unique1) over (order by four range between 2::int8 preceding and 1::i
 FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
  sum | unique1 | four 
 -----+---------+------
+     |       0 |    0
+     |       4 |    0
+     |       8 |    0
   12 |       1 |    1
   12 |       5 |    1
   12 |       9 |    1
@@ -1314,9 +1317,6 @@ FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
   23 |       7 |    3
   27 |       2 |    2
   27 |       6 |    2
-     |       0 |    0
-     |       4 |    0
-     |       8 |    0
 (10 rows)
 
 SELECT sum(unique1) over (order by four range between 2::int8 preceding and 1::int2 preceding exclude current row),
@@ -1324,6 +1324,9 @@ SELECT sum(unique1) over (order by four range between 2::int8 preceding and 1::i
 FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
  sum | unique1 | four 
 -----+---------+------
+     |       0 |    0
+     |       4 |    0
+     |       8 |    0
   12 |       1 |    1
   12 |       5 |    1
   12 |       9 |    1
@@ -1331,9 +1334,6 @@ FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
   23 |       7 |    3
   27 |       2 |    2
   27 |       6 |    2
-     |       0 |    0
-     |       4 |    0
-     |       8 |    0
 (10 rows)
 
 SELECT sum(unique1) over (order by four range between 2::int8 preceding and 1::int2 preceding exclude group),
@@ -1341,6 +1341,9 @@ SELECT sum(unique1) over (order by four range between 2::int8 preceding and 1::i
 FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
  sum | unique1 | four 
 -----+---------+------
+     |       0 |    0
+     |       4 |    0
+     |       8 |    0
   12 |       1 |    1
   12 |       5 |    1
   12 |       9 |    1
@@ -1348,9 +1351,6 @@ FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
   23 |       7 |    3
   27 |       2 |    2
   27 |       6 |    2
-     |       0 |    0
-     |       4 |    0
-     |       8 |    0
 (10 rows)
 
 SELECT sum(unique1) over (order by four range between 2::int8 preceding and 1::int2 preceding exclude ties),
@@ -1358,6 +1358,9 @@ SELECT sum(unique1) over (order by four range between 2::int8 preceding and 1::i
 FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
  sum | unique1 | four 
 -----+---------+------
+     |       0 |    0
+     |       4 |    0
+     |       8 |    0
   12 |       1 |    1
   12 |       5 |    1
   12 |       9 |    1
@@ -1365,9 +1368,6 @@ FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
   23 |       7 |    3
   27 |       2 |    2
   27 |       6 |    2
-     |       0 |    0
-     |       4 |    0
-     |       8 |    0
 (10 rows)
 
 SELECT sum(unique1) over (order by four range between 2::int8 preceding and 6::int2 following exclude ties),
@@ -2318,6 +2318,8 @@ SELECT sum(unique1) over (order by four groups between 1 following and unbounded
 FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
  sum | unique1 | four 
 -----+---------+------
+     |       3 |    3
+     |       7 |    3
   10 |       2 |    2
   10 |       6 |    2
   18 |       1 |    1
@@ -2326,8 +2328,6 @@ FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
   33 |       0 |    0
   33 |       4 |    0
   33 |       8 |    0
-     |       3 |    3
-     |       7 |    3
 (10 rows)
 
 SELECT sum(unique1) over (order by four groups between unbounded preceding and 2 following),
@@ -2352,6 +2352,9 @@ SELECT sum(unique1) over (order by four groups between 2 preceding and 1 precedi
 FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
  sum | unique1 | four 
 -----+---------+------
+     |       0 |    0
+     |       4 |    0
+     |       8 |    0
   12 |       1 |    1
   12 |       5 |    1
   12 |       9 |    1
@@ -2359,9 +2362,6 @@ FROM tenk1 WHERE unique1 < 10 order by 1,2,3;
   23 |       7 |    3
   27 |       2 |    2
   27 |       6 |    2
-     |       0 |    0
-     |       4 |    0
-     |       8 |    0
 (10 rows)
 
 SELECT sum(unique1) over (order by four groups between 2 preceding and 1 following),

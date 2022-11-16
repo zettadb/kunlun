@@ -280,7 +280,7 @@ Indexes:
 Partition of: idxpart FOR VALUES FROM (100) TO (1000)
 Partition key: RANGE (a)
 Indexes:
-    "idxpart2_a_idx" btree (a) INVALID
+    "idxpart2_a_idx" btree (a NULLS FIRST) INVALID
 Number of partitions: 2 (Use \d+ to list them.)
 
 \d idxpart21
@@ -323,7 +323,7 @@ where indexrelid::regclass::text like 'idxpart%'
 Partition of: idxpart FOR VALUES FROM (100) TO (1000)
 Partition key: RANGE (a)
 Indexes:
-    "idxpart2_a_idx" btree (a) INVALID
+    "idxpart2_a_idx" btree (a NULLS FIRST) INVALID
 Number of partitions: 2 (Use \d+ to list them.)
 
 -- ... but this one is.
@@ -337,7 +337,7 @@ CREATE INDEX
 Partition of: idxpart FOR VALUES FROM (100) TO (1000)
 Partition key: RANGE (a)
 Indexes:
-    "idxpart2_a_idx" btree (a) INVALID
+    "idxpart2_a_idx" btree (a NULLS FIRST) INVALID
 Number of partitions: 2 (Use \d+ to list them.)
 
 drop table idxpart;
@@ -635,11 +635,11 @@ select relname as child, inhparent::regclass as parent, pg_get_indexdef as child
   from pg_class left join pg_inherits on inhrelid = oid,
   lateral pg_get_indexdef(pg_class.oid)
   where relkind in ('i', 'I') and relname like 'idxpart%' order by relname;
-      child      | parent |                                         childdef                                          
------------------+--------+-------------------------------------------------------------------------------------------
+      child      | parent |                                           childdef                                           
+-----------------+--------+----------------------------------------------------------------------------------------------
  idxpart1_1_idx  |        | CREATE INDEX idxpart1_1_idx ON public.idxpart1 USING btree (b NULLS FIRST, a NULLS FIRST)
  idxpart1_1b_idx |        | CREATE INDEX idxpart1_1b_idx ON public.idxpart1 USING btree (b NULLS FIRST)
- idxpart_1_idx   |        | CREATE INDEX idxpart_1_idx ON ONLY public.idxpart USING btree (b, a)
+ idxpart_1_idx   |        | CREATE INDEX idxpart_1_idx ON ONLY public.idxpart USING btree (b NULLS FIRST, a NULLS FIRST)
 (3 rows)
 
 drop table idxpart;
@@ -671,8 +671,8 @@ select c.relname, pg_get_indexdef(indexrelid)
  idxpart2_a_idx1   | CREATE INDEX idxpart2_a_idx1 ON public.idxpart2 USING btree (a NULLS FIRST)
  idxpart2_c_b_idx  | CREATE INDEX idxpart2_c_b_idx ON public.idxpart2 USING btree (c NULLS FIRST, b NULLS FIRST)
  idxpart2_c_b_idx1 | CREATE INDEX idxpart2_c_b_idx1 ON public.idxpart2 USING btree (c NULLS FIRST, b NULLS FIRST)
- idxparti          | CREATE INDEX idxparti ON ONLY public.idxpart USING btree (a)
- idxparti2         | CREATE INDEX idxparti2 ON ONLY public.idxpart USING btree (c, b)
+ idxparti          | CREATE INDEX idxparti ON ONLY public.idxpart USING btree (a NULLS FIRST)
+ idxparti2         | CREATE INDEX idxparti2 ON ONLY public.idxpart USING btree (c NULLS FIRST, b NULLS FIRST)
 (8 rows)
 
 drop table idxpart;
@@ -731,7 +731,7 @@ CREATE TABLE
  b      | integer |           |          | 
 Partition key: RANGE (a)
 Indexes:
-    "idxpart_pkey" PRIMARY KEY, btree (a)
+    "idxpart_pkey" PRIMARY KEY, btree (a NULLS FIRST)
 Number of partitions: 0
 
 -- multiple primary key on child should fail
@@ -802,7 +802,7 @@ ALTER TABLE
  c      | text    |           |          | 
 Partition key: RANGE (a, b)
 Indexes:
-    "idxpart_pkey" PRIMARY KEY, btree (a, b)
+    "idxpart_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST)
 Number of partitions: 0
 
 create table idxpart1 partition of idxpart for values from (0, 0) to (1000, 1000);
@@ -836,7 +836,7 @@ ALTER TABLE
  b      | integer |           |          | 
 Partition key: RANGE (a, b)
 Indexes:
-    "idxpart_b_a_key" UNIQUE CONSTRAINT, btree (b, a)
+    "idxpart_b_a_key" UNIQUE CONSTRAINT, btree (b NULLS FIRST, a NULLS FIRST)
 Number of partitions: 0
 
 drop table idxpart;

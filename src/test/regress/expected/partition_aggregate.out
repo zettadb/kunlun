@@ -339,6 +339,7 @@ SELECT a.x, b.y, count(*) FROM (SELECT * FROM pagg_tab1 WHERE x < 20) a FULL JOI
 SELECT a.x, b.y, count(*) FROM (SELECT * FROM pagg_tab1 WHERE x < 20) a FULL JOIN (SELECT * FROM pagg_tab2 WHERE y > 10) b ON a.x = b.y WHERE a.x > 5 or b.y < 20 GROUP BY a.x, b.y ORDER BY 1, 2;
  x  | y  | count 
 ----+----+-------
+    | 15 |    10
   6 |    |    10
   8 |    |    10
  10 |    |    10
@@ -346,7 +347,6 @@ SELECT a.x, b.y, count(*) FROM (SELECT * FROM pagg_tab1 WHERE x < 20) a FULL JOI
  14 |    |    10
  16 |    |    10
  18 | 18 |   100
-    | 15 |    10
 (8 rows)
 
 -- Empty join relation because of empty outer side, no partitionwise agg plan

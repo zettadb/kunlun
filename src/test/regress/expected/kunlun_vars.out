@@ -413,10 +413,10 @@ select pg_sleep(5);
 select*from tt;
  a | b 
 ---+---
- 1 | 1
- 2 | 2
- 3 | 3
  4 | 4
+ 2 | 2
+ 1 | 1
+ 3 | 3
 (4 rows)
 
 select pg_sleep(7);
@@ -428,10 +428,10 @@ select pg_sleep(7);
 select*from tt;
  a | b 
 ---+---
- 1 | 1
- 2 | 2
- 3 | 3
  4 | 4
+ 3 | 3
+ 2 | 2
+ 1 | 1
 (4 rows)
 
 show innodb_lock_wait_timeout;

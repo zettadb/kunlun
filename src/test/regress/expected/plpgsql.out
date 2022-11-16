@@ -2087,7 +2087,7 @@ CREATE FUNCTION
 select execute_into_test('eifoo');
 psql:sql/plpgsql.sql:1410: NOTICE:  10 1
 psql:sql/plpgsql.sql:1410: NOTICE:  10 15
-psql:sql/plpgsql.sql:1410: NOTICE:  10 15 20
+psql:sql/plpgsql.sql:1410: NOTICE:  <NULL> <NULL> <NULL>
  execute_into_test 
 -------------------
  (1,2)

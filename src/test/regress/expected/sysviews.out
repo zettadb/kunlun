@@ -84,9 +84,9 @@ select name, setting from pg_settings where name like 'enable%';
  enable_material                           | on
  enable_mergejoin                          | on
  enable_nestloop                           | on
- enable_parallel_append                    | off
- enable_parallel_hash                      | off
- enable_parallel_remotescan                | off
+ enable_parallel_append                    | on
+ enable_parallel_hash                      | on
+ enable_parallel_remotescan                | on
  enable_partition_pruning                  | on
  enable_partitionwise_aggregate            | on
  enable_partitionwise_join                 | on

@@ -2056,12 +2056,12 @@ INSERT 0 3
 select*from testschema.part1 ;
  a | b  |  c  
 ---+----+-----
+ 5 | 18 | hij
+ 6 | 19 | ijk
  1 | 14 | def
  2 | 15 | efg
  3 | 16 | fgh
  4 | 17 | ghi
- 5 | 18 | hij
- 6 | 19 | ijk
 (6 rows)
 
 drop index testschema.part1_b_c;
@@ -2072,12 +2072,12 @@ DETAIL:  Partition key of the failing row contains (a) = (9).
 select*from testschema.part1 ;
  a | b  |  c  
 ---+----+-----
+ 5 | 18 | hij
+ 6 | 19 | ijk
  1 | 14 | def
  2 | 15 | efg
  3 | 16 | fgh
  4 | 17 | ghi
- 5 | 18 | hij
- 6 | 19 | ijk
 (6 rows)
 
 drop schema testschema cascade;
@@ -2120,12 +2120,12 @@ ALTER TABLE
 select*from part1;
  a | b  |  c  | d 
 ---+----+-----+---
+ 5 | 15 | efg |  
+ 6 | 16 | fgh |  
  1 | 11 | abc |  
  2 | 12 | bcd |  
  3 | 13 | cde |  
  4 | 14 | def |  
- 5 | 15 | efg |  
- 6 | 16 | fgh |  
 (6 rows)
 
 create table part1_2 partition of part1 for values in (9,10,11,12);
@@ -2135,15 +2135,15 @@ INSERT 0 3
 select*from part1;
  a | b  |  c  | d  
 ---+----+-----+----
- 1 | 11 | abc |   
- 2 | 12 | bcd |   
- 3 | 13 | cde |   
- 4 | 14 | def |   
+ 9 | 19 | ijk | 23
  5 | 15 | efg |   
  6 | 16 | fgh |   
  7 | 17 | ghi | 21
  8 | 18 | hij | 22
- 9 | 19 | ijk | 23
+ 1 | 11 | abc |   
+ 2 | 12 | bcd |   
+ 3 | 13 | cde |   
+ 4 | 14 | def |   
 (9 rows)
 
 ALTER TABLE part1 ADD CONSTRAINT opart1_b_constraint UNIQUE (b,a);
@@ -2394,11 +2394,11 @@ SET
 SELECT t1.x, sum(t1.y), count(*) FROM pagg_tab1 t1, pagg_tab2 t2 WHERE t1.x = t2.y GROUP BY t1.x;
  x  | sum  | count 
 ----+------+-------
-  0 |  500 |   100
-  6 | 1100 |   100
+ 24 |  900 |   100
  12 |  700 |   100
  18 | 1300 |   100
- 24 |  900 |   100
+  0 |  500 |   100
+  6 | 1100 |   100
 (5 rows)
 
 EXPLAIN (verbose, COSTS OFF)
@@ -2453,14 +2453,14 @@ SELECT b.y, sum(a.y) FROM pagg_tab1 a RIGHT JOIN pagg_tab2 b ON a.x = b.y GROUP 
 SELECT t1.a, t1.c, t2.b, t2.c FROM prt1 t1 RIGHT JOIN prt2 t2 ON t1.a = t2.b WHERE t2.a = 0 ORDER BY t1.a, t2.b;
   a  |  c   |  b  |  c   
 -----+------+-----+------
-   0 | 0000 |   0 | 0000
- 150 | 0150 | 150 | 0150
- 300 | 0300 | 300 | 0300
- 450 | 0450 | 450 | 0450
      |      |  75 | 0075
      |      | 225 | 0225
      |      | 375 | 0375
      |      | 525 | 0525
+   0 | 0000 |   0 | 0000
+ 150 | 0150 | 150 | 0150
+ 300 | 0300 | 300 | 0300
+ 450 | 0450 | 450 | 0450
 (8 rows)
 
 EXPLAIN (verbose, COSTS OFF)
@@ -2607,14 +2607,14 @@ SELECT b.y, sum(a.y) FROM pagg_tab1 a RIGHT JOIN pagg_tab2 b ON a.x = b.y GROUP 
 SELECT t1.a, t1.c, t2.b, t2.c FROM prt1 t1 RIGHT JOIN prt2 t2 ON t1.a = t2.b WHERE t2.a = 0 ORDER BY t1.a, t2.b;
   a  |  c   |  b  |  c   
 -----+------+-----+------
-   0 | 0000 |   0 | 0000
- 150 | 0150 | 150 | 0150
- 300 | 0300 | 300 | 0300
- 450 | 0450 | 450 | 0450
      |      |  75 | 0075
      |      | 225 | 0225
      |      | 375 | 0375
      |      | 525 | 0525
+   0 | 0000 |   0 | 0000
+ 150 | 0150 | 150 | 0150
+ 300 | 0300 | 300 | 0300
+ 450 | 0450 | 450 | 0450
 (8 rows)
 
 EXPLAIN (verbose, COSTS OFF)
@@ -2761,14 +2761,14 @@ SELECT b.y, sum(a.y) FROM pagg_tab1 a RIGHT JOIN pagg_tab2 b ON a.x = b.y GROUP 
 SELECT t1.a, t1.c, t2.b, t2.c FROM prt1 t1 RIGHT JOIN prt2 t2 ON t1.a = t2.b WHERE t2.a = 0 ORDER BY t1.a, t2.b;
   a  |  c   |  b  |  c   
 -----+------+-----+------
-   0 | 0000 |   0 | 0000
- 150 | 0150 | 150 | 0150
- 300 | 0300 | 300 | 0300
- 450 | 0450 | 450 | 0450
      |      |  75 | 0075
      |      | 225 | 0225
      |      | 375 | 0375
      |      | 525 | 0525
+   0 | 0000 |   0 | 0000
+ 150 | 0150 | 150 | 0150
+ 300 | 0300 | 300 | 0300
+ 450 | 0450 | 450 | 0450
 (8 rows)
 
 EXPLAIN (verbose, COSTS OFF)

@@ -104,8 +104,8 @@ SELECT t1.a, t1.c, t2.b, t2.c FROM (SELECT 50 phv, * FROM prt1 WHERE prt1.b = 0)
 SELECT t1.a, t1.c, t2.b, t2.c FROM (SELECT 50 phv, * FROM prt1 WHERE prt1.b = 0) t1 FULL JOIN (SELECT 75 phv, * FROM prt2 WHERE prt2.a = 0) t2 ON (t1.a = t2.b) WHERE t1.phv = t1.a OR t2.phv = t2.b ORDER BY t1.a, t2.b;
  a  |  c   | b  |  c   
 ----+------+----+------
- 50 | 0050 |    | 
     |      | 75 | 0075
+ 50 | 0050 |    | 
 (2 rows)
 
 -- Join with pruned partitions from joining relations
@@ -143,6 +143,9 @@ SELECT t1.a, t1.c, t2.b, t2.c FROM (SELECT * FROM prt1 WHERE a < 450) t1 FULL JO
 SELECT t1.a, t1.c, t2.b, t2.c FROM (SELECT * FROM prt1 WHERE a < 450) t1 FULL JOIN (SELECT * FROM prt2 WHERE b > 250) t2 ON t1.a = t2.b WHERE t1.b = 0 OR t2.a = 0 ORDER BY t1.a, t2.b;
   a  |  c   |  b  |  c   
 -----+------+-----+------
+     |      | 375 | 0375
+     |      | 450 | 0450
+     |      | 525 | 0525
    0 | 0000 |     | 
   50 | 0050 |     | 
  100 | 0100 |     | 
@@ -152,9 +155,6 @@ SELECT t1.a, t1.c, t2.b, t2.c FROM (SELECT * FROM prt1 WHERE a < 450) t1 FULL JO
  300 | 0300 | 300 | 0300
  350 | 0350 |     | 
  400 | 0400 |     | 
-     |      | 375 | 0375
-     |      | 450 | 0450
-     |      | 525 | 0525
 (12 rows)
 
 -- Semi-join
@@ -317,8 +317,8 @@ SELECT t1.a, t1.phv, t2.b, t2.phv, t3.a + t3.b, t3.phv FROM ((SELECT 50 phv, * F
 SELECT t1.a, t1.phv, t2.b, t2.phv, t3.a + t3.b, t3.phv FROM ((SELECT 50 phv, * FROM prt1 WHERE prt1.b = 0) t1 FULL JOIN (SELECT 75 phv, * FROM prt2 WHERE prt2.a = 0) t2 ON (t1.a = t2.b)) FULL JOIN (SELECT 50 phv, * FROM prt1_e WHERE prt1_e.c = 0) t3 ON (t1.a = (t3.a + t3.b)/2) WHERE t1.a = t1.phv OR t2.b = t2.phv OR (t3.a + t3.b)/2 = t3.phv ORDER BY t1.a, t2.b, t3.a + t3.b;
  a  | phv | b  | phv | ?column? | phv 
 ----+-----+----+-----+----------+-----
- 50 |  50 |    |     |      100 |  50
     |     | 75 |  75 |          |    
+ 50 |  50 |    |     |      100 |  50
 (2 rows)
 
 -- Semi-join
@@ -456,6 +456,10 @@ SELECT t1.a, t1.c, t2.b, t2.c FROM (SELECT * FROM prt1_m WHERE prt1_m.c = 0) t1 
 SELECT t1.a, t1.c, t2.b, t2.c FROM (SELECT * FROM prt1_m WHERE prt1_m.c = 0) t1 FULL JOIN (SELECT * FROM prt2_m WHERE prt2_m.c = 0) t2 ON (t1.a = (t2.b + t2.a)/2 AND t2.b = (t1.a + t1.b)/2) ORDER BY t1.a, t2.b;
   a  | c |  b  | c 
 -----+---+-----+---
+     |   |  75 | 0
+     |   | 225 | 0
+     |   | 375 | 0
+     |   | 525 | 0
    0 | 0 |   0 | 0
   50 | 0 |     |  
  100 | 0 |     |  
@@ -468,10 +472,6 @@ SELECT t1.a, t1.c, t2.b, t2.c FROM (SELECT * FROM prt1_m WHERE prt1_m.c = 0) t1 
  450 | 0 | 450 | 0
  500 | 0 |     |  
  550 | 0 |     |  
-     |   |  75 | 0
-     |   | 225 | 0
-     |   | 375 | 0
-     |   | 525 | 0
 (16 rows)
 
 --
@@ -699,14 +699,14 @@ SELECT t1.a, t1.c, t2.b, t2.c FROM prt1_l t1 RIGHT JOIN prt2_l t2 ON t1.a = t2.b
 SELECT t1.a, t1.c, t2.b, t2.c FROM prt1_l t1 RIGHT JOIN prt2_l t2 ON t1.a = t2.b AND t1.c = t2.c WHERE t2.a = 0 ORDER BY t1.a, t2.b;
   a  |  c   |  b  |  c   
 -----+------+-----+------
-   0 | 0000 |   0 | 0000
- 150 | 0002 | 150 | 0002
- 300 | 0000 | 300 | 0000
- 450 | 0002 | 450 | 0002
      |      |  75 | 0003
      |      | 225 | 0001
      |      | 375 | 0003
      |      | 525 | 0001
+   0 | 0000 |   0 | 0000
+ 150 | 0002 | 150 | 0002
+ 300 | 0000 | 300 | 0000
+ 450 | 0002 | 450 | 0002
 (8 rows)
 
 -- full join
@@ -716,6 +716,10 @@ SELECT t1.a, t1.c, t2.b, t2.c FROM (SELECT * FROM prt1_l WHERE prt1_l.b = 0) t1 
 SELECT t1.a, t1.c, t2.b, t2.c FROM (SELECT * FROM prt1_l WHERE prt1_l.b = 0) t1 FULL JOIN (SELECT * FROM prt2_l WHERE prt2_l.a = 0) t2 ON (t1.a = t2.b AND t1.c = t2.c) ORDER BY t1.a, t2.b;
   a  |  c   |  b  |  c   
 -----+------+-----+------
+     |      |  75 | 0003
+     |      | 225 | 0001
+     |      | 375 | 0003
+     |      | 525 | 0001
    0 | 0000 |   0 | 0000
   50 | 0002 |     | 
  100 | 0000 |     | 
@@ -728,10 +732,6 @@ SELECT t1.a, t1.c, t2.b, t2.c FROM (SELECT * FROM prt1_l WHERE prt1_l.b = 0) t1 
  450 | 0002 | 450 | 0002
  500 | 0000 |     | 
  550 | 0002 |     | 
-     |      |  75 | 0003
-     |      | 225 | 0001
-     |      | 375 | 0003
-     |      | 525 | 0001
 (16 rows)
 
 -- lateral partitionwise join

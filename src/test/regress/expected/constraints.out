@@ -200,11 +200,11 @@ INSERT 0 1
 SELECT '' AS five, * FROM UNIQUE_TBL order by 2,3 NULLS FIRST;
  five | i |   t   
 ------+---+-------
+      |   | six
       | 1 | one
       | 1 | three
       | 2 | two
       | 5 | one
-      |   | six
 (5 rows)
 
 DROP TABLE UNIQUE_TBL;

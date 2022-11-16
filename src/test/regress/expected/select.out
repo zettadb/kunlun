@@ -422,25 +422,25 @@ INSERT 0 7
 SELECT * FROM foo ORDER BY f1;
  f1 
 ----
+   
+   
   1
   3
   7
  10
  42
-   
-   
 (7 rows)
 
 SELECT * FROM foo ORDER BY f1 ASC;	-- same thing
  f1 
 ----
+   
+   
   1
   3
   7
  10
  42
-   
-   
 (7 rows)
 
 SELECT * FROM foo ORDER BY f1 NULLS FIRST;
@@ -458,13 +458,13 @@ SELECT * FROM foo ORDER BY f1 NULLS FIRST;
 SELECT * FROM foo ORDER BY f1 DESC;
  f1 
 ----
-   
-   
  42
  10
   7
   3
   1
+   
+   
 (7 rows)
 
 SELECT * FROM foo ORDER BY f1 DESC NULLS LAST;
@@ -487,13 +487,13 @@ SET
 SELECT * FROM foo ORDER BY f1;
  f1 
 ----
+   
+   
   1
   3
   7
  10
  42
-   
-   
 (7 rows)
 
 SELECT * FROM foo ORDER BY f1 NULLS FIRST;
@@ -511,13 +511,13 @@ SELECT * FROM foo ORDER BY f1 NULLS FIRST;
 SELECT * FROM foo ORDER BY f1 DESC;
  f1 
 ----
-   
-   
  42
  10
   7
   3
   1
+   
+   
 (7 rows)
 
 SELECT * FROM foo ORDER BY f1 DESC NULLS LAST;
@@ -539,13 +539,13 @@ CREATE INDEX
 SELECT * FROM foo ORDER BY f1;
  f1 
 ----
+   
+   
   1
   3
   7
  10
  42
-   
-   
 (7 rows)
 
 SELECT * FROM foo ORDER BY f1 NULLS FIRST;
@@ -563,13 +563,13 @@ SELECT * FROM foo ORDER BY f1 NULLS FIRST;
 SELECT * FROM foo ORDER BY f1 DESC;
  f1 
 ----
-   
-   
  42
  10
   7
   3
   1
+   
+   
 (7 rows)
 
 SELECT * FROM foo ORDER BY f1 DESC NULLS LAST;
@@ -591,13 +591,13 @@ CREATE INDEX
 SELECT * FROM foo ORDER BY f1;
  f1 
 ----
+   
+   
   1
   3
   7
  10
  42
-   
-   
 (7 rows)
 
 SELECT * FROM foo ORDER BY f1 NULLS FIRST;
@@ -615,13 +615,13 @@ SELECT * FROM foo ORDER BY f1 NULLS FIRST;
 SELECT * FROM foo ORDER BY f1 DESC;
  f1 
 ----
-   
-   
  42
  10
   7
   3
   1
+   
+   
 (7 rows)
 
 SELECT * FROM foo ORDER BY f1 DESC NULLS LAST;

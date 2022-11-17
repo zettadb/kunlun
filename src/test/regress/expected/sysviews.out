@@ -84,9 +84,9 @@ select name, setting from pg_settings where name like 'enable%';
  enable_material                           | on
  enable_mergejoin                          | on
  enable_nestloop                           | on
- enable_parallel_append                    | off
- enable_parallel_hash                      | off
- enable_parallel_remotescan                | off
+ enable_parallel_append                    | on
+ enable_parallel_hash                      | on
+ enable_parallel_remotescan                | on
  enable_partition_pruning                  | on
  enable_partitionwise_aggregate            | on
  enable_partitionwise_join                 | on
@@ -100,7 +100,7 @@ select name, setting from pg_settings where name like 'enable%';
  enable_remote_orderby_pushdown            | on
  enable_replica_read                       | off
  enable_seqscan                            | on
- enable_shard_binary_protocol              | off
+ enable_shard_binary_protocol              | on
  enable_sort                               | on
  enable_sql_log                            | off
  enable_stacktrace                         | on

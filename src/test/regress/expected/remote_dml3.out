@@ -270,13 +270,13 @@ INSERT 0 7
     SELECT v,h, string_agg(c, E'\n') AS c, row_number() OVER(ORDER BY h) AS r
 FROM ctv_data GROUP BY v, h ORDER BY 1,3,2
     \crosstabview v h c r
- v  | h0  | h1  |  h2  | h4  |     
-----+-----+-----+------+-----+-----
- v0 |     |     |      | qux+| qux
-    |     |     |      | dbl | 
- v1 | baz |     | foo +|     | 
-    |     |     | quux |     | 
- v2 |     | bar |      |     | 
+ v  |     | h0  | h1  |  h2  | h4  
+----+-----+-----+-----+------+-----
+ v0 | qux |     |     |      | qux+
+    |     |     |     |      | dbl
+ v1 |     | baz |     | foo +| 
+    |     |     |     | quux | 
+ v2 |     |     | bar |      | 
 (3 rows)
 
 -- bug  #244 Agg not pushed down for count(1) 
@@ -511,11 +511,8 @@ $$
     left join (select b1.id, b1.t from join_bar b1 join join_bar b2 using (id)) ss
     on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1;
 $$);
- multibatch 
-------------
- t
-(1 row)
-
+psql:sql/remote_dml3.sql:255: ERROR:  canceling statement due to statement timeout
+CONTEXT:  PL/pgSQL function hash_join_batches(character varying) line 6 at FOR over EXECUTE statement
 -- rollback cmds fail because conns invalid and we do not reconnect in this case
 rollback to settings;
 ROLLBACK
@@ -534,11 +531,8 @@ $$
     left join (select b1.id, b1.t from join_bar b1 join join_bar b2 using (id)) ss
     on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1;
 $$);
- multibatch 
-------------
- 
-(1 row)
-
+psql:sql/remote_dml3.sql:271: ERROR:  canceling statement due to statement timeout
+CONTEXT:  PL/pgSQL function hash_join_batches(character varying) line 6 at FOR over EXECUTE statement
 -- automatically reconnects but query times out again
 select count(*) from join_foo
   left join (select b1.id, b1.t from join_bar b1 join join_bar b2 using (id)) ss

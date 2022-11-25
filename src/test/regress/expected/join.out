@@ -2211,17 +2211,14 @@ explain (costs off)
 select aa, bb, unique1, unique1
   from tenk1 right join b on aa = unique1
   where bb < bb and bb is null;
-psql:sql/join.sql:390: ERROR:  operator does not exist: text = integer
-LINE 3:   from tenk1 right join b on aa = unique1
-                                        ^
-HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.
+
 select aa, bb, unique1, unique1
   from tenk1 right join b on aa = unique1
   where bb < bb and bb is null;
-psql:sql/join.sql:394: ERROR:  operator does not exist: text = integer
-LINE 2:   from tenk1 right join b on aa = unique1
-                                        ^
-HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.
+ aa | bb | unique1 | unique1 
+----+----+---------+---------
+(0 rows)
+
 --
 -- regression test: check handling of empty-FROM subquery underneath outer join
 --

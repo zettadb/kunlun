@@ -343,7 +343,7 @@ WHERE sequencename ~ ANY(ARRAY['sequence_test', 'serialtest'])
  public     | sequence_test12    |          -1 |          -2147483648 |                  -1 |           -1 | f     |          1 |           
  public     | sequence_test13    |      -32768 |          -2147483648 |          2147483647 |            1 | f     |          1 |           
  public     | sequence_test14    |       32767 |          -2147483648 |          2147483647 |           -1 | f     |          1 |           
- public     | sequence_test2     |          32 |                    5 |                  36 |            4 | t     |          1 |           
+ public     | sequence_test2     |          32 |                    5 |                  36 |            4 | t     |          1 |        -36
  public     | sequence_test3     |           1 |                    1 | 9223372036854775807 |            1 | f     |          1 |           
  public     | sequence_test4     |          -1 | -9223372036854775808 |                  -1 |           -1 | f     |          1 |       -100
  public     | sequence_test5     |           1 |                    1 |               32767 |            1 | f     |          1 |           

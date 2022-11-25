@@ -468,14 +468,14 @@ DROP TABLE
 -- alter table / alter column [set/drop] not null tests
 -- try altering system catalogs, should fail
 alter table pg_class alter column relname drop not null;
-psql:sql/alter_table.sql:324: ERROR:  permission denied: "pg_class" is a system catalog
-alter table pg_class alter relname set not null;
 psql:sql/alter_table.sql:325: ERROR:  permission denied: "pg_class" is a system catalog
+alter table pg_class alter relname set not null;
+psql:sql/alter_table.sql:326: ERROR:  permission denied: "pg_class" is a system catalog
 -- try altering non-existent table, should fail
 alter table non_existent alter column bar set not null;
-psql:sql/alter_table.sql:328: ERROR:  relation "non_existent" does not exist
-alter table non_existent alter column bar drop not null;
 psql:sql/alter_table.sql:329: ERROR:  relation "non_existent" does not exist
+alter table non_existent alter column bar drop not null;
+psql:sql/alter_table.sql:330: ERROR:  relation "non_existent" does not exist
 -- test setting columns to null and not null and vice versa
 -- test checking for null values and primary key
 create table atacc1 (test int not null);
@@ -483,7 +483,7 @@ CREATE TABLE
 alter table atacc1 add constraint "atacc1_pkey" primary key (test);
 ALTER TABLE
 alter table atacc1 alter column test drop not null;
-psql:sql/alter_table.sql:335: ERROR:  column "test" is in a primary key
+psql:sql/alter_table.sql:336: ERROR:  column "test" is in a primary key
 alter table atacc1 drop constraint "atacc1_pkey";
 ALTER TABLE
 alter table atacc1 alter column test drop not null;
@@ -491,23 +491,23 @@ ALTER TABLE
 insert into atacc1 values (null);
 INSERT 0 1
 alter table atacc1 alter test set not null;
-psql:sql/alter_table.sql:339: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1138, Invalid use of NULL value.
+psql:sql/alter_table.sql:340: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1138, Invalid use of NULL value.
 delete from atacc1;
 DELETE 1
 alter table atacc1 alter test set not null;
 ALTER TABLE
 -- try altering a non-existent column, should fail
 alter table atacc1 alter bar set not null;
-psql:sql/alter_table.sql:344: ERROR:  column "bar" of relation "atacc1" does not exist
-alter table atacc1 alter bar drop not null;
 psql:sql/alter_table.sql:345: ERROR:  column "bar" of relation "atacc1" does not exist
+alter table atacc1 alter bar drop not null;
+psql:sql/alter_table.sql:346: ERROR:  column "bar" of relation "atacc1" does not exist
 -- try creating a view and altering that, should fail
 create view myview as select * from atacc1;
 CREATE VIEW
 alter table myview alter column test drop not null;
-psql:sql/alter_table.sql:349: ERROR:  "myview" is not a table or foreign table
-alter table myview alter column test set not null;
 psql:sql/alter_table.sql:350: ERROR:  "myview" is not a table or foreign table
+alter table myview alter column test set not null;
+psql:sql/alter_table.sql:351: ERROR:  "myview" is not a table or foreign table
 drop view myview;
 DROP VIEW
 drop table atacc1;
@@ -545,12 +545,12 @@ select * from def_test;
 
 -- set defaults to an incorrect type: this should fail
 alter table def_test alter column c1 set default 'wrong_datatype';
-psql:sql/alter_table.sql:371: ERROR:  invalid input syntax for integer: "wrong_datatype"
+psql:sql/alter_table.sql:372: ERROR:  invalid input syntax for integer: "wrong_datatype"
 alter table def_test alter column c2 set default 20;
 ALTER TABLE
 -- set defaults on a non-existent column: this should fail
 alter table def_test alter column c3 set default 30;
-psql:sql/alter_table.sql:375: ERROR:  column "c3" of relation "def_test" does not exist
+psql:sql/alter_table.sql:376: ERROR:  column "c3" of relation "def_test" does not exist
 -- set defaults on views: we need to create a view, add a rule
 -- to allow insertions into it, and then alter the view to add
 -- a default
@@ -585,10 +585,10 @@ DROP TABLE
 -- alter table / drop column tests
 -- try altering system catalogs, should fail
 alter table pg_class drop column relname;
-psql:sql/alter_table.sql:393: ERROR:  permission denied: "pg_class" is a system catalog
+psql:sql/alter_table.sql:394: ERROR:  permission denied: "pg_class" is a system catalog
 -- try altering non-existent table, should fail
 alter table nosuchtable drop column bar;
-psql:sql/alter_table.sql:396: ERROR:  relation "nosuchtable" does not exist
+psql:sql/alter_table.sql:397: ERROR:  relation "nosuchtable" does not exist
 -- test dropping columns
 create table atacc1 (a int4 not null, b int4, c int4 not null, d int4);
 CREATE TABLE
@@ -597,7 +597,7 @@ INSERT 0 1
 alter table atacc1 drop a;
 ALTER TABLE
 alter table atacc1 drop a;
-psql:sql/alter_table.sql:402: ERROR:  column "a" of relation "atacc1" does not exist
+psql:sql/alter_table.sql:403: ERROR:  column "a" of relation "atacc1" does not exist
 -- SELECTs
 select * from atacc1;
  b | c | d 
@@ -606,19 +606,19 @@ select * from atacc1;
 (1 row)
 
 select * from atacc1 order by a;
-psql:sql/alter_table.sql:406: ERROR:  column "a" does not exist
+psql:sql/alter_table.sql:407: ERROR:  column "a" does not exist
 LINE 1: select * from atacc1 order by a;
                                       ^
 select * from atacc1 order by "........pg.dropped.1........";
-psql:sql/alter_table.sql:407: ERROR:  column "........pg.dropped.1........" does not exist
+psql:sql/alter_table.sql:408: ERROR:  column "........pg.dropped.1........" does not exist
 LINE 1: select * from atacc1 order by "........pg.dropped.1........"...
                                       ^
 select * from atacc1 group by a;
-psql:sql/alter_table.sql:408: ERROR:  column "a" does not exist
+psql:sql/alter_table.sql:409: ERROR:  column "a" does not exist
 LINE 1: select * from atacc1 group by a;
                                       ^
 select * from atacc1 group by "........pg.dropped.1........";
-psql:sql/alter_table.sql:409: ERROR:  column "........pg.dropped.1........" does not exist
+psql:sql/alter_table.sql:410: ERROR:  column "........pg.dropped.1........" does not exist
 LINE 1: select * from atacc1 group by "........pg.dropped.1........"...
                                       ^
 select atacc1.* from atacc1;
@@ -628,11 +628,11 @@ select atacc1.* from atacc1;
 (1 row)
 
 select a from atacc1;
-psql:sql/alter_table.sql:411: ERROR:  column "a" does not exist
+psql:sql/alter_table.sql:412: ERROR:  column "a" does not exist
 LINE 1: select a from atacc1;
                ^
 select atacc1.a from atacc1;
-psql:sql/alter_table.sql:412: ERROR:  column atacc1.a does not exist
+psql:sql/alter_table.sql:413: ERROR:  column atacc1.a does not exist
 LINE 1: select atacc1.a from atacc1;
                ^
 select b,c,d from atacc1;
@@ -642,108 +642,108 @@ select b,c,d from atacc1;
 (1 row)
 
 select a,b,c,d from atacc1;
-psql:sql/alter_table.sql:414: ERROR:  column "a" does not exist
+psql:sql/alter_table.sql:415: ERROR:  column "a" does not exist
 LINE 1: select a,b,c,d from atacc1;
                ^
 select * from atacc1 where a = 1;
-psql:sql/alter_table.sql:415: ERROR:  column "a" does not exist
+psql:sql/alter_table.sql:416: ERROR:  column "a" does not exist
 LINE 1: select * from atacc1 where a = 1;
                                    ^
 select "........pg.dropped.1........" from atacc1;
-psql:sql/alter_table.sql:416: ERROR:  column "........pg.dropped.1........" does not exist
+psql:sql/alter_table.sql:417: ERROR:  column "........pg.dropped.1........" does not exist
 LINE 1: select "........pg.dropped.1........" from atacc1;
                ^
 select atacc1."........pg.dropped.1........" from atacc1;
-psql:sql/alter_table.sql:417: ERROR:  column atacc1.........pg.dropped.1........ does not exist
+psql:sql/alter_table.sql:418: ERROR:  column atacc1.........pg.dropped.1........ does not exist
 LINE 1: select atacc1."........pg.dropped.1........" from atacc1;
                ^
 select "........pg.dropped.1........",b,c,d from atacc1;
-psql:sql/alter_table.sql:418: ERROR:  column "........pg.dropped.1........" does not exist
+psql:sql/alter_table.sql:419: ERROR:  column "........pg.dropped.1........" does not exist
 LINE 1: select "........pg.dropped.1........",b,c,d from atacc1;
                ^
 select * from atacc1 where "........pg.dropped.1........" = 1;
-psql:sql/alter_table.sql:419: ERROR:  column "........pg.dropped.1........" does not exist
+psql:sql/alter_table.sql:420: ERROR:  column "........pg.dropped.1........" does not exist
 LINE 1: select * from atacc1 where "........pg.dropped.1........" = ...
                                    ^
 -- UPDATEs
 update atacc1 set a = 3;
-psql:sql/alter_table.sql:422: ERROR:  column "a" of relation "atacc1" does not exist
+psql:sql/alter_table.sql:423: ERROR:  column "a" of relation "atacc1" does not exist
 LINE 1: update atacc1 set a = 3;
                           ^
 update atacc1 set b = 2 where a = 3;
-psql:sql/alter_table.sql:423: ERROR:  column "a" does not exist
+psql:sql/alter_table.sql:424: ERROR:  column "a" does not exist
 LINE 1: update atacc1 set b = 2 where a = 3;
                                       ^
 update atacc1 set "........pg.dropped.1........" = 3;
-psql:sql/alter_table.sql:424: ERROR:  column "........pg.dropped.1........" of relation "atacc1" does not exist
+psql:sql/alter_table.sql:425: ERROR:  column "........pg.dropped.1........" of relation "atacc1" does not exist
 LINE 1: update atacc1 set "........pg.dropped.1........" = 3;
                           ^
 update atacc1 set b = 2 where "........pg.dropped.1........" = 3;
-psql:sql/alter_table.sql:425: ERROR:  column "........pg.dropped.1........" does not exist
+psql:sql/alter_table.sql:426: ERROR:  column "........pg.dropped.1........" does not exist
 LINE 1: update atacc1 set b = 2 where "........pg.dropped.1........"...
                                       ^
 -- INSERTs
 insert into atacc1 values (10, 11, 12, 13);
-psql:sql/alter_table.sql:428: ERROR:  INSERT has more expressions than target columns
+psql:sql/alter_table.sql:429: ERROR:  INSERT has more expressions than target columns
 LINE 1: insert into atacc1 values (10, 11, 12, 13);
                                                ^
 insert into atacc1 values (default, 11, 12, 13);
-psql:sql/alter_table.sql:429: ERROR:  INSERT has more expressions than target columns
+psql:sql/alter_table.sql:430: ERROR:  INSERT has more expressions than target columns
 LINE 1: insert into atacc1 values (default, 11, 12, 13);
                                                     ^
 insert into atacc1 values (11, 12, 13);
 INSERT 0 1
 insert into atacc1 (a) values (10);
-psql:sql/alter_table.sql:431: ERROR:  column "a" of relation "atacc1" does not exist
+psql:sql/alter_table.sql:432: ERROR:  column "a" of relation "atacc1" does not exist
 LINE 1: insert into atacc1 (a) values (10);
                             ^
 insert into atacc1 (a) values (default);
-psql:sql/alter_table.sql:432: ERROR:  column "a" of relation "atacc1" does not exist
+psql:sql/alter_table.sql:433: ERROR:  column "a" of relation "atacc1" does not exist
 LINE 1: insert into atacc1 (a) values (default);
                             ^
 insert into atacc1 (a,b,c,d) values (10,11,12,13);
-psql:sql/alter_table.sql:433: ERROR:  column "a" of relation "atacc1" does not exist
+psql:sql/alter_table.sql:434: ERROR:  column "a" of relation "atacc1" does not exist
 LINE 1: insert into atacc1 (a,b,c,d) values (10,11,12,13);
                             ^
 insert into atacc1 (a,b,c,d) values (default,11,12,13);
-psql:sql/alter_table.sql:434: ERROR:  column "a" of relation "atacc1" does not exist
+psql:sql/alter_table.sql:435: ERROR:  column "a" of relation "atacc1" does not exist
 LINE 1: insert into atacc1 (a,b,c,d) values (default,11,12,13);
                             ^
 insert into atacc1 (b,c,d) values (11,12,13);
 INSERT 0 1
 insert into atacc1 ("........pg.dropped.1........") values (10);
-psql:sql/alter_table.sql:436: ERROR:  column "........pg.dropped.1........" of relation "atacc1" does not exist
-LINE 1: insert into atacc1 ("........pg.dropped.1........") values (...
-                            ^
-insert into atacc1 ("........pg.dropped.1........") values (default);
 psql:sql/alter_table.sql:437: ERROR:  column "........pg.dropped.1........" of relation "atacc1" does not exist
 LINE 1: insert into atacc1 ("........pg.dropped.1........") values (...
                             ^
-insert into atacc1 ("........pg.dropped.1........",b,c,d) values (10,11,12,13);
+insert into atacc1 ("........pg.dropped.1........") values (default);
 psql:sql/alter_table.sql:438: ERROR:  column "........pg.dropped.1........" of relation "atacc1" does not exist
+LINE 1: insert into atacc1 ("........pg.dropped.1........") values (...
+                            ^
+insert into atacc1 ("........pg.dropped.1........",b,c,d) values (10,11,12,13);
+psql:sql/alter_table.sql:439: ERROR:  column "........pg.dropped.1........" of relation "atacc1" does not exist
 LINE 1: insert into atacc1 ("........pg.dropped.1........",b,c,d) va...
                             ^
 insert into atacc1 ("........pg.dropped.1........",b,c,d) values (default,11,12,13);
-psql:sql/alter_table.sql:439: ERROR:  column "........pg.dropped.1........" of relation "atacc1" does not exist
+psql:sql/alter_table.sql:440: ERROR:  column "........pg.dropped.1........" of relation "atacc1" does not exist
 LINE 1: insert into atacc1 ("........pg.dropped.1........",b,c,d) va...
                             ^
 -- DELETEs
 delete from atacc1 where a = 3;
-psql:sql/alter_table.sql:442: ERROR:  column "a" does not exist
+psql:sql/alter_table.sql:443: ERROR:  column "a" does not exist
 LINE 1: delete from atacc1 where a = 3;
                                  ^
 delete from atacc1 where "........pg.dropped.1........" = 3;
-psql:sql/alter_table.sql:443: ERROR:  column "........pg.dropped.1........" does not exist
+psql:sql/alter_table.sql:444: ERROR:  column "........pg.dropped.1........" does not exist
 LINE 1: delete from atacc1 where "........pg.dropped.1........" = 3;
                                  ^
 delete from atacc1;
 DELETE 3
 -- try dropping a non-existent column, should fail
 alter table atacc1 drop bar;
-psql:sql/alter_table.sql:447: ERROR:  column "bar" of relation "atacc1" does not exist
+psql:sql/alter_table.sql:448: ERROR:  column "bar" of relation "atacc1" does not exist
 -- try dropping the xmin column, should fail
 alter table atacc1 drop xmin;
-psql:sql/alter_table.sql:450: ERROR:  cannot drop system column "xmin"
+psql:sql/alter_table.sql:451: ERROR:  cannot drop system column "xmin"
 -- try creating a view and altering that, should fail
 create view myview as select * from atacc1;
 CREATE VIEW
@@ -753,54 +753,54 @@ select * from myview;
 (0 rows)
 
 alter table myview drop d;
-psql:sql/alter_table.sql:455: ERROR:  "myview" is not a table, composite type, or foreign table
+psql:sql/alter_table.sql:456: ERROR:  "myview" is not a table, composite type, or foreign table
 drop view myview;
 DROP VIEW
 -- test some commands to make sure they fail on the dropped column
 comment on column atacc1.a is 'testing';
-psql:sql/alter_table.sql:459: ERROR:  column "a" of relation "atacc1" does not exist
+psql:sql/alter_table.sql:460: ERROR:  column "a" of relation "atacc1" does not exist
 comment on column atacc1."........pg.dropped.1........" is 'testing';
-psql:sql/alter_table.sql:460: ERROR:  column "........pg.dropped.1........" of relation "atacc1" does not exist
+psql:sql/alter_table.sql:461: ERROR:  column "........pg.dropped.1........" of relation "atacc1" does not exist
 --alter table atacc1 alter a set storage plain;
 --alter table atacc1 alter "........pg.dropped.1........" set storage plain;
 --alter table atacc1 alter a set statistics 0;
 --alter table atacc1 alter "........pg.dropped.1........" set statistics 0;
 alter table atacc1 alter a set default 3;
-psql:sql/alter_table.sql:465: ERROR:  column "a" of relation "atacc1" does not exist
+psql:sql/alter_table.sql:466: ERROR:  column "a" of relation "atacc1" does not exist
 alter table atacc1 alter "........pg.dropped.1........" set default 3;
-psql:sql/alter_table.sql:466: ERROR:  column "........pg.dropped.1........" of relation "atacc1" does not exist
+psql:sql/alter_table.sql:467: ERROR:  column "........pg.dropped.1........" of relation "atacc1" does not exist
 alter table atacc1 alter a drop default;
-psql:sql/alter_table.sql:467: ERROR:  column "a" of relation "atacc1" does not exist
+psql:sql/alter_table.sql:468: ERROR:  column "a" of relation "atacc1" does not exist
 alter table atacc1 alter "........pg.dropped.1........" drop default;
-psql:sql/alter_table.sql:468: ERROR:  column "........pg.dropped.1........" of relation "atacc1" does not exist
+psql:sql/alter_table.sql:469: ERROR:  column "........pg.dropped.1........" of relation "atacc1" does not exist
 alter table atacc1 alter a set not null;
-psql:sql/alter_table.sql:469: ERROR:  column "a" of relation "atacc1" does not exist
+psql:sql/alter_table.sql:470: ERROR:  column "a" of relation "atacc1" does not exist
 alter table atacc1 alter "........pg.dropped.1........" set not null;
-psql:sql/alter_table.sql:470: ERROR:  column "........pg.dropped.1........" of relation "atacc1" does not exist
+psql:sql/alter_table.sql:471: ERROR:  column "........pg.dropped.1........" of relation "atacc1" does not exist
 alter table atacc1 alter a drop not null;
-psql:sql/alter_table.sql:471: ERROR:  column "a" of relation "atacc1" does not exist
+psql:sql/alter_table.sql:472: ERROR:  column "a" of relation "atacc1" does not exist
 alter table atacc1 alter "........pg.dropped.1........" drop not null;
-psql:sql/alter_table.sql:472: ERROR:  column "........pg.dropped.1........" of relation "atacc1" does not exist
+psql:sql/alter_table.sql:473: ERROR:  column "........pg.dropped.1........" of relation "atacc1" does not exist
 alter table atacc1 rename a to x;
-psql:sql/alter_table.sql:473: ERROR:  column "a" does not exist
+psql:sql/alter_table.sql:474: ERROR:  column "a" does not exist
 alter table atacc1 rename "........pg.dropped.1........" to x;
-psql:sql/alter_table.sql:474: ERROR:  column "........pg.dropped.1........" does not exist
+psql:sql/alter_table.sql:475: ERROR:  column "........pg.dropped.1........" does not exist
 alter table atacc1 add primary key(a);
-psql:sql/alter_table.sql:475: ERROR:  column "a" named in key does not exist
+psql:sql/alter_table.sql:476: ERROR:  column "a" named in key does not exist
 alter table atacc1 add primary key("........pg.dropped.1........");
-psql:sql/alter_table.sql:476: ERROR:  column "........pg.dropped.1........" named in key does not exist
+psql:sql/alter_table.sql:477: ERROR:  column "........pg.dropped.1........" named in key does not exist
 alter table atacc1 add unique(a);
-psql:sql/alter_table.sql:477: ERROR:  column "a" named in key does not exist
+psql:sql/alter_table.sql:478: ERROR:  column "a" named in key does not exist
 alter table atacc1 add unique("........pg.dropped.1........");
-psql:sql/alter_table.sql:478: ERROR:  column "........pg.dropped.1........" named in key does not exist
+psql:sql/alter_table.sql:479: ERROR:  column "........pg.dropped.1........" named in key does not exist
 create table atacc2 (id int4 unique);
 CREATE TABLE
 drop table atacc2;
 DROP TABLE
 create index "testing_idx" on atacc1(a);
-psql:sql/alter_table.sql:481: ERROR:  column "a" does not exist
+psql:sql/alter_table.sql:482: ERROR:  column "a" does not exist
 create index "testing_idx" on atacc1("........pg.dropped.1........");
-psql:sql/alter_table.sql:482: ERROR:  column "........pg.dropped.1........" does not exist
+psql:sql/alter_table.sql:483: ERROR:  column "........pg.dropped.1........" does not exist
 -- test create as and select into
 insert into atacc1 values (21, 22, 23);
 INSERT 0 1
@@ -826,11 +826,11 @@ INSERT 0 1
 alter table atacc1 drop column value;
 ALTER TABLE
 insert into atacc1(value) values (100);
-psql:sql/alter_table.sql:497: ERROR:  column "value" of relation "atacc1" does not exist
+psql:sql/alter_table.sql:499: ERROR:  column "value" of relation "atacc1" does not exist
 LINE 1: insert into atacc1(value) values (100);
                            ^
 insert into atacc1(id, value) values (null, 0);
-psql:sql/alter_table.sql:498: ERROR:  column "value" of relation "atacc1" does not exist
+psql:sql/alter_table.sql:500: ERROR:  column "value" of relation "atacc1" does not exist
 LINE 1: insert into atacc1(id, value) values (null, 0);
                                ^
 drop table atacc1;
@@ -849,11 +849,11 @@ ALTER TABLE
 copy attest to stdout;
 2	3
 copy attest(a) to stdout;
-psql:sql/alter_table.sql:509: ERROR:  column "a" of relation "attest" does not exist
+psql:sql/alter_table.sql:511: ERROR:  column "a" of relation "attest" does not exist
 copy attest("........pg.dropped.1........") to stdout;
-psql:sql/alter_table.sql:510: ERROR:  column "........pg.dropped.1........" of relation "attest" does not exist
+psql:sql/alter_table.sql:512: ERROR:  column "........pg.dropped.1........" of relation "attest" does not exist
 copy attest from stdin;
-psql:sql/alter_table.sql:513: ERROR:  extra data after last expected column
+psql:sql/alter_table.sql:515: ERROR:  extra data after last expected column
 CONTEXT:  COPY attest, line 1: "10	11	12"
 select * from attest;
  b | c 
@@ -871,9 +871,9 @@ select * from attest;
 (2 rows)
 
 copy attest(a) from stdin;
-psql:sql/alter_table.sql:519: ERROR:  column "a" of relation "attest" does not exist
+psql:sql/alter_table.sql:521: ERROR:  column "a" of relation "attest" does not exist
 copy attest("........pg.dropped.1........") from stdin;
-psql:sql/alter_table.sql:520: ERROR:  column "........pg.dropped.1........" of relation "attest" does not exist
+psql:sql/alter_table.sql:522: ERROR:  column "........pg.dropped.1........" of relation "attest" does not exist
 copy attest(b,c) from stdin;
 COPY 1
 select * from attest;
@@ -947,7 +947,7 @@ select f3,max(f1) from foo group by f3;
 
 -- Simple tests for alter table column type
 alter table foo alter f1 TYPE integer; -- fails
-psql:sql/alter_table.sql:558: ERROR:  column "f1" cannot be cast automatically to type integer
+psql:sql/alter_table.sql:560: ERROR:  column "f1" cannot be cast automatically to type integer
 HINT:  You might need to specify "USING f1::integer".
 alter table foo alter f1 TYPE varchar(10);
 ALTER TABLE
@@ -965,10 +965,10 @@ select * from anothertab;
 (2 rows)
 
 alter table anothertab alter column atcol1 type boolean; -- fails
-psql:sql/alter_table.sql:567: ERROR:  column "atcol1" cannot be cast automatically to type boolean
+psql:sql/alter_table.sql:569: ERROR:  column "atcol1" cannot be cast automatically to type boolean
 HINT:  You might need to specify "USING atcol1::boolean".
 alter table anothertab alter column atcol1 type boolean using atcol1::int; -- fails
-psql:sql/alter_table.sql:568: ERROR:  result of USING clause for column "atcol1" cannot be cast automatically to type boolean
+psql:sql/alter_table.sql:570: ERROR:  result of USING clause for column "atcol1" cannot be cast automatically to type boolean
 HINT:  You might need to add an explicit cast.
 alter table anothertab alter column atcol1 type integer;
 ALTER TABLE
@@ -1014,11 +1014,11 @@ ALTER TABLE
 --alter table anothertab alter column atcol1 type boolean
 --        using case when atcol1 % 2 = 0 then true else false end; -- fails
 alter table anothertab drop constraint anothertab_chk;
-psql:sql/alter_table.sql:591: ERROR:  constraint "anothertab_chk" of relation "anothertab" does not exist
+psql:sql/alter_table.sql:593: ERROR:  constraint "anothertab_chk" of relation "anothertab" does not exist
 alter table anothertab drop constraint anothertab_chk; -- fails
-psql:sql/alter_table.sql:592: ERROR:  constraint "anothertab_chk" of relation "anothertab" does not exist
+psql:sql/alter_table.sql:594: ERROR:  constraint "anothertab_chk" of relation "anothertab" does not exist
 alter table anothertab drop constraint IF EXISTS anothertab_chk; -- succeeds
-psql:sql/alter_table.sql:593: NOTICE:  constraint "anothertab_chk" of relation "anothertab" does not exist, skipping
+psql:sql/alter_table.sql:595: NOTICE:  constraint "anothertab_chk" of relation "anothertab" does not exist, skipping
 ALTER TABLE
 -- alter table anothertab alter column atcol1 type boolean
 --        using case when atcol1 % 2 = 0 then true else false end;
@@ -1058,9 +1058,6 @@ Indexes:
     "anothertab_f2_key" UNIQUE CONSTRAINT, btree (f2 NULLS FIRST)
     "anothertab_f4_idx" UNIQUE, btree (f4 NULLS FIRST)
     "anothertab_f2_f3_idx" btree (f2 NULLS FIRST, f3 NULLS FIRST)
-Statistics objects:
-    "public"."anothertab_f1_f4_key_pfx_2" () ON f1, f4 FROM anothertab
-    "public"."anothertab_f2_f3_idx_pfx_2" () ON f2, f3 FROM anothertab
 
 alter table anothertab alter column f1 type bigint;
 ALTER TABLE
@@ -1496,10 +1493,10 @@ select alter2.plus1(41);
 
 -- clean up
 drop table alter2.t1 cascade;
-psql:sql/alter_table.sql:805: NOTICE:  drop cascades to view alter2.v1
+psql:sql/alter_table.sql:807: NOTICE:  drop cascades to view alter2.v1
 DROP TABLE
 drop schema alter2 cascade;
-psql:sql/alter_table.sql:806: NOTICE:  drop cascades to 10 other objects
+psql:sql/alter_table.sql:808: NOTICE:  drop cascades to 10 other objects
 DETAIL:  drop cascades to function alter2.plus1(integer)
 drop cascades to operator family alter2.ctype_hash_ops for access method hash
 drop cascades to type alter2.ctype
@@ -1523,7 +1520,7 @@ CREATE TYPE
  a      | integer |           |          | 
 
 ALTER TYPE nosuchtype ADD ATTRIBUTE b text; -- fails
-psql:sql/alter_table.sql:814: ERROR:  relation "nosuchtype" does not exist
+psql:sql/alter_table.sql:816: ERROR:  relation "nosuchtype" does not exist
 ALTER TYPE test_type ADD ATTRIBUTE b text;
 ALTER TYPE
 \d test_type
@@ -1534,7 +1531,7 @@ ALTER TYPE
  b      | text    |           |          | 
 
 ALTER TYPE test_type ADD ATTRIBUTE b text; -- fails
-psql:sql/alter_table.sql:819: ERROR:  column "b" of relation "test_type" already exists
+psql:sql/alter_table.sql:821: ERROR:  column "b" of relation "test_type" already exists
 ALTER TYPE test_type ALTER ATTRIBUTE b SET DATA TYPE varchar;
 ALTER TYPE
 \d test_type
@@ -1562,9 +1559,9 @@ ALTER TYPE
  a      | integer |           |          | 
 
 ALTER TYPE test_type DROP ATTRIBUTE c; -- fails
-psql:sql/alter_table.sql:829: ERROR:  column "c" of relation "test_type" does not exist
+psql:sql/alter_table.sql:831: ERROR:  column "c" of relation "test_type" does not exist
 ALTER TYPE test_type DROP ATTRIBUTE IF EXISTS c;
-psql:sql/alter_table.sql:830: NOTICE:  column "c" of relation "test_type" does not exist, skipping
+psql:sql/alter_table.sql:832: NOTICE:  column "c" of relation "test_type" does not exist, skipping
 ALTER TYPE
 ALTER TYPE test_type DROP ATTRIBUTE a, ADD ATTRIBUTE d boolean;
 ALTER TYPE
@@ -1575,7 +1572,7 @@ ALTER TYPE
  d      | boolean |           |          | 
 
 ALTER TYPE test_type RENAME ATTRIBUTE a TO aa;
-psql:sql/alter_table.sql:835: ERROR:  column "a" does not exist
+psql:sql/alter_table.sql:837: ERROR:  column "a" does not exist
 ALTER TYPE test_type RENAME ATTRIBUTE d TO dd;
 ALTER TYPE
 \d test_type
@@ -1604,7 +1601,7 @@ CREATE TYPE
 ALTER TYPE test_type2 ADD ATTRIBUTE c text; -- fails
 ALTER TYPE
 ALTER TYPE test_type2 ADD ATTRIBUTE c text CASCADE;
-psql:sql/alter_table.sql:849: ERROR:  column "c" of relation "test_type2" already exists
+psql:sql/alter_table.sql:851: ERROR:  column "c" of relation "test_type2" already exists
 \d test_type2
         Composite type "public.test_type2"
  Column |  Type   | Collation | Nullable | Default 
@@ -1628,7 +1625,7 @@ ALTER TYPE
 ALTER TYPE test_type2 DROP ATTRIBUTE b; -- fails
 ALTER TYPE
 ALTER TYPE test_type2 DROP ATTRIBUTE b CASCADE;
-psql:sql/alter_table.sql:857: ERROR:  column "b" of relation "test_type2" does not exist
+psql:sql/alter_table.sql:859: ERROR:  column "b" of relation "test_type2" does not exist
 \d test_type2
         Composite type "public.test_type2"
  Column |  Type   | Collation | Nullable | Default 
@@ -1639,7 +1636,7 @@ psql:sql/alter_table.sql:857: ERROR:  column "b" of relation "test_type2" does n
 ALTER TYPE test_type2 RENAME ATTRIBUTE a TO aa; -- fails
 ALTER TYPE
 ALTER TYPE test_type2 RENAME ATTRIBUTE a TO aa CASCADE;
-psql:sql/alter_table.sql:861: ERROR:  column "a" does not exist
+psql:sql/alter_table.sql:863: ERROR:  column "a" does not exist
 \d test_type2
         Composite type "public.test_type2"
  Column |  Type   | Collation | Nullable | Default 
@@ -1654,30 +1651,30 @@ CREATE TYPE
 ALTER TYPE test_typex DROP ATTRIBUTE a; -- fails
 ALTER TYPE
 ALTER TYPE test_typex DROP ATTRIBUTE a CASCADE;
-psql:sql/alter_table.sql:867: ERROR:  column "a" of relation "test_typex" does not exist
+psql:sql/alter_table.sql:869: ERROR:  column "a" of relation "test_typex" does not exist
 \d test_tblx
-psql:sql/alter_table.sql:868: error: Did not find any relation named "test_tblx".
+psql:sql/alter_table.sql:870: error: Did not find any relation named "test_tblx".
 DROP TYPE test_typex;
 DROP TYPE
 --
 -- IF EXISTS test
 --
 ALTER TABLE IF EXISTS tt8 ADD COLUMN f int;
-psql:sql/alter_table.sql:874: NOTICE:  relation "tt8" does not exist, skipping
+psql:sql/alter_table.sql:876: NOTICE:  relation "tt8" does not exist, skipping
 ALTER TABLE
 ALTER TABLE IF EXISTS tt8 ADD CONSTRAINT xxx PRIMARY KEY(f);
-psql:sql/alter_table.sql:875: NOTICE:  relation "tt8" does not exist, skipping
-ALTER TABLE
-ALTER TABLE IF EXISTS tt8 ADD CHECK (f BETWEEN 0 AND 10);
-psql:sql/alter_table.sql:876: ERROR:  Kunlun-db: Alter table is not supported
-ALTER TABLE IF EXISTS tt8 ALTER COLUMN f SET DEFAULT 0;
 psql:sql/alter_table.sql:877: NOTICE:  relation "tt8" does not exist, skipping
 ALTER TABLE
+ALTER TABLE IF EXISTS tt8 ADD CHECK (f BETWEEN 0 AND 10);
+psql:sql/alter_table.sql:878: ERROR:  Kunlun-db: Alter table is not supported
+ALTER TABLE IF EXISTS tt8 ALTER COLUMN f SET DEFAULT 0;
+psql:sql/alter_table.sql:879: NOTICE:  relation "tt8" does not exist, skipping
+ALTER TABLE
 ALTER TABLE IF EXISTS tt8 RENAME COLUMN f TO f1;
-psql:sql/alter_table.sql:878: NOTICE:  relation "tt8" does not exist, skipping
+psql:sql/alter_table.sql:880: NOTICE:  relation "tt8" does not exist, skipping
 ALTER TABLE
 ALTER TABLE IF EXISTS tt8 SET SCHEMA alter2;
-psql:sql/alter_table.sql:879: NOTICE:  relation "tt8" does not exist, skipping
+psql:sql/alter_table.sql:881: NOTICE:  relation "tt8" does not exist, skipping
 ALTER TABLE
 CREATE TABLE tt8(a int);
 CREATE TABLE
@@ -1716,7 +1713,7 @@ ALTER TABLE
 ALTER TABLE tt9 ADD UNIQUE(c);  -- picks nonconflicting name
 ALTER TABLE
 ALTER TABLE tt9 ADD CONSTRAINT tt9_c_key UNIQUE(c);  -- fail, dup name
-psql:sql/alter_table.sql:901: ERROR:  relation "tt9_c_key" already exists
+psql:sql/alter_table.sql:903: ERROR:  relation "tt9_c_key" already exists
 ALTER TABLE tt9 ADD CONSTRAINT foo UNIQUE(c);  -- fail, dup name
 ALTER TABLE
 ALTER TABLE tt9 ADD UNIQUE(c);  -- picks nonconflicting name
@@ -1813,15 +1810,15 @@ ALTER TABLE comment_test ALTER COLUMN id SET DATA TYPE int USING id::integer;
 ALTER TABLE
 -- Comments should be intact
 SELECT col_description('comment_test_child'::regclass, 1) as comment;
-psql:sql/alter_table.sql:946: ERROR:  relation "comment_test_child" does not exist
+psql:sql/alter_table.sql:948: ERROR:  relation "comment_test_child" does not exist
 LINE 1: SELECT col_description('comment_test_child'::regclass, 1) as...
                                ^
 SELECT indexrelid::regclass::text as index, obj_description(indexrelid, 'pg_class') as comment FROM pg_index where indrelid = 'comment_test_child'::regclass ORDER BY 1, 2;
-psql:sql/alter_table.sql:947: ERROR:  relation "comment_test_child" does not exist
+psql:sql/alter_table.sql:949: ERROR:  relation "comment_test_child" does not exist
 LINE 1: ...class') as comment FROM pg_index where indrelid = 'comment_t...
                                                              ^
 SELECT conname as constraint, obj_description(oid, 'pg_constraint') as comment FROM pg_constraint where conrelid = 'comment_test_child'::regclass ORDER BY 1, 2;
-psql:sql/alter_table.sql:948: ERROR:  relation "comment_test_child" does not exist
+psql:sql/alter_table.sql:950: ERROR:  relation "comment_test_child" does not exist
 LINE 1: ...') as comment FROM pg_constraint where conrelid = 'comment_t...
                                                              ^
 -- Checks on creating and manipulation of user defined relations in
@@ -1838,7 +1835,7 @@ SHOW allow_system_table_mods;
 
 -- disallowed because of search_path issues with pg_dump
 CREATE TABLE pg_catalog.new_system_table();
-psql:sql/alter_table.sql:959: ERROR:  permission denied to create "pg_catalog.new_system_table"
+psql:sql/alter_table.sql:961: ERROR:  permission denied to create "pg_catalog.new_system_table"
 DETAIL:  System catalog modifications are currently disallowed.
 -- instead create in public first, move to catalog
 CREATE TABLE new_system_table(id serial primary key, othercol text);
@@ -1847,7 +1844,7 @@ ALTER TABLE new_system_table SET SCHEMA pg_catalog;
 ALTER TABLE
 -- XXX: it's currently impossible to move relations out of pg_catalog
 ALTER TABLE new_system_table SET SCHEMA public;
-psql:sql/alter_table.sql:965: ERROR:  cannot remove dependency on schema pg_catalog because it is a system object
+psql:sql/alter_table.sql:967: ERROR:  cannot remove dependency on schema pg_catalog because it is a system object
 -- move back, will be ignored -- already there
 ALTER TABLE new_system_table SET SCHEMA pg_catalog;
 ALTER TABLE
@@ -1888,10 +1885,10 @@ ALTER TABLE
 
 ALTER TABLE test_add_column
 	ADD COLUMN c2 integer; -- fail because c2 already exists
-psql:sql/alter_table.sql:984: ERROR:  column "c2" of relation "test_add_column" already exists
+psql:sql/alter_table.sql:986: ERROR:  column "c2" of relation "test_add_column" already exists
 ALTER TABLE ONLY test_add_column
 	ADD COLUMN c2 integer; -- fail because c2 already exists
-psql:sql/alter_table.sql:986: ERROR:  column "c2" of relation "test_add_column" already exists
+psql:sql/alter_table.sql:988: ERROR:  column "c2" of relation "test_add_column" already exists
 \d test_add_column
           Table "public.test_add_column"
  Column |  Type   | Collation | Nullable | Default 
@@ -1901,11 +1898,11 @@ psql:sql/alter_table.sql:986: ERROR:  column "c2" of relation "test_add_column" 
 
 ALTER TABLE test_add_column
 	ADD COLUMN IF NOT EXISTS c2 integer; -- skipping because c2 already exists
-psql:sql/alter_table.sql:989: NOTICE:  column "c2" of relation "test_add_column" already exists, skipping
+psql:sql/alter_table.sql:991: NOTICE:  column "c2" of relation "test_add_column" already exists, skipping
 ALTER TABLE
 ALTER TABLE ONLY test_add_column
 	ADD COLUMN IF NOT EXISTS c2 integer; -- skipping because c2 already exists
-psql:sql/alter_table.sql:991: NOTICE:  column "c2" of relation "test_add_column" already exists, skipping
+psql:sql/alter_table.sql:993: NOTICE:  column "c2" of relation "test_add_column" already exists, skipping
 ALTER TABLE
 \d test_add_column
           Table "public.test_add_column"
@@ -1917,7 +1914,7 @@ ALTER TABLE
 ALTER TABLE test_add_column
 	ADD COLUMN c2 integer, -- fail because c2 already exists
 	ADD COLUMN c3 integer;
-psql:sql/alter_table.sql:995: ERROR:  column "c2" of relation "test_add_column" already exists
+psql:sql/alter_table.sql:997: ERROR:  column "c2" of relation "test_add_column" already exists
 \d test_add_column
           Table "public.test_add_column"
  Column |  Type   | Collation | Nullable | Default 
@@ -1928,7 +1925,7 @@ psql:sql/alter_table.sql:995: ERROR:  column "c2" of relation "test_add_column" 
 ALTER TABLE test_add_column
 	ADD COLUMN IF NOT EXISTS c2 integer, -- skipping because c2 already exists
 	ADD COLUMN c3 integer; -- fail because c3 already exists
-psql:sql/alter_table.sql:999: NOTICE:  column "c2" of relation "test_add_column" already exists, skipping
+psql:sql/alter_table.sql:1001: NOTICE:  column "c2" of relation "test_add_column" already exists, skipping
 ALTER TABLE
 \d test_add_column
           Table "public.test_add_column"
@@ -1941,8 +1938,8 @@ ALTER TABLE
 ALTER TABLE test_add_column
 	ADD COLUMN IF NOT EXISTS c2 integer, -- skipping because c2 already exists
 	ADD COLUMN IF NOT EXISTS c3 integer; -- skipping because c3 already exists
-psql:sql/alter_table.sql:1003: NOTICE:  column "c2" of relation "test_add_column" already exists, skipping
-psql:sql/alter_table.sql:1003: NOTICE:  column "c3" of relation "test_add_column" already exists, skipping
+psql:sql/alter_table.sql:1005: NOTICE:  column "c2" of relation "test_add_column" already exists, skipping
+psql:sql/alter_table.sql:1005: NOTICE:  column "c3" of relation "test_add_column" already exists, skipping
 ALTER TABLE
 \d test_add_column
           Table "public.test_add_column"
@@ -1956,8 +1953,8 @@ ALTER TABLE test_add_column
 	ADD COLUMN IF NOT EXISTS c2 integer, -- skipping because c2 already exists
 	ADD COLUMN IF NOT EXISTS c3 integer, -- skipping because c3 already exists
 	ADD COLUMN c4 integer;
-psql:sql/alter_table.sql:1008: NOTICE:  column "c2" of relation "test_add_column" already exists, skipping
-psql:sql/alter_table.sql:1008: NOTICE:  column "c3" of relation "test_add_column" already exists, skipping
+psql:sql/alter_table.sql:1010: NOTICE:  column "c2" of relation "test_add_column" already exists, skipping
+psql:sql/alter_table.sql:1010: NOTICE:  column "c3" of relation "test_add_column" already exists, skipping
 ALTER TABLE
 \d test_add_column
           Table "public.test_add_column"
@@ -1978,13 +1975,13 @@ CREATE TABLE partitioned (
 CREATE TABLE
 -- cannot drop column that is part of the partition key
 ALTER TABLE partitioned DROP COLUMN a;
-psql:sql/alter_table.sql:1019: ERROR:  cannot drop column "a" because it is part of the partition key of relation "partitioned"
+psql:sql/alter_table.sql:1021: ERROR:  cannot drop column "a" because it is part of the partition key of relation "partitioned"
 ALTER TABLE partitioned ALTER COLUMN a TYPE char(5);
-psql:sql/alter_table.sql:1020: ERROR:  cannot alter column "a" because it is part of the partition key of relation "partitioned"
+psql:sql/alter_table.sql:1022: ERROR:  cannot alter column "a" because it is part of the partition key of relation "partitioned"
 ALTER TABLE partitioned DROP COLUMN b;
-psql:sql/alter_table.sql:1021: ERROR:  cannot drop column "b" because it is part of the partition key of relation "partitioned"
+psql:sql/alter_table.sql:1023: ERROR:  cannot drop column "b" because it is part of the partition key of relation "partitioned"
 ALTER TABLE partitioned ALTER COLUMN b TYPE char(5);
-psql:sql/alter_table.sql:1022: ERROR:  cannot alter column "b" because it is part of the partition key of relation "partitioned"
+psql:sql/alter_table.sql:1024: ERROR:  cannot alter column "b" because it is part of the partition key of relation "partitioned"
 DROP TABLE partitioned;
 DROP TABLE
 --
@@ -2003,31 +2000,30 @@ ALTER TABLE
 CREATE TABLE part_2 (LIKE list_parted2);
 CREATE TABLE
 INSERT INTO part_2 VALUES (3, 'a');
-psql:sql/alter_table.sql:1039: ERROR:  invalid input syntax for integer: "a"
+psql:sql/alter_table.sql:1041: ERROR:  invalid input syntax for integer: "a"
 LINE 1: INSERT INTO part_2 VALUES (3, 'a');
                                       ^
 -- cannot add a column to partition or drop an inherited one
 ALTER TABLE part_2 ADD COLUMN c text;
-psql:sql/alter_table.sql:1041: ERROR:  column "c" of relation "part_2" already exists
+psql:sql/alter_table.sql:1043: ERROR:  column "c" of relation "part_2" already exists
 ALTER TABLE part_2 DROP COLUMN b;
-psql:sql/alter_table.sql:1042: ERROR:  column "b" of relation "part_2" does not exist
+psql:sql/alter_table.sql:1044: ERROR:  column "b" of relation "part_2" does not exist
 -- Nor rename, alter type
 ALTER TABLE part_2 RENAME COLUMN b to c;
-psql:sql/alter_table.sql:1045: ERROR:  column "b" does not exist
+psql:sql/alter_table.sql:1047: ERROR:  column "b" does not exist
 ALTER TABLE part_2 ALTER COLUMN b TYPE text;
-psql:sql/alter_table.sql:1046: ERROR:  column "b" of relation "part_2" does not exist
+psql:sql/alter_table.sql:1048: ERROR:  column "b" of relation "part_2" does not exist
 -- cannot add/drop NOT NULL or check constraints to *only* the parent, when
 -- partitions exist
 ALTER TABLE ONLY list_parted2 ALTER b SET NOT NULL;
-psql:sql/alter_table.sql:1050: ERROR:  column "b" of relation "list_parted2" does not exist
-ALTER TABLE list_parted2 ALTER b SET NOT NULL;
 psql:sql/alter_table.sql:1052: ERROR:  column "b" of relation "list_parted2" does not exist
+ALTER TABLE list_parted2 ALTER b SET NOT NULL;
+psql:sql/alter_table.sql:1054: ERROR:  column "b" of relation "list_parted2" does not exist
 ALTER TABLE ONLY list_parted2 ALTER b DROP NOT NULL;
-psql:sql/alter_table.sql:1053: ERROR:  column "b" of relation "list_parted2" does not exist
+psql:sql/alter_table.sql:1055: ERROR:  column "b" of relation "list_parted2" does not exist
 -- It's alright though, if no partitions are yet created
 CREATE TABLE parted_no_parts (a int) PARTITION BY LIST (a);
 CREATE TABLE
---DDL_STATEENT_END--
 ALTER TABLE ONLY parted_no_parts ALTER a SET NOT NULL;
 ALTER TABLE
 ALTER TABLE ONLY parted_no_parts ALTER a DROP NOT NULL;
@@ -2036,34 +2032,34 @@ DROP TABLE parted_no_parts;
 DROP TABLE
 -- cannot drop inherited NOT NULL or check constraints from partition
 ALTER TABLE list_parted2 ALTER b SET NOT NULL;
-psql:sql/alter_table.sql:1063: ERROR:  column "b" of relation "list_parted2" does not exist
+psql:sql/alter_table.sql:1064: ERROR:  column "b" of relation "list_parted2" does not exist
 ALTER TABLE part_2 ALTER b DROP NOT NULL;
-psql:sql/alter_table.sql:1064: ERROR:  column "b" of relation "part_2" does not exist
+psql:sql/alter_table.sql:1065: ERROR:  column "b" of relation "part_2" does not exist
 -- cannot drop or alter type of partition key columns of lower level
 -- partitioned tables; for example, part_5, which is list_parted2's
 -- partition, is partitioned on b;
 ALTER TABLE list_parted2 DROP COLUMN b;
-psql:sql/alter_table.sql:1069: ERROR:  column "b" of relation "list_parted2" does not exist
-ALTER TABLE list_parted2 ALTER COLUMN b TYPE text;
 psql:sql/alter_table.sql:1070: ERROR:  column "b" of relation "list_parted2" does not exist
+ALTER TABLE list_parted2 ALTER COLUMN b TYPE text;
+psql:sql/alter_table.sql:1071: ERROR:  column "b" of relation "list_parted2" does not exist
 -- dropping non-partition key columns should be allowed on the parent table.
 ALTER TABLE list_parted DROP COLUMN b;
-psql:sql/alter_table.sql:1073: ERROR:  relation "list_parted" does not exist
-SELECT * FROM list_parted;
 psql:sql/alter_table.sql:1074: ERROR:  relation "list_parted" does not exist
+SELECT * FROM list_parted;
+psql:sql/alter_table.sql:1075: ERROR:  relation "list_parted" does not exist
 LINE 1: SELECT * FROM list_parted;
                       ^
 -- cleanup
 DROP TABLE list_parted;
-psql:sql/alter_table.sql:1077: ERROR:  table "list_parted" does not exist
+psql:sql/alter_table.sql:1078: ERROR:  table "list_parted" does not exist
 drop table list_parted2;
 DROP TABLE
 drop table range_parted;
-psql:sql/alter_table.sql:1079: ERROR:  table "range_parted" does not exist
+psql:sql/alter_table.sql:1080: ERROR:  table "range_parted" does not exist
 DROP TABLE fail_def_part;
-psql:sql/alter_table.sql:1080: ERROR:  table "fail_def_part" does not exist
+psql:sql/alter_table.sql:1081: ERROR:  table "fail_def_part" does not exist
 DROP TABLE hash_parted;
-psql:sql/alter_table.sql:1081: ERROR:  table "hash_parted" does not exist
+psql:sql/alter_table.sql:1082: ERROR:  table "hash_parted" does not exist
 -- validate constraint on partitioned tables should only scan leaf partitions
 create table parted_validate_test (a int) partition by list (a);
 CREATE TABLE

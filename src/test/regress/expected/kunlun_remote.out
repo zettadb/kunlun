@@ -88,10 +88,6 @@ Indexes:
     "t7_a_c_key" UNIQUE CONSTRAINT, btree (a NULLS FIRST, c NULLS FIRST)
     "t7_b_d_key" UNIQUE CONSTRAINT, btree (b NULLS FIRST, d NULLS FIRST)
     "t7_abc" btree (b DESC NULLS LAST, a NULLS FIRST, c DESC NULLS LAST)
-Statistics objects:
-    "public"."t7_pkey_pfx_2" () ON c, d FROM t7
-    "public"."t7_a_c_key_pfx_2" () ON a, c FROM t7
-    "public"."t7_b_d_key_pfx_2" () ON b, d FROM t7
 Options: shard=1
 
 \d+ t7_abc;
@@ -302,10 +298,6 @@ Indexes:
     "t301_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
     "t301_a_idx" btree (a NULLS FIRST)
     "t301_c_idx" btree (c NULLS FIRST)
-Statistics objects:
-    "public"."t301_pkey_pfx_2" () ON b, d FROM t301
-    "public"."t301_c_b_idx_pfx_2" () ON b, c FROM t301
-    "public"."t301_b_a_idx_pfx_2" () ON a, b FROM t301
 Options: shard=1
 
 \d+ t303;
@@ -325,10 +317,6 @@ Indexes:
     "t303_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
     "t303_a_idx" btree (a NULLS FIRST)
     "t303_c_idx" btree (c NULLS FIRST)
-Statistics objects:
-    "public"."t303_pkey_pfx_2" () ON b, d FROM t303
-    "public"."t303_c_b_idx_pfx_2" () ON b, c FROM t303
-    "public"."t303_b_a_idx_pfx_2" () ON a, b FROM t303
 Options: shard=1
 
 \d+ t3;
@@ -412,10 +400,6 @@ Indexes:
     "t301_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
     "t301_a_idx" btree (a NULLS FIRST)
     "t301_c_idx" btree (c NULLS FIRST)
-Statistics objects:
-    "public"."t301_pkey_pfx_2" () ON b, d FROM t301
-    "public"."t301_c_b_idx_pfx_2" () ON b, c FROM t301
-    "public"."t301_b_a_idx_pfx_2" () ON a, b FROM t301
 Options: shard=1
 
 \d+ t303;
@@ -435,10 +419,6 @@ Indexes:
     "t303_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
     "t303_a_idx" btree (a NULLS FIRST)
     "t303_c_idx" btree (c NULLS FIRST)
-Statistics objects:
-    "public"."t303_pkey_pfx_2" () ON b, d FROM t303
-    "public"."t303_c_b_idx_pfx_2" () ON b, c FROM t303
-    "public"."t303_b_a_idx_pfx_2" () ON a, b FROM t303
 Options: shard=1
 
 create table t304 partition of t3 for values from ('2030-01-01') to ('2049-12-31');
@@ -502,10 +482,6 @@ Indexes:
     "t301_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
     "t301_a_idx" btree (a NULLS FIRST)
     "t301_c_idx" btree (c NULLS FIRST)
-Statistics objects:
-    "public"."t301_pkey_pfx_2" () ON b, d FROM t301
-    "public"."t301_c_b_idx_pfx_2" () ON b, c FROM t301
-    "public"."t301_b_a_idx_pfx_2" () ON a, b FROM t301
 Options: shard=1
 
 \d+ t302;
@@ -525,10 +501,6 @@ Indexes:
     "t302_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
     "t302_a_idx" btree (a NULLS FIRST)
     "t302_c_idx" btree (c NULLS FIRST)
-Statistics objects:
-    "public"."t302_pkey_pfx_2" () ON b, d FROM t302
-    "public"."t302_b_a_idx_pfx_2" () ON a, b FROM t302
-    "public"."t302_c_b_idx_pfx_2" () ON b, c FROM t302
 Options: shard=1
 
 \d+ t303;
@@ -548,10 +520,6 @@ Indexes:
     "t303_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
     "t303_a_idx" btree (a NULLS FIRST)
     "t303_c_idx" btree (c NULLS FIRST)
-Statistics objects:
-    "public"."t303_pkey_pfx_2" () ON b, d FROM t303
-    "public"."t303_c_b_idx_pfx_2" () ON b, c FROM t303
-    "public"."t303_b_a_idx_pfx_2" () ON a, b FROM t303
 Options: shard=1
 
 -- create a new idx for t302 only.
@@ -577,10 +545,6 @@ Indexes:
     "t302_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
     "t302_a_idx" btree (a NULLS FIRST)
     "t302_c_idx" btree (c NULLS FIRST)
-Statistics objects:
-    "public"."t302_pkey_pfx_2" () ON b, d FROM t302
-    "public"."t302_b_a_idx_pfx_2" () ON a, b FROM t302
-    "public"."t302_c_b_idx_pfx_2" () ON b, c FROM t302
 Options: shard=1
 
 \d+ t3;
@@ -627,10 +591,6 @@ Indexes:
     "t304_a_idx" btree (a NULLS FIRST)
     "t304_b_e_idx" btree (b NULLS FIRST, e NULLS FIRST)
     "t304_c_idx" btree (c NULLS FIRST)
-Statistics objects:
-    "public"."t304_pkey_pfx_2" () ON b, d FROM t304
-    "public"."t304_b_a_idx_pfx_2" () ON a, b FROM t304
-    "public"."t304_c_b_idx_pfx_2" () ON b, c FROM t304
 Options: shard=1
 
 \d+ t3;
@@ -678,10 +638,6 @@ Indexes:
     "t301_a_idx" btree (a NULLS FIRST)
     "t301_c_idx" btree (c NULLS FIRST)
     "t301_e_idx" btree (e NULLS FIRST)
-Statistics objects:
-    "public"."t301_pkey_pfx_2" () ON b, d FROM t301
-    "public"."t301_c_b_idx_pfx_2" () ON b, c FROM t301
-    "public"."t301_b_a_idx_pfx_2" () ON a, b FROM t301
 Options: shard=1
 
 \d+ t302;
@@ -703,11 +659,6 @@ Indexes:
     "t302_a_idx" btree (a NULLS FIRST)
     "t302_c_idx" btree (c NULLS FIRST)
     "t302_e_idx" btree (e NULLS FIRST)
-Statistics objects:
-    "public"."t302_pkey_pfx_2" () ON b, d FROM t302
-    "public"."t302_b_a_idx_pfx_2" () ON a, b FROM t302
-    "public"."t302_c_b_idx_pfx_2" () ON b, c FROM t302
-    "public"."t302_b_e_idx_pfx_2" () ON b, e FROM t302
 Options: shard=1
 
 \d+ t303;
@@ -728,10 +679,6 @@ Indexes:
     "t303_a_idx" btree (a NULLS FIRST)
     "t303_c_idx" btree (c NULLS FIRST)
     "t303_e_idx" btree (e NULLS FIRST)
-Statistics objects:
-    "public"."t303_pkey_pfx_2" () ON b, d FROM t303
-    "public"."t303_c_b_idx_pfx_2" () ON b, c FROM t303
-    "public"."t303_b_a_idx_pfx_2" () ON a, b FROM t303
 Options: shard=1
 
 \d+ t304;
@@ -753,11 +700,6 @@ Indexes:
     "t304_b_e_idx" btree (b NULLS FIRST, e NULLS FIRST)
     "t304_c_idx" btree (c NULLS FIRST)
     "t304_e_idx" btree (e NULLS FIRST)
-Statistics objects:
-    "public"."t304_pkey_pfx_2" () ON b, d FROM t304
-    "public"."t304_b_a_idx_pfx_2" () ON a, b FROM t304
-    "public"."t304_c_b_idx_pfx_2" () ON b, c FROM t304
-    "public"."t304_b_e_idx_pfx_2" () ON b, e FROM t304
 Options: shard=1
 
 \d+ t3;
@@ -1053,10 +995,6 @@ Indexes:
     "t200_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST)
     "t200_a_b_c_key" UNIQUE CONSTRAINT, btree (a NULLS FIRST, b NULLS FIRST, c NULLS FIRST)
     "t200_d_g_idx" btree (d NULLS FIRST, g DESC NULLS LAST)
-Statistics objects:
-    "public"."t200_pkey_pfx_2" () ON a, b FROM t200
-    "public"."t200_a_b_c_key_pfx_2" () ON a, b FROM t200
-    "public"."t200_a_b_c_key_pfx_3" () ON a, b, c FROM t200
 Options: shard=1
 
 create table t201 partition of t2 for values in (5,6,7);
@@ -1124,11 +1062,6 @@ Indexes:
     "t200_a_b_c_key" UNIQUE CONSTRAINT, btree (a NULLS FIRST, b NULLS FIRST, c NULLS FIRST)
     "t200_a_c_d_idx" UNIQUE, btree (a NULLS FIRST, c NULLS FIRST, d DESC NULLS LAST)
     "t200_d_g_idx" btree (d NULLS FIRST, g DESC NULLS LAST)
-Statistics objects:
-    "public"."t200_pkey_pfx_2" () ON a, b FROM t200
-    "public"."t200_a_b_c_key_pfx_2" () ON a, b FROM t200
-    "public"."t200_a_b_c_key_pfx_3" () ON a, b, c FROM t200
-    "public"."t200_d_g_idx_pfx_2" () ON d, g FROM t200
 Options: shard=1
 
 \d+ t201;
@@ -1149,11 +1082,6 @@ Indexes:
     "t201_a_b_c_key" UNIQUE CONSTRAINT, btree (a NULLS FIRST, b NULLS FIRST, c NULLS FIRST)
     "t201_a_c_d_idx" UNIQUE, btree (a NULLS FIRST, c NULLS FIRST, d DESC NULLS LAST)
     "t201_d_g_idx" btree (d NULLS FIRST, g DESC NULLS LAST)
-Statistics objects:
-    "public"."t201_pkey_pfx_2" () ON a, b FROM t201
-    "public"."t201_a_b_c_key_pfx_2" () ON a, b FROM t201
-    "public"."t201_a_b_c_key_pfx_3" () ON a, b, c FROM t201
-    "public"."t201_d_g_idx_pfx_2" () ON d, g FROM t201
 Options: shard=1
 
 create unique index t201_c_a on t201(c,a desc);
@@ -1179,13 +1107,6 @@ Indexes:
     "t201_a_c_d_idx" UNIQUE, btree (a NULLS FIRST, c NULLS FIRST, d DESC NULLS LAST)
     "t201_c_a" UNIQUE, btree (c NULLS FIRST, a DESC NULLS LAST)
     "t201_d_g_idx" btree (d NULLS FIRST, g DESC NULLS LAST)
-Statistics objects:
-    "public"."t201_pkey_pfx_2" () ON a, b FROM t201
-    "public"."t201_a_b_c_key_pfx_2" () ON a, b FROM t201
-    "public"."t201_a_b_c_key_pfx_3" () ON a, b, c FROM t201
-    "public"."t201_d_g_idx_pfx_2" () ON d, g FROM t201
-    "public"."t201_a_c_d_idx_pfx_2" () ON a, c FROM t201
-    "public"."t201_a_c_d_idx_pfx_3" () ON a, c, d FROM t201
 Options: shard=1
 
 create table t202 partition of t2 for values in (8,9,10)
@@ -1246,15 +1167,6 @@ Indexes:
     "t201_b_e_idx" btree (b NULLS FIRST, e NULLS FIRST)
     "t201_d_g_idx" btree (d NULLS FIRST, g DESC NULLS LAST)
     "t201_g_f_idx" btree (g DESC NULLS LAST, f NULLS FIRST)
-Statistics objects:
-    "public"."t201_pkey_pfx_2" () ON a, b FROM t201
-    "public"."t201_a_b_c_key_pfx_2" () ON a, b FROM t201
-    "public"."t201_a_b_c_key_pfx_3" () ON a, b, c FROM t201
-    "public"."t201_d_g_idx_pfx_2" () ON d, g FROM t201
-    "public"."t201_a_c_d_idx_pfx_2" () ON a, c FROM t201
-    "public"."t201_a_c_d_idx_pfx_3" () ON a, c, d FROM t201
-    "public"."t201_c_a_pfx_2" () ON a, c FROM t201
-    "public"."t201_b_e_idx_pfx_2" () ON b, e FROM t201
 Options: shard=1
 
 \d+ t202;

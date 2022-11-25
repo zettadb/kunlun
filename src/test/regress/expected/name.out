@@ -64,38 +64,38 @@ SELECT '' AS one, c.f1 FROM NAME_TBL c WHERE c.f1 = '1234567890ABCDEFGHIJKLMNOPQ
 (2 rows)
 
 SELECT '' AS three, c.f1 FROM NAME_TBL c WHERE c.f1 < '1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQR';
- three | f1 
--------+----
+ three |                               f1                                
+-------+-----------------------------------------------------------------
+       | 1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopq
        | 
-(1 row)
+(2 rows)
 
 SELECT '' AS four, c.f1 FROM NAME_TBL c WHERE c.f1 <= '1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQR';
  four |                               f1                                
 ------+-----------------------------------------------------------------
       | 1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQ
+      | 1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopq
       | 
       | 1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQ
-(3 rows)
+(4 rows)
 
 SELECT '' AS three, c.f1 FROM NAME_TBL c WHERE c.f1 > '1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQR';
- three |                               f1                                
--------+-----------------------------------------------------------------
-       | 1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopq
+ three |     f1     
+-------+------------
        | asdfghjkl;
        | 343f%2a
        | d34aaasdf
-(4 rows)
+(3 rows)
 
 SELECT '' AS four, c.f1 FROM NAME_TBL c WHERE c.f1 >= '1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQR';
  four |                               f1                                
 ------+-----------------------------------------------------------------
       | 1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQ
-      | 1234567890abcdefghijklmnopqrstuvwxyz1234567890abcdefghijklmnopq
       | asdfghjkl;
       | 343f%2a
       | d34aaasdf
       | 1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDEFGHIJKLMNOPQ
-(6 rows)
+(5 rows)
 
 SELECT '' AS seven, c.f1 FROM NAME_TBL c WHERE c.f1 ~ '.*';
  seven |                               f1                                

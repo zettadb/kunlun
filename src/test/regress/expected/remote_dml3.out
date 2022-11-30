@@ -531,8 +531,11 @@ $$
     left join (select b1.id, b1.t from join_bar b1 join join_bar b2 using (id)) ss
     on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1;
 $$);
-psql:sql/remote_dml3.sql:271: ERROR:  canceling statement due to statement timeout
-CONTEXT:  PL/pgSQL function hash_join_batches(character varying) line 6 at FOR over EXECUTE statement
+ multibatch 
+------------
+ 
+(1 row)
+
 -- automatically reconnects but query times out again
 select count(*) from join_foo
   left join (select b1.id, b1.t from join_bar b1 join join_bar b2 using (id)) ss

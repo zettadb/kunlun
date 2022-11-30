@@ -87,10 +87,10 @@ UPDATE 4
 SELECT * FROM update_test order by 1,2,3;
  a  | b  |  c  
 ----+----+-----
+ 11 | 30 | car
  11 | 31 | car
- 11 | 32 | car
+ 11 | 41 | car
  11 | 42 | car
- 11 | 43 | car
 (4 rows)
 
 -- fail, multi assignment to same column:
@@ -114,10 +114,10 @@ psql:sql/update.sql:47: ERROR:  multiple assignments to same column "b"
 SELECT * FROM update_test order by 1,2,3;
  a  | b  |  c  
 ----+----+-----
+ 11 | 30 | car
  11 | 31 | car
- 11 | 32 | car
+ 11 | 41 | car
  11 | 42 | car
- 11 | 43 | car
 (4 rows)
 
 -- if an alias for the target table is specified, don't allow references
@@ -133,10 +133,10 @@ UPDATE 4
 SELECT a, b, char_length(c) FROM update_test;
  a  | b  | char_length 
 ----+----+-------------
+ 11 | 41 |       10000
+ 11 | 30 |       10000
  11 | 42 |       10000
  11 | 31 |       10000
- 11 | 43 |       10000
- 11 | 32 |       10000
 (4 rows)
 
 -- Check multi-assignment with a Result node to handle a one-time filter.
@@ -151,10 +151,10 @@ psql:sql/update.sql:78: ERROR:  Kunlun-db: The result relation requires a primar
 SELECT a, b, char_length(c) FROM update_test order by 1,2,3;
  a  | b  | char_length 
 ----+----+-------------
+ 11 | 30 |       10000
  11 | 31 |       10000
- 11 | 32 |       10000
+ 11 | 41 |       10000
  11 | 42 |       10000
- 11 | 43 |       10000
 (4 rows)
 
 DROP TABLE update_test;

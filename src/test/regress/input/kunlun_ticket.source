@@ -265,7 +265,17 @@ drop table t1;
 -- ticket:946
 show create table tenk1;
 update pg_class set reltuples=10000 where relname = 'tenk1';
- explain select count(*)
+explain select count(*)
+from
+  (select t3.tenthous as x1, coalesce(t1.stringu1, t2.stringu1) as x2
+   from tenk1 t1
+   left join tenk1 t2 on t1.unique1 = t2.unique1
+   join tenk1 t3 on t1.unique2 = t3.unique2) ss,
+  tenk1 t4,
+  tenk1 t5
+where t4.thousand = t5.unique1 and ss.x1 = t4.tenthous and ss.x2 = t5.stringu1;
+
+select count(*)
 from
   (select t3.tenthous as x1, coalesce(t1.stringu1, t2.stringu1) as x2
    from tenk1 t1
@@ -293,7 +303,6 @@ INSERT INTO t2 VALUES (NULL);
 drop table if exists t2;
 create  table t2(a int );	
 create index on t2(a);
-drop index t2_a_idx; create index on t2(a);
  \d+ t2;
  
  
@@ -349,7 +358,7 @@ create index concurrently on t1(a)
 select * from pg_index where indisvalid = false;
 
 create index on t1(a);
--- 创建新的连接访问表t，看释放会执行中的index阻塞（如果create index很快，可以增加数据）...
+-- 创建新的连接访问表t，看是否被执行中的index阻塞（如果create index很快，可以增加数据）...
 
 drop table t1;
 
@@ -622,8 +631,11 @@ SET SESSION NET_READ_TIMEOUT= 86400, @@SESSION.NET_WRITE_TIMEOUT= 86400, enable_
 
 --ticket:905 
 
+\c template1;
+create table t1(a int); -- 预期拒绝
+\c postgres;
 CREATE DATABASE dbname TEMPLATE template0;
-
+CREATE DATABASE dbname2 TEMPLATE dbname; -- 预期拒绝
 
 --ticket:901
 
@@ -637,6 +649,16 @@ insert into t1 values(1,1);
 savepoint s1;
 
 insert into t1 values(2,2);
+
+DO $$
+BEGIN
+    execute concat('send ', (select name from pg_shard limit 1), '''kill connection (select connection_id())''');
+END; $$;
+
+insert into t1 values(2,2);
+
+rollback to s1;
+
 insert into t1 values(2,2);
 
 commit;
@@ -654,6 +676,8 @@ select * from t limit 2 offset 10;
 
 --ticket:999
 explain select * from t order by a limit 2 offset 4;
+
+select * from t order by a limit 2 offset 4;
 
 drop table t;
 
@@ -732,6 +756,12 @@ create schema adc;
 create schema adc1;
 
 create schema _adc1;
+
+create schema "I'm the schema";
+use "I'm the schema";
+create table t1(a int);
+select * from t1;
+drop schema "I'm the schema" cascades;
 
 drop schema 模式;
 drop schema adc;

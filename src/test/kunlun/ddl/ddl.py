@@ -32,6 +32,7 @@ def exec_stmt(cur, stmt):
 	while True:
 		try:
 			cur.execute(stmt)
+                        break
 		except psycopg2.Error as pgerr:
 			print "Autocommit statement '{}' execution failed and will be retried: {}".format(stmt, str(pgerr))
 			time.sleep(1)
@@ -48,27 +49,30 @@ class DDL_test:
 		self.verify_conn.autocommit = True
 		self.newdb_conn = None
 		self.verify_newdb_conn = None
-	def run_test():
-		drop_objs(self.conn, False)
+
+	def run_test(self):
+		self.drop_objs(self.conn, False)
 
 		#execute DDL stmts in one node
 		try:
-			create_test(self.conn, True)
+			self.create_test(self.conn, True)
 		except psycopg2.Error as pgerr:
-			drop_objs(self.conn, True)
+			self.drop_objs(self.conn, False)
 
 		comp0 = self.comp0_conn_args
 		comp1 = self.comp1_conn_args
 		self.newdb_conn = psycopg2.connect(host=comp0['host'], port=comp0['port'], user=comp0['user'], database='dbxx', password=comp0['password'])
-		self.newdb_verify_conn = psycopg2.connect(host=comp1['host'], port=comp1['port'], user=comp1['user'], database='dbxx', password=comp1['password'])
+                self.newdb_conn.autocommit = True
+		self.verify_newdb_conn = psycopg2.connect(host=comp1['host'], port=comp1['port'], user=comp1['user'], database='dbxx', password=comp1['password'])
+                self.verify_newdb_conn.autocommit = True
 		#execute DDL stmts in one node in new db
 		try:
-			create_test(self.newdb_conn, False)
+			self.create_test(self.newdb_conn, False)
 		except psycopg2.Error as pgerr:
-			drop_objs(self.conn, True)
+			self.drop_objs(self.conn, False)
 
 		#verify they are effective on another node in newdb
-		verify_create_test(self.verify_newdb_conn, False)
+		self.verify_create_test(self.verify_newdb_conn, False)
 
 		#close connections to dbxx so we can drop it
 		self.newdb_conn.close()
@@ -76,9 +80,9 @@ class DDL_test:
 		self.newdb_conn = None
 		self.verify_newdb_conn = None
 		#verify they are effective on another node
-		verify_create_test(self.verify_conn, True)
+		self.verify_create_test(self.verify_conn, True)
 
-	def create_test(conn, creatdb):
+	def create_test(self, conn, creatdb):
 		csr = conn.cursor()
 		start = 1
 		if creatdb:
@@ -89,7 +93,7 @@ class DDL_test:
 			csr.execute(stmt)
 		csr.close()
 
-	def verify_create_test(conn, creatdb):
+	def verify_create_test(self, conn, creatdb):
 		csr = conn.cursor()
 		end = 13
 		if creatdb:
@@ -100,53 +104,54 @@ class DDL_test:
 			exec_stmt(csr, stmt)
 		csr.close()
 
-	def drop_objs(conn, dropdb):
+	def drop_objs(self, conn, dropdb):
 		cur = conn.cursor()
 		cur.execute("drop schema if exists schemaxx")
 		cur.execute("drop table if exists single_tab1")
 		cur.execute("drop table if exists part_tab1")
-		if drop_db:
+		if dropdb:
 			cur.execute("drop database if exists dbxx")
 		cur.close()
-	def teardown():
+
+	def teardown(self):
 		if self.newdb_conn:
-			drop_objs(self.newdb_conn, False)
+			self.drop_objs(self.newdb_conn, False)
 			self.newdb_conn.close()
 			self.newdb_conn = None
-		drop_objs(self.conn, True)
+		self.drop_objs(self.conn, False)
 		self.conn.close()
 		self.conn = None
 
 	def get_ddl_stmt(self, idx):
 
 		if idx == 0:
-			stmt = "create database dbxx"
+			stmt = "create database if not exists dbxx"
 		elif idx == 1:
-			stmt = "create schema schemaxx"
+			stmt = "create schema if not exists schemaxx"
 		elif idx == 2:
-			stmt = "create table single_tab1(a int primary key, b int)"
+			stmt = "create table if not exists single_tab1(a int primary key, b int)"
 		elif idx == 3:
-			stmt = "create index single_tab1_b on single_tab1(b);"
+			stmt = "create index if not exists single_tab1_b on single_tab1(b);"
 		elif idx == 4:
-			stmt = "create table part_tab1(a int primary key, b int) partition by hash(a);"
+			stmt = "create table if not exists part_tab1(a int primary key, b int) partition by hash(a);"
 		elif idx == 5:
-			stmt = "create table part_tab10 partition of part_tab1 FOR VALUES WITH (MODULUS 2, REMAINDER 0)"
+			stmt = "create table if not exists part_tab10 partition of part_tab1 FOR VALUES WITH (MODULUS 2, REMAINDER 0)"
 		elif idx == 6:
-			stmt = "create table part_tab11 partition of part_tab1 FOR VALUES WITH (MODULUS 2, REMAINDER 1)"
+			stmt = "create table if not exists part_tab11 partition of part_tab1 FOR VALUES WITH (MODULUS 2, REMAINDER 1)"
 		elif idx == 7:
-			stmt = "create index part_tab1_b on part_tab1(b)"
+			stmt = "create index if not exists part_tab1_b on part_tab1(b)"
 		elif idx == 8:
-			stmt = "drop index single_tab1_b"
+			stmt = "drop index if exists single_tab1_b"
 		elif idx == 9:
-			stmt = "drop table single_tab1"
+			stmt = "drop table if exists single_tab1"
 		elif idx == 10:
-			stmt = "drop index part_tab1_b"
+			stmt = "drop index if exists part_tab1_b"
 		elif idx == 11:
-			stmt = "drop table part_tab1"
+			stmt = "drop table if exists part_tab1"
 		elif idx == 12:
-			stmt = "drop schema schemaxx"
+			stmt = "drop schema if exists schemaxx"
 		elif idx == 13:
-			stmt = "drop database dbxx"
+			stmt = "drop database if exists dbxx"
 		else:
 			stmt = ""
 
@@ -154,14 +159,13 @@ class DDL_test:
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='Tests Kunlun DDC DDL replication features.')
 	parser.add_argument('nodes', type=str, help="Two computing nodes' connection arguments");
+        args = parser.parse_args()
 
 	node_jsconf = open(args.nodes);
 	node_jstr = node_jsconf.read()
 	node_jscfg = json.loads(node_jstr);
 
-	args = parser.parse_args()
-
-	DDL_test ddl_test(node_jscfg)
+	ddl_test = DDL_test(node_jscfg)
 	ddl_test.run_test()
 	ddl_test.teardown()
 

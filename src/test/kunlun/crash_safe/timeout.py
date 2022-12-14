@@ -150,7 +150,7 @@ class DML_thread(threading.Thread):
 
 	def get_storage_shards(self, conn):
 		cur = conn.cursor()
-		cur.execute("select n.id , port , shard_id, ip, user_name , passwd , s.name as shard_name,  s.master_node_id from pg_shard_node n, pg_shard s where s.id = n.shard_id")
+		cur.execute("select n.id , port , shard_id, hostaddr, user_name , passwd , s.name as shard_name,  s.master_node_id from pg_shard_node n, pg_shard s where s.id = n.shard_id")
 		shard_nodes = cur.fetchall()
 		for shard_node in shard_nodes:
 			#sn = ShardNode(shard_node['id'], shard_node['ip'], shard_node['port'], shard_node['user_name'], shard_node['passwd'])
@@ -183,8 +183,8 @@ class DML_thread(threading.Thread):
 		cur.execute("select*from pg_cluster_meta_nodes")
 		shard_nodes = cur.fetchall()
 		for shard_node in shard_nodes:
-			#server_id | cluster_id | is_master | port |    ip     | user_name | passwd
-			sn = ShardNode(shard_node[0], shard_node[4], shard_node[3], shard_node[5], shard_node[6])
+			#server_id | cluster_id | is_master | port |    user_name     | hostaddr | passwd
+			sn = ShardNode(shard_node[0], shard_node[5], shard_node[3], shard_node[4], shard_node[6])
 			self.meta_shard.add_node(sn)
 			if shard_node[2]:
 				self.meta_shard.set_master_node_id(sn.node_id)

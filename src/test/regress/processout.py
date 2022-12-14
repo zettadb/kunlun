@@ -7,9 +7,8 @@ def process_output(infile):
 	inf = open(infile, 'r')
 	outfile = infile + ".p"
 	outf = open(outfile, "w")
-	lines = inf.xreadlines()
 	inplan = False
-	for line in lines:
+	for line in inf:
             if line.find("DDL_STATEMENT_BEGIN") >= 0 or line.find("DDL_STATEMENT_END") >= 0:
                 continue
             if inplan:

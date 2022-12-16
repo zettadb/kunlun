@@ -3,94 +3,52 @@
 --
 
 -- Clean up in case a prior regression run failed
---DDL_STATEMENT_BEGIN--
 SET client_min_messages TO 'warning';
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 DROP ROLE IF EXISTS regress_addr_user;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 RESET client_min_messages;
---DDL_STATEMENT_END--
 
---DDL_STATEMENT_BEGIN--
 CREATE USER regress_addr_user;
---DDL_STATEMENT_END--
 
 -- Test generic object addressing/identification functions
---DDL_STATEMENT_BEGIN--
 CREATE SCHEMA addr_nsp;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 SET search_path TO 'addr_nsp';
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE FOREIGN DATA WRAPPER addr_fdw;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE SERVER addr_fserv FOREIGN DATA WRAPPER addr_fdw;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TEXT SEARCH DICTIONARY addr_ts_dict (template=simple);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TEXT SEARCH CONFIGURATION addr_ts_conf (copy=english);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TEXT SEARCH TEMPLATE addr_ts_temp (lexize=dsimple_lexize);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TEXT SEARCH PARSER addr_ts_prs
     (start = prsd_start, gettoken = prsd_nexttoken, end = prsd_end, lextypes = prsd_lextype);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TABLE addr_nsp.gentable (
 	a serial primary key,
-	b text DEFAULT 'hello');
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
+	b text DEFAULT 'hello',
+	CONSTRAINT a_chk CHECK (a > 0));
 CREATE TABLE addr_nsp.parttable (
 	a int PRIMARY KEY
 ) PARTITION BY RANGE (a);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE VIEW addr_nsp.genview AS SELECT * from addr_nsp.gentable;
---DDL_STATEMENT_END--
---CREATE MATERIALIZED VIEW addr_nsp.genmatview AS SELECT * FROM addr_nsp.gentable;
---DDL_STATEMENT_BEGIN--
+CREATE MATERIALIZED VIEW addr_nsp.genmatview AS SELECT * FROM addr_nsp.gentable;
 CREATE TYPE addr_nsp.gencomptype AS (a int);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TYPE addr_nsp.genenum AS ENUM ('one', 'two');
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE FOREIGN TABLE addr_nsp.genftable (a int) SERVER addr_fserv;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE AGGREGATE addr_nsp.genaggr(int4) (sfunc = int4pl, stype = int4);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
+--CREATE DOMAIN addr_nsp.gendomain AS int4 CONSTRAINT domconstr CHECK (value > 0);
+CREATE FUNCTION addr_nsp.trig() RETURNS TRIGGER LANGUAGE plpgsql AS $$ BEGIN END; $$;
+CREATE TRIGGER t BEFORE INSERT ON addr_nsp.gentable FOR EACH ROW EXECUTE PROCEDURE addr_nsp.trig();
+-- CREATE POLICY genpol ON addr_nsp.gentable;
 CREATE PROCEDURE addr_nsp.proc(int4) LANGUAGE SQL AS $$ $$;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE SERVER "integer" FOREIGN DATA WRAPPER addr_fdw;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE USER MAPPING FOR regress_addr_user SERVER "integer";
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 ALTER DEFAULT PRIVILEGES FOR ROLE regress_addr_user IN SCHEMA public GRANT ALL ON TABLES TO regress_addr_user;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 ALTER DEFAULT PRIVILEGES FOR ROLE regress_addr_user REVOKE DELETE ON TABLES FROM regress_addr_user;
---DDL_STATEMENT_END--
 -- this transform would be quite unsafe to leave lying around,
 -- except that the SQL language pays no attention to transforms:
---DDL_STATEMENT_BEGIN--
 CREATE TRANSFORM FOR int LANGUAGE SQL (
 	FROM SQL WITH FUNCTION prsd_lextype(internal),
 	TO SQL WITH FUNCTION int4recv(internal));
---DDL_STATEMENT_END--
+--CREATE PUBLICATION addr_pub FOR TABLE addr_nsp.gentable;
+--CREATE SUBSCRIPTION addr_sub CONNECTION '' PUBLICATION bar WITH (connect = false, slot_name = NONE);
+--CREATE STATISTICS addr_nsp.gentable_stat ON a, b FROM addr_nsp.gentable;		
 
 -- test some error cases
 SELECT pg_get_object_address('stone', '{}', '{}');
@@ -235,38 +193,26 @@ WITH objects (type, name, args) AS (VALUES
 				('subscription', '{addr_sub}', '{}'),
 				('statistics object', '{addr_nsp, gentable_stat}', '{}')
         )
---SELECT (pg_identify_object(addr1.classid, addr1.objid, --addr1.objsubid)).*,
+SELECT (pg_identify_object(addr1.classid, addr1.objid, addr1.objsubid)).*,
 	-- test roundtrip through pg_identify_object_as_address
---	ROW(pg_identify_object(addr1.classid, addr1.objid, addr1.objsubid)) =
---	ROW(pg_identify_object(addr2.classid, addr2.objid, addr2.objsubid))
---	  FROM objects, pg_get_object_address(type, name, args) addr1,
---			pg_identify_object_as_address(classid, objid, objsubid) ioa(typ,nms,args),
---			pg_get_object_address(typ, nms, ioa.args) as addr2
---	ORDER BY addr1.classid, addr1.objid, addr1.objsubid;
+	ROW(pg_identify_object(addr1.classid, addr1.objid, addr1.objsubid)) =
+	ROW(pg_identify_object(addr2.classid, addr2.objid, addr2.objsubid))
+	  FROM objects, pg_get_object_address(type, name, args) addr1,
+			pg_identify_object_as_address(classid, objid, objsubid) ioa(typ,nms,args),
+			pg_get_object_address(typ, nms, ioa.args) as addr2
+	ORDER BY addr1.classid, addr1.objid, addr1.objsubid;
 
 ---
 --- Cleanup resources
 ---
 \set VERBOSITY terse \\ -- suppress cascade details
 
---DDL_STATEMENT_BEGIN--
 DROP FOREIGN DATA WRAPPER addr_fdw CASCADE;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 drop table addr_nsp.parttable cascade;
---DDL_STATEMENT_END--
---drop table addr_nsp.gentable cascade;
---DDL_STATEMENT_BEGIN--
+drop table addr_nsp.gentable cascade;
 DROP SCHEMA addr_nsp CASCADE;
---DDL_STATEMENT_END--
 
---DDL_STATEMENT_BEGIN--
 ALTER DEFAULT PRIVILEGES FOR ROLE regress_addr_user IN SCHEMA public REVOKE ALL ON TABLES FROM regress_addr_user;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 ALTER DEFAULT PRIVILEGES FOR ROLE regress_addr_user GRANT DELETE ON TABLES TO regress_addr_user;
---DDL_STATEMENT_END--
 
---DDL_STATEMENT_BEGIN--
 DROP USER regress_addr_user;
---DDL_STATEMENT_END--

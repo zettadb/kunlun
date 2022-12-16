@@ -1,9 +1,7 @@
 --
 -- Test cases for COPY (INSERT/UPDATE/DELETE) TO
 --
---DDL_STATEMENT_BEGIN--
 create table copydml_test (id serial, t text);
---DDL_STATEMENT_END--
 insert into copydml_test (t) values ('a');
 insert into copydml_test (t) values ('b');
 insert into copydml_test (t) values ('c');
@@ -44,10 +42,25 @@ copy (delete from copydml_test) to stdout;
 copy (delete from copydml_test) to stdout;
 copy (delete from copydml_test) to stdout;
 
+-- triggers
+create function qqq_trig() returns trigger as $$
+begin
+if tg_op in ('INSERT', 'UPDATE') then
+    raise notice '% %', tg_op, new.id;
+    return new;
+else
+    raise notice '% %', tg_op, old.id;
+    return old;
+end if;
+end
+$$ language plpgsql;
+create trigger qqqbef before insert or update or delete on copydml_test
+    for each row execute procedure qqq_trig();
+create trigger qqqaf after insert or update or delete on copydml_test
+    for each row execute procedure qqq_trig();
 copy (insert into copydml_test (t) values ('f') returning id) to stdout;
 copy (update copydml_test set t = 'g' where t = 'f' returning id) to stdout;
 copy (delete from copydml_test where t = 'g' returning id) to stdout;
 
---DDL_STATEMENT_BEGIN--
 drop table copydml_test;
---DDL_STATEMENT_END--
+drop function qqq_trig();						 

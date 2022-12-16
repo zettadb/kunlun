@@ -32,22 +32,18 @@ UNION ALL
 SELECT * FROM t;
 
 -- recursive view
---DDL_STATEMENT_BEGIN--
 CREATE RECURSIVE VIEW nums (n) AS
     VALUES (1)
 UNION ALL
     SELECT n+1 FROM nums WHERE n < 5;
---DDL_STATEMENT_END--
 
 SELECT * FROM nums;
 
---DDL_STATEMENT_BEGIN--
 CREATE OR REPLACE RECURSIVE VIEW nums (n) AS
     VALUES (1)
 UNION ALL
     SELECT n+1 FROM nums WHERE n < 6;
 	
---DDL_STATEMENT_END--
 SELECT * FROM nums;
 
 -- This is an infinite loop with UNION ALL, but not with UNION
@@ -101,13 +97,11 @@ SELECT n, n IS OF (int) AS is_int FROM t;
 --      |         +->D-+->F
 --      +->E-+->G
 
---DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE department (
 	id INTEGER PRIMARY KEY,  -- department ID
 	parent_department INTEGER, -- upper department ID
 	name TEXT -- department name
 );
---DDL_STATEMENT_END--
 
 INSERT INTO department VALUES (0, NULL, 'ROOT');
 INSERT INTO department VALUES (1, 0, 'A');
@@ -190,7 +184,6 @@ WITH q1(x,y) AS (
 SELECT count(*) FROM q1 WHERE y > (SELECT sum(y)/100 FROM q1 qsub);
 
 -- via a VIEW
---DDL_STATEMENT_BEGIN--
 CREATE TEMPORARY VIEW vsubdepartment AS
 	WITH RECURSIVE subdepartment AS
 	(
@@ -202,7 +195,6 @@ CREATE TEMPORARY VIEW vsubdepartment AS
 			WHERE d.parent_department = sd.id
 	)
 	SELECT * FROM subdepartment;
---DDL_STATEMENT_END--
 
 SELECT * FROM vsubdepartment ORDER BY name;
 
@@ -211,7 +203,6 @@ SELECT pg_get_viewdef('vsubdepartment'::regclass);
 SELECT pg_get_viewdef('vsubdepartment'::regclass, true);
 
 -- Another reverse-listing example
---DDL_STATEMENT_BEGIN--
 CREATE VIEW sums_1_100 AS
 WITH RECURSIVE t(n) AS (
     VALUES (1)
@@ -219,7 +210,6 @@ UNION ALL
     SELECT n+1 FROM t WHERE n < 100
 )
 SELECT sum(n) FROM t;
---DDL_STATEMENT_END--
 
 \d+ sums_1_100
 
@@ -257,12 +247,10 @@ WITH RECURSIVE t(i,j) AS (
 --
 -- different tree example
 --
---DDL_STATEMENT_BEGIN--
 CREATE TEMPORARY TABLE tree(
     id INTEGER PRIMARY KEY,
     parent_id INTEGER
 );
---DDL_STATEMENT_END--
 
 INSERT INTO tree
 VALUES (1, NULL), (2, 1), (3,1), (4,2), (5,2), (6,2), (7,3), (8,3),
@@ -310,9 +298,7 @@ SELECT t1.id, t2.path, t2 FROM t AS t1 JOIN t AS t2 ON
 --
 -- test cycle detection
 --
---DDL_STATEMENT_BEGIN--
 create temp table graph( f int, t int, label text );
---DDL_STATEMENT_END--
 
 insert into graph values
 	(1, 2, 'arc 1 -> 2'),
@@ -391,9 +377,7 @@ WITH RECURSIVE
 -- Test WITH attached to a data-modifying statement
 --
 
---DDL_STATEMENT_BEGIN--
 CREATE TEMPORARY TABLE y (a INTEGER);
---DDL_STATEMENT_END--
 INSERT INTO y SELECT generate_series(1, 10);
 
 WITH t AS (
@@ -420,9 +404,7 @@ DELETE FROM y USING t WHERE t.a = y.a RETURNING y.a;
 
 SELECT * FROM y;
 
---DDL_STATEMENT_BEGIN--
 DROP TABLE y;
---DDL_STATEMENT_END--
 
 --
 -- error cases
@@ -450,9 +432,7 @@ WITH RECURSIVE x(n) AS (SELECT n FROM x)
 WITH RECURSIVE x(n) AS (SELECT n FROM x UNION ALL SELECT 1)
 	SELECT * FROM x;
 	
---DDL_STATEMENT_BEGIN--
 CREATE TEMPORARY TABLE y (a INTEGER);
---DDL_STATEMENT_END--
 INSERT INTO y SELECT generate_series(1, 10);
 
 -- LEFT JOIN
@@ -559,9 +539,7 @@ WITH RECURSIVE foo(i) AS
 SELECT * FROM foo;
 
 -- disallow OLD/NEW reference in CTE
---DDL_STATEMENT_BEGIN--
 CREATE TEMPORARY TABLE x (n integer);
---DDL_STATEMENT_END--
 
 --
 -- test for bug #4902
@@ -765,9 +743,7 @@ SELECT * FROM t;
 SELECT * FROM y;
 
 -- check merging of outer CTE with CTE in a rule action
---DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE bug6051(i int);
---DDL_STATEMENT_END--
 insert into bug6051 select i from generate_series(1,3) as t(i);
 
 SELECT * FROM bug6051;
@@ -777,9 +753,7 @@ INSERT INTO bug6051 SELECT * FROM t1;
 
 SELECT * FROM bug6051;
 
---DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE bug6051_2 (i int);
---DDL_STATEMENT_END--
 
 WITH t1 AS ( DELETE FROM bug6051 RETURNING * )
 INSERT INTO bug6051 SELECT * FROM t1;
@@ -818,13 +792,9 @@ SELECT * FROM t LIMIT 10;
 
 SELECT * FROM y;
 
---DDL_STATEMENT_BEGIN--
 CREATE TABLE withz(k int, v text);
---DDL_STATEMENT_END--
 insert into withz SELECT i AS k, (i || ' v')::text v FROM generate_series(1, 16, 3) i;
---DDL_STATEMENT_BEGIN--
 ALTER TABLE withz ADD UNIQUE (k);
---DDL_STATEMENT_END--
 
 SELECT * FROM t JOIN y ON t.k = y.a ORDER BY a, k;
 
@@ -833,17 +803,13 @@ SELECT * FROM aa;
 -- New query/snapshot demonstrates side-effects of previous query.
 SELECT * FROM withz ORDER BY k;
 
---DDL_STATEMENT_BEGIN--
 DROP TABLE withz;
---DDL_STATEMENT_END--
 
 -- check that run to completion happens in proper ordering
 
-delete from y;
+TRUNCATE TABLE y;
 INSERT INTO y SELECT generate_series(1, 3);
---DDL_STATEMENT_BEGIN--
 CREATE TEMPORARY TABLE yy (a INTEGER);
---DDL_STATEMENT_END--
 
 WITH RECURSIVE t1 AS (
   INSERT INTO y SELECT * FROM y RETURNING *
@@ -865,8 +831,20 @@ SELECT 1;
 SELECT * FROM y;
 SELECT * FROM yy;
 
-delete from y;
+-- triggers
+
+TRUNCATE TABLE y;
 INSERT INTO y SELECT generate_series(1, 10);
+
+CREATE FUNCTION y_trigger() RETURNS trigger AS $$
+begin
+  raise notice 'y_trigger: a = %', new.a;
+  return new;
+end;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER y_trig BEFORE INSERT ON y FOR EACH ROW
+    EXECUTE PROCEDURE y_trigger();
 
 WITH t AS (
     INSERT INTO y
@@ -880,6 +858,11 @@ SELECT * FROM t;
 
 SELECT * FROM y;
 
+DROP TRIGGER y_trig ON y;
+
+CREATE TRIGGER y_trig AFTER INSERT ON y FOR EACH ROW
+    EXECUTE PROCEDURE y_trigger();
+	
 WITH t AS (
     INSERT INTO y
     VALUES
@@ -891,6 +874,18 @@ WITH t AS (
 SELECT * FROM t LIMIT 1;
 
 SELECT * FROM y;
+
+DROP TRIGGER y_trig ON y;
+
+CREATE OR REPLACE FUNCTION y_trigger() RETURNS trigger AS $$
+begin
+  raise notice 'y_trigger';
+  return null;
+end;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER y_trig AFTER INSERT ON y FOR EACH STATEMENT
+    EXECUTE PROCEDURE y_trigger();
 
 WITH t AS (
     INSERT INTO y
@@ -904,16 +899,26 @@ SELECT * FROM t;
 
 SELECT * FROM y;
 
+DROP TRIGGER y_trig ON y;
+DROP FUNCTION y_trigger() cascade;
+
 -- WITH attached to inherited UPDATE or DELETE
 
---DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE parent ( id int, val text );
---DDL_STATEMENT_END--
+CREATE TEMP TABLE child1 ( ) INHERITS ( parent );
+CREATE TEMP TABLE child2 ( ) INHERITS ( parent );
 
 INSERT INTO parent VALUES ( 1, 'p1' );
+INSERT INTO child1 VALUES ( 11, 'c11' ),( 12, 'c12' );
+INSERT INTO child2 VALUES ( 23, 'c21' ),( 24, 'c22' ); 
 
 WITH rcte AS ( SELECT sum(id) AS totalid FROM parent )
 UPDATE parent SET id = id + totalid FROM rcte;
+
+SELECT * FROM parent;
+
+WITH wcte AS ( INSERT INTO child1 VALUES ( 42, 'new' ) RETURNING id AS newid )
+UPDATE parent SET id = id + newid FROM wcte;
 
 SELECT * FROM parent;
 
@@ -921,6 +926,11 @@ WITH rcte AS ( SELECT max(id) AS maxid FROM parent )
 DELETE FROM parent USING rcte WHERE id = maxid;
 
 SELECT * FROM parent;
+
+WITH wcte AS ( INSERT INTO child2 VALUES ( 42, 'new2' ) RETURNING id AS newid )
+DELETE FROM parent USING wcte WHERE id = newid;
+
+SELECT * FROM paren
 
 -- check EXPLAIN VERBOSE for a wCTE with RETURNING
 
@@ -956,15 +966,9 @@ WITH t AS (
 VALUES(FALSE);
 
 -- check that parser lookahead for WITH doesn't cause any odd behavior
---DDL_STATEMENT_BEGIN--
 drop table if exists foo;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table foo (with baz);  -- fail, WITH is a reserved word
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table foo (with ordinality);  -- fail, WITH is a reserved word
---DDL_STATEMENT_END--
 with ordinality as (select 1 as x) select * from ordinality;
 
 -- check sane response to attempt to modify CTE relation
@@ -973,11 +977,7 @@ WITH test AS (SELECT 42) INSERT INTO test VALUES (1);
 -- check response to attempt to modify table with same name as a CTE (perhaps
 -- surprisingly it works, because CTEs don't hide tables from data-modifying
 -- statements)
---DDL_STATEMENT_BEGIN--
 create temp table test (i int);
---DDL_STATEMENT_END--
 with test as (select 42) insert into test select * from test;
 select * from test;
---DDL_STATEMENT_BEGIN--
 drop table test;
---DDL_STATEMENT_END--

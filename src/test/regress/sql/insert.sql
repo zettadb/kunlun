@@ -1,12 +1,8 @@
 --
 -- insert with DEFAULT in the target_list
 --
---DDL_STATEMENT_BEGIN--
 drop table if exists inserttest;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table inserttest (col1 int4, col2 int4 NOT NULL, col3 text default 'testing');
---DDL_STATEMENT_END--
 insert into inserttest (col1, col2, col3) values (DEFAULT, DEFAULT, DEFAULT);
 insert into inserttest (col2, col3) values (3, DEFAULT);
 insert into inserttest (col1, col2, col3) values (DEFAULT, 5, DEFAULT);
@@ -39,48 +35,26 @@ insert into inserttest values(30, 50, repeat('x', 10000));
 
 select col1, col2, char_length(col3) from inserttest;
 
---DDL_STATEMENT_BEGIN--
 drop table inserttest;
---DDL_STATEMENT_END--
 
 -- direct partition inserts should check partition bound constraint
---DDL_STATEMENT_BEGIN--
 drop table if exists range_parted;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 drop table if exists part1;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 drop table if exists part2;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 drop table if exists part3;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 drop table if exists part4;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table range_parted (
 	a text,
 	b int
 ) partition by range (a, (b+0));
---DDL_STATEMENT_END--
 
 -- no partitions, so fail
 insert into range_parted values ('a', 11);
 
---DDL_STATEMENT_BEGIN--
 create table part1 partition of range_parted for values from ('a', 1) to ('a', 10);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table part2 partition of range_parted for values from ('a', 10) to ('a', 20);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table part3 partition of range_parted for values from ('b', 1) to ('b', 10);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table part4 partition of range_parted for values from ('b', 10) to ('b', 20);
---DDL_STATEMENT_END--
 
 -- fail
 insert into part1 values ('a', 11);
@@ -98,24 +72,14 @@ insert into part1 values (null);
 -- fail (expression key (b+0) cannot be null either)
 insert into part1 values (1);
 
---DDL_STATEMENT_BEGIN--
 drop table if exists list_parted;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table list_parted (
 	a text,
 	b int
 ) partition by list (lower(a));
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table part_aa_bb partition of list_parted FOR VALUES IN ('aa', 'bb');
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table part_cc_dd partition of list_parted FOR VALUES IN ('cc', 'dd');
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table part_null partition of list_parted FOR VALUES IN (null);
---DDL_STATEMENT_END--
 
 -- fail
 insert into part_aa_bb values ('cc', 1);
@@ -126,33 +90,43 @@ insert into part_cc_dd values ('cC', 1);
 insert into part_null values (null, 0);
 
 -- check in case of multi-level partitioned table
---DDL_STATEMENT_BEGIN--
 create table part_ee_ff partition of list_parted for values in ('ee', 'ff') partition by range (b);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table part_ee_ff1 partition of part_ee_ff for values from (1) to (10);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table part_ee_ff2 partition of part_ee_ff for values from (10) to (20);
---DDL_STATEMENT_END--
 
---DDL_STATEMENT_BEGIN--
+-- test default partition
+create table part_default partition of list_parted default;
+-- Negative test: a row, which would fit in other partition, does not fit
+-- default partition, even when inserted directly
+insert into part_default values ('aa', 2);
+insert into part_default values (null, 2);
+-- ok
+insert into part_default values ('Zz', 2);
+-- test if default partition works as expected for multi-level partitioned
+-- table as well as when default partition itself is further partitioned
+drop table part_default;
 create table part_xx_yy partition of list_parted for values in ('xx', 'yy') partition by list (a);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table part_xx_yy_p1 partition of part_xx_yy for values in ('xx');
---DDL_STATEMENT_END--
+create table part_xx_yy_defpart partition of part_xx_yy default;
+create table part_default partition of list_parted default partition by range(b);
+create table part_default_p1 partition of part_default for values from (20) to (30);
+create table part_default_p2 partition of part_default for values from (30) to (40);
 
 -- fail
 insert into part_ee_ff1 values ('EE', 11);
+insert into part_default_p2 values ('gg', 43);
 -- fail (even the parent's, ie, part_ee_ff's partition constraint applies)
 insert into part_ee_ff1 values ('cc', 1);
+insert into part_default values ('gg', 43);
 -- ok
 insert into part_ee_ff1 values ('ff', 1);
 insert into part_ee_ff2 values ('ff', 11);
+insert into part_default_p1 values ('cd', 25);
+insert into part_default_p2 values ('de', 35);
 insert into list_parted values ('ab', 21);
 insert into list_parted values ('xx', 1);
 insert into list_parted values ('yy', 2);
+select tableoid::regclass, * from list_parted;
 
 -- Check tuple routing for partitioned tables
 
@@ -169,11 +143,18 @@ insert into range_parted values ('b', 10);
 -- fail (partition key (b+0) is null)
 insert into range_parted values ('a');
 
+-- Check default partition
+create table part_def partition of range_parted default;
+-- fail
+insert into part_def values ('b', 10);
+-- ok
+insert into part_def values ('c', 10);
 insert into range_parted values (null, null);
 insert into range_parted values ('a', null);
 insert into range_parted values (null, 19);
 insert into range_parted values ('b', 20);
 
+select tableoid::regclass, * from range_parted;
 -- ok
 insert into list_parted values (null, 1);
 insert into list_parted (a) values ('aA');
@@ -183,39 +164,25 @@ insert into part_ee_ff values ('EE', 0);
 -- ok
 insert into list_parted values ('EE', 1);
 insert into part_ee_ff values ('EE', 10);
+select tableoid::regclass, * from list_parted;
 
 -- some more tests to exercise tuple-routing with multi-level partitioning
---DDL_STATEMENT_BEGIN--
 create table part_gg partition of list_parted for values in ('gg') partition by range (b);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table part_gg1 partition of part_gg for values from (minvalue) to (1);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table part_gg2 partition of part_gg for values from (1) to (10) partition by range (b);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table part_gg2_1 partition of part_gg2 for values from (1) to (5);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table part_gg2_2 partition of part_gg2 for values from (5) to (10);
---DDL_STATEMENT_END--
 
---DDL_STATEMENT_BEGIN--
 create table part_ee_ff3 partition of part_ee_ff for values from (20) to (30) partition by range (b);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table part_ee_ff3_1 partition of part_ee_ff3 for values from (20) to (25);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table part_ee_ff3_2 partition of part_ee_ff3 for values from (25) to (30);
---DDL_STATEMENT_END--
 
-delete from list_parted;
+truncate list_parted;
 insert into list_parted values ('aa'), ('cc');
 insert into list_parted select 'Ff', s.a from generate_series(1, 29) s(a);
 insert into list_parted select 'gg', s.a from generate_series(1, 9) s(a);
 insert into list_parted (b) values (1);
+select tableoid::regclass::text, a, min(b) as min_b, max(b) as max_b from list_parted group by 1, 2 order by 1;
 
 -- direct partition inserts should check hash partition bound constraint
 
@@ -224,56 +191,36 @@ insert into list_parted (b) values (1);
 -- the sum of the values passed to it and the one for text returns the length
 -- of the non-empty string value passed to it or 0.
 
---DDL_STATEMENT_BEGIN--
 create or replace function part_hashint4_noop(value int4, seed int8)
 returns int8 as $$
 select value + seed;
 $$ language sql immutable;
---DDL_STATEMENT_END--
 
---DDL_STATEMENT_BEGIN--
 create operator class part_test_int4_ops
 for type int4
 using hash as
 operator 1 =,
 function 2 part_hashint4_noop(int4, int8);
---DDL_STATEMENT_END--
 
---DDL_STATEMENT_BEGIN--
 create or replace function part_hashtext_length(value text, seed int8)
 RETURNS int8 AS $$
 select length(coalesce(value, ''))::int8
 $$ language sql immutable;
---DDL_STATEMENT_END--
 
---DDL_STATEMENT_BEGIN--
 create operator class part_test_text_ops
 for type text
 using hash as
 operator 1 =,
 function 2 part_hashtext_length(text, int8);
---DDL_STATEMENT_END--
 
---DDL_STATEMENT_BEGIN--
 drop table if exists hash_parted;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table hash_parted (
 	a int
 ) partition by hash (a part_test_int4_ops);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table hpart0 partition of hash_parted for values with (modulus 4, remainder 0);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table hpart1 partition of hash_parted for values with (modulus 4, remainder 1);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table hpart2 partition of hash_parted for values with (modulus 4, remainder 2);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table hpart3 partition of hash_parted for values with (modulus 4, remainder 3);
---DDL_STATEMENT_END--
 
 insert into hash_parted values(generate_series(1,10));
 
@@ -284,60 +231,186 @@ insert into hpart0 values(11);
 -- 11 % 4 -> 3 remainder i.e. valid data for hpart3 partition
 insert into hpart3 values(11);
 
+-- view data
+select tableoid::regclass as part, a, a%4 as "remainder = a % 4"
+from hash_parted order by part;
+
 -- test \d+ output on a table which has both partitioned and unpartitioned
 -- partitions
 \d+ list_parted
 
 -- cleanup
---DDL_STATEMENT_BEGIN--
 drop table range_parted;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 drop table list_parted;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 drop table hash_parted;
---DDL_STATEMENT_END--
+
+-- test that a default partition added as the first partition accepts any value
+-- including null
+create table list_parted (a int) partition by list (a);
+create table part_default partition of list_parted default;
+\d+ part_default
+insert into part_default values (null);
+insert into part_default values (1);
+insert into part_default values (-1);
+select tableoid::regclass, a from list_parted;
+-- cleanup
+drop table list_parted;
+
+-- more tests for certain multi-level partitioning scenarios
+create table mlparted (a int, b int) partition by range (a, b);
+create table mlparted1 (b int not null, a int not null) partition by range ((b+0));
+create table mlparted11 (like mlparted1);
+alter table mlparted11 drop a;
+alter table mlparted11 add a int;
+alter table mlparted11 drop a;
+alter table mlparted11 add a int not null;
+-- attnum for key attribute 'a' is different in mlparted, mlparted1, and mlparted11
+select attrelid::regclass, attname, attnum
+from pg_attribute
+where attname = 'a'
+ and (attrelid = 'mlparted'::regclass
+   or attrelid = 'mlparted1'::regclass
+   or attrelid = 'mlparted11'::regclass)
+order by attrelid::regclass::text;
+
+alter table mlparted1 attach partition mlparted11 for values from (2) to (5);
+alter table mlparted attach partition mlparted1 for values from (1, 2) to (1, 10);
+
+-- check that "(1, 2)" is correctly routed to mlparted11.
+insert into mlparted values (1, 2);
+select tableoid::regclass, * from mlparted;
+
+-- check that proper message is shown after failure to route through mlparted1
+insert into mlparted (a, b) values (1, 5);
+
+truncate mlparted;
+alter table mlparted add constraint check_b check (b = 3);
+
+-- have a BR trigger modify the row such that the check_b is violated
+create function mlparted11_trig_fn()
+returns trigger AS
+$$
+begin
+  NEW.b := 4;
+  return NEW;
+end;
+$$
+language plpgsql;
+create trigger mlparted11_trig before insert ON mlparted11
+  for each row execute procedure mlparted11_trig_fn();
+
+-- check that the correct row is shown when constraint check_b fails after
+-- "(1, 2)" is routed to mlparted11 (actually "(1, 4)" would be shown due
+-- to the BR trigger mlparted11_trig_fn)
+insert into mlparted values (1, 2);
+drop trigger mlparted11_trig on mlparted11;
+drop function mlparted11_trig_fn();
+
+-- check that inserting into an internal partition successfully results in
+-- checking its partition constraint before inserting into the leaf partition
+-- selected by tuple-routing
+insert into mlparted1 (a, b) values (2, 3);
 
 -- check routing error through a list partitioned table when the key is null
---DDL_STATEMENT_BEGIN--
 create table lparted_nonullpart (a int, b char) partition by list (b);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table lparted_nonullpart_a partition of lparted_nonullpart for values in ('a');
---DDL_STATEMENT_END--
 insert into lparted_nonullpart values (1);
---DDL_STATEMENT_BEGIN--
 drop table lparted_nonullpart;
---DDL_STATEMENT_END--
+
+-- check that RETURNING works correctly with tuple-routing
+alter table mlparted drop constraint check_b;
+create table mlparted12 partition of mlparted1 for values from (5) to (10);
+create table mlparted2 (b int not null, a int not null);
+alter table mlparted attach partition mlparted2 for values from (1, 10) to (1, 20);
+create table mlparted3 partition of mlparted for values from (1, 20) to (1, 30);
+create table mlparted4 (like mlparted);
+alter table mlparted4 drop a;
+alter table mlparted4 add a int not null;
+alter table mlparted attach partition mlparted4 for values from (1, 30) to (1, 40);
+with ins (a, b, c) as
+  (insert into mlparted (b, a) select s.a, 1 from generate_series(2, 39) s(a) returning tableoid::regclass, *)
+  select a, b, min(c), max(c) from ins group by a, b order by 1;
+
+alter table mlparted add c text;
+create table mlparted5 (c text, a int not null, b int not null) partition by list (c);
+create table mlparted5a (a int not null, c text, b int not null);
+alter table mlparted5 attach partition mlparted5a for values in ('a');
+alter table mlparted attach partition mlparted5 for values from (1, 40) to (1, 50);
+alter table mlparted add constraint check_b check (a = 1 and b < 45);
+insert into mlparted values (1, 45, 'a');
+create function mlparted5abrtrig_func() returns trigger as $$ begin new.c = 'b'; return new; end; $$ language plpgsql;
+create trigger mlparted5abrtrig before insert on mlparted5a for each row execute procedure mlparted5abrtrig_func();
+insert into mlparted5 (a, b, c) values (1, 40, 'a');
+drop table mlparted5;
+alter table mlparted drop constraint check_b;
+
+-- Check multi-level default partition
+create table mlparted_def partition of mlparted default partition by range(a);
+create table mlparted_def1 partition of mlparted_def for values from (40) to (50);
+create table mlparted_def2 partition of mlparted_def for values from (50) to (60);
+insert into mlparted values (40, 100);
+insert into mlparted_def1 values (42, 100);
+insert into mlparted_def2 values (54, 50);
+-- fail
+insert into mlparted values (70, 100);
+insert into mlparted_def1 values (52, 50);
+insert into mlparted_def2 values (34, 50);
+-- ok
+create table mlparted_defd partition of mlparted_def default;
+insert into mlparted values (70, 100);
+
+select tableoid::regclass, * from mlparted_def;
+
+-- Check multi-level tuple routing with attributes dropped from the
+-- top-most parent.  First remove the last attribute.
+alter table mlparted add d int, add e int;
+alter table mlparted drop e;
+create table mlparted5 partition of mlparted
+  for values from (1, 40) to (1, 50) partition by range (c);
+create table mlparted5_ab partition of mlparted5
+  for values from ('a') to ('c') partition by list (c);
+-- This partitioned table should remain with no partitions.
+create table mlparted5_cd partition of mlparted5
+  for values from ('c') to ('e') partition by list (c);
+create table mlparted5_a partition of mlparted5_ab for values in ('a');
+create table mlparted5_b (d int, b int, c text, a int);
+alter table mlparted5_ab attach partition mlparted5_b for values in ('b');
+truncate mlparted;
+insert into mlparted values (1, 2, 'a', 1);
+insert into mlparted values (1, 40, 'a', 1);  -- goes to mlparted5_a
+insert into mlparted values (1, 45, 'b', 1);  -- goes to mlparted5_b
+insert into mlparted values (1, 45, 'c', 1);  -- goes to mlparted5_cd, fails
+insert into mlparted values (1, 45, 'f', 1);  -- goes to mlparted5, fails
+select tableoid::regclass, * from mlparted order by a, b, c, d;
+alter table mlparted drop d;
+truncate mlparted;
+-- Remove the before last attribute.
+alter table mlparted add e int, add d int;
+alter table mlparted drop e;
+insert into mlparted values (1, 2, 'a', 1);
+insert into mlparted values (1, 40, 'a', 1);  -- goes to mlparted5_a
+insert into mlparted values (1, 45, 'b', 1);  -- goes to mlparted5_b
+insert into mlparted values (1, 45, 'c', 1);  -- goes to mlparted5_cd, fails
+insert into mlparted values (1, 45, 'f', 1);  -- goes to mlparted5, fails
+select tableoid::regclass, * from mlparted order by a, b, c, d;
+alter table mlparted drop d;
+drop table mlparted5;
 
 -- check that message shown after failure to find a partition shows the
 -- appropriate key description (or none) in various situations
---DDL_STATEMENT_BEGIN--
 create table key_desc (a int, b int) partition by list ((a+0));
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table key_desc_1 partition of key_desc for values in (1) partition by range (b);
---DDL_STATEMENT_END--
 
---DDL_STATEMENT_BEGIN--
 create user regress_insert_other_user;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 grant select (a) on key_desc_1 to regress_insert_other_user;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 grant insert on key_desc to regress_insert_other_user;
---DDL_STATEMENT_END--
 
 set role regress_insert_other_user;
 -- no key description is shown
 insert into key_desc values (1, 1);
 
 reset role;
---DDL_STATEMENT_BEGIN--
 grant select (b) on key_desc_1 to regress_insert_other_user;
---DDL_STATEMENT_END--
 set role regress_insert_other_user;
 -- key description (b)=(1) is now shown
 insert into key_desc values (1, 1);
@@ -345,56 +418,26 @@ insert into key_desc values (1, 1);
 -- key description is not shown if key contains expression
 insert into key_desc values (2, 1);
 reset role;
---DDL_STATEMENT_BEGIN--
 revoke all on key_desc from regress_insert_other_user;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 revoke all on key_desc_1 from regress_insert_other_user;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 drop role regress_insert_other_user;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 drop table key_desc;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 drop table key_desc_1;
---DDL_STATEMENT_END--
 
 -- test minvalue/maxvalue restrictions
---DDL_STATEMENT_BEGIN--
 create table mcrparted (a int, b int, c int) partition by range (a, abs(b), c);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table mcrparted0 partition of mcrparted for values from (minvalue, 0, 0) to (1, maxvalue, maxvalue);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table mcrparted2 partition of mcrparted for values from (10, 6, minvalue) to (10, maxvalue, minvalue);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table mcrparted4 partition of mcrparted for values from (21, minvalue, 0) to (30, 20, minvalue);
---DDL_STATEMENT_END--
 
 -- check multi-column range partitioning expression enforces the same
 -- constraint as what tuple-routing would determine it to be
---DDL_STATEMENT_BEGIN--
 create table mcrparted0 partition of mcrparted for values from (minvalue, minvalue, minvalue) to (1, maxvalue, maxvalue);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table mcrparted1 partition of mcrparted for values from (2, 1, minvalue) to (10, 5, 10);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table mcrparted2 partition of mcrparted for values from (10, 6, minvalue) to (10, maxvalue, maxvalue);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table mcrparted3 partition of mcrparted for values from (11, 1, 1) to (20, 10, 10);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table mcrparted4 partition of mcrparted for values from (21, minvalue, minvalue) to (30, 20, maxvalue);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table mcrparted5 partition of mcrparted for values from (30, 21, 20) to (maxvalue, maxvalue, maxvalue);
---DDL_STATEMENT_END--
 
 -- null not allowed in range partition
 insert into mcrparted values (null, null, null);
@@ -426,83 +469,53 @@ insert into mcrparted values (30, 21, 20);
 insert into mcrparted5 values (30, 21, 20);
 insert into mcrparted4 values (30, 21, 20);	-- error
 
+-- check rows
+select tableoid::regclass::text, * from mcrparted order by 1;
+
 -- cleanup
---DDL_STATEMENT_BEGIN--
 drop table mcrparted;
---DDL_STATEMENT_END--
 
 -- check that a BR constraint can't make partition contain violating rows
---DDL_STATEMENT_BEGIN--
 create table brtrigpartcon (a int, b text) partition by list (a);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table brtrigpartcon1 partition of brtrigpartcon for values in (1);
---DDL_STATEMENT_END--
+create or replace function brtrigpartcon1trigf() returns trigger as $$begin new.a := 2; return new; end$$ language plpgsql;
+create trigger brtrigpartcon1trig before insert on brtrigpartcon1 for each row execute procedure brtrigpartcon1trigf();
 insert into brtrigpartcon values (1, 'hi there');
 insert into brtrigpartcon1 values (1, 'hi there');
 
 -- check that the message shows the appropriate column description in a
 -- situation where the partitioned table is not the primary ModifyTable node
---DDL_STATEMENT_BEGIN--
 create table inserttest3 (f1 text default 'foo', f2 text default 'bar', f3 int);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create role regress_coldesc_role;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 grant insert on inserttest3 to regress_coldesc_role;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 grant insert on brtrigpartcon to regress_coldesc_role;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 revoke select on brtrigpartcon from regress_coldesc_role;
---DDL_STATEMENT_END--
 set role regress_coldesc_role;
 with result as (insert into brtrigpartcon values (1, 'hi there') returning 1)
   insert into inserttest3 (f3) select * from result;
 reset role;
 
 -- cleanup
---DDL_STATEMENT_BEGIN--
 revoke all on inserttest3 from regress_coldesc_role;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 revoke all on brtrigpartcon from regress_coldesc_role;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 drop role regress_coldesc_role;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 drop table inserttest3;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 drop table brtrigpartcon;
---DDL_STATEMENT_END--
+drop function brtrigpartcon1trigf();
 
 -- check that "do nothing" BR triggers work with tuple-routing (this checks
 -- that estate->es_result_relation_info is appropriately set/reset for each
 -- routed tuple)
---DDL_STATEMENT_BEGIN--
 create table donothingbrtrig_test (a int, b text) partition by list (a);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table donothingbrtrig_test1 (b text, a int);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table donothingbrtrig_test2 (c text, b text, a int);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 alter table donothingbrtrig_test2 drop column c;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create or replace function donothingbrtrig_func() returns trigger as $$begin raise notice 'b: %', new.b; return NULL; end$$ language plpgsql;
---DDL_STATEMENT_END--
---create trigger donothingbrtrig1 before insert on donothingbrtrig_test1 for each row execute procedure donothingbrtrig_func();
---create trigger donothingbrtrig2 before insert on donothingbrtrig_test2 for each row execute procedure donothingbrtrig_func();
---alter table donothingbrtrig_test attach partition donothingbrtrig_test1 for values in (1);
---alter table donothingbrtrig_test attach partition donothingbrtrig_test2 for values in (2);
---insert into donothingbrtrig_test values (1, 'foo'), (2, 'bar');
+create trigger donothingbrtrig1 before insert on donothingbrtrig_test1 for each row execute procedure donothingbrtrig_func();
+create trigger donothingbrtrig2 before insert on donothingbrtrig_test2 for each row execute procedure donothingbrtrig_func();
+alter table donothingbrtrig_test attach partition donothingbrtrig_test1 for values in (1);
+alter table donothingbrtrig_test attach partition donothingbrtrig_test2 for values in (2);
+insert into donothingbrtrig_test values (1, 'foo'), (2, 'bar');
 copy donothingbrtrig_test from stdout;
 1	baz
 2	qux
@@ -510,42 +523,20 @@ copy donothingbrtrig_test from stdout;
 select tableoid::regclass, * from donothingbrtrig_test;
 
 -- cleanup
---DDL_STATEMENT_BEGIN--
 drop table donothingbrtrig_test;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 drop function donothingbrtrig_func();
---DDL_STATEMENT_END--
 
 
 -- check multi-column range partitioning with minvalue/maxvalue constraints
---DDL_STATEMENT_BEGIN--
 create table mcrparted (a text, b int) partition by range(a, b);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table mcrparted1_lt_b partition of mcrparted for values from (minvalue, minvalue) to ('b', minvalue);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table mcrparted2_b partition of mcrparted for values from ('b', minvalue) to ('c', minvalue);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table mcrparted3_c_to_common partition of mcrparted for values from ('c', minvalue) to ('common', minvalue);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table mcrparted4_common_lt_0 partition of mcrparted for values from ('common', minvalue) to ('common', 0);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table mcrparted5_common_0_to_10 partition of mcrparted for values from ('common', 0) to ('common', 10);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table mcrparted6_common_ge_10 partition of mcrparted for values from ('common', 10) to ('common', maxvalue);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table mcrparted7_gt_common_lt_d partition of mcrparted for values from ('common', maxvalue) to ('d', minvalue);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table mcrparted8_ge_d partition of mcrparted for values from ('d', minvalue) to (maxvalue, maxvalue);
---DDL_STATEMENT_END--
 
 \d+ mcrparted
 \d+ mcrparted1_lt_b
@@ -560,15 +551,18 @@ create table mcrparted8_ge_d partition of mcrparted for values from ('d', minval
 insert into mcrparted values ('aaa', 0), ('b', 0), ('bz', 10), ('c', -10),
     ('comm', -10), ('common', -10), ('common', 0), ('common', 10),
     ('commons', 0), ('d', -10), ('e', 0);
---DDL_STATEMENT_BEGIN--
+select tableoid::regclass, * from mcrparted order by a, b;
 drop table mcrparted;
---DDL_STATEMENT_END--
 
 -- check that wholerow vars in the RETURNING list work with partitioned tables
---DDL_STATEMENT_BEGIN--
 create table returningwrtest (a int) partition by list (a);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table returningwrtest1 partition of returningwrtest for values in (1);
---DDL_STATEMENT_END--
 insert into returningwrtest values (1) returning returningwrtest;
+
+-- check also that the wholerow vars in RETURNING list are converted as needed
+alter table returningwrtest add b text;
+create table returningwrtest2 (b text, c int, a int);
+alter table returningwrtest2 drop c;
+alter table returningwrtest attach partition returningwrtest2 for values in (2);
+insert into returningwrtest values (2, 'foo') returning returningwrtest;
+drop table returningwrtest;

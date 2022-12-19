@@ -1061,6 +1061,7 @@ ORDER BY 1, 2;
  <>   | <>
  <@   | @>
  =    | =
+ ==   | ==
  ?#   | ?#
  ?-   | ?-
  ?-|  | ?-|
@@ -1073,7 +1074,7 @@ ORDER BY 1, 2;
  ~<=~ | ~>=~
  ~<~  | ~>~
  ~=   | ~=
-(30 rows)
+(31 rows)
 
 -- Likewise for negator pairs.
 SELECT DISTINCT o1.oprname AS op1, o2.oprname AS op2
@@ -1150,9 +1151,10 @@ WHERE p1.oprcanhash AND NOT EXISTS
   (SELECT 1 FROM pg_amop
    WHERE amopmethod = (SELECT oid FROM pg_am WHERE amname = 'hash') AND
          amopopr = p1.oid AND amopstrategy = 1);
- oid | oprname 
------+---------
-(0 rows)
+ oid  | oprname 
+------+---------
+ 5502 | ==
+(1 row)
 
 -- And the converse.
 SELECT p1.oid, p1.oprname, p.amopfamily
@@ -1285,9 +1287,36 @@ SELECT * FROM funcdescs
   WHERE prodesc IS DISTINCT FROM expecteddesc
     AND oprdesc NOT LIKE 'deprecated%'
     AND prodesc IS DISTINCT FROM oprdesc;
- p_oid | proname | o_oid | prodesc | expecteddesc | oprdesc 
--------+---------+-------+---------+--------------+---------
-(0 rows)
+ p_oid |       proname        | o_oid | prodesc |         expecteddesc          |  oprdesc  
+-------+----------------------+-------+---------+-------------------------------+-----------
+  5400 | isfulleq_bool        |  5500 |         | implementation of == operator | fullequal
+  5402 | isfulleq_bytea       |  5501 |         | implementation of == operator | fullequal
+  5404 | isfulleq_char        |  5502 |         | implementation of == operator | fullequal
+  5406 | isfulleq_name        |  5503 |         | implementation of == operator | fullequal
+  5408 | isfulleq_int8        |  5504 |         | implementation of == operator | fullequal
+  5410 | isfulleq_int2        |  5505 |         | implementation of == operator | fullequal
+  5412 | isfulleq_int4        |  5506 |         | implementation of == operator | fullequal
+  5414 | isfulleq_text        |  5507 |         | implementation of == operator | fullequal
+  5416 | isfulleq_oid         |  5508 |         | implementation of == operator | fullequal
+  5418 | isfulleq_xid         |  5509 |         | implementation of == operator | fullequal
+  5420 | isfulleq_cid         |  5510 |         | implementation of == operator | fullequal
+  5422 | isfulleq_oidvector   |  5511 |         | implementation of == operator | fullequal
+  5424 | isfulleq_float4      |  5512 |         | implementation of == operator | fullequal
+  5426 | isfulleq_float8      |  5513 |         | implementation of == operator | fullequal
+  5428 | isfulleq_abstime     |  5514 |         | implementation of == operator | fullequal
+  5430 | isfulleq_reltime     |  5515 |         | implementation of == operator | fullequal
+  5432 | isfulleq_macaddr     |  5516 |         | implementation of == operator | fullequal
+  5434 | isfulleq_inet        |  5517 |         | implementation of == operator | fullequal
+  5436 | isfulleq_cidr        |  5518 |         | implementation of == operator | fullequal
+  5438 | isfulleq_varchar     |  5519 |         | implementation of == operator | fullequal
+  5440 | isfulleq_date        |  5520 |         | implementation of == operator | fullequal
+  5442 | isfulleq_time        |  5521 |         | implementation of == operator | fullequal
+  5444 | isfulleq_timestamp   |  5522 |         | implementation of == operator | fullequal
+  5446 | isfulleq_timestamptz |  5523 |         | implementation of == operator | fullequal
+  5448 | isfulleq_interval    |  5524 |         | implementation of == operator | fullequal
+  5450 | isfulleq_timetz      |  5525 |         | implementation of == operator | fullequal
+  5452 | isfulleq_bpchar      |  5526 |         | implementation of == operator | fullequal
+(27 rows)
 
 -- Show all the operator-implementation functions that have their own
 -- comments.  This should happen only in cases where the function and
@@ -1320,7 +1349,34 @@ ORDER BY 1;
   3940 | jsonb_extract_path_text | get value from jsonb as text with path elements
   3951 | json_extract_path       | get value from json with path elements
   3953 | json_extract_path_text  | get value from json as text with path elements
-(9 rows)
+  5400 | isfulleq_bool           | 
+  5402 | isfulleq_bytea          | 
+  5404 | isfulleq_char           | 
+  5406 | isfulleq_name           | 
+  5408 | isfulleq_int8           | 
+  5410 | isfulleq_int2           | 
+  5412 | isfulleq_int4           | 
+  5414 | isfulleq_text           | 
+  5416 | isfulleq_oid            | 
+  5418 | isfulleq_xid            | 
+  5420 | isfulleq_cid            | 
+  5422 | isfulleq_oidvector      | 
+  5424 | isfulleq_float4         | 
+  5426 | isfulleq_float8         | 
+  5428 | isfulleq_abstime        | 
+  5430 | isfulleq_reltime        | 
+  5432 | isfulleq_macaddr        | 
+  5434 | isfulleq_inet           | 
+  5436 | isfulleq_cidr           | 
+  5438 | isfulleq_varchar        | 
+  5440 | isfulleq_date           | 
+  5442 | isfulleq_time           | 
+  5444 | isfulleq_timestamp      | 
+  5446 | isfulleq_timestamptz    | 
+  5448 | isfulleq_interval       | 
+  5450 | isfulleq_timetz         | 
+  5452 | isfulleq_bpchar         | 
+(36 rows)
 
 -- **************** pg_aggregate ****************
 -- Look for illegal values in pg_aggregate fields.
@@ -1889,6 +1945,7 @@ ORDER BY 1, 2, 3;
         403 |            5 | >
         403 |            5 | ~>~
         405 |            1 | =
+        405 |            1 | ==
         783 |            1 | <<
         783 |            1 | @@
         783 |            2 | &<
@@ -1996,7 +2053,7 @@ ORDER BY 1, 2, 3;
        4000 |           26 | >>
        4000 |           27 | >>=
        4000 |           28 | ^@
-(122 rows)
+(123 rows)
 
 -- Check that all opclass search operators have selectivity estimators.
 -- This is not absolutely required, but it seems a reasonable thing

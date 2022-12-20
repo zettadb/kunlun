@@ -13,22 +13,13 @@ SET max_parallel_workers_per_gather TO 0;
 --
 -- Tests for list partitioned tables.
 --
---DDL_STATEMENT_BEGIN--
 drop table if exists pagg_tab;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab (a int, b int, c text, d int) PARTITION BY LIST(c);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab_p1 PARTITION OF pagg_tab FOR VALUES IN ('0000', '0001', '0002', '0003');
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab_p2 PARTITION OF pagg_tab FOR VALUES IN ('0004', '0005', '0006', '0007');
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab_p3 PARTITION OF pagg_tab FOR VALUES IN ('0008', '0009', '0010', '0011');
---DDL_STATEMENT_END--
 INSERT INTO pagg_tab SELECT i % 20, i % 30, to_char(i % 12, 'FM0000'), i % 30 FROM generate_series(0, 2999) i;
+ANALYZE pagg_tab;
 
 -- When GROUP BY clause matches; full aggregation is performed for each partition.
 EXPLAIN (COSTS OFF)
@@ -99,40 +90,23 @@ SELECT a, sum(b order by a) FROM pagg_tab GROUP BY a ORDER BY 1, 2;
 
 
 -- JOIN query
---DDL_STATEMENT_BEGIN--
 drop table if exists pagg_tab1;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab1(x int, y int) PARTITION BY RANGE(x);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab1_p1 PARTITION OF pagg_tab1 FOR VALUES FROM (0) TO (10);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab1_p2 PARTITION OF pagg_tab1 FOR VALUES FROM (10) TO (20);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab1_p3 PARTITION OF pagg_tab1 FOR VALUES FROM (20) TO (30);
---DDL_STATEMENT_END--
 
---DDL_STATEMENT_BEGIN--
 drop table if exists pagg_tab2;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab2(x int, y int) PARTITION BY RANGE(y);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab2_p1 PARTITION OF pagg_tab2 FOR VALUES FROM (0) TO (10);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab2_p2 PARTITION OF pagg_tab2 FOR VALUES FROM (10) TO (20);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab2_p3 PARTITION OF pagg_tab2 FOR VALUES FROM (20) TO (30);
---DDL_STATEMENT_END--
 
 INSERT INTO pagg_tab1 SELECT i % 30, i % 20 FROM generate_series(0, 299, 2) i;
 INSERT INTO pagg_tab2 SELECT i % 20, i % 30 FROM generate_series(0, 299, 3) i;
+
+ANALYZE pagg_tab1;
+ANALYZE pagg_tab2;
 
 -- When GROUP BY clause matches; full aggregation is performed for each partition.
 EXPLAIN (COSTS OFF)
@@ -183,7 +157,7 @@ SELECT a.x, sum(b.x) FROM pagg_tab1 a FULL OUTER JOIN pagg_tab2 b ON a.x = b.y G
 -- But right now we are unable to do partitionwise join in this case.
 EXPLAIN (COSTS OFF)
 SELECT a.x, b.y, count(*) FROM (SELECT * FROM pagg_tab1 WHERE x < 20) a LEFT JOIN (SELECT * FROM pagg_tab2 WHERE y > 10) b ON a.x = b.y WHERE a.x > 5 or b.y < 20  GROUP BY a.x, b.y ORDER BY 1, 2;
--- will crash: SELECT a.x, b.y, count(*) FROM (SELECT * FROM pagg_tab1 WHERE x < 20) a LEFT JOIN (SELECT * FROM pagg_tab2 WHERE y > 10) b ON a.x = b.y WHERE a.x > 5 or b.y < 20  GROUP BY a.x, b.y ORDER BY 1, 2;
+SELECT a.x, b.y, count(*) FROM (SELECT * FROM pagg_tab1 WHERE x < 20) a LEFT JOIN (SELECT * FROM pagg_tab2 WHERE y > 10) b ON a.x = b.y WHERE a.x > 5 or b.y < 20  GROUP BY a.x, b.y ORDER BY 1, 2;
 
 -- FULL JOIN, with dummy relations on both sides, ideally
 -- should produce partial partitionwise aggregation plan as GROUP BY is on
@@ -201,22 +175,13 @@ SELECT a.x, a.y, count(*) FROM (SELECT * FROM pagg_tab1 WHERE x = 1 AND x = 2) a
 
 -- Partition by multiple columns
 
---DDL_STATEMENT_BEGIN--
 drop table if exists pagg_tab_m;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab_m (a int, b int, c int) PARTITION BY RANGE(a, ((a+b)/2));
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab_m_p1 PARTITION OF pagg_tab_m FOR VALUES FROM (0, 0) TO (10, 10);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab_m_p2 PARTITION OF pagg_tab_m FOR VALUES FROM (10, 10) TO (20, 20);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab_m_p3 PARTITION OF pagg_tab_m FOR VALUES FROM (20, 20) TO (30, 30);
---DDL_STATEMENT_END--
 INSERT INTO pagg_tab_m SELECT i % 30, i % 40, i % 50 FROM generate_series(0, 2999) i;
+ANALYZE pagg_tab_m;
 
 -- Partial aggregation as GROUP BY clause does not match with PARTITION KEY
 EXPLAIN (COSTS OFF)
@@ -236,35 +201,17 @@ SELECT a, c, sum(b), avg(c)::numeric(64,4), count(*) FROM pagg_tab_m GROUP BY (a
 
 -- Test with multi-level partitioning scheme
 
---DDL_STATEMENT_BEGIN--
 drop table if exists pagg_tab_ml;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab_ml (a int, b int, c text) PARTITION BY RANGE(a);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab_ml_p1 PARTITION OF pagg_tab_ml FOR VALUES FROM (0) TO (10);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab_ml_p2 PARTITION OF pagg_tab_ml FOR VALUES FROM (10) TO (20) PARTITION BY LIST (c);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab_ml_p2_s1 PARTITION OF pagg_tab_ml_p2 FOR VALUES IN ('0000', '0001');
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab_ml_p2_s2 PARTITION OF pagg_tab_ml_p2 FOR VALUES IN ('0002', '0003');
---DDL_STATEMENT_END--
 
 -- This level of partitioning has different column positions than the parent
---DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab_ml_p3 PARTITION OF pagg_tab_ml FOR VALUES FROM (20) TO (30) PARTITION BY RANGE (b);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab_ml_p3_s1 PARTITION OF pagg_tab_ml_p3 FOR VALUES FROM (0) TO (0);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab_ml_p3_s2 PARTITION OF pagg_tab_ml_p3 FOR VALUES FROM (5) TO (10);
---DDL_STATEMENT_END--
 
 INSERT INTO pagg_tab_ml SELECT i % 30, i % 10, to_char(i % 4, 'FM0000') FROM generate_series(0, 29999) i;
 
@@ -336,23 +283,15 @@ SELECT a, sum(b), count(*) FROM pagg_tab_ml GROUP BY a, b, c HAVING avg(b) > 7 O
 -- costing such plans.
 SET parallel_setup_cost TO 10;
 
---DDL_STATEMENT_BEGIN--
 drop table if exists pagg_tab_para;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab_para(x int, y int) PARTITION BY RANGE(x);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab_para_p1 PARTITION OF pagg_tab_para FOR VALUES FROM (0) TO (10);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab_para_p2 PARTITION OF pagg_tab_para FOR VALUES FROM (10) TO (20);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 CREATE TABLE pagg_tab_para_p3 PARTITION OF pagg_tab_para FOR VALUES FROM (20) TO (30);
---DDL_STATEMENT_END--
 
 INSERT INTO pagg_tab_para SELECT i % 30, i % 20 FROM generate_series(0, 29999) i;
+
+ANALYZE pagg_tab_para;
 
 -- When GROUP BY clause matches; full aggregation is performed for each partition.
 EXPLAIN (COSTS OFF)
@@ -367,6 +306,7 @@ SELECT y, sum(x), avg(x), count(*) FROM pagg_tab_para GROUP BY y HAVING avg(x) <
 EXPLAIN (COSTS OFF)
 SELECT x, sum(y), avg(y)::numeric(64,4), count(*) FROM pagg_tab_para GROUP BY x HAVING avg(y) < 7 ORDER BY 1, 2, 3;
 SELECT x, sum(y), avg(y)::numeric(64,4), count(*) FROM pagg_tab_para GROUP BY x HAVING avg(y) < 7 ORDER BY 1, 2, 3;
+ANALYZE pagg_tab_para;
 
 EXPLAIN (COSTS OFF)
 SELECT x, sum(y), avg(y)::numeric(64,4), count(*) FROM pagg_tab_para GROUP BY x HAVING avg(y) < 7 ORDER BY 1, 2, 3;
@@ -383,34 +323,18 @@ SELECT x, sum(y), avg(y)::numeric(64,4), count(*) FROM pagg_tab_para GROUP BY x 
 
 --Crash when select count(*) from a partition table #439
 
---DDL_STATEMENT_BEGIN--
 drop table if exists t1;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table t1(a int, b int) partition by list(a);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table t11 partition of t1 for values in (1,2,3,4);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table t12 partition of t1 for values in (5,6,7,8);
---DDL_STATEMENT_END--
 select count(*) from t1;
 select count(*) from t11;
 select count(*) from t12;
 
---DDL_STATEMENT_BEGIN--
 drop table if exists t1;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table t1(a int, b int) partition by list(a);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table t11 partition of t1 for values in (1,2,3,4);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
 create table t12 partition of t1 for values in (5,6,7,8);
---DDL_STATEMENT_END--
 insert into t1 select generate_series(1,8);
 
 select count(*) from t1;

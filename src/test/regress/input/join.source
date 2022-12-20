@@ -569,11 +569,13 @@ insert into tt3 select x, repeat('xyzzy', 100) from generate_series(1,10000) x;
 --DDL_STATEMENT_BEGIN--
 create index tt3i on tt3(f1);
 --DDL_STATEMENT_END--
+analyze tt3;
 
 --DDL_STATEMENT_BEGIN--
 create temp table tt4(f1 int);
 --DDL_STATEMENT_END--
 insert into tt4 values (0),(1),(9999);
+analyze tt4;
 
 SELECT a.f1
 FROM tt4 a

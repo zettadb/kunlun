@@ -102,7 +102,7 @@ CREATE INDEX hash_f8_index ON hash_f8_heap USING hash (random float8_ops) WITH (
 --DDL_STATEMENT_END--
 
 --DDL_STATEMENT_BEGIN--
-CREATE TEMP TABLE unlogged_hash_table (id int4);
+CREATE UNLOGGED TABLE unlogged_hash_table (id int4);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX unlogged_hash_index ON unlogged_hash_table USING hash (id int4_ops);
@@ -403,9 +403,9 @@ INSERT INTO table1 SELECT generate_series(1,400);
 CREATE TABLE table2(col1 SERIAL PRIMARY KEY, col2 TEXT NOT NULL);
 --DDL_STATEMENT_END--
 INSERT INTO table2 SELECT generate_series(1,400), 'abc';
--- CREATE INDEX ON table2(col2);
---CREATE MATERIALIZED VIEW matview AS SELECT col1 FROM table2;
---CREATE INDEX ON matview(col1);
+CREATE INDEX ON table2(col2);
+CREATE MATERIALIZED VIEW matview AS SELECT col1 FROM table2;
+CREATE INDEX ON matview(col1);
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW view AS SELECT col2 FROM table2;
 --DDL_STATEMENT_END--

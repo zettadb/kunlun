@@ -219,8 +219,8 @@ SELECT relname, relkind, relpersistence FROM pg_class WHERE relname ~ '^unlogged
 SELECT relname, relkind, relpersistence FROM pg_class WHERE relname ~ '^unlogged\d' ORDER BY relname;
 DROP TABLE unlogged2;
 INSERT INTO unlogged1 VALUES (42);
--- REATE UNLOGGED TABLE public.unlogged2 (a int primary key);		-- also OK
---CREATE UNLOGGED TABLE pg_temp.unlogged3 (a int primary key);	-- not OK
+CREATE UNLOGGED TABLE public.unlogged2 (a int primary key);		-- also OK
+CREATE UNLOGGED TABLE pg_temp.unlogged3 (a int primary key);	-- not OK
 CREATE TABLE pg_temp.implicitly_temp (a int primary key);		-- OK
 CREATE TEMP TABLE explicitly_temp (a int primary key);			-- also OK
 CREATE TEMP TABLE pg_temp.doubly_temp (a int primary key);		-- also OK

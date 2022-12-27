@@ -20,13 +20,15 @@ SELECT * FROM mvtest_tv ORDER BY type;
 
 -- create a materialized view with no data, and confirm correct behavior
 --DDL_STATEMENT_BEGIN--
+EXPLAIN (costs off)
+  CREATE MATERIALIZED VIEW mvtest_tm AS SELECT type, sum(amt) AS totamt FROM mvtest_t GROUP BY type WITH NO DATA;
 CREATE MATERIALIZED VIEW mvtest_tm AS SELECT type, sum(amt) AS totamt FROM mvtest_t GROUP BY type WITH NO DATA;
 --DDL_STATEMENT_END--
 SELECT relispopulated FROM pg_class WHERE oid = 'mvtest_tm'::regclass;
 SELECT * FROM mvtest_tm ORDER BY type;
 REFRESH MATERIALIZED VIEW mvtest_tm;
 SELECT relispopulated FROM pg_class WHERE oid = 'mvtest_tm'::regclass;
---CREATE UNIQUE INDEX mvtest_tm_type ON mvtest_tm (type);
+CREATE UNIQUE INDEX mvtest_tm_type ON mvtest_tm (type);
 SELECT * FROM mvtest_tm ORDER BY type;
 
 -- create various views
@@ -44,8 +46,8 @@ CREATE MATERIALIZED VIEW mvtest_tmm AS SELECT sum(totamt) AS grandtot FROM mvtes
 --DDL_STATEMENT_BEGIN--
 CREATE MATERIALIZED VIEW mvtest_tvmm AS SELECT sum(totamt) AS grandtot FROM mvtest_tvm;
 --DDL_STATEMENT_END--
---CREATE UNIQUE INDEX mvtest_tvmm_expr ON mvtest_tvmm ((grandtot > 0));
---CREATE UNIQUE INDEX mvtest_tvmm_pred ON mvtest_tvmm (grandtot) WHERE grandtot < 0;
+CREATE UNIQUE INDEX mvtest_tvmm_expr ON mvtest_tvmm ((grandtot > 0));
+CREATE UNIQUE INDEX mvtest_tvmm_pred ON mvtest_tvmm (grandtot) WHERE grandtot < 0;
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW mvtest_tvv AS SELECT sum(totamt) AS grandtot FROM mvtest_tv;
 --DDL_STATEMENT_END--
@@ -62,7 +64,7 @@ CREATE VIEW mvtest_tvvmv AS SELECT * FROM mvtest_tvvm;
 --DDL_STATEMENT_BEGIN--
 CREATE MATERIALIZED VIEW mvtest_bb AS SELECT * FROM mvtest_tvvmv;
 --DDL_STATEMENT_END--
---CREATE INDEX mvtest_aa ON mvtest_bb (grandtot);
+CREATE INDEX mvtest_aa ON mvtest_bb (grandtot);
 
 -- check that plans seem reasonable
 \d+ mvtest_tvm

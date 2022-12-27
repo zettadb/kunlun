@@ -20,9 +20,8 @@ CREATE TEXT SEARCH TEMPLATE addr_ts_temp (lexize=dsimple_lexize);
 CREATE TEXT SEARCH PARSER addr_ts_prs
     (start = prsd_start, gettoken = prsd_nexttoken, end = prsd_end, lextypes = prsd_lextype);
 CREATE TABLE addr_nsp.gentable (
-	a serial primary key,
-	b text DEFAULT 'hello',
-	CONSTRAINT a_chk CHECK (a > 0));
+	a serial primary key CONSTRAINT a_chk CHECK (a > 0),
+	b text DEFAULT 'hello');
 CREATE TABLE addr_nsp.parttable (
 	a int PRIMARY KEY
 ) PARTITION BY RANGE (a);
@@ -48,7 +47,7 @@ CREATE TRANSFORM FOR int LANGUAGE SQL (
 	TO SQL WITH FUNCTION int4recv(internal));
 --CREATE PUBLICATION addr_pub FOR TABLE addr_nsp.gentable;
 --CREATE SUBSCRIPTION addr_sub CONNECTION '' PUBLICATION bar WITH (connect = false, slot_name = NONE);
---CREATE STATISTICS addr_nsp.gentable_stat ON a, b FROM addr_nsp.gentable;		
+--CREATE STATISTICS addr_nsp.gentable_stat ON a, b FROM addr_nsp.gentable;
 
 -- test some error cases
 SELECT pg_get_object_address('stone', '{}', '{}');

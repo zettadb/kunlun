@@ -1,5 +1,8 @@
 # Introduction
-For more information, resources, documentation of Kunlun distributed RDBMS, please visit www.zettadb.com
+For more information, resources, documentation of Kunlun distributed RDBMS, please visit www.kunlunbase.com
+Download KunlunBase and use it for free at http://downloads.kunlunbase.com/
+This document isn't maintained anymore, for latest release notes, see http://doc.kunlunbase.com/Release_notes.html
+
 
 # Release Notes Kunlun version 0.8.3
 

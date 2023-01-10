@@ -1,11 +1,11 @@
 # Installation Guides for Kunlun Distributed Database Cluster
 
-This document helps users to install kunlun distributed DBMS cluster.
+This document helps users to install KunlunBase clusters.
 For more information, resources, documentation of Kunlun distributed RDBMS, please visit [our website](www.kunlunbase.com).
 
 One could obtain KunlunBase software by building its modules from source in this repository, or preferrably download the binaries or docker images and use it for free from [our download site](downloads.kunlunbase.com), because some of the features are not open source and are only available in the pre-built binaries.
 
-Follow [this document](http://doc.kunlunbase.com/install_by_scripts.html) to install a KunlunBase cluster in a few steps using a script and a GUI web application, much easier, faster and more convenient than the instructions in this document.
+Follow [this document](http://doc.kunlunbase.com/install_by_scripts.html) to install a KunlunBase cluster in a few steps using a script and a GUI web application, it's much easier, faster and more convenient than the instructions in this document.
 
 To build computing node program from source, use build.sh directly or refer to it for instructions.
 To build kunlun-storage from source, see kunlun-storage/INSTALL.kunlun.md for instructions.

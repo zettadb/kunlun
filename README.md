@@ -6,12 +6,13 @@ For more information and resources of KunlunBase, such as software, documentatio
 Download KunlunBase and use it for free at [our download site](http://downloads.kunlunbase.com/)
 
 For latest release notes, see our [online release notes](http://doc.kunlunbase.com/Release_notes.html)
+Follow [this document](http://doc.kunlunbase.com/install_by_scripts.html) to install a KunlunBase cluster in a few steps using a script and a GUI web application, it's much easier, faster and more convenient than building and installing its components manually one by one.
 
 To build kunlun-server node program from source, use build.sh directly or refer to it for instructions.
 To build kunlun-storage from source, see kunlun-storage/INSTALL.kunlun.md for instructions.
 To build cluster_mgr from source, see cluster_mgr/README for instructions.
 
-Refer to INSTALL.kunlun.md to install KunlunBase cluster.
+Refer to INSTALL.kunlun.md to install a KunlunBase cluster in a totally manual but inconvenient way.
 
 
 ## What is KunlunBase?

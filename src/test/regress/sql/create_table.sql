@@ -82,32 +82,35 @@ drop table if exists person;
 CREATE TABLE person (
 	name 		text,
 	age			int4
+				
 );
 
 drop table if exists emp;
 CREATE TABLE emp (
-	name 		text,
-	age			int4,
+			 
+			
 	salary 		int4,
 	manager 	name
-);
+) INHERITS (person);
+
 
 drop table if exists student;
 CREATE TABLE student (
-	name 		text,
-	age			int4,
+			 
+			
 	gpa 		float8
-) ;
+) INHERITS (person);
+
 
 drop table if exists stud_emp;
 CREATE TABLE stud_emp (
-	name 		text,
-	age			int4,
-	salary 		int4,
-	manager 	name,
-	gpa 		float8,
+			 
+			
+			   
+			   
+			  
 	percent 	int4
-);
+) INHERITS (emp, student);
 
 drop table if exists dept;
 CREATE TABLE dept (
@@ -132,6 +135,25 @@ CREATE TABLE a_star (
 );
 
 drop table if exists aggtest;
+CREATE TABLE b_star (
+	b 			text
+) INHERITS (a_star);
+
+CREATE TABLE c_star (
+	c 			name
+) INHERITS (a_star);
+
+CREATE TABLE d_star (
+	d 			float8
+) INHERITS (b_star, c_star);
+
+CREATE TABLE e_star (
+	e 			int2
+) INHERITS (c_star);
+
+CREATE TABLE f_star (
+	f 			polygon
+) INHERITS (e_star);
 CREATE TABLE aggtest (
 	a 			int2,
 	b			float4

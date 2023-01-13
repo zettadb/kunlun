@@ -70,14 +70,24 @@ DROP TYPE IF EXISTS test_type_exists;
 
 DROP TYPE test_type_exists;
 
+-- domain
+
+-- DROP DOMAIN test_domain_exists;
+
+-- DROP DOMAIN IF EXISTS test_domain_exists;
+
+-- CREATE domain test_domain_exists as int not null check (value > 0);
+
+-- DROP DOMAIN IF EXISTS test_domain_exists;
+
+-- DROP DOMAIN test_domain_exists;
+
 ---
 --- role/user/group
 ---
 
 CREATE USER regress_test_u1;
-
 CREATE ROLE regress_test_r1;
-
 CREATE GROUP regress_test_g1;
 
 DROP USER regress_test_u2;
@@ -179,6 +189,21 @@ CREATE TRIGGER test_trigger_exists
     BEFORE UPDATE ON test_exists
     FOR EACH ROW EXECUTE PROCEDURE suppress_redundant_updates_trigger();
 DROP TRIGGER test_trigger_exists ON test_exists;
+-- rule
+-- DROP RULE test_rule_exists ON test_exists;
+-- DROP RULE IF EXISTS test_rule_exists ON test_exists;
+
+-- DROP RULE test_rule_exists ON no_such_table;
+-- DROP RULE IF EXISTS test_rule_exists ON no_such_table;
+
+-- DROP RULE test_rule_exists ON no_such_schema.no_such_table;
+-- DROP RULE IF EXISTS test_rule_exists ON no_such_schema.no_such_table;
+
+-- CREATE RULE test_rule_exists AS ON INSERT TO test_exists
+    -- DO INSTEAD
+    -- INSERT INTO test_exists VALUES (NEW.a, NEW.b || NEW.a::text);
+-- DROP RULE test_rule_exists ON test_exists;
+
 -- foreign data wrapper
 DROP FOREIGN DATA WRAPPER test_fdw_exists;
 DROP FOREIGN DATA WRAPPER IF EXISTS test_fdw_exists;

@@ -510,11 +510,14 @@ SELECT * FROM jsonb_array_elements_text('[1,true,[1,[2,3]],null,{"f1":1,"f2":[7,
 --DDL_STATEMENT_BEGIN--
 CREATE TYPE jbpop AS (a text, b int, c timestamp);
 --DDL_STATEMENT_END--
+-- CREATE DOMAIN jsb_int_not_null  AS int     NOT NULL;
+-- CREATE DOMAIN jsb_int_array_1d  AS int[]   CHECK(array_length(VALUE, 1) = 3);
+-- CREATE DOMAIN jsb_int_array_2d  AS int[][] CHECK(array_length(VALUE, 2) = 3);
 
 --DDL_STATEMENT_BEGIN--
 create type jb_unordered_pair as (x int, y int);
 --DDL_STATEMENT_END--
-
+-- create domain jb_ordered_pair as jb_unordered_pair check((value).x <= -- (value).y);
 --DDL_STATEMENT_BEGIN--
 CREATE TYPE jsbrec AS (
 	i	int,
@@ -745,7 +748,11 @@ DROP TYPE jsbrec;
 --DDL_STATEMENT_BEGIN--
 DROP TYPE jsbrec_i_not_null;
 --DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
+-- DROP DOMAIN jsb_int_not_null;
+-- DROP DOMAIN jsb_int_array_1d;
+-- DROP DOMAIN jsb_int_array_2d;
+-- DROP DOMAIN jb_ordered_pair;
+--DDL_STATEMENT_BEGIN--			
 DROP TYPE jb_unordered_pair;
 --DDL_STATEMENT_END--
 
@@ -760,6 +767,7 @@ SELECT count(*) FROM testjsonb WHERE j ? 'bar';
 SELECT count(*) FROM testjsonb WHERE j ?| ARRAY['public','disabled'];
 SELECT count(*) FROM testjsonb WHERE j ?& ARRAY['public','disabled'];
 
+CREATE INDEX jidx ON testjsonb USING gin (j);
 SELECT count(*) FROM testjsonb WHERE j @> '{"wait":null}';
 SELECT count(*) FROM testjsonb WHERE j @> '{"wait":"CC"}';
 SELECT count(*) FROM testjsonb WHERE j @> '{"wait":"CC", "public":true}';
@@ -775,6 +783,7 @@ SELECT count(*) FROM testjsonb WHERE j ?| ARRAY['public','disabled'];
 SELECT count(*) FROM testjsonb WHERE j ?& ARRAY['public','disabled'];
 
 -- array exists - array elements should behave as keys (for GIN index scans too)
+CREATE INDEX jidx_array ON testjsonb USING gin((j->'array'));
 SELECT count(*) from testjsonb  WHERE j->'array' ? 'bar';
 -- type sensitive array exists - should return no rows (since "exists" only
 -- matches strings that are either object keys or array elements)
@@ -819,7 +828,18 @@ SELECT count(*) FROM testjsonb WHERE j = '{"pos":98, "line":371, "node":"CBA", "
 --DDL_STATEMENT_BEGIN--
 DROP INDEX jidx;
 --DDL_STATEMENT_END--
+CREATE INDEX jidx ON testjsonb USING gin (j jsonb_path_ops);
 
+SELECT count(*) FROM testjsonb WHERE j @> '{"wait":null}';
+SELECT count(*) FROM testjsonb WHERE j @> '{"wait":"CC"}';
+SELECT count(*) FROM testjsonb WHERE j @> '{"wait":"CC", "public":true}';
+SELECT count(*) FROM testjsonb WHERE j @> '{"age":25}';
+SELECT count(*) FROM testjsonb WHERE j @> '{"age":25.0}';
+-- exercise GIN_SEARCH_MODE_ALL
+SELECT count(*) FROM testjsonb WHERE j @> '{}';
+
+RESET enable_seqscan;
+DROP INDEX jidx;
 -- nested tests
 SELECT '{"ff":{"a":12,"b":16}}'::jsonb;
 SELECT '{"ff":{"a":12,"b":16},"qq":123}'::jsonb;
@@ -863,7 +883,18 @@ create temp table nestjsonb (j jsonb);
 insert into nestjsonb (j) values ('{"a":[["b",{"x":1}],["b",{"x":2}]],"c":3}');
 insert into nestjsonb (j) values ('[[14,2,3]]');
 insert into nestjsonb (j) values ('[1,[14,2,3]]');
+create index on nestjsonb using gin(j jsonb_path_ops);
 
+set enable_seqscan = on;
+set enable_bitmapscan = off;
+select * from nestjsonb where j @> '{"a":[[{"x":2}]]}'::jsonb;
+select * from nestjsonb where j @> '{"c":3}';
+select * from nestjsonb where j @> '[[14]]';
+set enable_seqscan = off;
+set enable_bitmapscan = on;
+select * from nestjsonb where j @> '{"a":[[{"x":2}]]}'::jsonb;
+select * from nestjsonb where j @> '{"c":3}';
+select * from nestjsonb where j @> '[[14]]';
 reset enable_seqscan;
 reset enable_bitmapscan;
 

@@ -529,7 +529,7 @@ ALTER OPERATOR FAMILY alt_opf4 USING btree ADD
   OPERATOR 3 = (int4, int2) ,
   OPERATOR 4 >= (int4, int2) ,
   OPERATOR 5 > (int4, int2) ,
-  FUNCTION 1 btint42cmp(int4, int2);  
+  FUNCTION 1 btint42cmp(int4, int2);
 --DDL_STATEMENT_BEGIN--
 ALTER OPERATOR FAMILY alt_opf4 USING btree DROP
 --DDL_STATEMENT_END--

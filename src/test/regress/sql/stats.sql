@@ -14,6 +14,68 @@ SET enable_indexscan TO on;
 -- for the moment, we don't want index-only scans here
 SET enable_indexonlyscan TO off;
 
+-- save counters
+-- CREATE TABLE prevstats AS
+-- SELECT t.seq_scan, t.seq_tup_read, t.idx_scan, t.idx_tup_fetch,
+       -- (b.heap_blks_read + b.heap_blks_hit) AS heap_blks,
+       -- (b.idx_blks_read + b.idx_blks_hit) AS idx_blks,
+       -- pg_stat_get_snapshot_timestamp() as snap_ts
+  -- FROM pg_catalog.pg_stat_user_tables AS t,
+       -- pg_catalog.pg_statio_user_tables AS b
+ -- WHERE t.relname='tenk2' AND b.relname='tenk2';
+
+-- -- function to wait for counters to advance
+-- create function wait_for_stats() returns void as $$
+-- declare
+  -- start_time timestamptz := clock_timestamp();
+  -- updated1 bool;
+  -- updated2 bool;
+  -- updated3 bool;
+  -- updated4 bool;
+-- begin
+  -- -- we don't want to wait forever; loop will exit after 30 seconds
+  -- for i in 1 .. 300 loop
+
+    -- -- With parallel query, the seqscan and indexscan on tenk2 might be done
+    -- -- in parallel worker processes, which will send their stats counters
+    -- -- asynchronously to what our own session does.  So we must check for
+    -- -- those counts to be registered separately from the update counts.
+
+    -- -- check to see if seqscan has been sensed
+    -- SELECT (st.seq_scan >= pr.seq_scan + 1) INTO updated1
+      -- FROM pg_stat_user_tables AS st, pg_class AS cl, prevstats AS pr
+     -- WHERE st.relname='tenk2' AND cl.relname='tenk2';
+
+    -- -- check to see if indexscan has been sensed
+    -- SELECT (st.idx_scan >= pr.idx_scan + 1) INTO updated2
+      -- FROM pg_stat_user_tables AS st, pg_class AS cl, prevstats AS pr
+     -- WHERE st.relname='tenk2' AND cl.relname='tenk2';
+
+    -- -- check to see if all updates have been sensed
+    -- SELECT (n_tup_ins > 0) INTO updated3
+      -- FROM pg_stat_user_tables WHERE relname='trunc_stats_test4';
+
+    -- -- We must also check explicitly that pg_stat_get_snapshot_timestamp has
+    -- -- advanced, because that comes from the global stats file which might
+    -- -- be older than the per-DB stats file we got the other values from.
+    -- SELECT (pr.snap_ts < pg_stat_get_snapshot_timestamp()) INTO updated4
+      -- FROM prevstats AS pr;
+
+    -- exit when updated1 and updated2 and updated3 and updated4;
+
+    -- -- wait a little
+    -- perform pg_sleep_for('100 milliseconds');
+
+    -- -- reset stats snapshot so we can test again
+    -- perform pg_stat_clear_snapshot();
+
+  -- end loop;
+
+  -- -- report time waited in postmaster log (where it won't change test output)
+  -- raise log 'wait_for_stats delayed % seconds',
+    -- extract(epoch from clock_timestamp() - start_time);
+-- end
+-- $$ language plpgsql;
 -- test effects of TRUNCATE on n_live_tup/n_dead_tup counters
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE trunc_stats_test(id serial);
@@ -35,7 +97,7 @@ CREATE TABLE trunc_stats_test4(id serial);
 INSERT INTO trunc_stats_test DEFAULT VALUES;
 INSERT INTO trunc_stats_test DEFAULT VALUES;
 INSERT INTO trunc_stats_test DEFAULT VALUES;
-delete from trunc_stats_test;
+TRUNCATE trunc_stats_test;
 
 -- test involving a truncate in a transaction; 4 ins but only 1 live
 INSERT INTO trunc_stats_test1 DEFAULT VALUES;
@@ -46,7 +108,7 @@ DELETE FROM trunc_stats_test1 WHERE id = 3;
 
 BEGIN;
 UPDATE trunc_stats_test1 SET id = id + 100;
-delete from trunc_stats_test1;
+TRUNCATE trunc_stats_test1;
 INSERT INTO trunc_stats_test1 DEFAULT VALUES;
 COMMIT;
 
@@ -56,9 +118,9 @@ INSERT INTO trunc_stats_test2 DEFAULT VALUES;
 INSERT INTO trunc_stats_test2 DEFAULT VALUES;
 SAVEPOINT p1;
 INSERT INTO trunc_stats_test2 DEFAULT VALUES;
-delete from trunc_stats_test2;
+TRUNCATE trunc_stats_test2;
 INSERT INTO trunc_stats_test2 DEFAULT VALUES;
---crash: RELEASE SAVEPOINT p1;
+RELEASE SAVEPOINT p1;
 COMMIT;
 
 -- rollback a savepoint: this should count 4 inserts and have 2
@@ -69,7 +131,7 @@ INSERT INTO trunc_stats_test3 DEFAULT VALUES;
 SAVEPOINT p1;
 INSERT INTO trunc_stats_test3 DEFAULT VALUES;
 INSERT INTO trunc_stats_test3 DEFAULT VALUES;
-delete from trunc_stats_test3;
+TRUNCATE trunc_stats_test3;
 INSERT INTO trunc_stats_test3 DEFAULT VALUES;
 ROLLBACK TO SAVEPOINT p1;
 COMMIT;
@@ -78,7 +140,7 @@ COMMIT;
 BEGIN;
 INSERT INTO trunc_stats_test4 DEFAULT VALUES;
 INSERT INTO trunc_stats_test4 DEFAULT VALUES;
-delete from trunc_stats_test4;
+TRUNCATE trunc_stats_test4;
 INSERT INTO trunc_stats_test4 DEFAULT VALUES;
 ROLLBACK;
 
@@ -91,9 +153,9 @@ SELECT count(*) FROM tenk2 WHERE unique1 = 1;
 RESET enable_bitmapscan;
 
 -- check effects
---SELECT relname, n_tup_ins, n_tup_upd, n_tup_del, n_live_tup, --n_dead_tup
---  FROM pg_stat_user_tables
--- WHERE relname like 'trunc_stats_test%' order by relname;
+SELECT relname, n_tup_ins, n_tup_upd, n_tup_del, n_live_tup, n_dead_tup
+  FROM pg_stat_user_tables
+ WHERE relname like 'trunc_stats_test%' order by relname;
 
 SELECT st.seq_scan >= pr.seq_scan + 1,
        st.seq_tup_read >= pr.seq_tup_read + cl.reltuples,

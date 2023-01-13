@@ -77,6 +77,7 @@ INSERT INTO clstr_tst (b, c) VALUES (8, 'ocho');
 -- This entry is needed to test that TOASTED values are copied correctly.
 INSERT INTO clstr_tst (b, c, d) VALUES (6, 'seis', repeat('xyzzy', 100000));
 
+-- CLUSTER clstr_tst_c ON clstr_tst;
 SELECT a,b,c,substring(d for 30), length(d) from clstr_tst;
 SELECT a,b,c,substring(d for 30), length(d) from clstr_tst ORDER BY a;
 SELECT a,b,c,substring(d for 30), length(d) from clstr_tst ORDER BY b;
@@ -105,6 +106,7 @@ WHERE pg_class.oid=indexrelid
 	AND indisclustered;
 
 -- Try changing indisclustered
+-- ALTER TABLE clstr_tst CLUSTER ON clstr_tst_b_c;
 SELECT pg_class.relname FROM pg_index, pg_class, pg_class AS pg_class_2
 WHERE pg_class.oid=indexrelid
 	AND indrelid=pg_class_2.oid
@@ -112,6 +114,7 @@ WHERE pg_class.oid=indexrelid
 	AND indisclustered;
 
 -- Try turning off all clustering
+-- ALTER TABLE clstr_tst SET WITHOUT CLUSTER;
 SELECT pg_class.relname FROM pg_index, pg_class, pg_class AS pg_class_2
 WHERE pg_class.oid=indexrelid
 	AND indrelid=pg_class_2.oid
@@ -147,6 +150,11 @@ INSERT INTO clstr_2 VALUES (1);
 INSERT INTO clstr_3 VALUES (2);
 INSERT INTO clstr_3 VALUES (1);
 
+-- "CLUSTER <tablename>" on a table that hasn't been clustered
+-- CLUSTER clstr_2;
+
+-- CLUSTER clstr_1_pkey ON clstr_1;
+-- CLUSTER clstr_2 USING clstr_2_pkey;
 SELECT * FROM clstr_1 UNION ALL
   SELECT * FROM clstr_2 UNION ALL
   SELECT * FROM clstr_3 order by 1;
@@ -202,6 +210,7 @@ UPDATE clustertest SET key1 = 70 WHERE key1 = 60;
 UPDATE clustertest SET key1 = 80 WHERE key1 = 70;
 
 SELECT * FROM clustertest order by key1;
+-- CLUSTER clustertest_pkey ON clustertest;
 SELECT * FROM clustertest order by key1;
 
 COMMIT;
@@ -213,6 +222,7 @@ SELECT * FROM clustertest order by key1;
 create temp table clstr_temp (col1 int primary key, col2 text);
 --DDL_STATEMENT_END--
 insert into clstr_temp values (2, 'two'), (1, 'one');
+-- cluster clstr_temp using clstr_temp_pkey;
 select * from clstr_temp;
 --DDL_STATEMENT_BEGIN--
 drop table clstr_temp;
@@ -227,6 +237,8 @@ CREATE TABLE clstrpart (a int) PARTITION BY RANGE (a);
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX clstrpart_idx ON clstrpart (a);
 --DDL_STATEMENT_END--
+-- ALTER TABLE clstrpart CLUSTER ON clstrpart_idx;
+-- CLUSTER clstrpart USING clstrpart_idx;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE clstrpart;
 --DDL_STATEMENT_END--

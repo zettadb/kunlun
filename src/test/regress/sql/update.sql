@@ -60,21 +60,28 @@ SELECT * FROM update_test order by 1,2,3;
 UPDATE update_test SET (c,b) = ('car', a+b), b = a + 1 WHERE a = 10;
 
 -- uncorrelated sub-select:
---UPDATE update_test
---  SET (b,a) = (select a,b from update_test where b = 41 and c = 'car')
---  WHERE a = 100 AND b = 20;
---SELECT * FROM update_test order by 1,2,3;
+UPDATE update_test
+  SET (b,a) = (select a,b from update_test where b = 41 and c = 'car')
+  WHERE a = 100 AND b = 20;
+SELECT * FROM update_test order by 1,2,3;
 -- correlated sub-select:
 --UPDATE update_test o
 --  SET (b,a) = (select a+1,b from update_test i
 --               where i.a=o.a and i.b=o.b and i.c is not distinct from o.c);
 --SELECT * FROM update_test order by 1,2,3;
 -- fail, multiple rows supplied:
---UPDATE update_test SET (b,a) = (select a+1,b from update_test);
+UPDATE update_test SET (b,a) = (select a+1,b from update_test);
 -- set to null if no rows supplied:
---UPDATE update_test SET (b,a) = (select a+1,b from update_test where a = 1000)
---  WHERE a = 11;
---SELECT * FROM update_test order by 1,2,3;
+UPDATE update_test SET (b,a) = (select a+1,b from update_test where a = 1000)
+  WHERE a = 11;
+SELECT * FROM update_test order by 1,2,3;
+-- *-expansion should work in this context:
+UPDATE update_test SET (a,b) = ROW(v.*) FROM (VALUES(21, 100)) AS v(i, j)
+  WHERE update_test.a = v.i;
+-- you might expect this to work, but syntactically it's not a RowExpr:
+UPDATE update_test SET (a,b) = (v.*) FROM (VALUES(21, 101)) AS v(i, j)
+  WHERE update_test.a = v.i;
+
 -- if an alias for the target table is specified, don't allow references
 -- to the original table name
 UPDATE update_test AS t SET b = update_test.b + 10 WHERE t.a = 10;
@@ -118,9 +125,11 @@ CREATE TABLE range_parted (
 
 -- Create partitions intentionally in descending bound order, so as to test
 -- that update-row-movement works with the leaf partitions not in bound order.
-CREATE TABLE part_b_20_b_30 PARTITION OF range_parted FOR VALUES FROM ('b', 20) TO ('b', 30);
-CREATE TABLE part_b_10_b_20 PARTITION OF range_parted FOR VALUES FROM ('b', 10) TO ('b', 20) PARTITION BY RANGE (c);
+CREATE TABLE part_b_20_b_30 (e varchar, c numeric, a text, b bigint, d int);
+ALTER TABLE range_parted ATTACH PARTITION part_b_20_b_30 FOR VALUES FROM ('b', 20) TO ('b', 30);
+CREATE TABLE part_b_10_b_20 (e varchar, c numeric, a text, b bigint, d int) PARTITION BY RANGE (c);
 CREATE TABLE part_b_1_b_10 PARTITION OF range_parted FOR VALUES FROM ('b', 1) TO ('b', 10);
+ALTER TABLE range_parted ATTACH PARTITION part_b_10_b_20 FOR VALUES FROM ('b', 10) TO ('b', 20);
 CREATE TABLE part_a_10_a_20 PARTITION OF range_parted FOR VALUES FROM ('a', 10) TO ('a', 20);
 CREATE TABLE part_a_1_a_10 PARTITION OF range_parted FOR VALUES FROM ('a', 1) TO ('a', 10);
 
@@ -131,15 +140,23 @@ UPDATE part_b_10_b_20 set b = b - 6;
 -- Create some more partitions following the above pattern of descending bound
 -- order, but let's make the situation a bit more complex by having the
 -- attribute numbers of the columns vary from their parent partition.
-CREATE TABLE part_c_100_200 PARTITION OF part_b_10_b_20 FOR VALUES FROM (100) TO (200) PARTITION BY range (abs(d));
+CREATE TABLE part_c_100_200 (e varchar, c numeric, a text, b bigint, d int) PARTITION BY range (abs(d));
+ALTER TABLE part_c_100_200 DROP COLUMN e, DROP COLUMN c, DROP COLUMN a;
+ALTER TABLE part_c_100_200 ADD COLUMN c numeric, ADD COLUMN e varchar, ADD COLUMN a text;
+ALTER TABLE part_c_100_200 DROP COLUMN b;
+ALTER TABLE part_c_100_200 ADD COLUMN b bigint;
 CREATE TABLE part_d_1_15 PARTITION OF part_c_100_200 FOR VALUES FROM (1) TO (15);
 CREATE TABLE part_d_15_20 PARTITION OF part_c_100_200 FOR VALUES FROM (15) TO (20);
 
-CREATE TABLE part_c_1_100 PARTITION OF part_b_10_b_20 FOR VALUES FROM (1) TO (100);
+ALTER TABLE part_b_10_b_20 ATTACH PARTITION part_c_100_200 FOR VALUES FROM (100) TO (200);
+
+CREATE TABLE part_c_1_100 (e varchar, d int, c numeric, b bigint, a text);
+ALTER TABLE part_b_10_b_20 ATTACH PARTITION part_c_1_100 FOR VALUES FROM (1) TO (100);
 
 \set init_range_parted 'truncate range_parted; insert into range_parted VALUES (''a'', 1, 1, 1), (''a'', 10, 200, 1), (''b'', 12, 96, 1), (''b'', 13, 97, 2), (''b'', 15, 105, 16), (''b'', 17, 105, 19)'
-\set show_data 'select * from range_parted ORDER BY 1'
+\set show_data 'select tableoid::regclass::text COLLATE "C" partname, * from range_parted ORDER BY 1, 2, 3, 4, 5, 6'
 :init_range_parted;
+:show_data;rted;
 :show_data;
 
 -- The order of subplans should be in bound order
@@ -216,7 +233,6 @@ $$;
 CREATE TRIGGER trans_updatetrig
   AFTER UPDATE ON range_parted REFERENCING OLD TABLE AS old_table NEW TABLE AS new_table
   FOR EACH STATEMENT EXECUTE PROCEDURE trans_updatetrigfunc();
-  
 UPDATE range_parted set c = (case when c = 96 then 110 else c + 1 end ) WHERE a = 'b' and b > 10 and c >= 96;
 :show_data;
 :init_range_parted;
@@ -306,7 +322,6 @@ SET SESSION AUTHORIZATION regress_range_parted_user;
 -- part_d_1_15. Even though the UPDATE is setting 'c' to an odd number, the
 -- trigger at the destination partition again makes it an even number.
 UPDATE range_parted set a = 'b', c = 151 WHERE a = 'a' and c = 200;
-
 
 RESET SESSION AUTHORIZATION;
 :init_range_parted;

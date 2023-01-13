@@ -460,7 +460,7 @@ CREATE TABLE testtab6 (a int);
 
 \c -
 SET SESSION AUTHORIZATION regress_testrol1;
-SET ROLE regress_testrol2
+SET ROLE regress_testrol2;
 
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE testtab1 OWNER TO CURRENT_USER;
@@ -537,7 +537,7 @@ CREATE AGGREGATE testagg9(int2) (SFUNC = int2_sum, STYPE = int8);
 --DDL_STATEMENT_END--
 
 \c -
-SET SESSION AUTHORIZATION regress_testrol1
+SET SESSION AUTHORIZATION regress_testrol1;
 SET ROLE regress_testrol2;
 
 --DDL_STATEMENT_BEGIN--

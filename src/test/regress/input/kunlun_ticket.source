@@ -744,6 +744,51 @@ update t1 set b=b+1 where a in (select a from t2);
 drop table t1;
 drop table t2 cascade;
 
+
+
+
+-- ticket:1082
+select now(-1);
+select now(0);
+select now();
+select now(1);
+select now(2);
+
+
+-- ticket:1081
+select '%a', date_format(now(), '%a') as date;
+select '%b', date_format(now(), '%b') as date;
+select '%c', date_format(now(), '%c') as date;
+select '%D', date_format(now(), '%D') as date;
+select '%d', date_format(now(), '%d') as date;
+select '%e', date_format(now(), '%e') as date;
+select '%f', date_format(now(), '%f') as date;
+select '%H', date_format(now(), '%H') as date;
+select '%h', date_format(now(), '%h') as date;
+select '%I', date_format(now(), '%I') as date;
+select '%i', date_format(now(), '%i') as date;
+select '%j', date_format(now(), '%j') as date;
+select '%k', date_format(now(), '%k') as date;
+select '%l', date_format(now(), '%l') as date;
+select '%M', date_format(now(), '%M') as date;
+select '%m', date_format(now(), '%m') as date;
+select '%p', date_format(now(), '%p') as date;
+select '%r', date_format(now(), '%r') as date;
+select '%S', date_format(now(), '%S') as date;
+select '%s', date_format(now(), '%s') as date;
+select '%T', date_format(now(), '%T') as date;
+select '%U', date_format(now(), '%U') as date;
+select '%u', date_format(now(), '%u') as date;
+select '%V', date_format(now(), '%V') as date;
+select '%v', date_format(now(), '%v') as date;
+select '%W', date_format(now(), '%W') as date;
+select '%w', date_format(now(), '%w') as date;
+select '%X', date_format(now(), '%X') as date;
+select '%x', date_format(now(), '%x') as date;
+select '%Y', date_format(now(), '%Y') as date;
+select '%y', date_format(now(), '%y') as date;
+
+
 --ticket:1029
 create schema pg_stmt;
 

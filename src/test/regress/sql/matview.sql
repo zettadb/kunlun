@@ -222,7 +222,7 @@ INSERT INTO mvtest_boxes (b) VALUES
 --DDL_STATEMENT_BEGIN--
 CREATE MATERIALIZED VIEW mvtest_boxmv AS SELECT * FROM mvtest_boxes;
 --DDL_STATEMENT_END--
---CREATE UNIQUE INDEX mvtest_boxmv_id ON mvtest_boxmv (id);
+CREATE UNIQUE INDEX mvtest_boxmv_id ON mvtest_boxmv (id);
 UPDATE mvtest_boxes SET b = '(2,2),(1,1)' WHERE id = 2;
 REFRESH MATERIALIZED VIEW CONCURRENTLY mvtest_boxmv;
 SELECT * FROM mvtest_boxmv ORDER BY id;
@@ -256,7 +256,7 @@ CREATE MATERIALIZED VIEW mvtest_mv_v_4 (ii) AS SELECT i, j FROM mvtest_v WITH NO
 ALTER TABLE mvtest_v RENAME COLUMN i TO x;
 --DDL_STATEMENT_END--
 INSERT INTO mvtest_v values (1, 2);
---CREATE UNIQUE INDEX mvtest_mv_v_ii ON mvtest_mv_v (ii);
+CREATE UNIQUE INDEX mvtest_mv_v_ii ON mvtest_mv_v (ii);
 --DDL_STATEMENT_BEGIN--
 REFRESH MATERIALIZED VIEW mvtest_mv_v;
 --DDL_STATEMENT_END--
@@ -344,7 +344,7 @@ CREATE MATERIALIZED VIEW mvtest_mv_foo AS SELECT * FROM mvtest_foo_data;
 --DDL_STATEMENT_BEGIN--
 CREATE MATERIALIZED VIEW IF NOT EXISTS mvtest_mv_foo AS SELECT * FROM mvtest_foo_data;
 --DDL_STATEMENT_END--
---CREATE UNIQUE INDEX ON mvtest_mv_foo (i);
+CREATE UNIQUE INDEX ON mvtest_mv_foo (i);
 RESET ROLE;
 --DDL_STATEMENT_BEGIN--
 REFRESH MATERIALIZED VIEW mvtest_mv_foo;

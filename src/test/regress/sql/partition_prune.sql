@@ -396,8 +396,8 @@ execute ab_q1 (1, 8);
 execute ab_q1 (1, 8);
 execute ab_q1 (1, 8);
 
-explain (costs off, summary off, timing off) execute ab_q1 (2, 2);
-explain (costs off, summary off, timing off) execute ab_q1 (2, 4);
+explain (analyze, costs off, summary off, timing off) execute ab_q1 (2, 2);
+explain (analyze, costs off, summary off, timing off) execute ab_q1 (2, 4);
 
 -- Ensure a mix of PARAM_EXTERN and PARAM_EXEC Params work together at
 -- different levels of partitioning.

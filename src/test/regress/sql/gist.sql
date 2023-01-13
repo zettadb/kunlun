@@ -148,7 +148,7 @@ drop index gist_tbl_box_index;
 create index gist_tbl_multi_index on gist_tbl using gist (p, c);
 --DDL_STATEMENT_END--
 
-explain (costs off)2
+explain (costs off)
 select p, c from gist_tbl
 where p <@ box(point(5,5), point(6, 6));
 

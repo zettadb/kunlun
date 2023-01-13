@@ -320,7 +320,7 @@ $$ language plpgsql PARALLEL SAFE;
 --DDL_STATEMENT_END--
 
 explain (costs off, verbose)
-    select ten, sp_simple_func(ten) from tenk1 where ten < 100 order by ten;	
+    select ten, sp_simple_func(ten) from tenk1 where ten < 100 order by ten;
 --DDL_STATEMENT_BEGIN--
 drop function sp_simple_func(integer);
 --DDL_STATEMENT_END--

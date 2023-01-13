@@ -14,6 +14,7 @@ INSERT INTO foo (f2,f3)
 
 SELECT * FROM foo;
 
+UPDATE foo SET f2 = lower(f2), f3 = DEFAULT RETURNING foo.*, f1+f3 AS sum13;
 SELECT * FROM foo;
 
 DELETE FROM foo WHERE f1 > 2 RETURNING f3, f2, f1, least(f1,f3);
@@ -37,20 +38,20 @@ DELETE FROM foo
     EXISTS(SELECT * FROM int4_tbl) AS initplan;
 
 -- Joins
--- update involves two or more tables, not supported in kunlun currently.
---UPDATE foo SET f3 = f3*2
---  FROM int4_tbl i
---  WHERE foo.f1 + 123455 = i.f1
---  RETURNING foo.*, i.f1 as "i.f1";
+
+UPDATE foo SET f3 = f3*2
+  FROM int4_tbl i
+  WHERE foo.f1 + 123455 = i.f1
+  RETURNING foo.*, i.f1 as "i.f1";
 
 SELECT * FROM foo;
 
--- delete involves two or more tables, not supported in kunlun currently.
---DELETE FROM foo
---  USING int4_tbl i
---  WHERE foo.f1 + 123455 = i.f1
---  RETURNING foo.*, i.f1 as "i.f1";
--- SELECT * FROM foo;
+DELETE FROM foo
+  USING int4_tbl i
+  WHERE foo.f1 + 123455 = i.f1
+  RETURNING foo.*, i.f1 as "i.f1";
+
+SELECT * FROM foo;
 
 -- Check inheritance cases
 
@@ -72,23 +73,20 @@ UPDATE foo SET f4 = f4 + f3 WHERE f4 = 99 RETURNING *;
 SELECT * FROM foo;
 SELECT * FROM foochild;
 
--- update involves two or more tables, not supported in kunlun currently.
---UPDATE foo SET f3 = f3*2
---FROM int8_tbl i
---  WHERE foo.f1 = i.q2
---  RETURNING *;
---
---SELECT * FROM foo;
---SELECT * FROM foochild;
+UPDATE foo SET f3 = f3*2
+  FROM int8_tbl i
+  WHERE foo.f1 = i.q2
+  RETURNING *;
+SELECT * FROM foo;
+SELECT * FROM foochild;
 
--- delete involves two or more tables, not supported in kunlun currently.
---DELETE FROM foo
---  USING int8_tbl i
---  WHERE foo.f1 = i.q2
---  RETURNING *;
---
---SELECT * FROM foo;
---SELECT * FROM foochild;
+DELETE FROM foo
+  USING int8_tbl i
+  WHERE foo.f1 = i.q2
+  RETURNING *;
+
+SELECT * FROM foo;
+SELECT * FROM foochild;
 
 --DDL_STATEMENT_BEGIN--
 DROP TABLE foochild;

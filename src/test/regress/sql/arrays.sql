@@ -678,7 +678,7 @@ insert into dest select array[row(f1,f1)::textandtext] from src;
 select length(md5((f1[1]).c2)) from dest;
 delete from src;
 select length(md5((f1[1]).c2)) from dest;
-delete from src;
+truncate table src;
 --DDL_STATEMENT_BEGIN--
 drop table src;
 --DDL_STATEMENT_END--

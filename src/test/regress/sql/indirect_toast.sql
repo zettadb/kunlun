@@ -25,6 +25,20 @@ SELECT substring(indtoasttest::text, 1, 200) FROM indtoasttest;
 -- check we didn't screw with main/toast tuple visibility
 SELECT substring(indtoasttest::text, 1, 200) FROM indtoasttest;
 
+-- now create a trigger that forces all Datums to be indirect ones
+CREATE FUNCTION update_using_indirect()
+        RETURNS trigger
+        LANGUAGE plpgsql AS $$
+BEGIN
+    NEW := make_tuple_indirect(NEW);
+    RETURN NEW;
+END$$;
+
+CREATE TRIGGER indtoasttest_update_indirect
+        BEFORE INSERT OR UPDATE
+        ON indtoasttest
+        FOR EACH ROW
+        EXECUTE PROCEDURE update_using_indirect();
 
 -- modification without changing varlenas
 UPDATE indtoasttest SET cnt = cnt +1 RETURNING substring(indtoasttest::text, 1, 200);
@@ -46,3 +60,4 @@ SELECT substring(indtoasttest::text, 1, 200) FROM indtoasttest;
 --DDL_STATEMENT_BEGIN--
 DROP TABLE indtoasttest;
 --DDL_STATEMENT_END--
+DROP FUNCTION update_using_indirect();

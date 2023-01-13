@@ -3,19 +3,23 @@
 DROP TABLE if exists inhx;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-CREATE TABLE inhx (xx varchar(100) DEFAULT 'text');
+CREATE TABLE inhx (xx text DEFAULT 'text');
 --DDL_STATEMENT_END--
+CREATE TABLE ctla (aa TEXT);
+CREATE TABLE ctlb (bb TEXT) INHERITS (ctla);
 
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE foo (LIKE nonexistent);
 --DDL_STATEMENT_END--
 
 --DDL_STATEMENT_BEGIN--
-CREATE TABLE inhe (ee text, LIKE inhx);
+CREATE TABLE inhe (ee text, LIKE inhx) inherits (ctlb);
 --DDL_STATEMENT_END--
-INSERT INTO inhe VALUES (DEFAULT, 'ee-col4');
+INSERT INTO inhe VALUES ('ee-col1', 'ee-col2', DEFAULT, 'ee-col4');
 SELECT * FROM inhe; /* Columns aa, bb, xx value NULL, ee */
 SELECT * FROM inhx; /* Empty set since LIKE inherits structure only */
+SELECT * FROM ctlb; /* Has ee entry */
+SELECT * FROM ctla; /* Has ee entry */
 
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE inhf (LIKE inhx, LIKE inhx); /* Throw error */
@@ -26,7 +30,7 @@ CREATE TABLE inhf (LIKE inhx INCLUDING DEFAULTS INCLUDING CONSTRAINTS);
 --DDL_STATEMENT_END--
 INSERT INTO inhf DEFAULT VALUES;
 SELECT * FROM inhf; /* Single entry with value 'text' */
-
+ALTER TABLE inhx add constraint foo CHECK (xx = 'text');
 --DDL_STATEMENT_BEGIN--
 ALTER TABLE inhx ADD PRIMARY KEY (xx);
 --DDL_STATEMENT_END--
@@ -86,18 +90,18 @@ DROP TABLE inhg;
 --DDL_STATEMENT_END--
 /* Multiple primary keys creation should fail */
 --DDL_STATEMENT_BEGIN--
-CREATE TABLE inhg (x varchar(100), LIKE inhx INCLUDING INDEXES, PRIMARY KEY(x)); /* fails */
+CREATE TABLE inhg (x text, LIKE inhx INCLUDING INDEXES, PRIMARY KEY(x)); /* fails */
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-CREATE TABLE inhz (xx varchar(100) DEFAULT 'text', yy int UNIQUE);
+CREATE TABLE inhz (xx text DEFAULT 'text', yy int UNIQUE);
 --DDL_STATEMENT_END--
--- CREATE UNIQUE INDEX inhz_xx_idx on inhz (xx) WHERE xx <> 'test'; partial not supported in Kunlun
+CREATE UNIQUE INDEX inhz_xx_idx on inhz (xx) WHERE xx <> 'test';
 --DDL_STATEMENT_BEGIN--
 CREATE UNIQUE INDEX inhz_xx_idx on inhz (xx);
 --DDL_STATEMENT_END--
 /* Ok to create multiple unique indexes */
 --DDL_STATEMENT_BEGIN--
-CREATE TABLE inhg (x varchar(100) UNIQUE, LIKE inhz INCLUDING INDEXES);
+CREATE TABLE inhg (x text UNIQUE, LIKE inhz INCLUDING INDEXES);
 --DDL_STATEMENT_END--
 INSERT INTO inhg (xx, yy, x) VALUES ('test', 5, 10);
 INSERT INTO inhg (xx, yy, x) VALUES ('test', 10, 15);
@@ -114,26 +118,32 @@ DROP TABLE inhx;
 
 -- including storage and comments
 --DDL_STATEMENT_BEGIN--
-CREATE TABLE ctlt1 (a varchar(100) PRIMARY KEY, b varchar(100));
+CREATE TABLE ctlt1 (a text CHECK (length(a) > 2) PRIMARY KEY, b text);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX ctlt1_b_key ON ctlt1 (b);
 --DDL_STATEMENT_END--
--- CREATE INDEX ctlt1_fnidx ON ctlt1 ((a || b));
+CREATE INDEX ctlt1_fnidx ON ctlt1 ((a || b));
+--CREATE STATISTICS ctlt1_a_b_stat ON a,b FROM ctlt1;
+--COMMENT ON STATISTICS ctlt1_a_b_stat IS 'ab stats';
 COMMENT ON COLUMN ctlt1.a IS 'A';
 COMMENT ON COLUMN ctlt1.b IS 'B';
 COMMENT ON CONSTRAINT ctlt1_a_check ON ctlt1 IS 't1_a_check';
 COMMENT ON INDEX ctlt1_pkey IS 'index pkey';
 COMMENT ON INDEX ctlt1_b_key IS 'index b_key';
+--ALTER TABLE ctlt1 ALTER COLUMN a SET STORAGE MAIN;
 
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE ctlt2 (c text);
 --DDL_STATEMENT_END--
+--ALTER TABLE ctlt2 ALTER COLUMN c SET STORAGE EXTERNAL;
 COMMENT ON COLUMN ctlt2.c IS 'C';
 
 --DDL_STATEMENT_BEGIN--
-CREATE TABLE ctlt3 (a text, c text);
+CREATE TABLE ctlt3 (a text CHECK (length(a) < 5), c text);
 --DDL_STATEMENT_END--
+--ALTER TABLE ctlt3 ALTER COLUMN c SET STORAGE EXTERNAL;
+--ALTER TABLE ctlt3 ALTER COLUMN a SET STORAGE MAIN;
 COMMENT ON COLUMN ctlt3.a IS 'A3';
 COMMENT ON COLUMN ctlt3.c IS 'C';
 COMMENT ON CONSTRAINT ctlt3_a_check ON ctlt3 IS 't3_a_check';
@@ -141,6 +151,7 @@ COMMENT ON CONSTRAINT ctlt3_a_check ON ctlt3 IS 't3_a_check';
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE ctlt4 (a text, c text);
 --DDL_STATEMENT_END--
+ALTER TABLE ctlt4 ALTER COLUMN c SET STORAGE EXTERNAL;
 
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE ctlt12_storage (LIKE ctlt1 INCLUDING STORAGE, LIKE ctlt2 INCLUDING STORAGE);

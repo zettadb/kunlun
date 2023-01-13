@@ -12,6 +12,10 @@ create table insertconflicttest(key1 int4, fruit text);
 -- Test unique index inference with operator class specifications and
 -- named collations
 --
+-- create unique index op_index_key on insertconflicttest(key, fruit text_pattern_ops);
+-- create unique index collation_index_key on insertconflicttest(key, fruit collate "C");
+-- create unique index both_index_key on insertconflicttest(key, fruit collate "C" text_pattern_ops);
+-- create unique index both_index_expr_key on insertconflicttest(key, lower(fruit) collate "C" text_pattern_ops);
 -- fails
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (key1) do nothing;
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (fruit) do nothing;
@@ -472,6 +476,14 @@ insert into parted_conflict_test_1 values (2, 'b') on conflict (b) do update set
 -- should see (2, 'b')
 select * from parted_conflict_test order by a;
 
+-- now check that DO UPDATE works correctly for target partition with
+-- different attribute numbers
+create table parted_conflict_test_2 (b char, a int unique);
+alter table parted_conflict_test attach partition parted_conflict_test_2 for values in (3);
+truncate parted_conflict_test;
+insert into parted_conflict_test values (3, 'a') on conflict (a) do update set b = excluded.b;
+insert into parted_conflict_test values (3, 'b') on conflict (a) do update set b = excluded.b;
+
 -- should see (3, 'b')
 select * from parted_conflict_test order by a;
 
@@ -482,7 +494,7 @@ alter table parted_conflict_test drop b, add b char;
 --DDL_STATEMENT_BEGIN--
 create table parted_conflict_test_3 partition of parted_conflict_test for values in (4);
 --DDL_STATEMENT_END--
-delete from parted_conflict_test;
+truncate parted_conflict_test;
 insert into parted_conflict_test (a, b) values (4, 'a') on conflict (a) do update set b = excluded.b;
 insert into parted_conflict_test (a, b) values (4, 'b') on conflict (a) do update set b = excluded.b where parted_conflict_test.b = 'a';
 
@@ -496,7 +508,7 @@ create table parted_conflict_test_4 partition of parted_conflict_test for values
 --DDL_STATEMENT_BEGIN--
 create table parted_conflict_test_4_1 partition of parted_conflict_test_4 for values in (5);
 --DDL_STATEMENT_END--
-delete from parted_conflict_test;
+truncate parted_conflict_test;
 insert into parted_conflict_test (a, b) values (5, 'a') on conflict (a) do update set b = excluded.b;
 insert into parted_conflict_test (a, b) values (5, 'b') on conflict (a) do update set b = excluded.b where parted_conflict_test.b = 'a';
 
@@ -504,7 +516,7 @@ insert into parted_conflict_test (a, b) values (5, 'b') on conflict (a) do updat
 select * from parted_conflict_test order by a;
 
 -- test with multiple rows
-delete from parted_conflict_test;
+truncate parted_conflict_test;
 insert into parted_conflict_test (a, b) values (1, 'a'), (2, 'a'), (4, 'a') on conflict (a) do update set b = excluded.b where excluded.b = 'b';
 insert into parted_conflict_test (a, b) values (1, 'b'), (2, 'c'), (4, 'b') on conflict (a) do update set b = excluded.b where excluded.b = 'b';
 

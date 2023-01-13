@@ -172,6 +172,22 @@ create index idxpart1_tst1 on idxpart1 (b, a);
 --DDL_STATEMENT_BEGIN--
 create index idxpart1_tst2 on idxpart1 using hash (a);
 --DDL_STATEMENT_END--
+-- create index idxpart1_tst3 on idxpart1 (a, b) where a > 10;
+
+-- alter index idxpart attach partition idxpart1;
+-- alter index idxpart_a_b_idx attach partition idxpart1;
+-- alter index idxpart_a_b_idx attach partition idxpart_a_b_idx;
+-- alter index idxpart_a_b_idx attach partition idxpart1_b_idx;
+-- alter index idxpart_a_b_idx attach partition idxpart1_tst1;
+-- alter index idxpart_a_b_idx attach partition idxpart1_tst2;
+-- alter index idxpart_a_b_idx attach partition idxpart1_tst3;
+-- -- OK
+-- alter index idxpart_a_b_idx attach partition idxpart1_a_b_idx;
+-- alter index idxpart_a_b_idx attach partition idxpart1_a_b_idx; -- quiet
+
+-- reject dupe
+create index idxpart1_2_a_b on idxpart1 (a, b);
+alter index idxpart_a_b_idx attach partition idxpart1_2_a_b;
 
 --DDL_STATEMENT_BEGIN--
 drop table idxpart;
@@ -190,7 +206,8 @@ create table idxpart1 partition of idxpart for values from (0) to (1000);
 --DDL_STATEMENT_BEGIN--
 create index on idxpart1 using hash (a);
 --DDL_STATEMENT_END--
---create index on idxpart1 (a, a);
+create index on idxpart1 (a) where b > 1;
+create index on idxpart1 ((a + 0));
 --DDL_STATEMENT_BEGIN--
 create index on idxpart (a);
 --DDL_STATEMENT_END--
@@ -236,16 +253,19 @@ select indexrelid::regclass, indrelid::regclass, inhparent::regclass
   from pg_index idx left join pg_inherits inh on (idx.indexrelid = inh.inhrelid)
 where indexrelid::regclass::text like 'idxpart%'
   order by indexrelid::regclass::text collate "C";
+alter index idxpart2_a_idx attach partition idxpart22_a_idx;
 select indexrelid::regclass, indrelid::regclass, inhparent::regclass
   from pg_index idx left join pg_inherits inh on (idx.indexrelid = inh.inhrelid)
 where indexrelid::regclass::text like 'idxpart%'
   order by indexrelid::regclass::text collate "C";
 -- attaching idxpart22 is not enough to set idxpart22_a_idx valid ...
+alter index idxpart2_a_idx attach partition idxpart22_a_idx;
 \d idxpart2
 -- ... but this one is.
 --DDL_STATEMENT_BEGIN--
 create index on idxpart21 (a);
 --DDL_STATEMENT_END--
+alter index idxpart2_a_idx attach partition idxpart21_a_idx;
 \d idxpart2
 --DDL_STATEMENT_BEGIN--
 drop table idxpart;
@@ -264,7 +284,13 @@ create index idxparti on idxpart (a);
 create index idxparti2 on idxpart (b, c);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-create table idxpart1 partition of idxpart for values from (0) to (10);
+create table idxpart1 (like idxpart including indexes);
+\d idxpart1
+select relname, relkind, inhparent::regclass
+    from pg_class left join pg_index ix on (indexrelid = oid)
+	left join pg_inherits on (ix.indexrelid = inhrelid)
+	where relname like 'idxpart%' order by relname;
+alter table idxpart attach partition idxpart1 for values from (0) to (10);
 --DDL_STATEMENT_END--
 \d idxpart1
 select relname, relkind, inhparent::regclass
@@ -298,6 +324,7 @@ create index on only idxpart (a);
 select relname, indisvalid from pg_class join pg_index on indexrelid = oid
    where relname like 'idxpart%' order by relname;
 -- idxpart1_a_idx is not valid, so idxpart_a_idx should not become valid:
+alter index idxpart_a_idx attach partition idxpart1_a_idx;
 select relname, indisvalid from pg_class join pg_index on indexrelid = oid
    where relname like 'idxpart%' order by relname;
 -- after creating and attaching this, both idxpart1_a_idx and idxpart_a_idx
@@ -305,6 +332,7 @@ select relname, indisvalid from pg_class join pg_index on indexrelid = oid
 --DDL_STATEMENT_BEGIN--
 create index on idxpart11 (a);
 --DDL_STATEMENT_END--
+alter index idxpart1_a_idx attach partition idxpart11_a_idx;
 select relname, indisvalid from pg_class join pg_index on indexrelid = oid
    where relname like 'idxpart%' order by relname;
 --DDL_STATEMENT_BEGIN--
@@ -332,9 +360,11 @@ create table idxpart3 partition of idxpart for values from (2000) to (3000);
 --DDL_STATEMENT_END--
 select relname, relkind from pg_class where relname like 'idxpart%' order by relname;
 -- a) after detaching partitions, the indexes can be dropped independently
---DDL_STATEMENT_BEGIN--
+alter table idxpart detach partition idxpart1;
+alter table idxpart detach partition idxpart2;
+alter table idxpart detach partition idxpart3;		  
 drop index idxpart1_a_idx;
---DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop index idxpart2_a_idx;
 --DDL_STATEMENT_END--
@@ -376,9 +406,11 @@ create table idxpart3 partition of idxpart for values from (2000) to (3000);
 --DDL_STATEMENT_END--
 -- b) after detaching, dropping the index on parent does not remove the others
 select relname, relkind from pg_class where relname like 'idxpart%' order by relname;
---DDL_STATEMENT_BEGIN--
+alter table idxpart detach partition idxpart1;
+alter table idxpart detach partition idxpart2;
+alter table idxpart detach partition idxpart3;  
 drop index idxpart_a_idx;
---DDL_STATEMENT_END--
+
 select relname, relkind from pg_class where relname like 'idxpart%' order by relname;
 --DDL_STATEMENT_BEGIN--
 drop table idxpart;
@@ -395,15 +427,17 @@ drop table idxpart3;
 select relname, relkind from pg_class where relname like 'idxpart%' order by relname;
 
 -- Verify that expression indexes inherit correctly
---DDL_STATEMENT_BEGIN--
 create table idxpart (a int, b int) partition by range (a);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-create table idxpart1 partition of idxpart for values from (0000) to (1000)
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-create table idxpart2 partition of idxpart for values from (1000) to (2000);
---DDL_STATEMENT_END--
+create table idxpart1 (like idxpart);
+create index on idxpart1 ((a + b));
+create index on idxpart ((a + b));
+create table idxpart2 (like idxpart);
+alter table idxpart attach partition idxpart1 for values from (0000) to (1000);
+					 
+					   
+alter table idxpart attach partition idxpart2 for values from (1000) to (2000);
+					 
+		
 --DDL_STATEMENT_BEGIN--
 create table idxpart3 partition of idxpart for values from (2000) to (3000);
 --DDL_STATEMENT_END--
@@ -416,34 +450,35 @@ drop table idxpart;
 --DDL_STATEMENT_END--
 
 -- Verify behavior for collation (mis)matches
---DDL_STATEMENT_BEGIN--
-create table idxpart (a varchar(50)) partition by range (a);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-create table idxpart1 partition of idxpart for values from ('aaa') to ('bbb');
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-create table idxpart2 partition of idxpart for values from ('bbb') to ('ccc');
---DDL_STATEMENT_END--
---create index on idxpart2 (a collate "POSIX");
---DDL_STATEMENT_BEGIN--
+					   
+create table idxpart (a text) partition by range (a);
+					 
+					   
+create table idxpart1 (like idxpart);
+					 
+					   
+create table idxpart2 (like idxpart);
+					 
+create index on idxpart2 (a collate "POSIX");
+					   
 create index on idxpart2 (a);
---DDL_STATEMENT_END--
---create index on idxpart2 (a collate "C");
---DDL_STATEMENT_BEGIN--
+					 
+create index on idxpart2 (a collate "C");
+alter table idxpart attach partition idxpart1 for values from ('aaa') to ('bbb');
+alter table idxpart attach partition idxpart2 for values from ('bbb') to ('ccc');
 create table idxpart3 partition of idxpart for values from ('ccc') to ('ddd');
---DDL_STATEMENT_END--
---create index on idxpart (a collate "C");
---DDL_STATEMENT_BEGIN--
+					 
+create index on idxpart (a collate "C");
+					   
 create table idxpart4 partition of idxpart for values from ('ddd') to ('eee');
---DDL_STATEMENT_END--
+					 
 select relname as child, inhparent::regclass as parent, pg_get_indexdef as childdef
   from pg_class left join pg_inherits on inhrelid = oid,
   lateral pg_get_indexdef(pg_class.oid)
   where relkind in ('i', 'I') and relname like 'idxpart%' order by relname;
---DDL_STATEMENT_BEGIN--
+					   
 drop table idxpart;
---DDL_STATEMENT_END--
+					 
 
 -- Verify behavior for opclass (mis)matches
 --DDL_STATEMENT_BEGIN--
@@ -539,18 +574,23 @@ drop table idxpart;
 --DDL_STATEMENT_END--
 
 -- Verify that columns are mapped correctly in expression indexes
---DDL_STATEMENT_BEGIN--
 create table idxpart (col1 int, col2 int, a int, b int) partition by range (a);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-create table idxpart1 partition of idxpart for values from (1) to 2);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-create table idxpart2 partition of idxpart for values from (0) to (1);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
+					 
+					   
+create table idxpart1 (col2 int, b int, col1 int, a int);
+					 
+					   
+create table idxpart2 (col1 int, col2 int, b int, a int);
+					 
+					   
 alter table idxpart drop column col1, drop column col2;
---DDL_STATEMENT_END--
+alter table idxpart1 drop column col1, drop column col2;
+alter table idxpart2 drop column col1, drop column col2;
+create index on idxpart2 (abs(b));
+alter table idxpart attach partition idxpart2 for values from (0) to (1);
+create index on idxpart (abs(b));
+create index on idxpart ((b + 1));
+alter table idxpart attach partition idxpart1 for values from (1) to (2);
 select c.relname, pg_get_indexdef(indexrelid)
   from pg_class c join pg_index i on c.oid = i.indexrelid
   where indrelid::regclass::text like 'idxpart%'
@@ -575,9 +615,39 @@ select c.relname, pg_get_indexdef(indexrelid)
   from pg_class c join pg_index i on c.oid = i.indexrelid
   where indrelid::regclass::text like 'idxpart%'
   order by indexrelid::regclass::text collate "C";
---DDL_STATEMENT_BEGIN--
 drop table idxpart;
---DDL_STATEMENT_END--
+-- Column number mapping: dropped columns in the partition
+create table idxpart1 (drop_1 int, drop_2 int, col_keep int, drop_3 int);
+alter table idxpart1 drop column drop_1;
+alter table idxpart1 drop column drop_2;
+alter table idxpart1 drop column drop_3;
+create index on idxpart1 (col_keep);
+create table idxpart (col_keep int) partition by range (col_keep);
+create index on idxpart (col_keep);
+alter table idxpart attach partition idxpart1 for values from (0) to (1000);
+\d idxpart
+\d idxpart1
+select attrelid::regclass, attname, attnum from pg_attribute
+  where attrelid::regclass::text like 'idxpart%' and attnum > 0
+  order by attrelid::regclass, attnum;
+drop table idxpart;
+
+-- Column number mapping: dropped columns in the parent table
+create table idxpart(drop_1 int, drop_2 int, col_keep int, drop_3 int) partition by range (col_keep);
+alter table idxpart drop column drop_1;
+alter table idxpart drop column drop_2;
+alter table idxpart drop column drop_3;
+create table idxpart1 (col_keep int);
+create index on idxpart1 (col_keep);
+create index on idxpart (col_keep);
+alter table idxpart attach partition idxpart1 for values from (0) to (1000);
+\d idxpart
+\d idxpart1
+select attrelid::regclass, attname, attnum from pg_attribute
+  where attrelid::regclass::text like 'idxpart%' and attnum > 0
+  order by attrelid::regclass, attnum;
+drop table idxpart;
+
 
 --
 -- Constraint-related indexes
@@ -788,20 +858,81 @@ select indrelid::regclass, indexrelid::regclass, inhparent::regclass, indisvalid
   left join pg_constraint con on (idx.indexrelid = con.conindid)
   where indrelid::regclass::text like 'idxpart%'
   order by indexrelid::regclass::text collate "C";
---DDL_STATEMENT_BEGIN--
 drop table idxpart;
---DDL_STATEMENT_END--
+
+-- If the partition to be attached already has a primary key, fail if
+-- it doesn't match the parent's PK.
+CREATE TABLE idxpart (c1 INT PRIMARY KEY, c2 INT, c3 VARCHAR(10)) PARTITION BY RANGE(c1);
+CREATE TABLE idxpart1 (LIKE idxpart);
+ALTER TABLE idxpart1 ADD PRIMARY KEY (c1, c2);
+ALTER TABLE idxpart ATTACH PARTITION idxpart1 FOR VALUES FROM (100) TO (200);
+DROP TABLE idxpart, idxpart1;
+
+-- Ditto if there is some distance between the PKs (subpartitioning)
+create table idxpart (a int, b int, primary key (a)) partition by range (a);
+create table idxpart1 (a int not null, b int) partition by range (a);
+create table idxpart11 (a int not null, b int primary key);
+alter table idxpart1 attach partition idxpart11 for values from (0) to (1000);
+alter table idxpart attach partition idxpart1 for values from (0) to (10000);
+drop table idxpart, idxpart1, idxpart11;
+
+-- If a partitioned table has a constraint whose index is not valid,
+-- attaching a missing partition makes it valid.
+create table idxpart (a int) partition by range (a);
+create table idxpart0 (like idxpart);
+alter table idxpart0 add primary key (a);
+alter table idxpart attach partition idxpart0 for values from (0) to (1000);
+alter table only idxpart add primary key (a);
+select indrelid::regclass, indexrelid::regclass, inhparent::regclass, indisvalid,
+  conname, conislocal, coninhcount, connoinherit, convalidated
+  from pg_index idx left join pg_inherits inh on (idx.indexrelid = inh.inhrelid)
+  left join pg_constraint con on (idx.indexrelid = con.conindid)
+  where indrelid::regclass::text like 'idxpart%'
+  order by indexrelid::regclass::text collate "C";
+alter index idxpart_pkey attach partition idxpart0_pkey;
+select indrelid::regclass, indexrelid::regclass, inhparent::regclass, indisvalid,
+  conname, conislocal, coninhcount, connoinherit, convalidated
+  from pg_index idx left join pg_inherits inh on (idx.indexrelid = inh.inhrelid)
+  left join pg_constraint con on (idx.indexrelid = con.conindid)
+  where indrelid::regclass::text like 'idxpart%'
+  order by indexrelid::regclass::text collate "C";
+drop table idxpart;
+
+-- if a partition has a unique index without a constraint, does not attach
+-- automatically; creates a new index instead.
+create table idxpart (a int, b int) partition by range (a);
+create table idxpart1 (a int not null, b int);
+create unique index on idxpart1 (a);
+alter table idxpart add primary key (a);
+alter table idxpart attach partition idxpart1 for values from (1) to (1000);
+select indrelid::regclass, indexrelid::regclass, inhparent::regclass, indisvalid,
+  conname, conislocal, coninhcount, connoinherit, convalidated
+  from pg_index idx left join pg_inherits inh on (idx.indexrelid = inh.inhrelid)
+  left join pg_constraint con on (idx.indexrelid = con.conindid)
+  where indrelid::regclass::text like 'idxpart%'
+  order by indexrelid::regclass::text collate "C";
+drop table idxpart;
+-- Can't attach an index without a corresponding constraint
+create table idxpart (a int, b int) partition by range (a);
+create table idxpart1 (a int not null, b int);
+create unique index on idxpart1 (a);
+alter table idxpart attach partition idxpart1 for values from (1) to (1000);
+alter table only idxpart add primary key (a);
+alter index idxpart_pkey attach partition idxpart1_a_idx;	-- fail
+drop table idxpart;
+
 
 -- Test that unique constraints are working
---DDL_STATEMENT_BEGIN--
-create table idxpart (a int, b varchar(50), primary key (a, b)) partition by range (a);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
+					   
+create table idxpart (a int, b text, primary key (a, b)) partition by range (a);
+					 
+					   
 create table idxpart1 partition of idxpart for values from (0) to (100000);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-create table idxpart2 partition of idxpart for values from (100000) to (1000000);
---DDL_STATEMENT_END--
+create table idxpart2 (c int, like idxpart);
+insert into idxpart2 (c, a, b) values (42, 572814, 'inserted first');
+alter table idxpart2 drop column c;
+create unique index on idxpart (a);
+alter table idxpart attach partition idxpart2 for values from (100000) to (1000000);
 insert into idxpart values (0, 'zero'), (42, 'life'), (2^16, 'sixteen');
 insert into idxpart select 2^g, format('two to power of %s', g) from generate_series(15, 17) g;
 insert into idxpart values (16, 'sixteen');
@@ -809,9 +940,9 @@ insert into idxpart (b, a) values ('one', 142857), ('two', 285714);
 insert into idxpart select a * 2, b || b from idxpart where a between 2^16 and 2^19;
 insert into idxpart values (572814, 'five');
 insert into idxpart values (857142, 'six');
---DDL_STATEMENT_BEGIN--
+select tableoid::regclass, * from idxpart order by a;
 drop table idxpart;
---DDL_STATEMENT_END--
+
 
 -- test fastpath mechanism for index insertion
 --DDL_STATEMENT_BEGIN--
@@ -827,7 +958,7 @@ create unique index fpindex1 on fastpath(a);
 insert into fastpath values (1, 'b1', 100.00);
 insert into fastpath values (1, 'b1', 100.00); -- unique key check
 
-delete from fastpath;
+truncate fastpath;
 insert into fastpath select generate_series(1,10000), 'b', 100;
 
 set enable_seqscan to false;
@@ -841,7 +972,7 @@ select sum(a) from fastpath where a >= 5000 and a < 5700;
 --DDL_STATEMENT_BEGIN--
 drop index fpindex1;
 --DDL_STATEMENT_END--
-delete from fastpath;
+truncate fastpath;
 insert into fastpath select y.x, 'b' || (y.x/10)::text, 100 from (select generate_series(1,10000) as x) y;
 select md5(string_agg(a::text, b order by a, b asc)) from fastpath
 	where a >= 1000 and a < 2000 and b > 'b1' and b < 'b3';
@@ -856,7 +987,7 @@ select md5(string_agg(a::text, b order by b, a asc)) from fastpath
 --DDL_STATEMENT_BEGIN--
 create index fpindex2 on fastpath(a, b);
 --DDL_STATEMENT_END--
-delete from fastpath;
+truncate fastpath;
 insert into fastpath select y.x, 'b' || (y.x/10)::text, 100 from (select generate_series(1,10000) as x) y;
 select md5(string_agg(a::text, b order by a, b asc)) from fastpath
 	where a >= 1000 and a < 2000 and b > 'b1' and b < 'b3';
@@ -875,7 +1006,7 @@ drop index fpindex2;
 --DDL_STATEMENT_BEGIN--
 create index fpindex3 on fastpath(a desc, b asc);
 --DDL_STATEMENT_END--
-delete from fastpath;
+truncate fastpath;
 insert into fastpath select y.x, 'b' || (y.x/10)::text, 100 from (select generate_series(1,10000) as x) y;
 select md5(string_agg(a::text, b order by a, b asc)) from fastpath
 	where a >= 1000 and a < 2000 and b > 'b1' and b < 'b3';
@@ -893,7 +1024,7 @@ drop index fpindex3;
 --DDL_STATEMENT_BEGIN--
 create index fpindex4 on fastpath(a asc, b desc);
 --DDL_STATEMENT_END--
-delete from fastpath;
+truncate fastpath;
 insert into fastpath select y.x, 'b' || (y.x/10)::text, 100 from (select generate_series(1,10000) as x) y;
 select md5(string_agg(a::text, b order by a, b asc)) from fastpath
 	where a >= 1000 and a < 2000 and b > 'b1' and b < 'b3';
@@ -912,7 +1043,7 @@ drop index fpindex4;
 --DDL_STATEMENT_BEGIN--
 create index fpindex5 on fastpath(b asc, a desc);
 --DDL_STATEMENT_END--
-delete from fastpath;
+truncate fastpath;
 insert into fastpath select y.x, 'b' || (y.x/10)::text, 100 from (select generate_series(1,10000) as x) y;
 select md5(string_agg(a::text, b order by a, b asc)) from fastpath
 	where a >= 1000 and a < 2000 and b > 'b1' and b < 'b3';
@@ -930,7 +1061,7 @@ drop index fpindex5;
 --DDL_STATEMENT_BEGIN--
 create index fpindex6 on fastpath(b desc, a desc);
 --DDL_STATEMENT_END--
-delete from fastpath;
+truncate fastpath;
 insert into fastpath select y.x, 'b' || (y.x/10)::text, 100 from (select generate_series(1,10000) as x) y;
 select md5(string_agg(a::text, b order by a, b asc)) from fastpath
 	where a >= 1000 and a < 2000 and b > 'b1' and b < 'b3';
@@ -1006,12 +1137,11 @@ create table parted_pk_detach_test (a int primary key) partition by list (a);
 --DDL_STATEMENT_BEGIN--
 create table parted_pk_detach_test1 partition of parted_pk_detach_test for values in (1);
 --DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
+
 alter table parted_pk_detach_test1 drop constraint parted_pk_detach_test1_pkey;	-- should fail
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
+alter table parted_pk_detach_test detach partition parted_pk_detach_test1;
 alter table parted_pk_detach_test1 drop constraint parted_pk_detach_test1_pkey;
---DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table parted_pk_detach_test;
 --DDL_STATEMENT_END--
@@ -1027,12 +1157,11 @@ create table parted_uniq_detach_test1 partition of parted_uniq_detach_test for v
 --DDL_STATEMENT_BEGIN--
 alter table parted_uniq_detach_test1 drop constraint parted_uniq_detach_test1_a_key;	-- should fail
 --DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
+alter table parted_uniq_detach_test detach partition parted_uniq_detach_test1;
 alter table parted_uniq_detach_test1 drop constraint parted_uniq_detach_test1_a_key;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
+
 drop table parted_uniq_detach_test;
---DDL_STATEMENT_END--
+
 --DDL_STATEMENT_BEGIN--
 drop table parted_uniq_detach_test1;
 --DDL_STATEMENT_END--

@@ -65,6 +65,7 @@ CREATE TABLE atest2 (col1 varchar(10), col2 boolean);
 GRANT SELECT ON atest2 TO regress_priv_user2;
 GRANT UPDATE ON atest2 TO regress_priv_user3;
 GRANT INSERT ON atest2 TO regress_priv_user4;
+GRANT TRUNCATE ON atest2 TO regress_priv_user5;
 
 
 SET SESSION AUTHORIZATION regress_priv_user2;
@@ -79,8 +80,10 @@ INSERT INTO atest2 VALUES ('foo', true); -- fail
 INSERT INTO atest1 SELECT 1, b FROM atest1; -- ok
 UPDATE atest1 SET a = 1 WHERE a = 2; -- ok
 UPDATE atest2 SET col2 = NOT col2; -- fail
+SELECT * FROM atest1 FOR UPDATE; -- ok
+SELECT * FROM atest2 FOR UPDATE; -- fail
 DELETE FROM atest2; -- fail
-TRUNCATE atest2;  -- fail
+TRUNCATE atest2; -- fail
 BEGIN;
 LOCK atest2 IN ACCESS EXCLUSIVE MODE; -- fail
 COMMIT;
@@ -104,7 +107,7 @@ INSERT INTO atest1 SELECT 1, b FROM atest1; -- fail
 UPDATE atest1 SET a = 1 WHERE a = 2; -- fail
 UPDATE atest2 SET col2 = NULL; -- ok
 UPDATE atest2 SET col2 = NOT col2; -- fails; requires SELECT on atest2
-TRUNCATE atest2;-- fail
+TRUNCATE atest2; -- fail
 BEGIN;
 LOCK atest2 IN ACCESS EXCLUSIVE MODE; -- ok
 COMMIT;
@@ -230,6 +233,7 @@ SELECT * FROM atestv1; -- ok
 SELECT * FROM atestv2; -- fail
 GRANT SELECT ON atestv1, atestv3 TO regress_priv_user4;
 GRANT SELECT ON atestv2 TO regress_priv_user2;
+
 SET SESSION AUTHORIZATION regress_priv_user4;
 
 SELECT * FROM atestv1; -- ok
@@ -323,6 +327,19 @@ UPDATE atest5 SET three = 10; -- ok
 UPDATE atest5 SET one = 8; -- fail
 UPDATE atest5 SET three = 5, one = 2; -- fail
 -- Check that column level privs are enforced in RETURNING
+-- Ok.
+-- INSERT INTO atest5(two) VALUES (6) ON CONFLICT (two) DO UPDATE set three = 10;
+-- -- Error. No SELECT on column three.
+-- INSERT INTO atest5(two) VALUES (6) ON CONFLICT (two) DO UPDATE set three = 10 RETURNING atest5.three;
+-- -- Ok.  May SELECT on column "one":
+-- INSERT INTO atest5(two) VALUES (6) ON CONFLICT (two) DO UPDATE set three = 10 RETURNING atest5.one;
+-- -- Check that column level privileges are enforced for EXCLUDED
+-- -- Ok. we may select one
+-- INSERT INTO atest5(two) VALUES (6) ON CONFLICT (two) DO UPDATE set three = EXCLUDED.one;
+-- -- Error. No select rights on three
+-- INSERT INTO atest5(two) VALUES (6) ON CONFLICT (two) DO UPDATE set three = EXCLUDED.three;
+-- INSERT INTO atest5(two) VALUES (6) ON CONFLICT (two) DO UPDATE set one = 8; -- fails (due to UPDATE)
+-- INSERT INTO atest5(three) VALUES (4) ON CONFLICT (two) DO UPDATE set three = 10; -- fails (due to INSERT)
 
 -- Check that the columns in the inference require select privileges
 INSERT INTO atest5(four) VALUES (4); -- fail
@@ -331,12 +348,16 @@ SET SESSION AUTHORIZATION regress_priv_user1;
 GRANT INSERT (four) ON atest5 TO regress_priv_user4;
 SET SESSION AUTHORIZATION regress_priv_user4;
 
+-- INSERT INTO atest5(four) VALUES (4) ON CONFLICT (four) DO UPDATE set three = 3; -- fails (due to SELECT)
+-- INSERT INTO atest5(four) VALUES (4) ON CONFLICT ON CONSTRAINT atest5_four_key DO UPDATE set three = 3; -- fails (due to SELECT)
 INSERT INTO atest5(four) VALUES (4); -- ok
 
 SET SESSION AUTHORIZATION regress_priv_user1;
 GRANT SELECT (four) ON atest5 TO regress_priv_user4;
 SET SESSION AUTHORIZATION regress_priv_user4;
 
+-- INSERT INTO atest5(four) VALUES (4) ON CONFLICT (four) DO UPDATE set three = 3; -- ok
+-- INSERT INTO atest5(four) VALUES (4) ON CONFLICT ON CONSTRAINT atest5_four_key DO UPDATE set three = 3; -- ok
 SET SESSION AUTHORIZATION regress_priv_user1;
 REVOKE ALL (one) ON atest5 FROM regress_priv_user4;
 GRANT SELECT (one,two,blue) ON atest6 TO regress_priv_user4;
@@ -350,7 +371,7 @@ COPY atest6 TO stdout; -- ok
 -- check error reporting with column privs
 SET SESSION AUTHORIZATION regress_priv_user1;
 drop table if exists t1;
-CREATE TABLE t1 (c1 int, c2 int, c3 int, primary key (c1, c2));
+CREATE TABLE t1 (c1 int, c2 int, c3 int check (c3 < 5), primary key (c1, c2));
 GRANT SELECT (c1) ON t1 TO regress_priv_user2;
 GRANT INSERT (c1, c2, c3) ON t1 TO regress_priv_user2;
 GRANT UPDATE (c1, c2, c3) ON t1 TO regress_priv_user2;

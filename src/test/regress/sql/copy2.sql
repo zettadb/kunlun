@@ -26,11 +26,11 @@ CREATE FUNCTION fn_x_after () RETURNS TRIGGER AS '
 ' LANGUAGE plpgsql;
 --DDL_STATEMENT_END--
 
---CREATE TRIGGER trg_x_after AFTER INSERT ON x
---FOR EACH ROW EXECUTE PROCEDURE fn_x_after();
+CREATE TRIGGER trg_x_after AFTER INSERT ON x
+FOR EACH ROW EXECUTE PROCEDURE fn_x_after();
 
---CREATE TRIGGER trg_x_before BEFORE INSERT ON x
---FOR EACH ROW EXECUTE PROCEDURE fn_x_before();
+CREATE TRIGGER trg_x_before BEFORE INSERT ON x
+FOR EACH ROW EXECUTE PROCEDURE fn_x_before();
 
 COPY x (a, b, c, d, e) from stdin;
 9999	\N	\\N	\NN	\N
@@ -344,7 +344,7 @@ begin
   return $1.f1 > 0;
 end $$ language plpgsql immutable;
 --DDL_STATEMENT_END--
---alter table check_con_tbl add check (check_con_function(check_con_tbl.*));
+alter table check_con_tbl add check (check_con_function(check_con_tbl.*));
 \d+ check_con_tbl
 copy check_con_tbl from stdin;
 1
@@ -445,9 +445,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 --DDL_STATEMENT_END--
---CREATE TRIGGER trig_instead_of_insert_tbl_view
- --INSTEAD OF INSERT ON instead_of_insert_tbl_view
- -- FOR EACH ROW EXECUTE PROCEDURE fun_instead_of_insert_tbl();
+CREATE TRIGGER trig_instead_of_insert_tbl_view
+  INSTEAD OF INSERT ON instead_of_insert_tbl_view
+  FOR EACH ROW EXECUTE PROCEDURE fun_instead_of_insert_tbl();
 
 COPY instead_of_insert_tbl_view FROM stdin;
 test1
@@ -462,9 +462,9 @@ SELECT * FROM instead_of_insert_tbl;
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW instead_of_insert_tbl_view_2 as select ''::text as str;
 --DDL_STATEMENT_END--
---CREATE TRIGGER trig_instead_of_insert_tbl_view_2
- -- INSTEAD OF INSERT ON instead_of_insert_tbl_view_2
-  --FOR EACH ROW EXECUTE PROCEDURE fun_instead_of_insert_tbl();
+CREATE TRIGGER trig_instead_of_insert_tbl_view_2
+  INSTEAD OF INSERT ON instead_of_insert_tbl_view_2
+  FOR EACH ROW EXECUTE PROCEDURE fun_instead_of_insert_tbl();
 
 COPY instead_of_insert_tbl_view_2 FROM stdin;
 test1

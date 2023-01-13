@@ -121,7 +121,7 @@ drop table trigtest;
 
 create sequence ttdummy_seq increment 10 start 0 minvalue 0;
 
-create table tttest ( 
+create table tttest (
 	price_id	int4 primary key,
 	price_val	int4,
 	price_on	int4,

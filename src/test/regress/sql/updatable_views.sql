@@ -73,9 +73,9 @@ INSERT INTO rw_view15 (a) VALUES (3) ON CONFLICT DO NOTHING; -- succeeds
 SELECT * FROM rw_view15;
 INSERT INTO rw_view15 (a) VALUES (3) ON CONFLICT (a) DO NOTHING; -- succeeds
 SELECT * FROM rw_view15;
-INSERT INTO rw_view15 (a) VALUES (3) ON CONFLICT (a) DO UPDATE set a = excluded.a; -- succeeds		  
+INSERT INTO rw_view15 (a) VALUES (3) ON CONFLICT (a) DO UPDATE set a = excluded.a; -- succeeds
 SELECT * FROM rw_view15;
-INSERT INTO rw_view15 (a) VALUES (3) ON CONFLICT (a) DO UPDATE set upper = 'blarg'; -- fails				
+INSERT INTO rw_view15 (a) VALUES (3) ON CONFLICT (a) DO UPDATE set upper = 'blarg'; -- fails
 SELECT * FROM rw_view15;
 SELECT * FROM rw_view15;
 ALTER VIEW rw_view15 ALTER COLUMN upper SET DEFAULT 'NOT SET';
@@ -190,20 +190,8 @@ SELECT table_name, column_name, is_updatable
  WHERE table_name LIKE 'rw_view%'
  ORDER BY table_name, ordinal_position;
 
-SELECT table_name, is_insertable_into
-  FROM information_schema."tables"
- WHERE table_name LIKE 'rw_view%'
- ORDER BY table_name;
-
-SELECT table_name, is_updatable, is_insertable_into
-  FROM information_schema.views
- WHERE table_name LIKE 'rw_view%'
- ORDER BY table_name;
-
-SELECT table_name, column_name, is_updatable
-  FROM information_schema.columns
- WHERE table_name LIKE 'rw_view%'
- ORDER BY table_name, ordinal_position;
+-- CREATE RULE rw_view1_ins_rule AS ON INSERT TO rw_view1
+  -- DO INSTEAD INSERT INTO base_tbl VALUES (NEW.a, NEW.b) RETURNING *;
 
 SELECT table_name, is_insertable_into
   FROM information_schema."tables"
@@ -219,6 +207,27 @@ SELECT table_name, column_name, is_updatable
   FROM information_schema.columns
  WHERE table_name LIKE 'rw_view%'
  ORDER BY table_name, ordinal_position;
+
+-- CREATE RULE rw_view1_upd_rule AS ON UPDATE TO rw_view1
+  -- DO INSTEAD UPDATE base_tbl SET b=NEW.b WHERE a=OLD.a RETURNING NEW.*;
+
+SELECT table_name, is_insertable_into
+  FROM information_schema."tables"
+ WHERE table_name LIKE 'rw_view%'
+ ORDER BY table_name;
+
+SELECT table_name, is_updatable, is_insertable_into
+  FROM information_schema.views
+ WHERE table_name LIKE 'rw_view%'
+ ORDER BY table_name;
+
+SELECT table_name, column_name, is_updatable
+  FROM information_schema.columns
+ WHERE table_name LIKE 'rw_view%'
+ ORDER BY table_name, ordinal_position;
+
+-- CREATE RULE rw_view1_del_rule AS ON DELETE TO rw_view1
+  -- DO INSTEAD DELETE FROM base_tbl WHERE a=OLD.a RETURNING OLD.*;
 
 SELECT table_name, is_insertable_into
   FROM information_schema."tables"
@@ -323,6 +332,7 @@ SELECT table_name, column_name, is_updatable
 
 CREATE TRIGGER rw_view1_del_trig INSTEAD OF DELETE ON rw_view1
   FOR EACH ROW EXECUTE PROCEDURE rw_view1_trig_fn();
+
 SELECT table_name, is_insertable_into
   FROM information_schema."tables"
  WHERE table_name LIKE 'rw_view%'
@@ -350,7 +360,7 @@ EXPLAIN (costs off) UPDATE rw_view2 SET a=3 WHERE a=2;
 EXPLAIN (costs off) DELETE FROM rw_view2 WHERE a=2;
 
 DROP TABLE base_tbl CASCADE;
-DROP FUNCTION rw_view1_trig_fn();								 
+DROP FUNCTION rw_view1_trig_fn();
 
 -- update using whole row from view
 
@@ -538,6 +548,7 @@ SELECT * FROM base_tbl;
 DROP TABLE base_tbl CASCADE;
 
 -- Table having triggers
+
 CREATE TABLE base_tbl (a int PRIMARY KEY, b varchar(50) DEFAULT 'Unspecified');
 INSERT INTO base_tbl VALUES (1, 'Row 1');
 INSERT INTO base_tbl VALUES (2, 'Row 2');
@@ -557,6 +568,7 @@ LANGUAGE plpgsql;
 
 CREATE TRIGGER rw_view1_ins_trig AFTER INSERT ON base_tbl
   FOR EACH ROW EXECUTE PROCEDURE rw_view1_trig_fn();
+  
 CREATE VIEW rw_view1 AS SELECT a AS aa, b AS bb FROM base_tbl;
 
 INSERT INTO rw_view1 VALUES (3, 'Row 3');
@@ -564,7 +576,7 @@ select * from base_tbl;
 
 DROP VIEW rw_view1;
 DROP TRIGGER rw_view1_ins_trig on base_tbl;
-DROP FUNCTION rw_view1_trig_fn();					 
+DROP FUNCTION rw_view1_trig_fn();
 DROP TABLE base_tbl;
 
 -- view with ORDER BY
@@ -646,6 +658,39 @@ SELECT events & 4 != 0 AS upd,
   
 DROP TABLE base_tbl CASCADE;
 
+-- inheritance tests
+
+CREATE TABLE base_tbl_parent (a int);
+CREATE TABLE base_tbl_child (CHECK (a > 0)) INHERITS (base_tbl_parent);
+INSERT INTO base_tbl_parent SELECT * FROM generate_series(-8, -1);
+INSERT INTO base_tbl_child SELECT * FROM generate_series(1, 8);
+
+CREATE VIEW rw_view1 AS SELECT * FROM base_tbl_parent;
+CREATE VIEW rw_view2 AS SELECT * FROM ONLY base_tbl_parent;
+
+SELECT * FROM rw_view1 ORDER BY a;
+SELECT * FROM ONLY rw_view1 ORDER BY a;
+SELECT * FROM rw_view2 ORDER BY a;
+
+INSERT INTO rw_view1 VALUES (-100), (100);
+INSERT INTO rw_view2 VALUES (-200), (200);
+
+UPDATE rw_view1 SET a = a*10 WHERE a IN (-1, 1); -- Should produce -10 and 10
+UPDATE ONLY rw_view1 SET a = a*10 WHERE a IN (-2, 2); -- Should produce -20 and 20
+UPDATE rw_view2 SET a = a*10 WHERE a IN (-3, 3); -- Should produce -30 only
+UPDATE ONLY rw_view2 SET a = a*10 WHERE a IN (-4, 4); -- Should produce -40 only
+
+DELETE FROM rw_view1 WHERE a IN (-5, 5); -- Should delete -5 and 5
+DELETE FROM ONLY rw_view1 WHERE a IN (-6, 6); -- Should delete -6 and 6
+DELETE FROM rw_view2 WHERE a IN (-7, 7); -- Should delete -7 only
+DELETE FROM ONLY rw_view2 WHERE a IN (-8, 8); -- Should delete -8 only
+
+SELECT * FROM ONLY base_tbl_parent ORDER BY a;
+SELECT * FROM base_tbl_child ORDER BY a;
+
+DROP TABLE base_tbl_parent, base_tbl_child CASCADE;
+
+-- simple WITH CHECK OPTION
 CREATE TABLE base_tbl (a int, b int DEFAULT 10);
 INSERT INTO base_tbl VALUES (1,2), (2,3), (1,-1);
 
@@ -760,7 +805,7 @@ INSERT INTO rw_view1 VALUES (15, 20); -- should fail
 UPDATE rw_view1 SET a = 20, b = 30; -- should fail
 
 DROP TABLE base_tbl CASCADE;
-DROP FUNCTION base_tbl_trig_fn();					 
+DROP FUNCTION base_tbl_trig_fn();
 
 CREATE TABLE base_tbl (a int, b int);
 
@@ -806,6 +851,10 @@ SELECT * FROM base_tbl;
 -- Neither local nor cascaded check options work with INSTEAD rules
 
 DROP TRIGGER rw_view1_trig ON rw_view1;
+-- CREATE RULE rw_view1_ins_rule AS ON INSERT TO rw_view1
+  -- DO INSTEAD INSERT INTO base_tbl VALUES (NEW.a, 10);
+-- CREATE RULE rw_view1_upd_rule AS ON UPDATE TO rw_view1
+  -- DO INSTEAD UPDATE base_tbl SET a=NEW.a WHERE a=OLD.a;
 INSERT INTO rw_view2 VALUES (-10); -- ok, but not in view (doesn't fail rw_view2's check)
 INSERT INTO rw_view2 VALUES (5); -- ok
 INSERT INTO rw_view2 VALUES (20); -- ok, but not in view (doesn't fail rw_view1's check)
@@ -815,10 +864,12 @@ UPDATE rw_view2 SET a = -5 WHERE a = 5; -- ok, but not in view (doesn't fail rw_
 SELECT * FROM base_tbl;
 
 DROP TABLE base_tbl CASCADE;
-DROP FUNCTION rw_view1_trig_fn();								 
+DROP FUNCTION rw_view1_trig_fn();
 
 CREATE TABLE base_tbl (a int);
 CREATE VIEW rw_view1 AS SELECT a,10 AS b FROM base_tbl;
+-- CREATE RULE rw_view1_ins_rule AS ON INSERT TO rw_view1
+  -- DO INSTEAD INSERT INTO base_tbl VALUES (NEW.a);
 CREATE VIEW rw_view2 AS
   SELECT * FROM rw_view1 WHERE a > b;
 INSERT INTO rw_view2 VALUES (2,3); -- ok, but not in view (doesn't fail rw_view2's check)
@@ -912,6 +963,14 @@ DROP TABLE base_tbl CASCADE;
 CREATE TABLE base_tbl(id int PRIMARY KEY, data varchar(50), deleted boolean);
 INSERT INTO base_tbl VALUES (1, 'Row 1', false), (2, 'Row 2', true);
 
+CREATE RULE base_tbl_ins_rule AS ON INSERT TO base_tbl
+  WHERE EXISTS (SELECT 1 FROM base_tbl t WHERE t.id = new.id)
+  DO INSTEAD
+    UPDATE base_tbl SET data = new.data, deleted = false WHERE id = new.id;
+
+CREATE RULE base_tbl_del_rule AS ON DELETE TO base_tbl
+  DO INSTEAD
+    UPDATE base_tbl SET deleted = true WHERE id = old.id;
 CREATE VIEW rw_view1 WITH (security_barrier=true) AS
   SELECT id, data FROM base_tbl WHERE NOT deleted;
 
@@ -1071,6 +1130,13 @@ insert into uv_iocu_view (a, b) values ('xyxyxy', 3)
    on conflict (a) do update set b = cast(excluded.two as float);
 select * from uv_iocu_tab;
 
+				   
+													
+																	 
+
+													
+																	 
+						  
 drop view uv_iocu_view;
 drop table uv_iocu_tab;
 
@@ -1201,6 +1267,8 @@ select * from base_tab_def order by a;
 -- inserted where there are no view defaults.
 drop trigger base_tab_def_view_instrig on base_tab_def_view;
 drop function base_tab_def_view_instrig_func;
+-- create rule base_tab_def_view_ins_rule as on insert to base_tab_def_view
+  -- do instead insert into base_tab_def values (new.a, new.b, new.c, new.d, new.e);							 
 truncate base_tab_def;
 																				 
 insert into base_tab_def values (1);
@@ -1221,6 +1289,9 @@ select * from base_tab_def order by a;
 -- defaults, unless overridden by view defaults). The second insert should
 -- behave the same as a rule-updatable view (inserting NULLs where there are
 -- no view defaults).
+-- drop rule base_tab_def_view_ins_rule on base_tab_def_view;
+-- create rule base_tab_def_view_ins_rule as on insert to base_tab_def_view
+  -- do also insert into base_tab_def values (new.a, new.b, new.c, new.d, new.e);
 truncate base_tab_def;
 insert into base_tab_def values (1);
 insert into base_tab_def values (2), (3);

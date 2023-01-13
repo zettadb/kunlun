@@ -186,9 +186,11 @@ SELECT a, dup(b) FROM collate_test2 ORDER BY 2;
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX collate_test1_idx1 ON collate_test1 (b);
 --DDL_STATEMENT_END--
+CREATE INDEX collate_test1_idx2 ON collate_test1 (b COLLATE "POSIX");
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX collate_test1_idx3 ON collate_test1 ((b COLLATE "POSIX")); -- this is different grammatically
 --DDL_STATEMENT_END--
+CREATE INDEX collate_test1_idx4 ON collate_test1 (((b||'foo') COLLATE "POSIX"));
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX collate_test1_idx5 ON collate_test1 (a COLLATE "POSIX"); -- fail
 --DDL_STATEMENT_END--
@@ -220,7 +222,9 @@ INSERT INTO collate_test21 VALUES ('baz'); -- fail
 CREATE TABLE collate_test22 (f2 varchar(50) COLLATE "POSIX");
 --DDL_STATEMENT_END--
 INSERT INTO collate_test22 VALUES ('foo'), ('bar'), ('baz');
+-- ALTER TABLE collate_test22 ADD FOREIGN KEY (f2) REFERENCES collate_test20; -- fail
 DELETE FROM collate_test22 WHERE f2 = 'baz';
+-- ALTER TABLE collate_test22 ADD FOREIGN KEY (f2) REFERENCES collate_test20;
 
 RESET enable_seqscan;
 RESET enable_hashjoin;

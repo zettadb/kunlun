@@ -208,7 +208,7 @@ explain (costs off)
 -- Views with GROUPING SET queries
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW gstest_view AS select a, b, grouping(a,b), sum(c), count(*), max(c)
-  from gstest2 group by rollup ((a,b,c),(c,d))
+  from gstest2 group by rollup ((a,b,c),(c,d));
 --DDL_STATEMENT_END--
 
 select pg_get_viewdef('gstest_view'::regclass, true);

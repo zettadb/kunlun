@@ -45,7 +45,7 @@ CALL ptest2();
 
 
 -- nested CALL
-delete from cp_test;
+TRUNCATE cp_test;
 
 --DDL_STATEMENT_BEGIN--
 CREATE PROCEDURE ptest3(y text)
@@ -97,7 +97,7 @@ INSERT INTO cp_test VALUES(c, b);
 $$;
 --DDL_STATEMENT_END--
 
-delete from cp_test;
+TRUNCATE cp_test;
 
 CALL ptest5(10, 'Hello', 20);
 CALL ptest5(10, 'Hello');

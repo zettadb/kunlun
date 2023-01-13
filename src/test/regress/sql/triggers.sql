@@ -2097,7 +2097,7 @@ alter table parted_irreg attach partition parted1_irreg
   for values from ('aaaa') to ('bbbb');
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-reate trigger parted_trig after insert on parted_irreg
+create trigger parted_trig after insert on parted_irreg
   for each row execute procedure trigger_notice_ab();
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--

@@ -79,7 +79,7 @@ DROP INDEX inet_idx1;
 --DDL_STATEMENT_END--
 
 -- check that gist index works correctly
--- error for kunlun: CREATE INDEX inet_idx2 ON inet_tbl using gist (i inet_ops);
+CREATE INDEX inet_idx2 ON inet_tbl using gist (i inet_ops);
 SET enable_seqscan TO off;
 SELECT * FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
 SELECT * FROM inet_tbl WHERE i <<= '192.168.1.0/24'::cidr ORDER BY i;
@@ -99,9 +99,10 @@ SELECT i FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
 SELECT i FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
 
 SET enable_seqscan TO on;
+DROP INDEX inet_idx2;
 
 -- check that spgist index works correctly
--- kunlun not support: CREATE INDEX inet_idx3 ON inet_tbl using spgist (i);
+CREATE INDEX inet_idx3 ON inet_tbl using spgist (i);
 SET enable_seqscan TO off;
 SELECT * FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
 SELECT * FROM inet_tbl WHERE i <<= '192.168.1.0/24'::cidr ORDER BY i;
@@ -121,6 +122,7 @@ SELECT i FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
 SELECT i FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
 
 SET enable_seqscan TO on;
+DROP INDEX inet_idx3;
 
 -- simple tests of inet boolean and arithmetic operators
 SELECT i, ~i AS "~i" FROM inet_tbl;

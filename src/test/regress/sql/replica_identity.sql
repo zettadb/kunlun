@@ -25,6 +25,8 @@ CREATE UNIQUE INDEX test_replica_identity_nonkey ON test_replica_identity (keya,
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX test_replica_identity_hash ON test_replica_identity USING hash (nonkey);
 --DDL_STATEMENT_END--
+CREATE UNIQUE INDEX test_replica_identity_expr ON test_replica_identity (keya, keyb, (3));
+CREATE UNIQUE INDEX test_replica_identity_partial ON test_replica_identity (keya, keyb) WHERE keyb != '3';
 
 -- default is 'd'/DEFAULT for user created tables
 SELECT relreplident FROM pg_class WHERE oid = 'test_replica_identity'::regclass;

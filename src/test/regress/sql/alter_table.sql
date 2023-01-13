@@ -219,6 +219,110 @@ DROP TABLE like_constraint_rename_cache;
 
 -- test unique constraint adding
 create table atacc1 ( test int );
+-- add a check constraint
+alter table atacc1 add constraint atacc_test1 check (test>3);
+-- should fail
+insert into atacc1 (test) values (2);
+-- should succeed
+insert into atacc1 (test) values (4);
+drop table atacc1;
+
+-- let's do one where the check fails when added
+create table atacc1 ( test int );
+-- insert a soon to be failing row
+insert into atacc1 (test) values (2);
+-- add a check constraint (fails)
+alter table atacc1 add constraint atacc_test1 check (test>3);
+insert into atacc1 (test) values (4);
+drop table atacc1;
+
+-- let's do one where the check fails because the column doesn't exist
+create table atacc1 ( test int );
+-- add a check constraint (fails)
+alter table atacc1 add constraint atacc_test1 check (test1>3);
+drop table atacc1;
+
+-- something a little more complicated
+create table atacc1 ( test int, test2 int, test3 int);
+-- add a check constraint (fails)
+alter table atacc1 add constraint atacc_test1 check (test+test2<test3*4);
+-- should fail
+insert into atacc1 (test,test2,test3) values (4,4,2);
+-- should succeed
+insert into atacc1 (test,test2,test3) values (4,4,5);
+drop table atacc1;
+
+-- lets do some naming tests
+create table atacc1 (test int check (test>3), test2 int);
+alter table atacc1 add check (test2>test);
+-- should fail for $2
+insert into atacc1 (test2, test) values (3, 4);
+drop table atacc1;
+
+-- inheritance related tests
+create table atacc1 (test int);
+create table atacc2 (test2 int);
+create table atacc3 (test3 int) inherits (atacc1, atacc2);
+alter table atacc2 add constraint foo check (test2>0);
+-- fail and then succeed on atacc2
+insert into atacc2 (test2) values (-3);
+insert into atacc2 (test2) values (3);
+-- fail and then succeed on atacc3
+insert into atacc3 (test2) values (-3);
+insert into atacc3 (test2) values (3);
+drop table atacc3;
+drop table atacc2;
+drop table atacc1;
+
+-- same things with one created with INHERIT
+create table atacc1 (test int);
+create table atacc2 (test2 int);
+create table atacc3 (test3 int) inherits (atacc1, atacc2);
+alter table atacc3 no inherit atacc2;
+-- fail
+alter table atacc3 no inherit atacc2;
+-- make sure it really isn't a child
+insert into atacc3 (test2) values (3);
+select test2 from atacc2;
+-- fail due to missing constraint
+alter table atacc2 add constraint foo check (test2>0);
+alter table atacc3 inherit atacc2;
+-- fail due to missing column
+alter table atacc3 rename test2 to testx;
+alter table atacc3 inherit atacc2;
+-- fail due to mismatched data type
+alter table atacc3 add test2 bool;
+alter table atacc3 inherit atacc2;
+alter table atacc3 drop test2;
+-- succeed
+alter table atacc3 add test2 int;
+update atacc3 set test2 = 4 where test2 is null;
+alter table atacc3 add constraint foo check (test2>0);
+alter table atacc3 inherit atacc2;
+-- fail due to duplicates and circular inheritance
+alter table atacc3 inherit atacc2;
+alter table atacc2 inherit atacc3;
+alter table atacc2 inherit atacc2;
+-- test that we really are a child now (should see 4 not 3 and cascade should go through)
+select test2 from atacc2;
+drop table atacc2 cascade;
+drop table atacc1;
+
+-- adding only to a parent is allowed as of 9.2
+
+create table atacc1 (test int);
+create table atacc2 (test2 int) inherits (atacc1);
+-- ok:
+alter table atacc1 add constraint foo check (test>0) no inherit;
+-- check constraint is not there on child
+insert into atacc2 (test) values (-3);
+-- check constraint is there on parent
+insert into atacc1 (test) values (-3);
+insert into atacc1 (test) values (3);
+-- fail, violating row:
+alter table atacc2 add constraint foo check (test>0) no inherit;
+drop table atacc2;
+drop table atacc1;
 -- add a unique constraint
 alter table atacc1 add constraint atacc_test1 unique (test);
 -- insert first value
@@ -228,6 +332,7 @@ insert into atacc1 (test) values (2);
 -- should succeed
 insert into atacc1 (test) values (4);
 -- try adding a unique oid constraint
+-- alter table atacc1 add constraint atacc_oid1 unique(oid);
 -- try to create duplicates via alter table using - should fail
 alter table atacc1 alter column test type integer using 0;
 drop table atacc1;
@@ -384,6 +489,29 @@ drop view myview;
 
 drop table atacc1;
 
+-- test inheritance
+create table parent (a int);
+create table child (b varchar(255)) inherits (parent);
+
+alter table parent alter a set not null;
+insert into parent values (NULL);
+insert into child (a, b) values (NULL, 'foo');
+alter table parent alter a drop not null;
+insert into parent values (NULL);
+insert into child (a, b) values (NULL, 'foo');
+alter table only parent alter a set not null;
+alter table child alter a set not null;
+delete from parent;
+alter table only parent alter a set not null;
+insert into parent values (NULL);
+alter table child alter a set not null;
+insert into child (a, b) values (NULL, 'foo');
+delete from child;
+alter table child alter a set not null;
+insert into child (a, b) values (NULL, 'foo');
+drop table child;
+drop table parent;
+
 -- test setting and removing default values
 create table def_test (
 	c1	int4 default 5,
@@ -410,6 +538,9 @@ alter table def_test alter column c3 set default 30;
 -- to allow insertions into it, and then alter the view to add
 -- a default
 create view def_view_test as select * from def_test;
+-- create rule def_view_test_ins as
+	-- on insert to def_view_test
+	-- do instead insert into def_test select new.*;
 insert into def_view_test default values;
 alter table def_view_test alter column c1 set default 45;
 insert into def_view_test default values;
@@ -417,6 +548,7 @@ alter table def_view_test alter column c2 set default 'view_default';
 insert into def_view_test default values;
 select * from def_view_test;
 
+-- drop rule def_view_test_ins on def_view_test;
 drop view def_view_test;
 drop table def_test;
 
@@ -491,7 +623,7 @@ drop view myview;
 analyze atacc1(a);
 analyze atacc1("........pg.dropped.1........");
 -- vacuum analyze atacc1(a);
--- vacuum analyze atacc1("........pg.dropped.1........");  
+-- vacuum analyze atacc1("........pg.dropped.1........");
 -- comment on column atacc1.a is 'testing';
 -- comment on column atacc1."........pg.dropped.1........" is 'testing';
 --alter table atacc1 alter a set storage plain;
@@ -530,13 +662,37 @@ drop table atacc1;
 create table atacc1 (id serial primary key, value int);
 insert into atacc1(value) values (100);
 alter table atacc1 drop column value;
-alter table atacc1 add column value int check (value < 10);			   
+alter table atacc1 add column value int check (value < 10);
 insert into atacc1(value) values (100);
 insert into atacc1(id, value) values (null, 0);
 drop table atacc1;
 
-create table p1(id int, name text);
-create table p2(id2 int, name text, height int);
+-- test inheritance
+create table parent (a int, b int, c int);
+insert into parent values (1, 2, 3);
+alter table parent drop a;
+create table child (d varchar(255)) inherits (parent);
+insert into child values (12, 13, 'testing');
+
+select * from parent;
+select * from child;
+alter table parent drop c;
+select * from parent;
+select * from child;
+
+drop table child;
+drop table parent;
+
+-- check error cases for inheritance column merging
+create table parent (a float8, b numeric(10,4), c text collate "C");
+
+create table child (a float4) inherits (parent); -- fail
+create table child (b decimal(10,7)) inherits (parent); -- fail
+create table child (c text collate "POSIX") inherits (parent); -- fail
+create table child (a double precision, b decimal(10,4)) inherits (parent);
+
+drop table child;
+drop table parent;
 
 -- test copy in/out
 create table attest (a int4, b int4, c int4);
@@ -561,10 +717,116 @@ copy attest(b,c) from stdin;
 select * from attest;
 drop table attest;
 
+-- test inheritance
+
+create table dropColumn (a int, b int, e int);
+create table dropColumnChild (c int) inherits (dropColumn);
+create table dropColumnAnother (d int) inherits (dropColumnChild);
+
+-- these two should fail
+alter table dropColumnchild drop column a;
+alter table only dropColumnChild drop column b;
+
+
+
+-- these three should work
+alter table only dropColumn drop column e;
+alter table dropColumnChild drop column c;
+alter table dropColumn drop column a;
+
+create table renameColumn (a int);
+create table renameColumnChild (b int) inherits (renameColumn);
+create table renameColumnAnother (c int) inherits (renameColumnChild);
+
+-- these three should fail
+alter table renameColumnChild rename column a to d;
+alter table only renameColumnChild rename column a to d;
+alter table only renameColumn rename column a to d;
+
+-- these should work
+alter table renameColumn rename column a to d;
+alter table renameColumnChild rename column b to a;
+
+-- these should work
+alter table if exists doesnt_exist_tab rename column a to d;
+alter table if exists doesnt_exist_tab rename column b to a;
+
+-- this should work
+alter table renameColumn add column w int;
+
+-- this should fail
+alter table only renameColumn add column x int;
+
+
+-- Test corner cases in dropping of inherited columns
+
+create table p1 (f1 int, f2 int);
+create table c1 (f1 int not null) inherits(p1);
+
+-- should be rejected since c1.f1 is inherited
+alter table c1 drop column f1;
+-- should work
+alter table p1 drop column f1;
+-- c1.f1 is still there, but no longer inherited
+select f1 from c1;
+alter table c1 drop column f1;
+select f1 from c1;
+
+drop table p1 cascade;
+
+create table p1 (f1 int, f2 int);
+create table c1 () inherits(p1);
+
+-- should be rejected since c1.f1 is inherited
+alter table c1 drop column f1;
+alter table p1 drop column f1;
+-- c1.f1 is dropped now, since there is no local definition for it
+select f1 from c1;
+
+drop table p1 cascade;
+
+create table p1 (f1 int, f2 int);
+create table c1 () inherits(p1);
+
+-- should be rejected since c1.f1 is inherited
+alter table c1 drop column f1;
+alter table only p1 drop column f1;
+-- c1.f1 is NOT dropped, but must now be considered non-inherited
+alter table c1 drop column f1;
+
+drop table p1 cascade;
+
+create table p1 (f1 int, f2 int);
+create table c1 (f1 int not null) inherits(p1);
+
+-- should be rejected since c1.f1 is inherited
+alter table c1 drop column f1;
+alter table only p1 drop column f1;
+-- c1.f1 is still there, but no longer inherited
+alter table c1 drop column f1;
+
+drop table p1 cascade;
+
+create table p1(id int, name text);
+create table p2(id2 int, name text, height int);
+create table c1(age int) inherits(p1,p2);
+create table gc1() inherits (c1);
+
+select relname, attname, attinhcount, attislocal
+from pg_class join pg_attribute on (pg_class.oid = pg_attribute.attrelid)
+where relname in ('p1','p2','c1','gc1') and attnum > 0 and not attisdropped
+order by relname, attnum;
+
 -- should work
 alter table only p1 drop column name;
 -- should work. Now c1.name is local and inhcount is 0.
 alter table p2 drop column name;
+-- should be rejected since its inherited
+alter table gc1 drop column name;
+-- should work, and drop gc1.name along
+alter table c1 drop column name;
+-- should fail: column does not exist
+alter table gc1 drop column name;
 -- should work and drop the attribute in all tables
 alter table p2 drop column height;
 
@@ -677,14 +939,20 @@ alter table tab1 alter column b type varchar; -- fails
 drop table tab1;
 
 -- Alter column type that's part of a partitioned index
-create table at_partitioned (a int, b varchar(50)) partition by range (a);
+create table at_partitioned (a int, b text) partition by range (a);
 create table at_part_1 partition of at_partitioned for values from (0) to (1000);
 insert into at_partitioned values (512, '0.123');
+create table at_part_2 (b text, a int);
+insert into at_part_2 values ('1.234', 1024);
 create index on at_partitioned (b);
 create index on at_partitioned (a);
 \d at_part_1
+\d at_part_2
+alter table at_partitioned attach partition at_part_2 for values from (1000) to (2000);
+\d at_part_2
 alter table at_partitioned alter column b type numeric using b::numeric;
 \d at_part_1
+\d at_part_2
 drop table at_partitioned;
 
 -- Alter column type when no table rewrite is required
@@ -719,22 +987,58 @@ drop table at_partitioned;
 
 -- ALTER COLUMN TYPE with a check constraint and a child table (bug #13779)
 CREATE TABLE test_inh_check (a float check (a > 10.2), b float);
+CREATE TABLE test_inh_check_child() INHERITS(test_inh_check);
 \d test_inh_check
+\d test_inh_check_child
+select relname, conname, coninhcount, conislocal, connoinherit
+  from pg_constraint c, pg_class r
+  where relname like 'test_inh_check%' and c.conrelid = r.oid
+  order by 1, 2;
 ALTER TABLE test_inh_check ALTER COLUMN a TYPE numeric;
 \d test_inh_check
+\d test_inh_check_child
+select relname, conname, coninhcount, conislocal, connoinherit
+  from pg_constraint c, pg_class r
+  where relname like 'test_inh_check%' and c.conrelid = r.oid
+  order by 1, 2;
+-- also try noinherit, local, and local+inherited cases
+ALTER TABLE test_inh_check ADD CONSTRAINT bnoinherit CHECK (b > 100) NO INHERIT;
+ALTER TABLE test_inh_check_child ADD CONSTRAINT blocal CHECK (b < 1000);
+ALTER TABLE test_inh_check_child ADD CONSTRAINT bmerged CHECK (b > 1);
+ALTER TABLE test_inh_check ADD CONSTRAINT bmerged CHECK (b > 1);
+\d test_inh_check
+\d test_inh_check_child
+select relname, conname, coninhcount, conislocal, connoinherit
+  from pg_constraint c, pg_class r
+  where relname like 'test_inh_check%' and c.conrelid = r.oid
+  order by 1, 2;
 ALTER TABLE test_inh_check ALTER COLUMN b TYPE numeric;
 \d test_inh_check
-drop table test_inh_check;
+\d test_inh_check_child
+select relname, conname, coninhcount, conislocal, connoinherit
+  from pg_constraint c, pg_class r
+  where relname like 'test_inh_check%' and c.conrelid = r.oid
+  order by 1, 2;
+drop table test_inh_check;			
 
 -- ALTER COLUMN TYPE with different schema in children
 -- Bug at https://postgr.es/m/20170102225618.GA10071@telsasoft.com
 CREATE TABLE test_type_diff (f1 int);
+CREATE TABLE test_type_diff_c (extra smallint) INHERITS (test_type_diff);
 ALTER TABLE test_type_diff ADD COLUMN f2 int;
+INSERT INTO test_type_diff_c VALUES (1, 2, 3);
 ALTER TABLE test_type_diff ALTER COLUMN f2 TYPE bigint USING f2::bigint;
+
 CREATE TABLE test_type_diff2 (int_two int2, int_four int4, int_eight int8);
-INSERT INTO test_type_diff2 VALUES (1, 2, 3);
-INSERT INTO test_type_diff2 VALUES (4, 5, 6);
-INSERT INTO test_type_diff2 VALUES (7, 8, 9);
+CREATE TABLE test_type_diff2_c1 (int_four int4, int_eight int8, int_two int2);
+CREATE TABLE test_type_diff2_c2 (int_eight int8, int_two int2, int_four int4);
+CREATE TABLE test_type_diff2_c3 (int_two int2, int_four int4, int_eight int8);
+ALTER TABLE test_type_diff2_c1 INHERIT test_type_diff2;
+ALTER TABLE test_type_diff2_c2 INHERIT test_type_diff2;
+ALTER TABLE test_type_diff2_c3 INHERIT test_type_diff2;
+INSERT INTO test_type_diff2_c1 VALUES (1, 2, 3);
+INSERT INTO test_type_diff2_c2 VALUES (4, 5, 6);
+INSERT INTO test_type_diff2_c3 VALUES (7, 8, 9);
 ALTER TABLE test_type_diff2 ALTER COLUMN int_four TYPE int8 USING int_four::int8;
 -- whole-row references are disallowed
 --ALTER TABLE test_type_diff2 ALTER COLUMN int_four TYPE int4 
@@ -884,29 +1188,38 @@ ALTER TYPE test_type1 ALTER ATTRIBUTE b TYPE varchar; -- fails
 DROP TYPE test_type1;
 
 CREATE TYPE test_type2 AS (a int, b text);
+CREATE TABLE test_tbl2 OF test_type2;
+CREATE TABLE test_tbl2_subclass () INHERITS (test_tbl2);
 \d test_type2
+\d test_tbl2
 
 ALTER TYPE test_type2 ADD ATTRIBUTE c text; -- fails
 ALTER TYPE test_type2 ADD ATTRIBUTE c text CASCADE;
 \d test_type2
+\d test_tbl2
 
 ALTER TYPE test_type2 ALTER ATTRIBUTE b TYPE varchar; -- fails
 ALTER TYPE test_type2 ALTER ATTRIBUTE b TYPE varchar CASCADE;
 \d test_type2
+\d test_tbl2
 
 ALTER TYPE test_type2 DROP ATTRIBUTE b; -- fails
 ALTER TYPE test_type2 DROP ATTRIBUTE b CASCADE;
 \d test_type2
+\d test_tbl2
 
 ALTER TYPE test_type2 RENAME ATTRIBUTE a TO aa; -- fails
 ALTER TYPE test_type2 RENAME ATTRIBUTE a TO aa CASCADE;
 \d test_type2
 drop type test_type2;
+DROP TABLE test_tbl2_subclass;
 
 CREATE TYPE test_typex AS (a int, b text);
+CREATE TABLE test_tblx (x int, y test_typex check ((y).a > 0));
 ALTER TYPE test_typex DROP ATTRIBUTE a; -- fails
 ALTER TYPE test_typex DROP ATTRIBUTE a CASCADE;
 \d test_tblx
+DROP TABLE test_tblx;
 DROP TYPE test_typex;
 -- This test isn't that interesting on its own, but the purpose is to leave
 -- behind a table to test pg_upgrade with. The table has a composite type
@@ -941,6 +1254,7 @@ CREATE SCHEMA alter2;
 
 ALTER TABLE IF EXISTS tt8 ADD COLUMN f int;
 ALTER TABLE IF EXISTS tt8 ADD CONSTRAINT xxx PRIMARY KEY(f);
+ALTER TABLE IF EXISTS tt8 ADD CHECK (f BETWEEN 0 AND 10);
 ALTER TABLE IF EXISTS tt8 ALTER COLUMN f SET DEFAULT 0;
 ALTER TABLE IF EXISTS tt8 RENAME COLUMN f TO f1;
 ALTER TABLE IF EXISTS tt8 SET SCHEMA alter2;
@@ -955,13 +1269,15 @@ DROP SCHEMA alter2;
 --
 CREATE TABLE tt9(c integer);
 ALTER TABLE tt9 ADD CHECK(c > 1);
-ALTER TABLE tt9 ADD CHECK(c > 2);-- picks nonconflicting name
+ALTER TABLE tt9 ADD CHECK(c > 2);  -- picks nonconflicting name
 ALTER TABLE tt9 ADD CONSTRAINT foo CHECK(c > 3);
 ALTER TABLE tt9 ADD CONSTRAINT foo CHECK(c > 4);  -- fail, dup name
 ALTER TABLE tt9 ADD UNIQUE(c);
 ALTER TABLE tt9 ADD UNIQUE(c);  -- picks nonconflicting name
 ALTER TABLE tt9 ADD CONSTRAINT tt9_c_key UNIQUE(c);  -- fail, dup name
 ALTER TABLE tt9 ADD CONSTRAINT foo UNIQUE(c);  -- fail, dup name
+ALTER TABLE tt9 ADD CONSTRAINT tt9_c_key CHECK(c > 5);  -- fail, dup name
+ALTER TABLE tt9 ADD CONSTRAINT tt9_c_key2 CHECK(c > 6);
 ALTER TABLE tt9 ADD UNIQUE(c);  -- picks nonconflicting name
 \d tt9
 DROP TABLE tt9;
@@ -978,6 +1294,7 @@ CREATE INDEX comment_test_index ON comment_test(indexed_col);
 
 COMMENT ON COLUMN comment_test.id IS 'Column ''id'' on comment_test';
 COMMENT ON INDEX comment_test_index IS 'Simple index on comment_test';
+COMMENT ON CONSTRAINT comment_test_positive_col_check ON comment_test IS 'CHECK constraint on comment_test.positive_col';
 COMMENT ON CONSTRAINT comment_test_pk ON comment_test IS 'PRIMARY KEY constraint of comment_test';
 COMMENT ON INDEX comment_test_pk IS 'Index backing the PRIMARY KEY of comment_test';
 
@@ -1029,6 +1346,7 @@ ALTER TABLE new_system_table SET SCHEMA public;
 -- move back, will be ignored -- already there
 ALTER TABLE new_system_table SET SCHEMA pg_catalog;
 ALTER TABLE new_system_table RENAME TO old_system_table;
+CREATE INDEX old_system_table__othercol ON old_system_table (othercol);
 INSERT INTO old_system_table(othercol) VALUES ('somedata'), ('otherdata');
 UPDATE old_system_table SET id = -id;
 DELETE FROM old_system_table WHERE othercol = 'somedata';
@@ -1136,16 +1454,415 @@ ALTER TABLE partitioned ALTER COLUMN a TYPE char(5);
 ALTER TABLE partitioned DROP COLUMN b;
 ALTER TABLE partitioned ALTER COLUMN b TYPE char(5);
 
-DROP TABLE partitioned;
+-- partitioned table cannot participate in regular inheritance
+CREATE TABLE nonpartitioned (
+	a int,
+	b int
+);
+ALTER TABLE partitioned INHERIT nonpartitioned;
+ALTER TABLE nonpartitioned INHERIT partitioned;
+
+-- cannot add NO INHERIT constraint to partitioned tables
+ALTER TABLE partitioned ADD CONSTRAINT chk_a CHECK (a > 0) NO INHERIT;
+
+DROP TABLE partitioned, nonpartitioned;
+--
+-- DETACH PARTITION
+--
+
+-- check that target table is partitioned
+CREATE TABLE unparted (
+	a int
+);
+CREATE TABLE fail_part (like unparted);
+ALTER TABLE unparted ATTACH PARTITION fail_part FOR VALUES IN ('a');
+DROP TABLE unparted, fail_part;
+
+-- check that partition bound is compatible
+CREATE TABLE list_parted (
+	a int NOT NULL,
+	b char(2) COLLATE "C",
+	CONSTRAINT check_a CHECK (a > 0)
+) PARTITION BY LIST (a);
+CREATE TABLE fail_part (LIKE list_parted);
+ALTER TABLE list_parted ATTACH PARTITION fail_part FOR VALUES FROM (1) TO (10);
+DROP TABLE fail_part;
+
+-- check that the table being attached exists
+ALTER TABLE list_parted ATTACH PARTITION nonexistant FOR VALUES IN (1);
+
+-- check ownership of the source table
+CREATE ROLE regress_test_me;
+CREATE ROLE regress_test_not_me;
+CREATE TABLE not_owned_by_me (LIKE list_parted);
+ALTER TABLE not_owned_by_me OWNER TO regress_test_not_me;
+SET SESSION AUTHORIZATION regress_test_me;
+CREATE TABLE owned_by_me (
+	a int
+) PARTITION BY LIST (a);
+ALTER TABLE owned_by_me ATTACH PARTITION not_owned_by_me FOR VALUES IN (1);
+RESET SESSION AUTHORIZATION;
+DROP TABLE owned_by_me, not_owned_by_me;
+DROP ROLE regress_test_not_me;
+DROP ROLE regress_test_me;
+
+-- check that the table being attached is not part of regular inheritance
+CREATE TABLE parent (LIKE list_parted);
+CREATE TABLE child () INHERITS (parent);
+ALTER TABLE list_parted ATTACH PARTITION child FOR VALUES IN (1);
+ALTER TABLE list_parted ATTACH PARTITION parent FOR VALUES IN (1);
+DROP TABLE parent CASCADE;
+
+-- check any TEMP-ness
+CREATE TEMP TABLE temp_parted (a int) PARTITION BY LIST (a);
+CREATE TABLE perm_part (a int);
+ALTER TABLE temp_parted ATTACH PARTITION perm_part FOR VALUES IN (1);
+DROP TABLE temp_parted, perm_part;
+
+-- check that the table being attached is not a typed table
+CREATE TYPE mytype AS (a int);
+CREATE TABLE fail_part OF mytype;
+ALTER TABLE list_parted ATTACH PARTITION fail_part FOR VALUES IN (1);
+DROP TYPE mytype CASCADE;
+
+-- check existence (or non-existence) of oid column
+ALTER TABLE list_parted SET WITH OIDS;
+CREATE TABLE fail_part (a int);
+ALTER TABLE list_parted ATTACH PARTITION fail_part FOR VALUES IN (1);
+
+ALTER TABLE list_parted SET WITHOUT OIDS;
+ALTER TABLE fail_part SET WITH OIDS;
+ALTER TABLE list_parted ATTACH PARTITION fail_part FOR VALUES IN (1);
+DROP TABLE fail_part;
+
+-- check that the table being attached has only columns present in the parent
+CREATE TABLE fail_part (like list_parted, c int);
+ALTER TABLE list_parted ATTACH PARTITION fail_part FOR VALUES IN (1);
+DROP TABLE fail_part;
+
+-- check that the table being attached has every column of the parent
+CREATE TABLE fail_part (a int NOT NULL);
+ALTER TABLE list_parted ATTACH PARTITION fail_part FOR VALUES IN (1);
+DROP TABLE fail_part;
+
+-- check that columns match in type, collation and NOT NULL status
+CREATE TABLE fail_part (
+	b char(3),
+	a int NOT NULL
+);
+ALTER TABLE list_parted ATTACH PARTITION fail_part FOR VALUES IN (1);
+ALTER TABLE fail_part ALTER b TYPE char (2) COLLATE "POSIX";
+ALTER TABLE list_parted ATTACH PARTITION fail_part FOR VALUES IN (1);
+DROP TABLE fail_part;
+
+-- check that the table being attached has all constraints of the parent
+CREATE TABLE fail_part (
+	b char(2) COLLATE "C",
+	a int NOT NULL
+);
+ALTER TABLE list_parted ATTACH PARTITION fail_part FOR VALUES IN (1);
+
+-- check that the constraint matches in definition with parent's constraint
+ALTER TABLE fail_part ADD CONSTRAINT check_a CHECK (a >= 0);
+ALTER TABLE list_parted ATTACH PARTITION fail_part FOR VALUES IN (1);
+DROP TABLE fail_part;
+
+-- check the attributes and constraints after partition is attached
+CREATE TABLE part_1 (
+	a int NOT NULL,
+	b char(2) COLLATE "C",
+	CONSTRAINT check_a CHECK (a > 0)
+);
+ALTER TABLE list_parted ATTACH PARTITION part_1 FOR VALUES IN (1);
+-- attislocal and conislocal are always false for merged attributes and constraints respectively.
+SELECT attislocal, attinhcount FROM pg_attribute WHERE attrelid = 'part_1'::regclass AND attnum > 0;
+SELECT conislocal, coninhcount FROM pg_constraint WHERE conrelid = 'part_1'::regclass AND conname = 'check_a';
+
+-- check that the new partition won't overlap with an existing partition
+CREATE TABLE fail_part (LIKE part_1 INCLUDING CONSTRAINTS);
+ALTER TABLE list_parted ATTACH PARTITION fail_part FOR VALUES IN (1);
+DROP TABLE fail_part;
+-- check that an existing table can be attached as a default partition
+CREATE TABLE def_part (LIKE list_parted INCLUDING CONSTRAINTS);
+ALTER TABLE list_parted ATTACH PARTITION def_part DEFAULT;
+-- check attaching default partition fails if a default partition already
+-- exists
+CREATE TABLE fail_def_part (LIKE part_1 INCLUDING CONSTRAINTS);
+ALTER TABLE list_parted ATTACH PARTITION fail_def_part DEFAULT;
+
+-- check validation when attaching list partitions
+CREATE TABLE list_parted2 (
+	a int,
+	b char
+) PARTITION BY LIST (a);
+
+-- check that violating rows are correctly reported
+CREATE TABLE part_2 (LIKE list_parted2);
+INSERT INTO part_2 VALUES (3, 'a');
+ALTER TABLE list_parted2 ATTACH PARTITION part_2 FOR VALUES IN (2);
+
+-- should be ok after deleting the bad row
+DELETE FROM part_2;
+ALTER TABLE list_parted2 ATTACH PARTITION part_2 FOR VALUES IN (2);
+
+-- check partition cannot be attached if default has some row for its values
+CREATE TABLE list_parted2_def PARTITION OF list_parted2 DEFAULT;
+INSERT INTO list_parted2_def VALUES (11, 'z');
+CREATE TABLE part_3 (LIKE list_parted2);
+ALTER TABLE list_parted2 ATTACH PARTITION part_3 FOR VALUES IN (11);
+-- should be ok after deleting the bad row
+DELETE FROM list_parted2_def WHERE a = 11;
+ALTER TABLE list_parted2 ATTACH PARTITION part_3 FOR VALUES IN (11);
+
+-- adding constraints that describe the desired partition constraint
+-- (or more restrictive) will help skip the validation scan
+CREATE TABLE part_3_4 (
+	LIKE list_parted2,
+	CONSTRAINT check_a CHECK (a IN (3))
+);
+
+-- however, if a list partition does not accept nulls, there should be
+-- an explicit NOT NULL constraint on the partition key column for the
+-- validation scan to be skipped;
+ALTER TABLE list_parted2 ATTACH PARTITION part_3_4 FOR VALUES IN (3, 4);
+
+-- adding a NOT NULL constraint will cause the scan to be skipped
+ALTER TABLE list_parted2 DETACH PARTITION part_3_4;
+ALTER TABLE part_3_4 ALTER a SET NOT NULL;
+ALTER TABLE list_parted2 ATTACH PARTITION part_3_4 FOR VALUES IN (3, 4);
+
+-- check if default partition scan skipped
+ALTER TABLE list_parted2_def ADD CONSTRAINT check_a CHECK (a IN (5, 6));
+CREATE TABLE part_55_66 PARTITION OF list_parted2 FOR VALUES IN (55, 66);
+
+-- check validation when attaching range partitions
+CREATE TABLE range_parted (
+	a int,
+	b int
+) PARTITION BY RANGE (a, b);
+
+-- check that violating rows are correctly reported
+CREATE TABLE part1 (
+	a int NOT NULL CHECK (a = 1),
+	b int NOT NULL CHECK (b >= 1 AND b <= 10)
+);
+INSERT INTO part1 VALUES (1, 10);
+-- Remember the TO bound is exclusive
+ALTER TABLE range_parted ATTACH PARTITION part1 FOR VALUES FROM (1, 1) TO (1, 10);
+
+-- should be ok after deleting the bad row
+DELETE FROM part1;
+ALTER TABLE range_parted ATTACH PARTITION part1 FOR VALUES FROM (1, 1) TO (1, 10);
+
+-- adding constraints that describe the desired partition constraint
+-- (or more restrictive) will help skip the validation scan
+CREATE TABLE part2 (
+	a int NOT NULL CHECK (a = 1),
+	b int NOT NULL CHECK (b >= 10 AND b < 18)
+);
+ALTER TABLE range_parted ATTACH PARTITION part2 FOR VALUES FROM (1, 10) TO (1, 20);
+
+-- Create default partition
+CREATE TABLE partr_def1 PARTITION OF range_parted DEFAULT;
+
+-- Only one default partition is allowed, hence, following should give error
+CREATE TABLE partr_def2 (LIKE part1 INCLUDING CONSTRAINTS);
+ALTER TABLE range_parted ATTACH PARTITION partr_def2 DEFAULT;
+
+-- Overlapping partitions cannot be attached, hence, following should give error
+INSERT INTO partr_def1 VALUES (2, 10);
+CREATE TABLE part3 (LIKE range_parted);
+ALTER TABLE range_parted ATTACH partition part3 FOR VALUES FROM (2, 10) TO (2, 20);
+
+-- Attaching partitions should be successful when there are no overlapping rows
+ALTER TABLE range_parted ATTACH partition part3 FOR VALUES FROM (3, 10) TO (3, 20);
+
+-- check that leaf partitions are scanned when attaching a partitioned
+-- table
+CREATE TABLE part_5 (
+	LIKE list_parted2
+) PARTITION BY LIST (b);
+
+-- check that violating rows are correctly reported
+CREATE TABLE part_5_a PARTITION OF part_5 FOR VALUES IN ('a');
+INSERT INTO part_5_a (a, b) VALUES (6, 'a');
+ALTER TABLE list_parted2 ATTACH PARTITION part_5 FOR VALUES IN (5);
+
+-- delete the faulting row and also add a constraint to skip the scan
+DELETE FROM part_5_a WHERE a NOT IN (3);
+ALTER TABLE part_5 ADD CONSTRAINT check_a CHECK (a IS NOT NULL AND a = 5);
+ALTER TABLE list_parted2 ATTACH PARTITION part_5 FOR VALUES IN (5);
+ALTER TABLE list_parted2 DETACH PARTITION part_5;
+ALTER TABLE part_5 DROP CONSTRAINT check_a;
+
+-- scan should again be skipped, even though NOT NULL is now a column property
+ALTER TABLE part_5 ADD CONSTRAINT check_a CHECK (a IN (5)), ALTER a SET NOT NULL;
+ALTER TABLE list_parted2 ATTACH PARTITION part_5 FOR VALUES IN (5);
+
+-- Check the case where attnos of the partitioning columns in the table being
+-- attached differs from the parent.  It should not affect the constraint-
+-- checking logic that allows to skip the scan.
+CREATE TABLE part_6 (
+	c int,
+	LIKE list_parted2,
+	CONSTRAINT check_a CHECK (a IS NOT NULL AND a = 6)
+);
+ALTER TABLE part_6 DROP c;
+ALTER TABLE list_parted2 ATTACH PARTITION part_6 FOR VALUES IN (6);
+
+-- Similar to above, but the table being attached is a partitioned table
+-- whose partition has still different attnos for the root partitioning
+-- columns.
+CREATE TABLE part_7 (
+	LIKE list_parted2,
+	CONSTRAINT check_a CHECK (a IS NOT NULL AND a = 7)
+) PARTITION BY LIST (b);
+CREATE TABLE part_7_a_null (
+	c int,
+	d int,
+	e int,
+	LIKE list_parted2,  -- 'a' will have attnum = 4
+	CONSTRAINT check_b CHECK (b IS NULL OR b = 'a'),
+	CONSTRAINT check_a CHECK (a IS NOT NULL AND a = 7)
+);
+ALTER TABLE part_7_a_null DROP c, DROP d, DROP e;
+ALTER TABLE part_7 ATTACH PARTITION part_7_a_null FOR VALUES IN ('a', null);
+ALTER TABLE list_parted2 ATTACH PARTITION part_7 FOR VALUES IN (7);
+
+-- Same example, but check this time that the constraint correctly detects
+-- violating rows
+ALTER TABLE list_parted2 DETACH PARTITION part_7;
+ALTER TABLE part_7 DROP CONSTRAINT check_a; -- thusly, scan won't be skipped
+INSERT INTO part_7 (a, b) VALUES (8, null), (9, 'a');
+SELECT tableoid::regclass, a, b FROM part_7 order by a;
+ALTER TABLE list_parted2 ATTACH PARTITION part_7 FOR VALUES IN (7);
+
+-- check that leaf partitions of default partition are scanned when
+-- attaching a partitioned table.
+ALTER TABLE part_5 DROP CONSTRAINT check_a;
+CREATE TABLE part5_def PARTITION OF part_5 DEFAULT PARTITION BY LIST(a);
+CREATE TABLE part5_def_p1 PARTITION OF part5_def FOR VALUES IN (5);
+INSERT INTO part5_def_p1 VALUES (5, 'y');
+CREATE TABLE part5_p1 (LIKE part_5);
+ALTER TABLE part_5 ATTACH PARTITION part5_p1 FOR VALUES IN ('y');
+-- should be ok after deleting the bad row
+DELETE FROM part5_def_p1 WHERE b = 'y';
+ALTER TABLE part_5 ATTACH PARTITION part5_p1 FOR VALUES IN ('y');
+
+-- check that the table being attached is not already a partition
+ALTER TABLE list_parted2 ATTACH PARTITION part_2 FOR VALUES IN (2);
+
+-- check that circular inheritance is not allowed
+ALTER TABLE part_5 ATTACH PARTITION list_parted2 FOR VALUES IN ('b');
+ALTER TABLE list_parted2 ATTACH PARTITION list_parted2 FOR VALUES IN (0);
+
+-- If a partitioned table being created or an existing table being attached
+-- as a partition does not have a constraint that would allow validation scan
+-- to be skipped, but an individual partition does, then the partition's
+-- validation scan is skipped.
+CREATE TABLE quuux (a int, b text) PARTITION BY LIST (a);
+CREATE TABLE quuux_default PARTITION OF quuux DEFAULT PARTITION BY LIST (b);
+CREATE TABLE quuux_default1 PARTITION OF quuux_default (
+	CONSTRAINT check_1 CHECK (a IS NOT NULL AND a = 1)
+) FOR VALUES IN ('b');
+CREATE TABLE quuux1 (a int, b text);
+ALTER TABLE quuux ATTACH PARTITION quuux1 FOR VALUES IN (1); -- validate!
+CREATE TABLE quuux2 (a int, b text);
+ALTER TABLE quuux ATTACH PARTITION quuux2 FOR VALUES IN (2); -- skip validation
+DROP TABLE quuux1, quuux2;
+-- should validate for quuux1, but not for quuux2
+CREATE TABLE quuux1 PARTITION OF quuux FOR VALUES IN (1);
+CREATE TABLE quuux2 PARTITION OF quuux FOR VALUES IN (2);
+DROP TABLE quuux;
+
+-- check validation when attaching hash partitions
+
+-- Use hand-rolled hash functions and operator class to get predictable result
+-- on different matchines. part_test_int4_ops is defined in insert.sql.
+
+-- check that the new partition won't overlap with an existing partition
+CREATE TABLE hash_parted (
+	a int,
+	b int
+) PARTITION BY HASH (a part_test_int4_ops);
+CREATE TABLE hpart_1 PARTITION OF hash_parted FOR VALUES WITH (MODULUS 4, REMAINDER 0);
+CREATE TABLE fail_part (LIKE hpart_1);
+ALTER TABLE hash_parted ATTACH PARTITION fail_part FOR VALUES WITH (MODULUS 8, REMAINDER 4);
+ALTER TABLE hash_parted ATTACH PARTITION fail_part FOR VALUES WITH (MODULUS 8, REMAINDER 0);
+DROP TABLE fail_part;
+
+-- check validation when attaching hash partitions
+
+-- check that violating rows are correctly reported
+CREATE TABLE hpart_2 (LIKE hash_parted);
+INSERT INTO hpart_2 VALUES (3, 0);
+ALTER TABLE hash_parted ATTACH PARTITION hpart_2 FOR VALUES WITH (MODULUS 4, REMAINDER 1);
+
+-- should be ok after deleting the bad row
+DELETE FROM hpart_2;
+ALTER TABLE hash_parted ATTACH PARTITION hpart_2 FOR VALUES WITH (MODULUS 4, REMAINDER 1);
+
+-- check that leaf partitions are scanned when attaching a partitioned
+-- table
+CREATE TABLE hpart_5 (
+	LIKE hash_parted
+) PARTITION BY LIST (b);
+
+-- check that violating rows are correctly reported
+CREATE TABLE hpart_5_a PARTITION OF hpart_5 FOR VALUES IN ('1', '2', '3');
+INSERT INTO hpart_5_a (a, b) VALUES (7, 1);
+ALTER TABLE hash_parted ATTACH PARTITION hpart_5 FOR VALUES WITH (MODULUS 4, REMAINDER 2);
+
+-- should be ok after deleting the bad row
+DELETE FROM hpart_5_a;
+ALTER TABLE hash_parted ATTACH PARTITION hpart_5 FOR VALUES WITH (MODULUS 4, REMAINDER 2);
+
+-- check that the table being attach is with valid modulus and remainder value
+CREATE TABLE fail_part(LIKE hash_parted);
+ALTER TABLE hash_parted ATTACH PARTITION fail_part FOR VALUES WITH (MODULUS 0, REMAINDER 1);
+ALTER TABLE hash_parted ATTACH PARTITION fail_part FOR VALUES WITH (MODULUS 8, REMAINDER 8);
+ALTER TABLE hash_parted ATTACH PARTITION fail_part FOR VALUES WITH (MODULUS 3, REMAINDER 2);
+DROP TABLE fail_part;
 
 --
 -- DETACH PARTITION
 --
 
-CREATE TABLE list_parted2 (
-        a int,
-        b char
-) PARTITION BY LIST (a);
+-- check that the table is partitioned at all
+CREATE TABLE regular_table (a int);
+ALTER TABLE regular_table DETACH PARTITION any_name;
+DROP TABLE regular_table;
+
+-- check that the partition being detached exists at all
+ALTER TABLE list_parted2 DETACH PARTITION part_4;
+ALTER TABLE hash_parted DETACH PARTITION hpart_4;
+
+-- check that the partition being detached is actually a partition of the parent
+CREATE TABLE not_a_part (a int);
+ALTER TABLE list_parted2 DETACH PARTITION not_a_part;
+ALTER TABLE list_parted2 DETACH PARTITION part_1;
+
+ALTER TABLE hash_parted DETACH PARTITION not_a_part;
+DROP TABLE not_a_part;
+
+-- check that, after being detached, attinhcount/coninhcount is dropped to 0 and
+-- attislocal/conislocal is set to true
+ALTER TABLE list_parted2 DETACH PARTITION part_3_4;
+SELECT attinhcount, attislocal FROM pg_attribute WHERE attrelid = 'part_3_4'::regclass AND attnum > 0;
+SELECT coninhcount, conislocal FROM pg_constraint WHERE conrelid = 'part_3_4'::regclass AND conname = 'check_a';
+DROP TABLE part_3_4;
+
+-- check that a detached partition is not dropped on dropping a partitioned table
+CREATE TABLE range_parted2 (
+    a int
+) PARTITION BY RANGE(a);
+CREATE TABLE part_rp PARTITION OF range_parted2 FOR VALUES FROM (0) to (100);
+ALTER TABLE range_parted2 DETACH PARTITION part_rp;
+DROP TABLE range_parted2;
+SELECT * from part_rp;
+DROP TABLE part_rp;
+
+-- Check ALTER TABLE commands for partitioned tables and partitions
 -- cannot add/drop column to/from *only* the parent
 ALTER TABLE ONLY list_parted2 ADD COLUMN c int;
 ALTER TABLE ONLY list_parted2 DROP COLUMN b;

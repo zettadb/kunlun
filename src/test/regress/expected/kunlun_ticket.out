@@ -535,7 +535,7 @@ DROP TABLE
 create table t1(a int, b int);
 CREATE TABLE
 insert into t1 select i,i from generate_series(1,1000000)i;
-psql:sql/kunlun_ticket.sql:345: ERROR:  canceling statement due to statement timeout
+INSERT 0 1000000
 create index concurrently on t1(a)
 -- 验证是否残留invalid状态的索引（预期为空）
 select * from pg_index where indisvalid = false;
@@ -1060,8 +1060,7 @@ show variables where Value='1';
  server_id                        | 1
  sync_binlog                      | 1
  thread_pool_listen_eager_mode    | 1
- xa_prep_cop_binlog_last          | 1
-(19 rows)
+(18 rows)
 
 --ticket:998
 drop table t;

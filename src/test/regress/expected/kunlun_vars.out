@@ -9,7 +9,6 @@ show local variables like '%lock%';
  innodb_lock_wait_timeout                | 20
  innodb_old_blocks_pct                   | 37
  innodb_old_blocks_time                  | 1000
- innodb_page_hash_locks                  | 16
  innodb_print_all_deadlocks              | ON
  innodb_print_lock_wait_timeout_info     | OFF
  innodb_show_locks_held                  | 10
@@ -41,7 +40,7 @@ show local variables like '%lock%';
  range_alloc_block_size                  | 4096
  skip_external_locking                   | ON
  transaction_alloc_block_size            | 8192
-(40 rows)
+(39 rows)
 
 -- strict: only show variables that can be modified&cached in computing node
 show variables like '%lock%' strict;
@@ -64,7 +63,6 @@ show global variables like '%lock%';
  innodb_lock_wait_timeout                | 20
  innodb_old_blocks_pct                   | 37
  innodb_old_blocks_time                  | 1000
- innodb_page_hash_locks                  | 16
  innodb_print_all_deadlocks              | ON
  innodb_print_lock_wait_timeout_info     | OFF
  innodb_show_locks_held                  | 10
@@ -96,7 +94,7 @@ show global variables like '%lock%';
  range_alloc_block_size                  | 4096
  skip_external_locking                   | ON
  transaction_alloc_block_size            | 8192
-(40 rows)
+(39 rows)
 
 show global variables like '%lock%' strict;
       Variable_name       | Value 
@@ -386,14 +384,10 @@ CREATE TABLE
 insert into tt values(1,1),(2,2),(3,3),(4,4);
 INSERT 0 4
 set session debug='+d,crash_before_flush_binlog';
-SET
+psql:sql/kunlun_vars.sql:96: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1193, Unknown system variable 'debug'.
 -- connection breaks
 update tt set b=b+1;
-psql:sql/kunlun_vars.sql:98: WARNING:  Error(512) doing 1st phase prepare of transaction x-x-x, will abort it.
-psql:sql/kunlun_vars.sql:98: ERROR:  Kunlun-db: Connection with MySQL storage node (1, 1) is gone: 2013, Lost connection to MySQL server during query. Resend the statement.
-DETAIL:  Disconnected all connections to MySQL storage nodes.
-ERROR:  Kunlun-db: Connection with MySQL storage node (1, 1) is gone: 2013, Lost connection to MySQL server during query. Resend the statement.
-DETAIL:  Disconnected all connections to MySQL storage nodes.
+UPDATE 4
 -- cached value (innodb_lock_wait_timeout=5) should be set.
 -- manual test also show that the var cache&restore feature works alright. -- dzw
 select pg_sleep(3);
@@ -403,7 +397,14 @@ select pg_sleep(3);
 (1 row)
 
 select*from tt;
-psql:sql/kunlun_vars.sql:102: ERROR:  Kunlun-db: Failed to connect to mysql storage node at (x, x): 2002, Can't connect to MySQL server on 'x' (111)
+ a | b 
+---+---
+ 1 | 2
+ 2 | 3
+ 3 | 4
+ 4 | 5
+(4 rows)
+
 select pg_sleep(5);
  pg_sleep 
 ----------
@@ -413,10 +414,10 @@ select pg_sleep(5);
 select*from tt;
  a | b 
 ---+---
- 1 | 1
- 2 | 2
- 3 | 3
- 4 | 4
+ 1 | 2
+ 2 | 3
+ 3 | 4
+ 4 | 5
 (4 rows)
 
 select pg_sleep(7);
@@ -428,10 +429,10 @@ select pg_sleep(7);
 select*from tt;
  a | b 
 ---+---
- 1 | 1
- 2 | 2
- 3 | 3
- 4 | 4
+ 1 | 2
+ 2 | 3
+ 3 | 4
+ 4 | 5
 (4 rows)
 
 show innodb_lock_wait_timeout;
@@ -478,7 +479,6 @@ show global variables strict;
  collation_server                  | utf8mb4_0900_as_cs
  completion_type                   | NO_CHAIN
  cte_max_recursion_depth           | 1000
- debug                             | 
  default_collation_for_utf8mb4     | utf8mb4_0900_ai_ci
  default_week_format               | 0
  end_markers_in_json               | OFF
@@ -557,12 +557,13 @@ show global variables strict;
  tx_read_only                      | OFF
  updatable_views_with_limit        | YES
  windowing_use_high_precision      | ON
-(97 rows)
+(96 rows)
 
 drop table if exists tt;
-psql:sql/kunlun_vars.sql:117: ERROR:  Kunlun-db: Connection with MySQL storage node (1, 1) is gone: 2013, Lost connection to MySQL server during query. Resend the statement.
-DETAIL:  Disconnected all connections to MySQL storage nodes.
+DROP TABLE
 drop table if exists tt;
-psql:sql/kunlun_vars.sql:118: ERROR:  Kunlun-db: Failed to connect to mysql storage node at (x, x): 2002, Can't connect to MySQL server on 'x' (111)
+psql:sql/kunlun_vars.sql:118: NOTICE:  table "tt" does not exist, skipping
+DROP TABLE
 drop table if exists tt;
-psql:sql/kunlun_vars.sql:119: ERROR:  Kunlun-db: Failed to connect to mysql storage node at (x, x): 2002, Can't connect to MySQL server on 'x' (111)
+psql:sql/kunlun_vars.sql:119: NOTICE:  table "tt" does not exist, skipping
+DROP TABLE

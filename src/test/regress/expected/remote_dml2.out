@@ -1459,7 +1459,8 @@ DETAIL:  drop cascades to table testschema.foo
 drop cascades to sequence testschema.seq1
 DROP SCHEMA
 -- bug 44 todo
-SET enable_partitionwise_join=off;
+--SET enable_partitionwise_join=off;
+set enable_remote_join_pushdown = false;
 SET
 drop table if exists tenk1 cascade;
 DROP TABLE
@@ -1513,14 +1514,29 @@ explain (verbose, costs off)
         join int4_tbl i1 on b.thousand = f1
         right join int4_tbl i2 on i2.f1 = b.tenthous
         order by 1;
-psql:sql/remote_dml2.sql:658: ERROR:  canceling statement due to statement timeout
+psql:sql/remote_dml2.sql:659: ERROR:  canceling statement due to statement timeout
     select b.unique1 from
         tenk1 a join tenk1 b on a.unique1 = b.unique2
         join int4_tbl i1 on b.thousand = f1
         right join int4_tbl i2 on i2.f1 = b.tenthous
         order by 1;
-psql:sql/remote_dml2.sql:666: ERROR:  canceling statement due to statement timeout
---set enable_remote_join_pushdown = false;
+ unique1 
+---------
+       1
+       2
+       3
+       4
+       5
+       6
+       7
+       8
+       9
+      10
+      11
+      12
+      13
+(13 rows)
+
 explain (costs off)
     select b.unique1 from
         tenk1 a join tenk1 b on a.unique1 = b.unique2
@@ -1542,13 +1558,45 @@ explain (costs off)
         join int4_tbl i1 on b.thousand = f1
         right join int4_tbl i2 on i2.f1 = b.tenthous
         order by 1;
-psql:sql/remote_dml2.sql:690: ERROR:  canceling statement due to statement timeout
+ unique1 
+---------
+       1
+       2
+       3
+       4
+       5
+       6
+       7
+       8
+       9
+      10
+      11
+      12
+      13
+(13 rows)
+
     select b.unique1 from
         tenk1 a join tenk1 b on a.unique1 = b.unique2
         join int4_tbl i1 on b.thousand = f1
         right join int4_tbl i2 on i2.f1 = b.tenthous
         order by 1;
-psql:sql/remote_dml2.sql:698: ERROR:  canceling statement due to statement timeout
+ unique1 
+---------
+       1
+       2
+       3
+       4
+       5
+       6
+       7
+       8
+       9
+      10
+      11
+      12
+      13
+(13 rows)
+
 -- below portion is fixed, above portion not yet. TODO
  drop table if exists mlparted cascade;
 DROP TABLE

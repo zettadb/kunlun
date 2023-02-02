@@ -1208,8 +1208,8 @@ SELECT substr(f1, 99995, 10) from toasttest;
 
 -- TRUNCATE is not supported by Kunlun
 -- TRUNCATE TABLE toasttest;
-DELETE FROM toasttest;
-DELETE 4
+TRUNCATE TABLE toasttest;
+TRUNCATE TABLE
 INSERT INTO toasttest values (repeat('1234567890',300));
 INSERT 0 1
 INSERT INTO toasttest values (repeat('1234567890',300));
@@ -1219,9 +1219,10 @@ INSERT 0 1
 INSERT INTO toasttest values (repeat('1234567890',300));
 INSERT 0 1
 -- expect >0 blocks
--- TRUNCATE TABLE toasttest;
+TRUNCATE TABLE toasttest;
+TRUNCATE TABLE
 DELETE FROM toasttest;
-DELETE 4
+DELETE 0
 -- ALTER TABLE toasttest set (toast_tuple_target = 4080);
 INSERT INTO toasttest values (repeat('1234567890',300));
 INSERT 0 1

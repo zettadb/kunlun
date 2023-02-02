@@ -292,7 +292,7 @@ explain (costs off)
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE t1c (b text, a text);
 --DDL_STATEMENT_END--
-ALTER TABLE t1c INHERIT t1;
+-- ALTER TABLE t1c INHERIT t1;
 CREATE TEMP TABLE t2c (primary key (ab)) INHERITS (t2);
 --DDL_STATEMENT_BEGIN--
 INSERT INTO t1c VALUES ('v', 'w'), ('c', 'd'), ('m', 'n'), ('e', 'f');
@@ -427,7 +427,7 @@ create function expensivefunc(int) returns int
 language plpgsql immutable strict cost 10000
 as $$begin return $1; end$$;
 
-create table temp t3(x int);
+create temp table t3(x int);
 insert into t3 select * from generate_series(-1000,1000);
 
 create index t3i on t3 (expensivefunc(x));

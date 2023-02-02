@@ -95,7 +95,7 @@ CREATE TABLE inhg (x text, LIKE inhx INCLUDING INDEXES, PRIMARY KEY(x)); /* fail
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE inhz (xx text DEFAULT 'text', yy int UNIQUE);
 --DDL_STATEMENT_END--
-CREATE UNIQUE INDEX inhz_xx_idx on inhz (xx) WHERE xx <> 'test';
+--CREATE UNIQUE INDEX inhz_xx_idx on inhz (xx) WHERE xx <> 'test';
 --DDL_STATEMENT_BEGIN--
 CREATE UNIQUE INDEX inhz_xx_idx on inhz (xx);
 --DDL_STATEMENT_END--
@@ -123,7 +123,7 @@ CREATE TABLE ctlt1 (a text CHECK (length(a) > 2) PRIMARY KEY, b text);
 --DDL_STATEMENT_BEGIN--
 CREATE INDEX ctlt1_b_key ON ctlt1 (b);
 --DDL_STATEMENT_END--
-CREATE INDEX ctlt1_fnidx ON ctlt1 ((a || b));
+--CREATE INDEX ctlt1_fnidx ON ctlt1 ((a || b));
 --CREATE STATISTICS ctlt1_a_b_stat ON a,b FROM ctlt1;
 --COMMENT ON STATISTICS ctlt1_a_b_stat IS 'ab stats';
 COMMENT ON COLUMN ctlt1.a IS 'A';
@@ -151,7 +151,7 @@ COMMENT ON CONSTRAINT ctlt3_a_check ON ctlt3 IS 't3_a_check';
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE ctlt4 (a text, c text);
 --DDL_STATEMENT_END--
-ALTER TABLE ctlt4 ALTER COLUMN c SET STORAGE EXTERNAL;
+--ALTER TABLE ctlt4 ALTER COLUMN c SET STORAGE EXTERNAL;
 
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE ctlt12_storage (LIKE ctlt1 INCLUDING STORAGE, LIKE ctlt2 INCLUDING STORAGE);

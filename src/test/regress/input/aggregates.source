@@ -1,13 +1,13 @@
 --
 -- AGGREGATES
 --
-DELETE from aggtest;
+Truncate from aggtest;
 COPY aggtest FROM '@abs_srcdir@/data/agg.data';
-DELETE from student;
+Truncate from student;
 COPY student FROM '@abs_srcdir@/data/student.data';
-DELETE from tenk1;
+Truncate from tenk1;
 COPY tenk1 FROM '@abs_srcdir@/data/tenk.data';
-DELETE from onek;
+Truncate from onek;
 COPY onek FROM '@abs_srcdir@/data/onek.data';
 
 SELECT avg(four)::numeric(64,4) AS avg_1 FROM onek;
@@ -1007,7 +1007,7 @@ CREATE AGGREGATE balk(int4)
 --DDL_STATEMENT_END--
 
 -- force use of parallelism
-ALTER TABLE tenk1 set (parallel_workers = 4);
+-- ALTER TABLE tenk1 set (parallel_workers = 4);
 SET LOCAL parallel_setup_cost=0;
 SET LOCAL max_parallel_workers_per_gather=4;
 

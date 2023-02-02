@@ -102,6 +102,7 @@ INSERT 0 1
 -- This entry is needed to test that TOASTED values are copied correctly.
 INSERT INTO clstr_tst (b, c, d) VALUES (6, 'seis', repeat('xyzzy', 100000));
 INSERT 0 1
+-- CLUSTER clstr_tst_c ON clstr_tst;
 SELECT a,b,c,substring(d for 30), length(d) from clstr_tst;
  a  | b  |       c       |           substring            | length 
 ----+----+---------------+--------------------------------+--------
@@ -329,6 +330,7 @@ WHERE pg_class.oid=indexrelid
 (0 rows)
 
 -- Try changing indisclustered
+-- ALTER TABLE clstr_tst CLUSTER ON clstr_tst_b_c;
 SELECT pg_class.relname FROM pg_index, pg_class, pg_class AS pg_class_2
 WHERE pg_class.oid=indexrelid
 	AND indrelid=pg_class_2.oid
@@ -339,6 +341,7 @@ WHERE pg_class.oid=indexrelid
 (0 rows)
 
 -- Try turning off all clustering
+-- ALTER TABLE clstr_tst SET WITHOUT CLUSTER;
 SELECT pg_class.relname FROM pg_index, pg_class, pg_class AS pg_class_2
 WHERE pg_class.oid=indexrelid
 	AND indrelid=pg_class_2.oid
@@ -375,6 +378,10 @@ INSERT INTO clstr_3 VALUES (2);
 INSERT 0 1
 INSERT INTO clstr_3 VALUES (1);
 INSERT 0 1
+-- "CLUSTER <tablename>" on a table that hasn't been clustered
+-- CLUSTER clstr_2;
+-- CLUSTER clstr_1_pkey ON clstr_1;
+-- CLUSTER clstr_2 USING clstr_2_pkey;
 SELECT * FROM clstr_1 UNION ALL
   SELECT * FROM clstr_2 UNION ALL
   SELECT * FROM clstr_3 order by 1;
@@ -477,6 +484,7 @@ SELECT * FROM clustertest order by key1;
   100
 (5 rows)
 
+-- CLUSTER clustertest_pkey ON clustertest;
 SELECT * FROM clustertest order by key1;
  key1 
 ------
@@ -504,6 +512,7 @@ create temp table clstr_temp (col1 int primary key, col2 text);
 CREATE TABLE
 insert into clstr_temp values (2, 'two'), (1, 'one');
 INSERT 0 2
+-- cluster clstr_temp using clstr_temp_pkey;
 select * from clstr_temp;
  col1 | col2 
 ------+------
@@ -520,6 +529,8 @@ CREATE TABLE clstrpart (a int) PARTITION BY RANGE (a);
 CREATE TABLE
 CREATE INDEX clstrpart_idx ON clstrpart (a);
 CREATE INDEX
+-- ALTER TABLE clstrpart CLUSTER ON clstrpart_idx;
+-- CLUSTER clstrpart USING clstrpart_idx;
 DROP TABLE clstrpart;
 DROP TABLE
 create table clstr_4 (like tenk1);

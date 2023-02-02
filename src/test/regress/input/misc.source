@@ -52,7 +52,7 @@
 --
 -- inheritance stress test
 --
-drop table if exists a_star;
+drop table if exists a_star CASCADE;
 CREATE TABLE a_star (
 	class		char,
 	a 			int4

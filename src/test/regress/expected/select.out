@@ -216,6 +216,14 @@ SELECT onek.unique1, onek.string4 FROM onek
 SELECT p.name, p.age FROM person* p;
   name   | age 
 ---------+-----
+ fred    |  28
+ larry   |  60
+ jeff    |  23
+ cim     |  30
+ linda   |  19
+ sharon  |  25
+ sam     |  30
+ bill    |  20
  mike    |  40
  joe     |  20
  sally   |  34
@@ -266,7 +274,7 @@ SELECT p.name, p.age FROM person* p;
  trisha  |  88
  uma     |  78
  velma   |  68
-(50 rows)
+(58 rows)
 
 --
 -- awk '{print $1,$2;}' person.data |
@@ -297,6 +305,7 @@ SELECT p.name, p.age FROM person* p ORDER BY age using >, name;
  leah    |  68
  paula   |  68
  velma   |  68
+ larry   |  60
  carina  |  58
  jane    |  58
  juanita |  58
@@ -314,12 +323,19 @@ SELECT p.name, p.age FROM person* p ORDER BY age using >, name;
  teresa  |  38
  sally   |  34
  alex    |  30
+ cim     |  30
+ sam     |  30
+ fred    |  28
  jean    |  28
  melissa |  28
  nan     |  28
  lita    |  25
+ sharon  |  25
  denise  |  24
+ jeff    |  23
+ bill    |  20
  joe     |  20
+ linda   |  19
  sandra  |  19
  diane   |  18
  edna    |  18
@@ -328,7 +344,7 @@ SELECT p.name, p.age FROM person* p ORDER BY age using >, name;
  pat     |  18
  fanny   |   8
  mary    |   8
-(50 rows)
+(58 rows)
 
 --
 -- Test some cases involving whole-row Var referencing a subquery

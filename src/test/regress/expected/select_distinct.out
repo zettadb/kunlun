@@ -110,6 +110,7 @@ SELECT DISTINCT p.age FROM person* p ORDER BY age using >;
   88
   78
   68
+  60
   58
   50
   48
@@ -120,11 +121,12 @@ SELECT DISTINCT p.age FROM person* p ORDER BY age using >;
   28
   25
   24
+  23
   20
   19
   18
    8
-(18 rows)
+(20 rows)
 
 --
 -- Check mentioning same column more than once

@@ -68,7 +68,7 @@ CREATE INDEX
 -- CREATE INDEX hash_txt_index ON hash_txt_heap USING hash (random text_ops);
 CREATE INDEX hash_f8_index ON hash_f8_heap USING hash (random float8_ops) WITH (fillfactor=60);
 CREATE INDEX
-CREATE TEMP TABLE unlogged_hash_table (id int4);
+CREATE UNLOGGED TABLE unlogged_hash_table (id int4);
 CREATE TABLE
 CREATE INDEX unlogged_hash_index ON unlogged_hash_table USING hash (id int4_ops);
 CREATE INDEX
@@ -524,16 +524,20 @@ CREATE TABLE table2(col1 SERIAL PRIMARY KEY, col2 TEXT NOT NULL);
 CREATE TABLE
 INSERT INTO table2 SELECT generate_series(1,400), 'abc';
 INSERT 0 400
--- CREATE INDEX ON table2(col2);
---CREATE MATERIALIZED VIEW matview AS SELECT col1 FROM table2;
---CREATE INDEX ON matview(col1);
+CREATE INDEX ON table2(col2);
+CREATE INDEX
+CREATE MATERIALIZED VIEW matview AS SELECT col1 FROM table2;
+SELECT 400
+CREATE INDEX ON matview(col1);
+CREATE INDEX
 CREATE VIEW view AS SELECT col2 FROM table2;
 CREATE VIEW
 DROP TABLE table1;
 DROP TABLE
 --DROP TABLE table2 cascade;
 DROP SCHEMA schema_to_reindex CASCADE;
-psql:sql/create_index.sql:304: NOTICE:  drop cascades to 2 other objects
+psql:sql/create_index.sql:304: NOTICE:  drop cascades to 3 other objects
 DETAIL:  drop cascades to table table2
+drop cascades to materialized view matview
 drop cascades to view view
 DROP SCHEMA

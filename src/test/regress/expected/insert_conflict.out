@@ -10,37 +10,41 @@ CREATE TABLE
 -- Test unique index inference with operator class specifications and
 -- named collations
 --
+-- create unique index op_index_key on insertconflicttest(key, fruit text_pattern_ops);
+-- create unique index collation_index_key on insertconflicttest(key, fruit collate "C");
+-- create unique index both_index_key on insertconflicttest(key, fruit collate "C" text_pattern_ops);
+-- create unique index both_index_expr_key on insertconflicttest(key, lower(fruit) collate "C" text_pattern_ops);
 -- fails
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (key1) do nothing;
-psql:sql/insert_conflict.sql:12: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:16: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (fruit) do nothing;
-psql:sql/insert_conflict.sql:13: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:17: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 -- succeeds
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (key1, fruit) do nothing;
-psql:sql/insert_conflict.sql:16: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:20: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (fruit, key1, fruit, key1) do nothing;
-psql:sql/insert_conflict.sql:17: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:21: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (lower(fruit), key1, lower(fruit), key1) do nothing;
-psql:sql/insert_conflict.sql:18: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:22: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (key1, fruit) do update set fruit = excluded.fruit
   where exists (select 1 from insertconflicttest ii where ii.key1 = excluded.key1);
-psql:sql/insert_conflict.sql:20: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:24: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 -- Neither collation nor operator class specifications are required --
 -- supplying them merely *limits* matches to indexes with matching opclasses
 -- used for relevant indexes
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (key1, fruit ) do nothing;
-psql:sql/insert_conflict.sql:24: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:28: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 -- does not appear.
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (key1, fruit) do nothing;
-psql:sql/insert_conflict.sql:26: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:30: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 -- Okay, but only accepts the single index where both opclass and collation are
 -- specified
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (fruit, key1) do nothing;
-psql:sql/insert_conflict.sql:29: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:33: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 -- Okay, but only accepts the single index where both opclass and collation are
 -- specified (plus expression variant)
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (lower(fruit), key1, key1) do nothing;
-psql:sql/insert_conflict.sql:32: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:36: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 -- Attribute appears twice, while not all attributes/expressions on attributes
 -- appearing within index definition match in terms of both opclass and
 -- collation.
@@ -56,15 +60,15 @@ psql:sql/insert_conflict.sql:32: ERROR:  there is no unique or exclusion constra
 -- cases.  It rolls with unique indexes where attributes redundantly appear
 -- multiple times, too (which is not tested here).
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (fruit, key1, fruit , key1) do nothing;
-psql:sql/insert_conflict.sql:47: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:51: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (lower(fruit), key1, key1) do nothing;
-psql:sql/insert_conflict.sql:48: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:52: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 -- fails:
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (lower(fruit) , upper(fruit)) do nothing;
-psql:sql/insert_conflict.sql:52: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:56: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 -- works:
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (lower(fruit), upper(fruit) ) do nothing;
-psql:sql/insert_conflict.sql:54: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:58: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 --
 -- Single key tests
 --
@@ -77,13 +81,13 @@ explain (costs off) insert into insertconflicttest values (0, 'Bilberry') on con
 
 -- Should display qual actually attributable to internal sequential scan:
 explain (costs off) insert into insertconflicttest values (0, 'Bilberry') on conflict (key1) do update set fruit = excluded.fruit where insertconflicttest.fruit != 'Cawesh';
-psql:sql/insert_conflict.sql:66: ERROR:  Kunlun-db: On conflict action do not support where clause.
+psql:sql/insert_conflict.sql:70: ERROR:  Kunlun-db: On conflict action do not support where clause.
 -- With EXCLUDED.* expression in scan node:
 explain (costs off) insert into insertconflicttest values(0, 'Crowberry') on conflict (key1) do update set fruit = excluded.fruit where excluded.fruit != 'Elderberry';
-psql:sql/insert_conflict.sql:68: ERROR:  Kunlun-db: On conflict action do not support where clause.
+psql:sql/insert_conflict.sql:72: ERROR:  Kunlun-db: On conflict action do not support where clause.
 -- Does the same, but JSON format shows "Conflict Arbiter Index" as JSON array:
 explain (costs off, format json) insert into insertconflicttest values (0, 'Bilberry') on conflict (key1) do update set fruit = excluded.fruit where insertconflicttest.fruit != 'Lime' returning *;
-psql:sql/insert_conflict.sql:70: ERROR:  Kunlun-db: On conflict action do not support where clause.
+psql:sql/insert_conflict.sql:74: ERROR:  Kunlun-db: On conflict action do not support where clause.
 -- Fails (no unique index inference specification, required for do update variant):
 insert into insertconflicttest values (1, 'Apple') on conflict do update set fruit = excluded.fruit;
 INSERT 0 1
@@ -100,38 +104,38 @@ INSERT 0 0
 -- Give good diagnostic message when EXCLUDED.* spuriously referenced from
 -- RETURNING:
 insert into insertconflicttest values (1, 'Apple') on conflict (key1) do update set fruit = excluded.fruit RETURNING excluded.fruit;
-psql:sql/insert_conflict.sql:86: ERROR:  invalid reference to FROM-clause entry for table "excluded"
+psql:sql/insert_conflict.sql:90: ERROR:  invalid reference to FROM-clause entry for table "excluded"
 LINE 1: ...1) do update set fruit = excluded.fruit RETURNING excluded.f...
                                                              ^
 HINT:  There is an entry for table "excluded", but it cannot be referenced from this part of the query.
 -- Only suggest <table>.* column when inference element misspelled:
 insert into insertconflicttest values (1, 'Apple') on conflict (keyy1) do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:89: ERROR:  column "keyy1" does not exist
+psql:sql/insert_conflict.sql:93: ERROR:  column "keyy1" does not exist
 LINE 1: ...nsertconflicttest values (1, 'Apple') on conflict (keyy1) do...
                                                              ^
 HINT:  Perhaps you meant to reference the column "insertconflicttest.key1".
 -- Have useful HINT for EXCLUDED.* RTE within UPDATE:
 insert into insertconflicttest values (1, 'Apple') on conflict (key1) do update set fruit = excluded.fruitt;
-psql:sql/insert_conflict.sql:92: ERROR:  column excluded.fruitt does not exist
+psql:sql/insert_conflict.sql:96: ERROR:  column excluded.fruitt does not exist
 LINE 1: ...'Apple') on conflict (key1) do update set fruit = excluded.f...
                                                              ^
 HINT:  Perhaps you meant to reference the column "excluded.fruit".
 -- inference fails:
 insert into insertconflicttest values (3, 'Kiwi') on conflict (key1, fruit) do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:95: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:99: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 insert into insertconflicttest values (4, 'Mango') on conflict (fruit, key1) do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:96: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:100: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 insert into insertconflicttest values (5, 'Lemon') on conflict (fruit) do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:97: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:101: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 insert into insertconflicttest values (6, 'Passionfruit') on conflict (lower(fruit)) do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:98: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:102: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 -- Check the target relation can be aliased
 insert into insertconflicttest AS ict values (6, 'Passionfruit') on conflict (key1) do update set fruit = excluded.fruit; -- ok, no reference to target table
 INSERT 0 1
 insert into insertconflicttest AS ict values (6, 'Passionfruit') on conflict (key1) do update set fruit = ict.fruit; -- ok, alias
 INSERT 0 0
 insert into insertconflicttest AS ict values (6, 'Passionfruit') on conflict (key1) do update set fruit = insertconflicttest.fruit; -- error, references aliased away name
-psql:sql/insert_conflict.sql:103: ERROR:  invalid reference to FROM-clause entry for table "insertconflicttest"
+psql:sql/insert_conflict.sql:107: ERROR:  invalid reference to FROM-clause entry for table "insertconflicttest"
 LINE 1: ...nfruit') on conflict (key1) do update set fruit = insertconf...
                                                              ^
 HINT:  Perhaps you meant to reference the table alias "ict".
@@ -142,56 +146,56 @@ DROP INDEX
 --
 -- inference succeeds:
 insert into insertconflicttest values (7, 'Raspberry') on conflict (key1, fruit) do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:111: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:115: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 insert into insertconflicttest values (8, 'Lime') on conflict (fruit, key1) do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:112: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:116: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 -- inference fails:
 insert into insertconflicttest values (9, 'Banana') on conflict (key1) do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:115: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:119: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 insert into insertconflicttest values (10, 'Blueberry') on conflict (key1, key1, key1) do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:116: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:120: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 insert into insertconflicttest values (11, 'Cherry') on conflict (key1, lower(fruit)) do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:117: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:121: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 insert into insertconflicttest values (12, 'Date') on conflict (lower(fruit), key1) do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:118: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:122: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 -- inference fails:
 insert into insertconflicttest values (13, 'Grape') on conflict (key1, fruit) do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:121: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
-insert into insertconflicttest values (14, 'Raisin') on conflict (fruit, key1) do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:122: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
-insert into insertconflicttest values (15, 'Cranberry') on conflict (key1) do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:123: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
-insert into insertconflicttest values (16, 'Melon') on conflict (key1, key1, key1) do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:124: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
-insert into insertconflicttest values (17, 'Mulberry') on conflict (key1, lower(fruit)) do update set fruit = excluded.fruit;
 psql:sql/insert_conflict.sql:125: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
-insert into insertconflicttest values (18, 'Pineapple') on conflict (lower(fruit), key1) do update set fruit = excluded.fruit;
+insert into insertconflicttest values (14, 'Raisin') on conflict (fruit, key1) do update set fruit = excluded.fruit;
 psql:sql/insert_conflict.sql:126: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+insert into insertconflicttest values (15, 'Cranberry') on conflict (key1) do update set fruit = excluded.fruit;
+psql:sql/insert_conflict.sql:127: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+insert into insertconflicttest values (16, 'Melon') on conflict (key1, key1, key1) do update set fruit = excluded.fruit;
+psql:sql/insert_conflict.sql:128: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+insert into insertconflicttest values (17, 'Mulberry') on conflict (key1, lower(fruit)) do update set fruit = excluded.fruit;
+psql:sql/insert_conflict.sql:129: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+insert into insertconflicttest values (18, 'Pineapple') on conflict (lower(fruit), key1) do update set fruit = excluded.fruit;
+psql:sql/insert_conflict.sql:130: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 -- inference succeeds:
 insert into insertconflicttest values (20, 'Quince') on conflict (lower(fruit)) do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:129: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:133: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 insert into insertconflicttest values (21, 'Pomegranate') on conflict (lower(fruit), lower(fruit)) do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:130: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:134: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 -- inference fails:
 insert into insertconflicttest values (22, 'Apricot') on conflict (upper(fruit)) do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:133: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:137: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 insert into insertconflicttest values (23, 'Blackberry') on conflict (fruit) do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:134: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:138: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 -- inference succeeds:
 insert into insertconflicttest values (24, 'Plum') on conflict (key1, lower(fruit)) do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:137: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:141: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 insert into insertconflicttest values (25, 'Peach') on conflict (lower(fruit), key1) do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:138: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:142: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 -- Should not infer "tricky_expr_comp_key_index" index:
 explain (costs off) insert into insertconflicttest values (26, 'Fig') on conflict (lower(fruit), key1, lower(fruit), key1) do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:140: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:144: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 -- inference fails:
 insert into insertconflicttest values (27, 'Prune') on conflict (key1, upper(fruit)) do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:143: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:147: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 insert into insertconflicttest values (28, 'Redcurrant') on conflict (fruit, key1) do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:144: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:148: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 insert into insertconflicttest values (29, 'Nectarine') on conflict (key1) do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:145: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:149: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 --
 -- Non-spurious duplicate violation tests
 --
@@ -207,21 +211,21 @@ INSERT 0 2
 -- succeeds, since "key" isn't repeated/referenced in UPDATE, and "fruit"
 -- arbitrates that statement updates existing "Fig" row:
 insert into insertconflicttest values (25, 'Fig') on conflict (fruit) do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:159: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:163: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 drop index key_index;
 DROP INDEX
 -- Succeeds
 insert into insertconflicttest values (23, 'Blackberry') on conflict (key1) where fruit like '%berry' do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:164: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:168: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 insert into insertconflicttest values (23, 'Blackberry') on conflict (key1) where fruit like '%berry' and fruit = 'inconsequential' do nothing;
-psql:sql/insert_conflict.sql:165: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:169: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 -- fails
 insert into insertconflicttest values (23, 'Blackberry') on conflict (key1) do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:168: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:172: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 insert into insertconflicttest values (23, 'Blackberry') on conflict (key1) where fruit like '%berry' or fruit = 'consequential' do nothing;
-psql:sql/insert_conflict.sql:169: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:173: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 insert into insertconflicttest values (23, 'Blackberry') on conflict (fruit) where fruit like '%berry' do update set fruit = excluded.fruit;
-psql:sql/insert_conflict.sql:170: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:174: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 --
 -- Test that wholerow references to ON CONFLICT's EXCLUDED work
 --
@@ -230,24 +234,24 @@ CREATE INDEX
 -- Succeeds, updates existing row:
 insert into insertconflicttest as i values (23, 'Jackfruit') on conflict (key1) do update set fruit = excluded.fruit
   where i.* != excluded.* returning *;
-psql:sql/insert_conflict.sql:179: ERROR:  Kunlun-db: On conflict action do not support where clause.
+psql:sql/insert_conflict.sql:183: ERROR:  Kunlun-db: On conflict action do not support where clause.
 -- No update this time, though:
 insert into insertconflicttest as i values (23, 'Jackfruit') on conflict (key1) do update set fruit = excluded.fruit
   where i.* != excluded.* returning *;
-psql:sql/insert_conflict.sql:182: ERROR:  Kunlun-db: On conflict action do not support where clause.
+psql:sql/insert_conflict.sql:186: ERROR:  Kunlun-db: On conflict action do not support where clause.
 -- Predicate changed to require match rather than non-match, so updates once more:
 insert into insertconflicttest as i values (23, 'Jackfruit') on conflict (key1) do update set fruit = excluded.fruit
   where i.* = excluded.* returning *;
-psql:sql/insert_conflict.sql:185: ERROR:  Kunlun-db: On conflict action do not support where clause.
+psql:sql/insert_conflict.sql:189: ERROR:  Kunlun-db: On conflict action do not support where clause.
 -- Assign:
 insert into insertconflicttest as i values (23, 'Avocado') on conflict (key1) do update set fruit = excluded.*::text
   returning *;
-psql:sql/insert_conflict.sql:188: ERROR:  Kunlun-db: The on conflict action cannot be serialized
+psql:sql/insert_conflict.sql:192: ERROR:  Kunlun-db: The on conflict action cannot be serialized
 -- deparse whole row var in WHERE and SET clauses:
 explain (costs off) insert into insertconflicttest as i values (23, 'Avocado') on conflict (key1) do update set fruit = excluded.fruit where excluded.* is null;
-psql:sql/insert_conflict.sql:190: ERROR:  Kunlun-db: On conflict action do not support where clause.
+psql:sql/insert_conflict.sql:194: ERROR:  Kunlun-db: On conflict action do not support where clause.
 explain (costs off) insert into insertconflicttest as i values (23, 'Avocado') on conflict (key1) do update set fruit = excluded.*::text;
-psql:sql/insert_conflict.sql:191: ERROR:  Kunlun-db: The on conflict action cannot be serialized
+psql:sql/insert_conflict.sql:195: ERROR:  Kunlun-db: The on conflict action cannot be serialized
 drop index plain;
 DROP INDEX
 -- Cleanup
@@ -263,13 +267,13 @@ CREATE TABLE
 -- create unique index insertconflicti1 on insertconflict(coalesce(a, 0));
 insert into insertconflict values (1, 2)
 on conflict (coalesce(a, 0)) do nothing;
-psql:sql/insert_conflict.sql:209: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:213: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 insert into insertconflict values (1, 2)
 on conflict (b) where coalesce(a, 1) > 0 do nothing;
-psql:sql/insert_conflict.sql:212: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:216: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 insert into insertconflict values (1, 2)
 on conflict (b) where coalesce(a, 1) > 1 do nothing;
-psql:sql/insert_conflict.sql:215: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:219: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 drop table insertconflict;
 DROP TABLE
 --
@@ -324,10 +328,10 @@ select * from capitals;
 insert into cities values ('Las Vegas', 2.583E+5, 2174) on conflict do nothing;
 INSERT 0 1
 insert into capitals values ('Sacramento', 4664.E+5, 30, 'CA') on conflict (name) do update set population = excluded.population;
-psql:sql/insert_conflict.sql:263: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:267: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 -- Wrong "Sacramento", so do nothing:
 insert into capitals values ('Sacramento', 50, 2267, 'NE') on conflict (name) do nothing;
-psql:sql/insert_conflict.sql:265: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:269: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 select * from capitals;
     name    | population | altitude | state 
 ------------+------------+----------+-------
@@ -336,9 +340,9 @@ select * from capitals;
 (2 rows)
 
 insert into cities values ('Las Vegas', 5.83E+5, 2001) on conflict (name) do update set population = excluded.population, altitude = excluded.altitude;
-psql:sql/insert_conflict.sql:267: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:271: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 insert into capitals values ('Las Vegas', 5.83E+5, 2222, 'NV') on conflict (name) do update set population = excluded.population;
-psql:sql/insert_conflict.sql:268: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:272: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 -- Capitals will contain new capital, Las Vegas:
 select * from capitals;
     name    | population | altitude | state 
@@ -351,7 +355,7 @@ select * from capitals;
 -- work across inheritance:
 -- This only affects "cities" version of "Las Vegas":
 insert into cities values ('Las Vegas', 5.86E+5, 2223) on conflict (name) do update set population = excluded.population, altitude = excluded.altitude;
-psql:sql/insert_conflict.sql:274: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:278: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 -- clean up
 drop table capitals;
 DROP TABLE
@@ -364,7 +368,7 @@ insert into excluded values(1, '1');
 INSERT 0 1
 -- error, ambiguous
 insert into excluded values(1, '2') on conflict (key1) do update set data = excluded.data RETURNING *;
-psql:sql/insert_conflict.sql:285: ERROR:  table reference "excluded" is ambiguous
+psql:sql/insert_conflict.sql:289: ERROR:  table reference "excluded" is ambiguous
 LINE 1: ...s(1, '2') on conflict (key1) do update set data = excluded.d...
                                                              ^
 -- ok, aliased
@@ -473,7 +477,7 @@ insert into dropcol(key1, drop1, keep1, drop2, keep2) values(1, 2, '2', '2', 2) 
     where excluded.drop1 is not null and excluded.keep1 is not null and excluded.drop2 is not null and excluded.keep2 is not null
           and dropcol.drop1 is not null and dropcol.keep1 is not null and dropcol.drop2 is not null and dropcol.keep2 is not null
     returning *;
-psql:sql/insert_conflict.sql:325: ERROR:  Kunlun-db: On conflict action do not support where clause.
+psql:sql/insert_conflict.sql:329: ERROR:  Kunlun-db: On conflict action do not support where clause.
 ;
 -- set using existing table
 insert into dropcol(key1, drop1, keep1, drop2, keep2) values(1, 3, '3', '3', 3) on conflict(key1)
@@ -494,7 +498,7 @@ insert into dropcol(key1, keep1, keep2) values(1, '4', 4) on conflict(key1)
     where excluded.keep1 is not null and excluded.keep2 is not null
           and dropcol.keep1 is not null and dropcol.keep2 is not null
     returning *;
-psql:sql/insert_conflict.sql:338: ERROR:  Kunlun-db: On conflict action do not support where clause.
+psql:sql/insert_conflict.sql:342: ERROR:  Kunlun-db: On conflict action do not support where clause.
 ;
 -- set using existing table
 insert into dropcol(key1, keep1, keep2) values(1, '5', 5) on conflict(key1)
@@ -515,7 +519,7 @@ CREATE TABLE
 insert into twoconstraints values(1, '((0,0),(1,1))');
 INSERT 0 1
 insert into twoconstraints values(1, '((2,2),(3,3))');  -- fail on f1
-psql:sql/insert_conflict.sql:352: ERROR:  duplicate key value violates unique constraint "twoconstraints_f1_key"
+psql:sql/insert_conflict.sql:356: ERROR:  duplicate key value violates unique constraint "twoconstraints_f1_key"
 DETAIL:  Key (f1)=(1) already exists.
 insert into twoconstraints values(2, '((0,0),(1,2))');  -- fail on f2
 INSERT 0 1
@@ -524,7 +528,7 @@ insert into twoconstraints values(2, '((0,0),(1,2))')
 INSERT 0 0
 insert into twoconstraints values(2, '((0,0),(1,2))')
   on conflict on constraint twoconstraints_f2_excl do nothing;  -- do nothing
-psql:sql/insert_conflict.sql:357: ERROR:  constraint "twoconstraints_f2_excl" for table "twoconstraints" does not exist
+psql:sql/insert_conflict.sql:361: ERROR:  constraint "twoconstraints_f2_excl" for table "twoconstraints" does not exist
 select * from twoconstraints;
  f1 |     f2      
 ----+-------------
@@ -601,17 +605,17 @@ insert into parted_conflict_test values (1, 'a') on conflict (a) do update set b
 INSERT 0 0
 -- targeting partition directly will work
 insert into parted_conflict_test_1 values (1, 'a') on conflict (a) do nothing;
-psql:sql/insert_conflict.sql:405: ERROR:  In KunlunDB, the unique constraint referenced by the ON CONFLICT clause needs to be null when there are multiple unique constraints.
+psql:sql/insert_conflict.sql:409: ERROR:  In KunlunDB, the unique constraint referenced by the ON CONFLICT clause needs to be null when there are multiple unique constraints.
 HINT:  In kunlunDB, do not specify conflict target in ON CONFLICT.
 insert into parted_conflict_test_1 values (1, 'b') on conflict (a) do update set b = excluded.b;
-psql:sql/insert_conflict.sql:406: ERROR:  In KunlunDB, the unique constraint referenced by the ON CONFLICT clause needs to be null when there are multiple unique constraints.
+psql:sql/insert_conflict.sql:410: ERROR:  In KunlunDB, the unique constraint referenced by the ON CONFLICT clause needs to be null when there are multiple unique constraints.
 HINT:  In kunlunDB, do not specify conflict target in ON CONFLICT.
 -- index on b required, which doesn't exist in parent
 insert into parted_conflict_test values (2, 'b') on conflict (b) do update set a = excluded.a;
-psql:sql/insert_conflict.sql:409: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:413: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 -- targeting partition directly will work
 insert into parted_conflict_test_1 values (2, 'b') on conflict (b) do update set a = excluded.a;
-psql:sql/insert_conflict.sql:412: ERROR:  In KunlunDB, the unique constraint referenced by the ON CONFLICT clause needs to be null when there are multiple unique constraints.
+psql:sql/insert_conflict.sql:416: ERROR:  In KunlunDB, the unique constraint referenced by the ON CONFLICT clause needs to be null when there are multiple unique constraints.
 HINT:  In kunlunDB, do not specify conflict target in ON CONFLICT.
 -- should see (2, 'b')
 select * from parted_conflict_test order by a;
@@ -620,11 +624,23 @@ select * from parted_conflict_test order by a;
  1 | a
 (1 row)
 
+-- now check that DO UPDATE works correctly for target partition with
+-- different attribute numbers
+create table parted_conflict_test_2 (b char, a int unique);
+CREATE TABLE
+alter table parted_conflict_test attach partition parted_conflict_test_2 for values in (3);
+ALTER TABLE
+truncate parted_conflict_test;
+TRUNCATE TABLE
+insert into parted_conflict_test values (3, 'a') on conflict (a) do update set b = excluded.b;
+INSERT 0 1
+insert into parted_conflict_test values (3, 'b') on conflict (a) do update set b = excluded.b;
+INSERT 0 2
 -- should see (3, 'b')
 select * from parted_conflict_test order by a;
  a | b 
 ---+---
- 1 | a
+ 3 | b
 (1 row)
 
 -- case where parent will have a dropped column, but the partition won't
@@ -632,12 +648,12 @@ alter table parted_conflict_test drop b, add b char;
 ALTER TABLE
 create table parted_conflict_test_3 partition of parted_conflict_test for values in (4);
 CREATE TABLE
-delete from parted_conflict_test;
-DELETE 1
+truncate parted_conflict_test;
+TRUNCATE TABLE
 insert into parted_conflict_test (a, b) values (4, 'a') on conflict (a) do update set b = excluded.b;
-psql:sql/insert_conflict.sql:424: ERROR:  Kunlun-db: The on conflict action cannot be serialized
+psql:sql/insert_conflict.sql:436: ERROR:  Kunlun-db: The on conflict action cannot be serialized
 insert into parted_conflict_test (a, b) values (4, 'b') on conflict (a) do update set b = excluded.b where parted_conflict_test.b = 'a';
-psql:sql/insert_conflict.sql:425: ERROR:  Kunlun-db: On conflict action do not support where clause.
+psql:sql/insert_conflict.sql:437: ERROR:  Kunlun-db: On conflict action do not support where clause.
 -- should see (4, 'b')
 select * from parted_conflict_test order by a;
  a | b 
@@ -649,12 +665,12 @@ create table parted_conflict_test_4 partition of parted_conflict_test for values
 CREATE TABLE
 create table parted_conflict_test_4_1 partition of parted_conflict_test_4 for values in (5);
 CREATE TABLE
-delete from parted_conflict_test;
-DELETE 0
+truncate parted_conflict_test;
+TRUNCATE TABLE
 insert into parted_conflict_test (a, b) values (5, 'a') on conflict (a) do update set b = excluded.b;
-psql:sql/insert_conflict.sql:434: ERROR:  Kunlun-db: The on conflict action cannot be serialized
+psql:sql/insert_conflict.sql:446: ERROR:  Kunlun-db: The on conflict action cannot be serialized
 insert into parted_conflict_test (a, b) values (5, 'b') on conflict (a) do update set b = excluded.b where parted_conflict_test.b = 'a';
-psql:sql/insert_conflict.sql:435: ERROR:  Kunlun-db: On conflict action do not support where clause.
+psql:sql/insert_conflict.sql:447: ERROR:  Kunlun-db: On conflict action do not support where clause.
 -- should see (5, 'b')
 select * from parted_conflict_test order by a;
  a | b 
@@ -662,12 +678,12 @@ select * from parted_conflict_test order by a;
 (0 rows)
 
 -- test with multiple rows
-delete from parted_conflict_test;
-DELETE 0
+truncate parted_conflict_test;
+TRUNCATE TABLE
 insert into parted_conflict_test (a, b) values (1, 'a'), (2, 'a'), (4, 'a') on conflict (a) do update set b = excluded.b where excluded.b = 'b';
-psql:sql/insert_conflict.sql:442: ERROR:  Kunlun-db: On conflict action do not support where clause.
+psql:sql/insert_conflict.sql:454: ERROR:  Kunlun-db: On conflict action do not support where clause.
 insert into parted_conflict_test (a, b) values (1, 'b'), (2, 'c'), (4, 'b') on conflict (a) do update set b = excluded.b where excluded.b = 'b';
-psql:sql/insert_conflict.sql:443: ERROR:  Kunlun-db: On conflict action do not support where clause.
+psql:sql/insert_conflict.sql:455: ERROR:  Kunlun-db: On conflict action do not support where clause.
 -- should see (1, 'b'), (2, 'a'), (4, 'b')
 select * from parted_conflict_test order by a;
  a | b 
@@ -708,6 +724,6 @@ insert into parted_conflict values (40, 'forty');
 INSERT 0 1
 insert into parted_conflict_1 values (40, 'cuarenta')
   on conflict (a) do update set b = excluded.b;
-psql:sql/insert_conflict.sql:470: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
+psql:sql/insert_conflict.sql:482: ERROR:  there is no unique or exclusion constraint matching the ON CONFLICT specification
 drop table parted_conflict;
 DROP TABLE

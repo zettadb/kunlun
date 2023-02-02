@@ -74,8 +74,8 @@ DELETE FROM atest1;
 DELETE 1
 UPDATE atest1 SET a = 1 WHERE b = 'blech';
 UPDATE 0
-delete from atest1;
-DELETE 0
+TRUNCATE atest1;
+TRUNCATE TABLE
 BEGIN;
 BEGIN
 LOCK atest1 IN ACCESS EXCLUSIVE MODE;
@@ -109,6 +109,8 @@ GRANT UPDATE ON atest2 TO regress_priv_user3;
 GRANT
 GRANT INSERT ON atest2 TO regress_priv_user4;
 GRANT
+GRANT TRUNCATE ON atest2 TO regress_priv_user5;
+GRANT
 SET SESSION AUTHORIZATION regress_priv_user2;
 SET
 SELECT session_user, current_user;
@@ -131,27 +133,36 @@ SELECT * FROM atest2; -- ok
 INSERT INTO atest1 VALUES (2, 'two'); -- ok
 INSERT 0 1
 INSERT INTO atest2 VALUES ('foo', true); -- fail
-psql:sql/privileges.sql:78: ERROR:  permission denied for table atest2
+psql:sql/privileges.sql:79: ERROR:  permission denied for table atest2
 INSERT INTO atest1 SELECT 1, b FROM atest1; -- ok
 INSERT 0 1
 UPDATE atest1 SET a = 1 WHERE a = 2; -- ok
 UPDATE 1
 UPDATE atest2 SET col2 = NOT col2; -- fail
-psql:sql/privileges.sql:81: ERROR:  permission denied for table atest2
-DELETE FROM atest2; -- fail
 psql:sql/privileges.sql:82: ERROR:  permission denied for table atest2
-delete from atest2; -- fail
-psql:sql/privileges.sql:83: ERROR:  permission denied for table atest2
+SELECT * FROM atest1 FOR UPDATE; -- ok
+ a |  b  
+---+-----
+ 1 | two
+ 1 | two
+(2 rows)
+
+SELECT * FROM atest2 FOR UPDATE; -- fail
+psql:sql/privileges.sql:84: ERROR:  permission denied for table atest2
+DELETE FROM atest2; -- fail
+psql:sql/privileges.sql:85: ERROR:  permission denied for table atest2
+TRUNCATE atest2; -- fail
+psql:sql/privileges.sql:86: ERROR:  permission denied for table atest2
 BEGIN;
 BEGIN
 LOCK atest2 IN ACCESS EXCLUSIVE MODE; -- fail
-psql:sql/privileges.sql:85: ERROR:  permission denied for table atest2
+psql:sql/privileges.sql:88: ERROR:  permission denied for table atest2
 COMMIT;
 ROLLBACK
 COPY atest2 FROM stdin; -- fail
-psql:sql/privileges.sql:87: ERROR:  permission denied for table atest2
+psql:sql/privileges.sql:90: ERROR:  permission denied for table atest2
 GRANT ALL ON atest1 TO PUBLIC; -- fail
-psql:sql/privileges.sql:89: WARNING:  no privileges were granted for "atest1"
+psql:sql/privileges.sql:92: WARNING:  no privileges were granted for "atest1"
 GRANT
 -- checks in subquery, both ok
 SELECT * FROM atest1 WHERE ( b IN ( SELECT col1 FROM atest2 ) );
@@ -180,21 +191,21 @@ SELECT * FROM atest1; -- ok
 (2 rows)
 
 SELECT * FROM atest2; -- fail
-psql:sql/privileges.sql:100: ERROR:  permission denied for table atest2
+psql:sql/privileges.sql:103: ERROR:  permission denied for table atest2
 INSERT INTO atest1 VALUES (2, 'two'); -- fail
-psql:sql/privileges.sql:101: ERROR:  permission denied for table atest1
-INSERT INTO atest2 VALUES ('foo', true); -- fail
-psql:sql/privileges.sql:102: ERROR:  permission denied for table atest2
-INSERT INTO atest1 SELECT 1, b FROM atest1; -- fail
-psql:sql/privileges.sql:103: ERROR:  permission denied for table atest1
-UPDATE atest1 SET a = 1 WHERE a = 2; -- fail
 psql:sql/privileges.sql:104: ERROR:  permission denied for table atest1
+INSERT INTO atest2 VALUES ('foo', true); -- fail
+psql:sql/privileges.sql:105: ERROR:  permission denied for table atest2
+INSERT INTO atest1 SELECT 1, b FROM atest1; -- fail
+psql:sql/privileges.sql:106: ERROR:  permission denied for table atest1
+UPDATE atest1 SET a = 1 WHERE a = 2; -- fail
+psql:sql/privileges.sql:107: ERROR:  permission denied for table atest1
 UPDATE atest2 SET col2 = NULL; -- ok
 UPDATE 0
 UPDATE atest2 SET col2 = NOT col2; -- fails; requires SELECT on atest2
-psql:sql/privileges.sql:106: ERROR:  permission denied for table atest2
-delete from atest2; -- fail
-psql:sql/privileges.sql:107: ERROR:  permission denied for table atest2
+psql:sql/privileges.sql:109: ERROR:  permission denied for table atest2
+TRUNCATE atest2; -- fail
+psql:sql/privileges.sql:110: ERROR:  permission denied for table atest2
 BEGIN;
 BEGIN
 LOCK atest2 IN ACCESS EXCLUSIVE MODE; -- ok
@@ -202,12 +213,12 @@ LOCK TABLE
 COMMIT;
 COMMIT
 COPY atest2 FROM stdin; -- fail
-psql:sql/privileges.sql:111: ERROR:  permission denied for table atest2
+psql:sql/privileges.sql:114: ERROR:  permission denied for table atest2
 -- checks in subquery, both fail
 SELECT * FROM atest1 WHERE ( b IN ( SELECT col1 FROM atest2 ) );
-psql:sql/privileges.sql:114: ERROR:  permission denied for table atest2
+psql:sql/privileges.sql:117: ERROR:  permission denied for table atest2
 SELECT * FROM atest2 WHERE ( col1 IN ( SELECT b FROM atest1 ) );
-psql:sql/privileges.sql:115: ERROR:  permission denied for table atest2
+psql:sql/privileges.sql:118: ERROR:  permission denied for table atest2
 SET SESSION AUTHORIZATION regress_priv_user4;
 SET
 COPY atest2 FROM stdin; -- ok
@@ -224,7 +235,7 @@ SELECT * FROM atest1; -- ok
 SET SESSION AUTHORIZATION regress_priv_user1;
 SET
 drop table if exists atest12;
-psql:sql/privileges.sql:129: NOTICE:  table "atest12" does not exist, skipping
+psql:sql/privileges.sql:132: NOTICE:  table "atest12" does not exist, skipping
 DROP TABLE
 create table atest12(a int, b int);
 CREATE TABLE
@@ -232,6 +243,11 @@ insert into atest12 SELECT x AS a, 10001 - x AS b FROM generate_series(1,10000) 
 INSERT 0 10000
 CREATE INDEX ON atest12 (a);
 CREATE INDEX
+CREATE INDEX ON atest12 (abs(a));
+CREATE INDEX
+-- VACUUM ANALYZE atest12;
+ANALYZE atest12;
+ANALYZE
 CREATE FUNCTION leak(integer,integer) RETURNS boolean
   AS $$begin return $1 < $2; end$$
   LANGUAGE plpgsql immutable;
@@ -273,7 +289,7 @@ CREATE OPERATOR >>> (procedure = leak2, leftarg = integer, rightarg = integer,
 CREATE OPERATOR
 -- This should not show any "leak" notices before failing.
 EXPLAIN (COSTS OFF) SELECT * FROM atest12 WHERE a >>> 0;
-psql:sql/privileges.sql:169: ERROR:  permission denied for table atest12
+psql:sql/privileges.sql:175: ERROR:  permission denied for table atest12
 -- These plans should continue to use a nestloop, since they execute with the
 -- privileges of the view owner.
 EXPLAIN (COSTS OFF) SELECT * FROM atest12v x, atest12v y WHERE x.a = y.b;
@@ -305,13 +321,13 @@ EXPLAIN (COSTS OFF) SELECT * FROM atest12 x, atest12 y
 
 -- clean up (regress_priv_user1's objects are all dropped later)
 DROP FUNCTION leak2(integer, integer) CASCADE;
-psql:sql/privileges.sql:198: NOTICE:  drop cascades to operator >>>(integer,integer)
+psql:sql/privileges.sql:204: NOTICE:  drop cascades to operator >>>(integer,integer)
 DROP FUNCTION
 -- groups
 SET SESSION AUTHORIZATION regress_priv_user3;
 SET
 drop table if exists atest3;
-psql:sql/privileges.sql:205: NOTICE:  table "atest3" does not exist, skipping
+psql:sql/privileges.sql:211: NOTICE:  table "atest3" does not exist, skipping
 DROP TABLE
 CREATE TABLE atest3 (one int, two int, three int);
 CREATE TABLE
@@ -320,7 +336,7 @@ GRANT
 SET SESSION AUTHORIZATION regress_priv_user1;
 SET
 SELECT * FROM atest3; -- fail
-psql:sql/privileges.sql:211: ERROR:  permission denied for table atest3
+psql:sql/privileges.sql:217: ERROR:  permission denied for table atest3
 DELETE FROM atest3; -- ok
 DELETE 0
 -- views
@@ -344,7 +360,7 @@ SELECT * FROM atestv1; -- ok
 (2 rows)
 
 SELECT * FROM atestv2; -- fail
-psql:sql/privileges.sql:227: ERROR:  permission denied for table atest2
+psql:sql/privileges.sql:233: ERROR:  permission denied for table atest2
 GRANT SELECT ON atestv1, atestv3 TO regress_priv_user4;
 GRANT
 GRANT SELECT ON atestv2 TO regress_priv_user2;
@@ -359,21 +375,21 @@ SELECT * FROM atestv1; -- ok
 (2 rows)
 
 SELECT * FROM atestv2; -- fail
-psql:sql/privileges.sql:233: ERROR:  permission denied for view atestv2
+psql:sql/privileges.sql:240: ERROR:  permission denied for view atestv2
 SELECT * FROM atestv3; -- ok
  one | two | three 
 -----+-----+-------
 (0 rows)
 
 SELECT * FROM atestv0; -- fail
-psql:sql/privileges.sql:235: ERROR:  permission denied for view atestv0
+psql:sql/privileges.sql:242: ERROR:  permission denied for view atestv0
 -- Appendrels excluded by constraints failed to check permissions in 8.4-9.2.
 select * from
   ((select a.q1 as x from int8_tbl a offset 0)
    union all
    (select b.q2 as x from int8_tbl b offset 0)) ss
 where false;
-psql:sql/privileges.sql:242: ERROR:  permission denied for table int8_tbl
+psql:sql/privileges.sql:249: ERROR:  permission denied for table int8_tbl
 set constraint_exclusion = on;
 SET
 select * from
@@ -381,7 +397,7 @@ select * from
    union all
    (select b.q2 as x, random() from int8_tbl b where q2 > 0)) ss
 where x < 0;
-psql:sql/privileges.sql:249: ERROR:  permission denied for table int8_tbl
+psql:sql/privileges.sql:256: ERROR:  permission denied for table int8_tbl
 reset constraint_exclusion;
 RESET
 CREATE VIEW atestv4 AS SELECT * FROM atestv3; -- nested view
@@ -397,7 +413,7 @@ SET SESSION AUTHORIZATION regress_priv_user2;
 SET
 -- Two complex cases:
 SELECT * FROM atestv3; -- fail
-psql:sql/privileges.sql:260: ERROR:  permission denied for view atestv3
+psql:sql/privileges.sql:267: ERROR:  permission denied for view atestv3
 SELECT * FROM atestv4; -- ok (even though regress_priv_user2 cannot access underlying atestv3)
  one | two | three 
 -----+-----+-------
@@ -410,17 +426,17 @@ SELECT * FROM atest2; -- ok
 (1 row)
 
 SELECT * FROM atestv2; -- fail (even though regress_priv_user2 can access underlying atest2)
-psql:sql/privileges.sql:264: ERROR:  permission denied for table atest2
+psql:sql/privileges.sql:271: ERROR:  permission denied for table atest2
 -- Test column level permissions
 SET SESSION AUTHORIZATION regress_priv_user1;
 SET
 drop table if exists atest5;
-psql:sql/privileges.sql:269: NOTICE:  table "atest5" does not exist, skipping
+psql:sql/privileges.sql:276: NOTICE:  table "atest5" does not exist, skipping
 DROP TABLE
 CREATE TABLE atest5 (one int, two int unique, three int, four int unique);
 CREATE TABLE
 drop table if exists atest6;
-psql:sql/privileges.sql:271: NOTICE:  table "atest6" does not exist, skipping
+psql:sql/privileges.sql:278: NOTICE:  table "atest6" does not exist, skipping
 DROP TABLE
 CREATE TABLE atest6 (one int, two int, blue int);
 CREATE TABLE
@@ -433,7 +449,7 @@ INSERT 0 1
 SET SESSION AUTHORIZATION regress_priv_user4;
 SET
 SELECT * FROM atest5; -- fail
-psql:sql/privileges.sql:279: ERROR:  permission denied for table atest5
+psql:sql/privileges.sql:286: ERROR:  permission denied for table atest5
 SELECT one FROM atest5; -- ok
  one 
 -----
@@ -443,13 +459,13 @@ SELECT one FROM atest5; -- ok
 COPY atest5 (one) TO stdout; -- ok
 1
 SELECT two FROM atest5; -- fail
-psql:sql/privileges.sql:282: ERROR:  permission denied for table atest5
+psql:sql/privileges.sql:289: ERROR:  permission denied for table atest5
 COPY atest5 (two) TO stdout; -- fail
-psql:sql/privileges.sql:283: ERROR:  permission denied for table atest5
+psql:sql/privileges.sql:290: ERROR:  permission denied for table atest5
 SELECT atest5 FROM atest5; -- fail
-psql:sql/privileges.sql:284: ERROR:  permission denied for table atest5
+psql:sql/privileges.sql:291: ERROR:  permission denied for table atest5
 COPY atest5 (one,two) TO stdout; -- fail
-psql:sql/privileges.sql:285: ERROR:  permission denied for table atest5
+psql:sql/privileges.sql:292: ERROR:  permission denied for table atest5
 SELECT 1 FROM atest5; -- ok
  ?column? 
 ----------
@@ -463,15 +479,15 @@ SELECT 1 FROM atest5 a JOIN atest5 b USING (one); -- ok
 (1 row)
 
 SELECT 1 FROM atest5 a JOIN atest5 b USING (two); -- fail
-psql:sql/privileges.sql:288: ERROR:  permission denied for table atest5
+psql:sql/privileges.sql:295: ERROR:  permission denied for table atest5
 SELECT 1 FROM atest5 a NATURAL JOIN atest5 b; -- fail
-psql:sql/privileges.sql:289: ERROR:  permission denied for table atest5
+psql:sql/privileges.sql:296: ERROR:  permission denied for table atest5
 SELECT (j.*) IS NULL FROM (atest5 a JOIN atest5 b USING (one)) j; -- fail
-psql:sql/privileges.sql:290: ERROR:  permission denied for table atest5
+psql:sql/privileges.sql:297: ERROR:  permission denied for table atest5
 SELECT 1 FROM atest5 WHERE two = 2; -- fail
-psql:sql/privileges.sql:291: ERROR:  permission denied for table atest5
+psql:sql/privileges.sql:298: ERROR:  permission denied for table atest5
 SELECT * FROM atest1, atest5; -- fail
-psql:sql/privileges.sql:292: ERROR:  permission denied for table atest5
+psql:sql/privileges.sql:299: ERROR:  permission denied for table atest5
 SELECT atest1.* FROM atest1, atest5; -- ok
  a |  b  
 ---+-----
@@ -487,7 +503,7 @@ SELECT atest1.*,atest5.one FROM atest1, atest5; -- ok
 (2 rows)
 
 SELECT atest1.*,atest5.one FROM atest1 JOIN atest5 ON (atest1.a = atest5.two); -- fail
-psql:sql/privileges.sql:295: ERROR:  permission denied for table atest5
+psql:sql/privileges.sql:302: ERROR:  permission denied for table atest5
 SELECT atest1.*,atest5.one FROM atest1 JOIN atest5 ON (atest1.a = atest5.one); -- ok
  a |  b  | one 
 ---+-----+-----
@@ -496,7 +512,7 @@ SELECT atest1.*,atest5.one FROM atest1 JOIN atest5 ON (atest1.a = atest5.one); -
 (2 rows)
 
 SELECT one, two FROM atest5; -- fail
-psql:sql/privileges.sql:297: ERROR:  permission denied for table atest5
+psql:sql/privileges.sql:304: ERROR:  permission denied for table atest5
 SET SESSION AUTHORIZATION regress_priv_user1;
 SET
 GRANT SELECT (one,two) ON atest6 TO regress_priv_user4;
@@ -504,7 +520,7 @@ GRANT
 SET SESSION AUTHORIZATION regress_priv_user4;
 SET
 SELECT one, two FROM atest5 NATURAL JOIN atest6; -- fail still
-psql:sql/privileges.sql:303: ERROR:  permission denied for table atest5
+psql:sql/privileges.sql:310: ERROR:  permission denied for table atest5
 SET SESSION AUTHORIZATION regress_priv_user1;
 SET
 GRANT SELECT (two) ON atest5 TO regress_priv_user4;
@@ -520,29 +536,44 @@ SELECT one, two FROM atest5 NATURAL JOIN atest6; -- ok now
 INSERT INTO atest5 (two) VALUES (3); -- ok
 INSERT 0 1
 COPY atest5 FROM stdin; -- fail
-psql:sql/privileges.sql:313: ERROR:  permission denied for table atest5
+psql:sql/privileges.sql:320: ERROR:  permission denied for table atest5
 COPY atest5 (two) FROM stdin; -- ok
 COPY 1
 INSERT INTO atest5 (three) VALUES (4); -- fail
-psql:sql/privileges.sql:317: ERROR:  permission denied for table atest5
+psql:sql/privileges.sql:324: ERROR:  permission denied for table atest5
 INSERT INTO atest5 VALUES (5,5,5); -- fail
-psql:sql/privileges.sql:318: ERROR:  permission denied for table atest5
+psql:sql/privileges.sql:325: ERROR:  permission denied for table atest5
 UPDATE atest5 SET three = 10; -- ok
 UPDATE 3
 UPDATE atest5 SET one = 8; -- fail
-psql:sql/privileges.sql:320: ERROR:  permission denied for table atest5
+psql:sql/privileges.sql:327: ERROR:  permission denied for table atest5
 UPDATE atest5 SET three = 5, one = 2; -- fail
-psql:sql/privileges.sql:321: ERROR:  permission denied for table atest5
+psql:sql/privileges.sql:328: ERROR:  permission denied for table atest5
 -- Check that column level privs are enforced in RETURNING
+-- Ok.
+-- INSERT INTO atest5(two) VALUES (6) ON CONFLICT (two) DO UPDATE set three = 10;
+-- -- Error. No SELECT on column three.
+-- INSERT INTO atest5(two) VALUES (6) ON CONFLICT (two) DO UPDATE set three = 10 RETURNING atest5.three;
+-- -- Ok.  May SELECT on column "one":
+-- INSERT INTO atest5(two) VALUES (6) ON CONFLICT (two) DO UPDATE set three = 10 RETURNING atest5.one;
+-- -- Check that column level privileges are enforced for EXCLUDED
+-- -- Ok. we may select one
+-- INSERT INTO atest5(two) VALUES (6) ON CONFLICT (two) DO UPDATE set three = EXCLUDED.one;
+-- -- Error. No select rights on three
+-- INSERT INTO atest5(two) VALUES (6) ON CONFLICT (two) DO UPDATE set three = EXCLUDED.three;
+-- INSERT INTO atest5(two) VALUES (6) ON CONFLICT (two) DO UPDATE set one = 8; -- fails (due to UPDATE)
+-- INSERT INTO atest5(three) VALUES (4) ON CONFLICT (two) DO UPDATE set three = 10; -- fails (due to INSERT)
 -- Check that the columns in the inference require select privileges
 INSERT INTO atest5(four) VALUES (4); -- fail
-psql:sql/privileges.sql:325: ERROR:  permission denied for table atest5
+psql:sql/privileges.sql:345: ERROR:  permission denied for table atest5
 SET SESSION AUTHORIZATION regress_priv_user1;
 SET
 GRANT INSERT (four) ON atest5 TO regress_priv_user4;
 GRANT
 SET SESSION AUTHORIZATION regress_priv_user4;
 SET
+-- INSERT INTO atest5(four) VALUES (4) ON CONFLICT (four) DO UPDATE set three = 3; -- fails (due to SELECT)
+-- INSERT INTO atest5(four) VALUES (4) ON CONFLICT ON CONSTRAINT atest5_four_key DO UPDATE set three = 3; -- fails (due to SELECT)
 INSERT INTO atest5(four) VALUES (4); -- ok
 INSERT 0 1
 SET SESSION AUTHORIZATION regress_priv_user1;
@@ -551,6 +582,8 @@ GRANT SELECT (four) ON atest5 TO regress_priv_user4;
 GRANT
 SET SESSION AUTHORIZATION regress_priv_user4;
 SET
+-- INSERT INTO atest5(four) VALUES (4) ON CONFLICT (four) DO UPDATE set three = 3; -- ok
+-- INSERT INTO atest5(four) VALUES (4) ON CONFLICT ON CONSTRAINT atest5_four_key DO UPDATE set three = 3; -- ok
 SET SESSION AUTHORIZATION regress_priv_user1;
 SET
 REVOKE ALL (one) ON atest5 FROM regress_priv_user4;
@@ -560,9 +593,9 @@ GRANT
 SET SESSION AUTHORIZATION regress_priv_user4;
 SET
 SELECT one FROM atest5; -- fail
-psql:sql/privileges.sql:342: ERROR:  permission denied for table atest5
+psql:sql/privileges.sql:366: ERROR:  permission denied for table atest5
 UPDATE atest5 SET one = 1; -- fail
-psql:sql/privileges.sql:343: ERROR:  permission denied for table atest5
+psql:sql/privileges.sql:367: ERROR:  permission denied for table atest5
 SELECT atest6 FROM atest6; -- ok
  atest6 
 --------
@@ -573,9 +606,9 @@ COPY atest6 TO stdout; -- ok
 SET SESSION AUTHORIZATION regress_priv_user1;
 SET
 drop table if exists t1;
-psql:sql/privileges.sql:349: NOTICE:  table "t1" does not exist, skipping
+psql:sql/privileges.sql:373: NOTICE:  table "t1" does not exist, skipping
 DROP TABLE
-CREATE TABLE t1 (c1 int, c2 int, c3 int, primary key (c1, c2));
+CREATE TABLE t1 (c1 int, c2 int, c3 int check (c3 < 5), primary key (c1, c2));
 CREATE TABLE
 GRANT SELECT (c1) ON t1 TO regress_priv_user2;
 GRANT
@@ -597,20 +630,20 @@ INSERT 0 1
 SET SESSION AUTHORIZATION regress_priv_user2;
 SET
 INSERT INTO t1 (c1, c2) VALUES (1, 1); -- fail, but row not shown
-psql:sql/privileges.sql:363: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '1-1' for key 't1.PRIMARY'.
+psql:sql/privileges.sql:387: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '1-1' for key 't1.PRIMARY'.
 UPDATE t1 SET c2 = 1; -- fail, but row not shown
-psql:sql/privileges.sql:364: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '1-1' for key 't1.PRIMARY'.
+psql:sql/privileges.sql:388: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '1-1' for key 't1.PRIMARY'.
 INSERT INTO t1 (c1, c2) VALUES (null, null); -- fail, but see columns being inserted
-psql:sql/privileges.sql:365: ERROR:  null value in column "c1" violates not-null constraint
+psql:sql/privileges.sql:389: ERROR:  null value in column "c1" violates not-null constraint
 DETAIL:  Failing row contains (c1, c2) = (null, null).
 INSERT INTO t1 (c3) VALUES (null); -- fail, but see columns being inserted or have SELECT
-psql:sql/privileges.sql:366: ERROR:  null value in column "c1" violates not-null constraint
+psql:sql/privileges.sql:390: ERROR:  null value in column "c1" violates not-null constraint
 DETAIL:  Failing row contains (c1, c3) = (null, null).
 INSERT INTO t1 (c1) VALUES (5); -- fail, but see columns being inserted or have SELECT
-psql:sql/privileges.sql:367: ERROR:  null value in column "c2" violates not-null constraint
+psql:sql/privileges.sql:391: ERROR:  null value in column "c2" violates not-null constraint
 DETAIL:  Failing row contains (c1) = (5).
 UPDATE t1 SET c3 = 10; -- fail, but see columns with SELECT rights, or being modified
-UPDATE 5
+psql:sql/privileges.sql:392: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1644, new row violates check constraint.
 SET SESSION AUTHORIZATION regress_priv_user1;
 SET
 DROP TABLE t1;
@@ -631,9 +664,9 @@ GRANT
 SET SESSION AUTHORIZATION regress_priv_user4;
 SET
 SELECT atest6 FROM atest6; -- fail
-psql:sql/privileges.sql:382: ERROR:  permission denied for table atest6
+psql:sql/privileges.sql:406: ERROR:  permission denied for table atest6
 SELECT one FROM atest5 NATURAL JOIN atest6; -- fail
-psql:sql/privileges.sql:383: ERROR:  permission denied for table atest5
+psql:sql/privileges.sql:407: ERROR:  permission denied for table atest5
 SET SESSION AUTHORIZATION regress_priv_user1;
 SET
 ALTER TABLE atest6 DROP COLUMN three;
@@ -654,13 +687,13 @@ REVOKE
 SET SESSION AUTHORIZATION regress_priv_user4;
 SET
 SELECT * FROM atest6; -- fail
-psql:sql/privileges.sql:396: ERROR:  permission denied for table atest6
+psql:sql/privileges.sql:420: ERROR:  permission denied for table atest6
 SELECT 1 FROM atest6; -- fail
-psql:sql/privileges.sql:397: ERROR:  permission denied for table atest6
+psql:sql/privileges.sql:421: ERROR:  permission denied for table atest6
 SET SESSION AUTHORIZATION regress_priv_user3;
 SET
 DELETE FROM atest5 WHERE one = 1; -- fail
-psql:sql/privileges.sql:400: ERROR:  permission denied for table atest5
+psql:sql/privileges.sql:424: ERROR:  permission denied for table atest5
 DELETE FROM atest5 WHERE two = 2; -- ok
 DELETE 1
 -- privileges on functions, languages
@@ -669,15 +702,15 @@ DELETE 1
 You are now connected to database "regress" as user "abc".
 REVOKE ALL PRIVILEGES ON LANGUAGE sql FROM PUBLIC;
 REVOKE
-GRANT USAGE ON LANGUAGE sql TO regress_priv_user1; -- 
+GRANT USAGE ON LANGUAGE sql TO regress_priv_user1; -- ok
 GRANT
 GRANT USAGE ON LANGUAGE c TO PUBLIC; -- fail
-psql:sql/privileges.sql:410: ERROR:  language "c" is not trusted
+psql:sql/privileges.sql:434: ERROR:  language "c" is not trusted
 DETAIL:  GRANT and REVOKE are not allowed on untrusted languages, because only superusers can use untrusted languages.
 SET SESSION AUTHORIZATION regress_priv_user1;
 SET
 GRANT USAGE ON LANGUAGE sql TO regress_priv_user2; -- fail
-psql:sql/privileges.sql:413: WARNING:  no privileges were granted for "sql"
+psql:sql/privileges.sql:437: WARNING:  no privileges were granted for "sql"
 GRANT
 CREATE FUNCTION priv_testfunc1(int) RETURNS int AS 'select 2 * $1;' LANGUAGE sql;
 CREATE FUNCTION
@@ -692,21 +725,21 @@ REVOKE
 GRANT EXECUTE ON FUNCTION priv_testfunc1(int), priv_testfunc2(int), priv_testagg1(int) TO regress_priv_user2;
 GRANT
 REVOKE ALL ON FUNCTION priv_testproc1(int) FROM PUBLIC; -- fail, not a function
-psql:sql/privileges.sql:421: ERROR:  priv_testproc1(integer) is not a function
+psql:sql/privileges.sql:445: ERROR:  priv_testproc1(integer) is not a function
 REVOKE ALL ON PROCEDURE priv_testproc1(int) FROM PUBLIC;
 REVOKE
 GRANT EXECUTE ON PROCEDURE priv_testproc1(int) TO regress_priv_user2;
 GRANT
 GRANT USAGE ON FUNCTION priv_testfunc1(int) TO regress_priv_user3; -- semantic error
-psql:sql/privileges.sql:424: ERROR:  invalid privilege type USAGE for function
+psql:sql/privileges.sql:448: ERROR:  invalid privilege type USAGE for function
 GRANT USAGE ON FUNCTION priv_testagg1(int) TO regress_priv_user3; -- semantic error
-psql:sql/privileges.sql:425: ERROR:  invalid privilege type USAGE for function
+psql:sql/privileges.sql:449: ERROR:  invalid privilege type USAGE for function
 GRANT USAGE ON PROCEDURE priv_testproc1(int) TO regress_priv_user3; -- semantic error
-psql:sql/privileges.sql:426: ERROR:  invalid privilege type USAGE for procedure
+psql:sql/privileges.sql:450: ERROR:  invalid privilege type USAGE for procedure
 GRANT ALL PRIVILEGES ON FUNCTION priv_testfunc1(int) TO regress_priv_user4;
 GRANT
 GRANT ALL PRIVILEGES ON FUNCTION priv_testfunc_nosuch(int) TO regress_priv_user4;
-psql:sql/privileges.sql:428: ERROR:  function priv_testfunc_nosuch(integer) does not exist
+psql:sql/privileges.sql:452: ERROR:  function priv_testfunc_nosuch(integer) does not exist
 GRANT ALL PRIVILEGES ON FUNCTION priv_testagg1(int) TO regress_priv_user4;
 GRANT
 GRANT ALL PRIVILEGES ON PROCEDURE priv_testproc1(int) TO regress_priv_user4;
@@ -726,7 +759,7 @@ SELECT priv_testfunc1(5), priv_testfunc2(5); -- ok
 (1 row)
 
 CREATE FUNCTION priv_testfunc3(int) RETURNS int AS 'select 2 * $1;' LANGUAGE sql; -- fail
-psql:sql/privileges.sql:439: ERROR:  permission denied for language sql
+psql:sql/privileges.sql:463: ERROR:  permission denied for language sql
 SELECT priv_testagg1(x) FROM (VALUES (1), (2), (3)) _(x); -- ok
  priv_testagg1 
 ---------------
@@ -738,13 +771,13 @@ CALL
 SET SESSION AUTHORIZATION regress_priv_user3;
 SET
 SELECT priv_testfunc1(5); -- fail
-psql:sql/privileges.sql:444: ERROR:  permission denied for function priv_testfunc1
+psql:sql/privileges.sql:468: ERROR:  permission denied for function priv_testfunc1
 SELECT priv_testagg1(x) FROM (VALUES (1), (2), (3)) _(x); -- fail
-psql:sql/privileges.sql:445: ERROR:  permission denied for aggregate priv_testagg1
+psql:sql/privileges.sql:469: ERROR:  permission denied for aggregate priv_testagg1
 CALL priv_testproc1(6); -- fail
-psql:sql/privileges.sql:446: ERROR:  permission denied for procedure priv_testproc1
+psql:sql/privileges.sql:470: ERROR:  permission denied for procedure priv_testproc1
 SELECT col1 FROM atest2 WHERE col2 = true; -- fail
-psql:sql/privileges.sql:447: ERROR:  permission denied for table atest2
+psql:sql/privileges.sql:471: ERROR:  permission denied for table atest2
 SELECT priv_testfunc4(true); -- ok
  priv_testfunc4 
 ----------------
@@ -768,11 +801,11 @@ SELECT priv_testagg1(x) FROM (VALUES (1), (2), (3)) _(x); -- ok
 CALL priv_testproc1(6); -- ok
 CALL
 DROP FUNCTION priv_testfunc1(int); -- fail
-psql:sql/privileges.sql:455: ERROR:  must be owner of function priv_testfunc1
+psql:sql/privileges.sql:479: ERROR:  must be owner of function priv_testfunc1
 DROP AGGREGATE priv_testagg1(int); -- fail
-psql:sql/privileges.sql:456: ERROR:  must be owner of aggregate priv_testagg1
+psql:sql/privileges.sql:480: ERROR:  must be owner of aggregate priv_testagg1
 DROP PROCEDURE priv_testproc1(int); -- fail
-psql:sql/privileges.sql:457: ERROR:  must be owner of procedure priv_testproc1
+psql:sql/privileges.sql:481: ERROR:  must be owner of procedure priv_testproc1
 \c -
 You are now connected to database "regress" as user "abc".
 DROP FUNCTION priv_testfunc1(int); -- ok
@@ -800,7 +833,7 @@ SELECT '{1}'::int4[]::int8[]; --superuser, suceed
 SET SESSION AUTHORIZATION regress_priv_user4;
 SET
 SELECT '{1}'::int4[]::int8[]; --other user, fail
-psql:sql/privileges.sql:471: ERROR:  permission denied for function int8
+psql:sql/privileges.sql:495: ERROR:  permission denied for function int8
 ROLLBACK;
 ROLLBACK
 -- privileges on types
@@ -809,10 +842,10 @@ ROLLBACK
 You are now connected to database "regress" as user "abc".
 SET SESSION AUTHORIZATION regress_priv_user5;
 SET
-delete from atest2; -- ok
-psql:sql/privileges.sql:480: ERROR:  permission denied for table atest2
-delete from atest3; -- fail
-psql:sql/privileges.sql:481: ERROR:  permission denied for table atest3
+TRUNCATE atest2; -- ok
+TRUNCATE TABLE
+TRUNCATE atest3; -- fail
+psql:sql/privileges.sql:505: ERROR:  permission denied for table atest3
 -- has_table_privilege function
 -- bad-input checks
 select has_table_privilege(NULL,'pg_authid','select');
@@ -822,11 +855,11 @@ select has_table_privilege(NULL,'pg_authid','select');
 (1 row)
 
 select has_table_privilege('pg_shad','select');
-psql:sql/privileges.sql:487: ERROR:  relation "pg_shad" does not exist
+psql:sql/privileges.sql:511: ERROR:  relation "pg_shad" does not exist
 select has_table_privilege('nosuchuser','pg_authid','select');
-psql:sql/privileges.sql:488: ERROR:  role "nosuchuser" does not exist
+psql:sql/privileges.sql:512: ERROR:  role "nosuchuser" does not exist
 select has_table_privilege('pg_authid','sel');
-psql:sql/privileges.sql:489: ERROR:  unrecognized privilege type: "sel"
+psql:sql/privileges.sql:513: ERROR:  unrecognized privilege type: "sel"
 select has_table_privilege(-999999,'pg_authid','update');
  has_table_privilege 
 ---------------------
@@ -912,6 +945,12 @@ select has_table_privilege('pg_authid','delete');
  t
 (1 row)
 
+select has_table_privilege('pg_authid','truncate');
+ has_table_privilege 
+---------------------
+ t
+(1 row)
+
 select has_table_privilege(t1.oid,'select')
 from (select oid from pg_class where relname = 'pg_authid') as t1;
  has_table_privilege 
@@ -985,6 +1024,12 @@ select has_table_privilege('pg_class','update');
 (1 row)
 
 select has_table_privilege('pg_class','delete');
+ has_table_privilege 
+---------------------
+ f
+(1 row)
+
+select has_table_privilege('pg_class','truncate');
  has_table_privilege 
 ---------------------
  f
@@ -1065,6 +1110,12 @@ select has_table_privilege('atest1','delete');
  f
 (1 row)
 
+select has_table_privilege('atest1','truncate');
+ has_table_privilege 
+---------------------
+ f
+(1 row)
+
 select has_table_privilege(t1.oid,'select')
 from (select oid from pg_class where relname = 'atest1') as t1;
  has_table_privilege 
@@ -1088,7 +1139,7 @@ select has_column_privilege('pg_authid',NULL,'select');
 (1 row)
 
 select has_column_privilege('pg_authid','nosuchcol','select');
-psql:sql/privileges.sql:585: ERROR:  column "nosuchcol" of relation "pg_authid" does not exist
+psql:sql/privileges.sql:612: ERROR:  column "nosuchcol" of relation "pg_authid" does not exist
 select has_column_privilege(9999,'nosuchcol','select');
  has_column_privilege 
 ----------------------
@@ -1118,7 +1169,7 @@ CREATE TABLE
 alter table mytable drop column f2;
 ALTER TABLE
 select has_column_privilege('mytable','f2','select');
-psql:sql/privileges.sql:593: ERROR:  column "f2" of relation "mytable" does not exist
+psql:sql/privileges.sql:620: ERROR:  column "f2" of relation "mytable" does not exist
 select has_column_privilege('mytable','........pg.dropped.2........','select');
  has_column_privilege 
 ----------------------
@@ -1145,7 +1196,7 @@ DROP TABLE
 SET SESSION AUTHORIZATION regress_priv_user1;
 SET
 drop table if exists atest4;
-psql:sql/privileges.sql:604: NOTICE:  table "atest4" does not exist, skipping
+psql:sql/privileges.sql:631: NOTICE:  table "atest4" does not exist, skipping
 DROP TABLE
 CREATE TABLE atest4 (a int);
 CREATE TABLE
@@ -1160,7 +1211,7 @@ SET
 GRANT SELECT ON atest4 TO regress_priv_user3;
 GRANT
 GRANT UPDATE ON atest4 TO regress_priv_user3; -- fail
-psql:sql/privileges.sql:614: WARNING:  no privileges were granted for "atest4"
+psql:sql/privileges.sql:641: WARNING:  no privileges were granted for "atest4"
 GRANT
 SET SESSION AUTHORIZATION regress_priv_user1;
 SET
@@ -1173,7 +1224,7 @@ SELECT has_table_privilege('regress_priv_user3', 'atest4', 'SELECT'); -- true
 (1 row)
 
 REVOKE SELECT ON atest4 FROM regress_priv_user2; -- fail
-psql:sql/privileges.sql:620: ERROR:  dependent privileges exist
+psql:sql/privileges.sql:647: ERROR:  dependent privileges exist
 HINT:  Use CASCADE to revoke them too.
 REVOKE GRANT OPTION FOR SELECT ON atest4 FROM regress_priv_user2 CASCADE; -- ok
 REVOKE
@@ -1206,13 +1257,13 @@ GRANT ROLE
 SET ROLE regress_priv_group2;
 SET
 GRANT regress_priv_group2 TO regress_priv_user5; -- fails: SET ROLE suspended privilege
-psql:sql/privileges.sql:635: ERROR:  must have admin option on role "regress_priv_group2"
+psql:sql/privileges.sql:662: ERROR:  must have admin option on role "regress_priv_group2"
 SET SESSION AUTHORIZATION regress_priv_user1;
 SET
 GRANT regress_priv_group2 TO regress_priv_user5; -- fails: no ADMIN OPTION
-psql:sql/privileges.sql:638: ERROR:  must have admin option on role "regress_priv_group2"
+psql:sql/privileges.sql:665: ERROR:  must have admin option on role "regress_priv_group2"
 SELECT dogrant_ok();			-- ok: SECURITY DEFINER conveys ADMIN
-psql:sql/privileges.sql:639: NOTICE:  role "regress_priv_user5" is already a member of role "regress_priv_group2"
+psql:sql/privileges.sql:666: NOTICE:  role "regress_priv_user5" is already a member of role "regress_priv_group2"
  dogrant_ok 
 ------------
  
@@ -1221,17 +1272,17 @@ psql:sql/privileges.sql:639: NOTICE:  role "regress_priv_user5" is already a mem
 SET ROLE regress_priv_group2;
 SET
 GRANT regress_priv_group2 TO regress_priv_user5; -- fails: SET ROLE did not help
-psql:sql/privileges.sql:641: ERROR:  must have admin option on role "regress_priv_group2"
+psql:sql/privileges.sql:668: ERROR:  must have admin option on role "regress_priv_group2"
 SET SESSION AUTHORIZATION regress_priv_group2;
 SET
 GRANT regress_priv_group2 TO regress_priv_user5; -- ok: a role can self-admin
-psql:sql/privileges.sql:644: NOTICE:  role "regress_priv_user5" is already a member of role "regress_priv_group2"
+psql:sql/privileges.sql:671: NOTICE:  role "regress_priv_user5" is already a member of role "regress_priv_group2"
 GRANT ROLE
 CREATE FUNCTION dogrant_fails() RETURNS void LANGUAGE sql SECURITY DEFINER AS
 	'GRANT regress_priv_group2 TO regress_priv_user5';
 CREATE FUNCTION
 SELECT dogrant_fails();			-- fails: no self-admin in SECURITY DEFINER
-psql:sql/privileges.sql:647: ERROR:  must have admin option on role "regress_priv_group2"
+psql:sql/privileges.sql:674: ERROR:  must have admin option on role "regress_priv_group2"
 CONTEXT:  SQL function "dogrant_fails" statement 1
 DROP FUNCTION dogrant_fails();
 DROP FUNCTION
@@ -1249,9 +1300,9 @@ CREATE SEQUENCE
 GRANT USAGE on x_seq to regress_priv_user2;
 GRANT
 SELECT has_sequence_privilege('regress_priv_user1', 'atest1', 'SELECT');
-psql:sql/privileges.sql:662: ERROR:  "atest1" is not a sequence
+psql:sql/privileges.sql:689: ERROR:  "atest1" is not a sequence
 SELECT has_sequence_privilege('regress_priv_user1', 'x_seq', 'INSERT');
-psql:sql/privileges.sql:663: ERROR:  unrecognized privilege type: "INSERT"
+psql:sql/privileges.sql:690: ERROR:  unrecognized privilege type: "INSERT"
 SELECT has_sequence_privilege('regress_priv_user1', 'x_seq', 'SELECT');
  has_sequence_privilege 
 ------------------------
@@ -1355,7 +1406,7 @@ SELECT * FROM pg_largeobject LIMIT 0;
 SET SESSION AUTHORIZATION regress_priv_user1;
 SET
 SELECT * FROM pg_largeobject LIMIT 0;			-- to be denied
-psql:sql/privileges.sql:763: ERROR:  permission denied for table pg_largeobject
+psql:sql/privileges.sql:790: ERROR:  permission denied for table pg_largeobject
 -- test default ACLs
 \c -
 You are now connected to database "regress" as user "abc".
@@ -1446,7 +1497,7 @@ SELECT has_table_privilege('regress_priv_user1', 'testns.acltest1', 'INSERT'); -
 ALTER DEFAULT PRIVILEGES FOR ROLE regress_priv_user1 REVOKE EXECUTE ON FUNCTIONS FROM public;
 ALTER DEFAULT PRIVILEGES
 ALTER DEFAULT PRIVILEGES IN SCHEMA testns GRANT USAGE ON SCHEMAS TO regress_priv_user2; -- error
-psql:sql/privileges.sql:804: ERROR:  cannot use IN SCHEMA clause when using GRANT/REVOKE ON SCHEMAS
+psql:sql/privileges.sql:831: ERROR:  cannot use IN SCHEMA clause when using GRANT/REVOKE ON SCHEMAS
 SET ROLE regress_priv_user1;
 SET
 CREATE FUNCTION testns.foo() RETURNS int AS 'select 1' LANGUAGE sql;
@@ -1656,7 +1707,7 @@ DROP TABLE
 drop table testns.t2 cascade;
 DROP TABLE
 DROP SCHEMA testns CASCADE;
-psql:sql/privileges.sql:895: NOTICE:  drop cascades to 3 other objects
+psql:sql/privileges.sql:922: NOTICE:  drop cascades to 3 other objects
 DROP SCHEMA
 \set VERBOSITY default
 -- Change owner of the schema & and rename of new schema owner
@@ -1698,9 +1749,9 @@ You are now connected to database "regress" as user "abc".
 DROP ROLE regress_schemauser1;
 DROP ROLE
 drop table testns.t1 cascade;
-psql:sql/privileges.sql:923: ERROR:  schema "testns" does not exist
+psql:sql/privileges.sql:950: ERROR:  schema "testns" does not exist
 drop schema testns;
-psql:sql/privileges.sql:924: ERROR:  schema "testns" does not exist
+psql:sql/privileges.sql:951: ERROR:  schema "testns" does not exist
 DROP ROLE regress_schemauser_renamed;
 DROP ROLE
 -- test that dependent privileges are revoked (or not) properly
@@ -1791,11 +1842,11 @@ DROP VIEW atestv2;
 DROP VIEW
 -- this should cascade to drop atestv4
 DROP VIEW atestv3 CASCADE;
-psql:sql/privileges.sql:967: NOTICE:  drop cascades to view atestv4
+psql:sql/privileges.sql:994: NOTICE:  drop cascades to view atestv4
 DROP VIEW
 -- this should complain "does not exist"
 DROP VIEW atestv4;
-psql:sql/privileges.sql:969: ERROR:  view "atestv4" does not exist
+psql:sql/privileges.sql:996: ERROR:  view "atestv4" does not exist
 DROP TABLE atest1 cascade;
 DROP TABLE
 DROP TABLE atest2 cascade;
@@ -1821,12 +1872,12 @@ DROP ROLE
 REVOKE USAGE ON LANGUAGE sql FROM regress_priv_user1;
 REVOKE
 drop table atest12 cascade;
-psql:sql/privileges.sql:985: NOTICE:  drop cascades to 2 other objects
+psql:sql/privileges.sql:1012: NOTICE:  drop cascades to 2 other objects
 DETAIL:  drop cascades to view atest12v
 drop cascades to view atest12sbv
 DROP TABLE
 drop function leak(integer,integer) cascade;
-psql:sql/privileges.sql:986: NOTICE:  drop cascades to operator <<<(integer,integer)
+psql:sql/privileges.sql:1013: NOTICE:  drop cascades to operator <<<(integer,integer)
 DROP FUNCTION
 ALTER DEFAULT PRIVILEGES FOR ROLE regress_priv_user1 grant EXECUTE ON FUNCTIONS to public;
 ALTER DEFAULT PRIVILEGES
@@ -1843,7 +1894,7 @@ DROP ROLE
 DROP USER regress_priv_user5;
 DROP ROLE
 DROP USER regress_priv_user6;
-psql:sql/privileges.sql:995: ERROR:  role "regress_priv_user6" does not exist
+psql:sql/privileges.sql:1022: ERROR:  role "regress_priv_user6" does not exist
 -- permissions with LOCK TABLE
 CREATE USER regress_locktable_user;
 CREATE ROLE
@@ -1857,7 +1908,7 @@ SET
 BEGIN;
 BEGIN
 LOCK TABLE lock_table IN ROW EXCLUSIVE MODE; -- should fail
-psql:sql/privileges.sql:1006: ERROR:  permission denied for table lock_table
+psql:sql/privileges.sql:1033: ERROR:  permission denied for table lock_table
 ROLLBACK;
 ROLLBACK
 BEGIN;
@@ -1869,14 +1920,13 @@ COMMIT
 BEGIN;
 BEGIN
 LOCK TABLE lock_table IN ACCESS EXCLUSIVE MODE; -- should fail
-psql:sql/privileges.sql:1012: ERROR:  permission denied for table lock_table
+psql:sql/privileges.sql:1039: ERROR:  permission denied for table lock_table
+ROLLBACK;
 ROLLBACK
 \c
 You are now connected to database "regress" as user "abc".
 REVOKE SELECT ON lock_table FROM regress_locktable_user;
-psql:sql/privileges.sql:1015: ERROR:  syntax error at or near "REVOKE"
-LINE 2: REVOKE SELECT ON lock_table FROM regress_locktable_user;
-        ^
+REVOKE
 -- LOCK TABLE and INSERT permission
 GRANT INSERT ON lock_table TO regress_locktable_user;
 GRANT
@@ -1891,13 +1941,13 @@ COMMIT
 BEGIN;
 BEGIN
 LOCK TABLE lock_table IN ACCESS SHARE MODE; -- should fail
-LOCK TABLE
+psql:sql/privileges.sql:1051: ERROR:  permission denied for table lock_table
 ROLLBACK;
 ROLLBACK
 BEGIN;
 BEGIN
 LOCK TABLE lock_table IN ACCESS EXCLUSIVE MODE; -- should fail
-psql:sql/privileges.sql:1027: ERROR:  permission denied for table lock_table
+psql:sql/privileges.sql:1054: ERROR:  permission denied for table lock_table
 ROLLBACK;
 ROLLBACK
 \c
@@ -1918,7 +1968,7 @@ COMMIT
 BEGIN;
 BEGIN
 LOCK TABLE lock_table IN ACCESS SHARE MODE; -- should fail
-LOCK TABLE
+psql:sql/privileges.sql:1066: ERROR:  permission denied for table lock_table
 ROLLBACK;
 ROLLBACK
 BEGIN;
@@ -1945,7 +1995,7 @@ COMMIT
 BEGIN;
 BEGIN
 LOCK TABLE lock_table IN ACCESS SHARE MODE; -- should fail
-LOCK TABLE
+psql:sql/privileges.sql:1081: ERROR:  permission denied for table lock_table
 ROLLBACK;
 ROLLBACK
 BEGIN;
@@ -1963,19 +2013,19 @@ SET
 BEGIN;
 BEGIN
 LOCK TABLE lock_table IN ROW EXCLUSIVE MODE; -- should pass
-psql:sql/privileges.sql:1064: ERROR:  permission denied for table lock_table
+psql:sql/privileges.sql:1091: ERROR:  permission denied for table lock_table
 COMMIT;
 ROLLBACK
 BEGIN;
 BEGIN
 LOCK TABLE lock_table IN ACCESS SHARE MODE; -- should fail
-LOCK TABLE
+psql:sql/privileges.sql:1094: ERROR:  permission denied for table lock_table
 ROLLBACK;
 ROLLBACK
 BEGIN;
 BEGIN
 LOCK TABLE lock_table IN ACCESS EXCLUSIVE MODE; -- should pass
-psql:sql/privileges.sql:1070: ERROR:  permission denied for table lock_table
+psql:sql/privileges.sql:1097: ERROR:  permission denied for table lock_table
 COMMIT;
 ROLLBACK
 \c

@@ -464,7 +464,12 @@ create index test_range_elem_idx on test_range_elem (i);
 CREATE INDEX
 insert into test_range_elem select i from generate_series(1,100) i;
 INSERT 0 100
--- select count(*) from test_range_elem where i <@ int4range(10,50);
+select count(*) from test_range_elem where i <@ int4range(10,50);
+ count 
+-------
+    40
+(1 row)
+
 drop table test_range_elem;
 DROP TABLE
 -- test bigint ranges
@@ -619,7 +624,7 @@ CREATE TYPE
 -- with force_parallel_mode on, this exercises tqueue.c's range remapping
 select *, row_to_json(upper(t)) as u from
   (values (two_ints_range(row(1,2), row(3,4))),
-          (two_ints_range(row(5,6), row(7,8)))) v(t);  
+          (two_ints_range(row(5,6), row(7,8)))) v(t);
          t         |       u       
 -------------------+---------------
  ["(1,2)","(3,4)") | {"a":3,"b":4}

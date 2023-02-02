@@ -599,11 +599,10 @@ CREATE TABLE
 You are now connected to database "regress" as user "abc".
 SET SESSION AUTHORIZATION regress_testrol1;
 SET
-SET ROLE regress_testrol2
+SET ROLE regress_testrol2;
+SET
 ALTER TABLE testtab1 OWNER TO CURRENT_USER;
-psql:sql/rolenames.sql:229: ERROR:  syntax error at or near "ALTER"
-LINE 2: ALTER TABLE testtab1 OWNER TO CURRENT_USER;
-        ^
+ALTER TABLE
 ALTER TABLE testtab2 OWNER TO "current_user";
 ALTER TABLE
 ALTER TABLE testtab3 OWNER TO SESSION_USER;
@@ -632,7 +631,7 @@ SELECT c.relname, r.rolname
  ORDER BY 1;
  relname  |     rolname      
 ----------+------------------
- testtab1 | regress_testrol0
+ testtab1 | regress_testrol2
  testtab2 | current_user
  testtab3 | regress_testrol1
  testtab4 | regress_testrolx
@@ -669,11 +668,10 @@ CREATE AGGREGATE testagg9(int2) (SFUNC = int2_sum, STYPE = int8);
 CREATE AGGREGATE
 \c -
 You are now connected to database "regress" as user "abc".
-SET SESSION AUTHORIZATION regress_testrol1
+SET SESSION AUTHORIZATION regress_testrol1;
+SET
 SET ROLE regress_testrol2;
-psql:sql/rolenames.sql:265: ERROR:  syntax error at or near "SET"
-LINE 2: SET ROLE regress_testrol2;
-        ^
+SET
 ALTER AGGREGATE testagg1(int2) OWNER TO CURRENT_USER;
 ALTER AGGREGATE
 ALTER AGGREGATE testagg2(int2) OWNER TO "current_user";
@@ -704,9 +702,9 @@ SELECT p.proname, r.rolname
  ORDER BY 1;
  proname  |     rolname      
 ----------+------------------
- testagg1 | abc
+ testagg1 | regress_testrol2
  testagg2 | current_user
- testagg3 | abc
+ testagg3 | regress_testrol1
  testagg4 | regress_testrolx
  testagg5 | Public
  testagg6 | regress_testrol0
@@ -763,11 +761,11 @@ psql:sql/rolenames.sql:308: ERROR:  role "nonexistent" does not exist
 SELECT * FROM chkumapping();
       umname      | umserver |         umoptions         
 ------------------+----------+---------------------------
- abc              | sv1      | {user=CURRENT_USER}
+ regress_testrol2 | sv1      | {user=CURRENT_USER}
  current_user     | sv2      | {"user=\"current_user\""}
- abc              | sv3      | {user=USER}
+ regress_testrol2 | sv3      | {user=USER}
  user             | sv4      | {"user=\"USER\""}
- abc              | sv5      | {user=SESSION_USER}
+ regress_testrol1 | sv5      | {user=SESSION_USER}
                   | sv6      | {user=PUBLIC}
  Public           | sv7      | {"user=\"Public\""}
  regress_testrolx | sv8      | {user=regress_testrolx}
@@ -809,11 +807,11 @@ psql:sql/rolenames.sql:333: ERROR:  role "nonexistent" does not exist
 SELECT * FROM chkumapping();
       umname      | umserver |           umoptions           
 ------------------+----------+-------------------------------
- abc              | sv1      | {user=CURRENT_USER_alt}
+ regress_testrol2 | sv1      | {user=CURRENT_USER_alt}
  current_user     | sv2      | {"user=\"current_user\"_alt"}
- abc              | sv3      | {user=USER_alt}
+ regress_testrol2 | sv3      | {user=USER_alt}
  user             | sv4      | {"user=\"user\"_alt"}
- abc              | sv5      | {user=SESSION_USER_alt}
+ regress_testrol1 | sv5      | {user=SESSION_USER_alt}
                   | sv6      | {user=public_alt}
  Public           | sv7      | {"user=\"Public\"_alt"}
  regress_testrolx | sv8      | {user=regress_testrolx_alt}
@@ -866,11 +864,11 @@ CREATE USER MAPPING
 SELECT * FROM chkumapping();
       umname      | umserver |         umoptions         
 ------------------+----------+---------------------------
- abc              | sv1      | {user=CURRENT_USER}
+ regress_testrol2 | sv1      | {user=CURRENT_USER}
  current_user     | sv2      | {"user=\"current_user\""}
- abc              | sv3      | {user=USER}
+ regress_testrol2 | sv3      | {user=USER}
  user             | sv4      | {"user=\"USER\""}
- abc              | sv5      | {user=SESSION_USER}
+ regress_testrol1 | sv5      | {user=SESSION_USER}
                   | sv6      | {user=PUBLIC}
  Public           | sv7      | {"user=\"Public\""}
  regress_testrolx | sv8      | {user=regress_testrolx}
@@ -883,9 +881,9 @@ SELECT * FROM chkumapping();
       umname      | umserver |         umoptions         
 ------------------+----------+---------------------------
  current_user     | sv2      | {"user=\"current_user\""}
- abc              | sv3      | {user=USER}
+ regress_testrol2 | sv3      | {user=USER}
  user             | sv4      | {"user=\"USER\""}
- abc              | sv5      | {user=SESSION_USER}
+ regress_testrol1 | sv5      | {user=SESSION_USER}
                   | sv6      | {user=PUBLIC}
  Public           | sv7      | {"user=\"Public\""}
  regress_testrolx | sv8      | {user=regress_testrolx}
@@ -896,9 +894,9 @@ DROP USER MAPPING
 SELECT * FROM chkumapping();
       umname      | umserver |        umoptions        
 ------------------+----------+-------------------------
- abc              | sv3      | {user=USER}
+ regress_testrol2 | sv3      | {user=USER}
  user             | sv4      | {"user=\"USER\""}
- abc              | sv5      | {user=SESSION_USER}
+ regress_testrol1 | sv5      | {user=SESSION_USER}
                   | sv6      | {user=PUBLIC}
  Public           | sv7      | {"user=\"Public\""}
  regress_testrolx | sv8      | {user=regress_testrolx}
@@ -910,7 +908,7 @@ SELECT * FROM chkumapping();
       umname      | umserver |        umoptions        
 ------------------+----------+-------------------------
  user             | sv4      | {"user=\"USER\""}
- abc              | sv5      | {user=SESSION_USER}
+ regress_testrol1 | sv5      | {user=SESSION_USER}
                   | sv6      | {user=PUBLIC}
  Public           | sv7      | {"user=\"Public\""}
  regress_testrolx | sv8      | {user=regress_testrolx}
@@ -921,7 +919,7 @@ DROP USER MAPPING
 SELECT * FROM chkumapping();
       umname      | umserver |        umoptions        
 ------------------+----------+-------------------------
- abc              | sv5      | {user=SESSION_USER}
+ regress_testrol1 | sv5      | {user=SESSION_USER}
                   | sv6      | {user=PUBLIC}
  Public           | sv7      | {"user=\"Public\""}
  regress_testrolx | sv8      | {user=regress_testrolx}
@@ -1031,10 +1029,10 @@ GRANT
 SELECT proname, proacl FROM pg_proc WHERE proname LIKE 'testagg_';
  proname  |                                                              proacl                                                               
 ----------+-----------------------------------------------------------------------------------------------------------------------------------
- testagg1 | {abc=X/abc,=X/abc}
+ testagg1 | {regress_testrol2=X/regress_testrol2,=X/regress_testrol2}
  testagg2 | {current_user=X/current_user,regress_testrol2=X/current_user}
- testagg3 | {abc=X/abc,current_user=X/abc}
- testagg4 | {regress_testrolx=X/regress_testrolx,abc=X/regress_testrolx}
+ testagg3 | {regress_testrol1=X/regress_testrol1,current_user=X/regress_testrol1}
+ testagg4 | {regress_testrolx=X/regress_testrolx,regress_testrol1=X/regress_testrolx}
  testagg5 | {Public=X/Public}
  testagg6 | {regress_testrol0=X/regress_testrol0,regress_testrolx=X/regress_testrol0}
  testagg7 | {regress_testrol0=X/regress_testrol0,=X/regress_testrol0}
@@ -1061,10 +1059,10 @@ LINE 1: GRANT ALL PRIVILEGES ON FUNCTION testagg9(int2) TO "none";
 SELECT proname, proacl FROM pg_proc WHERE proname LIKE 'testagg_';
  proname  |                                                              proacl                                                               
 ----------+-----------------------------------------------------------------------------------------------------------------------------------
- testagg1 | {abc=X/abc,=X/abc}
+ testagg1 | {regress_testrol2=X/regress_testrol2,=X/regress_testrol2}
  testagg2 | {current_user=X/current_user,regress_testrol2=X/current_user}
- testagg3 | {abc=X/abc,current_user=X/abc}
- testagg4 | {regress_testrolx=X/regress_testrolx,abc=X/regress_testrolx}
+ testagg3 | {regress_testrol1=X/regress_testrol1,current_user=X/regress_testrol1}
+ testagg4 | {regress_testrolx=X/regress_testrolx,regress_testrol1=X/regress_testrolx}
  testagg5 | {Public=X/Public}
  testagg6 | {regress_testrol0=X/regress_testrol0,regress_testrolx=X/regress_testrol0}
  testagg7 | {regress_testrol0=X/regress_testrol0,=X/regress_testrol0}
@@ -1092,9 +1090,9 @@ REVOKE
 SELECT proname, proacl FROM pg_proc WHERE proname LIKE 'testagg_';
  proname  |                proacl                 
 ----------+---------------------------------------
- testagg1 | {abc=X/abc}
+ testagg1 | {regress_testrol2=X/regress_testrol2}
  testagg2 | {current_user=X/current_user}
- testagg3 | {abc=X/abc}
+ testagg3 | {regress_testrol1=X/regress_testrol1}
  testagg4 | {regress_testrolx=X/regress_testrolx}
  testagg5 | {}
  testagg6 | {regress_testrol0=X/regress_testrol0}
@@ -1122,9 +1120,9 @@ LINE 1: ...EVOKE ALL PRIVILEGES ON FUNCTION testagg9(int2) FROM "none";
 SELECT proname, proacl FROM pg_proc WHERE proname LIKE 'testagg_';
  proname  |                proacl                 
 ----------+---------------------------------------
- testagg1 | {abc=X/abc}
+ testagg1 | {regress_testrol2=X/regress_testrol2}
  testagg2 | {current_user=X/current_user}
- testagg3 | {abc=X/abc}
+ testagg3 | {regress_testrol1=X/regress_testrol1}
  testagg4 | {regress_testrolx=X/regress_testrolx}
  testagg5 | {}
  testagg6 | {regress_testrol0=X/regress_testrol0}

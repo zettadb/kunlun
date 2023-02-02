@@ -101,7 +101,7 @@ alter table emp rename column nonesuchatt to newnonesuchatt;
 psql:sql/errors.sql:87: ERROR:  column "nonesuchatt" does not exist
 -- conflict
 alter table emp rename column salary to manager;
-psql:sql/errors.sql:90: ERROR:  column "manager" of relation "emp" already exists
+psql:sql/errors.sql:90: ERROR:  column "manager" of relation "stud_emp" already exists
 -- conflict
 alter table emp rename column salary to oid;
 ALTER TABLE

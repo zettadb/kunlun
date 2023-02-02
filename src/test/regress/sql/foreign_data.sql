@@ -282,6 +282,7 @@ DROP SERVER s7;
 -- CREATE FOREIGN TABLE
 CREATE SCHEMA foreign_schema;
 CREATE SERVER s0 FOREIGN DATA WRAPPER dummy;
+drop foreign table if exists  ft1;
 CREATE FOREIGN TABLE ft1 ();                                    -- ERROR
 CREATE FOREIGN TABLE ft1 () SERVER no_server;                   -- ERROR
 CREATE FOREIGN TABLE ft1 () SERVER s0;                -- ERROR
@@ -303,6 +304,7 @@ CREATE FOREIGN TABLE ft1 (
 	c3 date,
 	UNIQUE (c3)
 ) SERVER s0 OPTIONS (delimiter ',', quote '"', "be quoted" 'value'); -- ERROR
+drop foreign table if exists  ft1;
 CREATE FOREIGN TABLE ft1 (
 	c1 integer OPTIONS ("param 1" 'val1') NOT NULL,
 	c2 text OPTIONS (param2 'val2', param3 'val3') CHECK (c2 <> ''),

@@ -1929,8 +1929,8 @@ select length(md5((f1[1]).c2)) from dest;
      32
 (1 row)
 
-delete from src;
-DELETE 0
+truncate table src;
+TRUNCATE TABLE
 drop table src;
 DROP TABLE
 select length(md5((f1[1]).c2)) from dest;

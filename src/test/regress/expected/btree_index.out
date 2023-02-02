@@ -153,3 +153,47 @@ psql:sql/btree_index.sql:81: ERROR:  value too long for type character varying(5
 -- Delete most entries, and vacuum. This causes page deletions.
 delete from btree_tall_tbl where id < 950;
 DELETE 0
+-- vacuum btree_tall_tbl;
+--
+-- Test B-tree insertion with a metapage update (XLOG_BTREE_INSERT_META
+-- WAL record type). This happens when a "fast root" page is split.
+--
+-- The vacuum above should've turned the leaf page into a fast root. We just
+-- need to insert some rows to cause the fast root page to split.
+insert into btree_tall_tbl (id, t)
+  select g, repeat('x', 100) from generate_series(1, 500) g;
+psql:sql/btree_index.sql:94: ERROR:  value too long for type character varying(50)
+--
+-- Test vacuum_cleanup_index_scale_factor
+--
+-- Simple create
+create table btree_test(a int);
+CREATE TABLE
+create index btree_idx1 on btree_test(a) with (vacuum_cleanup_index_scale_factor = 40.0);
+CREATE INDEX
+select reloptions from pg_class WHERE oid = 'btree_idx1'::regclass;
+                reloptions                
+------------------------------------------
+ {vacuum_cleanup_index_scale_factor=40.0}
+(1 row)
+
+-- Fail while setting improper values
+create index btree_idx_err on btree_test(a) with (vacuum_cleanup_index_scale_factor = -10.0);
+psql:sql/btree_index.sql:106: ERROR:  value -10.0 out of bounds for option "vacuum_cleanup_index_scale_factor"
+DETAIL:  Valid values are between "0.000000" and "10000000000.000000".
+create index btree_idx_err on btree_test(a) with (vacuum_cleanup_index_scale_factor = 100.0);
+CREATE INDEX
+create index btree_idx_err on btree_test(a) with (vacuum_cleanup_index_scale_factor = 'string');
+psql:sql/btree_index.sql:108: ERROR:  invalid value for floating point option "vacuum_cleanup_index_scale_factor": string
+create index btree_idx_err on btree_test(a) with (vacuum_cleanup_index_scale_factor = true);
+psql:sql/btree_index.sql:109: ERROR:  invalid value for floating point option "vacuum_cleanup_index_scale_factor": true
+-- Simple ALTER INDEX
+alter index btree_idx1 set (vacuum_cleanup_index_scale_factor = 70.0);
+psql:sql/btree_index.sql:112: ERROR:  Can not alter storage parameters "vacuum_cleanup_index_scale_factor"
+HINT:  availible storage parameters : 'tablegroup', 'COMPRESSION', 'ROW_FORMAT', 'ENCRYPTION' AND 'AUTOEXTEND_SIZE'
+select reloptions from pg_class WHERE oid = 'btree_idx1'::regclass;
+                reloptions                
+------------------------------------------
+ {vacuum_cleanup_index_scale_factor=40.0}
+(1 row)
+

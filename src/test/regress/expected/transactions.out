@@ -151,7 +151,8 @@ SELECT * FROM writetest; -- ok
 
 DELETE FROM temptest; -- ok
 DELETE 0
--- not support: UPDATE temptest SET a = 0 FROM writetest WHERE temptest.a = 1 AND writetest.a = temptest.a; -- ok
+UPDATE temptest SET a = 0 FROM writetest WHERE temptest.a = 1 AND writetest.a = temptest.a; -- ok
+UPDATE 0
 PREPARE test AS UPDATE writetest SET a = 0; -- ok
 PREPARE
 EXECUTE test; -- fail
@@ -496,10 +497,18 @@ select * from xacttest;
 create or replace function max_xacttest() returns smallint language sql as
 'select max(a) from xacttest' stable;
 CREATE FUNCTION
---not supported: begin;
---update xacttest set a = max_xacttest() + 10 where a > 0;
---select * from xacttest;
---rollback;
+begin;
+BEGIN
+update xacttest set a = max_xacttest() + 10 where a > 0;
+UPDATE 1
+select * from xacttest;
+  a  |    b    
+-----+---------
+ 787 | 777.777
+(1 row)
+
+rollback;
+ROLLBACK
 -- But a volatile function can see the partial results of the calling query
 create or replace function max_xacttest() returns smallint language sql as
 'select max(a) from xacttest' volatile;
@@ -551,6 +560,61 @@ drop table revalidate_bug;
 DROP TABLE
 drop function inverse(int);
 DROP FUNCTION
+-- Test for proper cleanup after a failure in a cursor portal
+-- that was created in an outer subtransaction
+CREATE FUNCTION invert(x float8) RETURNS float8 LANGUAGE plpgsql AS
+$$ begin return 1/x; end $$;
+CREATE FUNCTION
+CREATE FUNCTION create_temp_tab() RETURNS text
+LANGUAGE plpgsql AS $$
+BEGIN
+  CREATE TEMP TABLE new_table (f1 float8);
+  -- case of interest is that we fail while holding an open
+  -- relcache reference to new_table
+  INSERT INTO new_table SELECT invert(0.0);
+  RETURN 'foo';
+END $$;
+CREATE FUNCTION
+BEGIN;
+BEGIN
+DECLARE ok CURSOR FOR SELECT * FROM int8_tbl;
+DECLARE CURSOR
+DECLARE ctt CURSOR FOR SELECT create_temp_tab();
+DECLARE CURSOR
+FETCH ok;
+ q1  | q2  
+-----+-----
+ 123 | 456
+(1 row)
+
+SAVEPOINT s1;
+SAVEPOINT
+FETCH ok;  -- should work
+ q1  |        q2        
+-----+------------------
+ 123 | 4567890123456789
+(1 row)
+
+FETCH ctt; -- error occurs here
+psql:sql/transactions.sql:313: ERROR:  Kunlun-db: execute ddl in non-ddl stmts is not supported.
+CONTEXT:  SQL statement "CREATE TEMP TABLE new_table (f1 float8)"
+PL/pgSQL function create_temp_tab() line 3 at SQL statement
+ROLLBACK TO s1;
+ROLLBACK
+FETCH ok;  -- should work
+        q1        | q2  
+------------------+-----
+ 4567890123456789 | 123
+(1 row)
+
+FETCH ctt; -- must be rejected
+psql:sql/transactions.sql:316: ERROR:  portal "ctt" cannot be run
+COMMIT;
+ROLLBACK
+DROP FUNCTION create_temp_tab();
+DROP FUNCTION
+DROP FUNCTION invert(x float8);
+DROP FUNCTION
 -- Test assorted behaviors around the implicit transaction block created
 -- when multiple SQL commands are sent in a single Query message.  These
 -- tests rely on the fact that psql will not break SQL commands apart at a
@@ -564,30 +628,30 @@ SELECT 1\; SELECT 2\; SELECT 3;
 
 -- this implicitly commits:
 insert into i_table values(1)\; select * from i_table;
-psql:sql/transactions.sql:301: ERROR:  relation "i_table" does not exist
+psql:sql/transactions.sql:331: ERROR:  relation "i_table" does not exist
 LINE 1: insert into i_table values(1); select * from i_table;
                     ^
 -- 1/0 error will cause rolling back the whole implicit transaction
 insert into i_table values(2)\; select * from i_table\; select 1/0;
-psql:sql/transactions.sql:303: ERROR:  relation "i_table" does not exist
+psql:sql/transactions.sql:333: ERROR:  relation "i_table" does not exist
 LINE 1: insert into i_table values(2); select * from i_table; select...
                     ^
 select * from i_table;
-psql:sql/transactions.sql:304: ERROR:  relation "i_table" does not exist
+psql:sql/transactions.sql:334: ERROR:  relation "i_table" does not exist
 LINE 1: select * from i_table;
                       ^
 rollback;  -- we are not in a transaction at this point
-psql:sql/transactions.sql:306: WARNING:  there is no transaction in progress
+psql:sql/transactions.sql:336: WARNING:  there is no transaction in progress
 ROLLBACK
 -- can use regular begin/commit/rollback within a single Query
 begin\; insert into i_table values(3)\; commit;
-psql:sql/transactions.sql:309: ERROR:  relation "i_table" does not exist
+psql:sql/transactions.sql:339: ERROR:  relation "i_table" does not exist
 LINE 1: begin; insert into i_table values(3); commit;
                            ^
 rollback;  -- we are not in a transaction at this point
 ROLLBACK
 begin\; insert into i_table values(4)\; rollback;
-psql:sql/transactions.sql:311: ERROR:  relation "i_table" does not exist
+psql:sql/transactions.sql:341: ERROR:  relation "i_table" does not exist
 LINE 1: begin; insert into i_table values(4); rollback;
                            ^
 rollback;  -- we are not in a transaction at this point
@@ -595,46 +659,46 @@ ROLLBACK
 -- begin converts implicit transaction into a regular one that
 -- can extend past the end of the Query
 select 1\; begin\; insert into i_table values(5);
-psql:sql/transactions.sql:316: ERROR:  relation "i_table" does not exist
+psql:sql/transactions.sql:346: ERROR:  relation "i_table" does not exist
 LINE 1: select 1; begin; insert into i_table values(5);
                                      ^
 commit;
 ROLLBACK
 select 1\; begin\; insert into i_table values(6);
-psql:sql/transactions.sql:318: ERROR:  relation "i_table" does not exist
+psql:sql/transactions.sql:348: ERROR:  relation "i_table" does not exist
 LINE 1: select 1; begin; insert into i_table values(6);
                                      ^
 rollback;
 ROLLBACK
 -- commit in implicit-transaction state commits but issues a warning.
 insert into i_table values(7)\; commit\; insert into i_table values(8)\; select 1/0;
-psql:sql/transactions.sql:322: ERROR:  relation "i_table" does not exist
+psql:sql/transactions.sql:352: ERROR:  relation "i_table" does not exist
 LINE 1: insert into i_table values(7); commit; insert into i_table v...
                     ^
 -- similarly, rollback aborts but issues a warning.
 insert into i_table values(9)\; rollback\; select 2;
-psql:sql/transactions.sql:324: ERROR:  relation "i_table" does not exist
+psql:sql/transactions.sql:354: ERROR:  relation "i_table" does not exist
 LINE 1: insert into i_table values(9); rollback; select 2;
                     ^
 select * from i_table;
-psql:sql/transactions.sql:326: ERROR:  relation "i_table" does not exist
+psql:sql/transactions.sql:356: ERROR:  relation "i_table" does not exist
 LINE 1: select * from i_table;
                       ^
 rollback;  -- we are not in a transaction at this point
-psql:sql/transactions.sql:328: WARNING:  there is no transaction in progress
+psql:sql/transactions.sql:358: WARNING:  there is no transaction in progress
 ROLLBACK
 -- implicit transaction block is still a transaction block, for e.g. VACUUM
 SELECT 1\;
 SELECT 1\; COMMIT\;
 -- we disallow savepoint-related commands in implicit-transaction state
 SELECT 1\; SAVEPOINT sp;
-psql:sql/transactions.sql:335: WARNING:  there is no transaction in progress
-psql:sql/transactions.sql:335: ERROR:  SAVEPOINT can only be used in transaction blocks
+psql:sql/transactions.sql:365: WARNING:  there is no transaction in progress
+psql:sql/transactions.sql:365: ERROR:  SAVEPOINT can only be used in transaction blocks
 SELECT 1\; COMMIT\; SAVEPOINT sp;
-psql:sql/transactions.sql:336: WARNING:  there is no transaction in progress
-psql:sql/transactions.sql:336: ERROR:  SAVEPOINT can only be used in transaction blocks
+psql:sql/transactions.sql:366: WARNING:  there is no transaction in progress
+psql:sql/transactions.sql:366: ERROR:  SAVEPOINT can only be used in transaction blocks
 ROLLBACK TO SAVEPOINT sp\; SELECT 2;
-psql:sql/transactions.sql:337: ERROR:  ROLLBACK TO SAVEPOINT can only be used in transaction blocks
+psql:sql/transactions.sql:367: ERROR:  ROLLBACK TO SAVEPOINT can only be used in transaction blocks
 SELECT 2\; SELECT 3;
  ?column? 
 ----------
@@ -649,7 +713,7 @@ COMMIT
 begin;
 BEGIN
 select 1/0;
-psql:sql/transactions.sql:348: ERROR:  division by zero
+psql:sql/transactions.sql:378: ERROR:  division by zero
 rollback to X;
-psql:sql/transactions.sql:349: ERROR:  savepoint "x" does not exist
+psql:sql/transactions.sql:379: ERROR:  savepoint "x" does not exist
 -- DO NOT ADD ANYTHING HERE.

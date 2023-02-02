@@ -67,7 +67,7 @@ create operator = (
 );
 CREATE OPERATOR
 alter operator family integer_ops using btree add
-  operator 3 = (int8alias1, int8alias1);  
+  operator 3 = (int8alias1, int8alias1);
 ALTER OPERATOR FAMILY
 create function int8alias2eq(int8alias2, int8alias2) returns bool
   strict immutable language internal as 'int8eq';
@@ -127,7 +127,7 @@ alter operator family integer_ops using btree add
   function 1 int8alias1cmp (int8, int8alias1);
 ALTER OPERATOR FAMILY
 drop table if exists ec0;
-psql:sql/equivclass.sql:102: NOTICE:  table "ec0" does not exist, skipping
+psql:sql/equivclass.sql:103: NOTICE:  table "ec0" does not exist, skipping
 DROP TABLE
 create table ec0 (ff int8 primary key, f1 int8, f2 int8);
 CREATE TABLE

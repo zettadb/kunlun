@@ -79,7 +79,7 @@ DROP INDEX inet_idx1;
 --DDL_STATEMENT_END--
 
 -- check that gist index works correctly
-CREATE INDEX inet_idx2 ON inet_tbl using gist (i inet_ops);
+-- error for kunlun: CREATE INDEX inet_idx2 ON inet_tbl using gist (i inet_ops);
 SET enable_seqscan TO off;
 SELECT * FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
 SELECT * FROM inet_tbl WHERE i <<= '192.168.1.0/24'::cidr ORDER BY i;
@@ -99,10 +99,10 @@ SELECT i FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
 SELECT i FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
 
 SET enable_seqscan TO on;
-DROP INDEX inet_idx2;
+-- DROP INDEX inet_idx2;
 
 -- check that spgist index works correctly
-CREATE INDEX inet_idx3 ON inet_tbl using spgist (i);
+-- kunlun not support: CREATE INDEX inet_idx3 ON inet_tbl using spgist (i);
 SET enable_seqscan TO off;
 SELECT * FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
 SELECT * FROM inet_tbl WHERE i <<= '192.168.1.0/24'::cidr ORDER BY i;

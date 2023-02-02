@@ -963,14 +963,14 @@ DROP TABLE base_tbl CASCADE;
 CREATE TABLE base_tbl(id int PRIMARY KEY, data varchar(50), deleted boolean);
 INSERT INTO base_tbl VALUES (1, 'Row 1', false), (2, 'Row 2', true);
 
-CREATE RULE base_tbl_ins_rule AS ON INSERT TO base_tbl
-  WHERE EXISTS (SELECT 1 FROM base_tbl t WHERE t.id = new.id)
-  DO INSTEAD
-    UPDATE base_tbl SET data = new.data, deleted = false WHERE id = new.id;
+-- CREATE RULE base_tbl_ins_rule AS ON INSERT TO base_tbl
+  -- WHERE EXISTS (SELECT 1 FROM base_tbl t WHERE t.id = new.id)
+  -- DO INSTEAD
+    -- UPDATE base_tbl SET data = new.data, deleted = false WHERE id = new.id;
 
-CREATE RULE base_tbl_del_rule AS ON DELETE TO base_tbl
-  DO INSTEAD
-    UPDATE base_tbl SET deleted = true WHERE id = old.id;
+-- CREATE RULE base_tbl_del_rule AS ON DELETE TO base_tbl
+  -- DO INSTEAD
+    -- UPDATE base_tbl SET deleted = true WHERE id = old.id;
 CREATE VIEW rw_view1 WITH (security_barrier=true) AS
   SELECT id, data FROM base_tbl WHERE NOT deleted;
 
@@ -1268,7 +1268,7 @@ select * from base_tab_def order by a;
 drop trigger base_tab_def_view_instrig on base_tab_def_view;
 drop function base_tab_def_view_instrig_func;
 -- create rule base_tab_def_view_ins_rule as on insert to base_tab_def_view
-  -- do instead insert into base_tab_def values (new.a, new.b, new.c, new.d, new.e);							 
+  -- do instead insert into base_tab_def values (new.a, new.b, new.c, new.d, new.e);
 truncate base_tab_def;
 																				 
 insert into base_tab_def values (1);

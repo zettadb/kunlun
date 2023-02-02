@@ -1,5 +1,5 @@
 --DDL_STATEMENT_BEGIN--
-CREATE TABLE indtoasttest(descr text, cnt int DEFAULT 0, f1 text, f2 text);
+CREATE TABLE indtoasttest(descr text primary key, cnt int DEFAULT 0, f1 text, f2 text);
 --DDL_STATEMENT_END--
 
 INSERT INTO indtoasttest(descr, f1, f2) VALUES('two-compressed', repeat('1234567890',1000), repeat('1234567890',1000));

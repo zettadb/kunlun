@@ -1,7 +1,7 @@
 --
 -- Test cases for COPY (INSERT/UPDATE/DELETE) TO
 --
-create table copydml_test (id serial, t text);
+create table copydml_test (id serial primary key, t text);
 insert into copydml_test (t) values ('a');
 insert into copydml_test (t) values ('b');
 insert into copydml_test (t) values ('c');

@@ -1179,7 +1179,6 @@ select*from t;
 --elect*from t;
 -- bug 21
 drop table if exists mlparted cascade;
-psql:sql/remote_dml2.sql:492: NOTICE:  table "mlparted" does not exist, skipping
 DROP TABLE
 drop table if exists mlparted1 cascade;
 psql:sql/remote_dml2.sql:493: NOTICE:  table "mlparted1" does not exist, skipping
@@ -1513,7 +1512,23 @@ explain (verbose, costs off)
         join int4_tbl i1 on b.thousand = f1
         right join int4_tbl i2 on i2.f1 = b.tenthous
         order by 1;
-psql:sql/remote_dml2.sql:658: ERROR:  canceling statement due to statement timeout
+ unique1 
+---------
+       1
+       2
+       3
+       4
+       5
+       6
+       7
+       8
+       9
+      10
+      11
+      12
+      13
+(13 rows)
+
     select b.unique1 from
         tenk1 a join tenk1 b on a.unique1 = b.unique2
         join int4_tbl i1 on b.thousand = f1

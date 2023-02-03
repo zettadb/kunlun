@@ -6,8 +6,8 @@ psql:sql/partition_prune.sql:4: NOTICE:  table "lp" does not exist, skipping
 DROP TABLE
 create table lp (a char) partition by list (a);
 CREATE TABLE
--- ERROR:  Kunlun currently doesn't support default partitions.
---create table lp_default partition of lp default;
+create table lp_default partition of lp default;
+CREATE TABLE
 create table lp_ef partition of lp for values in ('e', 'f');
 CREATE TABLE
 create table lp_ad partition of lp for values in ('a', 'd');
@@ -44,7 +44,7 @@ explain (costs off) select * from lp where a not in ('a', 'd');
 
 -- collation matches the partitioning collation, pruning works
 drop table if exists coll_pruning;
-psql:sql/partition_prune.sql:27: NOTICE:  table "coll_pruning" does not exist, skipping
+psql:sql/partition_prune.sql:26: NOTICE:  table "coll_pruning" does not exist, skipping
 DROP TABLE
 create table coll_pruning (a text collate "C") partition by list (a);
 CREATE TABLE
@@ -52,35 +52,39 @@ create table coll_pruning_a partition of coll_pruning for values in ('a');
 CREATE TABLE
 create table coll_pruning_b partition of coll_pruning for values in ('b');
 CREATE TABLE
--- ERROR:  Kunlun currently doesn't support default partitions.
---create table coll_pruning_def partition of coll_pruning default;
+create table coll_pruning_def partition of coll_pruning default;
+CREATE TABLE
 explain (costs off) select * from coll_pruning where a collate "C" = 'a' collate "C";
 
 -- collation doesn't match the partitioning collation, no pruning occurs
 explain (costs off) select * from coll_pruning where a collate "POSIX" = 'a' collate "POSIX";
 
 drop table if exists rlp;
-psql:sql/partition_prune.sql:37: NOTICE:  table "rlp" does not exist, skipping
+psql:sql/partition_prune.sql:35: NOTICE:  table "rlp" does not exist, skipping
 DROP TABLE
 create table rlp (a int, b varchar) partition by range (a);
 CREATE TABLE
---Kunlun currently doesn't support default partitions.
---create table rlp_default partition of rlp default partition by list (a);
---create table rlp_default_default partition of rlp_default default;
---create table rlp_default_10 partition of rlp_default for values in (10);
---create table rlp_default_30 partition of rlp_default for values in (30);
---create table rlp_default_null partition of rlp_default for values in (null);
+create table rlp_default partition of rlp default partition by list (a);
+CREATE TABLE
+create table rlp_default_default partition of rlp_default default;
+CREATE TABLE
+create table rlp_default_10 partition of rlp_default for values in (10);
+CREATE TABLE
+create table rlp_default_30 partition of rlp_default for values in (30);
+CREATE TABLE
+create table rlp_default_null partition of rlp_default for values in (null);
+CREATE TABLE
 create table rlp1 partition of rlp for values from (minvalue) to (1);
 CREATE TABLE
 create table rlp2 partition of rlp for values from (1) to (10);
 CREATE TABLE
 drop table if exists rlp3;
-psql:sql/partition_prune.sql:48: NOTICE:  table "rlp3" does not exist, skipping
+psql:sql/partition_prune.sql:45: NOTICE:  table "rlp3" does not exist, skipping
 DROP TABLE
 create table rlp3 (b varchar, a int) partition by list (b varchar_ops);
 CREATE TABLE
---ERROR:  Kunlun currently doesn't support default partitions.
---create table rlp3_default partition of rlp3 default;
+create table rlp3_default partition of rlp3 default;
+CREATE TABLE
 create table rlp3abcd partition of rlp3 for values in ('ab', 'cd');
 CREATE TABLE
 create table rlp3efgh partition of rlp3 for values in ('ef', 'gh');
@@ -91,16 +95,16 @@ alter table rlp attach partition rlp3 for values from (15) to (20);
 ALTER TABLE
 create table rlp4 partition of rlp for values from (20) to (30) partition by range (a);
 CREATE TABLE
---ERROR:  Kunlun currently doesn't support default partitions.
---create table rlp4_default partition of rlp4 default;
+create table rlp4_default partition of rlp4 default;
+CREATE TABLE
 create table rlp4_1 partition of rlp4 for values from (20) to (25);
 CREATE TABLE
 create table rlp4_2 partition of rlp4 for values from (25) to (29);
 CREATE TABLE
 create table rlp5 partition of rlp for values from (31) to (maxvalue) partition by range (a);
 CREATE TABLE
---ERROR:  Kunlun currently doesn't support default partitions.
---create table rlp5_default partition of rlp5 default;
+create table rlp5_default partition of rlp5 default;
+CREATE TABLE
 create table rlp5_1 partition of rlp5 for values from (31) to (40);
 CREATE TABLE
 explain (costs off) select * from rlp where a < 1;
@@ -170,12 +174,12 @@ explain (costs off) select * from rlp where (a = 1 and a = 3) or (a > 1 and a = 
 
 -- multi-column keys
 drop table if exists mc3p;
-psql:sql/partition_prune.sql:105: NOTICE:  table "mc3p" does not exist, skipping
+psql:sql/partition_prune.sql:99: NOTICE:  table "mc3p" does not exist, skipping
 DROP TABLE
 create table mc3p (a int, b int, c int) partition by range (a, abs(b), c);
 CREATE TABLE
---ERROR:  Kunlun currently doesn't support default partitions.
---create table mc3p_default partition of mc3p default;
+create table mc3p_default partition of mc3p default;
+CREATE TABLE
 create table mc3p0 partition of mc3p for values from (minvalue, minvalue, minvalue) to (1, 1, 1);
 CREATE TABLE
 create table mc3p1 partition of mc3p for values from (1, 1, 1) to (10, 5, 10);
@@ -232,12 +236,12 @@ explain (costs off) select * from mc3p where (a = 1 and abs(b) = 1) or (a = 10 a
 
 -- a simpler multi-column keys case
 drop table if exists mc2p;
-psql:sql/partition_prune.sql:139: NOTICE:  table "mc2p" does not exist, skipping
+psql:sql/partition_prune.sql:132: NOTICE:  table "mc2p" does not exist, skipping
 DROP TABLE
 create table mc2p (a int, b int) partition by range (a, b);
 CREATE TABLE
---ERROR:  Kunlun currently doesn't support default partitions.
---create table mc2p_default partition of mc2p default;
+create table mc2p_default partition of mc2p default;
+CREATE TABLE
 create table mc2p0 partition of mc2p for values from (minvalue, minvalue) to (1, minvalue);
 CREATE TABLE
 create table mc2p1 partition of mc2p for values from (1, minvalue) to (1, 1);
@@ -271,12 +275,12 @@ explain (costs off) select * from mc2p where b is null;
 
 -- boolean partitioning
 drop table if exists boolpart;
-psql:sql/partition_prune.sql:163: NOTICE:  table "boolpart" does not exist, skipping
+psql:sql/partition_prune.sql:155: NOTICE:  table "boolpart" does not exist, skipping
 DROP TABLE
 create table boolpart (a bool) partition by list (a);
 CREATE TABLE
---ERROR:  Kunlun currently doesn't support default partitions.
---create table boolpart_default partition of boolpart default;
+create table boolpart_default partition of boolpart default;
+CREATE TABLE
 create table boolpart_t partition of boolpart for values in ('true');
 CREATE TABLE
 create table boolpart_f partition of boolpart for values in ('false');
@@ -298,7 +302,7 @@ explain (costs off) select * from boolpart where a is unknown;
 explain (costs off) select * from boolpart where a is not unknown;
 
 drop table if exists boolrangep;
-psql:sql/partition_prune.sql:179: NOTICE:  table "boolrangep" does not exist, skipping
+psql:sql/partition_prune.sql:170: NOTICE:  table "boolrangep" does not exist, skipping
 DROP TABLE
 create table boolrangep (a bool, b bool, c int) partition by range (a,b,c);
 CREATE TABLE
@@ -315,7 +319,7 @@ explain (costs off)  select * from boolrangep where not a and not b and c = 25;
 
 -- test scalar-to-array operators
 drop table if exists coercepart;
-psql:sql/partition_prune.sql:190: NOTICE:  table "coercepart" does not exist, skipping
+psql:sql/partition_prune.sql:181: NOTICE:  table "coercepart" does not exist, skipping
 DROP TABLE
 create table coercepart (a varchar) partition by list (a);
 CREATE TABLE
@@ -338,16 +342,18 @@ explain (costs off) select * from coercepart where a !~ all ('{ab,bc}');
 drop table coercepart;
 DROP TABLE
 DROP TABLE if exists part;
-psql:sql/partition_prune.sql:204: NOTICE:  table "part" does not exist, skipping
+psql:sql/partition_prune.sql:195: NOTICE:  table "part" does not exist, skipping
 DROP TABLE
 CREATE TABLE part (a INT, b INT) PARTITION BY LIST (a);
 CREATE TABLE
 CREATE TABLE part_p1 PARTITION OF part FOR VALUES IN (-2,-1,0,1,2);
 CREATE TABLE
---ERROR:  Kunlun currently doesn't support default partitions
---CREATE TABLE part_p2 PARTITION OF part DEFAULT PARTITION BY RANGE(a);
---CREATE TABLE part_p2_p1 PARTITION OF part_p2 DEFAULT;
---INSERT INTO part VALUES (-1,-1), (1,1), (2,NULL), (NULL,-2),(NULL,NULL);
+CREATE TABLE part_p2 PARTITION OF part DEFAULT PARTITION BY RANGE(a);
+CREATE TABLE
+CREATE TABLE part_p2_p1 PARTITION OF part_p2 DEFAULT;
+CREATE TABLE
+INSERT INTO part VALUES (-1,-1), (1,1), (2,NULL), (NULL,-2),(NULL,NULL);
+INSERT 0 5
 EXPLAIN (COSTS OFF) SELECT tableoid::regclass as part, a, b FROM part WHERE a IS NULL ORDER BY 1, 2, 3;
 
 --
@@ -371,7 +377,7 @@ explain (costs off) select * from mc2p t1, lateral (select count(*) from mc3p t2
 --
 -- doesn't prune range partitions
 drop table if exists rp;
-psql:sql/partition_prune.sql:235: NOTICE:  table "rp" does not exist, skipping
+psql:sql/partition_prune.sql:225: NOTICE:  table "rp" does not exist, skipping
 DROP TABLE
 create table rp (a int) partition by range (a);
 CREATE TABLE
@@ -402,7 +408,7 @@ explain (costs off) select * from rlp where a = 15 and b <> 'ab' and b <> 'cd' a
 -- different collations for different keys with same expression
 --
 drop table if exists coll_pruning_multi;
-psql:sql/partition_prune.sql:259: NOTICE:  table "coll_pruning_multi" does not exist, skipping
+psql:sql/partition_prune.sql:249: NOTICE:  table "coll_pruning_multi" does not exist, skipping
 DROP TABLE
 create table coll_pruning_multi (a text) partition by range (substr(a, 1) collate "POSIX", substr(a, 1) collate "C");
 CREATE TABLE
@@ -425,7 +431,7 @@ explain (costs off) select * from coll_pruning_multi where substr(a, 1) = 'e' co
 -- LIKE operators don't prune
 --
 drop table if exists like_op_noprune;
-psql:sql/partition_prune.sql:277: NOTICE:  table "like_op_noprune" does not exist, skipping
+psql:sql/partition_prune.sql:267: NOTICE:  table "like_op_noprune" does not exist, skipping
 DROP TABLE
 create table like_op_noprune (a text) partition by list (a);
 CREATE TABLE
@@ -439,7 +445,7 @@ explain (costs off) select * from like_op_noprune where a like '%BC';
 -- tests wherein clause value requires a cross-type comparison function
 --
 drop table if exists lparted_by_int2;
-psql:sql/partition_prune.sql:286: NOTICE:  table "lparted_by_int2" does not exist, skipping
+psql:sql/partition_prune.sql:276: NOTICE:  table "lparted_by_int2" does not exist, skipping
 DROP TABLE
 create table lparted_by_int2 (a smallint) partition by list (a);
 CREATE TABLE
@@ -450,7 +456,7 @@ CREATE TABLE
 explain (costs off) select * from lparted_by_int2 where a = 100000000000000;
 
 drop table if exists rparted_by_int2;
-psql:sql/partition_prune.sql:292: NOTICE:  table "rparted_by_int2" does not exist, skipping
+psql:sql/partition_prune.sql:282: NOTICE:  table "rparted_by_int2" does not exist, skipping
 DROP TABLE
 create table rparted_by_int2 (a smallint) partition by range (a);
 CREATE TABLE
@@ -484,10 +490,8 @@ drop table rp;
 DROP TABLE
 drop table coll_pruning_multi;
 DROP TABLE
-drop tabne like_op_noprune;
-psql:sql/partition_prune.sql:311: ERROR:  syntax error at or near "tabne"
-LINE 1: drop tabne like_op_noprune;
-             ^
+drop table like_op_noprune;
+DROP TABLE
 drop table lparted_by_int2;
 DROP TABLE
 drop table rparted_by_int2;
@@ -500,7 +504,7 @@ DROP TABLE
 -- part_part_test_int4_ops and part_test_text_ops in insert.sql.
 --
 drop table if exists hp;
-psql:sql/partition_prune.sql:323: NOTICE:  table "hp" does not exist, skipping
+psql:sql/partition_prune.sql:313: NOTICE:  table "hp" does not exist, skipping
 DROP TABLE
 create table hp (a int,b text) partition by hash (a part_test_int4_ops, b part_test_text_ops);
 CREATE TABLE
@@ -572,7 +576,7 @@ DROP TABLE
 -- Test runtime partition pruning
 --
 drop table if exists ab;
-psql:sql/partition_prune.sql:362: NOTICE:  table "ab" does not exist, skipping
+psql:sql/partition_prune.sql:352: NOTICE:  table "ab" does not exist, skipping
 DROP TABLE
 create table ab (a int not null, b int not null) partition by list (a);
 CREATE TABLE
@@ -635,9 +639,9 @@ execute ab_q1 (1, 8, 3);
 ---+---
 (0 rows)
 
-explain (costs off, summary off, timing off) execute ab_q1 (2, 2, 3);
+explain (analyze, costs off, summary off, timing off) execute ab_q1 (2, 2, 3);
 
-explain (costs off, summary off, timing off) execute ab_q1 (1, 2, 3);
+explain (analyze, costs off, summary off, timing off) execute ab_q1 (1, 2, 3);
 
 deallocate ab_q1;
 DEALLOCATE
@@ -672,9 +676,9 @@ execute ab_q1 (1, 8);
 ---
 (0 rows)
 
-explain (costs off, summary off, timing off) execute ab_q1 (2, 2);
+explain (analyze, costs off, summary off, timing off) execute ab_q1 (2, 2);
 
-explain (costs off, summary off, timing off) execute ab_q1 (2, 4);
+explain (analyze, costs off, summary off, timing off) execute ab_q1 (2, 4);
 
 -- Ensure a mix of PARAM_EXTERN and PARAM_EXEC Params work together at
 -- different levels of partitioning.
@@ -706,7 +710,7 @@ execute ab_q2 (1, 8);
 ---
 (0 rows)
 
-explain (costs off, summary off, timing off) execute ab_q2 (2, 2);
+explain (analyze, costs off, summary off, timing off) execute ab_q2 (2, 2);
 
 -- As above, but swap the PARAM_EXEC Param to the first partition level
 prepare ab_q3 (int, int) as
@@ -737,11 +741,11 @@ execute ab_q3 (1, 8);
 ---
 (0 rows)
 
-explain (costs off, summary off, timing off) execute ab_q3 (2, 2);
+explain (analyze, costs off, summary off, timing off) execute ab_q3 (2, 2);
 
 -- Test a backwards Append scan
 drop table if exists list_part;
-psql:sql/partition_prune.sql:439: NOTICE:  table "list_part" does not exist, skipping
+psql:sql/partition_prune.sql:428: NOTICE:  table "list_part" does not exist, skipping
 DROP TABLE
 create table list_part (a int) partition by list (a);
 CREATE TABLE
@@ -755,6 +759,41 @@ create table list_part4 partition of list_part for values in (4);
 CREATE TABLE
 insert into list_part select generate_series(1,4);
 INSERT 0 4
+begin;
+BEGIN
+-- Don't select an actual value out of the table as the order of the Append's
+-- subnodes may not be stable.
+declare cur SCROLL CURSOR for select 1 from list_part where a > (select 1) and a < (select 4);
+DECLARE CURSOR
+-- move beyond the final row
+move 3 from cur;
+MOVE 2
+-- Ensure we get two rows.
+fetch backward all from cur;
+ ?column? 
+----------
+        1
+        1
+(2 rows)
+
+commit;
+COMMIT
+begin;
+BEGIN
+-- Test run-time pruning using stable functions
+create function list_part_fn(int) returns int as $$ begin return $1; end;$$ language plpgsql stable;
+CREATE FUNCTION
+-- Ensure pruning works using a stable function containing no Vars
+explain (analyze, costs off, summary off, timing off) select * from list_part where a = list_part_fn(1);
+
+-- Ensure pruning does not take place when the function has a Var parameter
+explain (analyze, costs off, summary off, timing off) select * from list_part where a = list_part_fn(a);
+
+-- Ensure pruning does not take place when the expression contains a Var.
+explain (analyze, costs off, summary off, timing off) select * from list_part where a = list_part_fn(1) + a;
+
+rollback;
+ROLLBACK
 drop table list_part;
 DROP TABLE
 -- Parallel append
@@ -768,7 +807,7 @@ declare
     ln text;
 begin
     for ln in
-        execute format('explain (costs off, summary off, timing off) %s',
+        execute format('explain (analyze, costs off, summary off, timing off) %s',
             $1)
     loop
         if ln like '%Parallel%' then
@@ -874,7 +913,7 @@ select explain_parallel_append('select count(*) from ab where (a = (select 1) or
 
 -- Test pruning during parallel nested loop query
 drop table if exists rparted_by_int2;
-psql:sql/partition_prune.sql:514: NOTICE:  table "rparted_by_int2" does not exist, skipping
+psql:sql/partition_prune.sql:534: NOTICE:  table "rparted_by_int2" does not exist, skipping
 DROP TABLE
 create table lprt_a (a int not null);
 CREATE TABLE
@@ -884,6 +923,8 @@ INSERT 0 100
 -- and insert some values that we should find.
 insert into lprt_a values(1),(1);
 INSERT 0 2
+analyze lprt_a;
+ANALYZE
 create index ab_a2_b1_a_idx on ab_a2_b1 (a);
 CREATE INDEX
 create index ab_a2_b2_a_idx on ab_a2_b2 (a);
@@ -935,15 +976,15 @@ RESET
 reset max_parallel_workers_per_gather;
 RESET
 -- Test run-time partition pruning with an initplan
-explain (costs off, summary off, timing off)
+explain (analyze, costs off, summary off, timing off)
 select * from ab where a = (select max(a) from lprt_a) and b = (select max(a)-1 from lprt_a);
 
 -- Test run-time partition pruning with UNION ALL parents
-explain (costs off, summary off, timing off)
+explain (analyze, costs off, summary off, timing off)
 select * from (select * from ab where a = 1 union all select * from ab) ab where b = (select 1);
 
 -- A case containing a UNION ALL with a non-partitioned child.
-explain (costs off, summary off, timing off)
+explain (analyze, costs off, summary off, timing off)
 select * from (select * from ab where a = 1 union all (values(10,5)) union all select * from ab) ab where b = (select 1);
 
 deallocate ab_q1;
@@ -959,9 +1000,9 @@ DEALLOCATE
 -- UPDATE on a partition subtree has been seen to have problems.
 insert into ab values (1,2);
 INSERT 0 1
-explain (costs off, summary off, timing off)
+explain (analyze, costs off, summary off, timing off)
 update ab_a1 set b = 3 from ab where ab.a = 1 and ab.a = ab_a1.a;
-psql:sql/partition_prune.sql:578: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
+psql:sql/partition_prune.sql:600: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 table ab;
  a | b 
 ---+---
@@ -974,7 +1015,7 @@ drop table lprt_a;
 DROP TABLE
 -- Join
 drop table if exists tbl1;
-psql:sql/partition_prune.sql:585: NOTICE:  table "tbl1" does not exist, skipping
+psql:sql/partition_prune.sql:607: NOTICE:  table "tbl1" does not exist, skipping
 DROP TABLE
 create table tbl1(col1 int);
 CREATE TABLE
@@ -982,7 +1023,7 @@ insert into tbl1 values (501), (505);
 INSERT 0 2
 -- Basic table
 drop table if exists tprt;
-psql:sql/partition_prune.sql:590: NOTICE:  table "tprt" does not exist, skipping
+psql:sql/partition_prune.sql:612: NOTICE:  table "tprt" does not exist, skipping
 DROP TABLE
 create table tprt (col1 int) partition by range (col1);
 CREATE TABLE
@@ -1016,10 +1057,10 @@ set enable_hashjoin = off;
 SET
 set enable_mergejoin = off;
 SET
-explain (costs off, summary off, timing off)
+explain (analyze, costs off, summary off, timing off)
 select * from tbl1 join tprt on tbl1.col1 > tprt.col1;
 
-explain (costs off, summary off, timing off)
+explain (analyze, costs off, summary off, timing off)
 select * from tbl1 join tprt on tbl1.col1 = tprt.col1;
 
 select tbl1.col1, tprt.col1 from tbl1
@@ -1047,10 +1088,10 @@ order by tbl1.col1, tprt.col1;
 -- Multiple partitions
 insert into tbl1 values (1001), (1010), (1011);
 INSERT 0 3
-explain (costs off, summary off, timing off)
+explain (analyze, costs off, summary off, timing off)
 select * from tbl1 inner join tprt on tbl1.col1 > tprt.col1;
 
-explain (costs off, summary off, timing off)
+explain (analyze, costs off, summary off, timing off)
 select * from tbl1 inner join tprt on tbl1.col1 = tprt.col1;
 
 select tbl1.col1, tprt.col1 from tbl1
@@ -1098,7 +1139,7 @@ delete from tbl1;
 DELETE 5
 insert into tbl1 values (4400);
 INSERT 0 1
-explain (costs off, summary off, timing off)
+explain (analyze, costs off, summary off, timing off)
 select * from tbl1 join tprt on tbl1.col1 < tprt.col1;
 
 select tbl1.col1, tprt.col1 from tbl1
@@ -1114,7 +1155,7 @@ delete from tbl1;
 DELETE 1
 insert into tbl1 values (10000);
 INSERT 0 1
-explain (costs off, summary off, timing off)
+explain (analyze, costs off, summary off, timing off)
 select * from tbl1 join tprt on tbl1.col1 = tprt.col1;
 
 select tbl1.col1, tprt.col1 from tbl1
@@ -1130,16 +1171,16 @@ drop table tprt;
 DROP TABLE
 -- Test with columns defined in varying orders between each level
 drop table if exists part_abc;
-psql:sql/partition_prune.sql:665: NOTICE:  table "part_abc" does not exist, skipping
+psql:sql/partition_prune.sql:686: NOTICE:  table "part_abc" does not exist, skipping
 DROP TABLE
 drop table if exists part_bac;
-psql:sql/partition_prune.sql:666: NOTICE:  table "part_bac" does not exist, skipping
+psql:sql/partition_prune.sql:687: NOTICE:  table "part_bac" does not exist, skipping
 DROP TABLE
 drop table if exists part_cab;
-psql:sql/partition_prune.sql:667: NOTICE:  table "part_cab" does not exist, skipping
+psql:sql/partition_prune.sql:688: NOTICE:  table "part_cab" does not exist, skipping
 DROP TABLE
 drop table if exists part_abc_p1;
-psql:sql/partition_prune.sql:668: NOTICE:  table "part_abc_p1" does not exist, skipping
+psql:sql/partition_prune.sql:689: NOTICE:  table "part_abc_p1" does not exist, skipping
 DROP TABLE
 create table part_abc (a int not null, b int not null, c int not null) partition by list (a);
 CREATE TABLE
@@ -1186,7 +1227,7 @@ execute part_abc_q1 (1, 2, 3);
 (0 rows)
 
 -- Single partition should be scanned.
-explain (costs off, summary off, timing off) execute part_abc_q1 (1, 2, 3);
+explain (analyze, costs off, summary off, timing off) execute part_abc_q1 (1, 2, 3);
 
 deallocate part_abc_q1;
 DEALLOCATE
@@ -1195,7 +1236,7 @@ DROP TABLE
 -- Ensure that an Append node properly handles a sub-partitioned table
 -- matching without any of its leaf partitions matching the clause.
 drop table if exists listp;
-psql:sql/partition_prune.sql:698: NOTICE:  table "listp" does not exist, skipping
+psql:sql/partition_prune.sql:718: NOTICE:  table "listp" does not exist, skipping
 DROP TABLE
 create table listp (a int, b int) partition by list (a);
 CREATE TABLE
@@ -1242,13 +1283,13 @@ execute q1 (1,2);
 ---+---
 (0 rows)
 
-explain (costs off, summary off, timing off)  execute q1 (1,1);
+explain (analyze, costs off, summary off, timing off)  execute q1 (1,1);
 
-explain (costs off, summary off, timing off)  execute q1 (2,2);
+explain (analyze, costs off, summary off, timing off)  execute q1 (2,2);
 
 -- Try with no matching partitions. One subplan should remain in this case,
 -- but it shouldn't be executed.
-explain (costs off, summary off, timing off)  execute q1 (0,0);
+explain (analyze, costs off, summary off, timing off)  execute q1 (0,0);
 
 deallocate q1;
 DEALLOCATE
@@ -1281,14 +1322,14 @@ execute q1 (1,2,3,4);
 (0 rows)
 
 -- Both partitions allowed by IN clause, but one disallowed by <> clause
-explain (costs off, summary off, timing off)  execute q1 (1,2,2,0);
+explain (analyze, costs off, summary off, timing off)  execute q1 (1,2,2,0);
 
 -- Both partitions allowed by IN clause, then both excluded again by <> clauses.
 -- One subplan will remain in this case, but it should not be executed.
-explain (costs off, summary off, timing off)  execute q1 (1,2,2,1);
+explain (analyze, costs off, summary off, timing off)  execute q1 (1,2,2,1);
 
 -- Ensure Params that evaluate to NULL properly prune away all partitions
-explain (costs off, summary off, timing off)
+explain (analyze, costs off, summary off, timing off)
 select * from listp where a = (select null::int);
 
 drop table listp;
@@ -1297,7 +1338,7 @@ DROP TABLE
 -- check that stable query clauses are only used in run-time pruning
 --
 drop table if exists stable_qual_pruning;
-psql:sql/partition_prune.sql:752: NOTICE:  table "stable_qual_pruning" does not exist, skipping
+psql:sql/partition_prune.sql:771: NOTICE:  table "stable_qual_pruning" does not exist, skipping
 DROP TABLE
 create table stable_qual_pruning (a timestamp) partition by range (a);
 CREATE TABLE
@@ -1312,35 +1353,34 @@ create table stable_qual_pruning3 partition of stable_qual_pruning
 CREATE TABLE
   
 -- comparison against a stable value requires run-time pruning
-explain (costs off, summary off, timing off)
+explain (analyze, costs off, summary off, timing off)
 select * from stable_qual_pruning where a < localtimestamp;
 
 -- timestamp < timestamptz comparison is only stable, not immutable
-explain (costs off, summary off, timing off)
+explain (analyze, costs off, summary off, timing off)
 select * from stable_qual_pruning where a < '2000-02-01'::timestamptz;
 
 -- check ScalarArrayOp cases
-explain (costs off, summary off, timing off)
+explain (analyze, costs off, summary off, timing off)
 select * from stable_qual_pruning
   where a = any(array['2010-02-01', '2020-01-01']::timestamp[]);
 
-explain (costs off, summary off, timing off)
+explain (analyze, costs off, summary off, timing off)
 select * from stable_qual_pruning
   where a = any(array['2000-02-01', '2010-01-01']::timestamp[]);
 
-explain (costs off, summary off, timing off)
+explain (analyze, costs off, summary off, timing off)
 select * from stable_qual_pruning
   where a = any(array['2000-02-01', localtimestamp]::timestamp[]);
 
-explain (costs off, summary off, timing off)
+explain (analyze, costs off, summary off, timing off)
 select * from stable_qual_pruning
   where a = any(array['2010-02-01', '2020-01-01']::timestamptz[]);
 
-explain (costs off, summary off, timing off)
+explain (analyze, costs off, summary off, timing off)
 select * from stable_qual_pruning
   where a = any(array['2000-02-01', '2010-01-01']::timestamptz[]);
 
-  
 drop table stable_qual_pruning;
 DROP TABLE
 --
@@ -1349,7 +1389,7 @@ DROP TABLE
 -- non-inclusive operator for an earlier key
 --
 drop table if exists mc3p;
-psql:sql/partition_prune.sql:793: NOTICE:  table "mc3p" does not exist, skipping
+psql:sql/partition_prune.sql:812: NOTICE:  table "mc3p" does not exist, skipping
 DROP TABLE
 create table mc3p (a int, b int, c int) partition by range (a, abs(b), c);
 CREATE TABLE
@@ -1364,7 +1404,7 @@ create table mc3p2 partition of mc3p
 CREATE TABLE
 insert into mc3p values (0, 1, 1), (1, 1, 1), (2, 1, 1);
 INSERT 0 3
-explain (costs off, summary off, timing off)
+explain (analyze, costs off, summary off, timing off)
 select * from mc3p where a < 3 and abs(b) = 1;
 
 --
@@ -1378,7 +1418,7 @@ select * from mc3p where a < 3 and abs(b) = 1;
 prepare ps1 as
   select * from mc3p where a = $1 and abs(b) < (select 3);
 PREPARE
-explain (costs off, summary off, timing off)
+explain (analyze, costs off, summary off, timing off)
 execute ps1(1);
 
 deallocate ps1;
@@ -1386,7 +1426,7 @@ DEALLOCATE
 prepare ps2 as
   select * from mc3p where a <= $1 and abs(b) < (select 3);
 PREPARE
-explain (costs off, summary off, timing off)
+explain (analyze, costs off, summary off, timing off)
 execute ps2(1);
 
 deallocate ps2;
@@ -1395,14 +1435,14 @@ drop table mc3p;
 DROP TABLE
 -- Ensure runtime pruning works with initplans params with boolean types
 drop table if exists boolvalues;
-psql:sql/partition_prune.sql:828: NOTICE:  table "boolvalues" does not exist, skipping
+psql:sql/partition_prune.sql:847: NOTICE:  table "boolvalues" does not exist, skipping
 DROP TABLE
 create table boolvalues (value bool not null);
 CREATE TABLE
 insert into boolvalues values('t'),('f');
 INSERT 0 2
 drop table if exists boolp;
-psql:sql/partition_prune.sql:832: NOTICE:  table "boolp" does not exist, skipping
+psql:sql/partition_prune.sql:851: NOTICE:  table "boolp" does not exist, skipping
 DROP TABLE
 create table boolp (a bool) partition by list (a);
 CREATE TABLE
@@ -1410,10 +1450,10 @@ create table boolp_t partition of boolp for values in('t');
 CREATE TABLE
 create table boolp_f partition of boolp for values in('f');
 CREATE TABLE
-explain (costs off, summary off, timing off)
+explain (analyze, costs off, summary off, timing off)
 select * from boolp where a = (select value from boolvalues where value);
 
-explain (costs off, summary off, timing off)
+explain (analyze, costs off, summary off, timing off)
 select * from boolp where a = (select value from boolvalues where not value);
 
 drop table boolp;
@@ -1426,7 +1466,7 @@ RESET
 --
 -- enum type list partition key
 drop table if exists pp_colors;
-psql:sql/partition_prune.sql:853: NOTICE:  table "pp_colors" does not exist, skipping
+psql:sql/partition_prune.sql:872: NOTICE:  table "pp_colors" does not exist, skipping
 DROP TABLE
 create type pp_colors as enum ('green', 'blue', 'black');
 CREATE TYPE
@@ -1448,7 +1488,7 @@ DROP TYPE
 -- Ensure the enable_partition_prune GUC properly disables partition pruning.
 --
 drop table if exists pp_lp;
-psql:sql/partition_prune.sql:866: NOTICE:  table "pp_lp" does not exist, skipping
+psql:sql/partition_prune.sql:885: NOTICE:  table "pp_lp" does not exist, skipping
 DROP TABLE
 create table pp_lp (a int, value int) partition by list (a);
 CREATE TABLE
@@ -1482,31 +1522,48 @@ explain (costs off) delete from pp_lp where a = 1;
 
 drop table pp_lp;
 DROP TABLE
--- Ensure enable_partition_prune does not affect non-partitioned tables. 不支持check,先注释相关内容
--- drop table if exists inh_lp;
--- create table inh_lp (a int, value int);
--- create table inh_lp1 (a int, value int, check(a = 1)) inherits (inh_lp);
--- create table inh_lp2 (a int, value int, check(a = 2)) inherits (inh_lp);
--- set constraint_exclusion = 'partition';
+-- Ensure enable_partition_prune does not affect non-partitioned tables.
+drop table if exists inh_lp;
+psql:sql/partition_prune.sql:911: NOTICE:  table "inh_lp" does not exist, skipping
+DROP TABLE
+create table inh_lp (a int, value int);
+CREATE TABLE
+create table inh_lp1 (a int, value int, check(a = 1)) inherits (inh_lp);
+psql:sql/partition_prune.sql:913: NOTICE:  merging column "a" with inherited definition
+psql:sql/partition_prune.sql:913: NOTICE:  merging column "value" with inherited definition
+CREATE TABLE
+create table inh_lp2 (a int, value int, check(a = 2)) inherits (inh_lp);
+psql:sql/partition_prune.sql:914: NOTICE:  merging column "a" with inherited definition
+psql:sql/partition_prune.sql:914: NOTICE:  merging column "value" with inherited definition
+CREATE TABLE
+set constraint_exclusion = 'partition';
+SET
 --inh_lp2 should be removed in the following 3 cases.
--- explain (costs off) select * from inh_lp where a = 1;
--- explain (costs off) update inh_lp set value = 10 where a = 1;
--- explain (costs off) delete from inh_lp where a = 1;
--- Ensure we don't exclude normal relations when we only expect to exclude
--- inheritance children
--- explain (costs off) update inh_lp1 set value = 10 where a = 2;
--- \set VERBOSITY terse	\\ -- suppress cascade details
--- drop table inh_lp cascade;
--- \set VERBOSITY default
--- reset enable_partition_pruning;
--- reset constraint_exclusion;
+explain (costs off) select * from inh_lp where a = 1;
+
+explain (costs off) update inh_lp set value = 10 where a = 1;
+psql:sql/partition_prune.sql:919: ERROR:  no relation entry for relid 1
+explain (costs off) delete from inh_lp where a = 1;
+psql:sql/partition_prune.sql:920: ERROR:  no relation entry for relid 1
+--Ensure we don't exclude normal relations when we only expect to exclude inheritance children
+explain (costs off) update inh_lp1 set value = 10 where a = 2;
+
+\set VERBOSITY terse	\\ -- suppress cascade details
+drop table inh_lp cascade;
+psql:sql/partition_prune.sql:925: NOTICE:  drop cascades to 2 other objects
+DROP TABLE
+\set VERBOSITY default
+reset enable_partition_pruning;
+RESET
+reset constraint_exclusion;
+RESET
 -- Check pruning for a partition tree containing only temporary relations
 create temp table pp_temp_parent (a int) partition by list (a);
 CREATE TABLE
 create temp table pp_temp_part_1 partition of pp_temp_parent for values in (1);
 CREATE TABLE
---Kunlun currently doesn't support default partitions.
---create temp table pp_temp_part_def partition of pp_temp_parent default;
+create temp table pp_temp_part_def partition of pp_temp_parent default;
+CREATE TABLE
 explain (costs off) select * from pp_temp_parent where true;
 
 explain (costs off) select * from pp_temp_parent where a = 2;
@@ -1568,7 +1625,7 @@ DROP TABLE
 -- Ensure run-time pruning works correctly when we match a partitioned table
 -- on the first level but find no matching partitions on the second level.
 drop table if exists listp;
-psql:sql/partition_prune.sql:962: NOTICE:  table "listp" does not exist, skipping
+psql:sql/partition_prune.sql:979: NOTICE:  table "listp" does not exist, skipping
 DROP TABLE
 create table listp (a int, b int) partition by list (a);
 CREATE TABLE
@@ -1578,7 +1635,7 @@ create table listp2 partition of listp for values in(2) partition by list(b);
 CREATE TABLE
 create table listp2_10 partition of listp2 for values in (10);
 CREATE TABLE
-explain (costs off, summary off, timing off)
+explain (analyze, costs off, summary off, timing off)
 select * from listp where a = (select 2) and b <> 10;
 
 --
@@ -1594,14 +1651,14 @@ SET
 explain (costs off) select * from listp1 where a = 2;
 
 explain (costs off) update listp1 set a = 1 where a = 2;
-psql:sql/partition_prune.sql:982: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
+psql:sql/partition_prune.sql:999: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 -- constraint exclusion enabled
 set constraint_exclusion to 'on';
 SET
 explain (costs off) select * from listp1 where a = 2;
 
 explain (costs off) update listp1 set a = 1 where a = 2;
-psql:sql/partition_prune.sql:986: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
+psql:sql/partition_prune.sql:1003: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 reset constraint_exclusion;
 RESET
 reset enable_partition_pruning;

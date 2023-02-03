@@ -1,20 +1,20 @@
 --
 -- AGGREGATES
 --
-DELETE from aggtest;
-DELETE 4
+Truncate aggtest;
+TRUNCATE TABLE
 COPY aggtest FROM '/home/kunlun/pgregressdata/data/agg.data';
 COPY 4
-DELETE from student;
-DELETE 2
+Truncate student;
+TRUNCATE TABLE
 COPY student FROM '/home/kunlun/pgregressdata/data/student.data';
 COPY 2
-DELETE from tenk1;
-DELETE 10000
+Truncate tenk1;
+TRUNCATE TABLE
 COPY tenk1 FROM '/home/kunlun/pgregressdata/data/tenk.data';
 COPY 10000
-DELETE from onek;
-DELETE 1000
+Truncate onek;
+TRUNCATE TABLE
 COPY onek FROM '/home/kunlun/pgregressdata/data/onek.data';
 COPY 1000
 SELECT avg(four)::numeric(64,4) AS avg_1 FROM onek;
@@ -715,13 +715,63 @@ select max(100) from tenk1;
  100
 (1 row)
 
+-- try it on an inheritance tree
+create table minmaxtest(f1 int);
+CREATE TABLE
+create table minmaxtest1() inherits (minmaxtest);
+CREATE TABLE
+create table minmaxtest2() inherits (minmaxtest);
+CREATE TABLE
+create table minmaxtest3() inherits (minmaxtest);
+CREATE TABLE
+create index minmaxtesti on minmaxtest(f1);
+CREATE INDEX
+create index minmaxtest1i on minmaxtest1(f1);
+CREATE INDEX
+create index minmaxtest2i on minmaxtest2(f1 desc);
+CREATE INDEX
+create index minmaxtest3i on minmaxtest3(f1) where f1 is not null;
+psql:sql/aggregates.sql:324: ERROR:  partial index isn't supported for remote relations
+insert into minmaxtest values(11), (12);
+INSERT 0 2
+insert into minmaxtest1 values(13), (14);
+INSERT 0 2
+insert into minmaxtest2 values(15), (16);
+INSERT 0 2
+insert into minmaxtest3 values(17), (18);
+INSERT 0 2
+explain (costs off)
+  select min(f1), max(f1) from minmaxtest;
+
+select min(f1), max(f1) from minmaxtest;
+ min | max 
+-----+-----
+  11 |  18
+(1 row)
+
+-- DISTINCT doesn't do anything useful here, but it shouldn't fail
+explain (costs off)
+  select distinct min(f1), max(f1) from minmaxtest;
+
+select distinct min(f1), max(f1) from minmaxtest;
+ min | max 
+-----+-----
+  11 |  18
+(1 row)
+
+drop table minmaxtest cascade;
+psql:sql/aggregates.sql:340: NOTICE:  drop cascades to 3 other objects
+DETAIL:  drop cascades to table minmaxtest1
+drop cascades to table minmaxtest2
+drop cascades to table minmaxtest3
+DROP TABLE
 -- check for correct detection of nested-aggregate errors
 select max(min(unique1)) from tenk1;
-psql:sql/aggregates.sql:317: ERROR:  aggregate function calls cannot be nested
+psql:sql/aggregates.sql:342: ERROR:  aggregate function calls cannot be nested
 LINE 1: select max(min(unique1)) from tenk1;
                    ^
 select (select max(min(unique1)) from int8_tbl) from tenk1;
-psql:sql/aggregates.sql:318: ERROR:  aggregate function calls cannot be nested
+psql:sql/aggregates.sql:343: ERROR:  aggregate function calls cannot be nested
 LINE 1: select (select max(min(unique1)) from int8_tbl) from tenk1;
                            ^
 --
@@ -937,7 +987,7 @@ select pg_get_viewdef('agg_view1'::regclass);
 create or replace view agg_view1 as
   select aggfns(distinct a,b,c)
     from (values (1,3,'foo'),(0,null,null),(2,2,'bar'),(3,1,'baz')) v(a,b,c),
-         generate_series(1,3) i;		 
+         generate_series(1,3) i;
 CREATE VIEW
 select * from agg_view1;
                     aggfns                     
@@ -950,7 +1000,7 @@ select pg_get_viewdef('agg_view1'::regclass);
 create or replace view agg_view1 as
   select aggfns(distinct a,b,c order by b)
     from (values (1,3,'foo'),(0,null,null),(2,2,'bar'),(3,1,'baz')) v(a,b,c),
-         generate_series(1,3) i;		 
+         generate_series(1,3) i;
 CREATE VIEW
 select * from agg_view1;
                     aggfns                     
@@ -962,7 +1012,7 @@ select pg_get_viewdef('agg_view1'::regclass);
 
 create or replace view agg_view1 as
   select aggfns(a,b,c order by b+1)
-    from (values (1,3,'foo'),(0,null,null),(2,2,'bar'),(3,1,'baz')) v(a,b,c);	
+    from (values (1,3,'foo'),(0,null,null),(2,2,'bar'),(3,1,'baz')) v(a,b,c);
 CREATE VIEW
 select * from agg_view1;
                     aggfns                     
@@ -974,7 +1024,7 @@ select pg_get_viewdef('agg_view1'::regclass);
 
 create or replace view agg_view1 as
   select aggfns(a,a,c order by b)
-    from (values (1,3,'foo'),(0,null,null),(2,2,'bar'),(3,1,'baz')) v(a,b,c);	
+    from (values (1,3,'foo'),(0,null,null),(2,2,'bar'),(3,1,'baz')) v(a,b,c);
 CREATE VIEW
 select * from agg_view1;
                      aggfns                     
@@ -986,7 +1036,7 @@ select pg_get_viewdef('agg_view1'::regclass);
 
 create or replace view agg_view1 as
   select aggfns(a,b,c order by c using ~<~)
-    from (values (1,3,'foo'),(0,null,null),(2,2,'bar'),(3,1,'baz')) v(a,b,c);	
+    from (values (1,3,'foo'),(0,null,null),(2,2,'bar'),(3,1,'baz')) v(a,b,c);
 CREATE VIEW
 select * from agg_view1;
                     aggfns                     
@@ -999,7 +1049,7 @@ select pg_get_viewdef('agg_view1'::regclass);
 create or replace view agg_view1 as
   select aggfns(distinct a,b,c order by a,c using ~<~,b)
     from (values (1,3,'foo'),(0,null,null),(2,2,'bar'),(3,1,'baz')) v(a,b,c),
-         generate_series(1,2) i;		 
+         generate_series(1,2) i;
 CREATE VIEW
 select * from agg_view1;
                     aggfns                     
@@ -1014,22 +1064,22 @@ DROP VIEW
 -- incorrect DISTINCT usage errors
 select aggfns(distinct a,b,c order by i)
   from (values (1,1,'foo')) v(a,b,c), generate_series(1,2) i;
-psql:sql/aggregates.sql:487: ERROR:  in an aggregate with DISTINCT, ORDER BY expressions must appear in argument list
+psql:sql/aggregates.sql:512: ERROR:  in an aggregate with DISTINCT, ORDER BY expressions must appear in argument list
 LINE 1: select aggfns(distinct a,b,c order by i)
                                               ^
 select aggfns(distinct a,b,c order by a,b+1)
   from (values (1,1,'foo')) v(a,b,c), generate_series(1,2) i;
-psql:sql/aggregates.sql:489: ERROR:  in an aggregate with DISTINCT, ORDER BY expressions must appear in argument list
+psql:sql/aggregates.sql:514: ERROR:  in an aggregate with DISTINCT, ORDER BY expressions must appear in argument list
 LINE 1: select aggfns(distinct a,b,c order by a,b+1)
                                                 ^
 select aggfns(distinct a,b,c order by a,b,i,c)
   from (values (1,1,'foo')) v(a,b,c), generate_series(1,2) i;
-psql:sql/aggregates.sql:491: ERROR:  in an aggregate with DISTINCT, ORDER BY expressions must appear in argument list
+psql:sql/aggregates.sql:516: ERROR:  in an aggregate with DISTINCT, ORDER BY expressions must appear in argument list
 LINE 1: select aggfns(distinct a,b,c order by a,b,i,c)
                                                   ^
 select aggfns(distinct a,a,c order by a,b)
   from (values (1,1,'foo')) v(a,b,c), generate_series(1,2) i;
-psql:sql/aggregates.sql:493: ERROR:  in an aggregate with DISTINCT, ORDER BY expressions must appear in argument list
+psql:sql/aggregates.sql:518: ERROR:  in an aggregate with DISTINCT, ORDER BY expressions must appear in argument list
 LINE 1: select aggfns(distinct a,a,c order by a,b)
                                                 ^
 -- string_agg tests
@@ -1065,11 +1115,11 @@ select string_agg(distinct f1, ',' order by f1) from varchar_tbl;  -- ok
 (1 row)
 
 select string_agg(distinct f1::text, ',' order by f1) from varchar_tbl;  -- not ok
-psql:sql/aggregates.sql:503: ERROR:  in an aggregate with DISTINCT, ORDER BY expressions must appear in argument list
+psql:sql/aggregates.sql:528: ERROR:  in an aggregate with DISTINCT, ORDER BY expressions must appear in argument list
 LINE 1: select string_agg(distinct f1::text, ',' order by f1) from v...
                                                           ^
 select string_agg(distinct f1, ',' order by f1::text) from varchar_tbl;  -- not ok
-psql:sql/aggregates.sql:504: ERROR:  in an aggregate with DISTINCT, ORDER BY expressions must appear in argument list
+psql:sql/aggregates.sql:529: ERROR:  in an aggregate with DISTINCT, ORDER BY expressions must appear in argument list
 LINE 1: select string_agg(distinct f1, ',' order by f1::text) from v...
                                                     ^
 select string_agg(distinct f1::text, ',' order by f1::text) from varchar_tbl;  -- ok
@@ -1240,21 +1290,21 @@ select p, percentile_cont(p order by p) within group (order by x)  -- error
 from generate_series(1,5) x,
      (values (0::float8),(0.1),(0.25),(0.4),(0.5),(0.6),(0.75),(0.9),(1)) v(p)
 group by p order by p;
-psql:sql/aggregates.sql:574: ERROR:  cannot use multiple ORDER BY clauses with WITHIN GROUP
+psql:sql/aggregates.sql:599: ERROR:  cannot use multiple ORDER BY clauses with WITHIN GROUP
 LINE 1: select p, percentile_cont(p order by p) within group (order ...
                                                 ^
 select p, sum() within group (order by x::float8)  -- error
 from generate_series(1,5) x,
      (values (0::float8),(0.1),(0.25),(0.4),(0.5),(0.6),(0.75),(0.9),(1)) v(p)
 group by p order by p;
-psql:sql/aggregates.sql:579: ERROR:  sum is not an ordered-set aggregate, so it cannot have WITHIN GROUP
+psql:sql/aggregates.sql:604: ERROR:  sum is not an ordered-set aggregate, so it cannot have WITHIN GROUP
 LINE 1: select p, sum() within group (order by x::float8)  
                   ^
 select p, percentile_cont(p,p)  -- error
 from generate_series(1,5) x,
      (values (0::float8),(0.1),(0.25),(0.4),(0.5),(0.6),(0.75),(0.9),(1)) v(p)
 group by p order by p;
-psql:sql/aggregates.sql:584: ERROR:  WITHIN GROUP is required for ordered-set aggregate percentile_cont
+psql:sql/aggregates.sql:609: ERROR:  WITHIN GROUP is required for ordered-set aggregate percentile_cont
 LINE 1: select p, percentile_cont(p,p)  
                   ^
 select percentile_cont(0.5) within group (order by b) from aggtest;
@@ -1383,7 +1433,7 @@ select test_percentile_disc(0.5) within group (order by thousand) from tenk1;
 
 -- ordered-set aggs can't use ungrouped vars in direct args:
 select rank(x) within group (order by x) from generate_series(1,5) x;
-psql:sql/aggregates.sql:623: ERROR:  column "x.x" must appear in the GROUP BY clause or be used in an aggregate function
+psql:sql/aggregates.sql:648: ERROR:  column "x.x" must appear in the GROUP BY clause or be used in an aggregate function
 LINE 1: select rank(x) within group (order by x) from generate_serie...
                     ^
 DETAIL:  Direct arguments of an ordered-set aggregate must use only grouped columns.
@@ -1391,31 +1441,31 @@ DETAIL:  Direct arguments of an ordered-set aggregate must use only grouped colu
 select array(select percentile_disc(a) within group (order by x)
                from (values (0.3),(0.7)) v(a) group by a)
   from generate_series(1,5) g(x);
-psql:sql/aggregates.sql:628: ERROR:  outer-level aggregate cannot contain a lower-level variable in its direct arguments
+psql:sql/aggregates.sql:653: ERROR:  outer-level aggregate cannot contain a lower-level variable in its direct arguments
 LINE 1: select array(select percentile_disc(a) within group (order b...
                                             ^
 -- agg in the direct args is a grouping violation, too:
 select rank(sum(x)) within group (order by x) from generate_series(1,5) x;
-psql:sql/aggregates.sql:631: ERROR:  aggregate function calls cannot be nested
+psql:sql/aggregates.sql:656: ERROR:  aggregate function calls cannot be nested
 LINE 1: select rank(sum(x)) within group (order by x) from generate_...
                     ^
 -- hypothetical-set type unification and argument-count failures:
 select rank(3) within group (order by x) from (values ('fred'),('jim')) v(x);
-psql:sql/aggregates.sql:634: ERROR:  WITHIN GROUP types text and integer cannot be matched
+psql:sql/aggregates.sql:659: ERROR:  WITHIN GROUP types text and integer cannot be matched
 LINE 1: select rank(3) within group (order by x) from (values ('fred...
                     ^
 select rank(3) within group (order by stringu1,stringu2) from tenk1;
-psql:sql/aggregates.sql:635: ERROR:  function rank(integer, name, name) does not exist
+psql:sql/aggregates.sql:660: ERROR:  function rank(integer, name, name) does not exist
 LINE 1: select rank(3) within group (order by stringu1,stringu2) fro...
                ^
 HINT:  To use the hypothetical-set aggregate rank, the number of hypothetical direct arguments (here 1) must match the number of ordering columns (here 2).
 select rank('fred') within group (order by x) from generate_series(1,5) x;
-psql:sql/aggregates.sql:636: ERROR:  invalid input syntax for integer: "fred"
+psql:sql/aggregates.sql:661: ERROR:  invalid input syntax for integer: "fred"
 LINE 1: select rank('fred') within group (order by x) from generate_...
                     ^
 select rank('adam'::text collate "C") within group (order by x collate "POSIX")
   from (values ('fred'),('jim')) v(x);
-psql:sql/aggregates.sql:638: ERROR:  collation mismatch between explicit collations "C" and "POSIX"
+psql:sql/aggregates.sql:663: ERROR:  collation mismatch between explicit collations "C" and "POSIX"
 LINE 1: ...adam'::text collate "C") within group (order by x collate "P...
                                                              ^
 -- hypothetical-set type unification successes:
@@ -1544,8 +1594,8 @@ create aggregate my_sum(int4)
 CREATE AGGREGATE
 -- aggregate state should be shared as aggs are the same.
 select my_avg(one),my_avg(one) from (values(1),(3)) t(one);
-psql:sql/aggregates.sql:727: NOTICE:  avg_transfn called with 1
-psql:sql/aggregates.sql:727: NOTICE:  avg_transfn called with 3
+psql:sql/aggregates.sql:752: NOTICE:  avg_transfn called with 1
+psql:sql/aggregates.sql:752: NOTICE:  avg_transfn called with 3
  my_avg | my_avg 
 --------+--------
       2 |      2
@@ -1553,8 +1603,8 @@ psql:sql/aggregates.sql:727: NOTICE:  avg_transfn called with 3
 
 -- aggregate state should be shared as transfn is the same for both aggs.
 select my_avg(one),my_sum(one) from (values(1),(3)) t(one);
-psql:sql/aggregates.sql:730: NOTICE:  avg_transfn called with 1
-psql:sql/aggregates.sql:730: NOTICE:  avg_transfn called with 3
+psql:sql/aggregates.sql:755: NOTICE:  avg_transfn called with 1
+psql:sql/aggregates.sql:755: NOTICE:  avg_transfn called with 3
  my_avg | my_sum 
 --------+--------
       2 |      4
@@ -1562,8 +1612,8 @@ psql:sql/aggregates.sql:730: NOTICE:  avg_transfn called with 3
 
 -- same as previous one, but with DISTINCT, which requires sorting the input.
 select my_avg(distinct one),my_sum(distinct one) from (values(1),(3),(1)) t(one);
-psql:sql/aggregates.sql:733: NOTICE:  avg_transfn called with 1
-psql:sql/aggregates.sql:733: NOTICE:  avg_transfn called with 3
+psql:sql/aggregates.sql:758: NOTICE:  avg_transfn called with 1
+psql:sql/aggregates.sql:758: NOTICE:  avg_transfn called with 3
  my_avg | my_sum 
 --------+--------
       2 |      4
@@ -1571,10 +1621,10 @@ psql:sql/aggregates.sql:733: NOTICE:  avg_transfn called with 3
 
 -- shouldn't share states due to the distinctness not matching.
 select my_avg(distinct one),my_sum(one) from (values(1),(3)) t(one);
-psql:sql/aggregates.sql:736: NOTICE:  avg_transfn called with 1
-psql:sql/aggregates.sql:736: NOTICE:  avg_transfn called with 3
-psql:sql/aggregates.sql:736: NOTICE:  avg_transfn called with 1
-psql:sql/aggregates.sql:736: NOTICE:  avg_transfn called with 3
+psql:sql/aggregates.sql:761: NOTICE:  avg_transfn called with 1
+psql:sql/aggregates.sql:761: NOTICE:  avg_transfn called with 3
+psql:sql/aggregates.sql:761: NOTICE:  avg_transfn called with 1
+psql:sql/aggregates.sql:761: NOTICE:  avg_transfn called with 3
  my_avg | my_sum 
 --------+--------
       2 |      4
@@ -1582,9 +1632,9 @@ psql:sql/aggregates.sql:736: NOTICE:  avg_transfn called with 3
 
 -- shouldn't share states due to the filter clause not matching.
 select my_avg(one) filter (where one > 1),my_sum(one) from (values(1),(3)) t(one);
-psql:sql/aggregates.sql:739: NOTICE:  avg_transfn called with 1
-psql:sql/aggregates.sql:739: NOTICE:  avg_transfn called with 3
-psql:sql/aggregates.sql:739: NOTICE:  avg_transfn called with 3
+psql:sql/aggregates.sql:764: NOTICE:  avg_transfn called with 1
+psql:sql/aggregates.sql:764: NOTICE:  avg_transfn called with 3
+psql:sql/aggregates.sql:764: NOTICE:  avg_transfn called with 3
  my_avg | my_sum 
 --------+--------
       3 |      4
@@ -1592,10 +1642,10 @@ psql:sql/aggregates.sql:739: NOTICE:  avg_transfn called with 3
 
 -- this should not share the state due to different input columns.
 select my_avg(one),my_sum(two) from (values(1,2),(3,4)) t(one,two);
-psql:sql/aggregates.sql:742: NOTICE:  avg_transfn called with 2
-psql:sql/aggregates.sql:742: NOTICE:  avg_transfn called with 1
-psql:sql/aggregates.sql:742: NOTICE:  avg_transfn called with 4
-psql:sql/aggregates.sql:742: NOTICE:  avg_transfn called with 3
+psql:sql/aggregates.sql:767: NOTICE:  avg_transfn called with 2
+psql:sql/aggregates.sql:767: NOTICE:  avg_transfn called with 1
+psql:sql/aggregates.sql:767: NOTICE:  avg_transfn called with 4
+psql:sql/aggregates.sql:767: NOTICE:  avg_transfn called with 3
  my_avg | my_sum 
 --------+--------
       2 |      6
@@ -1657,8 +1707,8 @@ create aggregate my_avg_init2(int4)
 CREATE AGGREGATE
 -- state should be shared if INITCONDs are matching
 select my_sum_init(one),my_avg_init(one) from (values(1),(3)) t(one);
-psql:sql/aggregates.sql:787: NOTICE:  avg_transfn called with 1
-psql:sql/aggregates.sql:787: NOTICE:  avg_transfn called with 3
+psql:sql/aggregates.sql:812: NOTICE:  avg_transfn called with 1
+psql:sql/aggregates.sql:812: NOTICE:  avg_transfn called with 3
  my_sum_init | my_avg_init 
 -------------+-------------
           14 |           7
@@ -1666,10 +1716,10 @@ psql:sql/aggregates.sql:787: NOTICE:  avg_transfn called with 3
 
 -- Varying INITCONDs should cause the states not to be shared.
 select my_sum_init(one),my_avg_init2(one) from (values(1),(3)) t(one);
-psql:sql/aggregates.sql:790: NOTICE:  avg_transfn called with 1
-psql:sql/aggregates.sql:790: NOTICE:  avg_transfn called with 1
-psql:sql/aggregates.sql:790: NOTICE:  avg_transfn called with 3
-psql:sql/aggregates.sql:790: NOTICE:  avg_transfn called with 3
+psql:sql/aggregates.sql:815: NOTICE:  avg_transfn called with 1
+psql:sql/aggregates.sql:815: NOTICE:  avg_transfn called with 1
+psql:sql/aggregates.sql:815: NOTICE:  avg_transfn called with 3
+psql:sql/aggregates.sql:815: NOTICE:  avg_transfn called with 3
  my_sum_init | my_avg_init2 
 -------------+--------------
           14 |            4
@@ -1727,10 +1777,10 @@ create aggregate my_half_sum(int4)
 CREATE AGGREGATE
 -- Agg state should be shared even though my_sum has no finalfn
 select my_sum(one),my_half_sum(one) from (values(1),(2),(3),(4)) t(one);
-psql:sql/aggregates.sql:843: NOTICE:  sum_transfn called with 1
-psql:sql/aggregates.sql:843: NOTICE:  sum_transfn called with 2
-psql:sql/aggregates.sql:843: NOTICE:  sum_transfn called with 3
-psql:sql/aggregates.sql:843: NOTICE:  sum_transfn called with 4
+psql:sql/aggregates.sql:868: NOTICE:  sum_transfn called with 1
+psql:sql/aggregates.sql:868: NOTICE:  sum_transfn called with 2
+psql:sql/aggregates.sql:868: NOTICE:  sum_transfn called with 3
+psql:sql/aggregates.sql:868: NOTICE:  sum_transfn called with 4
  my_sum | my_half_sum 
 --------+-------------
      10 |           5
@@ -1797,7 +1847,7 @@ CREATE AGGREGATE balk(int4)
 );
 CREATE AGGREGATE
 -- force use of parallelism
---ALTER TABLE tenk1 set (parallel_workers = 4);
+-- ALTER TABLE tenk1 set (parallel_workers = 4);
 SET LOCAL parallel_setup_cost=0;
 SET
 SET LOCAL max_parallel_workers_per_gather=4;

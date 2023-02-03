@@ -126,7 +126,7 @@ insert into part_default_p2 values ('de', 35);
 insert into list_parted values ('ab', 21);
 insert into list_parted values ('xx', 1);
 insert into list_parted values ('yy', 2);
-select tableoid::regclass, * from list_parted;
+select tableoid::regclass, * from list_parted order by 1,2,3;
 
 -- Check tuple routing for partitioned tables
 

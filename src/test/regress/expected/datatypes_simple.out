@@ -508,7 +508,13 @@ DROP TABLE
 CREATE TYPE mood AS ENUM ('sad', 'ok', 'happy');
 CREATE TYPE
 drop table if exists person cascade;
-psql:sql/datatypes_simple.sql:224: NOTICE:  drop cascades to function hobbies(person)
+psql:sql/datatypes_simple.sql:224: NOTICE:  drop cascades to 6 other objects
+DETAIL:  drop cascades to function hobbies(person)
+drop cascades to table emp
+drop cascades to view toyemp
+drop cascades to function overpaid(emp)
+drop cascades to table student
+drop cascades to table stud_emp
 DROP TABLE
 CREATE TABLE person (id int2,a text,b mood);
 CREATE TABLE

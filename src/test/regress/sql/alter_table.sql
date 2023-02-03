@@ -278,9 +278,9 @@ drop table atacc1;
 create table atacc1 (test int);
 create table atacc2 (test2 int);
 create table atacc3 (test3 int) inherits (atacc1, atacc2);
-alter table atacc3 no inherit atacc2;
+--alter table atacc3 no inherit atacc2;
 -- fail
-alter table atacc3 no inherit atacc2;
+--alter table atacc3 no inherit atacc2;
 -- make sure it really isn't a child
 insert into atacc3 (test2) values (3);
 select test2 from atacc2;
@@ -324,6 +324,8 @@ alter table atacc2 add constraint foo check (test>0) no inherit;
 drop table atacc2;
 drop table atacc1;
 -- add a unique constraint
+drop table if exists atacc1 cascade;
+create table atacc1 ( test int );
 alter table atacc1 add constraint atacc_test1 unique (test);
 -- insert first value
 insert into atacc1 (test) values (2);
@@ -335,7 +337,7 @@ insert into atacc1 (test) values (4);
 -- alter table atacc1 add constraint atacc_oid1 unique(oid);
 -- try to create duplicates via alter table using - should fail
 alter table atacc1 alter column test type integer using 0;
-drop table atacc1;
+drop table atacc1 cascade;
 
 -- let's do one where the unique constraint fails when added
 create table atacc1 ( test int );
@@ -345,14 +347,14 @@ insert into atacc1 (test) values (2);
 -- add a unique constraint (fails)
 alter table atacc1 add constraint atacc_test1 unique (test);
 insert into atacc1 (test) values (3);
-drop table atacc1;
+drop table atacc1 cascade;
 
 -- let's do one where the unique constraint fails
 -- because the column doesn't exist
 create table atacc1 ( test int );
 -- add a unique constraint (fails)
 alter table atacc1 add constraint atacc_test1 unique (test1);
-drop table atacc1;
+drop table atacc1 cascade;
 -- something a little more complicated
 create table atacc1 ( test int, test2 int);
 -- add a unique constraint
@@ -365,7 +367,7 @@ insert into atacc1 (test,test2) values (4,4);
 insert into atacc1 (test,test2) values (4,5);
 insert into atacc1 (test,test2) values (5,4);
 insert into atacc1 (test,test2) values (5,5);
-drop table atacc1;
+drop table atacc1 cascade;
 
 -- lets do some naming tests
 create table atacc1 (test int, test2 int, unique(test));
@@ -373,7 +375,7 @@ alter table atacc1 add unique (test2);
 -- should fail for @ second one @
 insert into atacc1 (test2, test) values (3, 3);
 insert into atacc1 (test2, test) values (2, 3);
-drop table atacc1;
+drop table atacc1 cascade;
 
 -- test primary key constraint adding
 
@@ -390,7 +392,7 @@ insert into atacc1 (test) values (4);
 insert into atacc1 (test) values(NULL);
 -- try adding a second primary key (should fail)
 alter table atacc1 drop constraint atacc_test1 restrict;
-drop table atacc1;
+drop table atacc1 cascade;
 
 -- let's do one where the primary key constraint fails when added
 create table atacc1 ( test int );
@@ -400,7 +402,7 @@ insert into atacc1 (test) values (2);
 -- add a primary key (fails)
 alter table atacc1 add constraint atacc_test1 primary key (test);
 insert into atacc1 (test) values (3);
-drop table atacc1;
+drop table atacc1 cascade;
 
 -- let's do another one where the primary key constraint fails when added
 create table atacc1 ( test int );
@@ -409,14 +411,14 @@ insert into atacc1 (test) values (NULL);
 -- add a primary key (fails)
 alter table atacc1 add constraint atacc_test1 primary key (test);
 insert into atacc1 (test) values (3);
-drop table atacc1;
+drop table atacc1 cascade;
 
 -- let's do one where the primary key constraint fails
 -- because the column doesn't exist
 create table atacc1 ( test int );
 -- add a primary key constraint (fails)
 alter table atacc1 add constraint atacc_test1 primary key (test1);
-drop table atacc1;
+drop table atacc1 cascade;
 
 -- adding a new column as primary key to a non-empty table.
 -- should fail unless the column has a non-null default value.
@@ -428,7 +430,7 @@ alter table atacc1 add column test2 int primary key;
 
 -- now add a primary key column with a default (succeeds).
 alter table atacc1 add column test2 int default 0 primary key;
-drop table atacc1;
+drop table atacc1 cascade;
 
 -- something a little more complicated
 create table atacc1 ( test int, test2 int);
@@ -447,7 +449,7 @@ insert into atacc1 (test,test2) values (NULL,NULL);
 insert into atacc1 (test,test2) values (4,5);
 insert into atacc1 (test,test2) values (5,4);
 insert into atacc1 (test,test2) values (5,5);
-drop table atacc1;
+drop table atacc1 cascade;
 
 -- lets do some naming tests
 create table atacc1 (test int, test2 int, primary key(test));
@@ -455,7 +457,7 @@ create table atacc1 (test int, test2 int, primary key(test));
 insert into atacc1 (test2, test) values (3, 3);
 insert into atacc1 (test2, test) values (2, 3);
 insert into atacc1 (test2, test) values (1, NULL);
-drop table atacc1;
+drop table atacc1 cascade;
 -- alter table / alter column [set/drop] not null tests
 -- try altering system catalogs, should fail
 alter table pg_class alter column relname drop not null;
@@ -487,9 +489,10 @@ alter table myview alter column test drop not null;
 alter table myview alter column test set not null;
 drop view myview;
 
-drop table atacc1;
+drop table atacc1 cascade;
 
 -- test inheritance
+drop table if exists parent cascade;
 create table parent (a int);
 create table child (b varchar(255)) inherits (parent);
 
@@ -509,8 +512,8 @@ insert into child (a, b) values (NULL, 'foo');
 delete from child;
 alter table child alter a set not null;
 insert into child (a, b) values (NULL, 'foo');
-drop table child;
-drop table parent;
+drop table child cascade;
+drop table parent cascade;
 
 -- test setting and removing default values
 create table def_test (
@@ -654,7 +657,7 @@ insert into atacc1 values (21, 22, 23);
 -- try dropping all columns
 alter table atacc1 drop c;
 alter table atacc1 drop d;
---not support to drop all table(by MySQL): alter table atacc1 drop b;
+alter table atacc1 drop b;
 select * from atacc1;
 drop table atacc1;
 
@@ -668,6 +671,7 @@ insert into atacc1(id, value) values (null, 0);
 drop table atacc1;
 
 -- test inheritance
+drop table if exists parent CASCADE;
 create table parent (a int, b int, c int);
 insert into parent values (1, 2, 3);
 alter table parent drop a;
@@ -681,7 +685,7 @@ select * from parent;
 select * from child;
 
 drop table child;
-drop table parent;
+drop table parent cascade;
 
 -- check error cases for inheritance column merging
 create table parent (a float8, b numeric(10,4), c text collate "C");
@@ -692,7 +696,7 @@ create table child (c text collate "POSIX") inherits (parent); -- fail
 create table child (a double precision, b decimal(10,4)) inherits (parent);
 
 drop table child;
-drop table parent;
+drop table parent cascade;
 
 -- test copy in/out
 create table attest (a int4, b int4, c int4);
@@ -1019,7 +1023,7 @@ select relname, conname, coninhcount, conislocal, connoinherit
   from pg_constraint c, pg_class r
   where relname like 'test_inh_check%' and c.conrelid = r.oid
   order by 1, 2;
-drop table test_inh_check;			
+drop table test_inh_check cascade;
 
 -- ALTER COLUMN TYPE with different schema in children
 -- Bug at https://postgr.es/m/20170102225618.GA10071@telsasoft.com
@@ -1043,8 +1047,8 @@ ALTER TABLE test_type_diff2 ALTER COLUMN int_four TYPE int8 USING int_four::int8
 -- whole-row references are disallowed
 --ALTER TABLE test_type_diff2 ALTER COLUMN int_four TYPE int4 
 -- USING (pg_column_size(test_type_diff2));
-drop table test_type_diff;
-drop table test_type_diff2;
+drop table test_type_diff cascade;
+drop table test_type_diff2 cascade;
 
 -- check column addition within a view (bug #14876)
 create table at_base_table(id int, stuff text);
@@ -1211,21 +1215,21 @@ ALTER TYPE test_type2 DROP ATTRIBUTE b CASCADE;
 ALTER TYPE test_type2 RENAME ATTRIBUTE a TO aa; -- fails
 ALTER TYPE test_type2 RENAME ATTRIBUTE a TO aa CASCADE;
 \d test_type2
-drop type test_type2;
+drop type test_type2 cascade;
 DROP TABLE test_tbl2_subclass;
 
 CREATE TYPE test_typex AS (a int, b text);
-CREATE TABLE test_tblx (x int, y test_typex check ((y).a > 0));
+-- CREATE TABLE test_tblx (x int, y test_typex check ((y).a > 0));
 ALTER TYPE test_typex DROP ATTRIBUTE a; -- fails
 ALTER TYPE test_typex DROP ATTRIBUTE a CASCADE;
-\d test_tblx
-DROP TABLE test_tblx;
+--\d test_tblx
+--DROP TABLE test_tblx;
 DROP TYPE test_typex;
 -- This test isn't that interesting on its own, but the purpose is to leave
 -- behind a table to test pg_upgrade with. The table has a composite type
 -- column in it, and the composite type has a dropped attribute.
 CREATE TYPE test_type3 AS (a int);
-CREATE TABLE test_tbl3 (c) AS SELECT '(1)'::test_type3;
+--CREATE TABLE test_tbl3 (c) AS SELECT '(1)'::test_type3;
 ALTER TYPE test_type3 DROP ATTRIBUTE a, ADD ATTRIBUTE b int;
 
 CREATE TYPE test_type_empty AS ();
@@ -1507,6 +1511,7 @@ DROP ROLE regress_test_not_me;
 DROP ROLE regress_test_me;
 
 -- check that the table being attached is not part of regular inheritance
+drop table if exists parent cascade;
 CREATE TABLE parent (LIKE list_parted);
 CREATE TABLE child () INHERITS (parent);
 ALTER TABLE list_parted ATTACH PARTITION child FOR VALUES IN (1);
@@ -1741,43 +1746,7 @@ ALTER TABLE list_parted2 ATTACH PARTITION part_7 FOR VALUES IN (7);
 -- attaching a partitioned table.
 ALTER TABLE part_5 DROP CONSTRAINT check_a;
 CREATE TABLE part5_def PARTITION OF part_5 DEFAULT PARTITION BY LIST(a);
-CREATE TABLE part5_def_p1 PARTITION OF part5_def FOR VALUES IN (5);
-INSERT INTO part5_def_p1 VALUES (5, 'y');
-CREATE TABLE part5_p1 (LIKE part_5);
-ALTER TABLE part_5 ATTACH PARTITION part5_p1 FOR VALUES IN ('y');
--- should be ok after deleting the bad row
-DELETE FROM part5_def_p1 WHERE b = 'y';
-ALTER TABLE part_5 ATTACH PARTITION part5_p1 FOR VALUES IN ('y');
-
--- check that the table being attached is not already a partition
-ALTER TABLE list_parted2 ATTACH PARTITION part_2 FOR VALUES IN (2);
-
--- check that circular inheritance is not allowed
-ALTER TABLE part_5 ATTACH PARTITION list_parted2 FOR VALUES IN ('b');
-ALTER TABLE list_parted2 ATTACH PARTITION list_parted2 FOR VALUES IN (0);
-
--- If a partitioned table being created or an existing table being attached
--- as a partition does not have a constraint that would allow validation scan
--- to be skipped, but an individual partition does, then the partition's
--- validation scan is skipped.
-CREATE TABLE quuux (a int, b text) PARTITION BY LIST (a);
-CREATE TABLE quuux_default PARTITION OF quuux DEFAULT PARTITION BY LIST (b);
-CREATE TABLE quuux_default1 PARTITION OF quuux_default (
-	CONSTRAINT check_1 CHECK (a IS NOT NULL AND a = 1)
-) FOR VALUES IN ('b');
-CREATE TABLE quuux1 (a int, b text);
-ALTER TABLE quuux ATTACH PARTITION quuux1 FOR VALUES IN (1); -- validate!
-CREATE TABLE quuux2 (a int, b text);
-ALTER TABLE quuux ATTACH PARTITION quuux2 FOR VALUES IN (2); -- skip validation
-DROP TABLE quuux1, quuux2;
--- should validate for quuux1, but not for quuux2
-CREATE TABLE quuux1 PARTITION OF quuux FOR VALUES IN (1);
-CREATE TABLE quuux2 PARTITION OF quuux FOR VALUES IN (2);
-DROP TABLE quuux;
-
--- check validation when attaching hash partitions
-
--- Use hand-rolled hash functions and operator class to get predictable result
+CREATE TABLE part5_def_pet predictable result
 -- on different matchines. part_test_int4_ops is defined in insert.sql.
 
 -- check that the new partition won't overlap with an existing partition

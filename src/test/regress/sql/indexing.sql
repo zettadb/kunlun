@@ -362,7 +362,7 @@ select relname, relkind from pg_class where relname like 'idxpart%' order by rel
 -- a) after detaching partitions, the indexes can be dropped independently
 alter table idxpart detach partition idxpart1;
 alter table idxpart detach partition idxpart2;
-alter table idxpart detach partition idxpart3;		  
+alter table idxpart detach partition idxpart3;
 drop index idxpart1_a_idx;
 
 --DDL_STATEMENT_BEGIN--
@@ -408,7 +408,7 @@ create table idxpart3 partition of idxpart for values from (2000) to (3000);
 select relname, relkind from pg_class where relname like 'idxpart%' order by relname;
 alter table idxpart detach partition idxpart1;
 alter table idxpart detach partition idxpart2;
-alter table idxpart detach partition idxpart3;  
+alter table idxpart detach partition idxpart3;
 drop index idxpart_a_idx;
 
 select relname, relkind from pg_class where relname like 'idxpart%' order by relname;

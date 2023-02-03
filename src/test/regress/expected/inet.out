@@ -428,6 +428,7 @@ SELECT i FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
 
 SET enable_seqscan TO on;
 SET
+-- DROP INDEX inet_idx2;
 -- check that spgist index works correctly
 -- kunlun not support: CREATE INDEX inet_idx3 ON inet_tbl using spgist (i);
 SET enable_seqscan TO off;
@@ -570,6 +571,8 @@ SELECT i FROM inet_tbl WHERE i << '192.168.1.0/24'::cidr ORDER BY i;
 
 SET enable_seqscan TO on;
 SET
+DROP INDEX inet_idx3;
+psql:sql/inet.sql:117: ERROR:  index "inet_idx3" does not exist
 -- simple tests of inet boolean and arithmetic operators
 SELECT i, ~i AS "~i" FROM inet_tbl;
         i         |                     ~i                     
@@ -753,13 +756,13 @@ SELECT '127::2'::inet  - ('127::2'::inet - 500);
 
 -- these should give overflow errors:
 SELECT '127.0.0.1'::inet + 10000000000;
-psql:sql/inet.sql:133: ERROR:  result is out of range
-SELECT '127.0.0.1'::inet - 10000000000;
-psql:sql/inet.sql:134: ERROR:  result is out of range
-SELECT '126::1'::inet - '127::2'::inet;
 psql:sql/inet.sql:135: ERROR:  result is out of range
-SELECT '127::1'::inet - '126::2'::inet;
+SELECT '127.0.0.1'::inet - 10000000000;
 psql:sql/inet.sql:136: ERROR:  result is out of range
+SELECT '126::1'::inet - '127::2'::inet;
+psql:sql/inet.sql:137: ERROR:  result is out of range
+SELECT '127::1'::inet - '126::2'::inet;
+psql:sql/inet.sql:138: ERROR:  result is out of range
 -- but not these
 SELECT '127::1'::inet + 10000000000;
      ?column?     
@@ -778,7 +781,7 @@ INSERT INTO INET_TBL (c, i) VALUES ('10', '10::/8');
 INSERT 0 1
 -- now, this one should fail
 SELECT inet_merge(c, i) FROM INET_TBL;
-psql:sql/inet.sql:144: ERROR:  cannot merge addresses from different families
+psql:sql/inet.sql:146: ERROR:  cannot merge addresses from different families
 -- fix it by inet_same_family() condition
 SELECT inet_merge(c, i) FROM INET_TBL WHERE inet_same_family(c, i);
    inet_merge    

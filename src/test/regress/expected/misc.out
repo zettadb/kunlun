@@ -41,7 +41,12 @@
 --
 -- inheritance stress test
 --
-drop table if exists a_star;
+drop table if exists a_star CASCADE;
+psql:sql/misc.sql:55: NOTICE:  drop cascades to 4 other objects
+DETAIL:  drop cascades to table b_star
+drop cascades to table c_star
+drop cascades to table d_star
+drop cascades to table e_star
 DROP TABLE
 CREATE TABLE a_star (
 	class		char,

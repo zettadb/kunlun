@@ -664,7 +664,12 @@ explain (costs off)
 --
 CREATE TEMP TABLE t1c (b text, a text);
 CREATE TABLE
+-- ALTER TABLE t1c INHERIT t1;
+CREATE TEMP TABLE t2c (primary key (ab)) INHERITS (t2);
+CREATE TABLE
 INSERT INTO t1c VALUES ('v', 'w'), ('c', 'd'), ('m', 'n'), ('e', 'f');
+INSERT 0 4
+INSERT INTO t2c VALUES ('vw'), ('cd'), ('mn'), ('ef');
 INSERT 0 4
 CREATE INDEX t1c_ab_idx on t1c ((a || b));
 CREATE INDEX
@@ -688,15 +693,37 @@ explain (costs off)
 ----
  ab
  ab
+ cd
+ ef
+ mn
+ vw
  xy
  xy
-(4 rows)
+(8 rows)
 
 reset enable_seqscan;
 RESET
 reset enable_indexscan;
 RESET
 reset enable_bitmapscan;
+RESET
+-- This simpler variant of the above test has been observed to fail differently
+create table events (event_id int primary key);
+CREATE TABLE
+create table other_events (event_id int primary key);
+CREATE TABLE
+create table events_child () inherits (events);
+CREATE TABLE
+explain (costs off)
+select event_id
+ from (select event_id from events
+       union all
+       select event_id from other_events) ss
+ order by event_id;
+
+drop table events_child, events, other_events;
+DROP TABLE
+reset enable_indexonlyscan;
 RESET
 -- Test constraint exclusion of UNION ALL subqueries
 explain (costs off)
@@ -803,6 +830,38 @@ where -q1 = q2;
  4567890123456789
 (1 row)
 
+-- Test proper handling of parameterized appendrel paths when the
+-- potential join qual is expensive
+create function expensivefunc(int) returns int
+language plpgsql immutable strict cost 10000
+as $$begin return $1; end$$;
+CREATE FUNCTION
+create temp table t3(x int);
+CREATE TABLE
+insert into t3 select * from generate_series(-1000,1000);
+INSERT 0 2001
+create index t3i on t3 (expensivefunc(x));
+CREATE INDEX
+analyze t3;
+ANALYZE
+explain (costs off)
+select * from
+  (select * from t3 a union all select * from t3 b) ss
+  join int4_tbl on f1 = expensivefunc(x);
+
+select * from
+  (select * from t3 a union all select * from t3 b) ss
+  join int4_tbl on f1 = expensivefunc(x);
+ x | f1 
+---+----
+ 0 |  0
+ 0 |  0
+(2 rows)
+
+drop table t3;
+DROP TABLE
+drop function expensivefunc(int);
+DROP FUNCTION
 -- Test handling of appendrel quals that const-simplify into an AND
 explain (costs off)
 select * from

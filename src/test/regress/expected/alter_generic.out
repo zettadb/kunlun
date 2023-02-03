@@ -427,7 +427,7 @@ ALTER OPERATOR FAMILY alt_opf4 USING btree ADD
   OPERATOR 3 = (int4, int2) ,
   OPERATOR 4 >= (int4, int2) ,
   OPERATOR 5 > (int4, int2) ,
-  FUNCTION 1 btint42cmp(int4, int2);  
+  FUNCTION 1 btint42cmp(int4, int2);
 ALTER OPERATOR FAMILY
 ALTER OPERATOR FAMILY alt_opf4 USING btree DROP
   -- int4 vs int2
@@ -462,29 +462,29 @@ psql:sql/alter_generic.sql:302: ERROR:  STORAGE cannot be specified in ALTER OPE
 DROP OPERATOR FAMILY alt_opf4 USING btree;
 DROP OPERATOR FAMILY
 -- Should fail. Need to be SUPERUSER to do ALTER OPERATOR FAMILY .. ADD / DROP
-BEGIN TRANSACTION;
-BEGIN
 CREATE ROLE regress_alter_generic_user5 NOSUPERUSER;
 CREATE ROLE
+BEGIN TRANSACTION;
+BEGIN
 CREATE OPERATOR FAMILY alt_opf5 USING btree;
 CREATE OPERATOR FAMILY
 SET ROLE regress_alter_generic_user5;
 SET
 ALTER OPERATOR FAMILY alt_opf5 USING btree ADD OPERATOR 1 < (int4, int2), FUNCTION 1 btint42cmp(int4, int2);
-psql:sql/alter_generic.sql:312: ERROR:  must be superuser to alter an operator family
+psql:sql/alter_generic.sql:311: ERROR:  must be superuser to alter an operator family
 RESET ROLE;
-psql:sql/alter_generic.sql:313: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+psql:sql/alter_generic.sql:312: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 DROP OPERATOR FAMILY alt_opf5 USING btree;
-psql:sql/alter_generic.sql:314: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+psql:sql/alter_generic.sql:313: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 ROLLBACK;
 ROLLBACK
 -- Should fail. Need rights to namespace for ALTER OPERATOR FAMILY .. ADD / DROP
 CREATE SCHEMA alt_nsp6;
 CREATE SCHEMA
-BEGIN TRANSACTION;
-BEGIN
 CREATE ROLE regress_alter_generic_user6;
 CREATE ROLE
+BEGIN TRANSACTION;
+BEGIN
 REVOKE ALL ON SCHEMA alt_nsp6 FROM regress_alter_generic_user6;
 REVOKE
 CREATE OPERATOR FAMILY alt_nsp6.alt_opf6 USING btree;

@@ -298,7 +298,7 @@ drop table boolpart;
 drop table boolrangep;
 drop table rp;
 drop table coll_pruning_multi;
-drop tabne like_op_noprune;
+drop table like_op_noprune;
 drop table lparted_by_int2;
 drop table rparted_by_int2;
 

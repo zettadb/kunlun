@@ -1755,8 +1755,8 @@ SELECT * FROM withz ORDER BY k;
 DROP TABLE withz;
 DROP TABLE
 -- check that run to completion happens in proper ordering
-delete from y;
-DELETE 5
+TRUNCATE TABLE y;
+TRUNCATE TABLE
 INSERT INTO y SELECT generate_series(1, 3);
 INSERT 0 3
 CREATE TEMPORARY TABLE yy (a INTEGER);
@@ -1833,10 +1833,21 @@ SELECT * FROM yy;
  3
 (9 rows)
 
-delete from y;
-DELETE 12
+-- triggers
+TRUNCATE TABLE y;
+TRUNCATE TABLE
 INSERT INTO y SELECT generate_series(1, 10);
 INSERT 0 10
+CREATE FUNCTION y_trigger() RETURNS trigger AS $$
+begin
+  raise notice 'y_trigger: a = %', new.a;
+  return new;
+end;
+$$ LANGUAGE plpgsql;
+CREATE FUNCTION
+CREATE TRIGGER y_trig BEFORE INSERT ON y FOR EACH ROW
+    EXECUTE PROCEDURE y_trigger();
+CREATE TRIGGER
 WITH t AS (
     INSERT INTO y
     VALUES
@@ -1846,6 +1857,9 @@ WITH t AS (
     RETURNING *
 )
 SELECT * FROM t;
+psql:sql/with.sql:857: NOTICE:  y_trigger: a = 21
+psql:sql/with.sql:857: NOTICE:  y_trigger: a = 22
+psql:sql/with.sql:857: NOTICE:  y_trigger: a = 23
  a  
 ----
  21
@@ -1871,6 +1885,12 @@ SELECT * FROM y;
  23
 (13 rows)
 
+DROP TRIGGER y_trig ON y;
+DROP TRIGGER
+CREATE TRIGGER y_trig AFTER INSERT ON y FOR EACH ROW
+    EXECUTE PROCEDURE y_trigger();
+CREATE TRIGGER
+	
 WITH t AS (
     INSERT INTO y
     VALUES
@@ -1880,6 +1900,9 @@ WITH t AS (
     RETURNING *
 )
 SELECT * FROM t LIMIT 1;
+psql:sql/with.sql:874: NOTICE:  y_trigger: a = 31
+psql:sql/with.sql:874: NOTICE:  y_trigger: a = 32
+psql:sql/with.sql:874: NOTICE:  y_trigger: a = 33
  a  
 ----
  31
@@ -1906,6 +1929,18 @@ SELECT * FROM y;
  33
 (16 rows)
 
+DROP TRIGGER y_trig ON y;
+DROP TRIGGER
+CREATE OR REPLACE FUNCTION y_trigger() RETURNS trigger AS $$
+begin
+  raise notice 'y_trigger';
+  return null;
+end;
+$$ LANGUAGE plpgsql;
+CREATE FUNCTION
+CREATE TRIGGER y_trig AFTER INSERT ON y FOR EACH STATEMENT
+    EXECUTE PROCEDURE y_trigger();
+CREATE TRIGGER
 WITH t AS (
     INSERT INTO y
     VALUES
@@ -1915,6 +1950,7 @@ WITH t AS (
     RETURNING *
 )
 SELECT * FROM t;
+psql:sql/with.sql:898: NOTICE:  y_trigger
  a  
 ----
  41
@@ -1946,33 +1982,81 @@ SELECT * FROM y;
  43
 (19 rows)
 
+DROP TRIGGER y_trig ON y;
+DROP TRIGGER
+DROP FUNCTION y_trigger() cascade;
+DROP FUNCTION
 -- WITH attached to inherited UPDATE or DELETE
 CREATE TEMP TABLE parent ( id int, val text );
 CREATE TABLE
+CREATE TEMP TABLE child1 ( ) INHERITS ( parent );
+CREATE TABLE
+CREATE TEMP TABLE child2 ( ) INHERITS ( parent );
+CREATE TABLE
 INSERT INTO parent VALUES ( 1, 'p1' );
 INSERT 0 1
+INSERT INTO child1 VALUES ( 11, 'c11' ),( 12, 'c12' );
+INSERT 0 2
+INSERT INTO child2 VALUES ( 23, 'c21' ),( 24, 'c22' ); 
+INSERT 0 2
 WITH rcte AS ( SELECT sum(id) AS totalid FROM parent )
 UPDATE parent SET id = id + totalid FROM rcte;
-UPDATE 1
+UPDATE 5
 SELECT * FROM parent;
  id | val 
 ----+-----
-  2 | p1
-(1 row)
+ 72 | p1
+ 82 | c11
+ 83 | c12
+ 94 | c21
+ 95 | c22
+(5 rows)
+
+WITH wcte AS ( INSERT INTO child1 VALUES ( 42, 'new' ) RETURNING id AS newid )
+UPDATE parent SET id = id + newid FROM wcte;
+UPDATE 5
+SELECT * FROM parent;
+ id  | val 
+-----+-----
+ 114 | p1
+  42 | new
+ 124 | c11
+ 125 | c12
+ 136 | c21
+ 137 | c22
+(6 rows)
 
 WITH rcte AS ( SELECT max(id) AS maxid FROM parent )
 DELETE FROM parent USING rcte WHERE id = maxid;
 DELETE 1
 SELECT * FROM parent;
- id | val 
-----+-----
-(0 rows)
+ id  | val 
+-----+-----
+ 114 | p1
+  42 | new
+ 124 | c11
+ 125 | c12
+ 136 | c21
+(5 rows)
+
+WITH wcte AS ( INSERT INTO child2 VALUES ( 42, 'new2' ) RETURNING id AS newid )
+DELETE FROM parent USING wcte WHERE id = newid;
+DELETE 1
+SELECT * FROM parent;
+ id  | val  
+-----+------
+ 114 | p1
+ 124 | c11
+ 125 | c12
+ 136 | c21
+  42 | new2
+(5 rows)
 
 -- check EXPLAIN VERBOSE for a wCTE with RETURNING
 EXPLAIN (VERBOSE, COSTS OFF)
 WITH wcte AS ( INSERT INTO int8_tbl VALUES ( 42, 47 ) RETURNING q2 )
 DELETE FROM a USING wcte WHERE aa = q2;
-psql:sql/with.sql:893: ERROR:  relation "a" does not exist
+psql:sql/with.sql:939: ERROR:  relation "a" does not exist
 LINE 3: DELETE FROM a USING wcte WHERE aa = q2;
                     ^
 -- error cases
@@ -1982,7 +2066,7 @@ WITH RECURSIVE t AS (
 		SELECT * FROM t
 )
 VALUES(FALSE);
-psql:sql/with.sql:902: ERROR:  recursive query "t" must not contain data-modifying statements
+psql:sql/with.sql:948: ERROR:  recursive query "t" must not contain data-modifying statements
 LINE 1: WITH RECURSIVE t AS (
                        ^
 -- no RETURNING in a referenced data-modifying WITH
@@ -1990,7 +2074,7 @@ WITH t AS (
 	INSERT INTO y VALUES(0)
 )
 SELECT * FROM t;
-psql:sql/with.sql:908: ERROR:  WITH query "t" does not have a RETURNING clause
+psql:sql/with.sql:954: ERROR:  WITH query "t" does not have a RETURNING clause
 LINE 4: SELECT * FROM t;
                       ^
 -- data-modifying WITH allowed only at the top level
@@ -1998,7 +2082,7 @@ SELECT * FROM (
 	WITH t AS (UPDATE y SET a=a+1 RETURNING *)
 	SELECT * FROM t
 ) ss;
-psql:sql/with.sql:914: ERROR:  WITH clause containing a data-modifying statement must be at the top level
+psql:sql/with.sql:960: ERROR:  WITH clause containing a data-modifying statement must be at the top level
 LINE 2:  WITH t AS (UPDATE y SET a=a+1 RETURNING *)
               ^
 -- most variants of rules aren't allowed
@@ -2013,14 +2097,14 @@ VALUES(FALSE);
 
 -- check that parser lookahead for WITH doesn't cause any odd behavior
 drop table if exists foo;
-psql:sql/with.sql:923: NOTICE:  table "foo" does not exist, skipping
+psql:sql/with.sql:969: NOTICE:  table "foo" does not exist, skipping
 DROP TABLE
 create table foo (with baz);  -- fail, WITH is a reserved word
-psql:sql/with.sql:924: ERROR:  syntax error at or near "with"
+psql:sql/with.sql:970: ERROR:  syntax error at or near "with"
 LINE 1: create table foo (with baz);
                           ^
 create table foo (with ordinality);  -- fail, WITH is a reserved word
-psql:sql/with.sql:925: ERROR:  syntax error at or near "with"
+psql:sql/with.sql:971: ERROR:  syntax error at or near "with"
 LINE 1: create table foo (with ordinality);
                           ^
 with ordinality as (select 1 as x) select * from ordinality;
@@ -2031,7 +2115,7 @@ with ordinality as (select 1 as x) select * from ordinality;
 
 -- check sane response to attempt to modify CTE relation
 WITH test AS (SELECT 42) INSERT INTO test VALUES (1);
-psql:sql/with.sql:929: ERROR:  relation "test" does not exist
+psql:sql/with.sql:975: ERROR:  relation "test" does not exist
 LINE 1: WITH test AS (SELECT 42) INSERT INTO test VALUES (1);
                                              ^
 -- check response to attempt to modify table with same name as a CTE (perhaps

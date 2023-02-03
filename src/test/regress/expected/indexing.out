@@ -209,6 +209,22 @@ create index idxpart1_tst1 on idxpart1 (b, a);
 CREATE INDEX
 create index idxpart1_tst2 on idxpart1 using hash (a);
 CREATE INDEX
+-- create index idxpart1_tst3 on idxpart1 (a, b) where a > 10;
+-- alter index idxpart attach partition idxpart1;
+-- alter index idxpart_a_b_idx attach partition idxpart1;
+-- alter index idxpart_a_b_idx attach partition idxpart_a_b_idx;
+-- alter index idxpart_a_b_idx attach partition idxpart1_b_idx;
+-- alter index idxpart_a_b_idx attach partition idxpart1_tst1;
+-- alter index idxpart_a_b_idx attach partition idxpart1_tst2;
+-- alter index idxpart_a_b_idx attach partition idxpart1_tst3;
+-- -- OK
+-- alter index idxpart_a_b_idx attach partition idxpart1_a_b_idx;
+-- alter index idxpart_a_b_idx attach partition idxpart1_a_b_idx; -- quiet
+-- reject dupe
+create index idxpart1_2_a_b on idxpart1 (a, b);
+CREATE INDEX
+alter index idxpart_a_b_idx attach partition idxpart1_2_a_b;
+ALTER INDEX
 drop table idxpart;
 DROP TABLE
 -- make sure everything's gone
@@ -225,7 +241,10 @@ create table idxpart1 partition of idxpart for values from (0) to (1000);
 CREATE TABLE
 create index on idxpart1 using hash (a);
 CREATE INDEX
---create index on idxpart1 (a, a);
+create index on idxpart1 (a) where b > 1;
+psql:sql/indexing.sql:111: ERROR:  partial index isn't supported for remote relations
+create index on idxpart1 ((a + 0));
+CREATE INDEX
 create index on idxpart (a);
 CREATE INDEX
 \d idxpart1
@@ -238,6 +257,7 @@ Partition of: idxpart FOR VALUES FROM (0) TO (1000)
 Indexes:
     "idxpart1_a_idx" hash (a)
     "idxpart1_a_idx1" btree (a NULLS FIRST)
+    "idxpart1_expr_idx" btree ((a + 0) NULLS FIRST)
 
 drop table idxpart;
 DROP TABLE
@@ -302,19 +322,23 @@ where indexrelid::regclass::text like 'idxpart%'
  idxpart_a_idx   | idxpart   | 
 (4 rows)
 
+alter index idxpart2_a_idx attach partition idxpart22_a_idx;
+ALTER INDEX
 select indexrelid::regclass, indrelid::regclass, inhparent::regclass
   from pg_index idx left join pg_inherits inh on (idx.indexrelid = inh.inhrelid)
 where indexrelid::regclass::text like 'idxpart%'
   order by indexrelid::regclass::text collate "C";
-   indexrelid    | indrelid  |   inhparent   
------------------+-----------+---------------
+   indexrelid    | indrelid  |   inhparent    
+-----------------+-----------+----------------
  idxpart1_a_idx  | idxpart1  | idxpart_a_idx
- idxpart22_a_idx | idxpart22 | 
+ idxpart22_a_idx | idxpart22 | idxpart2_a_idx
  idxpart2_a_idx  | idxpart2  | idxpart_a_idx
  idxpart_a_idx   | idxpart   | 
 (4 rows)
 
 -- attaching idxpart22 is not enough to set idxpart22_a_idx valid ...
+alter index idxpart2_a_idx attach partition idxpart22_a_idx;
+ALTER INDEX
 \d idxpart2
         Partitioned table "public.idxpart2"
  Column |  Type   | Collation | Nullable | Default 
@@ -329,6 +353,8 @@ Number of partitions: 2 (Use \d+ to list them.)
 -- ... but this one is.
 create index on idxpart21 (a);
 CREATE INDEX
+alter index idxpart2_a_idx attach partition idxpart21_a_idx;
+ALTER INDEX
 \d idxpart2
         Partitioned table "public.idxpart2"
  Column |  Type   | Collation | Nullable | Default 
@@ -337,7 +363,7 @@ CREATE INDEX
 Partition of: idxpart FOR VALUES FROM (100) TO (1000)
 Partition key: RANGE (a)
 Indexes:
-    "idxpart2_a_idx" btree (a NULLS FIRST) INVALID
+    "idxpart2_a_idx" btree (a NULLS FIRST)
 Number of partitions: 2 (Use \d+ to list them.)
 
 drop table idxpart;
@@ -351,8 +377,35 @@ create index idxparti on idxpart (a);
 CREATE INDEX
 create index idxparti2 on idxpart (b, c);
 CREATE INDEX
-create table idxpart1 partition of idxpart for values from (0) to (10);
+create table idxpart1 (like idxpart including indexes);
 CREATE TABLE
+\d idxpart1
+                     Table "public.idxpart1"
+ Column |         Type          | Collation | Nullable | Default 
+--------+-----------------------+-----------+----------+---------
+ a      | integer               |           |          | 
+ b      | integer               |           |          | 
+ c      | character varying(50) |           |          | 
+Indexes:
+    "idxpart1_a_idx" btree (a NULLS FIRST)
+    "idxpart1_b_c_idx" btree (b NULLS FIRST, c NULLS FIRST)
+
+select relname, relkind, inhparent::regclass
+    from pg_class left join pg_index ix on (indexrelid = oid)
+	left join pg_inherits on (ix.indexrelid = inhrelid)
+	where relname like 'idxpart%' order by relname;
+     relname      | relkind | inhparent 
+------------------+---------+-----------
+ idxpart          | p       | 
+ idxpart1         | r       | 
+ idxpart1_a_idx   | i       | 
+ idxpart1_b_c_idx | i       | 
+ idxparti         | I       | 
+ idxparti2        | I       | 
+(6 rows)
+
+alter table idxpart attach partition idxpart1 for values from (0) to (10);
+ALTER TABLE
 \d idxpart1
                      Table "public.idxpart1"
  Column |         Type          | Collation | Nullable | Default 
@@ -364,6 +417,8 @@ Partition of: idxpart FOR VALUES FROM (0) TO (10)
 Indexes:
     "idxpart1_a_idx" btree (a NULLS FIRST)
     "idxpart1_b_c_idx" btree (b NULLS FIRST, c NULLS FIRST)
+Statistics objects:
+    "public"."idxpart1_b_c_idx_pfx_2" () ON b, c FROM idxpart1
 
 select relname, relkind, inhparent::regclass
     from pg_class left join pg_index ix on (indexrelid = oid)
@@ -405,6 +460,8 @@ select relname, indisvalid from pg_class join pg_index on indexrelid = oid
 (2 rows)
 
 -- idxpart1_a_idx is not valid, so idxpart_a_idx should not become valid:
+alter index idxpart_a_idx attach partition idxpart1_a_idx;
+ALTER INDEX
 select relname, indisvalid from pg_class join pg_index on indexrelid = oid
    where relname like 'idxpart%' order by relname;
     relname     | indisvalid 
@@ -417,13 +474,15 @@ select relname, indisvalid from pg_class join pg_index on indexrelid = oid
 -- should become valid
 create index on idxpart11 (a);
 CREATE INDEX
+alter index idxpart1_a_idx attach partition idxpart11_a_idx;
+ALTER INDEX
 select relname, indisvalid from pg_class join pg_index on indexrelid = oid
    where relname like 'idxpart%' order by relname;
      relname     | indisvalid 
 -----------------+------------
  idxpart11_a_idx | t
- idxpart1_a_idx  | f
- idxpart_a_idx   | f
+ idxpart1_a_idx  | t
+ idxpart_a_idx   | t
 (3 rows)
 
 drop table idxpart;
@@ -455,36 +514,36 @@ select relname, relkind from pg_class where relname like 'idxpart%' order by rel
 (8 rows)
 
 -- a) after detaching partitions, the indexes can be dropped independently
+alter table idxpart detach partition idxpart1;
+ALTER TABLE
+alter table idxpart detach partition idxpart2;
+ALTER TABLE
+alter table idxpart detach partition idxpart3;
+ALTER TABLE
 drop index idxpart1_a_idx;
-psql:sql/indexing.sql:177: ERROR:  cannot drop index idxpart1_a_idx because index idxpart_a_idx requires it
-HINT:  You can drop index idxpart_a_idx instead.
+DROP INDEX
 drop index idxpart2_a_idx;
-psql:sql/indexing.sql:178: ERROR:  cannot drop index idxpart2_a_idx because index idxpart_a_idx requires it
-HINT:  You can drop index idxpart_a_idx instead.
+DROP INDEX
 drop index idxpart3_a_idx;
-psql:sql/indexing.sql:179: ERROR:  cannot drop index idxpart3_a_idx because index idxpart_a_idx requires it
-HINT:  You can drop index idxpart_a_idx instead.
+DROP INDEX
 select relname, relkind from pg_class where relname like 'idxpart%' order by relname;
-    relname     | relkind 
-----------------+---------
- idxpart        | p
- idxpart1       | r
- idxpart1_a_idx | i
- idxpart2       | r
- idxpart2_a_idx | i
- idxpart3       | r
- idxpart3_a_idx | i
- idxpart_a_idx  | I
-(8 rows)
+    relname    | relkind 
+---------------+---------
+ idxpart       | p
+ idxpart1      | r
+ idxpart2      | r
+ idxpart3      | r
+ idxpart_a_idx | I
+(5 rows)
 
 drop table idxpart;
 DROP TABLE
 drop table idxpart1;
-psql:sql/indexing.sql:182: ERROR:  table "idxpart1" does not exist
+DROP TABLE
 drop table idxpart2;
-psql:sql/indexing.sql:183: ERROR:  table "idxpart2" does not exist
+DROP TABLE
 drop table idxpart3;
-psql:sql/indexing.sql:184: ERROR:  table "idxpart3" does not exist
+DROP TABLE
 select relname, relkind from pg_class where relname like 'idxpart%' order by relname;
  relname | relkind 
 ---------+---------
@@ -516,25 +575,34 @@ select relname, relkind from pg_class where relname like 'idxpart%' order by rel
  idxpart_a_idx  | I
 (8 rows)
 
+alter table idxpart detach partition idxpart1;
+ALTER TABLE
+alter table idxpart detach partition idxpart2;
+ALTER TABLE
+alter table idxpart detach partition idxpart3;
+ALTER TABLE
 drop index idxpart_a_idx;
 DROP INDEX
 select relname, relkind from pg_class where relname like 'idxpart%' order by relname;
- relname  | relkind 
-----------+---------
- idxpart  | p
- idxpart1 | r
- idxpart2 | r
- idxpart3 | r
-(4 rows)
+    relname     | relkind 
+----------------+---------
+ idxpart        | p
+ idxpart1       | r
+ idxpart1_a_idx | i
+ idxpart2       | r
+ idxpart2_a_idx | i
+ idxpart3       | r
+ idxpart3_a_idx | i
+(7 rows)
 
 drop table idxpart;
 DROP TABLE
 drop table idxpart1;
-psql:sql/indexing.sql:198: ERROR:  table "idxpart1" does not exist
+DROP TABLE
 drop table idxpart2;
-psql:sql/indexing.sql:199: ERROR:  table "idxpart2" does not exist
+DROP TABLE
 drop table idxpart3;
-psql:sql/indexing.sql:200: ERROR:  table "idxpart3" does not exist
+DROP TABLE
 select relname, relkind from pg_class where relname like 'idxpart%' order by relname;
  relname | relkind 
 ---------+---------
@@ -543,39 +611,71 @@ select relname, relkind from pg_class where relname like 'idxpart%' order by rel
 -- Verify that expression indexes inherit correctly
 create table idxpart (a int, b int) partition by range (a);
 CREATE TABLE
-create table idxpart1 partition of idxpart for values from (0000) to (1000)
-create table idxpart2 partition of idxpart for values from (1000) to (2000);
-psql:sql/indexing.sql:206: ERROR:  syntax error at or near "create"
-LINE 2: create table idxpart2 partition of idxpart for values from (...
-        ^
+create table idxpart1 (like idxpart);
+CREATE TABLE
+create index on idxpart1 ((a + b));
+CREATE INDEX
+create index on idxpart ((a + b));
+CREATE INDEX
+create table idxpart2 (like idxpart);
+CREATE TABLE
+alter table idxpart attach partition idxpart1 for values from (0000) to (1000);
+ALTER TABLE
+					 
+					   
+alter table idxpart attach partition idxpart2 for values from (1000) to (2000);
+ALTER TABLE
+					 
+		
 create table idxpart3 partition of idxpart for values from (2000) to (3000);
 CREATE TABLE
 select relname as child, inhparent::regclass as parent, pg_get_indexdef as childdef
   from pg_class join pg_inherits on inhrelid = oid,
   lateral pg_get_indexdef(pg_class.oid)
   where relkind in ('i', 'I') and relname like 'idxpart%' order by relname;
- child | parent | childdef 
--------+--------+----------
-(0 rows)
+       child       |      parent      |                                       childdef                                        
+-------------------+------------------+---------------------------------------------------------------------------------------
+ idxpart1_expr_idx | idxpart_expr_idx | CREATE INDEX idxpart1_expr_idx ON public.idxpart1 USING btree (((a + b)) NULLS FIRST)
+ idxpart2_expr_idx | idxpart_expr_idx | CREATE INDEX idxpart2_expr_idx ON public.idxpart2 USING btree (((a + b)) NULLS FIRST)
+ idxpart3_expr_idx | idxpart_expr_idx | CREATE INDEX idxpart3_expr_idx ON public.idxpart3 USING btree (((a + b)) NULLS FIRST)
+(3 rows)
 
 drop table idxpart;
 DROP TABLE
 -- Verify behavior for collation (mis)matches
-create table idxpart (a varchar(50)) partition by range (a);
+					   
+create table idxpart (a text) partition by range (a);
 CREATE TABLE
-create table idxpart1 partition of idxpart for values from ('aaa') to ('bbb');
+					 
+					   
+create table idxpart1 (like idxpart);
 CREATE TABLE
-create table idxpart2 partition of idxpart for values from ('bbb') to ('ccc');
+					 
+					   
+create table idxpart2 (like idxpart);
 CREATE TABLE
---create index on idxpart2 (a collate "POSIX");
+					 
+create index on idxpart2 (a collate "POSIX");
+psql:sql/indexing.sql:268: ERROR:  can't override default collate for remote relation's index
+					   
 create index on idxpart2 (a);
 CREATE INDEX
---create index on idxpart2 (a collate "C");
+					 
+create index on idxpart2 (a collate "C");
+psql:sql/indexing.sql:272: ERROR:  can't override default collate for remote relation's index
+alter table idxpart attach partition idxpart1 for values from ('aaa') to ('bbb');
+ALTER TABLE
+alter table idxpart attach partition idxpart2 for values from ('bbb') to ('ccc');
+ALTER TABLE
 create table idxpart3 partition of idxpart for values from ('ccc') to ('ddd');
 CREATE TABLE
---create index on idxpart (a collate "C");
+					 
+create index on idxpart (a collate "C");
+psql:sql/indexing.sql:277: ERROR:  can't override default collate for remote relation's index
+					   
 create table idxpart4 partition of idxpart for values from ('ddd') to ('eee');
 CREATE TABLE
+					 
 select relname as child, inhparent::regclass as parent, pg_get_indexdef as childdef
   from pg_class left join pg_inherits on inhrelid = oid,
   lateral pg_get_indexdef(pg_class.oid)
@@ -585,8 +685,10 @@ select relname as child, inhparent::regclass as parent, pg_get_indexdef as child
  idxpart2_a_idx |        | CREATE INDEX idxpart2_a_idx ON public.idxpart2 USING btree (a NULLS FIRST)
 (1 row)
 
+					   
 drop table idxpart;
 DROP TABLE
+					 
 -- Verify behavior for opclass (mis)matches
 create table idxpart (a varchar(50)) partition by range (a);
 CREATE TABLE
@@ -611,7 +713,7 @@ select relname as child, inhparent::regclass as parent, pg_get_indexdef as child
 (1 row)
 
 drop index idxpart_a_idx;
-psql:sql/indexing.sql:242: ERROR:  index "idxpart_a_idx" does not exist
+psql:sql/indexing.sql:301: ERROR:  index "idxpart_a_idx" does not exist
 create index on only idxpart (a text_pattern_ops);
 CREATE INDEX
 -- must reject
@@ -680,21 +782,45 @@ DROP TABLE
 -- Verify that columns are mapped correctly in expression indexes
 create table idxpart (col1 int, col2 int, a int, b int) partition by range (a);
 CREATE TABLE
-create table idxpart1 partition of idxpart for values from (1) to 2);
-psql:sql/indexing.sql:277: ERROR:  syntax error at or near "2"
-LINE 1: ...ble idxpart1 partition of idxpart for values from (1) to 2);
-                                                                    ^
-create table idxpart2 partition of idxpart for values from (0) to (1);
+					 
+					   
+create table idxpart1 (col2 int, b int, col1 int, a int);
 CREATE TABLE
+					 
+					   
+create table idxpart2 (col1 int, col2 int, b int, a int);
+CREATE TABLE
+					 
+					   
 alter table idxpart drop column col1, drop column col2;
+ALTER TABLE
+alter table idxpart1 drop column col1, drop column col2;
+ALTER TABLE
+alter table idxpart2 drop column col1, drop column col2;
+ALTER TABLE
+create index on idxpart2 (abs(b));
+CREATE INDEX
+alter table idxpart attach partition idxpart2 for values from (0) to (1);
+ALTER TABLE
+create index on idxpart (abs(b));
+CREATE INDEX
+create index on idxpart ((b + 1));
+CREATE INDEX
+alter table idxpart attach partition idxpart1 for values from (1) to (2);
 ALTER TABLE
 select c.relname, pg_get_indexdef(indexrelid)
   from pg_class c join pg_index i on c.oid = i.indexrelid
   where indrelid::regclass::text like 'idxpart%'
   order by indexrelid::regclass::text collate "C";
- relname | pg_get_indexdef 
----------+-----------------
-(0 rows)
+      relname      |                                     pg_get_indexdef                                      
+-------------------+------------------------------------------------------------------------------------------
+ idxpart1_abs_idx  | CREATE INDEX idxpart1_abs_idx ON public.idxpart1 USING btree (abs(b) NULLS FIRST)
+ idxpart1_expr_idx | CREATE INDEX idxpart1_expr_idx ON public.idxpart1 USING btree (((b + 1)) NULLS FIRST)
+ idxpart2_abs_idx  | CREATE INDEX idxpart2_abs_idx ON public.idxpart2 USING btree (abs(b) NULLS FIRST)
+ idxpart2_expr_idx | CREATE INDEX idxpart2_expr_idx ON public.idxpart2 USING btree (((b + 1)) NULLS FIRST)
+ idxpart_abs_idx   | CREATE INDEX idxpart_abs_idx ON ONLY public.idxpart USING btree (abs(b) NULLS FIRST)
+ idxpart_expr_idx  | CREATE INDEX idxpart_expr_idx ON ONLY public.idxpart USING btree (((b + 1)) NULLS FIRST)
+(6 rows)
 
 drop table idxpart;
 DROP TABLE
@@ -717,6 +843,110 @@ select c.relname, pg_get_indexdef(indexrelid)
 
 drop table idxpart;
 DROP TABLE
+-- Column number mapping: dropped columns in the partition
+create table idxpart1 (drop_1 int, drop_2 int, col_keep int, drop_3 int);
+CREATE TABLE
+alter table idxpart1 drop column drop_1;
+ALTER TABLE
+alter table idxpart1 drop column drop_2;
+ALTER TABLE
+alter table idxpart1 drop column drop_3;
+ALTER TABLE
+create index on idxpart1 (col_keep);
+CREATE INDEX
+create table idxpart (col_keep int) partition by range (col_keep);
+CREATE TABLE
+create index on idxpart (col_keep);
+CREATE INDEX
+alter table idxpart attach partition idxpart1 for values from (0) to (1000);
+ALTER TABLE
+\d idxpart
+         Partitioned table "public.idxpart"
+  Column  |  Type   | Collation | Nullable | Default 
+----------+---------+-----------+----------+---------
+ col_keep | integer |           |          | 
+Partition key: RANGE (col_keep)
+Indexes:
+    "idxpart_col_keep_idx" btree (col_keep NULLS FIRST)
+Number of partitions: 1 (Use \d+ to list them.)
+
+\d idxpart1
+               Table "public.idxpart1"
+  Column  |  Type   | Collation | Nullable | Default 
+----------+---------+-----------+----------+---------
+ col_keep | integer |           |          | 
+Partition of: idxpart FOR VALUES FROM (0) TO (1000)
+Indexes:
+    "idxpart1_col_keep_idx" btree (col_keep NULLS FIRST)
+
+select attrelid::regclass, attname, attnum from pg_attribute
+  where attrelid::regclass::text like 'idxpart%' and attnum > 0
+  order by attrelid::regclass, attnum;
+       attrelid        |           attname            | attnum 
+-----------------------+------------------------------+--------
+ idxpart1              | ........pg.dropped.1........ |      1
+ idxpart1              | ........pg.dropped.2........ |      2
+ idxpart1              | col_keep                     |      3
+ idxpart1              | ........pg.dropped.4........ |      4
+ idxpart1_col_keep_idx | col_keep                     |      1
+ idxpart               | col_keep                     |      1
+ idxpart_col_keep_idx  | col_keep                     |      1
+(7 rows)
+
+drop table idxpart;
+DROP TABLE
+-- Column number mapping: dropped columns in the parent table
+create table idxpart(drop_1 int, drop_2 int, col_keep int, drop_3 int) partition by range (col_keep);
+CREATE TABLE
+alter table idxpart drop column drop_1;
+ALTER TABLE
+alter table idxpart drop column drop_2;
+ALTER TABLE
+alter table idxpart drop column drop_3;
+ALTER TABLE
+create table idxpart1 (col_keep int);
+CREATE TABLE
+create index on idxpart1 (col_keep);
+CREATE INDEX
+create index on idxpart (col_keep);
+CREATE INDEX
+alter table idxpart attach partition idxpart1 for values from (0) to (1000);
+ALTER TABLE
+\d idxpart
+         Partitioned table "public.idxpart"
+  Column  |  Type   | Collation | Nullable | Default 
+----------+---------+-----------+----------+---------
+ col_keep | integer |           |          | 
+Partition key: RANGE (col_keep)
+Indexes:
+    "idxpart_col_keep_idx" btree (col_keep NULLS FIRST)
+Number of partitions: 1 (Use \d+ to list them.)
+
+\d idxpart1
+               Table "public.idxpart1"
+  Column  |  Type   | Collation | Nullable | Default 
+----------+---------+-----------+----------+---------
+ col_keep | integer |           |          | 
+Partition of: idxpart FOR VALUES FROM (0) TO (1000)
+Indexes:
+    "idxpart1_col_keep_idx" btree (col_keep NULLS FIRST)
+
+select attrelid::regclass, attname, attnum from pg_attribute
+  where attrelid::regclass::text like 'idxpart%' and attnum > 0
+  order by attrelid::regclass, attnum;
+       attrelid        |           attname            | attnum 
+-----------------------+------------------------------+--------
+ idxpart               | ........pg.dropped.1........ |      1
+ idxpart               | ........pg.dropped.2........ |      2
+ idxpart               | col_keep                     |      3
+ idxpart               | ........pg.dropped.4........ |      4
+ idxpart1              | col_keep                     |      1
+ idxpart1_col_keep_idx | col_keep                     |      1
+ idxpart_col_keep_idx  | col_keep                     |      1
+(7 rows)
+
+drop table idxpart;
+DROP TABLE
 --
 -- Constraint-related indexes
 --
@@ -736,7 +966,7 @@ Number of partitions: 0
 
 -- multiple primary key on child should fail
 create table failpart partition of idxpart (b primary key) for values from (0) to (100);
-psql:sql/indexing.sql:304: ERROR:  multiple primary keys for table "failpart" are not allowed
+psql:sql/indexing.sql:408: ERROR:  multiple primary keys for table "failpart" are not allowed
 drop table idxpart;
 DROP TABLE
 -- primary key on child is okay if there's no PK in the parent, though
@@ -757,16 +987,16 @@ drop table idxpart;
 DROP TABLE
 -- Failing to use the full partition key is not allowed
 create table idxpart (a int unique, b int) partition by range (a, b);
-psql:sql/indexing.sql:313: ERROR:  insufficient columns in UNIQUE constraint definition
+psql:sql/indexing.sql:417: ERROR:  insufficient columns in UNIQUE constraint definition
 DETAIL:  UNIQUE constraint on table "idxpart" lacks column "b" which is part of the partition key.
 create table idxpart (a int, b int unique) partition by range (a, b);
-psql:sql/indexing.sql:314: ERROR:  insufficient columns in UNIQUE constraint definition
+psql:sql/indexing.sql:418: ERROR:  insufficient columns in UNIQUE constraint definition
 DETAIL:  UNIQUE constraint on table "idxpart" lacks column "a" which is part of the partition key.
 create table idxpart (a int primary key, b int) partition by range (b, a);
-psql:sql/indexing.sql:315: ERROR:  insufficient columns in PRIMARY KEY constraint definition
+psql:sql/indexing.sql:419: ERROR:  insufficient columns in PRIMARY KEY constraint definition
 DETAIL:  PRIMARY KEY constraint on table "idxpart" lacks column "b" which is part of the partition key.
 create table idxpart (a int, b int primary key) partition by range (b, a);
-psql:sql/indexing.sql:316: ERROR:  insufficient columns in PRIMARY KEY constraint definition
+psql:sql/indexing.sql:420: ERROR:  insufficient columns in PRIMARY KEY constraint definition
 DETAIL:  PRIMARY KEY constraint on table "idxpart" lacks column "a" which is part of the partition key.
 -- OK if you use them in some other order
 create table idxpart (a int, b int, c varchar(50), primary key  (a, b, c)) partition by range (b, c, a);
@@ -775,21 +1005,21 @@ drop table idxpart;
 DROP TABLE
 -- not other types of index-based constraints
 create table idxpart (a int, exclude (a with = )) partition by range (a);
-psql:sql/indexing.sql:323: ERROR:  exclusion constraints are not supported on partitioned tables
+psql:sql/indexing.sql:427: ERROR:  exclusion constraints are not supported on partitioned tables
 LINE 1: create table idxpart (a int, exclude (a with = )) partition ...
                                      ^
 -- no expressions in partition key for PK/UNIQUE
 create table idxpart (a int primary key, b int) partition by range ((b + a));
-psql:sql/indexing.sql:326: ERROR:  unsupported PRIMARY KEY constraint with partition key definition
+psql:sql/indexing.sql:430: ERROR:  unsupported PRIMARY KEY constraint with partition key definition
 DETAIL:  PRIMARY KEY constraints cannot be used when partition keys include expressions.
 create table idxpart (a int unique, b int) partition by range ((b + a));
-psql:sql/indexing.sql:327: ERROR:  unsupported UNIQUE constraint with partition key definition
+psql:sql/indexing.sql:431: ERROR:  unsupported UNIQUE constraint with partition key definition
 DETAIL:  UNIQUE constraints cannot be used when partition keys include expressions.
 -- use ALTER TABLE to add a primary key
 create table idxpart (a int, b int, c text) partition by range (a, b);
 CREATE TABLE
 alter table idxpart add primary key (a);	-- not an incomplete one though
-psql:sql/indexing.sql:331: ERROR:  insufficient columns in PRIMARY KEY constraint definition
+psql:sql/indexing.sql:435: ERROR:  insufficient columns in PRIMARY KEY constraint definition
 DETAIL:  PRIMARY KEY constraint on table "idxpart" lacks column "b" which is part of the partition key.
 alter table idxpart add primary key (a, b);	-- this works
 ALTER TABLE
@@ -824,7 +1054,7 @@ DROP TABLE
 create table idxpart (a int, b int) partition by range (a, b);
 CREATE TABLE
 alter table idxpart add unique (a);			-- not an incomplete one though
-psql:sql/indexing.sql:340: ERROR:  insufficient columns in UNIQUE constraint definition
+psql:sql/indexing.sql:444: ERROR:  insufficient columns in UNIQUE constraint definition
 DETAIL:  UNIQUE constraint on table "idxpart" lacks column "b" which is part of the partition key.
 alter table idxpart add unique (b, a);		-- this works
 ALTER TABLE
@@ -845,7 +1075,7 @@ DROP TABLE
 create table idxpart (a int, b int) partition by range (a);
 CREATE TABLE
 alter table idxpart add exclude (a with =);
-psql:sql/indexing.sql:347: ERROR:  Kunlun-db: Alter table is not supported
+psql:sql/indexing.sql:451: ERROR:  Kunlun-db: Alter table is not supported
 drop table idxpart;
 DROP TABLE
 -- When (sub)partitions are created, they also contain the constraint
@@ -861,7 +1091,7 @@ CREATE TABLE
 create table idxpart22 partition of idxpart2 for values from (15) to (20);
 CREATE TABLE
 create table idxpart3 partition of idxpart for values from from (20, 20) to (30, 30);
-psql:sql/indexing.sql:357: ERROR:  syntax error at or near "from"
+psql:sql/indexing.sql:461: ERROR:  syntax error at or near "from"
 LINE 1: ...ble idxpart3 partition of idxpart for values from from (20, ...
                                                              ^
 select conname, contype, conrelid::regclass, conindid::regclass, conkey
@@ -884,7 +1114,7 @@ create table idxpart (a int, b int, primary key (a)) partition by range (a);
 CREATE TABLE
 create table idxpart2 partition of idxpart
 for values from (0) to (1000) partition by range (b); -- fail
-psql:sql/indexing.sql:367: ERROR:  insufficient columns in PRIMARY KEY constraint definition
+psql:sql/indexing.sql:471: ERROR:  insufficient columns in PRIMARY KEY constraint definition
 DETAIL:  PRIMARY KEY constraint on table "idxpart2" lacks column "b" which is part of the partition key.
 drop table idxpart;
 DROP TABLE
@@ -935,15 +1165,15 @@ select indrelid::regclass, indexrelid::regclass, inhparent::regclass, indisvalid
 (3 rows)
 
 drop index idxpart0_pkey;								-- fail
-psql:sql/indexing.sql:394: ERROR:  cannot drop index idxpart0_pkey because index idxpart_pkey requires it
+psql:sql/indexing.sql:498: ERROR:  cannot drop index idxpart0_pkey because index idxpart_pkey requires it
 HINT:  You can drop index idxpart_pkey instead.
 drop index idxpart1_pkey;								-- fail
-psql:sql/indexing.sql:395: ERROR:  cannot drop index idxpart1_pkey because index idxpart_pkey requires it
+psql:sql/indexing.sql:499: ERROR:  cannot drop index idxpart1_pkey because index idxpart_pkey requires it
 HINT:  You can drop index idxpart_pkey instead.
 alter table idxpart0 drop constraint idxpart0_pkey;		-- fail
-psql:sql/indexing.sql:396: ERROR:  cannot drop inherited constraint "idxpart0_pkey" of relation "idxpart0"
+psql:sql/indexing.sql:500: ERROR:  cannot drop inherited constraint "idxpart0_pkey" of relation "idxpart0"
 alter table idxpart1 drop constraint idxpart1_pkey;		-- fail
-psql:sql/indexing.sql:397: ERROR:  cannot drop inherited constraint "idxpart1_pkey" of relation "idxpart1"
+psql:sql/indexing.sql:501: ERROR:  cannot drop inherited constraint "idxpart1_pkey" of relation "idxpart1"
 alter table idxpart drop constraint idxpart_pkey;		-- ok
 ALTER TABLE
 select indrelid::regclass, indexrelid::regclass, inhparent::regclass, indisvalid,
@@ -958,32 +1188,164 @@ select indrelid::regclass, indexrelid::regclass, inhparent::regclass, indisvalid
 
 drop table idxpart;
 DROP TABLE
--- Test that unique constraints are working
-create table idxpart (a int, b varchar(50), primary key (a, b)) partition by range (a);
+-- If the partition to be attached already has a primary key, fail if
+-- it doesn't match the parent's PK.
+CREATE TABLE idxpart (c1 INT PRIMARY KEY, c2 INT, c3 VARCHAR(10)) PARTITION BY RANGE(c1);
 CREATE TABLE
+CREATE TABLE idxpart1 (LIKE idxpart);
+CREATE TABLE
+ALTER TABLE idxpart1 ADD PRIMARY KEY (c1, c2);
+ALTER TABLE
+ALTER TABLE idxpart ATTACH PARTITION idxpart1 FOR VALUES FROM (100) TO (200);
+psql:sql/indexing.sql:516: ERROR:  multiple primary keys for table "idxpart1" are not allowed
+DROP TABLE idxpart, idxpart1;
+DROP TABLE
+-- Ditto if there is some distance between the PKs (subpartitioning)
+create table idxpart (a int, b int, primary key (a)) partition by range (a);
+CREATE TABLE
+create table idxpart1 (a int not null, b int) partition by range (a);
+CREATE TABLE
+create table idxpart11 (a int not null, b int primary key);
+CREATE TABLE
+alter table idxpart1 attach partition idxpart11 for values from (0) to (1000);
+ALTER TABLE
+alter table idxpart attach partition idxpart1 for values from (0) to (10000);
+psql:sql/indexing.sql:524: ERROR:  multiple primary keys for table "idxpart11" are not allowed
+drop table idxpart, idxpart1, idxpart11;
+DROP TABLE
+-- If a partitioned table has a constraint whose index is not valid,
+-- attaching a missing partition makes it valid.
+create table idxpart (a int) partition by range (a);
+CREATE TABLE
+create table idxpart0 (like idxpart);
+CREATE TABLE
+alter table idxpart0 add primary key (a);
+ALTER TABLE
+alter table idxpart attach partition idxpart0 for values from (0) to (1000);
+ALTER TABLE
+alter table only idxpart add primary key (a);
+ALTER TABLE
+select indrelid::regclass, indexrelid::regclass, inhparent::regclass, indisvalid,
+  conname, conislocal, coninhcount, connoinherit, convalidated
+  from pg_index idx left join pg_inherits inh on (idx.indexrelid = inh.inhrelid)
+  left join pg_constraint con on (idx.indexrelid = con.conindid)
+  where indrelid::regclass::text like 'idxpart%'
+  order by indexrelid::regclass::text collate "C";
+ indrelid |  indexrelid   | inhparent | indisvalid |    conname    | conislocal | coninhcount | connoinherit | convalidated 
+----------+---------------+-----------+------------+---------------+------------+-------------+--------------+--------------
+ idxpart0 | idxpart0_pkey |           | t          | idxpart0_pkey | t          |           0 | t            | t
+ idxpart  | idxpart_pkey  |           | f          | idxpart_pkey  | t          |           0 | t            | t
+(2 rows)
+
+alter index idxpart_pkey attach partition idxpart0_pkey;
+ALTER INDEX
+select indrelid::regclass, indexrelid::regclass, inhparent::regclass, indisvalid,
+  conname, conislocal, coninhcount, connoinherit, convalidated
+  from pg_index idx left join pg_inherits inh on (idx.indexrelid = inh.inhrelid)
+  left join pg_constraint con on (idx.indexrelid = con.conindid)
+  where indrelid::regclass::text like 'idxpart%'
+  order by indexrelid::regclass::text collate "C";
+ indrelid |  indexrelid   |  inhparent   | indisvalid |    conname    | conislocal | coninhcount | connoinherit | convalidated 
+----------+---------------+--------------+------------+---------------+------------+-------------+--------------+--------------
+ idxpart0 | idxpart0_pkey | idxpart_pkey | t          | idxpart0_pkey | f          |           1 | t            | t
+ idxpart  | idxpart_pkey  |              | t          | idxpart_pkey  | t          |           0 | t            | t
+(2 rows)
+
+drop table idxpart;
+DROP TABLE
+-- if a partition has a unique index without a constraint, does not attach
+-- automatically; creates a new index instead.
+create table idxpart (a int, b int) partition by range (a);
+CREATE TABLE
+create table idxpart1 (a int not null, b int);
+CREATE TABLE
+create unique index on idxpart1 (a);
+CREATE INDEX
+alter table idxpart add primary key (a);
+ALTER TABLE
+alter table idxpart attach partition idxpart1 for values from (1) to (1000);
+ALTER TABLE
+select indrelid::regclass, indexrelid::regclass, inhparent::regclass, indisvalid,
+  conname, conislocal, coninhcount, connoinherit, convalidated
+  from pg_index idx left join pg_inherits inh on (idx.indexrelid = inh.inhrelid)
+  left join pg_constraint con on (idx.indexrelid = con.conindid)
+  where indrelid::regclass::text like 'idxpart%'
+  order by indexrelid::regclass::text collate "C";
+ indrelid |   indexrelid   |  inhparent   | indisvalid |    conname    | conislocal | coninhcount | connoinherit | convalidated 
+----------+----------------+--------------+------------+---------------+------------+-------------+--------------+--------------
+ idxpart1 | idxpart1_a_idx |              | t          |               |            |             |              | 
+ idxpart1 | idxpart1_pkey  | idxpart_pkey | t          | idxpart1_pkey | f          |           1 | f            | t
+ idxpart  | idxpart_pkey   |              | t          | idxpart_pkey  | t          |           0 | t            | t
+(3 rows)
+
+drop table idxpart;
+DROP TABLE
+-- Can't attach an index without a corresponding constraint
+create table idxpart (a int, b int) partition by range (a);
+CREATE TABLE
+create table idxpart1 (a int not null, b int);
+CREATE TABLE
+create unique index on idxpart1 (a);
+CREATE INDEX
+alter table idxpart attach partition idxpart1 for values from (1) to (1000);
+ALTER TABLE
+alter table only idxpart add primary key (a);
+ALTER TABLE
+alter index idxpart_pkey attach partition idxpart1_a_idx;	-- fail
+psql:sql/indexing.sql:569: ERROR:  cannot attach index "idxpart1_a_idx" as a partition of index "idxpart_pkey"
+DETAIL:  The index "idxpart_pkey" belongs to a constraint in table "idxpart" but no constraint exists for index "idxpart1_a_idx".
+drop table idxpart;
+DROP TABLE
+-- Test that unique constraints are working
+					   
+create table idxpart (a int, b text, primary key (a, b)) partition by range (a);
+CREATE TABLE
+					 
+					   
 create table idxpart1 partition of idxpart for values from (0) to (100000);
 CREATE TABLE
-create table idxpart2 partition of idxpart for values from (100000) to (1000000);
+create table idxpart2 (c int, like idxpart);
 CREATE TABLE
+insert into idxpart2 (c, a, b) values (42, 572814, 'inserted first');
+INSERT 0 1
+alter table idxpart2 drop column c;
+ALTER TABLE
+create unique index on idxpart (a);
+CREATE INDEX
+alter table idxpart attach partition idxpart2 for values from (100000) to (1000000);
+ALTER TABLE
 insert into idxpart values (0, 'zero'), (42, 'life'), (2^16, 'sixteen');
 INSERT 0 3
 insert into idxpart select 2^g, format('two to power of %s', g) from generate_series(15, 17) g;
-INSERT 0 3
+psql:sql/indexing.sql:585: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '65536' for key 'idxpart1.idxpart1_a_idx'.
 insert into idxpart values (16, 'sixteen');
 INSERT 0 1
 insert into idxpart (b, a) values ('one', 142857), ('two', 285714);
 INSERT 0 2
 insert into idxpart select a * 2, b || b from idxpart where a between 2^16 and 2^19;
-INSERT 0 5
+psql:sql/indexing.sql:588: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '285714' for key 'idxpart2.idxpart2_a_idx'.
 insert into idxpart values (572814, 'five');
-INSERT 0 1
+psql:sql/indexing.sql:589: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '572814' for key 'idxpart2.idxpart2_a_idx'.
 insert into idxpart values (857142, 'six');
 INSERT 0 1
+select tableoid::regclass, * from idxpart order by a;
+ tableoid |   a    |       b        
+----------+--------+----------------
+ idxpart1 |      0 | zero
+ idxpart1 |     16 | sixteen
+ idxpart1 |     42 | life
+ idxpart1 |  65536 | sixteen
+ idxpart2 | 142857 | one
+ idxpart2 | 285714 | two
+ idxpart2 | 572814 | inserted first
+ idxpart2 | 857142 | six
+(8 rows)
+
 drop table idxpart;
 DROP TABLE
 -- test fastpath mechanism for index insertion
 drop table if exists fastpath;
-psql:sql/indexing.sql:421: NOTICE:  table "fastpath" does not exist, skipping
+psql:sql/indexing.sql:596: NOTICE:  table "fastpath" does not exist, skipping
 DROP TABLE
 create table fastpath (a int, b varchar(50), c numeric);
 CREATE TABLE
@@ -992,9 +1354,9 @@ CREATE INDEX
 insert into fastpath values (1, 'b1', 100.00);
 INSERT 0 1
 insert into fastpath values (1, 'b1', 100.00); -- unique key check
-psql:sql/indexing.sql:426: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '1' for key 'fastpath.fpindex1'.
-delete from fastpath;
-DELETE 1
+psql:sql/indexing.sql:601: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '1' for key 'fastpath.fpindex1'.
+truncate fastpath;
+TRUNCATE TABLE
 insert into fastpath select generate_series(1,10000), 'b', 100;
 INSERT 0 10000
 set enable_seqscan to false;
@@ -1017,8 +1379,8 @@ select sum(a) from fastpath where a >= 5000 and a < 5700;
 -- a few queries which orders the results in various different ways.
 drop index fpindex1;
 DROP INDEX
-delete from fastpath;
-DELETE 10000
+truncate fastpath;
+TRUNCATE TABLE
 insert into fastpath select y.x, 'b' || (y.x/10)::text, 100 from (select generate_series(1,10000) as x) y;
 INSERT 0 10000
 select md5(string_agg(a::text, b order by a, b asc)) from fastpath
@@ -1052,8 +1414,8 @@ select md5(string_agg(a::text, b order by b, a asc)) from fastpath
 -- now create a multi-column index with both column asc
 create index fpindex2 on fastpath(a, b);
 CREATE INDEX
-delete from fastpath;
-DELETE 10000
+truncate fastpath;
+TRUNCATE TABLE
 insert into fastpath select y.x, 'b' || (y.x/10)::text, 100 from (select generate_series(1,10000) as x) y;
 INSERT 0 10000
 select md5(string_agg(a::text, b order by a, b asc)) from fastpath
@@ -1090,8 +1452,8 @@ drop index fpindex2;
 DROP INDEX
 create index fpindex3 on fastpath(a desc, b asc);
 CREATE INDEX
-delete from fastpath;
-DELETE 10000
+truncate fastpath;
+TRUNCATE TABLE
 insert into fastpath select y.x, 'b' || (y.x/10)::text, 100 from (select generate_series(1,10000) as x) y;
 INSERT 0 10000
 select md5(string_agg(a::text, b order by a, b asc)) from fastpath
@@ -1127,8 +1489,8 @@ drop index fpindex3;
 DROP INDEX
 create index fpindex4 on fastpath(a asc, b desc);
 CREATE INDEX
-delete from fastpath;
-DELETE 10000
+truncate fastpath;
+TRUNCATE TABLE
 insert into fastpath select y.x, 'b' || (y.x/10)::text, 100 from (select generate_series(1,10000) as x) y;
 INSERT 0 10000
 select md5(string_agg(a::text, b order by a, b asc)) from fastpath
@@ -1165,8 +1527,8 @@ drop index fpindex4;
 DROP INDEX
 create index fpindex5 on fastpath(b asc, a desc);
 CREATE INDEX
-delete from fastpath;
-DELETE 10000
+truncate fastpath;
+TRUNCATE TABLE
 insert into fastpath select y.x, 'b' || (y.x/10)::text, 100 from (select generate_series(1,10000) as x) y;
 INSERT 0 10000
 select md5(string_agg(a::text, b order by a, b asc)) from fastpath
@@ -1202,8 +1564,8 @@ drop index fpindex5;
 DROP INDEX
 create index fpindex6 on fastpath(b desc, a desc);
 CREATE INDEX
-delete from fastpath;
-DELETE 10000
+truncate fastpath;
+TRUNCATE TABLE
 insert into fastpath select y.x, 'b' || (y.x/10)::text, 100 from (select generate_series(1,10000) as x) y;
 INSERT 0 10000
 select md5(string_agg(a::text, b order by a, b asc)) from fastpath
@@ -1239,7 +1601,7 @@ drop table fastpath;
 DROP TABLE
 -- intentionally leave some objects around
 drop table if exists idxpart;
-psql:sql/indexing.sql:525: NOTICE:  table "idxpart" does not exist, skipping
+psql:sql/indexing.sql:700: NOTICE:  table "idxpart" does not exist, skipping
 DROP TABLE
 create table idxpart (a int) partition by range (a);
 CREATE TABLE
@@ -1274,29 +1636,33 @@ drop table idxpart;
 DROP TABLE
 -- check that detaching a partition also detaches the primary key constraint
 drop table if exists parted_pk_detach_test;
-psql:sql/indexing.sql:544: NOTICE:  table "parted_pk_detach_test" does not exist, skipping
+psql:sql/indexing.sql:719: NOTICE:  table "parted_pk_detach_test" does not exist, skipping
 DROP TABLE
 create table parted_pk_detach_test (a int primary key) partition by list (a);
 CREATE TABLE
 create table parted_pk_detach_test1 partition of parted_pk_detach_test for values in (1);
 CREATE TABLE
 alter table parted_pk_detach_test1 drop constraint parted_pk_detach_test1_pkey;	-- should fail
-psql:sql/indexing.sql:547: ERROR:  cannot drop inherited constraint "parted_pk_detach_test1_pkey" of relation "parted_pk_detach_test1"
+psql:sql/indexing.sql:723: ERROR:  cannot drop inherited constraint "parted_pk_detach_test1_pkey" of relation "parted_pk_detach_test1"
+alter table parted_pk_detach_test detach partition parted_pk_detach_test1;
+ALTER TABLE
 alter table parted_pk_detach_test1 drop constraint parted_pk_detach_test1_pkey;
-psql:sql/indexing.sql:548: ERROR:  cannot drop inherited constraint "parted_pk_detach_test1_pkey" of relation "parted_pk_detach_test1"
+ALTER TABLE
 drop table parted_pk_detach_test;
 DROP TABLE
 drop table parted_pk_detach_test1;
-psql:sql/indexing.sql:550: ERROR:  table "parted_pk_detach_test1" does not exist
+DROP TABLE
 create table parted_uniq_detach_test (a int unique) partition by list (a);
 CREATE TABLE
 create table parted_uniq_detach_test1 partition of parted_uniq_detach_test for values in (1);
 CREATE TABLE
 alter table parted_uniq_detach_test1 drop constraint parted_uniq_detach_test1_a_key;	-- should fail
-psql:sql/indexing.sql:553: ERROR:  cannot drop inherited constraint "parted_uniq_detach_test1_a_key" of relation "parted_uniq_detach_test1"
+psql:sql/indexing.sql:731: ERROR:  cannot drop inherited constraint "parted_uniq_detach_test1_a_key" of relation "parted_uniq_detach_test1"
+alter table parted_uniq_detach_test detach partition parted_uniq_detach_test1;
+ALTER TABLE
 alter table parted_uniq_detach_test1 drop constraint parted_uniq_detach_test1_a_key;
-psql:sql/indexing.sql:554: ERROR:  cannot drop inherited constraint "parted_uniq_detach_test1_a_key" of relation "parted_uniq_detach_test1"
+ALTER TABLE
 drop table parted_uniq_detach_test;
 DROP TABLE
 drop table parted_uniq_detach_test1;
-psql:sql/indexing.sql:556: ERROR:  table "parted_uniq_detach_test1" does not exist
+DROP TABLE

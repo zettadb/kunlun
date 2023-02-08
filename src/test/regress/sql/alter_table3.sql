@@ -160,12 +160,12 @@ alter table t1 alter column d type char(32);
 --DDL_STATEMENT_END--
 --\d+ t1;
 insert into t1 (b) values(88);
-select*from t1;
+select*from t1 order by 1,2;
 
 --DDL_STATEMENT_BEGIN--
 alter table t1 add column e varchar(32) not null default 'abc';
 --DDL_STATEMENT_END--
-select*from t1;
+select*from t1 order by 1,2;
 --DDL_STATEMENT_BEGIN--
 alter table t1 rename c to cc, drop column c;
 --DDL_STATEMENT_END--
@@ -177,16 +177,16 @@ alter table t1 rename a to aa;
 --DDL_STATEMENT_END--
 --\d+ t1;
 insert into t1 (b) values(99);
-select*from t1;
+select*from t1 order by 1,2;
 
 --DDL_STATEMENT_BEGIN--
 alter table t1 drop column c, add column f int not null default 123, add column g int not null default 123, alter column b type bigint;
 --DDL_STATEMENT_END--
 --\d+ t1;
-select*from t1;
+select*from t1 order by 1,2;
 insert into t1(f) values(333);
 insert into t1(b) values(222);
-select*from t1;
+select*from t1 order by 1,2;
 --DDL_STATEMENT_BEGIN--
 alter table t1 rename f to ff;
 --DDL_STATEMENT_END--
@@ -194,7 +194,7 @@ alter table t1 rename f to ff;
 alter table t1 rename d to dd;
 --DDL_STATEMENT_END--
 --\d+ t1;
-select*from t1;
+select*from t1 order by 1,2;
 
 --DDL_STATEMENT_BEGIN--
 alter table t1 rename to t11;
@@ -205,7 +205,7 @@ alter table t1 rename to t11;
 alter table t11 rename b to bb;
 --DDL_STATEMENT_END--
 --\d+ t11;
-select*from t11;
+select*from t11 order by 1,2;
 --DDL_STATEMENT_BEGIN--
 create index t11_b on t11(bb);
 --DDL_STATEMENT_END--
@@ -214,7 +214,7 @@ create index t11_b on t11(bb);
 alter index t11_b rename to t11_bb;
 --DDL_STATEMENT_END--
 --\d+ t11;
-select*from t11;
+select*from t11 order by 1,2;
 
 --DDL_STATEMENT_BEGIN--
 create schema scm3;

@@ -101,7 +101,7 @@ update tt set b=b+1;
 select pg_sleep(3);
 select*from tt;
 select pg_sleep(5);
-select*from tt;
+select*from tt order by 1;
 select pg_sleep(7);
 select*from tt;
 show innodb_lock_wait_timeout;

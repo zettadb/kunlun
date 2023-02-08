@@ -928,7 +928,8 @@ drop schema testschema cascade;
 
 --DDL_STATEMENT_END--
 -- bug 44 todo
-SET enable_partitionwise_join=off;
+--SET enable_partitionwise_join=off;
+set enable_remote_join_pushdown = false;
 --DDL_STATEMENT_BEGIN--
 drop table if exists tenk1 cascade;
 --DDL_STATEMENT_END--

@@ -283,7 +283,7 @@ rollback;
 drop table if exists t1, t2;
 create table t1(a int, b int) with(shard=1);
 create table t2(a int, b int) with(shard=1);
-set session_debug = '+d,inject_reserve_global_txids_failure,force_reload_reserved_global_txid';
+-- set session_debug = '+d,inject_reserve_global_txids_failure,force_reload_reserved_global_txid';
 BEGIN;
 insert into t1 values(1,1);
 insert into t2 values(2,2);
@@ -414,7 +414,7 @@ explain (costs off) select * from t1 for update skip locked;;
 explain (costs off) select * from t1 for update nowait;
 
 -- 使用dblink测试并发连接之间的互斥
-create database kunlun;
+create database jenkins;
 create extension if not exists dblink ;
 
 select dblink_connect('conn1', concat('hostaddr=127.0.0.1 port=', inet_server_port())); 
@@ -430,8 +430,9 @@ begin;
 	 
 set innodb_lock_wait_timeout = 1; -- 1s超时
 select * from dblink('conn2', 'select * from t1 for update') as t1(a int,b int);
-																  
+
 rollback;
+
 -- 直接报错
 select * from dblink('conn2', 'select * from t1 for update nowait') as t1(a int,b int);
 -- 跳过被锁住的列1

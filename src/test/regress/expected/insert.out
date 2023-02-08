@@ -248,18 +248,18 @@ insert into list_parted values ('xx', 1);
 INSERT 0 1
 insert into list_parted values ('yy', 2);
 INSERT 0 1
-select tableoid::regclass, * from list_parted;
+select tableoid::regclass, * from list_parted order by 1,2,3;
       tableoid      | a  | b  
 --------------------+----+----
- part_default_p2    | de | 35
- part_default_p1    | cd | 25
- part_default_p1    | ab | 21
- part_null          |    |  0
- part_xx_yy_defpart | yy |  2
- part_xx_yy_p1      | xx |  1
- part_ee_ff2        | ff | 11
  part_cc_dd         | cC |  1
+ part_null          |    |  0
  part_ee_ff1        | ff |  1
+ part_ee_ff2        | ff | 11
+ part_xx_yy_p1      | xx |  1
+ part_xx_yy_defpart | yy |  2
+ part_default_p1    | ab | 21
+ part_default_p1    | cd | 25
+ part_default_p2    | de | 35
 (9 rows)
 
 -- Check tuple routing for partitioned tables

@@ -607,6 +607,8 @@ drop schema testschema cascade;
 
 -- bug 44 todo
 
+set enable_remote_join_pushdown = false;
+
 drop table if exists tenk1 cascade;
 drop table if exists INT4_TBL cascade;
  CREATE TABLE tenk1 (
@@ -634,7 +636,6 @@ CREATE TABLE INT4_TBL(id serial primary key, f1 int4);
 COPY tenk1(unique1, unique2, two, four, ten, twenty, hundred, thousand, twothousand, fivethous, tenthous, odd, even, stringu1 , stringu2 ,string4) FROM '@abs_srcdir@/data/tenk.data';
 insert into int4_tbl (f1) select generate_series(1,13);
 
-set statement_timeout=0;
 explain (verbose, costs off)
     select b.unique1 from
         tenk1 a join tenk1 b on a.unique1 = b.unique2
@@ -666,7 +667,6 @@ explain (verbose, costs off)
         right join int4_tbl i2 on i2.f1 = b.tenthous
         order by 1;
 		
-set enable_remote_join_pushdown = false;
 
 explain (costs off)
     select b.unique1 from

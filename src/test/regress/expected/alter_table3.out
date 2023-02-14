@@ -445,67 +445,67 @@ ALTER TABLE
 --\d+ t1;
 insert into t1 (b) values(88);
 INSERT 0 1
-select*from t1;
+select*from t1 order by 1,2;
  a  | b  |     c     |                d                 
 ----+----+-----------+----------------------------------
+  1 | 11 | 123456789 | dddddddd                        
+  2 | 22 | 123456789 | dddddddd                        
+  3 | 33 | 123456789 | dddddddd                        
   4 | 11 | 123456789 | dddddddd                        
+  5 | 22 | 123456789 | dddddddd                        
   6 | 33 | 123456789 | dddddddd                        
   7 | 11 | 123456789 | dddddddd                        
- 10 | 11 | 123456789 | dddddddd                        
- 15 | 33 | 123456789 | dddddddd                        
- 22 | 77 | 123456789 | dddddddd                        
- 24 | 77 | 123456789 | dddddddd                        
-  2 | 22 | 123456789 | dddddddd                        
- 13 | 11 | 123456789 | dddddddd                        
- 18 | 55 | 123456789 | dddddddd                        
- 23 | 77 | 123456789 | dddddddd                        
- 25 | 77 | 123456789 | dddddddd                        
-  3 | 33 | 123456789 | dddddddd                        
-  5 | 22 | 123456789 | dddddddd                        
   8 | 22 | 123456789 | dddddddd                        
   9 | 33 | 123456789 | dddddddd                        
+ 10 | 11 | 123456789 | dddddddd                        
  11 | 22 | 123456789 | dddddddd                        
+ 12 | 33 | 123456789 | dddddddd                        
+ 13 | 11 | 123456789 | dddddddd                        
+ 14 | 22 | 123456789 | dddddddd                        
+ 15 | 33 | 123456789 | dddddddd                        
+ 16 | 44 | 123456789 | dddddddd                        
+ 17 | 44 | 123456789 | dddddddd                        
+ 18 | 55 | 123456789 | dddddddd                        
  19 | 66 | 123456789 | dddddddd                        
  20 | 66 | 123456789 | dddddddd                        
  21 | 66 | 123456789 | dddddddd                        
-  1 | 11 | 123456789 | dddddddd                        
- 12 | 33 | 123456789 | dddddddd                        
- 14 | 22 | 123456789 | dddddddd                        
- 16 | 44 | 123456789 | dddddddd                        
- 17 | 44 | 123456789 | dddddddd                        
+ 22 | 77 | 123456789 | dddddddd                        
+ 23 | 77 | 123456789 | dddddddd                        
+ 24 | 77 | 123456789 | dddddddd                        
+ 25 | 77 | 123456789 | dddddddd                        
  26 | 88 | 123456789 | dddddddd                        
 (26 rows)
 
 alter table t1 add column e varchar(32) not null default 'abc';
 ALTER TABLE
-select*from t1;
+select*from t1 order by 1,2;
  a  | b  |     c     |                d                 |  e  
 ----+----+-----------+----------------------------------+-----
+  1 | 11 | 123456789 | dddddddd                         | abc
+  2 | 22 | 123456789 | dddddddd                         | abc
+  3 | 33 | 123456789 | dddddddd                         | abc
   4 | 11 | 123456789 | dddddddd                         | abc
+  5 | 22 | 123456789 | dddddddd                         | abc
   6 | 33 | 123456789 | dddddddd                         | abc
   7 | 11 | 123456789 | dddddddd                         | abc
- 10 | 11 | 123456789 | dddddddd                         | abc
- 15 | 33 | 123456789 | dddddddd                         | abc
- 22 | 77 | 123456789 | dddddddd                         | abc
- 24 | 77 | 123456789 | dddddddd                         | abc
-  2 | 22 | 123456789 | dddddddd                         | abc
- 13 | 11 | 123456789 | dddddddd                         | abc
- 18 | 55 | 123456789 | dddddddd                         | abc
- 23 | 77 | 123456789 | dddddddd                         | abc
- 25 | 77 | 123456789 | dddddddd                         | abc
-  3 | 33 | 123456789 | dddddddd                         | abc
-  5 | 22 | 123456789 | dddddddd                         | abc
   8 | 22 | 123456789 | dddddddd                         | abc
   9 | 33 | 123456789 | dddddddd                         | abc
+ 10 | 11 | 123456789 | dddddddd                         | abc
  11 | 22 | 123456789 | dddddddd                         | abc
+ 12 | 33 | 123456789 | dddddddd                         | abc
+ 13 | 11 | 123456789 | dddddddd                         | abc
+ 14 | 22 | 123456789 | dddddddd                         | abc
+ 15 | 33 | 123456789 | dddddddd                         | abc
+ 16 | 44 | 123456789 | dddddddd                         | abc
+ 17 | 44 | 123456789 | dddddddd                         | abc
+ 18 | 55 | 123456789 | dddddddd                         | abc
  19 | 66 | 123456789 | dddddddd                         | abc
  20 | 66 | 123456789 | dddddddd                         | abc
  21 | 66 | 123456789 | dddddddd                         | abc
-  1 | 11 | 123456789 | dddddddd                         | abc
- 12 | 33 | 123456789 | dddddddd                         | abc
- 14 | 22 | 123456789 | dddddddd                         | abc
- 16 | 44 | 123456789 | dddddddd                         | abc
- 17 | 44 | 123456789 | dddddddd                         | abc
+ 22 | 77 | 123456789 | dddddddd                         | abc
+ 23 | 77 | 123456789 | dddddddd                         | abc
+ 24 | 77 | 123456789 | dddddddd                         | abc
+ 25 | 77 | 123456789 | dddddddd                         | abc
  26 | 88 | 123456789 | dddddddd                         | abc
 (26 rows)
 
@@ -522,109 +522,109 @@ ALTER TABLE
 --\d+ t1;
 insert into t1 (b) values(99);
 INSERT 0 1
-select*from t1;
+select*from t1 order by 1,2;
  aa | b  |     c     |                d                 |  e  
 ----+----+-----------+----------------------------------+-----
+  1 | 11 | 123456789 | dddddddd                         | abc
+  2 | 22 | 123456789 | dddddddd                         | abc
+  3 | 33 | 123456789 | dddddddd                         | abc
   4 | 11 | 123456789 | dddddddd                         | abc
+  5 | 22 | 123456789 | dddddddd                         | abc
   6 | 33 | 123456789 | dddddddd                         | abc
   7 | 11 | 123456789 | dddddddd                         | abc
- 10 | 11 | 123456789 | dddddddd                         | abc
- 15 | 33 | 123456789 | dddddddd                         | abc
- 22 | 77 | 123456789 | dddddddd                         | abc
- 24 | 77 | 123456789 | dddddddd                         | abc
-  2 | 22 | 123456789 | dddddddd                         | abc
- 13 | 11 | 123456789 | dddddddd                         | abc
- 18 | 55 | 123456789 | dddddddd                         | abc
- 23 | 77 | 123456789 | dddddddd                         | abc
- 25 | 77 | 123456789 | dddddddd                         | abc
- 27 | 99 | 123456789 | dddddddd                         | abc
-  3 | 33 | 123456789 | dddddddd                         | abc
-  5 | 22 | 123456789 | dddddddd                         | abc
   8 | 22 | 123456789 | dddddddd                         | abc
   9 | 33 | 123456789 | dddddddd                         | abc
+ 10 | 11 | 123456789 | dddddddd                         | abc
  11 | 22 | 123456789 | dddddddd                         | abc
+ 12 | 33 | 123456789 | dddddddd                         | abc
+ 13 | 11 | 123456789 | dddddddd                         | abc
+ 14 | 22 | 123456789 | dddddddd                         | abc
+ 15 | 33 | 123456789 | dddddddd                         | abc
+ 16 | 44 | 123456789 | dddddddd                         | abc
+ 17 | 44 | 123456789 | dddddddd                         | abc
+ 18 | 55 | 123456789 | dddddddd                         | abc
  19 | 66 | 123456789 | dddddddd                         | abc
  20 | 66 | 123456789 | dddddddd                         | abc
  21 | 66 | 123456789 | dddddddd                         | abc
-  1 | 11 | 123456789 | dddddddd                         | abc
- 12 | 33 | 123456789 | dddddddd                         | abc
- 14 | 22 | 123456789 | dddddddd                         | abc
- 16 | 44 | 123456789 | dddddddd                         | abc
- 17 | 44 | 123456789 | dddddddd                         | abc
+ 22 | 77 | 123456789 | dddddddd                         | abc
+ 23 | 77 | 123456789 | dddddddd                         | abc
+ 24 | 77 | 123456789 | dddddddd                         | abc
+ 25 | 77 | 123456789 | dddddddd                         | abc
  26 | 88 | 123456789 | dddddddd                         | abc
+ 27 | 99 | 123456789 | dddddddd                         | abc
 (27 rows)
 
 alter table t1 drop column c, add column f int not null default 123, add column g int not null default 123, alter column b type bigint;
 ALTER TABLE
 --\d+ t1;
-select*from t1;
+select*from t1 order by 1,2;
  aa | b  |                d                 |  e  |  f  |  g  
 ----+----+----------------------------------+-----+-----+-----
+  1 | 11 | dddddddd                         | abc | 123 | 123
+  2 | 22 | dddddddd                         | abc | 123 | 123
+  3 | 33 | dddddddd                         | abc | 123 | 123
   4 | 11 | dddddddd                         | abc | 123 | 123
+  5 | 22 | dddddddd                         | abc | 123 | 123
   6 | 33 | dddddddd                         | abc | 123 | 123
   7 | 11 | dddddddd                         | abc | 123 | 123
- 10 | 11 | dddddddd                         | abc | 123 | 123
- 15 | 33 | dddddddd                         | abc | 123 | 123
- 22 | 77 | dddddddd                         | abc | 123 | 123
- 24 | 77 | dddddddd                         | abc | 123 | 123
-  2 | 22 | dddddddd                         | abc | 123 | 123
- 13 | 11 | dddddddd                         | abc | 123 | 123
- 18 | 55 | dddddddd                         | abc | 123 | 123
- 23 | 77 | dddddddd                         | abc | 123 | 123
- 25 | 77 | dddddddd                         | abc | 123 | 123
- 27 | 99 | dddddddd                         | abc | 123 | 123
-  3 | 33 | dddddddd                         | abc | 123 | 123
-  5 | 22 | dddddddd                         | abc | 123 | 123
   8 | 22 | dddddddd                         | abc | 123 | 123
   9 | 33 | dddddddd                         | abc | 123 | 123
+ 10 | 11 | dddddddd                         | abc | 123 | 123
  11 | 22 | dddddddd                         | abc | 123 | 123
+ 12 | 33 | dddddddd                         | abc | 123 | 123
+ 13 | 11 | dddddddd                         | abc | 123 | 123
+ 14 | 22 | dddddddd                         | abc | 123 | 123
+ 15 | 33 | dddddddd                         | abc | 123 | 123
+ 16 | 44 | dddddddd                         | abc | 123 | 123
+ 17 | 44 | dddddddd                         | abc | 123 | 123
+ 18 | 55 | dddddddd                         | abc | 123 | 123
  19 | 66 | dddddddd                         | abc | 123 | 123
  20 | 66 | dddddddd                         | abc | 123 | 123
  21 | 66 | dddddddd                         | abc | 123 | 123
-  1 | 11 | dddddddd                         | abc | 123 | 123
- 12 | 33 | dddddddd                         | abc | 123 | 123
- 14 | 22 | dddddddd                         | abc | 123 | 123
- 16 | 44 | dddddddd                         | abc | 123 | 123
- 17 | 44 | dddddddd                         | abc | 123 | 123
+ 22 | 77 | dddddddd                         | abc | 123 | 123
+ 23 | 77 | dddddddd                         | abc | 123 | 123
+ 24 | 77 | dddddddd                         | abc | 123 | 123
+ 25 | 77 | dddddddd                         | abc | 123 | 123
  26 | 88 | dddddddd                         | abc | 123 | 123
+ 27 | 99 | dddddddd                         | abc | 123 | 123
 (27 rows)
 
 insert into t1(f) values(333);
 INSERT 0 1
 insert into t1(b) values(222);
 INSERT 0 1
-select*from t1;
+select*from t1 order by 1,2;
  aa |  b  |                d                 |  e  |  f  |  g  
 ----+-----+----------------------------------+-----+-----+-----
+  1 |  11 | dddddddd                         | abc | 123 | 123
+  2 |  22 | dddddddd                         | abc | 123 | 123
+  3 |  33 | dddddddd                         | abc | 123 | 123
   4 |  11 | dddddddd                         | abc | 123 | 123
+  5 |  22 | dddddddd                         | abc | 123 | 123
   6 |  33 | dddddddd                         | abc | 123 | 123
   7 |  11 | dddddddd                         | abc | 123 | 123
- 10 |  11 | dddddddd                         | abc | 123 | 123
- 15 |  33 | dddddddd                         | abc | 123 | 123
- 22 |  77 | dddddddd                         | abc | 123 | 123
- 24 |  77 | dddddddd                         | abc | 123 | 123
- 29 | 222 | dddddddd                         | abc | 123 | 123
-  2 |  22 | dddddddd                         | abc | 123 | 123
- 13 |  11 | dddddddd                         | abc | 123 | 123
- 18 |  55 | dddddddd                         | abc | 123 | 123
- 23 |  77 | dddddddd                         | abc | 123 | 123
- 25 |  77 | dddddddd                         | abc | 123 | 123
- 27 |  99 | dddddddd                         | abc | 123 | 123
-  3 |  33 | dddddddd                         | abc | 123 | 123
-  5 |  22 | dddddddd                         | abc | 123 | 123
   8 |  22 | dddddddd                         | abc | 123 | 123
   9 |  33 | dddddddd                         | abc | 123 | 123
+ 10 |  11 | dddddddd                         | abc | 123 | 123
  11 |  22 | dddddddd                         | abc | 123 | 123
+ 12 |  33 | dddddddd                         | abc | 123 | 123
+ 13 |  11 | dddddddd                         | abc | 123 | 123
+ 14 |  22 | dddddddd                         | abc | 123 | 123
+ 15 |  33 | dddddddd                         | abc | 123 | 123
+ 16 |  44 | dddddddd                         | abc | 123 | 123
+ 17 |  44 | dddddddd                         | abc | 123 | 123
+ 18 |  55 | dddddddd                         | abc | 123 | 123
  19 |  66 | dddddddd                         | abc | 123 | 123
  20 |  66 | dddddddd                         | abc | 123 | 123
  21 |  66 | dddddddd                         | abc | 123 | 123
-  1 |  11 | dddddddd                         | abc | 123 | 123
- 12 |  33 | dddddddd                         | abc | 123 | 123
- 14 |  22 | dddddddd                         | abc | 123 | 123
- 16 |  44 | dddddddd                         | abc | 123 | 123
- 17 |  44 | dddddddd                         | abc | 123 | 123
+ 22 |  77 | dddddddd                         | abc | 123 | 123
+ 23 |  77 | dddddddd                         | abc | 123 | 123
+ 24 |  77 | dddddddd                         | abc | 123 | 123
+ 25 |  77 | dddddddd                         | abc | 123 | 123
  26 |  88 | dddddddd                         | abc | 123 | 123
+ 27 |  99 | dddddddd                         | abc | 123 | 123
  28 |     | dddddddd                         | abc | 333 | 123
+ 29 | 222 | dddddddd                         | abc | 123 | 123
 (29 rows)
 
 alter table t1 rename f to ff;
@@ -632,38 +632,38 @@ ALTER TABLE
 alter table t1 rename d to dd;
 ALTER TABLE
 --\d+ t1;
-select*from t1;
+select*from t1 order by 1,2;
  aa |  b  |                dd                |  e  | ff  |  g  
 ----+-----+----------------------------------+-----+-----+-----
+  1 |  11 | dddddddd                         | abc | 123 | 123
+  2 |  22 | dddddddd                         | abc | 123 | 123
+  3 |  33 | dddddddd                         | abc | 123 | 123
   4 |  11 | dddddddd                         | abc | 123 | 123
+  5 |  22 | dddddddd                         | abc | 123 | 123
   6 |  33 | dddddddd                         | abc | 123 | 123
   7 |  11 | dddddddd                         | abc | 123 | 123
- 10 |  11 | dddddddd                         | abc | 123 | 123
- 15 |  33 | dddddddd                         | abc | 123 | 123
- 22 |  77 | dddddddd                         | abc | 123 | 123
- 24 |  77 | dddddddd                         | abc | 123 | 123
- 29 | 222 | dddddddd                         | abc | 123 | 123
-  2 |  22 | dddddddd                         | abc | 123 | 123
- 13 |  11 | dddddddd                         | abc | 123 | 123
- 18 |  55 | dddddddd                         | abc | 123 | 123
- 23 |  77 | dddddddd                         | abc | 123 | 123
- 25 |  77 | dddddddd                         | abc | 123 | 123
- 27 |  99 | dddddddd                         | abc | 123 | 123
-  3 |  33 | dddddddd                         | abc | 123 | 123
-  5 |  22 | dddddddd                         | abc | 123 | 123
   8 |  22 | dddddddd                         | abc | 123 | 123
   9 |  33 | dddddddd                         | abc | 123 | 123
+ 10 |  11 | dddddddd                         | abc | 123 | 123
  11 |  22 | dddddddd                         | abc | 123 | 123
+ 12 |  33 | dddddddd                         | abc | 123 | 123
+ 13 |  11 | dddddddd                         | abc | 123 | 123
+ 14 |  22 | dddddddd                         | abc | 123 | 123
+ 15 |  33 | dddddddd                         | abc | 123 | 123
+ 16 |  44 | dddddddd                         | abc | 123 | 123
+ 17 |  44 | dddddddd                         | abc | 123 | 123
+ 18 |  55 | dddddddd                         | abc | 123 | 123
  19 |  66 | dddddddd                         | abc | 123 | 123
  20 |  66 | dddddddd                         | abc | 123 | 123
  21 |  66 | dddddddd                         | abc | 123 | 123
-  1 |  11 | dddddddd                         | abc | 123 | 123
- 12 |  33 | dddddddd                         | abc | 123 | 123
- 14 |  22 | dddddddd                         | abc | 123 | 123
- 16 |  44 | dddddddd                         | abc | 123 | 123
- 17 |  44 | dddddddd                         | abc | 123 | 123
+ 22 |  77 | dddddddd                         | abc | 123 | 123
+ 23 |  77 | dddddddd                         | abc | 123 | 123
+ 24 |  77 | dddddddd                         | abc | 123 | 123
+ 25 |  77 | dddddddd                         | abc | 123 | 123
  26 |  88 | dddddddd                         | abc | 123 | 123
+ 27 |  99 | dddddddd                         | abc | 123 | 123
  28 |     | dddddddd                         | abc | 333 | 123
+ 29 | 222 | dddddddd                         | abc | 123 | 123
 (29 rows)
 
 alter table t1 rename to t11;
@@ -673,38 +673,38 @@ ALTER TABLE
 alter table t11 rename b to bb;
 ALTER TABLE
 --\d+ t11;
-select*from t11;
+select*from t11 order by 1,2;
  aa | bb  |                dd                |  e  | ff  |  g  
 ----+-----+----------------------------------+-----+-----+-----
+  1 |  11 | dddddddd                         | abc | 123 | 123
+  2 |  22 | dddddddd                         | abc | 123 | 123
+  3 |  33 | dddddddd                         | abc | 123 | 123
   4 |  11 | dddddddd                         | abc | 123 | 123
+  5 |  22 | dddddddd                         | abc | 123 | 123
   6 |  33 | dddddddd                         | abc | 123 | 123
   7 |  11 | dddddddd                         | abc | 123 | 123
- 10 |  11 | dddddddd                         | abc | 123 | 123
- 15 |  33 | dddddddd                         | abc | 123 | 123
- 22 |  77 | dddddddd                         | abc | 123 | 123
- 24 |  77 | dddddddd                         | abc | 123 | 123
- 29 | 222 | dddddddd                         | abc | 123 | 123
-  2 |  22 | dddddddd                         | abc | 123 | 123
- 13 |  11 | dddddddd                         | abc | 123 | 123
- 18 |  55 | dddddddd                         | abc | 123 | 123
- 23 |  77 | dddddddd                         | abc | 123 | 123
- 25 |  77 | dddddddd                         | abc | 123 | 123
- 27 |  99 | dddddddd                         | abc | 123 | 123
-  3 |  33 | dddddddd                         | abc | 123 | 123
-  5 |  22 | dddddddd                         | abc | 123 | 123
   8 |  22 | dddddddd                         | abc | 123 | 123
   9 |  33 | dddddddd                         | abc | 123 | 123
+ 10 |  11 | dddddddd                         | abc | 123 | 123
  11 |  22 | dddddddd                         | abc | 123 | 123
+ 12 |  33 | dddddddd                         | abc | 123 | 123
+ 13 |  11 | dddddddd                         | abc | 123 | 123
+ 14 |  22 | dddddddd                         | abc | 123 | 123
+ 15 |  33 | dddddddd                         | abc | 123 | 123
+ 16 |  44 | dddddddd                         | abc | 123 | 123
+ 17 |  44 | dddddddd                         | abc | 123 | 123
+ 18 |  55 | dddddddd                         | abc | 123 | 123
  19 |  66 | dddddddd                         | abc | 123 | 123
  20 |  66 | dddddddd                         | abc | 123 | 123
  21 |  66 | dddddddd                         | abc | 123 | 123
-  1 |  11 | dddddddd                         | abc | 123 | 123
- 12 |  33 | dddddddd                         | abc | 123 | 123
- 14 |  22 | dddddddd                         | abc | 123 | 123
- 16 |  44 | dddddddd                         | abc | 123 | 123
- 17 |  44 | dddddddd                         | abc | 123 | 123
+ 22 |  77 | dddddddd                         | abc | 123 | 123
+ 23 |  77 | dddddddd                         | abc | 123 | 123
+ 24 |  77 | dddddddd                         | abc | 123 | 123
+ 25 |  77 | dddddddd                         | abc | 123 | 123
  26 |  88 | dddddddd                         | abc | 123 | 123
+ 27 |  99 | dddddddd                         | abc | 123 | 123
  28 |     | dddddddd                         | abc | 333 | 123
+ 29 | 222 | dddddddd                         | abc | 123 | 123
 (29 rows)
 
 create index t11_b on t11(bb);
@@ -713,38 +713,38 @@ CREATE INDEX
 alter index t11_b rename to t11_bb;
 ALTER INDEX
 --\d+ t11;
-select*from t11;
+select*from t11 order by 1,2;
  aa | bb  |                dd                |  e  | ff  |  g  
 ----+-----+----------------------------------+-----+-----+-----
+  1 |  11 | dddddddd                         | abc | 123 | 123
+  2 |  22 | dddddddd                         | abc | 123 | 123
+  3 |  33 | dddddddd                         | abc | 123 | 123
   4 |  11 | dddddddd                         | abc | 123 | 123
+  5 |  22 | dddddddd                         | abc | 123 | 123
   6 |  33 | dddddddd                         | abc | 123 | 123
   7 |  11 | dddddddd                         | abc | 123 | 123
- 10 |  11 | dddddddd                         | abc | 123 | 123
- 15 |  33 | dddddddd                         | abc | 123 | 123
- 22 |  77 | dddddddd                         | abc | 123 | 123
- 24 |  77 | dddddddd                         | abc | 123 | 123
- 29 | 222 | dddddddd                         | abc | 123 | 123
-  2 |  22 | dddddddd                         | abc | 123 | 123
- 13 |  11 | dddddddd                         | abc | 123 | 123
- 18 |  55 | dddddddd                         | abc | 123 | 123
- 23 |  77 | dddddddd                         | abc | 123 | 123
- 25 |  77 | dddddddd                         | abc | 123 | 123
- 27 |  99 | dddddddd                         | abc | 123 | 123
-  1 |  11 | dddddddd                         | abc | 123 | 123
- 12 |  33 | dddddddd                         | abc | 123 | 123
- 14 |  22 | dddddddd                         | abc | 123 | 123
- 16 |  44 | dddddddd                         | abc | 123 | 123
- 17 |  44 | dddddddd                         | abc | 123 | 123
- 26 |  88 | dddddddd                         | abc | 123 | 123
- 28 |     | dddddddd                         | abc | 333 | 123
-  3 |  33 | dddddddd                         | abc | 123 | 123
-  5 |  22 | dddddddd                         | abc | 123 | 123
   8 |  22 | dddddddd                         | abc | 123 | 123
   9 |  33 | dddddddd                         | abc | 123 | 123
+ 10 |  11 | dddddddd                         | abc | 123 | 123
  11 |  22 | dddddddd                         | abc | 123 | 123
+ 12 |  33 | dddddddd                         | abc | 123 | 123
+ 13 |  11 | dddddddd                         | abc | 123 | 123
+ 14 |  22 | dddddddd                         | abc | 123 | 123
+ 15 |  33 | dddddddd                         | abc | 123 | 123
+ 16 |  44 | dddddddd                         | abc | 123 | 123
+ 17 |  44 | dddddddd                         | abc | 123 | 123
+ 18 |  55 | dddddddd                         | abc | 123 | 123
  19 |  66 | dddddddd                         | abc | 123 | 123
  20 |  66 | dddddddd                         | abc | 123 | 123
  21 |  66 | dddddddd                         | abc | 123 | 123
+ 22 |  77 | dddddddd                         | abc | 123 | 123
+ 23 |  77 | dddddddd                         | abc | 123 | 123
+ 24 |  77 | dddddddd                         | abc | 123 | 123
+ 25 |  77 | dddddddd                         | abc | 123 | 123
+ 26 |  88 | dddddddd                         | abc | 123 | 123
+ 27 |  99 | dddddddd                         | abc | 123 | 123
+ 28 |     | dddddddd                         | abc | 333 | 123
+ 29 | 222 | dddddddd                         | abc | 123 | 123
 (29 rows)
 
 create schema scm3;

@@ -1002,11 +1002,11 @@ insert into ab values (1,2);
 INSERT 0 1
 explain (analyze, costs off, summary off, timing off)
 update ab_a1 set b = 3 from ab where ab.a = 1 and ab.a = ab_a1.a;
-psql:sql/partition_prune.sql:600: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
+
 table ab;
  a | b 
 ---+---
- 1 | 2
+ 1 | 3
 (1 row)
 
 drop table ab;
@@ -1651,14 +1651,14 @@ SET
 explain (costs off) select * from listp1 where a = 2;
 
 explain (costs off) update listp1 set a = 1 where a = 2;
-psql:sql/partition_prune.sql:999: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
+
 -- constraint exclusion enabled
 set constraint_exclusion to 'on';
 SET
 explain (costs off) select * from listp1 where a = 2;
 
 explain (costs off) update listp1 set a = 1 where a = 2;
-psql:sql/partition_prune.sql:1003: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
+
 reset constraint_exclusion;
 RESET
 reset enable_partition_pruning;

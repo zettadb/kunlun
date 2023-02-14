@@ -410,13 +410,13 @@ select pg_sleep(5);
  
 (1 row)
 
-select*from tt;
+select*from tt order by 1;
  a | b 
 ---+---
- 4 | 4
- 3 | 3
- 2 | 2
  1 | 1
+ 2 | 2
+ 3 | 3
+ 4 | 4
 (4 rows)
 
 select pg_sleep(7);

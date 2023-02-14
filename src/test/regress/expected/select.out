@@ -216,11 +216,11 @@ SELECT onek.unique1, onek.string4 FROM onek
 SELECT p.name, p.age FROM person* p;
   name   | age 
 ---------+-----
- fred    |  28
- larry   |  60
  jeff    |  23
  cim     |  30
  linda   |  19
+ fred    |  28
+ larry   |  60
  sharon  |  25
  sam     |  30
  bill    |  20

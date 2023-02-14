@@ -1884,7 +1884,7 @@ INSERT 0 1
 INSERT INTO rw_view1 VALUES (15, 20); -- should fail
 INSERT 0 1
 UPDATE rw_view1 SET a = 20, b = 30; -- should fail
-psql:sql/updatable_views.sql:805: ERROR:  could not open relation with OID 0
+UPDATE 1
 DROP TABLE base_tbl CASCADE;
 psql:sql/updatable_views.sql:807: NOTICE:  drop cascades to view rw_view1
 DROP TABLE

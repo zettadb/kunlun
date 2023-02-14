@@ -23,7 +23,7 @@
 
 drop table if exists Room;
 create table Room (
-    roomno	char(8) primary key,
+    roomno	char(8),
     comment	text
 );
 
@@ -31,7 +31,7 @@ create unique index Room_rno on Room using btree (roomno bpchar_ops);
 
 drop table if exists WSlot;
 create table WSlot (
-    slotname	char(20) primary key,
+    slotname	char(20),
     roomno	char(8),
     slotlink	char(20),
     backlink	char(20)
@@ -41,7 +41,7 @@ create unique index WSlot_name on WSlot using btree (slotname bpchar_ops);
 
 drop table if exists PField;
 create table PField (
-    name	text primary key,
+    name	text,
     comment	text
 );
 
@@ -49,7 +49,7 @@ create unique index PField_name on PField using btree (name text_ops);
 
 drop table if exists PSlot cascade;
 create table PSlot (
-    slotname	char(20) primary key,
+    slotname	char(20),
     pfname	text,
     slotlink	char(20),
     backlink	char(20)
@@ -59,7 +59,7 @@ create unique index PSlot_name on PSlot using btree (slotname bpchar_ops);
 
 drop table if exists PLine;
 create table PLine (
-    slotname	char(20) primary key,
+    slotname	char(20),
     phonenumber	char(20),
     comment	text,
     backlink	char(20)
@@ -69,7 +69,7 @@ create unique index PLine_name on PLine using btree (slotname bpchar_ops);
 
 drop table if exists Hub;
 create table Hub (
-    name	char(14) primary key,
+    name	char(14),
     comment	text,
     nslots	integer
 );
@@ -78,7 +78,7 @@ create unique index Hub_name on Hub using btree (name bpchar_ops);
 
 drop table if exists HSlot;
 create table HSlot (
-    slotname	char(20) primary key,
+    slotname	char(20),
     hubname	char(14),
     slotno	integer,
     slotlink	char(20)
@@ -88,7 +88,7 @@ create index HSlot_hubname on HSlot using btree (hubname bpchar_ops);
 
 drop table if exists System;
 create table System (
-    name	text primary key,
+    name	text,
     comment	text
 );
 
@@ -96,7 +96,7 @@ create unique index System_name on System using btree (name text_ops);
 
 drop table if exists IFace;
 create table IFace (
-    slotname	char(20) primary key,
+    slotname	char(20),
     sysname	text,
     ifname	text,
     slotlink	char(20)
@@ -106,7 +106,7 @@ create unique index IFace_name on IFace using btree (slotname bpchar_ops);
 
 drop table if exists PHone;
 create table PHone (
-    slotname	char(20) primary key,
+    slotname	char(20),
     comment	text,
     slotlink	char(20)
 );

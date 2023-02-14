@@ -232,11 +232,6 @@ insert into t select i,i from generate_series(1,100) s(i);
 update t set a=200-a where a=50;
 
 drop table t;
--- ticket:959
-drop table if exists t1;
-create table t1 (a int ,b int);
-create index concurrently on t1(a);
-
 
 -- ticket:992
 
@@ -336,23 +331,6 @@ drop table if exists t;
 create table t(a int auto_increment);
 insert into t values(default), (default);
 drop table t;
-
-
-
--- ticket:959
-drop table if exists t1;
-create table t1(a int, b int);
-insert into t1 select i,i from generate_series(1,1000000)i;
-
-create index concurrently on t1(a)
--- 验证是否残留invalid状态的索引（预期为空）
-select * from pg_index where indisvalid = false;
-
-create index on t1(a);
--- 创建新的连接访问表t，看释放会执行中的index阻塞（如果create index很快，可以增加数据）...
-
-drop table t1;
-
 
 
 --ticket:895

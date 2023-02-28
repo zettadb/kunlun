@@ -483,6 +483,8 @@ Indexes:
     "t304_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
     "t304_a_idx" btree (a NULLS FIRST)
     "t304_c_idx" btree (c NULLS FIRST)
+Statistics objects:
+    "public"."t304_pkey_pfx_2" () ON b, d FROM t304
 Options: shard=1
 
 \d+ t301;

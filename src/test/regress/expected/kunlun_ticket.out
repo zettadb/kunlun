@@ -89,12 +89,12 @@ DROP TABLE
 drop table if exists t;
 DROP TABLE
 drop table if exists t1;
-psql:sql/kunlun_ticket.sql:59: NOTICE:  table "t1" does not exist, skipping
 DROP TABLE
 create table t(a int) with(engine=innodb);
 CREATE TABLE
 create table t1(a int) with(engine=myrocks);
-psql:sql/kunlun_ticket.sql:61: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1286, Unknown storage engine 'myrocks'.
+psql:sql/kunlun_ticket.sql:61: ERROR:  invalid value for "engine" option
+DETAIL:  Valid values are "innodb" and "rocksdb".
 drop table t;
 DROP TABLE
 drop table t1;
@@ -335,7 +335,7 @@ CREATE TABLE
 create table tp2 partition of t for values from (100) to (200);
 CREATE TABLE
 insert into t select i,i from generate_series(1,100) s(i);
-INSERT 0 100
+psql:sql/kunlun_ticket.sql:218: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1065, Query was empty.
 -- 更新分区列（要求原表必须有主键） 失败
 update t set a=200-a where a=50;
 psql:sql/kunlun_ticket.sql:222: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
@@ -348,17 +348,26 @@ CREATE TABLE
 create table tp2 partition of t for values from (100) to (200);
 CREATE TABLE
 insert into t select i,i from generate_series(1,100) s(i);
-INSERT 0 100
+psql:sql/kunlun_ticket.sql:229: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1065, Query was empty.
 -- 更新分区列（要求原表必须有主键）
 update t set a=200-a where a=50;
-UPDATE 1
+UPDATE 0
 drop table t;
 DROP TABLE
+-- ticket:959
+drop table if exists t1;
+psql:sql/kunlun_ticket.sql:236: NOTICE:  table "t1" does not exist, skipping
+DROP TABLE
+create table t1 (a int ,b int);
+CREATE TABLE
+create index concurrently on t1(a);
+CREATE INDEX
 -- ticket:992
 show tables where tables='t1';
  Tables 
 --------
-(0 rows)
+ t1
+(1 row)
 
 show databases where database='postgres';
  Database 
@@ -376,10 +385,10 @@ show schemas where schemas='public';
 -- show table status;
 -- show table status where name = 't1';
 drop table t1;
-psql:sql/kunlun_ticket.sql:245: ERROR:  table "t1" does not exist
+DROP TABLE
 -- ticket:972
 drop  table if exists t1;
-psql:sql/kunlun_ticket.sql:248: NOTICE:  table "t1" does not exist, skipping
+psql:sql/kunlun_ticket.sql:253: NOTICE:  table "t1" does not exist, skipping
 DROP TABLE
 create table t1(a serial primary key, b int) partition by range(a);
 CREATE TABLE
@@ -419,7 +428,7 @@ show create table tenk1;
 
 update pg_class set reltuples=10000 where relname = 'tenk1';
 UPDATE 1
- explain select count(*)
+explain select count(*)
 from
   (select t3.tenthous as x1, coalesce(t1.stringu1, t2.stringu1) as x2
    from tenk1 t1
@@ -428,6 +437,20 @@ from
   tenk1 t4,
   tenk1 t5
 where t4.thousand = t5.unique1 and ss.x1 = t4.tenthous and ss.x2 = t5.stringu1;
+
+select count(*)
+from
+  (select t3.tenthous as x1, coalesce(t1.stringu1, t2.stringu1) as x2
+   from tenk1 t1
+   left join tenk1 t2 on t1.unique1 = t2.unique1
+   join tenk1 t3 on t1.unique2 = t3.unique2) ss,
+  tenk1 t4,
+  tenk1 t5
+where t4.thousand = t5.unique1 and ss.x1 = t4.tenthous and ss.x2 = t5.stringu1;
+ count 
+-------
+  1000
+(1 row)
 
 --ticket:291
 select f1, (select min(unique1) from tenk1 where unique1 > f1) AS gt from int4_tbl;
@@ -440,7 +463,7 @@ select f1, (select min(unique1) from tenk1 where unique1 > f1) AS gt from int4_t
 
 --ticket:882
 drop table if exists t2;
-psql:sql/kunlun_ticket.sql:281: NOTICE:  table "t2" does not exist, skipping
+psql:sql/kunlun_ticket.sql:296: NOTICE:  table "t2" does not exist, skipping
 DROP TABLE
 CREATE TABLE t2 (
     a integer AUTO_INCREMENT
@@ -455,9 +478,6 @@ create  table t2(a int );
 CREATE TABLE
 create index on t2(a);
 CREATE INDEX
-drop index t2_a_idx; create index on t2(a);
-DROP INDEX
-CREATE INDEX
  \d+ t2;
                                     Table "public.t2"
  Column |  Type   | Collation | Nullable | Default | Storage | Stats target | Description 
@@ -471,7 +491,7 @@ Options: shard=1
  
 -- ticket:826
 drop table if exists t1; 
-psql:sql/kunlun_ticket.sql:296: NOTICE:  table "t1" does not exist, skipping
+psql:sql/kunlun_ticket.sql:310: NOTICE:  table "t1" does not exist, skipping
 DROP TABLE
 create table t1(a int, b int, c int, d int);
 CREATE TABLE
@@ -512,7 +532,7 @@ select 'CREATE USER MAPPING FOR \"current_user\" SERVER sv2 OPTIONS (user ''\"cu
 
 --ticket:900
 drop table if exists t; 
-psql:sql/kunlun_ticket.sql:330: NOTICE:  table "t" does not exist, skipping
+psql:sql/kunlun_ticket.sql:344: NOTICE:  table "t" does not exist, skipping
 DROP TABLE
 create table t(a int auto_increment);
 CREATE TABLE
@@ -520,8 +540,27 @@ insert into t values(default), (default);
 INSERT 0 2
 drop table t;
 DROP TABLE
+-- ticket:959
+drop table if exists t1;
+DROP TABLE
+create table t1(a int, b int);
+CREATE TABLE
+insert into t1 select i,i from generate_series(1,1000000)i;
+psql:sql/kunlun_ticket.sql:354: ERROR:  canceling statement due to statement timeout
+create index concurrently on t1(a)
+-- 验证是否残留invalid状态的索引（预期为空）
+select * from pg_index where indisvalid = false;
+psql:sql/kunlun_ticket.sql:358: ERROR:  syntax error at or near "select"
+LINE 3: select * from pg_index where indisvalid = false;
+        ^
+create index on t1(a);
+CREATE INDEX
+-- 创建新的连接访问表t，看是否被执行中的index阻塞（如果create index很快，可以增加数据）...
+drop table t1;
+DROP TABLE
 --ticket:895
 drop table if exists t1; 
+psql:sql/kunlun_ticket.sql:368: NOTICE:  table "t1" does not exist, skipping
 DROP TABLE
 create table t1(a int, b varchar(10));
 CREATE TABLE
@@ -537,7 +576,7 @@ drop table t1;
 DROP TABLE
 -- ticket:887
 drop table if exists t1; 
-psql:sql/kunlun_ticket.sql:346: NOTICE:  table "t1" does not exist, skipping
+psql:sql/kunlun_ticket.sql:377: NOTICE:  table "t1" does not exist, skipping
 DROP TABLE
 create table t1(a int, b int);
 CREATE TABLE
@@ -563,7 +602,7 @@ select * from t1;
 
 --ticket:332
 CREATE SEQUENCE sequence_test2 START WITH 32; 	
-psql:sql/kunlun_ticket.sql:360: ERROR:  relation "sequence_test2" already exists
+psql:sql/kunlun_ticket.sql:391: ERROR:  relation "sequence_test2" already exists
 ALTER SEQUENCE IF EXISTS sequence_test2 RESTART WITH 24
   INCREMENT BY 4 MAXVALUE 36 MINVALUE 5 CYCLE;
 ALTER SEQUENCE
@@ -575,10 +614,10 @@ SELECT nextval('sequence_test2');
 
 --ticket:897
 drop database abc;
-psql:sql/kunlun_ticket.sql:369: ERROR:  database "abc" does not exist
+psql:sql/kunlun_ticket.sql:400: ERROR:  database "abc" does not exist
 create database abc；
 create database if not exists abc;
-psql:sql/kunlun_ticket.sql:371: ERROR:  syntax error at or near "create"
+psql:sql/kunlun_ticket.sql:402: ERROR:  syntax error at or near "create"
 LINE 2: create database if not exists abc;
         ^
 --ticket:898
@@ -591,7 +630,7 @@ LINE 2: create database if not exists abc;
 --show errors;
 --show warnings;
 drop table if exists t6;
-psql:sql/kunlun_ticket.sql:385: NOTICE:  table "t6" does not exist, skipping
+psql:sql/kunlun_ticket.sql:416: NOTICE:  table "t6" does not exist, skipping
 DROP TABLE
 create temp table t6(a int primary key, b int unique);
 CREATE TABLE
@@ -623,7 +662,7 @@ drop table t1,t2,t3;
 DROP TABLE
 --ticket:574
 drop table if exists t1;
-psql:sql/kunlun_ticket.sql:406: NOTICE:  table "t1" does not exist, skipping
+psql:sql/kunlun_ticket.sql:437: NOTICE:  table "t1" does not exist, skipping
 DROP TABLE
 create table t1 (a int PRIMARY KEY , b int not null,CONSTRAINT t1_b_key UNIQUE (b));
 CREATE TABLE
@@ -640,7 +679,7 @@ insert into t1 values(3,3) on conflict do nothing;
 INSERT 0 0
 -- 不忽略违背约束的错误（例如分区约束、非null约束）
 insert ignore into t1(a,b) values (4,NULL); --error
-psql:sql/kunlun_ticket.sql:420: ERROR:  null value in column "b" violates not-null constraint
+psql:sql/kunlun_ticket.sql:451: ERROR:  null value in column "b" violates not-null constraint
 DETAIL:  Failing row contains (4, null).
 -- insert on duplicate key update
 -- 更新第一个冲突的元组
@@ -685,13 +724,13 @@ select * from t1;
 create temp table t1(a int primary key, b int unique);
 CREATE TABLE
 replace into t1 values(1,1),(1,2);
-psql:sql/kunlun_ticket.sql:439: ERROR:  REPLACE INTO command cannot affect row a second time
+psql:sql/kunlun_ticket.sql:470: ERROR:  REPLACE INTO command cannot affect row a second time
 HINT:  Ensure that no rows proposed for insertion within the same command have duplicate constrained values.
 drop table t1;
 DROP TABLE
 --ticket:581
 drop table if exists t3 cascade;
-psql:sql/kunlun_ticket.sql:444: NOTICE:  table "t3" does not exist, skipping
+psql:sql/kunlun_ticket.sql:475: NOTICE:  table "t3" does not exist, skipping
 DROP TABLE
 CREATE TABLE t3 (A INT PRIMARY KEY, B INT) PARTITION BY RANGE(a);
 CREATE TABLE
@@ -741,7 +780,7 @@ CREATE FUNCTION f_leak (text)
 CREATE FUNCTION
 	   
 drop table if exists customer cascade;   
-psql:sql/kunlun_ticket.sql:467: NOTICE:  drop cascades to 6 other objects
+psql:sql/kunlun_ticket.sql:498: NOTICE:  drop cascades to 6 other objects
 DETAIL:  drop cascades to view my_property_normal
 drop cascades to view my_property_secure
 drop cascades to view my_credit_card_normal
@@ -767,13 +806,13 @@ SELECT * FROM my_property_normal WHERE f_leak(passwd);
 (0 rows)
 
 drop table customer cascade;
-psql:sql/kunlun_ticket.sql:480: NOTICE:  drop cascades to view my_property_normal
+psql:sql/kunlun_ticket.sql:511: NOTICE:  drop cascades to view my_property_normal
 DROP TABLE
 drop FUNCTION f_leak;
 DROP FUNCTION
 --ticket:920
 drop sequence if exists s1;
-psql:sql/kunlun_ticket.sql:484: NOTICE:  sequence "s1" does not exist, skipping
+psql:sql/kunlun_ticket.sql:515: NOTICE:  sequence "s1" does not exist, skipping
 DROP SEQUENCE
 create sequence s1;
 CREATE SEQUENCE
@@ -787,7 +826,7 @@ drop sequence s1;
 DROP SEQUENCE
 --ticket:932
 drop table if exists temptest2 cascade;
-psql:sql/kunlun_ticket.sql:490: NOTICE:  table "temptest2" does not exist, skipping
+psql:sql/kunlun_ticket.sql:521: NOTICE:  table "temptest2" does not exist, skipping
 DROP TABLE
 begin;
 BEGIN
@@ -808,7 +847,7 @@ drop table temptest2;
 DROP TABLE
 -- ticket:109
 drop table if exists tf1;
-psql:sql/kunlun_ticket.sql:499: NOTICE:  table "tf1" does not exist, skipping
+psql:sql/kunlun_ticket.sql:530: NOTICE:  table "tf1" does not exist, skipping
 DROP TABLE
 create table tf1(v float8);
 CREATE TABLE
@@ -835,7 +874,7 @@ select q1 | q2 from int8_tbl;
 
 select q1 -- q2 from int8_tbl;
 select ~q1 from int8_tbl;
-psql:sql/kunlun_ticket.sql:509: ERROR:  syntax error at or near "select"
+psql:sql/kunlun_ticket.sql:540: ERROR:  syntax error at or near "select"
 LINE 2: select ~q1 from int8_tbl;
         ^
 select ~q2 from int8_tbl;
@@ -850,7 +889,7 @@ select ~q2 from int8_tbl;
 
 -- ticket:12
 drop table if exists attmp;
-psql:sql/kunlun_ticket.sql:514: NOTICE:  table "attmp" does not exist, skipping
+psql:sql/kunlun_ticket.sql:545: NOTICE:  table "attmp" does not exist, skipping
 DROP TABLE
 CREATE TABLE attmp (initial int4);
 CREATE TABLE
@@ -870,7 +909,7 @@ drop table attmp;
 DROP TABLE
 -- ticket:82
 drop table if exists bytea_test_table;
-psql:sql/kunlun_ticket.sql:529: NOTICE:  table "bytea_test_table" does not exist, skipping
+psql:sql/kunlun_ticket.sql:560: NOTICE:  table "bytea_test_table" does not exist, skipping
 DROP TABLE
 create table bytea_test_table(v bytea);
 CREATE TABLE
@@ -895,7 +934,7 @@ drop table list_parted;
 DROP TABLE
 -- ticket:49
 drop table if exists ts1;
-psql:sql/kunlun_ticket.sql:547: NOTICE:  table "ts1" does not exist, skipping
+psql:sql/kunlun_ticket.sql:578: NOTICE:  table "ts1" does not exist, skipping
 DROP TABLE
 create table ts1(id int, info text);
 CREATE TABLE
@@ -925,7 +964,7 @@ select x from int8_tbl, extractq2_2(int8_tbl) f(x);
 
 --ticket:120
 DROP SEQUENCE IF EXISTS sequence_test;
-psql:sql/kunlun_ticket.sql:565: NOTICE:  sequence "sequence_test" does not exist, skipping
+psql:sql/kunlun_ticket.sql:596: NOTICE:  sequence "sequence_test" does not exist, skipping
 DROP SEQUENCE
 CREATE SEQUENCE sequence_test;
 CREATE SEQUENCE
@@ -973,7 +1012,7 @@ SELECT nextval('sequence_test2');
 (1 row)
 
 SELECT nextval('sequence_test2'); -- error
-psql:sql/kunlun_ticket.sql:588: ERROR:  Kunlun-db: nextval(): exhausted all values of sequence "sequence_test2" 
+psql:sql/kunlun_ticket.sql:619: ERROR:  Kunlun-db: nextval(): exhausted all values of sequence "sequence_test2" 
 drop sequence sequence_test2;
 DROP SEQUENCE
 --ticket:914
@@ -984,10 +1023,19 @@ SET
 SET SESSION NET_READ_TIMEOUT= 86400, @@SESSION.NET_WRITE_TIMEOUT= 86400, enable_hashjoin = off;
 SET
 --ticket:905 
+\c template1;
+You are now connected to database "template1" as user "abc".
+create table t1(a int); -- 预期拒绝
+psql:sql/kunlun_ticket.sql:635: ERROR:  Kunlun: Creating table in template database is not allowed.
+\c postgres;
+You are now connected to database "postgres" as user "abc".
 CREATE DATABASE dbname TEMPLATE template0;
 CREATE DATABASE
+CREATE DATABASE dbname2 TEMPLATE dbname; -- 预期拒绝
+psql:sql/kunlun_ticket.sql:638: ERROR:  Kunlun: The template option only support template{0/1}.
 --ticket:901
 drop table if exists t1;
+psql:sql/kunlun_ticket.sql:642: NOTICE:  table "t1" does not exist, skipping
 DROP TABLE
 create table t1(a int, b int);
 CREATE TABLE
@@ -1000,10 +1048,22 @@ savepoint s1;
 SAVEPOINT
 insert into t1 values(2,2);
 INSERT 0 1
+DO $$
+BEGIN
+    execute concat('send ', (select name from pg_shard limit 1), '''kill connection (select connection_id())''');
+END; $$;
+psql:sql/kunlun_ticket.sql:656: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1317, Query execution was interrupted.
+CONTEXT:  SQL statement "send shard1'kill connection (select connection_id())'"
+PL/pgSQL function inline_code_block line 3 at EXECUTE
 insert into t1 values(2,2);
-INSERT 0 1
+psql:sql/kunlun_ticket.sql:658: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+rollback to s1;
+psql:sql/kunlun_ticket.sql:660: ERROR:  Kunlun-db: Connection with MySQL storage node (1, 1) is gone: 2013, Lost connection to server during query. Resend the statement.
+DETAIL:  Disconnected all connections to MySQL storage nodes.
+insert into t1 values(2,2);
+psql:sql/kunlun_ticket.sql:662: ERROR:  current transaction is aborted, commands ignored until end of transaction block
 commit;
-COMMIT
+ROLLBACK
 --ticket:991 
 show variables where Variable_name='admin_port';
  Variable_name | Value 
@@ -1037,7 +1097,7 @@ show variables where Value='1';
 
 --ticket:998
 drop table t;
-psql:sql/kunlun_ticket.sql:626: ERROR:  table "t" does not exist
+psql:sql/kunlun_ticket.sql:670: ERROR:  table "t" does not exist
 create table t(a int , b int);
 CREATE TABLE
 insert into t select generate_series(1,20),generate_series(20,39);
@@ -1060,10 +1120,18 @@ select * from t limit 2 offset 10;
 --ticket:999
 explain select * from t order by a limit 2 offset 4;
 
+select * from t order by a limit 2 offset 4;
+ a | b  
+---+----
+ 5 | 24
+ 6 | 25
+(2 rows)
+
 drop table t;
 DROP TABLE
 --ticket:1016
 DROP TABLE if exists prt1;
+psql:sql/kunlun_ticket.sql:685: NOTICE:  table "prt1" does not exist, skipping
 DROP TABLE
 CREATE TABLE prt1 (a int, b int, c varchar) PARTITION BY RANGE(a);
 CREATE TABLE
@@ -1087,6 +1155,7 @@ CREATE INDEX
 CREATE INDEX iprt1_p3_a on prt1_p3(a);
 CREATE INDEX
 DROP TABLE if exists prt2;
+psql:sql/kunlun_ticket.sql:698: NOTICE:  table "prt2" does not exist, skipping
 DROP TABLE
 CREATE TABLE prt2 (a int, b int, c varchar) PARTITION BY RANGE(b);
 CREATE TABLE
@@ -1136,7 +1205,7 @@ insert into t1 values(1,1,1) on duplicate key update b = excluded.b;
 INSERT 0 0
 -- 2、update 未考虑子表和父表列序不一致的问题
 drop table if exists t2 cascade;
-psql:sql/kunlun_ticket.sql:685: NOTICE:  table "t2" does not exist, skipping
+psql:sql/kunlun_ticket.sql:731: NOTICE:  table "t2" does not exist, skipping
 DROP TABLE
 create table t2(a int, b int) partition by range(a);
 CREATE TABLE
@@ -1164,12 +1233,70 @@ drop table t1;
 DROP TABLE
 drop table t2 cascade;
 DROP TABLE
+-- ticket:1082
+-- select now(-1);
+-- select now(0);
+-- select now();
+-- select now(1);
+-- select now(2);
+-- ticket:1081
+-- select '%a', date_format(now(), '%a') as date;
+--select '%b', date_format(now(), '%b') as date;
+--select '%c', date_format(now(), '%c') as date;
+--select '%D', date_format(now(), '%D') as date;
+--select '%d', date_format(now(), '%d') as date;
+--select '%e', date_format(now(), '%e') as date;
+--select '%f', date_format(now(), '%f') as date;
+--select '%H', date_format(now(), '%H') as date;
+--select '%h', date_format(now(), '%h') as date;
+--select '%I', date_format(now(), '%I') as date;
+--select '%i', date_format(now(), '%i') as date;
+--select '%j', date_format(now(), '%j') as date;
+--select '%k', date_format(now(), '%k') as date;
+--select '%l', date_format(now(), '%l') as date;
+--select '%M', date_format(now(), '%M') as date;
+--select '%m', date_format(now(), '%m') as date;
+--select '%p', date_format(now(), '%p') as date;
+--select '%r', date_format(now(), '%r') as date;
+--select '%S', date_format(now(), '%S') as date;
+--select '%s', date_format(now(), '%s') as date;
+--select '%T', date_format(now(), '%T') as date;
+--select '%U', date_format(now(), '%U') as date;
+--select '%u', date_format(now(), '%u') as date;
+--select '%V', date_format(now(), '%V') as date;
+--select '%v', date_format(now(), '%v') as date;
+--select '%W', date_format(now(), '%W') as date;
+--select '%w', date_format(now(), '%w') as date;
+select '%X', date_format(now(), '%X') as date;
+ ?column? | date 
+----------+------
+ %X       | 2023
+(1 row)
+
+select '%x', date_format(now(), '%x') as date;
+ ?column? | date 
+----------+------
+ %x       | 2023
+(1 row)
+
+select '%Y', date_format(now(), '%Y') as date;
+ ?column? | date 
+----------+------
+ %Y       | 2023
+(1 row)
+
+select '%y', date_format(now(), '%y') as date;
+ ?column? | date 
+----------+------
+ %y       | 23
+(1 row)
+
 --ticket:1029
 create schema pg_stmt;
-psql:sql/kunlun_ticket.sql:702: ERROR:  unacceptable schema name "pg_stmt"
+psql:sql/kunlun_ticket.sql:793: ERROR:  unacceptable schema name "pg_stmt"
 DETAIL:  The prefix "pg_" is reserved for system schemas.
 create schema 12345;
-psql:sql/kunlun_ticket.sql:704: ERROR:  syntax error at or near "12345"
+psql:sql/kunlun_ticket.sql:795: ERROR:  syntax error at or near "12345"
 LINE 1: create schema 12345;
                       ^
 create schema 模式;
@@ -1177,11 +1304,26 @@ CREATE SCHEMA
 create schema adc;
 CREATE SCHEMA
 create schema adc;
-psql:sql/kunlun_ticket.sql:708: ERROR:  schema "adc" already exists
+psql:sql/kunlun_ticket.sql:799: ERROR:  schema "adc" already exists
 create schema adc1;
 CREATE SCHEMA
 create schema _adc1;
 CREATE SCHEMA
+create schema "I'm the schema";
+CREATE SCHEMA
+use "I'm the schema";
+USE
+create table t1(a int);
+CREATE TABLE
+select * from t1;
+ a 
+---
+(0 rows)
+
+drop schema "I'm the schema" cascades;
+psql:sql/kunlun_ticket.sql:809: ERROR:  syntax error at or near "cascades"
+LINE 1: drop schema "I'm the schema" cascades;
+                                     ^
 drop schema 模式;
 DROP SCHEMA
 drop schema adc;
@@ -1191,13 +1333,10 @@ DROP SCHEMA
 drop schema _adc1;
 DROP SCHEMA
 drop table tenk1;
-DROP TABLE
+psql:sql/kunlun_ticket.sql:819: ERROR:  table "tenk1" does not exist
 drop table FLOAT8_TBL;
-DROP TABLE
+psql:sql/kunlun_ticket.sql:820: ERROR:  table "float8_tbl" does not exist
 drop table INT4_TBL;
-DROP TABLE
+psql:sql/kunlun_ticket.sql:821: ERROR:  table "int4_tbl" does not exist
 drop table INT8_TBL cascade;
-psql:sql/kunlun_ticket.sql:725: NOTICE:  drop cascades to 2 other objects
-DETAIL:  drop cascades to function extractq2(int8_tbl)
-drop cascades to function extractq2_2(int8_tbl)
-DROP TABLE
+psql:sql/kunlun_ticket.sql:822: ERROR:  table "int8_tbl" does not exist

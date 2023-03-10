@@ -1,6 +1,7 @@
 drop table if exists t4 cascade;
 DROP TABLE
 drop table if exists t5 cascade;
+psql:sql/kunlun_remote.sql:3: NOTICE:  table "t5" does not exist, skipping
 DROP TABLE
 drop table if exists t6 cascade;
 psql:sql/kunlun_remote.sql:4: NOTICE:  table "t6" does not exist, skipping
@@ -195,9 +196,9 @@ psql:sql/kunlun_remote.sql:70: ERROR:  unrecognized configuration parameter "las
  e      | character varying(64)       |           |          |         | extended |              | 
 Partition key: RANGE (b)
 Indexes:
-    "t3_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
-    "t3_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
-    "t3_c_idx" btree (c NULLS FIRST)
+    "t3_pkey" PRIMARY KEY, btree (b, d)
+    "t3_c_b_idx" UNIQUE, btree (c, b)
+    "t3_c_idx" btree (c)
 Number of partitions: 0
 
 create table t301 partition of t3 for values from ('2000-01-01') to ('2009-12-31');
@@ -232,9 +233,9 @@ Options: shard=1
  e      | character varying(64)       |           |          |         | extended |              | 
 Partition key: RANGE (b)
 Indexes:
-    "t3_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
-    "t3_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
-    "t3_c_idx" btree (c NULLS FIRST)
+    "t3_pkey" PRIMARY KEY, btree (b, d)
+    "t3_c_b_idx" UNIQUE, btree (c, b)
+    "t3_c_idx" btree (c)
 Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31')
 
 create table t303 partition of t3 for values from ('2020-01-01') to ('2029-12-31');
@@ -269,9 +270,9 @@ Options: shard=1
  e      | character varying(64)       |           |          |         | extended |              | 
 Partition key: RANGE (b)
 Indexes:
-    "t3_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
-    "t3_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
-    "t3_c_idx" btree (c NULLS FIRST)
+    "t3_pkey" PRIMARY KEY, btree (b, d)
+    "t3_c_b_idx" UNIQUE, btree (c, b)
+    "t3_c_idx" btree (c)
 Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
             t303 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31')
 
@@ -341,11 +342,11 @@ Options: shard=1
  e      | character varying(64)       |           |          |         | extended |              | 
 Partition key: RANGE (b)
 Indexes:
-    "t3_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
-    "t3_b_a_idx" UNIQUE, btree (b NULLS FIRST, a NULLS FIRST)
-    "t3_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
-    "t3_a_idx" btree (a NULLS FIRST)
-    "t3_c_idx" btree (c NULLS FIRST)
+    "t3_pkey" PRIMARY KEY, btree (b, d)
+    "t3_b_a_idx" UNIQUE, btree (b, a)
+    "t3_c_b_idx" UNIQUE, btree (c, b)
+    "t3_a_idx" btree (a)
+    "t3_c_idx" btree (c)
 Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
             t303 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31')
 
@@ -366,11 +367,11 @@ psql:sql/kunlun_remote.sql:95: ERROR:  unrecognized configuration parameter "las
  e      | character varying(64)       |           |          |         | extended |              | 
 Partition key: RANGE (b)
 Indexes:
-    "t3_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
-    "t3_b_a_idx" UNIQUE, btree (b NULLS FIRST, a NULLS FIRST)
-    "t3_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
-    "t3_a_idx" btree (a NULLS FIRST)
-    "t3_c_idx" btree (c NULLS FIRST)
+    "t3_pkey" PRIMARY KEY, btree (b, d)
+    "t3_b_a_idx" UNIQUE, btree (b, a)
+    "t3_c_b_idx" UNIQUE, btree (c, b)
+    "t3_a_idx" btree (a)
+    "t3_c_idx" btree (c)
 Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
             t302 FOR VALUES FROM ('2010-01-01') TO ('2019-12-31'),
             t303 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31')
@@ -455,11 +456,11 @@ psql:sql/kunlun_remote.sql:102: ERROR:  unrecognized configuration parameter "la
  e      | character varying(64)       |           |          |         | extended |              | 
 Partition key: RANGE (b)
 Indexes:
-    "t3_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
-    "t3_b_a_idx" UNIQUE, btree (b NULLS FIRST, a NULLS FIRST)
-    "t3_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
-    "t3_a_idx" btree (a NULLS FIRST)
-    "t3_c_idx" btree (c NULLS FIRST)
+    "t3_pkey" PRIMARY KEY, btree (b, d)
+    "t3_b_a_idx" UNIQUE, btree (b, a)
+    "t3_c_b_idx" UNIQUE, btree (c, b)
+    "t3_a_idx" btree (a)
+    "t3_c_idx" btree (c)
 Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
             t302 FOR VALUES FROM ('2010-01-01') TO ('2019-12-31'),
             t303 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31'),
@@ -593,11 +594,11 @@ Options: shard=1
  e      | character varying(64)       |           |          |         | extended |              | 
 Partition key: RANGE (b)
 Indexes:
-    "t3_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
-    "t3_b_a_idx" UNIQUE, btree (b NULLS FIRST, a NULLS FIRST)
-    "t3_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
-    "t3_a_idx" btree (a NULLS FIRST)
-    "t3_c_idx" btree (c NULLS FIRST)
+    "t3_pkey" PRIMARY KEY, btree (b, d)
+    "t3_b_a_idx" UNIQUE, btree (b, a)
+    "t3_c_b_idx" UNIQUE, btree (c, b)
+    "t3_a_idx" btree (a)
+    "t3_c_idx" btree (c)
 Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
             t302 FOR VALUES FROM ('2010-01-01') TO ('2019-12-31'),
             t303 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31'),
@@ -643,11 +644,11 @@ Options: shard=1
  e      | character varying(64)       |           |          |         | extended |              | 
 Partition key: RANGE (b)
 Indexes:
-    "t3_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
-    "t3_b_a_idx" UNIQUE, btree (b NULLS FIRST, a NULLS FIRST)
-    "t3_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
-    "t3_a_idx" btree (a NULLS FIRST)
-    "t3_c_idx" btree (c NULLS FIRST)
+    "t3_pkey" PRIMARY KEY, btree (b, d)
+    "t3_b_a_idx" UNIQUE, btree (b, a)
+    "t3_c_b_idx" UNIQUE, btree (c, b)
+    "t3_a_idx" btree (a)
+    "t3_c_idx" btree (c)
 Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
             t302 FOR VALUES FROM ('2010-01-01') TO ('2019-12-31'),
             t303 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31'),
@@ -770,12 +771,12 @@ Options: shard=1
  e      | character varying(64)       |           |          |         | extended |              | 
 Partition key: RANGE (b)
 Indexes:
-    "t3_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
-    "t3_b_a_idx" UNIQUE, btree (b NULLS FIRST, a NULLS FIRST)
-    "t3_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
-    "t3_a_idx" btree (a NULLS FIRST)
-    "t3_c_idx" btree (c NULLS FIRST)
-    "t3_e_idx" btree (e NULLS FIRST)
+    "t3_pkey" PRIMARY KEY, btree (b, d)
+    "t3_b_a_idx" UNIQUE, btree (b, a)
+    "t3_c_b_idx" UNIQUE, btree (c, b)
+    "t3_a_idx" btree (a)
+    "t3_c_idx" btree (c)
+    "t3_e_idx" btree (e)
 Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
             t302 FOR VALUES FROM ('2010-01-01') TO ('2019-12-31'),
             t303 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31'),
@@ -831,8 +832,8 @@ psql:sql/kunlun_remote.sql:149: ERROR:  unrecognized configuration parameter "la
  d      | character(16)         |           |          |         | extended |              | 
 Partition key: HASH (b)
 Indexes:
-    "t2_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST)
-    "t2_b_c_key" UNIQUE CONSTRAINT, btree (b NULLS FIRST, c NULLS FIRST)
+    "t2_pkey" PRIMARY KEY, btree (a, b)
+    "t2_b_c_key" UNIQUE CONSTRAINT, btree (b, c)
 Number of partitions: 0
 
 create table t200 partition of t2 for values with (modulus 4, remainder 0);
@@ -931,9 +932,9 @@ psql:sql/kunlun_remote.sql:180: ERROR:  unrecognized configuration parameter "la
  f      | character(20)               |           |          |         | extended |              | 
 Partition key: HASH (b)
 Indexes:
-    "t1_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST)
-    "t1_e_b_key" UNIQUE CONSTRAINT, btree (e NULLS FIRST, b NULLS FIRST)
-    "t1_f" btree (f NULLS FIRST)
+    "t1_pkey" PRIMARY KEY, btree (a, b)
+    "t1_e_b_key" UNIQUE CONSTRAINT, btree (e, b)
+    "t1_f" btree (f)
 Number of partitions: 0
 
 create table t100 partition of t1 for values with (modulus 4, remainder 0);
@@ -987,8 +988,8 @@ psql:sql/kunlun_remote.sql:206: ERROR:  unrecognized configuration parameter "la
  g      | double precision            |           |          |         | plain   |              | 
 Partition key: LIST (a)
 Indexes:
-    "t2_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST)
-    "t2_a_b_c_key" UNIQUE CONSTRAINT, btree (a NULLS FIRST, b NULLS FIRST, c NULLS FIRST)
+    "t2_pkey" PRIMARY KEY, btree (a, b)
+    "t2_a_b_c_key" UNIQUE CONSTRAINT, btree (a, b, c)
 Number of partitions: 0
 
 create table t200 partition of t2 for values in (1,2,3,4);
@@ -1030,9 +1031,9 @@ psql:sql/kunlun_remote.sql:212: ERROR:  unrecognized configuration parameter "la
  g      | double precision            |           |          |         | plain   |              | 
 Partition key: LIST (a)
 Indexes:
-    "t2_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST)
-    "t2_a_b_c_key" UNIQUE CONSTRAINT, btree (a NULLS FIRST, b NULLS FIRST, c NULLS FIRST)
-    "t2_d_g" btree (d NULLS FIRST, g DESC NULLS LAST)
+    "t2_pkey" PRIMARY KEY, btree (a, b)
+    "t2_a_b_c_key" UNIQUE CONSTRAINT, btree (a, b, c)
+    "t2_d_g" btree (d, g DESC)
 Partitions: t200 FOR VALUES IN (1, 2, 3, 4)
 
 \d+ t200;
@@ -1098,10 +1099,10 @@ psql:sql/kunlun_remote.sql:220: ERROR:  unrecognized configuration parameter "la
  g      | double precision            |           |          |         | plain   |              | 
 Partition key: LIST (a)
 Indexes:
-    "t2_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST)
-    "t2_a_b_c_key" UNIQUE CONSTRAINT, btree (a NULLS FIRST, b NULLS FIRST, c NULLS FIRST)
-    "t2_c_d" UNIQUE, btree (a NULLS FIRST, c NULLS FIRST, d DESC NULLS LAST)
-    "t2_d_g" btree (d NULLS FIRST, g DESC NULLS LAST)
+    "t2_pkey" PRIMARY KEY, btree (a, b)
+    "t2_a_b_c_key" UNIQUE CONSTRAINT, btree (a, b, c)
+    "t2_c_d" UNIQUE, btree (a, c, d DESC)
+    "t2_d_g" btree (d, g DESC)
 Partitions: t200 FOR VALUES IN (1, 2, 3, 4),
             t201 FOR VALUES IN (5, 6, 7)
 
@@ -1215,12 +1216,12 @@ psql:sql/kunlun_remote.sql:235: ERROR:  unrecognized configuration parameter "la
  g      | double precision            |           |          |         | plain   |              | 
 Partition key: LIST (a)
 Indexes:
-    "t2_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST)
-    "t2_a_b_c_key" UNIQUE CONSTRAINT, btree (a NULLS FIRST, b NULLS FIRST, c NULLS FIRST)
-    "t2_c_d" UNIQUE, btree (a NULLS FIRST, c NULLS FIRST, d DESC NULLS LAST)
-    "t2_b_e_idx" btree (b NULLS FIRST, e NULLS FIRST)
-    "t2_d_g" btree (d NULLS FIRST, g DESC NULLS LAST)
-    "t2_g_f_idx" btree (g DESC NULLS LAST, f NULLS FIRST)
+    "t2_pkey" PRIMARY KEY, btree (a, b)
+    "t2_a_b_c_key" UNIQUE CONSTRAINT, btree (a, b, c)
+    "t2_c_d" UNIQUE, btree (a, c, d DESC)
+    "t2_b_e_idx" btree (b, e)
+    "t2_d_g" btree (d, g DESC)
+    "t2_g_f_idx" btree (g DESC, f)
 Partitions: t200 FOR VALUES IN (1, 2, 3, 4),
             t201 FOR VALUES IN (5, 6, 7)
 

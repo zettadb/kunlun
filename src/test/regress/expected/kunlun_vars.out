@@ -8,7 +8,7 @@ show local variables like '%lock%';
  innodb_deadlock_detect                  | ON
  innodb_lock_wait_timeout                | 20
  innodb_old_blocks_pct                   | 37
- innodb_old_blocks_time                  | 1000
+ innodb_old_blocks_time                  | 60000
  innodb_page_hash_locks                  | 16
  innodb_print_all_deadlocks              | ON
  innodb_print_lock_wait_timeout_info     | OFF
@@ -63,7 +63,7 @@ show global variables like '%lock%';
  innodb_deadlock_detect                  | ON
  innodb_lock_wait_timeout                | 20
  innodb_old_blocks_pct                   | 37
- innodb_old_blocks_time                  | 1000
+ innodb_old_blocks_time                  | 60000
  innodb_page_hash_locks                  | 16
  innodb_print_all_deadlocks              | ON
  innodb_print_lock_wait_timeout_info     | OFF

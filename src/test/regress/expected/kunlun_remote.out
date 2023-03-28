@@ -1129,8 +1129,6 @@ Statistics objects:
     "public"."t200_a_b_c_key_pfx_2" () ON a, b FROM t200
     "public"."t200_a_b_c_key_pfx_3" () ON a, b, c FROM t200
     "public"."t200_d_g_idx_pfx_2" () ON d, g FROM t200
-    "public"."t200_a_c_d_idx_pfx_2" () ON a, c FROM t200
-    "public"."t200_a_c_d_idx_pfx_3" () ON a, c, d FROM t200
 Options: shard=1
 
 \d+ t201;

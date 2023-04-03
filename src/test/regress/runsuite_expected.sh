@@ -2,6 +2,7 @@
 
 seconds="${1:-10}"
 listfile="${2:-serial_schedule}"
+buildtype="${3:-release}"
 
 cat $listfile | grep -v '^#' | sed '/^[ 	]*$/d' | awk '{print $2}' | while read f; do
 	if test -f "skips/$f.skip"; then
@@ -21,19 +22,24 @@ cat $listfile | grep -v '^#' | sed '/^[ 	]*$/d' | awk '{print $2}' | while read 
 		mv 2.out.p $f.out2.p
 		diff "$f.out1.p" "$f.out2.p" >/dev/null
 		ret1="$?"
+		expectedout="expected/$f.out"
+		case "$buildtype" in
+			*[Dd][Ee][Bb][Uu][Gg]* ) test -f "expected/$f.out.debug" && expectedout="expected/$f.out.debug" ;;
+			* ) ;;
+		esac
 		if test "$ret1" = "0"; then
 			# it is same with official pg, no need to do other things.
 			echo "EXPECTED: Same with official pg"
 		else
-			if test -f "expected/$f.out"; then
-				diff "$f.out1.p" "expected/$f.out" >/dev/null
+			if test -f $expectedout; then
+				diff "$f.out1.p" $expectedout >/dev/null
 				ret2="$?"
 				if test "$ret2" = 0; then
 					echo "EXPECTED: Different with official pg, but same with expected output"
 				else
 					echo "UNEXPECTED: Different with official pg and expected output"
 					echo "======= diff content with expected output =========="
-					diff "$f.out1.p" "expected/$f.out"
+					diff "$f.out1.p" $expectedout
 				fi
 			else
 				echo "UNEXPECTED: Different with official pg, no expected output"

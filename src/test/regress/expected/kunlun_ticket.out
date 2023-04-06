@@ -1033,8 +1033,7 @@ show variables where Value='1';
  sync_binlog                      | 1
  thread_pool_eager_mode           | 1
  thread_pool_listen_eager_mode    | 1
- xa_prep_cop_binlog_last          | 1
-(20 rows)
+(19 rows)
 
 --ticket:998
 drop table t;

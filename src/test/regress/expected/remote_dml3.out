@@ -499,7 +499,7 @@ select count(*) from join_foo
      3
 (1 row)
 
-set statement_timeout=5000;
+set statement_timeout=2000;
 SET
 set mysql_read_timeout=5;
 SET
@@ -519,7 +519,7 @@ ROLLBACK
 -- local txn aborted
 commit;
 COMMIT
-set statement_timeout=5000;
+set statement_timeout=2000;
 SET
 set mysql_read_timeout=5;
 SET

@@ -2140,14 +2140,6 @@ delete from tenk1;
 DELETE 10000
 COPY tenk1 FROM '/home/kunlun/pgregressdata/data/tenk.data';
 COPY 10000
-analyze tenk1;
-ANALYZE
-select pg_sleep(30);
- pg_sleep 
-----------
- 
-(1 row)
-
 --
 -- regression test: check for bug with propagation of implied equality
 -- to outside an IN

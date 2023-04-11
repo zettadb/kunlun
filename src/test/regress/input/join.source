@@ -363,7 +363,7 @@ select * from x left join y on (x1 = y1 and y2 is not null);
 delete from tenk1;
 COPY tenk1 FROM '@abs_srcdir@/data/tenk.data';
 analyze tenk1;
-select pg_sleep(10);
+select pg_sleep(30);
 --
 -- regression test: check for bug with propagation of implied equality
 -- to outside an IN

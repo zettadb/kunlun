@@ -1,47 +1,63 @@
 show local variables like '%lock%';
-              Variable_name              |        Value         
------------------------------------------+----------------------
- block_encryption_mode                   | aes-128-ecb
- have_backup_locks                       | YES
- innodb_api_disable_rowlock              | OFF
- innodb_autoinc_lock_mode                | 2
- innodb_deadlock_detect                  | ON
- innodb_lock_wait_timeout                | 20
- innodb_old_blocks_pct                   | 37
- innodb_old_blocks_time                  | 60000
- innodb_page_hash_locks                  | 16
- innodb_print_all_deadlocks              | ON
- innodb_print_lock_wait_timeout_info     | OFF
- innodb_show_locks_held                  | 10
- innodb_sleep_wait_for_free_block        | 100
- innodb_status_output_locks              | OFF
- innodb_table_locks                      | ON
- key_cache_block_size                    | 1024
- lock_order                              | OFF
- lock_order_debug_loop                   | OFF
- lock_order_debug_missing_arc            | OFF
- lock_order_debug_missing_key            | OFF
- lock_order_debug_missing_unlock         | OFF
- lock_order_dependencies                 | 
- lock_order_extra_dependencies           | 
- lock_order_output_directory             | 
- lock_order_print_txt                    | OFF
- lock_order_trace_loop                   | OFF
- lock_order_trace_missing_arc            | ON
- lock_order_trace_missing_key            | OFF
- lock_order_trace_missing_unlock         | ON
- lock_wait_timeout                       | 5
- locked_in_memory                        | OFF
- max_write_lock_count                    | 18446744073709551615
- performance_schema_max_metadata_locks   | -1
- performance_schema_max_rwlock_classes   | 70
- performance_schema_max_rwlock_instances | -1
- performance_schema_max_table_lock_stat  | -1
- query_alloc_block_size                  | 16384
- range_alloc_block_size                  | 4096
- skip_external_locking                   | ON
- transaction_alloc_block_size            | 8192
-(40 rows)
+                  Variable_name                  |        Value         
+-------------------------------------------------+----------------------
+ block_encryption_mode                           | aes-128-ecb
+ group_replication_gtid_assignment_block_size    | 1000000
+ have_backup_locks                               | YES
+ innodb_api_disable_rowlock                      | OFF
+ innodb_autoinc_lock_mode                        | 2
+ innodb_deadlock_detect                          | ON
+ innodb_lock_wait_timeout                        | 20
+ innodb_old_blocks_pct                           | 37
+ innodb_old_blocks_time                          | 60000
+ innodb_page_hash_locks                          | 16
+ innodb_print_all_deadlocks                      | ON
+ innodb_print_lock_wait_timeout_info             | OFF
+ innodb_show_locks_held                          | 10
+ innodb_sleep_wait_for_free_block                | 100
+ innodb_status_output_locks                      | OFF
+ innodb_table_locks                              | ON
+ key_cache_block_size                            | 1024
+ lock_order                                      | OFF
+ lock_order_debug_loop                           | OFF
+ lock_order_debug_missing_arc                    | OFF
+ lock_order_debug_missing_key                    | OFF
+ lock_order_debug_missing_unlock                 | OFF
+ lock_order_dependencies                         | 
+ lock_order_extra_dependencies                   | 
+ lock_order_output_directory                     | 
+ lock_order_print_txt                            | OFF
+ lock_order_trace_loop                           | OFF
+ lock_order_trace_missing_arc                    | ON
+ lock_order_trace_missing_key                    | OFF
+ lock_order_trace_missing_unlock                 | ON
+ lock_wait_timeout                               | 5
+ locked_in_memory                                | OFF
+ max_write_lock_count                            | 18446744073709551615
+ performance_schema_max_metadata_locks           | -1
+ performance_schema_max_rwlock_classes           | 70
+ performance_schema_max_rwlock_instances         | -1
+ performance_schema_max_table_lock_stat          | -1
+ query_alloc_block_size                          | 16384
+ range_alloc_block_size                          | 4096
+ rocksdb_block_cache_size                        | 17179869184
+ rocksdb_block_restart_interval                  | 16
+ rocksdb_block_size                              | 16384
+ rocksdb_block_size_deviation                    | 10
+ rocksdb_cache_index_and_filter_blocks           | ON
+ rocksdb_deadlock_detect                         | OFF
+ rocksdb_deadlock_detect_depth                   | 50
+ rocksdb_lock_scanned_rows                       | OFF
+ rocksdb_lock_wait_timeout                       | 20
+ rocksdb_max_latest_deadlocks                    | 5
+ rocksdb_max_row_locks                           | 1048576
+ rocksdb_no_block_cache                          | OFF
+ rocksdb_pin_l0_filter_and_index_blocks_in_cache | ON
+ rocksdb_skip_locks_if_skip_unique_check         | OFF
+ rocksdb_trace_block_cache_access                | 
+ skip_external_locking                           | ON
+ transaction_alloc_block_size                    | 8192
+(56 rows)
 
 -- strict: only show variables that can be modified&cached in computing node
 show variables like '%lock%' strict;
@@ -54,49 +70,65 @@ show variables like '%lock%' strict;
 (4 rows)
 
 show global variables like '%lock%';
-              Variable_name              |        Value         
------------------------------------------+----------------------
- block_encryption_mode                   | aes-128-ecb
- have_backup_locks                       | YES
- innodb_api_disable_rowlock              | OFF
- innodb_autoinc_lock_mode                | 2
- innodb_deadlock_detect                  | ON
- innodb_lock_wait_timeout                | 20
- innodb_old_blocks_pct                   | 37
- innodb_old_blocks_time                  | 60000
- innodb_page_hash_locks                  | 16
- innodb_print_all_deadlocks              | ON
- innodb_print_lock_wait_timeout_info     | OFF
- innodb_show_locks_held                  | 10
- innodb_sleep_wait_for_free_block        | 100
- innodb_status_output_locks              | OFF
- innodb_table_locks                      | ON
- key_cache_block_size                    | 1024
- lock_order                              | OFF
- lock_order_debug_loop                   | OFF
- lock_order_debug_missing_arc            | OFF
- lock_order_debug_missing_key            | OFF
- lock_order_debug_missing_unlock         | OFF
- lock_order_dependencies                 | 
- lock_order_extra_dependencies           | 
- lock_order_output_directory             | 
- lock_order_print_txt                    | OFF
- lock_order_trace_loop                   | OFF
- lock_order_trace_missing_arc            | ON
- lock_order_trace_missing_key            | OFF
- lock_order_trace_missing_unlock         | ON
- lock_wait_timeout                       | 5
- locked_in_memory                        | OFF
- max_write_lock_count                    | 18446744073709551615
- performance_schema_max_metadata_locks   | -1
- performance_schema_max_rwlock_classes   | 70
- performance_schema_max_rwlock_instances | -1
- performance_schema_max_table_lock_stat  | -1
- query_alloc_block_size                  | 16384
- range_alloc_block_size                  | 4096
- skip_external_locking                   | ON
- transaction_alloc_block_size            | 8192
-(40 rows)
+                  Variable_name                  |        Value         
+-------------------------------------------------+----------------------
+ block_encryption_mode                           | aes-128-ecb
+ group_replication_gtid_assignment_block_size    | 1000000
+ have_backup_locks                               | YES
+ innodb_api_disable_rowlock                      | OFF
+ innodb_autoinc_lock_mode                        | 2
+ innodb_deadlock_detect                          | ON
+ innodb_lock_wait_timeout                        | 20
+ innodb_old_blocks_pct                           | 37
+ innodb_old_blocks_time                          | 60000
+ innodb_page_hash_locks                          | 16
+ innodb_print_all_deadlocks                      | ON
+ innodb_print_lock_wait_timeout_info             | OFF
+ innodb_show_locks_held                          | 10
+ innodb_sleep_wait_for_free_block                | 100
+ innodb_status_output_locks                      | OFF
+ innodb_table_locks                              | ON
+ key_cache_block_size                            | 1024
+ lock_order                                      | OFF
+ lock_order_debug_loop                           | OFF
+ lock_order_debug_missing_arc                    | OFF
+ lock_order_debug_missing_key                    | OFF
+ lock_order_debug_missing_unlock                 | OFF
+ lock_order_dependencies                         | 
+ lock_order_extra_dependencies                   | 
+ lock_order_output_directory                     | 
+ lock_order_print_txt                            | OFF
+ lock_order_trace_loop                           | OFF
+ lock_order_trace_missing_arc                    | ON
+ lock_order_trace_missing_key                    | OFF
+ lock_order_trace_missing_unlock                 | ON
+ lock_wait_timeout                               | 5
+ locked_in_memory                                | OFF
+ max_write_lock_count                            | 18446744073709551615
+ performance_schema_max_metadata_locks           | -1
+ performance_schema_max_rwlock_classes           | 70
+ performance_schema_max_rwlock_instances         | -1
+ performance_schema_max_table_lock_stat          | -1
+ query_alloc_block_size                          | 16384
+ range_alloc_block_size                          | 4096
+ rocksdb_block_cache_size                        | 17179869184
+ rocksdb_block_restart_interval                  | 16
+ rocksdb_block_size                              | 16384
+ rocksdb_block_size_deviation                    | 10
+ rocksdb_cache_index_and_filter_blocks           | ON
+ rocksdb_deadlock_detect                         | OFF
+ rocksdb_deadlock_detect_depth                   | 50
+ rocksdb_lock_scanned_rows                       | OFF
+ rocksdb_lock_wait_timeout                       | 20
+ rocksdb_max_latest_deadlocks                    | 5
+ rocksdb_max_row_locks                           | 1048576
+ rocksdb_no_block_cache                          | OFF
+ rocksdb_pin_l0_filter_and_index_blocks_in_cache | ON
+ rocksdb_skip_locks_if_skip_unique_check         | OFF
+ rocksdb_trace_block_cache_access                | 
+ skip_external_locking                           | ON
+ transaction_alloc_block_size                    | 8192
+(56 rows)
 
 show global variables like '%lock%' strict;
       Variable_name       | Value 

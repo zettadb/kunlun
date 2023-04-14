@@ -94,11 +94,11 @@ DROP TABLE
 create table t(a int) with(engine=innodb);
 CREATE TABLE
 create table t1(a int) with(engine=rocksdb);
-psql:sql/kunlun_ticket.sql:61: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1286, Unknown storage engine 'rocksdb'.
+CREATE TABLE
 drop table t;
 DROP TABLE
 drop table t1;
-psql:sql/kunlun_ticket.sql:63: ERROR:  table "t1" does not exist
+DROP TABLE
 -- ticket:644
 drop table if exists t1;
 psql:sql/kunlun_ticket.sql:66: NOTICE:  table "t1" does not exist, skipping
@@ -1012,28 +1012,37 @@ show variables where Variable_name='admin_port';
 (1 row)
 
 show variables where Value='1';
-          Variable_name           | Value 
-----------------------------------+-------
- auto_increment_increment         | 1
- auto_increment_offset            | 1
- ddc_mode                         | 1
- fullsync_consistency_level       | 1
- innodb_encryption_rotate_key_age | 1
- innodb_fast_shutdown             | 1
- innodb_flush_log_at_timeout      | 1
- innodb_flush_log_at_trx_commit   | 1
- log_slow_rate_limit              | 1
- lower_case_table_names           | 1
- myisam_repair_threads            | 1
- mysqlx_port                      | 1
- optimizer_prune_level            | 1
- optimizer_trace_limit            | 1
- print_extra_info_verbosity       | 1
- server_id                        | 1
- sync_binlog                      | 1
- thread_pool_eager_mode           | 1
- thread_pool_listen_eager_mode    | 1
-(19 rows)
+              Variable_name              | Value 
+-----------------------------------------+-------
+ auto_increment_increment                | 1
+ auto_increment_offset                   | 1
+ ddc_mode                                | 1
+ fullsync_consistency_level              | 1
+ group_replication_flow_control_period   | 1
+ innodb_encryption_rotate_key_age        | 1
+ innodb_fast_shutdown                    | 1
+ innodb_flush_log_at_timeout             | 1
+ innodb_flush_log_at_trx_commit          | 1
+ log_slow_rate_limit                     | 1
+ lower_case_table_names                  | 1
+ myisam_repair_threads                   | 1
+ mysqlx_port                             | 1
+ optimizer_prune_level                   | 1
+ optimizer_trace_limit                   | 1
+ print_extra_info_verbosity              | 1
+ rocksdb_access_hint_on_compaction_start | 1
+ rocksdb_flush_log_at_trx_commit         | 1
+ rocksdb_max_background_compactions      | 1
+ rocksdb_max_background_flushes          | 1
+ rocksdb_max_subcompactions              | 1
+ rocksdb_stats_level                     | 1
+ rocksdb_validate_tables                 | 1
+ server_id                               | 1
+ sync_binlog                             | 1
+ thread_pool_eager_mode                  | 1
+ thread_pool_listen_eager_mode           | 1
+ xa_prep_cop_binlog_last                 | 1
+(28 rows)
 
 --ticket:998
 drop table t;

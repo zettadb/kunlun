@@ -30,6 +30,8 @@ cat $listfile | grep -v '^#' | sed '/^[ 	]*$/d' | awk '{print $2}' | while read 
 		test -f $expectedout && sed -i "s/on '[0-9.]*'/on 'x'/g" $expectedout
 
 		if test -f $expectedout; then
+		    dos2unix "$f.out" >/dev/null 2>/dev/null
+		    dos2unix $expectedout >/dev/null 2>/dev/null
 		    diff "$f.out" $expectedout >/dev/null
 		    ret2="$?"
 		    if test "$ret2" = 0; then

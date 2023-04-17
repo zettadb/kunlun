@@ -637,6 +637,7 @@ COPY tenk1(unique1, unique2, two, four, ten, twenty, hundred, thousand, twothous
 insert into int4_tbl (f1) select generate_series(1,13);
 
 analyze tenk1(unique1, unique2, two, four, ten, twenty, hundred, thousand, twothousand, fivethous, tenthous, odd, even, stringu1 , stringu2 ,string4);
+select pg_sleep(5);
 
 explain (verbose, costs off)
     select b.unique1 from

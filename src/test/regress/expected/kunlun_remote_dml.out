@@ -2,7 +2,6 @@ drop table if exists t1;
 DROP TABLE
 drop table if exists tfail;
 DROP TABLE
-
 create table t1(a int primary key, b serial) partition by hash(a);
 CREATE TABLE
 create table t100 partition of t1 for values with (modulus 4, remainder 0); 
@@ -93,7 +92,6 @@ select*from t1;
   7 |  7
 (16 rows)
 
-
 start transaction;
 START TRANSACTION
 delete from t1 where a > 10;
@@ -123,10 +121,8 @@ select*from t1;
 commit;
 psql:sql/kunlun_remote_dml.sql:24: WARNING:  there is no transaction in progress
 COMMIT
-
 insert into t1 values(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
 INSERT 0 20
-
 start transaction;
 START TRANSACTION
 delete from t1;
@@ -163,8 +159,6 @@ select*from t1;
  15 | 35
 (20 rows)
 
-
-
 drop table if exists t5 cascade;
 DROP TABLE
 create table t5(a int primary key, b timestamptz default '2022-06-02 13:00:00+00', c varchar(32) default 'abc') partition by range(a);
@@ -189,10 +183,8 @@ insert into t5 values(-10),(0), (15),(40) returning *;
 INSERT 0 4
 insert into t5 values(-20),(10), (25),(400);
 INSERT 0 4
-
 PREPARE q1(int, int) AS SELECT * FROM t5 WHERE a between $1 and $2 order by 1;
 PREPARE
-
 EXECUTE q1(-100, 20);
   a  |           b            |  c  
 -----+------------------------+-----
@@ -213,11 +205,8 @@ EXECUTE q1(0, 40);
  40 | 2022-06-02 21:00:00+08 | abc
 (5 rows)
 
-
-
 PREPARE q2(int, int) AS SELECT * FROM t1 WHERE a between $1 and $2 order by 1;
 PREPARE
-
 EXECUTE q2(0, 10);
  a  | b  
 ----+----
@@ -264,18 +253,14 @@ EXECUTE q2(5, 40);
 
 deallocate q1;
 DEALLOCATE
-
 drop table if exists t4 cascade;								
 DROP TABLE
 create table t4(a int primary key, b serial);
 CREATE TABLE
 insert into t4 values(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
 INSERT 0 20
-
 PREPARE q3(int, int) AS SELECT * FROM t4 WHERE a between $1 and $2;
 PREPARE
-
-
 EXECUTE q3(6, 16);
  a  | b  
 ----+----
@@ -292,7 +277,6 @@ EXECUTE q3(6, 16);
  16 | 16
 (11 rows)
 
-
 EXECUTE q1(0, 30);
 psql:sql/kunlun_remote_dml.sql:66: ERROR:  prepared statement "q1" does not exist
 EXECUTE q2(5, 10);
@@ -308,7 +292,6 @@ EXECUTE q2(5, 10);
 
 deallocate q2;
 DEALLOCATE
-
 PREPARE q4(int, int) as update t1 set b=$1 where a=$2;
 PREPARE
 select*from t1;
@@ -365,7 +348,6 @@ EXECUTE q3(0, 40);
 
 EXECUTE q4(11, 10);
 UPDATE 1
-
 begin;
 BEGIN
 EXECUTE q4(14, 13);
@@ -383,14 +365,12 @@ select*from t1 where a between 9 and 12;
 
 commit;
 COMMIT
-
 drop table t1;
 DROP TABLE
 drop table t4;
 DROP TABLE
 drop table t5;
 DROP TABLE
-
 -- bug 30
 drop table if exists uv_iocu_tab cascade;
 psql:sql/kunlun_remote_dml.sql:87: NOTICE:  drop cascades to view uv_iocu_view
@@ -420,8 +400,6 @@ select * from uv_iocu_view;
   2 | bcd | (2,bcd)
   3 | xyz | (3,xyz)
 (3 rows)
-
-
 
 -- bug 31
 drop table if exists base_tbl cascade;
@@ -489,7 +467,6 @@ select*from rw_view1;
   0.891207360061435 | 1.1 | 0.453596121425577
 (11 rows)
 
-
 -- bug 39
 drop table if exists SUBSELECT_TBL cascade;
 DROP TABLE
@@ -507,7 +484,6 @@ SELECT f1 AS "Correlated Field", f2 AS "Second Field" FROM SUBSELECT_TBL upper W
                 2 |            2
                 3 |            3
 (6 rows)
-
 
 create temp table rngfunc(f1 int8, f2 int8);
 CREATE TABLE
@@ -535,7 +511,6 @@ select * from testrngfunc() as t(f1 int8,f2 int8);
   1 |  2
 (1 row)
 
-
 -- bug 66 
 DROP TABLE if exists prt1 cascade;
 DROP TABLE
@@ -561,7 +536,6 @@ CREATE TABLE prt2_p3 PARTITION OF prt2 FOR VALUES FROM (500) TO (600);
 CREATE TABLE
 INSERT INTO prt2 SELECT i % 25, i, to_char(i, 'FM0000') FROM generate_series(0, 599) i WHERE i % 3 = 0;
 INSERT 0 200
-
 SELECT t1, t2 FROM prt1 t1 LEFT JOIN prt2 t2 ON t1.a = t2.b WHERE t1.b = 0 ORDER BY t1.a, t2.b;
       t1      |      t2      
 --------------+--------------
@@ -632,10 +606,8 @@ SELECT * FROM prt1 t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t3.a AS t3a, least(
  550 | 0 | 0550 |     |     |      
 (12 rows)
 
-
 EXPLAIN(verbose)
 SELECT * FROM prt1 t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t3.a AS t3a, least(t1.a,t2.a,t3.b) FROM prt1 t2 JOIN prt2 t3 ON (t2.a = t3.b)) ss ON t1.a = ss.t2a WHERE t1.b = 0 ORDER BY t1.a;
-
 
 SET enable_partitionwise_join to true;
 SET
@@ -709,11 +681,8 @@ SELECT * FROM prt1 t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t3.a AS t3a, least(
  550 | 0 | 0550 |     |     |      
 (12 rows)
 
-
 EXPLAIN(verbose)
 SELECT * FROM prt1 t1 LEFT JOIN LATERAL (SELECT t2.a AS t2a, t3.a AS t3a, least(t1.a,t2.a,t3.b) FROM prt1 t2 JOIN prt2 t3 ON (t2.a = t3.b)) ss ON t1.a = ss.t2a WHERE t1.b = 0 ORDER BY t1.a;
-
-
 
 -- bug 71
 DROP table if exists T;
@@ -738,7 +707,6 @@ select*from T;
   1 | 2020-10-24 13:36:35
   2 | 2020-10-24 13:36:35
 (2 rows)
-
 
  CREATE OR REPLACE FUNCTION foo(a INT) RETURNS TEXT AS $$
 DECLARE res TEXT = 'xyz';
@@ -781,9 +749,6 @@ select*from t;
   2 |     9 | xyzabcd                                           
 (2 rows)
 
-
-
-
 -- bug 65
 drop table if exists itest13 cascade;
 DROP TABLE
@@ -811,7 +776,6 @@ SELECT * FROM itest13;
  3 | 3 | 0
 (3 rows)
 
-
 drop table if exists itest6 cascade;
 DROP TABLE
 CREATE TABLE itest6 (a int GENERATED ALWAYS AS IDENTITY primary key, b text);
@@ -838,8 +802,6 @@ SELECT * FROM itest6;
  3 | 
 (3 rows)
 
-
-
 -- bug 68
 drop table  if exists t2 cascade;
 DROP TABLE
@@ -847,8 +809,6 @@ create table t2(a int);
 CREATE TABLE
 create index on t2(a,a);
 psql:sql/kunlun_remote_dml.sql:227: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1060, Duplicate column name 'a'.
-
-
 -- bug 13
 SELECT SESSION_USER, CURRENT_USER;
  session_user | current_user 
@@ -893,10 +853,8 @@ psql:sql/kunlun_remote_dml.sql:241: NOTICE:  drop cascades to 2 other objects
 DETAIL:  drop cascades to table testschema.foo
 drop cascades to sequence testschema.seq1
 DROP SCHEMA
-
 -- bug 78
 -- create table b1(v box);
-
 -- bug 50 THIS BUG Is postponed
 create user user1;
 psql:sql/kunlun_remote_dml.sql:247: ERROR:  role "user1" already exists
@@ -904,7 +862,6 @@ drop table if exists r1 cascade;
 DROP TABLE
 SET SESSION AUTHORIZATION user1;
 SET
-
 SET row_security = on;
 SET
 CREATE TABLE r1 (a int primary key);
@@ -929,16 +886,13 @@ DELETE FROM r1;
 DELETE 3
 SET SESSION AUTHORIZATION abc;
 SET
-
 -- bug 84
 drop table if exists collate_test10 cascade;
 DROP TABLE
  CREATE TABLE collate_test10 (
-
     a int primary key,
     x varchar(50) COLLATE "C",
     y varchar(50) COLLATE "POSIX"
-
 );
 CREATE TABLE
 INSERT INTO collate_test10 VALUES (1, 'hij', 'hij'), (2, 'HIJ', 'HIJ');
@@ -949,7 +903,6 @@ select x < y from collate_test10;
  f
  f
 (2 rows)
-
 
 drop table if exists collate_test1 cascade;
 DROP TABLE
@@ -970,8 +923,6 @@ SELECT a, b FROM collate_test2 WHERE a < 4 INTERSECT SELECT a, b FROM collate_te
  3 | bbc
 (2 rows)
 
-
-
 -- bug 114
 drop table if exists update_test cascade;
 DROP TABLE
@@ -983,7 +934,6 @@ INSERT INTO update_test(b, a) VALUES (15, 10);
 INSERT 0 1
 UPDATE update_test t SET (a, b) = (SELECT b, a FROM update_test s WHERE s.a = t.a) WHERE CURRENT_USER = SESSION_USER;
 UPDATE 2
-
 -- bug 121
 drop table if exists indext1 cascade;
 DROP TABLE
@@ -993,14 +943,12 @@ ALTER TABLE indext1 ADD CONSTRAINT oindext1_id_constraint UNIQUE (id);
 ALTER TABLE
 ALTER TABLE indext1 DROP CONSTRAINT oindext1_id_constraint;
 ALTER TABLE
-
 CREATE TABLE part1 (a serial primary key, b int, c varchar(32), unique (b,a)) PARTITION BY LIST (a);
 CREATE TABLE
 create index part1_b_c2 on part1(b,c);
 CREATE INDEX
 create table part1_0 partition of part1 for values in (1,2,3,4);
 CREATE TABLE
-
 insert into part1 (b,c) values(11, 'abc'),(12,'bcd'),(13,'cde');
 INSERT 0 3
 select*from part1;
@@ -1066,8 +1014,6 @@ drop index part1_b_c2;
 DROP INDEX
 drop table part1 cascade;
 DROP TABLE
-
-
 -- bug 94
  drop table if exists FLOAT4_TBL cascade;
 DROP TABLE
@@ -1106,6 +1052,4 @@ SELECT f.* FROM FLOAT4_TBL f WHERE f.f1 <> '1004.3';
  1.23457e+20
  1.23457e-20
 (4 rows)
-
-
 

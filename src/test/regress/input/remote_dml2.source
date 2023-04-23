@@ -550,7 +550,7 @@ create table t2(a int);
 --create index on t2(a,a);
 
 -- bug 83
-drop table if exists revalidate_bug cascade cascade;
+drop table if exists revalidate_bug cascade;
 drop function if exists inverse(int);
 create function inverse(int) returns float8 as
 $$
@@ -574,7 +574,6 @@ create schema s1;
 create table s1.t1(id int);
 alter table s1.t1 set schema s1;
 drop schema if exists s1 cascade;
-
 --bug 80
 drop table if exists SUBSELECT_TBL cascade;
 CREATE TABLE SUBSELECT_TBL ( id serial primary key, f1 integer, f2 integer, f3 float );

@@ -130,7 +130,7 @@ insert into t1(b) values(77);
 select*from t1;
 
 --DDL_STATEMENT_BEGIN--
-alter table t1 alter column d ;
+alter table t1 alter column d;
 --DDL_STATEMENT_END--
 --\d+ t1;
 insert into t1(b) values(77);

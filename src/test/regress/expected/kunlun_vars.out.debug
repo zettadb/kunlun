@@ -2,7 +2,6 @@ show local variables like '%lock%';
                   Variable_name                  |        Value         
 -------------------------------------------------+----------------------
  block_encryption_mode                           | aes-128-ecb
- group_replication_gtid_assignment_block_size    | 1000000
  have_backup_locks                               | YES
  innodb_api_disable_rowlock                      | OFF
  innodb_autoinc_lock_mode                        | 2
@@ -57,7 +56,7 @@ show local variables like '%lock%';
  rocksdb_trace_block_cache_access                | 
  skip_external_locking                           | ON
  transaction_alloc_block_size                    | 8192
-(56 rows)
+(55 rows)
 
 -- strict: only show variables that can be modified&cached in computing node
 show variables like '%lock%' strict;
@@ -73,7 +72,6 @@ show global variables like '%lock%';
                   Variable_name                  |        Value         
 -------------------------------------------------+----------------------
  block_encryption_mode                           | aes-128-ecb
- group_replication_gtid_assignment_block_size    | 1000000
  have_backup_locks                               | YES
  innodb_api_disable_rowlock                      | OFF
  innodb_autoinc_lock_mode                        | 2
@@ -128,7 +126,7 @@ show global variables like '%lock%';
  rocksdb_trace_block_cache_access                | 
  skip_external_locking                           | ON
  transaction_alloc_block_size                    | 8192
-(56 rows)
+(55 rows)
 
 show global variables like '%lock%' strict;
       Variable_name       | Value 

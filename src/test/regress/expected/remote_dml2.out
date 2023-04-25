@@ -1342,10 +1342,9 @@ create table t2(a int);
 CREATE TABLE
 --create index on t2(a,a);
 -- bug 83
-drop table if exists revalidate_bug cascade cascade;
-psql:sql/remote_dml2.sql:553: ERROR:  syntax error at or near "cascade"
-LINE 1: drop table if exists revalidate_bug cascade cascade;
-                                                    ^
+drop table if exists revalidate_bug cascade;
+psql:sql/remote_dml2.sql:553: NOTICE:  table "revalidate_bug" does not exist, skipping
+DROP TABLE
 drop function if exists inverse(int);
 psql:sql/remote_dml2.sql:554: NOTICE:  function inverse(pg_catalog.int4) does not exist, skipping
 DROP FUNCTION
@@ -1427,7 +1426,7 @@ SELECT SESSION_USER, CURRENT_USER;
 (1 row)
 
 drop schema if exists testschema cascade;
-psql:sql/remote_dml2.sql:597: NOTICE:  schema "testschema" does not exist, skipping
+psql:sql/remote_dml2.sql:596: NOTICE:  schema "testschema" does not exist, skipping
 DROP SCHEMA
 CREATE SCHEMA if not exists testschema;
 CREATE SCHEMA
@@ -1454,7 +1453,7 @@ create sequence testschema.seq1;
 CREATE SEQUENCE
 --select testschema.seq1.nextval, nextval('testschema.seq1');
 drop schema testschema cascade;
-psql:sql/remote_dml2.sql:606: NOTICE:  drop cascades to 2 other objects
+psql:sql/remote_dml2.sql:605: NOTICE:  drop cascades to 2 other objects
 DETAIL:  drop cascades to table testschema.foo
 drop cascades to sequence testschema.seq1
 DROP SCHEMA
@@ -1627,7 +1626,7 @@ DROP TABLE
 drop table if exists mlparted1 cascade;
 DROP TABLE
 drop table if exists mlparted11 cascade;
-psql:sql/remote_dml2.sql:708: NOTICE:  table "mlparted11" does not exist, skipping
+psql:sql/remote_dml2.sql:707: NOTICE:  table "mlparted11" does not exist, skipping
 DROP TABLE
 create table mlparted (a int, b int) partition by range (a, b);
 CREATE TABLE
@@ -1640,10 +1639,10 @@ ALTER TABLE
 alter table mlparted attach partition mlparted1 for values from (1, 2) to (1, 10);
 ALTER TABLE
 with ins (a, b, c) as (insert into mlparted (b, a) select s.a, 1 from generate_series(2, 39) s(a) returning tableoid::regclass, *) select a, b, min(c), max(c) from ins group by a, b order by 1;
-psql:sql/remote_dml2.sql:714: ERROR:  no partition of relation "mlparted1" found for row
+psql:sql/remote_dml2.sql:713: ERROR:  no partition of relation "mlparted1" found for row
 DETAIL:  Partition key of the failing row contains ((b + 0)) = (5).
 with ins (a, b, c) as (insert into mlparted (b, a) select s.a, 1 from generate_series(2, 39) s(a) returning tableoid::regclass, *) select a, b, min(c), max(c) from ins group by a, b order by 1;
-psql:sql/remote_dml2.sql:715: ERROR:  no partition of relation "mlparted1" found for row
+psql:sql/remote_dml2.sql:714: ERROR:  no partition of relation "mlparted1" found for row
 DETAIL:  Partition key of the failing row contains ((b + 0)) = (5).
 -- bug 41
  drop table if exists INT8_TBL cascade;
@@ -1680,27 +1679,27 @@ SET
 SET row_security = on;
 SET
 drop table if exists r1 cascade;
-psql:sql/remote_dml2.sql:741: ERROR:  must be owner of table r1
+psql:sql/remote_dml2.sql:740: ERROR:  must be owner of table r1
 CREATE TABLE r1 (a int primary key);
-psql:sql/remote_dml2.sql:742: ERROR:  relation "r1" already exists
+psql:sql/remote_dml2.sql:741: ERROR:  relation "r1" already exists
 INSERT INTO r1 VALUES (10), (20);
-psql:sql/remote_dml2.sql:743: ERROR:  permission denied for table r1
+psql:sql/remote_dml2.sql:742: ERROR:  permission denied for table r1
 --CREATE POLICY p1 ON r1 USING (false);
 --ALTER TABLE r1 ENABLE ROW LEVEL SECURITY;
 --ALTER TABLE r1 FORCE ROW LEVEL SECURITY;
 TABLE r1;
-psql:sql/remote_dml2.sql:747: ERROR:  permission denied for table r1
+psql:sql/remote_dml2.sql:746: ERROR:  permission denied for table r1
 INSERT INTO r1 VALUES (1);
-psql:sql/remote_dml2.sql:748: ERROR:  permission denied for table r1
+psql:sql/remote_dml2.sql:747: ERROR:  permission denied for table r1
 UPDATE r1 SET a = 1;
-psql:sql/remote_dml2.sql:749: ERROR:  permission denied for table r1
+psql:sql/remote_dml2.sql:748: ERROR:  permission denied for table r1
 DELETE FROM r1;
-psql:sql/remote_dml2.sql:750: ERROR:  permission denied for table r1
+psql:sql/remote_dml2.sql:749: ERROR:  permission denied for table r1
 SET SESSION AUTHORIZATION abc;
 SET
 -- bug 57
 drop table if exists temptest1 cascade;
-psql:sql/remote_dml2.sql:754: NOTICE:  table "temptest1" does not exist, skipping
+psql:sql/remote_dml2.sql:753: NOTICE:  table "temptest1" does not exist, skipping
 DROP TABLE
 begin;
 BEGIN
@@ -1718,7 +1717,7 @@ select*from temptest1;
 commit;
 COMMIT
 drop table if exists temptest2 cascade;
-psql:sql/remote_dml2.sql:761: NOTICE:  table "temptest2" does not exist, skipping
+psql:sql/remote_dml2.sql:760: NOTICE:  table "temptest2" does not exist, skipping
 DROP TABLE
 begin;
 BEGIN
@@ -1737,7 +1736,7 @@ commit;
 COMMIT
 -- bug 84
 drop table if exists collate_test10 cascade;
-psql:sql/remote_dml2.sql:769: NOTICE:  table "collate_test10" does not exist, skipping
+psql:sql/remote_dml2.sql:768: NOTICE:  table "collate_test10" does not exist, skipping
 DROP TABLE
  CREATE TABLE collate_test10 (
     a int primary key,
@@ -1749,10 +1748,10 @@ INSERT INTO collate_test10 VALUES (1, 'hij', 'hij'), (2, 'HIJ', 'HIJ');
 INSERT 0 2
 --select x < y from collate_test10;
 drop table if exists collate_test1 cascade;
-psql:sql/remote_dml2.sql:780: NOTICE:  table "collate_test1" does not exist, skipping
+psql:sql/remote_dml2.sql:779: NOTICE:  table "collate_test1" does not exist, skipping
 DROP TABLE
 drop table if exists collate_test2 cascade;
-psql:sql/remote_dml2.sql:781: NOTICE:  table "collate_test2" does not exist, skipping
+psql:sql/remote_dml2.sql:780: NOTICE:  table "collate_test2" does not exist, skipping
 DROP TABLE
 CREATE TABLE collate_test1 (id serial primary key, a int, b varchar(50) COLLATE "C" NOT NULL);
 CREATE TABLE
@@ -1773,24 +1772,24 @@ SELECT a, b FROM collate_test2 WHERE a < 4 INTERSECT SELECT a, b FROM collate_te
 CREATE TABLE moneyp (a money) PARTITION BY LIST (a);
 CREATE TABLE
 CREATE TABLE moneyp_10 PARTITION OF moneyp FOR VALUES IN (10);
-psql:sql/remote_dml2.sql:791: ERROR:  specified value cannot be cast to type money for column "a"
+psql:sql/remote_dml2.sql:790: ERROR:  specified value cannot be cast to type money for column "a"
 LINE 1: ...EATE TABLE moneyp_10 PARTITION OF moneyp FOR VALUES IN (10);
                                                                    ^
 DETAIL:  The cast requires a non-immutable conversion.
 HINT:  Try putting the literal value in single quotes.
 drop table if exists list_parted cascade;
-psql:sql/remote_dml2.sql:792: NOTICE:  table "list_parted" does not exist, skipping
+psql:sql/remote_dml2.sql:791: NOTICE:  table "list_parted" does not exist, skipping
 DROP TABLE
 CREATE TABLE list_parted (a int) PARTITION BY LIST (a);
 CREATE TABLE
 CREATE TABLE part_1 PARTITION OF list_parted FOR VALUES IN ('1');
 CREATE TABLE
 CREATE TABLE fail_part PARTITION OF list_parted FOR VALUES IN (int '1');
-psql:sql/remote_dml2.sql:795: ERROR:  syntax error at or near "int"
+psql:sql/remote_dml2.sql:794: ERROR:  syntax error at or near "int"
 LINE 1: ... fail_part PARTITION OF list_parted FOR VALUES IN (int '1');
                                                               ^
 CREATE TABLE fail_part PARTITION OF list_parted FOR VALUES IN ('1'::int);
-psql:sql/remote_dml2.sql:796: ERROR:  syntax error at or near "::"
+psql:sql/remote_dml2.sql:795: ERROR:  syntax error at or near "::"
 LINE 1: ...fail_part PARTITION OF list_parted FOR VALUES IN ('1'::int);
                                                                 ^
 -- bug 72
@@ -1819,7 +1818,7 @@ CREATE UNIQUE INDEX onek_idx ON onek (unique2 nulls first,unique1);
 CREATE INDEX
 -- bug 34
 drop table if exists part_attmp cascade;
-psql:sql/remote_dml2.sql:822: NOTICE:  table "part_attmp" does not exist, skipping
+psql:sql/remote_dml2.sql:821: NOTICE:  table "part_attmp" does not exist, skipping
 DROP TABLE
 CREATE TABLE part_attmp (a int primary key) partition by range (a);
 CREATE TABLE
@@ -1839,7 +1838,7 @@ ALTER INDEX part_attmp1_b_idx RENAME TO part_attmp1_b_index;
 ALTER INDEX
 -- bug 14
 drop table if exists test_default_tab cascade;
-psql:sql/remote_dml2.sql:834: NOTICE:  table "test_default_tab" does not exist, skipping
+psql:sql/remote_dml2.sql:833: NOTICE:  table "test_default_tab" does not exist, skipping
 DROP TABLE
 CREATE TABLE test_default_tab(pk serial primary key, id int);
 CREATE TABLE
@@ -1848,7 +1847,7 @@ CREATE INDEX
 ALTER TABLE test_default_tab ALTER id TYPE bigint;
 ALTER TABLE
 drop table if exists anothertab cascade;
-psql:sql/remote_dml2.sql:839: NOTICE:  table "anothertab" does not exist, skipping
+psql:sql/remote_dml2.sql:838: NOTICE:  table "anothertab" does not exist, skipping
 DROP TABLE
 create table anothertab(f1 int primary key, f2 int unique,f3 int, f4 int, f5 int);
 CREATE TABLE
@@ -1907,7 +1906,7 @@ ALTER TABLE
 --
 -- bug 56
 drop table if exists pc_list_parted  cascade;
-psql:sql/remote_dml2.sql:892: NOTICE:  table "pc_list_parted" does not exist, skipping
+psql:sql/remote_dml2.sql:891: NOTICE:  table "pc_list_parted" does not exist, skipping
 DROP TABLE
 create table pc_list_parted (a int primary key) partition by list(a);
 CREATE TABLE
@@ -1916,11 +1915,11 @@ CREATE TABLE
 create table pc_list_part_1 partition of pc_list_parted for values in (1);
 CREATE TABLE
 insert into pc_list_part_1 values(2);
-psql:sql/remote_dml2.sql:896: ERROR:  new row for relation "pc_list_part_1" violates partition constraint
+psql:sql/remote_dml2.sql:895: ERROR:  new row for relation "pc_list_part_1" violates partition constraint
 DETAIL:  Failing row contains (2).
 -- bug 25
 drop table if exists concur_heap cascade;
-psql:sql/remote_dml2.sql:899: NOTICE:  table "concur_heap" does not exist, skipping
+psql:sql/remote_dml2.sql:898: NOTICE:  table "concur_heap" does not exist, skipping
 DROP TABLE
 CREATE TABLE concur_heap (id serial primary key, f1 int, f2 int);
 CREATE TABLE
@@ -1966,10 +1965,10 @@ select * from tt17v;
 
 -- bug 111
 drop table if exists persons cascade;
-psql:sql/remote_dml2.sql:917: NOTICE:  table "persons" does not exist, skipping
+psql:sql/remote_dml2.sql:916: NOTICE:  table "persons" does not exist, skipping
 DROP TABLE
 drop type if exists person_type cascade;
-psql:sql/remote_dml2.sql:918: NOTICE:  type "person_type" does not exist, skipping
+psql:sql/remote_dml2.sql:917: NOTICE:  type "person_type" does not exist, skipping
 DROP TYPE
 CREATE TYPE person_type AS (id int, name varchar(50));
 CREATE TYPE
@@ -1977,10 +1976,10 @@ CREATE TABLE persons OF person_type;
 CREATE TABLE
 -- bug 112
 drop table if exists base_tbl cascade;
-psql:sql/remote_dml2.sql:923: NOTICE:  drop cascades to view rw_view1
+psql:sql/remote_dml2.sql:922: NOTICE:  drop cascades to view rw_view1
 DROP TABLE
 drop view if existrs rw_view1;
-psql:sql/remote_dml2.sql:924: ERROR:  syntax error at or near "existrs"
+psql:sql/remote_dml2.sql:923: ERROR:  syntax error at or near "existrs"
 LINE 1: drop view if existrs rw_view1;
                      ^
 CREATE TABLE base_tbl (a int, b int DEFAULT 10);
@@ -1991,7 +1990,7 @@ INSERT 0 3
 --INSERT INTO rw_view1 values(3,2),(4,3), (3,4);
 -- bug 114
 drop table if exists update_test cascade;
-psql:sql/remote_dml2.sql:931: NOTICE:  table "update_test" does not exist, skipping
+psql:sql/remote_dml2.sql:930: NOTICE:  table "update_test" does not exist, skipping
 DROP TABLE
 CREATE TABLE update_test (a INT DEFAULT 10, b INT, c TEXT);
 CREATE TABLE
@@ -2002,7 +2001,7 @@ INSERT 0 1
 --UPDATE update_test t SET (a, b) = (SELECT b, a FROM --update_test s WHERE s.a = t.a) WHERE CURRENT_USER = --SESSION_USER;
 -- bug 116
 drop table if exists t1 cascade;
-psql:sql/remote_dml2.sql:938: NOTICE:  table "t1" does not exist, skipping
+psql:sql/remote_dml2.sql:937: NOTICE:  table "t1" does not exist, skipping
 DROP TABLE
 create table t1(pk int not null primary key);
 CREATE TABLE
@@ -2047,7 +2046,7 @@ DELETE 3
 -- bug 127
 -- TODO: verify the stmt is sent to ddl log after each ddl stmt. so far we don't have such test facility.
 DROP SCHEMA if exists testschema cascade;
-psql:sql/remote_dml2.sql:953: NOTICE:  schema "testschema" does not exist, skipping
+psql:sql/remote_dml2.sql:952: NOTICE:  schema "testschema" does not exist, skipping
 DROP SCHEMA
 CREATE SCHEMA testschema;
 CREATE SCHEMA
@@ -2091,7 +2090,7 @@ select*from testschema.part1 ;
 drop index testschema.part1_b_c;
 DROP INDEX
 insert into testschema.part1 (b,c) values(11, 'abc'),(12,'bcd'),(13,'cde');
-psql:sql/remote_dml2.sql:967: ERROR:  no partition of relation "part1" found for row
+psql:sql/remote_dml2.sql:966: ERROR:  no partition of relation "part1" found for row
 DETAIL:  Partition key of the failing row contains (a) = (9).
 select*from testschema.part1 ;
  a | b  |  c  
@@ -2105,11 +2104,11 @@ select*from testschema.part1 ;
 (6 rows)
 
 drop schema testschema cascade;
-psql:sql/remote_dml2.sql:969: NOTICE:  drop cascades to table testschema.part1
+psql:sql/remote_dml2.sql:968: NOTICE:  drop cascades to table testschema.part1
 DROP SCHEMA
 -- bug 121
 drop table if exists indext1 cascade;
-psql:sql/remote_dml2.sql:972: NOTICE:  table "indext1" does not exist, skipping
+psql:sql/remote_dml2.sql:971: NOTICE:  table "indext1" does not exist, skipping
 DROP TABLE
 create table indext1(id integer);
 CREATE TABLE
@@ -2257,7 +2256,7 @@ update t2 set good = false where id = 1;
 UPDATE 1
 -- bug 199
 drop table if exists t4 cascade;
-psql:sql/remote_dml2.sql:1027: NOTICE:  table "t4" does not exist, skipping
+psql:sql/remote_dml2.sql:1026: NOTICE:  table "t4" does not exist, skipping
 DROP TABLE
 create table t4(a money);
 CREATE TABLE
@@ -2279,9 +2278,9 @@ select*from t4;
 (4 rows)
 
 insert into t4 values (-92233720368547758.09); -- bigint out of range
-psql:sql/remote_dml2.sql:1035: ERROR:  bigint out of range
+psql:sql/remote_dml2.sql:1034: ERROR:  bigint out of range
 insert into t4 values (+92233720368547758.08); -- bigint out of range
-psql:sql/remote_dml2.sql:1036: ERROR:  bigint out of range
+psql:sql/remote_dml2.sql:1035: ERROR:  bigint out of range
 insert into t4 values (-1111);
 INSERT 0 1
 select*from t4;
@@ -2296,7 +2295,7 @@ select*from t4;
 
 -- bug 94
  drop table if exists FLOAT4_TBL cascade;
-psql:sql/remote_dml2.sql:1042: NOTICE:  table "float4_tbl" does not exist, skipping
+psql:sql/remote_dml2.sql:1041: NOTICE:  table "float4_tbl" does not exist, skipping
 DROP TABLE
 CREATE TABLE FLOAT4_TBL (f1 float4);
 CREATE TABLE

@@ -1018,7 +1018,6 @@ show variables where Value='1';
  auto_increment_offset                   | 1
  ddc_mode                                | 1
  fullsync_consistency_level              | 1
- group_replication_flow_control_period   | 1
  innodb_encryption_rotate_key_age        | 1
  innodb_fast_shutdown                    | 1
  innodb_flush_log_at_timeout             | 1
@@ -1042,7 +1041,7 @@ show variables where Value='1';
  thread_pool_eager_mode                  | 1
  thread_pool_listen_eager_mode           | 1
  xa_prep_cop_binlog_last                 | 1
-(28 rows)
+(27 rows)
 
 --ticket:998
 drop table t;

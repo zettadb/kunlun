@@ -1,31 +1,19 @@
-drop table if exists t4 cascade;
+drop table if exists t4;
+psql:sql/remote.sql:2: NOTICE:  table "t4" does not exist, skipping
 DROP TABLE
-drop table if exists t5 cascade;
-psql:sql/kunlun_remote.sql:3: NOTICE:  table "t5" does not exist, skipping
+drop table if exists t5;
+psql:sql/remote.sql:3: NOTICE:  table "t5" does not exist, skipping
 DROP TABLE
-drop table if exists t6 cascade;
-psql:sql/kunlun_remote.sql:4: NOTICE:  table "t6" does not exist, skipping
+drop table if exists t6;
+psql:sql/remote.sql:4: NOTICE:  table "t6" does not exist, skipping
 DROP TABLE
-drop table if exists t301;
-DROP TABLE
-drop table if exists t302;
-DROP TABLE
-drop table if exists t303;
-DROP TABLE
-drop table if exists t304;
-DROP TABLE
-drop table if exists t3 cascade;
-DROP TABLE
-create table t4(a int primary key, b int unique) with oids;
-psql:sql/kunlun_remote.sql:11: ERROR:  Remote tables can't have the OID system attribute.
+--create table t4(a int primary key, b int unique) --with oids;
 create table t4(a int primary key, b int unique, c varchar(32) not null);
 CREATE TABLE
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:13: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 create index t4_cb on t4(c desc, b);
 CREATE INDEX
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:15: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 \d+ t4;
                                             Table "public.t4"
  Column |         Type          | Collation | Nullable | Default | Storage  | Stats target | Description 
@@ -48,8 +36,9 @@ Options: shard=1
 btree, for table "public.t4"
 
 -- foreign keys are forbidden
-create table t5(a int references t4(a));
-psql:sql/kunlun_remote.sql:20: WARNING:  Foreign key not supported in Kunlun, it's ignored here.
+--WARNING:  Foreign key not supported in Kunlun, it's ignored here.
+--create table t5(a int references t4(a));
+create table t5(a int);
 CREATE TABLE
 -- temp table exits on computing node.
 create temporary table t6(a int);
@@ -65,16 +54,14 @@ select*from t6;
 (3 rows)
 
 drop table if exists t7;
-psql:sql/kunlun_remote.sql:27: NOTICE:  table "t7" does not exist, skipping
+psql:sql/remote.sql:23: NOTICE:  table "t7" does not exist, skipping
 DROP TABLE
 create table t7(a int, b varchar(16), c int not null, d varchar(16) not null, primary key(c,d),unique(a,c),unique(b,d));
 CREATE TABLE
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:29: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 create index t7_abc on t7(b desc, a asc, c desc);
 CREATE INDEX
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:31: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 \d+ t7;
                                             Table "public.t7"
  Column |         Type          | Collation | Nullable | Default | Storage  | Stats target | Description 
@@ -105,27 +92,23 @@ btree, for table "public.t7"
 
 -- forbidden create index clauses start
 create index t7_b on t7(b collate en_US);
-psql:sql/kunlun_remote.sql:36: ERROR:  can't override default collate for remote relation's index
+psql:sql/remote.sql:32: ERROR:  can't override default collate for remote relation's index
 create index t7_b on t7(b collate zh_CN);
-psql:sql/kunlun_remote.sql:37: ERROR:  can't override default collate for remote relation's index
-create index t7_b on t7(b ) include (c);
-psql:sql/kunlun_remote.sql:39: ERROR:  can't specifiy INCLUDE collumns for remote relations
+psql:sql/remote.sql:33: ERROR:  can't override default collate for remote relation's index
+--create index t7_b on t7(b ) include (c);
 create index t7_b on t7(b zh_pinyin_cmp);
-psql:sql/kunlun_remote.sql:40: ERROR:  operator class "zh_pinyin_cmp" does not exist for access method "btree"
+psql:sql/remote.sql:36: ERROR:  operator class "zh_pinyin_cmp" does not exist for access method "btree"
 create index t7_b on t7(b zh_stroke_cmp);
-psql:sql/kunlun_remote.sql:41: ERROR:  operator class "zh_stroke_cmp" does not exist for access method "btree"
-create index t7_a on t7((a+c));
-CREATE INDEX
-create index t7_a on t7 (a) where a between 100 and 200;
-psql:sql/kunlun_remote.sql:43: ERROR:  partial index isn't supported for remote relations
+psql:sql/remote.sql:37: ERROR:  operator class "zh_stroke_cmp" does not exist for access method "btree"
+--create index t7_a on t7((a+c));
+--create index t7_a on t7 (a) where a between 100 and 200;
 create index t7_b on t7(b nulls first);
 CREATE INDEX
 drop index t7_b;
 DROP INDEX
 create index t7_b on t7(b nulls last);
 CREATE INDEX
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:48: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 \d+ t7_b;
                              Index "public.t7_b"
  Column |         Type          | Key? | Definition | Storage  | Stats target 
@@ -134,13 +117,12 @@ psql:sql/kunlun_remote.sql:48: ERROR:  unrecognized configuration parameter "las
 btree, for table "public.t7"
 
 -- forbidden create index clauses end
-drop table if exists t3 cascade;
-psql:sql/kunlun_remote.sql:54: NOTICE:  table "t3" does not exist, skipping
+drop table if exists t3;
+psql:sql/remote.sql:50: NOTICE:  table "t3" does not exist, skipping
 DROP TABLE
 create table t3(a int) partition by list(a);
 CREATE TABLE
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:56: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 \d+ t3;
                               Partitioned table "public.t3"
  Column |  Type   | Collation | Nullable | Default | Storage | Stats target | Description 
@@ -151,8 +133,7 @@ Number of partitions: 0
 
 create table t301 partition of t3 for values in (1,3,5);
 CREATE TABLE
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:60: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 \d+ t301;
                                    Table "public.t301"
  Column |  Type   | Collation | Nullable | Default | Storage | Stats target | Description 
@@ -164,8 +145,7 @@ Options: shard=1
 
 create table t302 partition of t3 for values in (2,4,6);
 CREATE TABLE
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:63: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 \d+ t302;
                                    Table "public.t302"
  Column |  Type   | Collation | Nullable | Default | Storage | Stats target | Description 
@@ -175,7 +155,7 @@ Partition of: t3 FOR VALUES IN (2, 4, 6)
 Partition constraint: ((a IS NOT NULL) AND (a = ANY (ARRAY[2, 4, 6])))
 Options: shard=1
 
-drop table if exists t3 cascade;
+drop table if exists t3;
 DROP TABLE
 create table t3(a int, b date, c timestamp, d time, e varchar(64), primary key(b,d)) partition by range(b);
 CREATE TABLE
@@ -183,8 +163,7 @@ create unique index on t3(c, b);
 CREATE INDEX
 create index on t3(c);
 CREATE INDEX
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:70: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 \d+ t3;
                                          Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
@@ -203,8 +182,7 @@ Number of partitions: 0
 
 create table t301 partition of t3 for values from ('2000-01-01') to ('2009-12-31');
 CREATE TABLE
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:74: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 \d+ t301;
                                               Table "public.t301"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
@@ -240,8 +218,7 @@ Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31')
 
 create table t303 partition of t3 for values from ('2020-01-01') to ('2029-12-31');
 CREATE TABLE
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:79: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 \d+ t303;
                                               Table "public.t303"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
@@ -257,6 +234,8 @@ Indexes:
     "t303_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
     "t303_c_b_idx" UNIQUE, btree (c NULLS FIRST, b NULLS FIRST)
     "t303_c_idx" btree (c NULLS FIRST)
+Statistics objects:
+    "public"."t303_pkey_pfx_2" () ON b, d FROM t303
 Options: shard=1
 
 \d+ t3;
@@ -279,12 +258,10 @@ Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
 -- create a new index t3_b_a_idx , existing leaf partitions should be given t3_b_a_idx and t3_a_idx.
 create unique index t3_b_a_idx on t3(b, a);
 CREATE INDEX
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:85: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 create index t3_a_idx on t3(a);
 CREATE INDEX
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:87: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 \d+ t301;
                                               Table "public.t301"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
@@ -354,8 +331,7 @@ Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
 -- 'create index t3_a_idx' stmt, because in pg non-unique index can't be created in 'create table' stmt.
 create table t302 partition of t3 for values from ('2010-01-01') to ('2019-12-31');
 CREATE TABLE
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:95: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 \d+ t3;
                                          Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
@@ -443,8 +419,7 @@ Options: shard=1
 
 create table t304 partition of t3 for values from ('2030-01-01') to ('2049-12-31');
 CREATE TABLE
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:102: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 \d+ t3;
                                          Partitioned table "public.t3"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
@@ -557,8 +532,7 @@ Options: shard=1
 -- create a new idx for t302 only.
 create unique index t302_b_e_idx on t302(b,e);
 CREATE INDEX
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:111: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 \d+ t302;
                                               Table "public.t302"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
@@ -607,8 +581,7 @@ Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
 -- create a new idx for t304 only.
 create index t304_b_e_idx on t304(b,e);
 CREATE INDEX
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:117: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 \d+ t304;
                                               Table "public.t304"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
@@ -658,8 +631,7 @@ Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
 -- this idx. only the last 'create index' can be printed here.
 create index t3_e_idx on t3(e);
 CREATE INDEX
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:124: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 \d+ t301;
                                               Table "public.t301"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
@@ -785,11 +757,11 @@ Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
 insert into t3 values(2, '2025-01-16 11:25:09', '2015-01-16 11:25:09', '2015-01-16 11:25:09', 'abc'),(3, '2015-01-16 11:25:09', '2020-01-16 11:25:09', '2015-01-16 11:25:09', 'def'), (4, '2000-01-16 11:25:09', '2020-01-16 11:25:10', '2015-01-16 11:25:09', 'xyz'),(5, '2035-01-16 11:25:09', '2020-01-16 11:25:11', '2015-01-16 11:25:09', 'spider');
 INSERT 0 4
 drop table if exists t1;
+psql:sql/remote.sql:129: NOTICE:  table "t1" does not exist, skipping
 DROP TABLE
 create table t1(a int, b int) partition by hash(a,b);
 CREATE TABLE
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:135: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 \d+ t1;
                               Partitioned table "public.t1"
  Column |  Type   | Collation | Nullable | Default | Storage | Stats target | Description 
@@ -801,27 +773,22 @@ Number of partitions: 0
 
 create table t100 partition of t1 for values with (modulus 4, remainder 0);
 CREATE TABLE
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:138: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 create table t101 partition of t1 for values with (modulus 4, remainder 1);
 CREATE TABLE
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:140: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 create table t102 partition of t1 for values with (modulus 4, remainder 2);
 CREATE TABLE
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:142: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 create table t103 partition of t1 for values with (modulus 4, remainder 3);
 CREATE TABLE
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:144: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 drop table if exists t2;
-psql:sql/kunlun_remote.sql:147: NOTICE:  table "t2" does not exist, skipping
+psql:sql/remote.sql:143: NOTICE:  table "t2" does not exist, skipping
 DROP TABLE
 create table t2(a int, b int, c varchar(32), d char(16), primary key(a,b), unique(b,c)) partition by hash(b);
 CREATE TABLE
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:149: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 \d+ t2;
                                       Partitioned table "public.t2"
  Column |         Type          | Collation | Nullable | Default | Storage  | Stats target | Description 
@@ -838,20 +805,16 @@ Number of partitions: 0
 
 create table t200 partition of t2 for values with (modulus 4, remainder 0);
 CREATE TABLE
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:152: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 create table t201 partition of t2 for values with (modulus 4, remainder 1);
 CREATE TABLE
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:154: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 create table t202 partition of t2 for values with (modulus 4, remainder 2);
 CREATE TABLE
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:156: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 create table t203 partition of t2 for values with (modulus 4, remainder 3);
 CREATE TABLE
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:158: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 set log_min_messages=debug5;
 SET
 create index t2_c_d on t2(d desc, c);
@@ -860,8 +823,7 @@ CREATE INDEX
 -- it's OK, this is only for debugging. all remote sql will be sent to remote
 -- targets properly. debug5 is turned on so you can check the log file for all
 -- four statements generated by above 'create index' stmt.
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:168: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 \d+ t2_c_d;
                       Partitioned index "public.t2_c_d"
  Column |         Type          | Key? | Definition | Storage  | Stats target 
@@ -914,12 +876,10 @@ drop table if exists t1;
 DROP TABLE
 create table t1(a varchar(30), b int, c date, d time, e timestamp, f char(20), primary key(a,b),unique(e,b)) partition by hash(b);
 CREATE TABLE
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:178: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 create index t1_f on t1(f);
 CREATE INDEX
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:180: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 \d+ t1;
                                          Partitioned table "public.t1"
  Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
@@ -939,42 +899,33 @@ Number of partitions: 0
 
 create table t100 partition of t1 for values with (modulus 4, remainder 0);
 CREATE TABLE
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:183: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 create table t101 partition of t1 for values with (modulus 4, remainder 1);
 CREATE TABLE
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:186: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 create unique index t1_d_b on t1(d,b desc);
 CREATE INDEX
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:189: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 create index t1_d on t1(d desc);
 CREATE INDEX
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:191: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 create table t102 partition of t1 for values with (modulus 4, remainder 2);
 CREATE TABLE
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:194: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 create index t102_a_b on t102(a desc, b);
 CREATE INDEX
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:196: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 create table t103 partition of t1 for values with (modulus 4, remainder 3);
 CREATE TABLE
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:199: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 create unique index t103_a_b on t102(c, b desc, e desc);
 CREATE INDEX
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:201: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 drop table if exists t2;
 DROP TABLE
 create table t2(a int, b timestamptz, c timestamp, d money, e numeric(7,4), f real, g double precision, primary key(a,b), unique(a,b,c)) partition by list(a);
 CREATE TABLE
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:206: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 \d+ t2;
                                         Partitioned table "public.t2"
  Column |            Type             | Collation | Nullable | Default | Storage | Stats target | Description 
@@ -994,8 +945,7 @@ Number of partitions: 0
 
 create table t200 partition of t2 for values in (1,2,3,4);
 CREATE TABLE
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:209: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 \d+ t200;
                                              Table "public.t200"
  Column |            Type             | Collation | Nullable | Default | Storage | Stats target | Description 
@@ -1012,14 +962,11 @@ Partition constraint: ((a IS NOT NULL) AND (a = ANY (ARRAY[1, 2, 3, 4])))
 Indexes:
     "t200_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST)
     "t200_a_b_c_key" UNIQUE CONSTRAINT, btree (a NULLS FIRST, b NULLS FIRST, c NULLS FIRST)
-Statistics objects:
-    "public"."t200_pkey_pfx_2" () ON a, b FROM t200
 Options: shard=1
 
 create index t2_d_g on t2(d,g desc);
 CREATE INDEX
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:212: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 \d+ t2;
                                         Partitioned table "public.t2"
  Column |            Type             | Collation | Nullable | Default | Storage | Stats target | Description 
@@ -1063,8 +1010,6 @@ Options: shard=1
 
 create table t201 partition of t2 for values in (5,6,7);
 CREATE TABLE
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:217: ERROR:  unrecognized configuration parameter "last_remote_sql"
 \d+ t201;
                                              Table "public.t201"
  Column |            Type             | Collation | Nullable | Default | Storage | Stats target | Description 
@@ -1086,8 +1031,7 @@ Options: shard=1
 
 create unique index t2_c_d on t2(a,c,d desc);
 CREATE INDEX
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:220: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 \d+ t2;
                                         Partitioned table "public.t2"
  Column |            Type             | Collation | Nullable | Default | Storage | Stats target | Description 
@@ -1160,8 +1104,7 @@ Options: shard=1
 
 create unique index t201_c_a on t201(c,a desc);
 CREATE INDEX
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:226: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 \d+ t201;
                                              Table "public.t201"
  Column |            Type             | Collation | Nullable | Default | Storage | Stats target | Description 
@@ -1191,20 +1134,17 @@ Statistics objects:
 Options: shard=1
 
 create table t202 partition of t2 for values in (8,9,10)
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:230: ERROR:  syntax error at or near "show"
-LINE 2: show last_remote_sql;
-        ^
+--show last_remote_sql;
 \d+ t202;
-psql:sql/kunlun_remote.sql:231: error: Did not find any relation named "t202".
+psql:sql/remote.sql:226: error: Did not find any relation named "t202".
 create index on t2(b,e);
-CREATE INDEX
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:233: ERROR:  unrecognized configuration parameter "last_remote_sql"
+psql:sql/remote.sql:227: ERROR:  syntax error at or near "create"
+LINE 3: create index on t2(b,e);
+        ^
+--show last_remote_sql;
 create index on t2(g desc,f);
 CREATE INDEX
-show last_remote_sql;
-psql:sql/kunlun_remote.sql:235: ERROR:  unrecognized configuration parameter "last_remote_sql"
+--show last_remote_sql;
 \d+ t2;
                                         Partitioned table "public.t2"
  Column |            Type             | Collation | Nullable | Default | Storage | Stats target | Description 
@@ -1221,7 +1161,6 @@ Indexes:
     "t2_pkey" PRIMARY KEY, btree (a, b)
     "t2_a_b_c_key" UNIQUE CONSTRAINT, btree (a, b, c)
     "t2_c_d" UNIQUE, btree (a, c, d DESC)
-    "t2_b_e_idx" btree (b, e)
     "t2_d_g" btree (d, g DESC)
     "t2_g_f_idx" btree (g DESC, f)
 Partitions: t200 FOR VALUES IN (1, 2, 3, 4),
@@ -1245,7 +1184,6 @@ Indexes:
     "t201_a_b_c_key" UNIQUE CONSTRAINT, btree (a NULLS FIRST, b NULLS FIRST, c NULLS FIRST)
     "t201_a_c_d_idx" UNIQUE, btree (a NULLS FIRST, c NULLS FIRST, d DESC NULLS LAST)
     "t201_c_a" UNIQUE, btree (c NULLS FIRST, a DESC NULLS LAST)
-    "t201_b_e_idx" btree (b NULLS FIRST, e NULLS FIRST)
     "t201_d_g_idx" btree (d NULLS FIRST, g DESC NULLS LAST)
     "t201_g_f_idx" btree (g DESC NULLS LAST, f NULLS FIRST)
 Statistics objects:
@@ -1256,18 +1194,13 @@ Statistics objects:
     "public"."t201_a_c_d_idx_pfx_2" () ON a, c FROM t201
     "public"."t201_a_c_d_idx_pfx_3" () ON a, c, d FROM t201
     "public"."t201_c_a_pfx_2" () ON a, c FROM t201
-    "public"."t201_b_e_idx_pfx_2" () ON b, e FROM t201
 Options: shard=1
 
 \d+ t202;
-psql:sql/kunlun_remote.sql:238: error: Did not find any relation named "t202".
-drop table if exists t10 cascade;
-psql:sql/kunlun_remote.sql:240: NOTICE:  drop cascades to default value for column a of table t13
-DROP TABLE
-create table t10 (a decimal(66));
-psql:sql/kunlun_remote.sql:241: ERROR:  Kunlun-db: Remote storage node requires NUMERIC precision <= 65
+psql:sql/remote.sql:233: error: Did not find any relation named "t202".
+--create table t10 (a decimal(66));
 create table t10 (a decimal(10,31));
-psql:sql/kunlun_remote.sql:242: ERROR:  NUMERIC scale 31 must be between 0 and precision 10
+psql:sql/remote.sql:236: ERROR:  NUMERIC scale 31 must be between 0 and precision 10
 LINE 1: create table t10 (a decimal(10,31));
                             ^
 create table t10(a decimal, b decimal(12), c decimal(20, 10), d real, e float(10), f float(30), g bit(11), h money, i timestamptz, j timestamp(6), k time(6), l date,primary key(a), unique(b,d), unique(g,j), unique(c,k));

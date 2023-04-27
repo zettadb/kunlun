@@ -216,14 +216,6 @@ SELECT onek.unique1, onek.string4 FROM onek
 SELECT p.name, p.age FROM person* p;
   name   | age 
 ---------+-----
- jeff    |  23
- cim     |  30
- linda   |  19
- fred    |  28
- larry   |  60
- sharon  |  25
- sam     |  30
- bill    |  20
  mike    |  40
  joe     |  20
  sally   |  34
@@ -274,6 +266,14 @@ SELECT p.name, p.age FROM person* p;
  trisha  |  88
  uma     |  78
  velma   |  68
+ sharon  |  25
+ sam     |  30
+ bill    |  20
+ fred    |  28
+ larry   |  60
+ jeff    |  23
+ cim     |  30
+ linda   |  19
 (58 rows)
 
 --
@@ -374,8 +374,8 @@ select * from onek, (values(147, 'RFAAAA'), (931, 'VJAAAA')) as v (i, j)
     WHERE onek.unique1 = v.i and onek.stringu1 = v.j;
  unique1 | unique2 | two | four | ten | twenty | hundred | thousand | twothousand | fivethous | tenthous | odd | even | stringu1 | stringu2 | string4 |  i  |   j    
 ---------+---------+-----+------+-----+--------+---------+----------+-------------+-----------+----------+-----+------+----------+----------+---------+-----+--------
-     147 |       0 |   1 |    3 |   7 |      7 |       7 |       47 |         147 |       147 |      147 |  14 |   15 | RFAAAA   | AAAAAA   | AAAAxx  | 147 | RFAAAA
-     931 |       1 |   1 |    3 |   1 |     11 |       1 |       31 |         131 |       431 |      931 |   2 |    3 | VJAAAA   | BAAAAA   | HHHHxx  | 931 | VJAAAA
+       0 |     147 |   0 |    1 |   3 |      7 |       7 |        7 |          47 |       147 |      147 | 147 |   14 | 15       | RFAAAA   | AAAAAA  | 147 | RFAAAA
+       1 |     931 |   1 |    1 |   3 |      1 |      11 |        1 |          31 |       131 |      431 | 931 |    2 | 3        | VJAAAA   | BAAAAA  | 931 | VJAAAA
 (2 rows)
 
 -- a more complex case

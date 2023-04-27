@@ -306,17 +306,17 @@ INSERT 0 1
 select tableoid::regclass, * from range_parted;
  tableoid | a | b  
 ----------+---+----
+ part1    | a |  1
+ part1    | a |  1
+ part2    | a | 10
+ part3    | b |  1
+ part4    | b | 10
+ part4    | b | 10
  part_def | c | 10
  part_def |   |   
  part_def | a |   
  part_def |   | 19
  part_def | b | 20
- part4    | b | 10
- part4    | b | 10
- part3    | b |  1
- part2    | a | 10
- part1    | a |  1
- part1    | a |  1
 (11 rows)
 
 -- ok
@@ -455,18 +455,18 @@ from hash_parted order by part;
   part  | a  | remainder = a % 4 
 --------+----+-------------------
  hpart0 |  4 |                 0
- hpart0 | 16 |                 0
- hpart0 | 12 |                 0
  hpart0 |  8 |                 0
+ hpart0 | 12 |                 0
+ hpart0 | 16 |                 0
  hpart1 |  1 |                 1
  hpart1 |  5 |                 1
  hpart1 |  9 |                 1
- hpart2 |  6 |                 2
  hpart2 |  2 |                 2
+ hpart2 |  6 |                 2
  hpart2 | 10 |                 2
- hpart3 | 11 |                 3
- hpart3 |  7 |                 3
  hpart3 |  3 |                 3
+ hpart3 |  7 |                 3
+ hpart3 | 11 |                 3
 (13 rows)
 
 -- test \d+ output on a table which has both partitioned and unpartitioned
@@ -704,10 +704,10 @@ INSERT 0 1
 select tableoid::regclass, * from mlparted_def;
    tableoid    | a  |  b  | c 
 ---------------+----+-----+---
- mlparted_defd | 70 | 100 | 
- mlparted_def2 | 54 |  50 | 
  mlparted_def1 | 40 | 100 | 
  mlparted_def1 | 42 | 100 | 
+ mlparted_def2 | 54 |  50 | 
+ mlparted_defd | 70 | 100 | 
 (4 rows)
 
 -- Check multi-level tuple routing with attributes dropped from the

@@ -73,6 +73,8 @@ select name, setting from pg_settings where name like 'enable%';
                    name                    | setting 
 -------------------------------------------+---------
  enable_bitmapscan                         | on
+ enable_block_nestloop                     | on
+ enable_catalog_security_policy            | off
  enable_coredump                           | on
  enable_debug_remote_path                  | off
  enable_flatten_correlated_sublink         | on
@@ -108,7 +110,7 @@ select name, setting from pg_settings where name like 'enable%';
  enable_stacktrace                         | on
  enable_stmt_subxact                       | off
  enable_tidscan                            | on
-(36 rows)
+(38 rows)
 
 -- Test that the pg_timezone_names and pg_timezone_abbrevs views are
 -- more-or-less working.  We can't test their contents in any great detail

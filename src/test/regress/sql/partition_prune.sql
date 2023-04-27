@@ -351,6 +351,7 @@ drop table hp;
 --
 drop table if exists ab;
 create table ab (a int not null, b int not null) partition by list (a);
+alter table ab add primary key(a,b);
 create table ab_a2 partition of ab for values in(2) partition by list (b);
 create table ab_a2_b1 partition of ab_a2 for values in (1);
 create table ab_a2_b2 partition of ab_a2 for values in (2);
@@ -978,6 +979,7 @@ drop table q;
 -- on the first level but find no matching partitions on the second level.
 drop table if exists listp;
 create table listp (a int, b int) partition by list (a);
+alter table listp add primary key(a,b);
 create table listp1 partition of listp for values in(1);
 create table listp2 partition of listp for values in(2) partition by list(b);
 create table listp2_10 partition of listp2 for values in (10);

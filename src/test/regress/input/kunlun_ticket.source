@@ -58,7 +58,7 @@ drop table base_tbl cascade;
 drop table if exists t;
 drop table if exists t1;
 create table t(a int) with(engine=innodb);
-create table t1(a int) with(engine=myrocks);
+create table t1(a int) with(engine=rocksdb);
 drop table t;
 drop table t1;
 

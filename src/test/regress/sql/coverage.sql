@@ -508,6 +508,7 @@ create materialized view v1 as select * from t1; -- ok
 set remote_rel.enable_mirror_ddl = 1;
 
 -- mirror表的路由fence
+drop table if exists dblink;
 create extension if not exists dblink;
 select dblink_connect('conn1', concat('hostaddr=127.0.0.1 port=', inet_server_port()));
 select dblink('conn1', 'begin');

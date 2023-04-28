@@ -145,8 +145,6 @@ CREATE INDEX
 Partition of: idxpart FOR VALUES FROM (0, 0) TO (10, 10)
 Indexes:
     "idxpart1_a_b_idx" btree (a NULLS FIRST, b NULLS FIRST)
-Statistics objects:
-    "public"."idxpart1_a_b_idx_pfx_2" () ON a, b FROM idxpart1
 
 select relname, relkind, inhparent::regclass
     from pg_class left join pg_index ix on (indexrelid = oid)
@@ -417,8 +415,6 @@ Partition of: idxpart FOR VALUES FROM (0) TO (10)
 Indexes:
     "idxpart1_a_idx" btree (a NULLS FIRST)
     "idxpart1_b_c_idx" btree (b NULLS FIRST, c NULLS FIRST)
-Statistics objects:
-    "public"."idxpart1_b_c_idx_pfx_2" () ON b, c FROM idxpart1
 
 select relname, relkind, inhparent::regclass
     from pg_class left join pg_index ix on (indexrelid = oid)

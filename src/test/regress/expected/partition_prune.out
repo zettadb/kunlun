@@ -580,6 +580,8 @@ psql:sql/partition_prune.sql:352: NOTICE:  table "ab" does not exist, skipping
 DROP TABLE
 create table ab (a int not null, b int not null) partition by list (a);
 CREATE TABLE
+alter table ab add primary key(a,b);
+ALTER TABLE
 create table ab_a2 partition of ab for values in(2) partition by list (b);
 CREATE TABLE
 create table ab_a2_b1 partition of ab_a2 for values in (1);
@@ -745,7 +747,7 @@ explain (analyze, costs off, summary off, timing off) execute ab_q3 (2, 2);
 
 -- Test a backwards Append scan
 drop table if exists list_part;
-psql:sql/partition_prune.sql:428: NOTICE:  table "list_part" does not exist, skipping
+psql:sql/partition_prune.sql:429: NOTICE:  table "list_part" does not exist, skipping
 DROP TABLE
 create table list_part (a int) partition by list (a);
 CREATE TABLE
@@ -913,7 +915,7 @@ select explain_parallel_append('select count(*) from ab where (a = (select 1) or
 
 -- Test pruning during parallel nested loop query
 drop table if exists rparted_by_int2;
-psql:sql/partition_prune.sql:534: NOTICE:  table "rparted_by_int2" does not exist, skipping
+psql:sql/partition_prune.sql:535: NOTICE:  table "rparted_by_int2" does not exist, skipping
 DROP TABLE
 create table lprt_a (a int not null);
 CREATE TABLE
@@ -1015,7 +1017,7 @@ drop table lprt_a;
 DROP TABLE
 -- Join
 drop table if exists tbl1;
-psql:sql/partition_prune.sql:607: NOTICE:  table "tbl1" does not exist, skipping
+psql:sql/partition_prune.sql:608: NOTICE:  table "tbl1" does not exist, skipping
 DROP TABLE
 create table tbl1(col1 int);
 CREATE TABLE
@@ -1023,7 +1025,7 @@ insert into tbl1 values (501), (505);
 INSERT 0 2
 -- Basic table
 drop table if exists tprt;
-psql:sql/partition_prune.sql:612: NOTICE:  table "tprt" does not exist, skipping
+psql:sql/partition_prune.sql:613: NOTICE:  table "tprt" does not exist, skipping
 DROP TABLE
 create table tprt (col1 int) partition by range (col1);
 CREATE TABLE
@@ -1171,16 +1173,16 @@ drop table tprt;
 DROP TABLE
 -- Test with columns defined in varying orders between each level
 drop table if exists part_abc;
-psql:sql/partition_prune.sql:686: NOTICE:  table "part_abc" does not exist, skipping
+psql:sql/partition_prune.sql:687: NOTICE:  table "part_abc" does not exist, skipping
 DROP TABLE
 drop table if exists part_bac;
-psql:sql/partition_prune.sql:687: NOTICE:  table "part_bac" does not exist, skipping
+psql:sql/partition_prune.sql:688: NOTICE:  table "part_bac" does not exist, skipping
 DROP TABLE
 drop table if exists part_cab;
-psql:sql/partition_prune.sql:688: NOTICE:  table "part_cab" does not exist, skipping
+psql:sql/partition_prune.sql:689: NOTICE:  table "part_cab" does not exist, skipping
 DROP TABLE
 drop table if exists part_abc_p1;
-psql:sql/partition_prune.sql:689: NOTICE:  table "part_abc_p1" does not exist, skipping
+psql:sql/partition_prune.sql:690: NOTICE:  table "part_abc_p1" does not exist, skipping
 DROP TABLE
 create table part_abc (a int not null, b int not null, c int not null) partition by list (a);
 CREATE TABLE
@@ -1236,7 +1238,7 @@ DROP TABLE
 -- Ensure that an Append node properly handles a sub-partitioned table
 -- matching without any of its leaf partitions matching the clause.
 drop table if exists listp;
-psql:sql/partition_prune.sql:718: NOTICE:  table "listp" does not exist, skipping
+psql:sql/partition_prune.sql:719: NOTICE:  table "listp" does not exist, skipping
 DROP TABLE
 create table listp (a int, b int) partition by list (a);
 CREATE TABLE
@@ -1338,7 +1340,7 @@ DROP TABLE
 -- check that stable query clauses are only used in run-time pruning
 --
 drop table if exists stable_qual_pruning;
-psql:sql/partition_prune.sql:771: NOTICE:  table "stable_qual_pruning" does not exist, skipping
+psql:sql/partition_prune.sql:772: NOTICE:  table "stable_qual_pruning" does not exist, skipping
 DROP TABLE
 create table stable_qual_pruning (a timestamp) partition by range (a);
 CREATE TABLE
@@ -1389,7 +1391,7 @@ DROP TABLE
 -- non-inclusive operator for an earlier key
 --
 drop table if exists mc3p;
-psql:sql/partition_prune.sql:812: NOTICE:  table "mc3p" does not exist, skipping
+psql:sql/partition_prune.sql:813: NOTICE:  table "mc3p" does not exist, skipping
 DROP TABLE
 create table mc3p (a int, b int, c int) partition by range (a, abs(b), c);
 CREATE TABLE
@@ -1435,14 +1437,14 @@ drop table mc3p;
 DROP TABLE
 -- Ensure runtime pruning works with initplans params with boolean types
 drop table if exists boolvalues;
-psql:sql/partition_prune.sql:847: NOTICE:  table "boolvalues" does not exist, skipping
+psql:sql/partition_prune.sql:848: NOTICE:  table "boolvalues" does not exist, skipping
 DROP TABLE
 create table boolvalues (value bool not null);
 CREATE TABLE
 insert into boolvalues values('t'),('f');
 INSERT 0 2
 drop table if exists boolp;
-psql:sql/partition_prune.sql:851: NOTICE:  table "boolp" does not exist, skipping
+psql:sql/partition_prune.sql:852: NOTICE:  table "boolp" does not exist, skipping
 DROP TABLE
 create table boolp (a bool) partition by list (a);
 CREATE TABLE
@@ -1466,7 +1468,7 @@ RESET
 --
 -- enum type list partition key
 drop table if exists pp_colors;
-psql:sql/partition_prune.sql:872: NOTICE:  table "pp_colors" does not exist, skipping
+psql:sql/partition_prune.sql:873: NOTICE:  table "pp_colors" does not exist, skipping
 DROP TABLE
 create type pp_colors as enum ('green', 'blue', 'black');
 CREATE TYPE
@@ -1488,7 +1490,7 @@ DROP TYPE
 -- Ensure the enable_partition_prune GUC properly disables partition pruning.
 --
 drop table if exists pp_lp;
-psql:sql/partition_prune.sql:885: NOTICE:  table "pp_lp" does not exist, skipping
+psql:sql/partition_prune.sql:886: NOTICE:  table "pp_lp" does not exist, skipping
 DROP TABLE
 create table pp_lp (a int, value int) partition by list (a);
 CREATE TABLE
@@ -1524,17 +1526,17 @@ drop table pp_lp;
 DROP TABLE
 -- Ensure enable_partition_prune does not affect non-partitioned tables.
 drop table if exists inh_lp;
-psql:sql/partition_prune.sql:911: NOTICE:  table "inh_lp" does not exist, skipping
+psql:sql/partition_prune.sql:912: NOTICE:  table "inh_lp" does not exist, skipping
 DROP TABLE
 create table inh_lp (a int, value int);
 CREATE TABLE
 create table inh_lp1 (a int, value int, check(a = 1)) inherits (inh_lp);
-psql:sql/partition_prune.sql:913: NOTICE:  merging column "a" with inherited definition
-psql:sql/partition_prune.sql:913: NOTICE:  merging column "value" with inherited definition
-CREATE TABLE
-create table inh_lp2 (a int, value int, check(a = 2)) inherits (inh_lp);
 psql:sql/partition_prune.sql:914: NOTICE:  merging column "a" with inherited definition
 psql:sql/partition_prune.sql:914: NOTICE:  merging column "value" with inherited definition
+CREATE TABLE
+create table inh_lp2 (a int, value int, check(a = 2)) inherits (inh_lp);
+psql:sql/partition_prune.sql:915: NOTICE:  merging column "a" with inherited definition
+psql:sql/partition_prune.sql:915: NOTICE:  merging column "value" with inherited definition
 CREATE TABLE
 set constraint_exclusion = 'partition';
 SET
@@ -1542,15 +1544,15 @@ SET
 explain (costs off) select * from inh_lp where a = 1;
 
 explain (costs off) update inh_lp set value = 10 where a = 1;
-psql:sql/partition_prune.sql:919: ERROR:  no relation entry for relid 1
-explain (costs off) delete from inh_lp where a = 1;
 psql:sql/partition_prune.sql:920: ERROR:  no relation entry for relid 1
+explain (costs off) delete from inh_lp where a = 1;
+psql:sql/partition_prune.sql:921: ERROR:  no relation entry for relid 1
 --Ensure we don't exclude normal relations when we only expect to exclude inheritance children
 explain (costs off) update inh_lp1 set value = 10 where a = 2;
 
 \set VERBOSITY terse	\\ -- suppress cascade details
 drop table inh_lp cascade;
-psql:sql/partition_prune.sql:925: NOTICE:  drop cascades to 2 other objects
+psql:sql/partition_prune.sql:926: NOTICE:  drop cascades to 2 other objects
 DROP TABLE
 \set VERBOSITY default
 reset enable_partition_pruning;
@@ -1625,10 +1627,12 @@ DROP TABLE
 -- Ensure run-time pruning works correctly when we match a partitioned table
 -- on the first level but find no matching partitions on the second level.
 drop table if exists listp;
-psql:sql/partition_prune.sql:979: NOTICE:  table "listp" does not exist, skipping
+psql:sql/partition_prune.sql:980: NOTICE:  table "listp" does not exist, skipping
 DROP TABLE
 create table listp (a int, b int) partition by list (a);
 CREATE TABLE
+alter table listp add primary key(a,b);
+ALTER TABLE
 create table listp1 partition of listp for values in(1);
 CREATE TABLE
 create table listp2 partition of listp for values in(2) partition by list(b);

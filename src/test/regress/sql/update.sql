@@ -120,14 +120,15 @@ CREATE TABLE range_parted (
 	b bigint,
 	c numeric,
 	d int,
-	e varchar
+	e varchar,
+	primary key(a,b,c)
 ) PARTITION BY RANGE (a, b);
 
 -- Create partitions intentionally in descending bound order, so as to test
 -- that update-row-movement works with the leaf partitions not in bound order.
-CREATE TABLE part_b_20_b_30 (e varchar, c numeric, a text, b bigint, d int);
+CREATE TABLE part_b_20_b_30 (e varchar, c numeric NOT NULL, a text NOT NULL, b bigint NOT NULL, d int);
 ALTER TABLE range_parted ATTACH PARTITION part_b_20_b_30 FOR VALUES FROM ('b', 20) TO ('b', 30);
-CREATE TABLE part_b_10_b_20 (e varchar, c numeric, a text, b bigint, d int) PARTITION BY RANGE (c);
+CREATE TABLE part_b_10_b_20 (e varchar, c numeric NOT NULL, a text NOT NULL,  b bigint NOT NULL, d int) PARTITION BY RANGE (c);
 CREATE TABLE part_b_1_b_10 PARTITION OF range_parted FOR VALUES FROM ('b', 1) TO ('b', 10);
 ALTER TABLE range_parted ATTACH PARTITION part_b_10_b_20 FOR VALUES FROM ('b', 10) TO ('b', 20);
 CREATE TABLE part_a_10_a_20 PARTITION OF range_parted FOR VALUES FROM ('a', 10) TO ('a', 20);

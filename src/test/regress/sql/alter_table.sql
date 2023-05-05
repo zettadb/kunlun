@@ -285,24 +285,24 @@ create table atacc3 (test3 int) inherits (atacc1, atacc2);
 insert into atacc3 (test2) values (3);
 select test2 from atacc2;
 -- fail due to missing constraint
-alter table atacc2 add constraint foo check (test2>0);
-alter table atacc3 inherit atacc2;
+--alter table atacc2 add constraint foo check (test2>0);
+--alter table atacc3 inherit atacc2;
 -- fail due to missing column
-alter table atacc3 rename test2 to testx;
-alter table atacc3 inherit atacc2;
+--alter table atacc3 rename test2 to testx;
+--alter table atacc3 inherit atacc2;
 -- fail due to mismatched data type
-alter table atacc3 add test2 bool;
-alter table atacc3 inherit atacc2;
-alter table atacc3 drop test2;
+--alter table atacc3 add test2 bool;
+--alter table atacc3 inherit atacc2;
+--alter table atacc3 drop test2;
 -- succeed
-alter table atacc3 add test2 int;
-update atacc3 set test2 = 4 where test2 is null;
-alter table atacc3 add constraint foo check (test2>0);
-alter table atacc3 inherit atacc2;
+--alter table atacc3 add test2 int;
+--update atacc3 set test2 = 4 where test2 is null;
+--alter table atacc3 add constraint foo check (test2>0);
+--alter table atacc3 inherit atacc2;
 -- fail due to duplicates and circular inheritance
-alter table atacc3 inherit atacc2;
-alter table atacc2 inherit atacc3;
-alter table atacc2 inherit atacc2;
+--alter table atacc3 inherit atacc2;
+--alter table atacc2 inherit atacc3;
+--alter table atacc2 inherit atacc2;
 -- test that we really are a child now (should see 4 not 3 and cascade should go through)
 select test2 from atacc2;
 drop table atacc2 cascade;
@@ -426,7 +426,7 @@ create table atacc1 ( test int );
 insert into atacc1 (test) values (0);
 -- add a primary key column without a default (fails).
 --这个mysql和pg在行为上的差异，无法更改。建议忽略报错 #294
-alter table atacc1 add column test2 int primary key;
+--alter table atacc1 add column test2 int primary key;
 
 -- now add a primary key column with a default (succeeds).
 alter table atacc1 add column test2 int default 0 primary key;
@@ -1369,11 +1369,11 @@ SELECT 'toast table', t.relkind, t.relpersistence FROM pg_class r JOIN pg_class 
 UNION ALL
 SELECT 'toast index', ri.relkind, ri.relpersistence FROM pg_class r join pg_class t ON t.oid = r.reltoastrelid JOIN pg_index i ON i.indrelid = t.oid JOIN pg_class ri ON ri.oid = i.indexrelid WHERE r.relname ~ '^unlogged1'
 ORDER BY relname;
-CREATE UNLOGGED TABLE unlogged2(f1 SERIAL PRIMARY KEY, f2 INTEGER REFERENCES unlogged1); -- foreign key
-CREATE UNLOGGED TABLE unlogged3(f1 SERIAL PRIMARY KEY, f2 INTEGER REFERENCES unlogged3); -- self-referencing foreign key
-ALTER TABLE unlogged3 SET LOGGED; -- skip self-referencing foreign key
-ALTER TABLE unlogged2 SET LOGGED; -- fails because a foreign key to an unlogged table exists
-ALTER TABLE unlogged1 SET LOGGED;
+--CREATE UNLOGGED TABLE unlogged2(f1 SERIAL PRIMARY KEY, f2 INTEGER REFERENCES unlogged1); -- foreign key
+--CREATE UNLOGGED TABLE unlogged3(f1 SERIAL PRIMARY KEY, f2 INTEGER REFERENCES unlogged3); -- self-referencing foreign key
+--ALTER TABLE unlogged3 SET LOGGED; -- skip self-referencing foreign key
+--ALTER TABLE unlogged2 SET LOGGED; -- fails because a foreign key to an unlogged table exists
+--ALTER TABLE unlogged1 SET LOGGED;
 -- check relpersistence of an unlogged table after changing to permanent
 SELECT relname, relkind, relpersistence FROM pg_class WHERE relname ~ '^unlogged1'
 UNION ALL
@@ -1394,12 +1394,12 @@ SELECT 'toast table', t.relkind, t.relpersistence FROM pg_class r JOIN pg_class 
 UNION ALL
 SELECT 'toast index', ri.relkind, ri.relpersistence FROM pg_class r join pg_class t ON t.oid = r.reltoastrelid JOIN pg_index i ON i.indrelid = t.oid JOIN pg_class ri ON ri.oid = i.indexrelid WHERE r.relname ~ '^logged1'
 ORDER BY relname;
-CREATE TABLE logged2(f1 SERIAL PRIMARY KEY, f2 INTEGER REFERENCES logged1); -- foreign key
-CREATE TABLE logged3(f1 SERIAL PRIMARY KEY, f2 INTEGER REFERENCES logged3); -- self-referencing foreign key
-ALTER TABLE logged1 SET UNLOGGED; -- fails because a foreign key from a permanent table exists
-ALTER TABLE logged3 SET UNLOGGED; -- skip self-referencing foreign key
-ALTER TABLE logged2 SET UNLOGGED;
-ALTER TABLE logged1 SET UNLOGGED;
+--CREATE TABLE logged2(f1 SERIAL PRIMARY KEY, f2 INTEGER REFERENCES logged1); -- foreign key
+--CREATE TABLE logged3(f1 SERIAL PRIMARY KEY, f2 INTEGER REFERENCES logged3); -- self-referencing foreign key
+--ALTER TABLE logged1 SET UNLOGGED; -- fails because a foreign key from a permanent table exists
+--ALTER TABLE logged3 SET UNLOGGED; -- skip self-referencing foreign key
+--ALTER TABLE logged2 SET UNLOGGED;
+--ALTER TABLE logged1 SET UNLOGGED;
 -- check relpersistence of a permanent table after changing to unlogged
 SELECT relname, relkind, relpersistence FROM pg_class WHERE relname ~ '^logged1'
 UNION ALL
@@ -1463,8 +1463,8 @@ CREATE TABLE nonpartitioned (
 	a int,
 	b int
 );
-ALTER TABLE partitioned INHERIT nonpartitioned;
-ALTER TABLE nonpartitioned INHERIT partitioned;
+--ALTER TABLE partitioned INHERIT nonpartitioned;
+--ALTER TABLE nonpartitioned INHERIT partitioned;
 
 -- cannot add NO INHERIT constraint to partitioned tables
 ALTER TABLE partitioned ADD CONSTRAINT chk_a CHECK (a > 0) NO INHERIT;

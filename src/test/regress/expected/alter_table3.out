@@ -354,10 +354,10 @@ select*from t1;
  22 | 77 | 123456789 | ddd
 (23 rows)
 
-alter table t1 alter column d ;
+alter table t1 alter column d;
 psql:sql/alter_table3.sql:76: ERROR:  syntax error at or near ";"
-LINE 1: alter table t1 alter column d ;
-                                      ^
+LINE 1: alter table t1 alter column d;
+                                     ^
 --\d+ t1;
 insert into t1(b) values(77);
 INSERT 0 1

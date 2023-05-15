@@ -1012,8 +1012,6 @@ Partition constraint: ((a IS NOT NULL) AND (a = ANY (ARRAY[1, 2, 3, 4])))
 Indexes:
     "t200_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST)
     "t200_a_b_c_key" UNIQUE CONSTRAINT, btree (a NULLS FIRST, b NULLS FIRST, c NULLS FIRST)
-Statistics objects:
-    "public"."t200_pkey_pfx_2" () ON a, b FROM t200
 Options: shard=1
 
 create index t2_d_g on t2(d,g desc);

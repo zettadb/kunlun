@@ -356,7 +356,8 @@ BEGIN
 create sequence pg_temp.twophase_seq;
 CREATE SEQUENCE
 prepare transaction 'twophase_sequence';
-psql:sql/temp.sql:220: ERROR:  cannot PREPARE a transaction that has operated on temporary tables
+psql:sql/temp.sql:220: WARNING:  there is no transaction in progress
+ROLLBACK
 -- Temporary tables cannot be used with two-phase commit.
 create temp table twophase_tab (a int);
 CREATE TABLE

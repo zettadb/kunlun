@@ -1,4 +1,4 @@
---DDL_STATEMENT_BEGIN--
+v--DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE x (
 	a serial,
 	b int,
@@ -195,7 +195,7 @@ COPY testnull FROM stdin WITH NULL AS E'\\0';
 
 SELECT * FROM testnull;
 
---BEGIN;
+BEGIN;
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE vistest (LIKE testeoc);
 --DDL_STATEMENT_END--
@@ -206,83 +206,83 @@ COPY vistest FROM stdin CSV;
 a0
 b
 \.
---COMMIT;
+COMMIT;
 SELECT * FROM vistest;
---BEGIN;
---TRUNCATE vistest;
+BEGIN;
+TRUNCATE vistest;
 COPY vistest FROM stdin CSV;
 a1
 b
 \.
 SELECT * FROM vistest;
 SAVEPOINT s1;
---TRUNCATE vistest;
+TRUNCATE vistest;
 COPY vistest FROM stdin CSV;
 d1
 e
 \.
 SELECT * FROM vistest;
---COMMIT;
+COMMIT;
 SELECT * FROM vistest;
 
---BEGIN;
---TRUNCATE vistest;
+BEGIN;
+TRUNCATE vistest;
 COPY vistest FROM stdin CSV FREEZE;
 a2
 b
 \.
 SELECT * FROM vistest;
 SAVEPOINT s1;
---TRUNCATE vistest;
+TRUNCATE vistest;
 COPY vistest FROM stdin CSV FREEZE;
 d2
 e
 \.
 SELECT * FROM vistest;
---COMMIT;
+COMMIT;
 SELECT * FROM vistest;
 
---BEGIN;
---TRUNCATE vistest;
+BEGIN;
+TRUNCATE vistest;
 COPY vistest FROM stdin CSV FREEZE;
 x
 y
 \.
 SELECT * FROM vistest;
---COMMIT;
---TRUNCATE vistest;
+COMMIT;
+TRUNCATE vistest;
 COPY vistest FROM stdin CSV FREEZE;
 p
 g
 \.
---BEGIN;
---TRUNCATE vistest;
+BEGIN;
+TRUNCATE vistest;
 SAVEPOINT s1;
 COPY vistest FROM stdin CSV FREEZE;
 m
 k
 \.
---COMMIT;
---BEGIN;
+COMMIT;
+BEGIN;
 INSERT INTO vistest VALUES ('z');
 SAVEPOINT s1;
---TRUNCATE vistest;
+TRUNCATE vistest;
 ROLLBACK TO SAVEPOINT s1;
 COPY vistest FROM stdin CSV FREEZE;
 d3
 e
 \.
---COMMIT;
+COMMIT;
 CREATE FUNCTION truncate_in_subxact() RETURNS VOID AS
 $$
---BEGIN
+BEGIN
 	TRUNCATE vistest;
 EXCEPTION
   WHEN OTHERS THEN
 	INSERT INTO vistest VALUES ('subxact failure');
 END;
 $$ language plpgsql;
---BEGIN;
+BEGIN;
 INSERT INTO vistest VALUES ('z');
 SELECT truncate_in_subxact();
 COPY vistest FROM stdin CSV FREEZE;
@@ -290,7 +290,7 @@ d4
 e
 \.
 SELECT * FROM vistest;
---COMMIT;
+COMMIT;
 SELECT * FROM vistest;
 -- Test FORCE_NOT_NULL and FORCE_NULL options
 --DDL_STATEMENT_BEGIN--

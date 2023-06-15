@@ -846,10 +846,12 @@ drop table p2 cascade;
 -- test that operations with a dropped column do not try to reference
 -- its datatype
 
+create domain mytype as text;	 
 create temp table foo (f1 text, f2 text, f3 text);
 insert into foo values('bb','cc','dd');
 select * from foo;
 
+drop domain mytype cascade;
 select * from foo;
 insert into foo values('qq','rr');
 select * from foo;
@@ -989,6 +991,26 @@ select conname, obj_description(oid, 'pg_constraint') as desc
 -- Don't remove this DROP, it exposes bug #15672
 drop table at_partitioned;
 
+-- disallow recursive containment of row types
+create temp table recur1 (f1 int);
+alter table recur1 add column f2 recur1; -- fails
+alter table recur1 add column f2 recur1[]; -- fails
+create domain array_of_recur1 as recur1[];
+alter table recur1 add column f2 array_of_recur1; -- fails
+create temp table recur2 (f1 int, f2 recur1);
+alter table recur1 add column f2 recur2; -- fails
+alter table recur1 add column f2 int;
+alter table recur1 alter column f2 type recur2; -- fails
+
+-- SET STORAGE may need to add a TOAST table
+create table test_storage (a text);
+alter table test_storage alter a set storage plain;
+alter table test_storage add b int default 0; -- rewrite table to remove its TOAST table
+alter table test_storage alter a set storage extended; -- re-add TOAST table
+
+select reltoastrelid <> 0 as has_toast_table
+from pg_class
+where oid = 'test_storage'::regclass;
 -- ALTER COLUMN TYPE with a check constraint and a child table (bug #13779)
 CREATE TABLE test_inh_check (a float check (a > 10.2), b float);
 CREATE TABLE test_inh_check_child() INHERITS(test_inh_check);
@@ -1100,7 +1122,7 @@ create view alter1.v1 as select * from alter1.t1;
 
 create function alter1.plus1(int) returns int as 'select $1+1' language sql;
 
--- create domain alter1.posint integer check (value > 0);
+create domain alter1.posint integer check (value > 0);
 create type alter1.ctype as (f1 int, f2 text);
 
 create function alter1.same(alter1.ctype, alter1.ctype) returns boolean language sql
@@ -1124,7 +1146,7 @@ alter table alter1.t1 set schema alter1; -- no-op, same schema
 alter table alter1.t1 set schema alter2;
 alter table alter1.v1 set schema alter2;
 alter function alter1.plus1(int) set schema alter2;
--- alter domain alter1.posint set schema alter2;
+alter domain alter1.posint set schema alter2;
 alter operator class alter1.ctype_hash_ops using hash set schema alter2;
 alter operator family alter1.ctype_hash_ops using hash set schema alter2;
 alter operator alter1.=(alter1.ctype, alter1.ctype) set schema alter2;

@@ -131,6 +131,26 @@ select '[2010-01-01 01:00:00 -08, 2010-01-01 02:00:00 -05)'::tstzrange;
 set timezone to default;
 
 --
+--
+-- Test range types over domains
+--
+
+create domain mydomain as int4;
+create type mydomainrange as range(subtype=mydomain);
+select '[4,50)'::mydomainrange @> 7::mydomain;
+drop domain mydomain;  -- fail
+drop domain mydomain cascade;
+
+--
+-- Test domains over range types
+--
+
+create domain restrictedrange as int4range check (upper(value) < 10);
+select '[4,5)'::restrictedrange @> 7;
+select '[4,50)'::restrictedrange @> 7; -- should fail
+drop domain restrictedrange;
+
+--
 -- Test multiple range types over the same subtype
 --
 

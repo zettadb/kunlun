@@ -1365,6 +1365,7 @@ SELECT * FROM current_check;
 --
 SET row_security TO ON;
 SET SESSION AUTHORIZATION regress_rls_alice;
+ANALYZE current_check;
 -- Stats visible
 SELECT row_security_active('current_check');
 SELECT attname, most_common_vals FROM pg_stats

@@ -500,6 +500,111 @@ ROLLBACK;
 -- switch to superuser
 \c -
 
+CREATE TYPE priv_testtype1 AS (a int, b text);
+REVOKE USAGE ON TYPE priv_testtype1 FROM PUBLIC;
+GRANT USAGE ON TYPE priv_testtype1 TO regress_priv_user2;
+GRANT USAGE ON TYPE _priv_testtype1 TO regress_priv_user2; -- fail
+GRANT USAGE ON DOMAIN priv_testtype1 TO regress_priv_user2; -- fail
+
+CREATE DOMAIN priv_testdomain1 AS int;
+REVOKE USAGE on DOMAIN priv_testdomain1 FROM PUBLIC;
+GRANT USAGE ON DOMAIN priv_testdomain1 TO regress_priv_user2;
+GRANT USAGE ON TYPE priv_testdomain1 TO regress_priv_user2; -- ok
+
+SET SESSION AUTHORIZATION regress_priv_user1;
+
+-- commands that should fail
+
+CREATE AGGREGATE priv_testagg1a(priv_testdomain1) (sfunc = int4_sum, stype = bigint);
+
+CREATE DOMAIN priv_testdomain2a AS priv_testdomain1;
+
+CREATE DOMAIN priv_testdomain3a AS int;
+CREATE FUNCTION castfunc(int) RETURNS priv_testdomain3a AS $$ SELECT $1::priv_testdomain3a $$ LANGUAGE SQL;
+CREATE CAST (priv_testdomain1 AS priv_testdomain3a) WITH FUNCTION castfunc(int);
+DROP FUNCTION castfunc(int) CASCADE;
+DROP DOMAIN priv_testdomain3a;
+
+CREATE FUNCTION priv_testfunc5a(a priv_testdomain1) RETURNS int LANGUAGE SQL AS $$ SELECT $1 $$;
+CREATE FUNCTION priv_testfunc6a(b int) RETURNS priv_testdomain1 LANGUAGE SQL AS $$ SELECT $1::priv_testdomain1 $$;
+
+CREATE OPERATOR !+! (PROCEDURE = int4pl, LEFTARG = priv_testdomain1, RIGHTARG = priv_testdomain1);
+
+CREATE TABLE test5a (a int, b priv_testdomain1);
+CREATE TABLE test6a OF priv_testtype1;
+CREATE TABLE test10a (a int[], b priv_testtype1[]);
+
+CREATE TABLE test9a (a int, b int);
+ALTER TABLE test9a ADD COLUMN c priv_testdomain1;
+ALTER TABLE test9a ALTER COLUMN b TYPE priv_testdomain1;
+
+CREATE TYPE test7a AS (a int, b priv_testdomain1);
+
+CREATE TYPE test8a AS (a int, b int);
+ALTER TYPE test8a ADD ATTRIBUTE c priv_testdomain1;
+ALTER TYPE test8a ALTER ATTRIBUTE b TYPE priv_testdomain1;
+
+CREATE TABLE test11a AS (SELECT 1::priv_testdomain1 AS a);
+
+REVOKE ALL ON TYPE priv_testtype1 FROM PUBLIC;
+
+SET SESSION AUTHORIZATION regress_priv_user2;
+
+-- commands that should succeed
+
+CREATE AGGREGATE priv_testagg1b(priv_testdomain1) (sfunc = int4_sum, stype = bigint);
+
+CREATE DOMAIN priv_testdomain2b AS priv_testdomain1;
+
+CREATE DOMAIN priv_testdomain3b AS int;
+CREATE FUNCTION castfunc(int) RETURNS priv_testdomain3b AS $$ SELECT $1::priv_testdomain3b $$ LANGUAGE SQL;
+CREATE CAST (priv_testdomain1 AS priv_testdomain3b) WITH FUNCTION castfunc(int);
+
+CREATE FUNCTION priv_testfunc5b(a priv_testdomain1) RETURNS int LANGUAGE SQL AS $$ SELECT $1 $$;
+CREATE FUNCTION priv_testfunc6b(b int) RETURNS priv_testdomain1 LANGUAGE SQL AS $$ SELECT $1::priv_testdomain1 $$;
+
+CREATE OPERATOR !! (PROCEDURE = priv_testfunc5b, RIGHTARG = priv_testdomain1);
+
+CREATE TABLE test5b (a int, b priv_testdomain1);
+CREATE TABLE test6b OF priv_testtype1;
+CREATE TABLE test10b (a int[], b priv_testtype1[]);
+
+CREATE TABLE test9b (a int, b int);
+ALTER TABLE test9b ADD COLUMN c priv_testdomain1;
+ALTER TABLE test9b ALTER COLUMN b TYPE priv_testdomain1;
+
+CREATE TYPE test7b AS (a int, b priv_testdomain1);
+
+CREATE TYPE test8b AS (a int, b int);
+ALTER TYPE test8b ADD ATTRIBUTE c priv_testdomain1;
+ALTER TYPE test8b ALTER ATTRIBUTE b TYPE priv_testdomain1;
+
+CREATE TABLE test11b AS (SELECT 1::priv_testdomain1 AS a);
+
+REVOKE ALL ON TYPE priv_testtype1 FROM PUBLIC;
+
+\c -
+DROP AGGREGATE priv_testagg1b(priv_testdomain1);
+DROP DOMAIN priv_testdomain2b;
+DROP OPERATOR !! (NONE, priv_testdomain1);
+DROP FUNCTION priv_testfunc5b(a priv_testdomain1);
+DROP FUNCTION priv_testfunc6b(b int);
+DROP TABLE test5b;
+DROP TABLE test6b;
+DROP TABLE test9b;
+DROP TABLE test10b;
+DROP TYPE test7b;
+DROP TYPE test8b;
+DROP CAST (priv_testdomain1 AS priv_testdomain3b);
+DROP FUNCTION castfunc(int) CASCADE;
+DROP DOMAIN priv_testdomain3b;
+DROP TABLE test11b;
+
+DROP TYPE priv_testtype1; -- ok
+DROP DOMAIN priv_testdomain1; -- ok
+
+
+-- truncate
 SET SESSION AUTHORIZATION regress_priv_user5;
 TRUNCATE atest2; -- ok
 TRUNCATE atest3; -- fail
@@ -830,6 +935,42 @@ ALTER DEFAULT PRIVILEGES FOR ROLE regress_priv_user1 REVOKE EXECUTE ON FUNCTIONS
 
 ALTER DEFAULT PRIVILEGES IN SCHEMA testns GRANT USAGE ON SCHEMAS TO regress_priv_user2; -- error
 
+--
+-- Testing blanket default grants is very hazardous since it might change
+-- the privileges attached to objects created by concurrent regression tests.
+-- To avoid that, be sure to revoke the privileges again before committing.
+--
+BEGIN;
+
+ALTER DEFAULT PRIVILEGES GRANT USAGE ON SCHEMAS TO regress_priv_user2;
+
+CREATE SCHEMA testns2;
+
+SELECT has_schema_privilege('regress_priv_user2', 'testns2', 'USAGE'); -- yes
+SELECT has_schema_privilege('regress_priv_user2', 'testns2', 'CREATE'); -- no
+
+ALTER DEFAULT PRIVILEGES REVOKE USAGE ON SCHEMAS FROM regress_priv_user2;
+
+CREATE SCHEMA testns3;
+
+SELECT has_schema_privilege('regress_priv_user2', 'testns3', 'USAGE'); -- no
+SELECT has_schema_privilege('regress_priv_user2', 'testns3', 'CREATE'); -- no
+
+ALTER DEFAULT PRIVILEGES GRANT ALL ON SCHEMAS TO regress_priv_user2;
+
+CREATE SCHEMA testns4;
+
+SELECT has_schema_privilege('regress_priv_user2', 'testns4', 'USAGE'); -- yes
+SELECT has_schema_privilege('regress_priv_user2', 'testns4', 'CREATE'); -- yes
+
+ALTER DEFAULT PRIVILEGES REVOKE ALL ON SCHEMAS FROM regress_priv_user2;
+
+COMMIT;
+
+CREATE SCHEMA testns5;
+
+SELECT has_schema_privilege('regress_priv_user2', 'testns5', 'USAGE'); -- no
+SELECT has_schema_privilege('regress_priv_user2', 'testns5', 'CREATE'); -- no
 SET ROLE regress_priv_user1;
 
 CREATE FUNCTION testns.foo() RETURNS int AS 'select 1' LANGUAGE sql;
@@ -859,6 +1000,18 @@ DROP PROCEDURE testns.bar();
 
 ALTER DEFAULT PRIVILEGES FOR ROLE regress_priv_user1 REVOKE USAGE ON TYPES FROM public;
 
+CREATE DOMAIN testns.priv_testdomain1 AS int;
+
+SELECT has_type_privilege('regress_priv_user2', 'testns.priv_testdomain1', 'USAGE'); -- no
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA testns GRANT USAGE ON TYPES to public;
+
+DROP DOMAIN testns.priv_testdomain1;
+CREATE DOMAIN testns.priv_testdomain1 AS int;
+
+SELECT has_type_privilege('regress_priv_user2', 'testns.priv_testdomain1', 'USAGE'); -- yes
+
+DROP DOMAIN testns.priv_testdomain1;
 RESET ROLE;
 
 SELECT count(*)
@@ -867,6 +1020,10 @@ SELECT count(*)
   
 DROP TABLE testns.acltest1;
 DROP SCHEMA testns CASCADE;
+DROP SCHEMA testns2 CASCADE;
+DROP SCHEMA testns3 CASCADE;
+DROP SCHEMA testns4 CASCADE;
+DROP SCHEMA testns5 CASCADE;
 
 SELECT d.*     -- check that entries went away
   FROM pg_default_acl d LEFT JOIN pg_namespace n ON defaclnamespace = n.oid

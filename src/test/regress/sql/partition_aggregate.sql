@@ -214,6 +214,7 @@ CREATE TABLE pagg_tab_ml_p3_s1 PARTITION OF pagg_tab_ml_p3 FOR VALUES FROM (0) T
 CREATE TABLE pagg_tab_ml_p3_s2 PARTITION OF pagg_tab_ml_p3 FOR VALUES FROM (5) TO (10);
 
 INSERT INTO pagg_tab_ml SELECT i % 30, i % 10, to_char(i % 4, 'FM0000') FROM generate_series(0, 29999) i;
+ANALYZE pagg_tab_ml;
 
 -- For Parallel Append
 SET max_parallel_workers_per_gather TO 2;

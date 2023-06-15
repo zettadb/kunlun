@@ -38,8 +38,8 @@ copy v_test1 to stdout;
 copy (select t from test1 where id=1) to stdout;
 --
 -- Test COPY (select for update) TO
---ERROR:  Kunlun-db: Can't access system attribute(ctid) from remote tables.
---copy (select t from test1 where id=3 for update) to stdout;
+--
+copy (select t from test1 where id=3 for update) to stdout;
 --
 -- This should fail
 --

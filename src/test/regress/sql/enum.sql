@@ -238,13 +238,13 @@ RESET enable_seqscan;
 RESET enable_bitmapscan;
 
 --
--- Domains over enums, not supported in Kunlun
+-- Domains over enums
 --
--- CREATE DOMAIN rgb AS rainbow CHECK (VALUE IN ('red', 'green', 'blue'));
--- SELECT 'red'::rgb;
--- SELECT 'purple'::rgb;
--- SELECT 'purple'::rainbow::rgb;
--- DROP DOMAIN rgb;
+CREATE DOMAIN rgb AS rainbow CHECK (VALUE IN ('red', 'green', 'blue'));
+SELECT 'red'::rgb;
+SELECT 'purple'::rgb;
+SELECT 'purple'::rainbow::rgb;
+DROP DOMAIN rgb;
 
 --
 -- Arrays

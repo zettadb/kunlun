@@ -389,10 +389,14 @@ select * from json_array_elements_text('[1,true,[1,[2,3]],null,{"f1":1,"f2":[7,8
 create type jpop as (a text, b int, c timestamp);
 --DDL_STATEMENT_END--
 
+CREATE DOMAIN js_int_not_null  AS int     NOT NULL;
+CREATE DOMAIN js_int_array_1d  AS int[]   CHECK(array_length(VALUE, 1) = 3);
+CREATE DOMAIN js_int_array_2d  AS int[][] CHECK(array_length(VALUE, 2) = 3);
+
 --DDL_STATEMENT_BEGIN--
 create type j_unordered_pair as (x int, y int);
 --DDL_STATEMENT_END--
-
+create domain j_ordered_pair as j_unordered_pair check((value).x <= (value).y);
 --DDL_STATEMENT_BEGIN--
 CREATE TYPE jsrec AS (
 	i	int,
@@ -596,6 +600,10 @@ DROP TYPE jsrec;
 DROP TYPE jsrec_i_not_null;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
+DROP DOMAIN js_int_not_null;
+DROP DOMAIN js_int_array_1d;
+DROP DOMAIN js_int_array_2d;
+DROP DOMAIN j_ordered_pair;
 DROP TYPE j_unordered_pair;
 --DDL_STATEMENT_END--
 

@@ -72,7 +72,7 @@ test: create_function_3
 test: create_cast
 test: constraints
 test: triggers_1
-#test: triggers
+test: triggers
 #test: inherit
 test: create_table_like
 #test: typed_table
@@ -81,7 +81,7 @@ test: drop_if_exists
 test: updatable_views
 test: rolenames
 test: roleattributes
-#test: create_am
+test: create_am
 test: hash_func
 # test: sanity_check
 test: errors
@@ -115,7 +115,7 @@ test: privileges
 test: init_privs
 test: security_label
 test: collate
-# test: matview
+test: matview
 test: lock
 test: replica_identity
 test: rowsecurity
@@ -154,11 +154,11 @@ test: combocid
 test: tsdicts
 test: foreign_data
 test: window
-# test: xmlmap
+test: xmlmap
 test: functional_deps
 test: advisory_lock
 test: json
-# test: jsonb, not full supported yet, especially for some operators, so skip it currently.
+test: jsonb
 test: json_encoding
 test: indirect_toast
 test: equivclass
@@ -167,12 +167,12 @@ test: limit
 test: copy2
 test: plpgsql
 test: temp
-# test: domain - domain is supported currently, so skip it.
+test: domain
 test: rangefuncs
 test: prepare
 # test: without_oid - kunlun by default is without oid, skip it temporarily.
 test: conversion
-# test: truncate - we do not support trigger, truncate, foreign.
+test: truncate
 test: alter_table
 test: sequence
 test: polymorphism

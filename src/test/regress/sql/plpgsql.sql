@@ -2931,8 +2931,8 @@ select forc01();
 
 -- try updating the cursor's current row
 
---create temp table forc_test as
---  select n as i, n as j from generate_series(1,10) n;
+create temp table forc_test (i int, j int);
+insert into forc_test select  n as i, n as j  from generate_series(1,10) n;
 
 create or replace function forc01() returns void as $$
 declare
@@ -2945,9 +2945,9 @@ begin
 end;
 $$ language plpgsql;
 
---select forc01();
+select forc01();
 
---select * from forc_test;
+select * from forc_test;
 
 -- same, with a cursor whose portal name doesn't match variable name
 create or replace function forc01() returns void as $$
@@ -2965,9 +2965,9 @@ begin
 end;
 $$ language plpgsql;
 
---select forc01();
+select forc01();
 
---select * from forc_test;
+select * from forc_test;
 
 drop function forc01();
 
@@ -3988,29 +3988,29 @@ end$$;
 
 select arrayassign1();
 select arrayassign1(); -- try again to exercise internal caching
--- create domain orderedarray as int[2]
-  -- constraint sorted check (value[1] < value[2]);
 
--- select '{1,2}'::orderedarray;
--- select '{2,1}'::orderedarray;  -- fail
+create domain orderedarray as int[2]
+  constraint sorted check (value[1] < value[2]);
 
--- create function testoa(x1 int, x2 int, x3 int) returns orderedarray
--- language plpgsql as $$
--- declare res orderedarray;
--- begin
-  -- res := array[x1, x2];
-  -- res[2] := x3;
-  -- return res;
--- end$$;
+select '{1,2}'::orderedarray;
+select '{2,1}'::orderedarray;  -- fail
 
--- select testoa(1,2,3);
--- select testoa(1,2,3); -- try again to exercise internal caching
--- select testoa(2,1,3); -- fail at initial assign
--- select testoa(1,2,1); -- fail at update
+create function testoa(x1 int, x2 int, x3 int) returns orderedarray
+language plpgsql as $$
+declare res orderedarray;
+begin
+  res := array[x1, x2];
+  res[2] := x3;
+  return res;
+end$$;
+
+select testoa(1,2,3);
+select testoa(1,2,3); -- try again to exercise internal caching
+select testoa(2,1,3); -- fail at initial assign
+select testoa(1,2,1); -- fail at update
 
 drop function arrayassign1();
---drop function testoa(x1 int, x2 int, x3 int);
-
+drop function testoa(x1 int, x2 int, x3 int);
 
 --
 -- Test handling of expanded arrays
@@ -4212,7 +4212,50 @@ exception when others then
 end;
 $$;
 
+-- Test use of plpgsql in a domain check constraint (cf. bug #14414)
 
+create function plpgsql_domain_check(val int) returns boolean as $$
+begin return val > 0; end
+$$ language plpgsql immutable;
+
+create domain plpgsql_domain as integer check(plpgsql_domain_check(value));
+
+do $$
+declare v_test plpgsql_domain;
+begin
+  v_test := 1;
+end;
+$$;
+
+do $$
+declare v_test plpgsql_domain := 1;
+begin
+  v_test := 0;  -- fail
+end;
+$$;
+
+-- Test handling of expanded array passed to a domain constraint (bug #14472)
+
+create function plpgsql_arr_domain_check(val int[]) returns boolean as $$
+begin return val[1] > 0; end
+$$ language plpgsql immutable;
+
+create domain plpgsql_arr_domain as int[] check(plpgsql_arr_domain_check(value));
+
+do $$
+declare v_test plpgsql_arr_domain;
+begin
+  v_test := array[1];
+  v_test := v_test || 2;
+end;
+$$;
+
+do $$
+declare v_test plpgsql_arr_domain := array[1];
+begin
+  v_test := 0 || v_test;  -- fail
+end;
+$$;
 --
 -- test usage of transition tables in AFTER triggers
 --

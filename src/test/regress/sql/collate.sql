@@ -56,6 +56,22 @@ SELECT * FROM collate_test1 WHERE b >= 'abc' COLLATE "C";
 SELECT * FROM collate_test1 WHERE b COLLATE "C" >= 'abc' COLLATE "C";
 SELECT * FROM collate_test1 WHERE b COLLATE "C" >= 'bbc' COLLATE "POSIX"; -- fail
 
+CREATE DOMAIN testdomain_p AS text COLLATE "POSIX";
+CREATE DOMAIN testdomain_i AS int COLLATE "POSIX"; -- fail
+CREATE TABLE collate_test4 (
+    a int,
+    b testdomain_p
+);
+INSERT INTO collate_test4 SELECT * FROM collate_test1;
+SELECT a, b FROM collate_test4 ORDER BY b;
+
+CREATE TABLE collate_test5 (
+    a int,
+    b testdomain_p COLLATE "C"
+);
+INSERT INTO collate_test5 SELECT * FROM collate_test1;
+SELECT a, b FROM collate_test5 ORDER BY b;
+
 SELECT a, b FROM collate_test1 ORDER BY b;
 SELECT a, b FROM collate_test2 ORDER BY b;
 
@@ -119,6 +135,11 @@ SELECT a, lower(nullif(x, 'foo')), lower(nullif(y, 'foo')) FROM collate_test10;
 SELECT a, CASE b WHEN 'abc' THEN 'abcd' ELSE b END FROM collate_test1 ORDER BY 2;
 SELECT a, CASE b WHEN 'abc' THEN 'abcd' ELSE b END FROM collate_test2 ORDER BY 2;
 
+CREATE DOMAIN testdomain AS text;
+SELECT a, b::testdomain FROM collate_test1 ORDER BY 2;
+SELECT a, b::testdomain FROM collate_test2 ORDER BY 2;
+SELECT a, b::testdomain_p FROM collate_test2 ORDER BY 2;
+SELECT a, lower(x::testdomain), lower(y::testdomain) FROM collate_test10;
 SELECT min(b), max(b) FROM collate_test1;
 SELECT min(b), max(b) FROM collate_test2;
 
@@ -143,6 +164,7 @@ SELECT a, b COLLATE "C" FROM collate_test1 UNION SELECT a, b FROM collate_test2 
 SELECT a, b FROM collate_test1 INTERSECT SELECT a, b FROM collate_test2 ORDER BY 2; -- fail
 SELECT a, b FROM collate_test1 EXCEPT SELECT a, b FROM collate_test2 ORDER BY 2; -- fail
 
+CREATE TABLE test_u AS SELECT a, b FROM collate_test1 UNION ALL SELECT a, b FROM collate_test2; -- fail
 -- ideally this would be a parse-time error, but for now it must be run-time:
 -- select x < y from collate_test10; -- fail, kunlun always uses utf-8, but official pg does not allow
 select x || y from collate_test10; -- ok, because || is not collation aware

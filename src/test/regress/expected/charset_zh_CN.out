@@ -44,26 +44,26 @@ ALTER TABLE
 alter table 信息表  alter column 年龄 drop default;
 ALTER TABLE
 \d 信息表
-                      Table "public.信息表"
- Column |         Type          | Collation | Nullable | Default 
---------+-----------------------+-----------+----------+---------
- 编号   | integer               |           | not null | 
- 姓名   | character varying(10) |           |          | 
- 年龄   | integer               |           | not null | 
- 身高   | text                  |           |          | 
+                         Table "public.信息表"
+ Column |         Type          |    Collation     | Nullable | Default 
+--------+-----------------------+------------------+----------+---------
+ 编号   | integer               |                  | not null | 
+ 姓名   | character varying(10) | utf8mb4_0900_bin |          | 
+ 年龄   | integer               |                  | not null | 
+ 身高   | text                  | utf8mb4_0900_bin |          | 
 Indexes:
     "个人表_pkey" PRIMARY KEY, btree ("编号" NULLS FIRST)
 
 alter table 信息表 add constraint 年龄 unique(年龄);
 ALTER TABLE
 \d 信息表
-                      Table "public.信息表"
- Column |         Type          | Collation | Nullable | Default 
---------+-----------------------+-----------+----------+---------
- 编号   | integer               |           | not null | 
- 姓名   | character varying(10) |           |          | 
- 年龄   | integer               |           | not null | 
- 身高   | text                  |           |          | 
+                         Table "public.信息表"
+ Column |         Type          |    Collation     | Nullable | Default 
+--------+-----------------------+------------------+----------+---------
+ 编号   | integer               |                  | not null | 
+ 姓名   | character varying(10) | utf8mb4_0900_bin |          | 
+ 年龄   | integer               |                  | not null | 
+ 身高   | text                  | utf8mb4_0900_bin |          | 
 Indexes:
     "个人表_pkey" PRIMARY KEY, btree ("编号" NULLS FIRST)
     "年龄" UNIQUE CONSTRAINT, btree ("年龄" NULLS FIRST)
@@ -71,13 +71,13 @@ Indexes:
 alter table 信息表 drop constraint "年龄";
 ALTER TABLE
 \d 信息表
-                      Table "public.信息表"
- Column |         Type          | Collation | Nullable | Default 
---------+-----------------------+-----------+----------+---------
- 编号   | integer               |           | not null | 
- 姓名   | character varying(10) |           |          | 
- 年龄   | integer               |           | not null | 
- 身高   | text                  |           |          | 
+                         Table "public.信息表"
+ Column |         Type          |    Collation     | Nullable | Default 
+--------+-----------------------+------------------+----------+---------
+ 编号   | integer               |                  | not null | 
+ 姓名   | character varying(10) | utf8mb4_0900_bin |          | 
+ 年龄   | integer               |                  | not null | 
+ 身高   | text                  | utf8mb4_0900_bin |          | 
 Indexes:
     "个人表_pkey" PRIMARY KEY, btree ("编号" NULLS FIRST)
 
@@ -105,14 +105,14 @@ select * from 信息表;
 alter table 信息表  rename  身高 to 爱好;
 ALTER TABLE
 \d 信息表
-                      Table "public.信息表"
- Column |         Type          | Collation | Nullable | Default 
---------+-----------------------+-----------+----------+---------
- 编号   | integer               |           | not null | 
- 姓名   | character varying(10) |           |          | 
- 性别   | integer               |           | not null | 
- 爱好   | text                  |           |          | 
- 地址   | integer               |           |          | 
+                         Table "public.信息表"
+ Column |         Type          |    Collation     | Nullable | Default 
+--------+-----------------------+------------------+----------+---------
+ 编号   | integer               |                  | not null | 
+ 姓名   | character varying(10) | utf8mb4_0900_bin |          | 
+ 性别   | integer               |                  | not null | 
+ 爱好   | text                  | utf8mb4_0900_bin |          | 
+ 地址   | integer               |                  |          | 
 Indexes:
     "个人表_pkey" PRIMARY KEY, btree ("编号" NULLS FIRST)
 
@@ -121,14 +121,14 @@ ALTER TABLE
 alter table 信息表 alter column 性别 type char USING 性别::char;
 ALTER TABLE
 \d 信息表
-                      Table "public.信息表"
- Column |         Type          | Collation | Nullable | Default 
---------+-----------------------+-----------+----------+---------
- 编号   | integer               |           | not null | 
- 姓名   | character varying(10) |           |          | 
- 性别   | character(1)          |           | not null | 
- 爱好   | text                  |           |          | 
- 地址   | text                  |           |          | 
+                         Table "public.信息表"
+ Column |         Type          |    Collation     | Nullable | Default 
+--------+-----------------------+------------------+----------+---------
+ 编号   | integer               |                  | not null | 
+ 姓名   | character varying(10) | utf8mb4_0900_bin |          | 
+ 性别   | character(1)          | utf8mb4_0900_bin | not null | 
+ 爱好   | text                  | utf8mb4_0900_bin |          | 
+ 地址   | text                  | utf8mb4_0900_bin |          | 
 Indexes:
     "个人表_pkey" PRIMARY KEY, btree ("编号" NULLS FIRST)
 
@@ -472,13 +472,13 @@ on 一.编号=二.编号;
 create index 姓名索引 on 个人表 (姓名);
 CREATE INDEX
 \d 个人表
-                      Table "public.个人表"
- Column |         Type          | Collation | Nullable | Default 
---------+-----------------------+-----------+----------+---------
- 编号   | integer               |           | not null | 
- 姓名   | character varying(10) |           |          | 
- 工资   | integer               |           |          | 
- 工作   | text                  |           |          | 
+                         Table "public.个人表"
+ Column |         Type          |    Collation     | Nullable | Default 
+--------+-----------------------+------------------+----------+---------
+ 编号   | integer               |                  | not null | 
+ 姓名   | character varying(10) | utf8mb4_0900_bin |          | 
+ 工资   | integer               |                  |          | 
+ 工作   | text                  | utf8mb4_0900_bin |          | 
 Indexes:
     "个人表_pkey1" PRIMARY KEY, btree ("编号" NULLS FIRST)
     "姓名索引" btree ("姓名" NULLS FIRST)
@@ -486,13 +486,13 @@ Indexes:
 ALTER INDEX 姓名索引 RENAME TO 索引名字;
 ALTER INDEX
 \d 个人表
-                      Table "public.个人表"
- Column |         Type          | Collation | Nullable | Default 
---------+-----------------------+-----------+----------+---------
- 编号   | integer               |           | not null | 
- 姓名   | character varying(10) |           |          | 
- 工资   | integer               |           |          | 
- 工作   | text                  |           |          | 
+                         Table "public.个人表"
+ Column |         Type          |    Collation     | Nullable | Default 
+--------+-----------------------+------------------+----------+---------
+ 编号   | integer               |                  | not null | 
+ 姓名   | character varying(10) | utf8mb4_0900_bin |          | 
+ 工资   | integer               |                  |          | 
+ 工作   | text                  | utf8mb4_0900_bin |          | 
 Indexes:
     "个人表_pkey1" PRIMARY KEY, btree ("编号" NULLS FIRST)
     "索引名字" btree ("姓名" NULLS FIRST)
@@ -500,13 +500,13 @@ Indexes:
 create index 组合索引 on 个人表 (工资,工作);
 CREATE INDEX
 \d 个人表
-                      Table "public.个人表"
- Column |         Type          | Collation | Nullable | Default 
---------+-----------------------+-----------+----------+---------
- 编号   | integer               |           | not null | 
- 姓名   | character varying(10) |           |          | 
- 工资   | integer               |           |          | 
- 工作   | text                  |           |          | 
+                         Table "public.个人表"
+ Column |         Type          |    Collation     | Nullable | Default 
+--------+-----------------------+------------------+----------+---------
+ 编号   | integer               |                  | not null | 
+ 姓名   | character varying(10) | utf8mb4_0900_bin |          | 
+ 工资   | integer               |                  |          | 
+ 工作   | text                  | utf8mb4_0900_bin |          | 
 Indexes:
     "个人表_pkey1" PRIMARY KEY, btree ("编号" NULLS FIRST)
     "索引名字" btree ("姓名" NULLS FIRST)
@@ -517,13 +517,13 @@ DROP INDEX
 drop index 组合索引;
 DROP INDEX
 \d 个人表
-                      Table "public.个人表"
- Column |         Type          | Collation | Nullable | Default 
---------+-----------------------+-----------+----------+---------
- 编号   | integer               |           | not null | 
- 姓名   | character varying(10) |           |          | 
- 工资   | integer               |           |          | 
- 工作   | text                  |           |          | 
+                         Table "public.个人表"
+ Column |         Type          |    Collation     | Nullable | Default 
+--------+-----------------------+------------------+----------+---------
+ 编号   | integer               |                  | not null | 
+ 姓名   | character varying(10) | utf8mb4_0900_bin |          | 
+ 工资   | integer               |                  |          | 
+ 工作   | text                  | utf8mb4_0900_bin |          | 
 Indexes:
     "个人表_pkey1" PRIMARY KEY, btree ("编号" NULLS FIRST)
 
@@ -633,27 +633,27 @@ select * from 信息表;
 delete from 个人表;
 DELETE 2
 \d 个人表
-                      Table "public.个人表"
- Column |         Type          | Collation | Nullable | Default 
---------+-----------------------+-----------+----------+---------
- 编号   | integer               |           | not null | 
- 姓名   | character varying(10) |           |          | 
- 工资   | integer               |           |          | 
- 工作   | text                  |           |          | 
+                         Table "public.个人表"
+ Column |         Type          |    Collation     | Nullable | Default 
+--------+-----------------------+------------------+----------+---------
+ 编号   | integer               |                  | not null | 
+ 姓名   | character varying(10) | utf8mb4_0900_bin |          | 
+ 工资   | integer               |                  |          | 
+ 工作   | text                  | utf8mb4_0900_bin |          | 
 Indexes:
     "个人表_pkey1" PRIMARY KEY, btree ("编号" NULLS FIRST)
 
 delete from 信息表;
 DELETE 2
 \d 信息表
-                      Table "public.信息表"
- Column |         Type          | Collation | Nullable | Default 
---------+-----------------------+-----------+----------+---------
- 编号   | integer               |           | not null | 
- 姓名   | character varying(10) |           |          | 
- 性别   | character(1)          |           | not null | 
- 爱好   | text                  |           |          | 
- 地址   | text                  |           |          | 
+                         Table "public.信息表"
+ Column |         Type          |    Collation     | Nullable | Default 
+--------+-----------------------+------------------+----------+---------
+ 编号   | integer               |                  | not null | 
+ 姓名   | character varying(10) | utf8mb4_0900_bin |          | 
+ 性别   | character(1)          | utf8mb4_0900_bin | not null | 
+ 爱好   | text                  | utf8mb4_0900_bin |          | 
+ 地址   | text                  | utf8mb4_0900_bin |          | 
 Indexes:
     "个人表_pkey" PRIMARY KEY, btree ("编号" NULLS FIRST)
 

@@ -82,11 +82,11 @@ DROP TABLE
 CREATE TABLE test_like_id_1 (a bigint GENERATED ALWAYS AS IDENTITY, b text);
 CREATE TABLE
 \d test_like_id_1
-                     Table "public.test_like_id_1"
- Column |  Type  | Collation | Nullable |           Default            
---------+--------+-----------+----------+------------------------------
- a      | bigint |           | not null | generated always as identity
- b      | text   |           |          | 
+                        Table "public.test_like_id_1"
+ Column |  Type  |    Collation     | Nullable |           Default            
+--------+--------+------------------+----------+------------------------------
+ a      | bigint |                  | not null | generated always as identity
+ b      | text   | utf8mb4_0900_bin |          | 
 
 INSERT INTO test_like_id_1 (b) VALUES ('b1');
 INSERT 0 1
@@ -99,11 +99,11 @@ SELECT * FROM test_like_id_1;
 CREATE TABLE test_like_id_2 (LIKE test_like_id_1);
 CREATE TABLE
 \d test_like_id_2
-          Table "public.test_like_id_2"
- Column |  Type  | Collation | Nullable | Default 
---------+--------+-----------+----------+---------
- a      | bigint |           | not null | 
- b      | text   |           |          | 
+              Table "public.test_like_id_2"
+ Column |  Type  |    Collation     | Nullable | Default 
+--------+--------+------------------+----------+---------
+ a      | bigint |                  | not null | 
+ b      | text   | utf8mb4_0900_bin |          | 
 
 INSERT INTO test_like_id_2 (b) VALUES ('b2');
 psql:sql/create_table_like.sql:39: ERROR:  null value in column "a" violates not-null constraint
@@ -116,11 +116,11 @@ SELECT * FROM test_like_id_2;  -- identity was not copied
 CREATE TABLE test_like_id_3 (LIKE test_like_id_1 INCLUDING IDENTITY);
 CREATE TABLE
 \d test_like_id_3
-                     Table "public.test_like_id_3"
- Column |  Type  | Collation | Nullable |           Default            
---------+--------+-----------+----------+------------------------------
- a      | bigint |           | not null | generated always as identity
- b      | text   |           |          | 
+                        Table "public.test_like_id_3"
+ Column |  Type  |    Collation     | Nullable |           Default            
+--------+--------+------------------+----------+------------------------------
+ a      | bigint |                  | not null | generated always as identity
+ b      | text   | utf8mb4_0900_bin |          | 
 
 INSERT INTO test_like_id_3 (b) VALUES ('b3');
 INSERT 0 1
@@ -211,11 +211,11 @@ CREATE TABLE
 CREATE TABLE ctlt_all (LIKE ctlt1 INCLUDING ALL);
 CREATE TABLE
 \d+ ctlt_all
-                                Table "public.ctlt_all"
- Column | Type | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+------+-----------+----------+---------+----------+--------------+-------------
- a      | text |           | not null |         | extended |              | A
- b      | text |           |          |         | extended |              | B
+                                    Table "public.ctlt_all"
+ Column | Type |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+------+------------------+----------+---------+----------+--------------+-------------
+ a      | text | utf8mb4_0900_bin | not null |         | extended |              | A
+ b      | text | utf8mb4_0900_bin |          |         | extended |              | B
 Indexes:
     "ctlt_all_pkey" PRIMARY KEY, btree (a NULLS FIRST)
     "ctlt_all_b_idx" btree (b NULLS FIRST)

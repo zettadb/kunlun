@@ -62,13 +62,13 @@ ALTER TABLE
 alter table t1 add column d varchar(32);
 psql:sql/kunlun_alter_table.sql:17: ERROR:  column "d" of relation "t1" already exists
 \d+ t1;
-                                                        Table "public.t1"
- Column |         Type          | Collation | Nullable |             Default             | Storage  | Stats target | Description 
---------+-----------------------+-----------+----------+---------------------------------+----------+--------------+-------------
- a      | integer               |           | not null | "nextval"('t1_a_seq'::regclass) | plain    |              | 
- b      | integer               |           |          |                                 | plain    |              | 
- c      | integer               |           |          |                                 | plain    |              | 
- d      | character varying(32) |           | not null |                                 | extended |              | 
+                                                           Table "public.t1"
+ Column |         Type          |    Collation     | Nullable |             Default             | Storage  | Stats target | Description 
+--------+-----------------------+------------------+----------+---------------------------------+----------+--------------+-------------
+ a      | integer               |                  | not null | "nextval"('t1_a_seq'::regclass) | plain    |              | 
+ b      | integer               |                  |          |                                 | plain    |              | 
+ c      | integer               |                  |          |                                 | plain    |              | 
+ d      | character varying(32) | utf8mb4_0900_bin | not null |                                 | extended |              | 
 Indexes:
     "t1_pkey" PRIMARY KEY, btree (a NULLS FIRST)
 Options: shard=1
@@ -84,13 +84,13 @@ select*, d is null as disnull, length(d) from t1;
 alter table t1 alter column d set default 'ddd';
 ALTER TABLE
 \d+ t1;
-                                                        Table "public.t1"
- Column |         Type          | Collation | Nullable |             Default             | Storage  | Stats target | Description 
---------+-----------------------+-----------+----------+---------------------------------+----------+--------------+-------------
- a      | integer               |           | not null | "nextval"('t1_a_seq'::regclass) | plain    |              | 
- b      | integer               |           |          |                                 | plain    |              | 
- c      | integer               |           |          |                                 | plain    |              | 
- d      | character varying(32) |           | not null | 'ddd'::character varying        | extended |              | 
+                                                                 Table "public.t1"
+ Column |         Type          |    Collation     | Nullable |                  Default                   | Storage  | Stats target | Description 
+--------+-----------------------+------------------+----------+--------------------------------------------+----------+--------------+-------------
+ a      | integer               |                  | not null | "nextval"('t1_a_seq'::regclass)            | plain    |              | 
+ b      | integer               |                  |          |                                            | plain    |              | 
+ c      | integer               |                  |          |                                            | plain    |              | 
+ d      | character varying(32) | utf8mb4_0900_bin | not null | 'ddd'::character varying COLLATE "default" | extended |              | 
 Indexes:
     "t1_pkey" PRIMARY KEY, btree (a NULLS FIRST)
 Options: shard=1
@@ -109,13 +109,13 @@ select*from t1;
 alter table t1 alter column d drop default;
 ALTER TABLE
 \d+ t1;
-                                                        Table "public.t1"
- Column |         Type          | Collation | Nullable |             Default             | Storage  | Stats target | Description 
---------+-----------------------+-----------+----------+---------------------------------+----------+--------------+-------------
- a      | integer               |           | not null | "nextval"('t1_a_seq'::regclass) | plain    |              | 
- b      | integer               |           |          |                                 | plain    |              | 
- c      | integer               |           |          |                                 | plain    |              | 
- d      | character varying(32) |           | not null |                                 | extended |              | 
+                                                           Table "public.t1"
+ Column |         Type          |    Collation     | Nullable |             Default             | Storage  | Stats target | Description 
+--------+-----------------------+------------------+----------+---------------------------------+----------+--------------+-------------
+ a      | integer               |                  | not null | "nextval"('t1_a_seq'::regclass) | plain    |              | 
+ b      | integer               |                  |          |                                 | plain    |              | 
+ c      | integer               |                  |          |                                 | plain    |              | 
+ d      | character varying(32) | utf8mb4_0900_bin | not null |                                 | extended |              | 
 Indexes:
     "t1_pkey" PRIMARY KEY, btree (a NULLS FIRST)
 Options: shard=1
@@ -294,12 +294,12 @@ ALTER TABLE
 alter table t1 add column d varchar(32);
 psql:sql/kunlun_alter_table.sql:83: ERROR:  column "d" of relation "t1" already exists
 \d+ t1;
-                                                  Partitioned table "public.t1"
- Column |         Type          | Collation | Nullable |             Default             | Storage  | Stats target | Description 
---------+-----------------------+-----------+----------+---------------------------------+----------+--------------+-------------
- a      | integer               |           | not null | "nextval"('t1_a_seq'::regclass) | plain    |              | 
- b      | integer               |           |          |                                 | plain    |              | 
- d      | character varying(32) |           | not null |                                 | extended |              | 
+                                                     Partitioned table "public.t1"
+ Column |         Type          |    Collation     | Nullable |             Default             | Storage  | Stats target | Description 
+--------+-----------------------+------------------+----------+---------------------------------+----------+--------------+-------------
+ a      | integer               |                  | not null | "nextval"('t1_a_seq'::regclass) | plain    |              | 
+ b      | integer               |                  |          |                                 | plain    |              | 
+ d      | character varying(32) | utf8mb4_0900_bin | not null |                                 | extended |              | 
 Partition key: HASH (a)
 Indexes:
     "t1_pkey" PRIMARY KEY, btree (a NULLS FIRST)
@@ -319,12 +319,12 @@ select*, d is null as disnull, length(d) from t1;
 alter table t1 alter column d set default 'ddd';
 ALTER TABLE
 \d+ t1;
-                                                  Partitioned table "public.t1"
- Column |         Type          | Collation | Nullable |             Default             | Storage  | Stats target | Description 
---------+-----------------------+-----------+----------+---------------------------------+----------+--------------+-------------
- a      | integer               |           | not null | "nextval"('t1_a_seq'::regclass) | plain    |              | 
- b      | integer               |           |          |                                 | plain    |              | 
- d      | character varying(32) |           | not null | 'ddd'::character varying        | extended |              | 
+                                                           Partitioned table "public.t1"
+ Column |         Type          |    Collation     | Nullable |                  Default                   | Storage  | Stats target | Description 
+--------+-----------------------+------------------+----------+--------------------------------------------+----------+--------------+-------------
+ a      | integer               |                  | not null | "nextval"('t1_a_seq'::regclass)            | plain    |              | 
+ b      | integer               |                  |          |                                            | plain    |              | 
+ d      | character varying(32) | utf8mb4_0900_bin | not null | 'ddd'::character varying COLLATE "default" | extended |              | 
 Partition key: HASH (a)
 Indexes:
     "t1_pkey" PRIMARY KEY, btree (a NULLS FIRST)
@@ -347,12 +347,12 @@ select*from t1;
 alter table t1 alter column d drop default;
 ALTER TABLE
 \d+ t1;
-                                                  Partitioned table "public.t1"
- Column |         Type          | Collation | Nullable |             Default             | Storage  | Stats target | Description 
---------+-----------------------+-----------+----------+---------------------------------+----------+--------------+-------------
- a      | integer               |           | not null | "nextval"('t1_a_seq'::regclass) | plain    |              | 
- b      | integer               |           |          |                                 | plain    |              | 
- d      | character varying(32) |           | not null |                                 | extended |              | 
+                                                     Partitioned table "public.t1"
+ Column |         Type          |    Collation     | Nullable |             Default             | Storage  | Stats target | Description 
+--------+-----------------------+------------------+----------+---------------------------------+----------+--------------+-------------
+ a      | integer               |                  | not null | "nextval"('t1_a_seq'::regclass) | plain    |              | 
+ b      | integer               |                  |          |                                 | plain    |              | 
+ d      | character varying(32) | utf8mb4_0900_bin | not null |                                 | extended |              | 
 Partition key: HASH (a)
 Indexes:
     "t1_pkey" PRIMARY KEY, btree (a NULLS FIRST)

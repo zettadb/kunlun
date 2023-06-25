@@ -22,6 +22,8 @@ CREATE VIEW seclabel_view1 AS SELECT * FROM seclabel_tbl2;
 CREATE VIEW
 CREATE FUNCTION seclabel_four() RETURNS integer AS $$SELECT 4$$ language sql;
 CREATE FUNCTION
+CREATE DOMAIN seclabel_domain AS text;
+CREATE DOMAIN
 -- ERROR:  Statement 'CREATE DOMAIN' is not supported in Kunlun.
 --CREATE DOMAIN seclabel_domain AS text;
 ALTER TABLE seclabel_tbl1 OWNER TO regress_seclabel_user1;
@@ -51,7 +53,7 @@ psql:sql/security_label.sql:38: ERROR:  no security label providers have been lo
 DROP FUNCTION seclabel_four();
 DROP FUNCTION
 DROP DOMAIN seclabel_domain;
-psql:sql/security_label.sql:42: ERROR:  type "seclabel_domain" does not exist
+DROP DOMAIN
 DROP VIEW seclabel_view1;
 DROP VIEW
 DROP TABLE seclabel_tbl1;

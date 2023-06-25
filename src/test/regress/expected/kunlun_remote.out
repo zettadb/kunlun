@@ -27,12 +27,12 @@ CREATE INDEX
 show last_remote_sql;
 psql:sql/kunlun_remote.sql:15: ERROR:  unrecognized configuration parameter "last_remote_sql"
 \d+ t4;
-                                            Table "public.t4"
- Column |         Type          | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer               |           | not null |         | plain    |              | 
- b      | integer               |           |          |         | plain    |              | 
- c      | character varying(32) |           | not null |         | extended |              | 
+                                               Table "public.t4"
+ Column |         Type          |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer               |                  | not null |         | plain    |              | 
+ b      | integer               |                  |          |         | plain    |              | 
+ c      | character varying(32) | utf8mb4_0900_bin | not null |         | extended |              | 
 Indexes:
     "t4_pkey" PRIMARY KEY, btree (a NULLS FIRST)
     "t4_b_key" UNIQUE CONSTRAINT, btree (b NULLS FIRST)
@@ -76,13 +76,13 @@ CREATE INDEX
 show last_remote_sql;
 psql:sql/kunlun_remote.sql:31: ERROR:  unrecognized configuration parameter "last_remote_sql"
 \d+ t7;
-                                            Table "public.t7"
- Column |         Type          | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer               |           |          |         | plain    |              | 
- b      | character varying(16) |           |          |         | extended |              | 
- c      | integer               |           | not null |         | plain    |              | 
- d      | character varying(16) |           | not null |         | extended |              | 
+                                               Table "public.t7"
+ Column |         Type          |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer               |                  |          |         | plain    |              | 
+ b      | character varying(16) | utf8mb4_0900_bin |          |         | extended |              | 
+ c      | integer               |                  | not null |         | plain    |              | 
+ d      | character varying(16) | utf8mb4_0900_bin | not null |         | extended |              | 
 Indexes:
     "t7_pkey" PRIMARY KEY, btree (c NULLS FIRST, d NULLS FIRST)
     "t7_a_c_key" UNIQUE CONSTRAINT, btree (a NULLS FIRST, c NULLS FIRST)
@@ -101,9 +101,9 @@ btree, for table "public.t7"
 
 -- forbidden create index clauses start
 create index t7_b on t7(b collate en_US);
-psql:sql/kunlun_remote.sql:36: ERROR:  can't override default collate for remote relation's index
+psql:sql/kunlun_remote.sql:36: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 3762, Functional index on a column is not supported. Consider using a regular index instead..
 create index t7_b on t7(b collate zh_CN);
-psql:sql/kunlun_remote.sql:37: ERROR:  can't override default collate for remote relation's index
+psql:sql/kunlun_remote.sql:37: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 3762, Functional index on a column is not supported. Consider using a regular index instead..
 create index t7_b on t7(b ) include (c);
 psql:sql/kunlun_remote.sql:39: ERROR:  can't specifiy INCLUDE collumns for remote relations
 create index t7_b on t7(b zh_pinyin_cmp);
@@ -182,14 +182,14 @@ CREATE INDEX
 show last_remote_sql;
 psql:sql/kunlun_remote.sql:70: ERROR:  unrecognized configuration parameter "last_remote_sql"
 \d+ t3;
-                                         Partitioned table "public.t3"
- Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer                     |           |          |         | plain    |              | 
- b      | date                        |           | not null |         | plain    |              | 
- c      | timestamp without time zone |           |          |         | plain    |              | 
- d      | time without time zone      |           | not null |         | plain    |              | 
- e      | character varying(64)       |           |          |         | extended |              | 
+                                            Partitioned table "public.t3"
+ Column |            Type             |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer                     |                  |          |         | plain    |              | 
+ b      | date                        |                  | not null |         | plain    |              | 
+ c      | timestamp without time zone |                  |          |         | plain    |              | 
+ d      | time without time zone      |                  | not null |         | plain    |              | 
+ e      | character varying(64)       | utf8mb4_0900_bin |          |         | extended |              | 
 Partition key: RANGE (b)
 Indexes:
     "t3_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
@@ -202,14 +202,14 @@ CREATE TABLE
 show last_remote_sql;
 psql:sql/kunlun_remote.sql:74: ERROR:  unrecognized configuration parameter "last_remote_sql"
 \d+ t301;
-                                              Table "public.t301"
- Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer                     |           |          |         | plain    |              | 
- b      | date                        |           | not null |         | plain    |              | 
- c      | timestamp without time zone |           |          |         | plain    |              | 
- d      | time without time zone      |           | not null |         | plain    |              | 
- e      | character varying(64)       |           |          |         | extended |              | 
+                                                 Table "public.t301"
+ Column |            Type             |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer                     |                  |          |         | plain    |              | 
+ b      | date                        |                  | not null |         | plain    |              | 
+ c      | timestamp without time zone |                  |          |         | plain    |              | 
+ d      | time without time zone      |                  | not null |         | plain    |              | 
+ e      | character varying(64)       | utf8mb4_0900_bin |          |         | extended |              | 
 Partition of: t3 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2000-01-01'::date) AND (b < '2009-12-31'::date))
 Indexes:
@@ -219,14 +219,14 @@ Indexes:
 Options: shard=1
 
 \d+ t3;
-                                         Partitioned table "public.t3"
- Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer                     |           |          |         | plain    |              | 
- b      | date                        |           | not null |         | plain    |              | 
- c      | timestamp without time zone |           |          |         | plain    |              | 
- d      | time without time zone      |           | not null |         | plain    |              | 
- e      | character varying(64)       |           |          |         | extended |              | 
+                                            Partitioned table "public.t3"
+ Column |            Type             |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer                     |                  |          |         | plain    |              | 
+ b      | date                        |                  | not null |         | plain    |              | 
+ c      | timestamp without time zone |                  |          |         | plain    |              | 
+ d      | time without time zone      |                  | not null |         | plain    |              | 
+ e      | character varying(64)       | utf8mb4_0900_bin |          |         | extended |              | 
 Partition key: RANGE (b)
 Indexes:
     "t3_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
@@ -239,14 +239,14 @@ CREATE TABLE
 show last_remote_sql;
 psql:sql/kunlun_remote.sql:79: ERROR:  unrecognized configuration parameter "last_remote_sql"
 \d+ t303;
-                                              Table "public.t303"
- Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer                     |           |          |         | plain    |              | 
- b      | date                        |           | not null |         | plain    |              | 
- c      | timestamp without time zone |           |          |         | plain    |              | 
- d      | time without time zone      |           | not null |         | plain    |              | 
- e      | character varying(64)       |           |          |         | extended |              | 
+                                                 Table "public.t303"
+ Column |            Type             |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer                     |                  |          |         | plain    |              | 
+ b      | date                        |                  | not null |         | plain    |              | 
+ c      | timestamp without time zone |                  |          |         | plain    |              | 
+ d      | time without time zone      |                  | not null |         | plain    |              | 
+ e      | character varying(64)       | utf8mb4_0900_bin |          |         | extended |              | 
 Partition of: t3 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2020-01-01'::date) AND (b < '2029-12-31'::date))
 Indexes:
@@ -256,14 +256,14 @@ Indexes:
 Options: shard=1
 
 \d+ t3;
-                                         Partitioned table "public.t3"
- Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer                     |           |          |         | plain    |              | 
- b      | date                        |           | not null |         | plain    |              | 
- c      | timestamp without time zone |           |          |         | plain    |              | 
- d      | time without time zone      |           | not null |         | plain    |              | 
- e      | character varying(64)       |           |          |         | extended |              | 
+                                            Partitioned table "public.t3"
+ Column |            Type             |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer                     |                  |          |         | plain    |              | 
+ b      | date                        |                  | not null |         | plain    |              | 
+ c      | timestamp without time zone |                  |          |         | plain    |              | 
+ d      | time without time zone      |                  | not null |         | plain    |              | 
+ e      | character varying(64)       | utf8mb4_0900_bin |          |         | extended |              | 
 Partition key: RANGE (b)
 Indexes:
     "t3_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
@@ -282,14 +282,14 @@ CREATE INDEX
 show last_remote_sql;
 psql:sql/kunlun_remote.sql:87: ERROR:  unrecognized configuration parameter "last_remote_sql"
 \d+ t301;
-                                              Table "public.t301"
- Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer                     |           |          |         | plain    |              | 
- b      | date                        |           | not null |         | plain    |              | 
- c      | timestamp without time zone |           |          |         | plain    |              | 
- d      | time without time zone      |           | not null |         | plain    |              | 
- e      | character varying(64)       |           |          |         | extended |              | 
+                                                 Table "public.t301"
+ Column |            Type             |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer                     |                  |          |         | plain    |              | 
+ b      | date                        |                  | not null |         | plain    |              | 
+ c      | timestamp without time zone |                  |          |         | plain    |              | 
+ d      | time without time zone      |                  | not null |         | plain    |              | 
+ e      | character varying(64)       | utf8mb4_0900_bin |          |         | extended |              | 
 Partition of: t3 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2000-01-01'::date) AND (b < '2009-12-31'::date))
 Indexes:
@@ -301,14 +301,14 @@ Indexes:
 Options: shard=1
 
 \d+ t303;
-                                              Table "public.t303"
- Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer                     |           |          |         | plain    |              | 
- b      | date                        |           | not null |         | plain    |              | 
- c      | timestamp without time zone |           |          |         | plain    |              | 
- d      | time without time zone      |           | not null |         | plain    |              | 
- e      | character varying(64)       |           |          |         | extended |              | 
+                                                 Table "public.t303"
+ Column |            Type             |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer                     |                  |          |         | plain    |              | 
+ b      | date                        |                  | not null |         | plain    |              | 
+ c      | timestamp without time zone |                  |          |         | plain    |              | 
+ d      | time without time zone      |                  | not null |         | plain    |              | 
+ e      | character varying(64)       | utf8mb4_0900_bin |          |         | extended |              | 
 Partition of: t3 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2020-01-01'::date) AND (b < '2029-12-31'::date))
 Indexes:
@@ -320,14 +320,14 @@ Indexes:
 Options: shard=1
 
 \d+ t3;
-                                         Partitioned table "public.t3"
- Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer                     |           |          |         | plain    |              | 
- b      | date                        |           | not null |         | plain    |              | 
- c      | timestamp without time zone |           |          |         | plain    |              | 
- d      | time without time zone      |           | not null |         | plain    |              | 
- e      | character varying(64)       |           |          |         | extended |              | 
+                                            Partitioned table "public.t3"
+ Column |            Type             |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer                     |                  |          |         | plain    |              | 
+ b      | date                        |                  | not null |         | plain    |              | 
+ c      | timestamp without time zone |                  |          |         | plain    |              | 
+ d      | time without time zone      |                  | not null |         | plain    |              | 
+ e      | character varying(64)       | utf8mb4_0900_bin |          |         | extended |              | 
 Partition key: RANGE (b)
 Indexes:
     "t3_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
@@ -345,14 +345,14 @@ CREATE TABLE
 show last_remote_sql;
 psql:sql/kunlun_remote.sql:95: ERROR:  unrecognized configuration parameter "last_remote_sql"
 \d+ t3;
-                                         Partitioned table "public.t3"
- Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer                     |           |          |         | plain    |              | 
- b      | date                        |           | not null |         | plain    |              | 
- c      | timestamp without time zone |           |          |         | plain    |              | 
- d      | time without time zone      |           | not null |         | plain    |              | 
- e      | character varying(64)       |           |          |         | extended |              | 
+                                            Partitioned table "public.t3"
+ Column |            Type             |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer                     |                  |          |         | plain    |              | 
+ b      | date                        |                  | not null |         | plain    |              | 
+ c      | timestamp without time zone |                  |          |         | plain    |              | 
+ d      | time without time zone      |                  | not null |         | plain    |              | 
+ e      | character varying(64)       | utf8mb4_0900_bin |          |         | extended |              | 
 Partition key: RANGE (b)
 Indexes:
     "t3_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
@@ -365,14 +365,14 @@ Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
             t303 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31')
 
 \d+ t302;
-                                              Table "public.t302"
- Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer                     |           |          |         | plain    |              | 
- b      | date                        |           | not null |         | plain    |              | 
- c      | timestamp without time zone |           |          |         | plain    |              | 
- d      | time without time zone      |           | not null |         | plain    |              | 
- e      | character varying(64)       |           |          |         | extended |              | 
+                                                 Table "public.t302"
+ Column |            Type             |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer                     |                  |          |         | plain    |              | 
+ b      | date                        |                  | not null |         | plain    |              | 
+ c      | timestamp without time zone |                  |          |         | plain    |              | 
+ d      | time without time zone      |                  | not null |         | plain    |              | 
+ e      | character varying(64)       | utf8mb4_0900_bin |          |         | extended |              | 
 Partition of: t3 FOR VALUES FROM ('2010-01-01') TO ('2019-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2010-01-01'::date) AND (b < '2019-12-31'::date))
 Indexes:
@@ -384,14 +384,14 @@ Indexes:
 Options: shard=1
 
 \d+ t301;
-                                              Table "public.t301"
- Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer                     |           |          |         | plain    |              | 
- b      | date                        |           | not null |         | plain    |              | 
- c      | timestamp without time zone |           |          |         | plain    |              | 
- d      | time without time zone      |           | not null |         | plain    |              | 
- e      | character varying(64)       |           |          |         | extended |              | 
+                                                 Table "public.t301"
+ Column |            Type             |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer                     |                  |          |         | plain    |              | 
+ b      | date                        |                  | not null |         | plain    |              | 
+ c      | timestamp without time zone |                  |          |         | plain    |              | 
+ d      | time without time zone      |                  | not null |         | plain    |              | 
+ e      | character varying(64)       | utf8mb4_0900_bin |          |         | extended |              | 
 Partition of: t3 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2000-01-01'::date) AND (b < '2009-12-31'::date))
 Indexes:
@@ -403,14 +403,14 @@ Indexes:
 Options: shard=1
 
 \d+ t303;
-                                              Table "public.t303"
- Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer                     |           |          |         | plain    |              | 
- b      | date                        |           | not null |         | plain    |              | 
- c      | timestamp without time zone |           |          |         | plain    |              | 
- d      | time without time zone      |           | not null |         | plain    |              | 
- e      | character varying(64)       |           |          |         | extended |              | 
+                                                 Table "public.t303"
+ Column |            Type             |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer                     |                  |          |         | plain    |              | 
+ b      | date                        |                  | not null |         | plain    |              | 
+ c      | timestamp without time zone |                  |          |         | plain    |              | 
+ d      | time without time zone      |                  | not null |         | plain    |              | 
+ e      | character varying(64)       | utf8mb4_0900_bin |          |         | extended |              | 
 Partition of: t3 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2020-01-01'::date) AND (b < '2029-12-31'::date))
 Indexes:
@@ -426,14 +426,14 @@ CREATE TABLE
 show last_remote_sql;
 psql:sql/kunlun_remote.sql:102: ERROR:  unrecognized configuration parameter "last_remote_sql"
 \d+ t3;
-                                         Partitioned table "public.t3"
- Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer                     |           |          |         | plain    |              | 
- b      | date                        |           | not null |         | plain    |              | 
- c      | timestamp without time zone |           |          |         | plain    |              | 
- d      | time without time zone      |           | not null |         | plain    |              | 
- e      | character varying(64)       |           |          |         | extended |              | 
+                                            Partitioned table "public.t3"
+ Column |            Type             |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer                     |                  |          |         | plain    |              | 
+ b      | date                        |                  | not null |         | plain    |              | 
+ c      | timestamp without time zone |                  |          |         | plain    |              | 
+ d      | time without time zone      |                  | not null |         | plain    |              | 
+ e      | character varying(64)       | utf8mb4_0900_bin |          |         | extended |              | 
 Partition key: RANGE (b)
 Indexes:
     "t3_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
@@ -447,14 +447,14 @@ Partitions: t301 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31'),
             t304 FOR VALUES FROM ('2030-01-01') TO ('2049-12-31')
 
 \d+ t304;
-                                              Table "public.t304"
- Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer                     |           |          |         | plain    |              | 
- b      | date                        |           | not null |         | plain    |              | 
- c      | timestamp without time zone |           |          |         | plain    |              | 
- d      | time without time zone      |           | not null |         | plain    |              | 
- e      | character varying(64)       |           |          |         | extended |              | 
+                                                 Table "public.t304"
+ Column |            Type             |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer                     |                  |          |         | plain    |              | 
+ b      | date                        |                  | not null |         | plain    |              | 
+ c      | timestamp without time zone |                  |          |         | plain    |              | 
+ d      | time without time zone      |                  | not null |         | plain    |              | 
+ e      | character varying(64)       | utf8mb4_0900_bin |          |         | extended |              | 
 Partition of: t3 FOR VALUES FROM ('2030-01-01') TO ('2049-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2030-01-01'::date) AND (b < '2049-12-31'::date))
 Indexes:
@@ -466,14 +466,14 @@ Indexes:
 Options: shard=1
 
 \d+ t301;
-                                              Table "public.t301"
- Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer                     |           |          |         | plain    |              | 
- b      | date                        |           | not null |         | plain    |              | 
- c      | timestamp without time zone |           |          |         | plain    |              | 
- d      | time without time zone      |           | not null |         | plain    |              | 
- e      | character varying(64)       |           |          |         | extended |              | 
+                                                 Table "public.t301"
+ Column |            Type             |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer                     |                  |          |         | plain    |              | 
+ b      | date                        |                  | not null |         | plain    |              | 
+ c      | timestamp without time zone |                  |          |         | plain    |              | 
+ d      | time without time zone      |                  | not null |         | plain    |              | 
+ e      | character varying(64)       | utf8mb4_0900_bin |          |         | extended |              | 
 Partition of: t3 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2000-01-01'::date) AND (b < '2009-12-31'::date))
 Indexes:
@@ -485,14 +485,14 @@ Indexes:
 Options: shard=1
 
 \d+ t302;
-                                              Table "public.t302"
- Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer                     |           |          |         | plain    |              | 
- b      | date                        |           | not null |         | plain    |              | 
- c      | timestamp without time zone |           |          |         | plain    |              | 
- d      | time without time zone      |           | not null |         | plain    |              | 
- e      | character varying(64)       |           |          |         | extended |              | 
+                                                 Table "public.t302"
+ Column |            Type             |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer                     |                  |          |         | plain    |              | 
+ b      | date                        |                  | not null |         | plain    |              | 
+ c      | timestamp without time zone |                  |          |         | plain    |              | 
+ d      | time without time zone      |                  | not null |         | plain    |              | 
+ e      | character varying(64)       | utf8mb4_0900_bin |          |         | extended |              | 
 Partition of: t3 FOR VALUES FROM ('2010-01-01') TO ('2019-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2010-01-01'::date) AND (b < '2019-12-31'::date))
 Indexes:
@@ -504,14 +504,14 @@ Indexes:
 Options: shard=1
 
 \d+ t303;
-                                              Table "public.t303"
- Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer                     |           |          |         | plain    |              | 
- b      | date                        |           | not null |         | plain    |              | 
- c      | timestamp without time zone |           |          |         | plain    |              | 
- d      | time without time zone      |           | not null |         | plain    |              | 
- e      | character varying(64)       |           |          |         | extended |              | 
+                                                 Table "public.t303"
+ Column |            Type             |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer                     |                  |          |         | plain    |              | 
+ b      | date                        |                  | not null |         | plain    |              | 
+ c      | timestamp without time zone |                  |          |         | plain    |              | 
+ d      | time without time zone      |                  | not null |         | plain    |              | 
+ e      | character varying(64)       | utf8mb4_0900_bin |          |         | extended |              | 
 Partition of: t3 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2020-01-01'::date) AND (b < '2029-12-31'::date))
 Indexes:
@@ -528,14 +528,14 @@ CREATE INDEX
 show last_remote_sql;
 psql:sql/kunlun_remote.sql:111: ERROR:  unrecognized configuration parameter "last_remote_sql"
 \d+ t302;
-                                              Table "public.t302"
- Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer                     |           |          |         | plain    |              | 
- b      | date                        |           | not null |         | plain    |              | 
- c      | timestamp without time zone |           |          |         | plain    |              | 
- d      | time without time zone      |           | not null |         | plain    |              | 
- e      | character varying(64)       |           |          |         | extended |              | 
+                                                 Table "public.t302"
+ Column |            Type             |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer                     |                  |          |         | plain    |              | 
+ b      | date                        |                  | not null |         | plain    |              | 
+ c      | timestamp without time zone |                  |          |         | plain    |              | 
+ d      | time without time zone      |                  | not null |         | plain    |              | 
+ e      | character varying(64)       | utf8mb4_0900_bin |          |         | extended |              | 
 Partition of: t3 FOR VALUES FROM ('2010-01-01') TO ('2019-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2010-01-01'::date) AND (b < '2019-12-31'::date))
 Indexes:
@@ -548,14 +548,14 @@ Indexes:
 Options: shard=1
 
 \d+ t3;
-                                         Partitioned table "public.t3"
- Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer                     |           |          |         | plain    |              | 
- b      | date                        |           | not null |         | plain    |              | 
- c      | timestamp without time zone |           |          |         | plain    |              | 
- d      | time without time zone      |           | not null |         | plain    |              | 
- e      | character varying(64)       |           |          |         | extended |              | 
+                                            Partitioned table "public.t3"
+ Column |            Type             |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer                     |                  |          |         | plain    |              | 
+ b      | date                        |                  | not null |         | plain    |              | 
+ c      | timestamp without time zone |                  |          |         | plain    |              | 
+ d      | time without time zone      |                  | not null |         | plain    |              | 
+ e      | character varying(64)       | utf8mb4_0900_bin |          |         | extended |              | 
 Partition key: RANGE (b)
 Indexes:
     "t3_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
@@ -574,14 +574,14 @@ CREATE INDEX
 show last_remote_sql;
 psql:sql/kunlun_remote.sql:117: ERROR:  unrecognized configuration parameter "last_remote_sql"
 \d+ t304;
-                                              Table "public.t304"
- Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer                     |           |          |         | plain    |              | 
- b      | date                        |           | not null |         | plain    |              | 
- c      | timestamp without time zone |           |          |         | plain    |              | 
- d      | time without time zone      |           | not null |         | plain    |              | 
- e      | character varying(64)       |           |          |         | extended |              | 
+                                                 Table "public.t304"
+ Column |            Type             |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer                     |                  |          |         | plain    |              | 
+ b      | date                        |                  | not null |         | plain    |              | 
+ c      | timestamp without time zone |                  |          |         | plain    |              | 
+ d      | time without time zone      |                  | not null |         | plain    |              | 
+ e      | character varying(64)       | utf8mb4_0900_bin |          |         | extended |              | 
 Partition of: t3 FOR VALUES FROM ('2030-01-01') TO ('2049-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2030-01-01'::date) AND (b < '2049-12-31'::date))
 Indexes:
@@ -594,14 +594,14 @@ Indexes:
 Options: shard=1
 
 \d+ t3;
-                                         Partitioned table "public.t3"
- Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer                     |           |          |         | plain    |              | 
- b      | date                        |           | not null |         | plain    |              | 
- c      | timestamp without time zone |           |          |         | plain    |              | 
- d      | time without time zone      |           | not null |         | plain    |              | 
- e      | character varying(64)       |           |          |         | extended |              | 
+                                            Partitioned table "public.t3"
+ Column |            Type             |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer                     |                  |          |         | plain    |              | 
+ b      | date                        |                  | not null |         | plain    |              | 
+ c      | timestamp without time zone |                  |          |         | plain    |              | 
+ d      | time without time zone      |                  | not null |         | plain    |              | 
+ e      | character varying(64)       | utf8mb4_0900_bin |          |         | extended |              | 
 Partition key: RANGE (b)
 Indexes:
     "t3_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
@@ -621,14 +621,14 @@ CREATE INDEX
 show last_remote_sql;
 psql:sql/kunlun_remote.sql:124: ERROR:  unrecognized configuration parameter "last_remote_sql"
 \d+ t301;
-                                              Table "public.t301"
- Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer                     |           |          |         | plain    |              | 
- b      | date                        |           | not null |         | plain    |              | 
- c      | timestamp without time zone |           |          |         | plain    |              | 
- d      | time without time zone      |           | not null |         | plain    |              | 
- e      | character varying(64)       |           |          |         | extended |              | 
+                                                 Table "public.t301"
+ Column |            Type             |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer                     |                  |          |         | plain    |              | 
+ b      | date                        |                  | not null |         | plain    |              | 
+ c      | timestamp without time zone |                  |          |         | plain    |              | 
+ d      | time without time zone      |                  | not null |         | plain    |              | 
+ e      | character varying(64)       | utf8mb4_0900_bin |          |         | extended |              | 
 Partition of: t3 FOR VALUES FROM ('2000-01-01') TO ('2009-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2000-01-01'::date) AND (b < '2009-12-31'::date))
 Indexes:
@@ -641,14 +641,14 @@ Indexes:
 Options: shard=1
 
 \d+ t302;
-                                              Table "public.t302"
- Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer                     |           |          |         | plain    |              | 
- b      | date                        |           | not null |         | plain    |              | 
- c      | timestamp without time zone |           |          |         | plain    |              | 
- d      | time without time zone      |           | not null |         | plain    |              | 
- e      | character varying(64)       |           |          |         | extended |              | 
+                                                 Table "public.t302"
+ Column |            Type             |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer                     |                  |          |         | plain    |              | 
+ b      | date                        |                  | not null |         | plain    |              | 
+ c      | timestamp without time zone |                  |          |         | plain    |              | 
+ d      | time without time zone      |                  | not null |         | plain    |              | 
+ e      | character varying(64)       | utf8mb4_0900_bin |          |         | extended |              | 
 Partition of: t3 FOR VALUES FROM ('2010-01-01') TO ('2019-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2010-01-01'::date) AND (b < '2019-12-31'::date))
 Indexes:
@@ -662,14 +662,14 @@ Indexes:
 Options: shard=1
 
 \d+ t303;
-                                              Table "public.t303"
- Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer                     |           |          |         | plain    |              | 
- b      | date                        |           | not null |         | plain    |              | 
- c      | timestamp without time zone |           |          |         | plain    |              | 
- d      | time without time zone      |           | not null |         | plain    |              | 
- e      | character varying(64)       |           |          |         | extended |              | 
+                                                 Table "public.t303"
+ Column |            Type             |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer                     |                  |          |         | plain    |              | 
+ b      | date                        |                  | not null |         | plain    |              | 
+ c      | timestamp without time zone |                  |          |         | plain    |              | 
+ d      | time without time zone      |                  | not null |         | plain    |              | 
+ e      | character varying(64)       | utf8mb4_0900_bin |          |         | extended |              | 
 Partition of: t3 FOR VALUES FROM ('2020-01-01') TO ('2029-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2020-01-01'::date) AND (b < '2029-12-31'::date))
 Indexes:
@@ -682,14 +682,14 @@ Indexes:
 Options: shard=1
 
 \d+ t304;
-                                              Table "public.t304"
- Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer                     |           |          |         | plain    |              | 
- b      | date                        |           | not null |         | plain    |              | 
- c      | timestamp without time zone |           |          |         | plain    |              | 
- d      | time without time zone      |           | not null |         | plain    |              | 
- e      | character varying(64)       |           |          |         | extended |              | 
+                                                 Table "public.t304"
+ Column |            Type             |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer                     |                  |          |         | plain    |              | 
+ b      | date                        |                  | not null |         | plain    |              | 
+ c      | timestamp without time zone |                  |          |         | plain    |              | 
+ d      | time without time zone      |                  | not null |         | plain    |              | 
+ e      | character varying(64)       | utf8mb4_0900_bin |          |         | extended |              | 
 Partition of: t3 FOR VALUES FROM ('2030-01-01') TO ('2049-12-31')
 Partition constraint: ((b IS NOT NULL) AND (b >= '2030-01-01'::date) AND (b < '2049-12-31'::date))
 Indexes:
@@ -703,14 +703,14 @@ Indexes:
 Options: shard=1
 
 \d+ t3;
-                                         Partitioned table "public.t3"
- Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer                     |           |          |         | plain    |              | 
- b      | date                        |           | not null |         | plain    |              | 
- c      | timestamp without time zone |           |          |         | plain    |              | 
- d      | time without time zone      |           | not null |         | plain    |              | 
- e      | character varying(64)       |           |          |         | extended |              | 
+                                            Partitioned table "public.t3"
+ Column |            Type             |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer                     |                  |          |         | plain    |              | 
+ b      | date                        |                  | not null |         | plain    |              | 
+ c      | timestamp without time zone |                  |          |         | plain    |              | 
+ d      | time without time zone      |                  | not null |         | plain    |              | 
+ e      | character varying(64)       | utf8mb4_0900_bin |          |         | extended |              | 
 Partition key: RANGE (b)
 Indexes:
     "t3_pkey" PRIMARY KEY, btree (b NULLS FIRST, d NULLS FIRST)
@@ -765,13 +765,13 @@ CREATE TABLE
 show last_remote_sql;
 psql:sql/kunlun_remote.sql:149: ERROR:  unrecognized configuration parameter "last_remote_sql"
 \d+ t2;
-                                      Partitioned table "public.t2"
- Column |         Type          | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------+-----------+----------+---------+----------+--------------+-------------
- a      | integer               |           | not null |         | plain    |              | 
- b      | integer               |           | not null |         | plain    |              | 
- c      | character varying(32) |           |          |         | extended |              | 
- d      | character(16)         |           |          |         | extended |              | 
+                                         Partitioned table "public.t2"
+ Column |         Type          |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer               |                  | not null |         | plain    |              | 
+ b      | integer               |                  | not null |         | plain    |              | 
+ c      | character varying(32) | utf8mb4_0900_bin |          |         | extended |              | 
+ d      | character(16)         | utf8mb4_0900_bin |          |         | extended |              | 
 Partition key: HASH (b)
 Indexes:
     "t2_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST)
@@ -863,15 +863,15 @@ CREATE INDEX
 show last_remote_sql;
 psql:sql/kunlun_remote.sql:180: ERROR:  unrecognized configuration parameter "last_remote_sql"
 \d+ t1;
-                                         Partitioned table "public.t1"
- Column |            Type             | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-----------------------------+-----------+----------+---------+----------+--------------+-------------
- a      | character varying(30)       |           | not null |         | extended |              | 
- b      | integer                     |           | not null |         | plain    |              | 
- c      | date                        |           |          |         | plain    |              | 
- d      | time without time zone      |           |          |         | plain    |              | 
- e      | timestamp without time zone |           |          |         | plain    |              | 
- f      | character(20)               |           |          |         | extended |              | 
+                                            Partitioned table "public.t1"
+ Column |            Type             |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-----------------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | character varying(30)       | utf8mb4_0900_bin | not null |         | extended |              | 
+ b      | integer                     |                  | not null |         | plain    |              | 
+ c      | date                        |                  |          |         | plain    |              | 
+ d      | time without time zone      |                  |          |         | plain    |              | 
+ e      | timestamp without time zone |                  |          |         | plain    |              | 
+ f      | character(20)               | utf8mb4_0900_bin |          |         | extended |              | 
 Partition key: HASH (b)
 Indexes:
     "t1_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST)

@@ -2,7 +2,7 @@
 -- TRIGGERS
 --
 
-create table pkeys (pkey1 int4 not null, pkey2 text not null);
+create table pkeys (pkey1 int4 primary KEY, pkey2 text not null);
 create table fkeys (fkey1 int4 primary KEY, fkey2 text, fkey3 int);
 create table fkeys2 (fkey21 int4 primary key, fkey22 text, pkey23 int not null);
 
@@ -573,7 +573,7 @@ CREATE TABLE min_updates_test (
 	f3 int);
 
 CREATE TABLE min_updates_test_oids (
-	f1	text,
+	f1	text primary key,
 	f2 int,
 	f3 int);
 
@@ -1589,6 +1589,7 @@ create table parted_referenced (a int);
 create table unparted_trigger (a int, b text);	-- for comparison purposes
 create table parted_trigger (a int, b text) partition by range (a);
 create table parted_trigger_1 partition of parted_trigger for values from (0) to (1000);
+drop table if exists parted_trigger_2;
 create table parted_trigger_2 (drp int, a int, b text);
 alter table parted_trigger_2 drop column drp;
 alter table parted_trigger attach partition parted_trigger_2 for values from (1000) to (2000);
@@ -1598,6 +1599,8 @@ create constraint trigger parted_trigger after update on parted_trigger
 create constraint trigger parted_trigger after update on unparted_trigger
   from parted_referenced
   for each row execute procedure trigger_notice_ab();
+
+drop table if exists parted_trigger_3;
 create table parted_trigger_3 (b text, a int) partition by range (length(b));
 create table parted_trigger_3_1 partition of parted_trigger_3 for values from (1) to (3);
 create table parted_trigger_3_2 partition of parted_trigger_3 for values from (3) to (5);
@@ -1610,7 +1613,7 @@ select tgname, conname, t.tgrelid::regclass, t.tgconstrrelid::regclass,
 drop table parted_referenced, parted_trigger, unparted_trigger;
 
 -- verify that the "AFTER UPDATE OF columns" event is propagated correctly
-create table parted_trigger (a int, b text) partition by range (a);
+create table parted_trigger (a int primary key, b text) partition by range (a);
 create table parted_trigger_1 partition of parted_trigger for values from (0) to (1000);
 create table parted_trigger_2 (drp int, a int, b text);
 alter table parted_trigger_2 drop column drp;

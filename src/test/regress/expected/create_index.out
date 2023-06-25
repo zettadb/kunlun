@@ -130,12 +130,12 @@ CREATE UNIQUE INDEX cwi_uniq_idx ON cwi_test(a , b);
 CREATE INDEX
 --ALTER TABLE cwi_test ADD primary key USING INDEX cwi_uniq_idx;
 \d cwi_test
-                     Table "public.cwi_test"
- Column |         Type          | Collation | Nullable | Default 
---------+-----------------------+-----------+----------+---------
- a      | integer               |           |          | 
- b      | character varying(10) |           |          | 
- c      | character(1)          |           |          | 
+                        Table "public.cwi_test"
+ Column |         Type          |    Collation     | Nullable | Default 
+--------+-----------------------+------------------+----------+---------
+ a      | integer               |                  |          | 
+ b      | character varying(10) | utf8mb4_0900_bin |          | 
+ c      | character(1)          | utf8mb4_0900_bin |          | 
 Indexes:
     "cwi_uniq_idx" UNIQUE, btree (a NULLS FIRST, b NULLS FIRST)
 

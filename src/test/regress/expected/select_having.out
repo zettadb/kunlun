@@ -37,8 +37,8 @@ SELECT b, c FROM test_having
 	GROUP BY b, c HAVING b = 3 ORDER BY b, c;
  b |    c     
 ---+----------
- 3 | bbbb    
  3 | BBBB    
+ 3 | bbbb    
 (2 rows)
 
 SELECT lower(c), count(c) FROM test_having
@@ -56,8 +56,8 @@ SELECT c, max(a) FROM test_having
 	ORDER BY c;
     c     | max 
 ----------+-----
- bbbb     |   5
  XXXX     |   0
+ bbbb     |   5
 (2 rows)
 
 -- test degenerate cases involving HAVING without GROUP BY

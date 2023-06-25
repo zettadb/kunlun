@@ -507,18 +507,12 @@ SELECT jsonb_array_elements_text('[1,true,[1,[2,3]],null,{"f1":1,"f2":[7,8,9]},f
 SELECT * FROM jsonb_array_elements_text('[1,true,[1,[2,3]],null,{"f1":1,"f2":[7,8,9]},false,"stringy"]') q;
 
 -- populate_record
---DDL_STATEMENT_BEGIN--
 CREATE TYPE jbpop AS (a text, b int, c timestamp);
---DDL_STATEMENT_END--
--- CREATE DOMAIN jsb_int_not_null  AS int     NOT NULL;
--- CREATE DOMAIN jsb_int_array_1d  AS int[]   CHECK(array_length(VALUE, 1) = 3);
--- CREATE DOMAIN jsb_int_array_2d  AS int[][] CHECK(array_length(VALUE, 2) = 3);
-
---DDL_STATEMENT_BEGIN--
+CREATE DOMAIN jsb_int_not_null  AS int     NOT NULL;
+CREATE DOMAIN jsb_int_array_1d  AS int[]   CHECK(array_length(VALUE, 1) = 3);
+CREATE DOMAIN jsb_int_array_2d  AS int[][] CHECK(array_length(VALUE, 2) = 3);
 create type jb_unordered_pair as (x int, y int);
---DDL_STATEMENT_END--
--- create domain jb_ordered_pair as jb_unordered_pair check((value).x <= -- (value).y);
---DDL_STATEMENT_BEGIN--
+create domain jb_ordered_pair as jb_unordered_pair check((value).x <= -- (value).y);
 CREATE TYPE jsbrec AS (
 	i	int,
 	ia	_int4,
@@ -538,13 +532,10 @@ CREATE TYPE jsbrec AS (
 	rec	jbpop,
 	reca	jbpop[]
 );
---DDL_STATEMENT_END--
 
---DDL_STATEMENT_BEGIN--
 CREATE TYPE jsbrec_i_not_null AS (
 	i	jsb_int_not_null
 );
---DDL_STATEMENT_END--
 
 SELECT * FROM jsonb_populate_record(NULL::jbpop,'{"a":"blurfl","x":43.2}') q;
 SELECT * FROM jsonb_populate_record(row('x',3,'2012-12-31 15:30:56')::jbpop,'{"a":"blurfl","x":43.2}') q;

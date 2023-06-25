@@ -102,11 +102,11 @@ RESET
 
 -- table was dropped
 \d deptest
-                             Table "public.deptest"
- Column |  Type   | Collation | Nullable |               Default                
---------+---------+-----------+----------+--------------------------------------
- a      | integer |           | not null | "nextval"('deptest_a_seq'::regclass)
- b      | text    |           |          | 
+                                Table "public.deptest"
+ Column |  Type   |    Collation     | Nullable |               Default                
+--------+---------+------------------+----------+--------------------------------------
+ a      | integer |                  | not null | "nextval"('deptest_a_seq'::regclass)
+ b      | text    | utf8mb4_0900_bin |          | 
 Indexes:
     "deptest_pkey" PRIMARY KEY, btree (a NULLS FIRST)
 

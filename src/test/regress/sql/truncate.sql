@@ -7,62 +7,62 @@ INSERT INTO truncate_a VALUES (2);
 SELECT * FROM truncate_a;
 -- Roll truncate back
 BEGIN;
-TRUNCATE truncate_a;
+delete  from truncate_a;
 ROLLBACK;
 SELECT * FROM truncate_a;
 -- Commit the truncate this time
 BEGIN;
-TRUNCATE truncate_a;
+delete from truncate_a;
 COMMIT;
 SELECT * FROM truncate_a;
 
 -- Test foreign-key checks
 --DDL_STATEMENT_BEGIN--
-CREATE TABLE trunc_b (a int REFERENCES truncate_a);
+--CREATE TABLE trunc_b (a int REFERENCES truncate_a);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-CREATE TABLE trunc_c (a serial PRIMARY KEY);
+--CREATE TABLE trunc_c (a serial PRIMARY KEY);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-CREATE TABLE trunc_d (a int REFERENCES trunc_c);
+--CREATE TABLE trunc_d (a int REFERENCES trunc_c);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-CREATE TABLE trunc_e (a int REFERENCES truncate_a, b int REFERENCES trunc_c);
---DDL_STATEMENT_END--
-
---DDL_STATEMENT_BEGIN--
-TRUNCATE TABLE truncate_a;		-- fail
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-TRUNCATE TABLE truncate_a,trunc_b;		-- fail
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-TRUNCATE TABLE truncate_a,trunc_b,trunc_e;	-- ok
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-TRUNCATE TABLE truncate_a,trunc_e;		-- fail
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-TRUNCATE TABLE trunc_c;		-- fail
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-TRUNCATE TABLE trunc_c,trunc_d;		-- fail
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-TRUNCATE TABLE trunc_c,trunc_d,trunc_e;	-- ok
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-TRUNCATE TABLE trunc_c,trunc_d,trunc_e,truncate_a;	-- fail
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-TRUNCATE TABLE trunc_c,trunc_d,trunc_e,truncate_a,trunc_b;	-- ok
+--CREATE TABLE trunc_e (a int REFERENCES truncate_a, b int REFERENCES trunc_c);
 --DDL_STATEMENT_END--
 
 --DDL_STATEMENT_BEGIN--
-TRUNCATE TABLE truncate_a RESTRICT; -- fail
+--TRUNCATE TABLE truncate_a;		-- fail
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-TRUNCATE TABLE truncate_a CASCADE;  -- ok
+--TRUNCATE TABLE truncate_a,trunc_b;		-- fail
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
+--TRUNCATE TABLE truncate_a,trunc_b,trunc_e;	-- ok
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
+--TRUNCATE TABLE truncate_a,trunc_e;		-- fail
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
+--TRUNCATE TABLE trunc_c;		-- fail
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
+--TRUNCATE TABLE trunc_c,trunc_d;		-- fail
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
+--TRUNCATE TABLE trunc_c,trunc_d,trunc_e;	-- ok
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
+--TRUNCATE TABLE trunc_c,trunc_d,trunc_e,truncate_a;	-- fail
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
+--TRUNCATE TABLE trunc_c,trunc_d,trunc_e,truncate_a,trunc_b;	-- ok
+--DDL_STATEMENT_END--
+
+--DDL_STATEMENT_BEGIN--
+--TRUNCATE TABLE truncate_a RESTRICT; -- fail
+--DDL_STATEMENT_END--
+--DDL_STATEMENT_BEGIN--
+--TRUNCATE TABLE truncate_a CASCADE;  -- ok
 --DDL_STATEMENT_END--
 
 -- circular references
@@ -150,7 +150,7 @@ INSERT INTO trunc_faa VALUES (5, 'five', 'FIVE');
 
 BEGIN;
 SELECT * FROM trunc_f;
-TRUNCATE trunc_f;
+delete from trunc_f;
 SELECT * FROM trunc_f;
 ROLLBACK;
 

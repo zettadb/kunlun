@@ -1325,8 +1325,16 @@ select * from json_array_elements_text('[1,true,[1,[2,3]],null,{"f1":1,"f2":[7,8
 -- populate_record
 create type jpop as (a text, b int, c timestamp);
 CREATE TYPE
+CREATE DOMAIN js_int_not_null  AS int     NOT NULL;
+CREATE DOMAIN
+CREATE DOMAIN js_int_array_1d  AS int[]   CHECK(array_length(VALUE, 1) = 3);
+CREATE DOMAIN
+CREATE DOMAIN js_int_array_2d  AS int[][] CHECK(array_length(VALUE, 2) = 3);
+CREATE DOMAIN
 create type j_unordered_pair as (x int, y int);
 CREATE TYPE
+create domain j_ordered_pair as j_unordered_pair check((value).x <= (value).y);
+CREATE DOMAIN
 CREATE TYPE jsrec AS (
 	i	int,
 	ia	_int4,
@@ -1346,11 +1354,11 @@ CREATE TYPE jsrec AS (
 	rec	jpop,
 	reca	jpop[]
 );
-psql:sql/json.sql:406: ERROR:  type "js_int_array_1d" does not exist
+CREATE TYPE
 CREATE TYPE jsrec_i_not_null AS (
 	i	js_int_not_null
 );
-psql:sql/json.sql:410: ERROR:  type "js_int_not_null" does not exist
+CREATE TYPE
 select * from json_populate_record(null::jpop,'{"a":"blurfl","x":43.2}') q;
    a    | b | c 
 --------+---+---
@@ -1388,7 +1396,7 @@ select * from json_populate_record(row('x',3,'2012-12-31 15:30:56')::jpop,'{"a":
 (1 row)
 
 select * from json_populate_record(row('x',3,'2012-12-31 15:30:56')::jpop,'{"c":[100,200,false],"x":43.2}') q;
-psql:sql/json.sql:420: ERROR:  invalid input syntax for type timestamp: "[100,200,false]"
+psql:sql/json.sql:424: ERROR:  invalid input syntax for type timestamp: "[100,200,false]"
 select * from json_populate_record(row('x',3,'2012-12-31 15:30:56')::jpop,'{}') q;
  a | b |          c          
 ---+---+---------------------
@@ -1396,300 +1404,348 @@ select * from json_populate_record(row('x',3,'2012-12-31 15:30:56')::jpop,'{}') 
 (1 row)
 
 SELECT i FROM json_populate_record(NULL::jsrec_i_not_null, '{"x": 43.2}') q;
-psql:sql/json.sql:424: ERROR:  type "jsrec_i_not_null" does not exist
-LINE 1: SELECT i FROM json_populate_record(NULL::jsrec_i_not_null, '...
-                                                 ^
+psql:sql/json.sql:428: ERROR:  domain js_int_not_null does not allow null values
 SELECT i FROM json_populate_record(NULL::jsrec_i_not_null, '{"i": null}') q;
-psql:sql/json.sql:425: ERROR:  type "jsrec_i_not_null" does not exist
-LINE 1: SELECT i FROM json_populate_record(NULL::jsrec_i_not_null, '...
-                                                 ^
+psql:sql/json.sql:429: ERROR:  domain js_int_not_null does not allow null values
 SELECT i FROM json_populate_record(NULL::jsrec_i_not_null, '{"i": 12345}') q;
-psql:sql/json.sql:426: ERROR:  type "jsrec_i_not_null" does not exist
-LINE 1: SELECT i FROM json_populate_record(NULL::jsrec_i_not_null, '...
-                                                 ^
+   i   
+-------
+ 12345
+(1 row)
+
 SELECT ia FROM json_populate_record(NULL::jsrec, '{"ia": null}') q;
-psql:sql/json.sql:428: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ia FROM json_populate_record(NULL::jsrec, '{"ia": nul...
-                                                  ^
+ ia 
+----
+ 
+(1 row)
+
 SELECT ia FROM json_populate_record(NULL::jsrec, '{"ia": 123}') q;
-psql:sql/json.sql:429: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ia FROM json_populate_record(NULL::jsrec, '{"ia": 123...
-                                                  ^
+psql:sql/json.sql:433: ERROR:  expected JSON array
+HINT:  See the value of key "ia".
 SELECT ia FROM json_populate_record(NULL::jsrec, '{"ia": [1, "2", null, 4]}') q;
-psql:sql/json.sql:430: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ia FROM json_populate_record(NULL::jsrec, '{"ia": [1,...
-                                                  ^
+      ia      
+--------------
+ {1,2,NULL,4}
+(1 row)
+
 SELECT ia FROM json_populate_record(NULL::jsrec, '{"ia": [[1, 2], [3, 4]]}') q;
-psql:sql/json.sql:431: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ia FROM json_populate_record(NULL::jsrec, '{"ia": [[1...
-                                                  ^
+      ia       
+---------------
+ {{1,2},{3,4}}
+(1 row)
+
 SELECT ia FROM json_populate_record(NULL::jsrec, '{"ia": [[1], 2]}') q;
-psql:sql/json.sql:432: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ia FROM json_populate_record(NULL::jsrec, '{"ia": [[1...
-                                                  ^
+psql:sql/json.sql:436: ERROR:  expected JSON array
+HINT:  See the array element [1] of key "ia".
 SELECT ia FROM json_populate_record(NULL::jsrec, '{"ia": [[1], [2, 3]]}') q;
-psql:sql/json.sql:433: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ia FROM json_populate_record(NULL::jsrec, '{"ia": [[1...
-                                                  ^
+psql:sql/json.sql:437: ERROR:  malformed JSON array
+DETAIL:  Multidimensional arrays must have sub-arrays with matching dimensions.
 SELECT ia FROM json_populate_record(NULL::jsrec, '{"ia": "{1,2,3}"}') q;
-psql:sql/json.sql:434: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ia FROM json_populate_record(NULL::jsrec, '{"ia": "{1...
-                                                  ^
+   ia    
+---------
+ {1,2,3}
+(1 row)
+
 SELECT ia1 FROM json_populate_record(NULL::jsrec, '{"ia1": null}') q;
-psql:sql/json.sql:436: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ia1 FROM json_populate_record(NULL::jsrec, '{"ia1": n...
-                                                   ^
+ ia1 
+-----
+ 
+(1 row)
+
 SELECT ia1 FROM json_populate_record(NULL::jsrec, '{"ia1": 123}') q;
-psql:sql/json.sql:437: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ia1 FROM json_populate_record(NULL::jsrec, '{"ia1": 1...
-                                                   ^
+psql:sql/json.sql:441: ERROR:  expected JSON array
+HINT:  See the value of key "ia1".
 SELECT ia1 FROM json_populate_record(NULL::jsrec, '{"ia1": [1, "2", null, 4]}') q;
-psql:sql/json.sql:438: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ia1 FROM json_populate_record(NULL::jsrec, '{"ia1": [...
-                                                   ^
+     ia1      
+--------------
+ {1,2,NULL,4}
+(1 row)
+
 SELECT ia1 FROM json_populate_record(NULL::jsrec, '{"ia1": [[1, 2, 3]]}') q;
-psql:sql/json.sql:439: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ia1 FROM json_populate_record(NULL::jsrec, '{"ia1": [...
-                                                   ^
+    ia1    
+-----------
+ {{1,2,3}}
+(1 row)
+
 SELECT ia1d FROM json_populate_record(NULL::jsrec, '{"ia1d": null}') q;
-psql:sql/json.sql:441: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ia1d FROM json_populate_record(NULL::jsrec, '{"ia1d":...
-                                                    ^
+ ia1d 
+------
+ 
+(1 row)
+
 SELECT ia1d FROM json_populate_record(NULL::jsrec, '{"ia1d": 123}') q;
-psql:sql/json.sql:442: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ia1d FROM json_populate_record(NULL::jsrec, '{"ia1d":...
-                                                    ^
+psql:sql/json.sql:446: ERROR:  expected JSON array
+HINT:  See the value of key "ia1d".
 SELECT ia1d FROM json_populate_record(NULL::jsrec, '{"ia1d": [1, "2", null, 4]}') q;
-psql:sql/json.sql:443: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ia1d FROM json_populate_record(NULL::jsrec, '{"ia1d":...
-                                                    ^
+psql:sql/json.sql:447: ERROR:  value for domain js_int_array_1d violates check constraint "js_int_array_1d_check"
 SELECT ia1d FROM json_populate_record(NULL::jsrec, '{"ia1d": [1, "2", null]}') q;
-psql:sql/json.sql:444: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ia1d FROM json_populate_record(NULL::jsrec, '{"ia1d":...
-                                                    ^
+    ia1d    
+------------
+ {1,2,NULL}
+(1 row)
+
 SELECT ia2 FROM json_populate_record(NULL::jsrec, '{"ia2": [1, "2", null, 4]}') q;
-psql:sql/json.sql:446: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ia2 FROM json_populate_record(NULL::jsrec, '{"ia2": [...
-                                                   ^
+     ia2      
+--------------
+ {1,2,NULL,4}
+(1 row)
+
 SELECT ia2 FROM json_populate_record(NULL::jsrec, '{"ia2": [[1, 2], [null, 4]]}') q;
-psql:sql/json.sql:447: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ia2 FROM json_populate_record(NULL::jsrec, '{"ia2": [...
-                                                   ^
+       ia2        
+------------------
+ {{1,2},{NULL,4}}
+(1 row)
+
 SELECT ia2 FROM json_populate_record(NULL::jsrec, '{"ia2": [[], []]}') q;
-psql:sql/json.sql:448: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ia2 FROM json_populate_record(NULL::jsrec, '{"ia2": [...
-                                                   ^
+ ia2 
+-----
+ {}
+(1 row)
+
 SELECT ia2 FROM json_populate_record(NULL::jsrec, '{"ia2": [[1, 2], [3]]}') q;
-psql:sql/json.sql:449: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ia2 FROM json_populate_record(NULL::jsrec, '{"ia2": [...
-                                                   ^
+psql:sql/json.sql:453: ERROR:  malformed JSON array
+DETAIL:  Multidimensional arrays must have sub-arrays with matching dimensions.
 SELECT ia2 FROM json_populate_record(NULL::jsrec, '{"ia2": [[1, 2], 3, 4]}') q;
-psql:sql/json.sql:450: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ia2 FROM json_populate_record(NULL::jsrec, '{"ia2": [...
-                                                   ^
+psql:sql/json.sql:454: ERROR:  expected JSON array
+HINT:  See the array element [1] of key "ia2".
 SELECT ia2d FROM json_populate_record(NULL::jsrec, '{"ia2d": [[1, "2"], [null, 4]]}') q;
-psql:sql/json.sql:452: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ia2d FROM json_populate_record(NULL::jsrec, '{"ia2d":...
-                                                    ^
+psql:sql/json.sql:456: ERROR:  value for domain js_int_array_2d violates check constraint "js_int_array_2d_check"
 SELECT ia2d FROM json_populate_record(NULL::jsrec, '{"ia2d": [[1, "2", 3], [null, 5, 6]]}') q;
-psql:sql/json.sql:453: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ia2d FROM json_populate_record(NULL::jsrec, '{"ia2d":...
-                                                    ^
+         ia2d         
+----------------------
+ {{1,2,3},{NULL,5,6}}
+(1 row)
+
 SELECT ia3 FROM json_populate_record(NULL::jsrec, '{"ia3": [1, "2", null, 4]}') q;
-psql:sql/json.sql:455: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ia3 FROM json_populate_record(NULL::jsrec, '{"ia3": [...
-                                                   ^
+     ia3      
+--------------
+ {1,2,NULL,4}
+(1 row)
+
 SELECT ia3 FROM json_populate_record(NULL::jsrec, '{"ia3": [[1, 2], [null, 4]]}') q;
-psql:sql/json.sql:456: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ia3 FROM json_populate_record(NULL::jsrec, '{"ia3": [...
-                                                   ^
+       ia3        
+------------------
+ {{1,2},{NULL,4}}
+(1 row)
+
 SELECT ia3 FROM json_populate_record(NULL::jsrec, '{"ia3": [ [[], []], [[], []], [[], []] ]}') q;
-psql:sql/json.sql:457: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ia3 FROM json_populate_record(NULL::jsrec, '{"ia3": [...
-                                                   ^
+ ia3 
+-----
+ {}
+(1 row)
+
 SELECT ia3 FROM json_populate_record(NULL::jsrec, '{"ia3": [ [[1, 2]], [[3, 4]] ]}') q;
-psql:sql/json.sql:458: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ia3 FROM json_populate_record(NULL::jsrec, '{"ia3": [...
-                                                   ^
+        ia3        
+-------------------
+ {{{1,2}},{{3,4}}}
+(1 row)
+
 SELECT ia3 FROM json_populate_record(NULL::jsrec, '{"ia3": [ [[1, 2], [3, 4]], [[5, 6], [7, 8]] ]}') q;
-psql:sql/json.sql:459: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ia3 FROM json_populate_record(NULL::jsrec, '{"ia3": [...
-                                                   ^
+              ia3              
+-------------------------------
+ {{{1,2},{3,4}},{{5,6},{7,8}}}
+(1 row)
+
 SELECT ia3 FROM json_populate_record(NULL::jsrec, '{"ia3": [ [[1, 2], [3, 4]], [[5, 6], [7, 8], [9, 10]] ]}') q;
-psql:sql/json.sql:460: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ia3 FROM json_populate_record(NULL::jsrec, '{"ia3": [...
-                                                   ^
+psql:sql/json.sql:464: ERROR:  malformed JSON array
+DETAIL:  Multidimensional arrays must have sub-arrays with matching dimensions.
 SELECT ta FROM json_populate_record(NULL::jsrec, '{"ta": null}') q;
-psql:sql/json.sql:462: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ta FROM json_populate_record(NULL::jsrec, '{"ta": nul...
-                                                  ^
+ ta 
+----
+ 
+(1 row)
+
 SELECT ta FROM json_populate_record(NULL::jsrec, '{"ta": 123}') q;
-psql:sql/json.sql:463: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ta FROM json_populate_record(NULL::jsrec, '{"ta": 123...
-                                                  ^
+psql:sql/json.sql:467: ERROR:  expected JSON array
+HINT:  See the value of key "ta".
 SELECT ta FROM json_populate_record(NULL::jsrec, '{"ta": [1, "2", null, 4]}') q;
-psql:sql/json.sql:464: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ta FROM json_populate_record(NULL::jsrec, '{"ta": [1,...
-                                                  ^
+      ta      
+--------------
+ {1,2,NULL,4}
+(1 row)
+
 SELECT ta FROM json_populate_record(NULL::jsrec, '{"ta": [[1, 2, 3], {"k": "v"}]}') q;
-psql:sql/json.sql:465: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ta FROM json_populate_record(NULL::jsrec, '{"ta": [[1...
-                                                  ^
+psql:sql/json.sql:469: ERROR:  expected JSON array
+HINT:  See the array element [1] of key "ta".
 SELECT c FROM json_populate_record(NULL::jsrec, '{"c": null}') q;
-psql:sql/json.sql:467: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT c FROM json_populate_record(NULL::jsrec, '{"c": null}...
-                                                 ^
+ c 
+---
+ 
+(1 row)
+
 SELECT c FROM json_populate_record(NULL::jsrec, '{"c": "aaa"}') q;
-psql:sql/json.sql:468: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT c FROM json_populate_record(NULL::jsrec, '{"c": "aaa"...
-                                                 ^
+     c      
+------------
+ aaa       
+(1 row)
+
 SELECT c FROM json_populate_record(NULL::jsrec, '{"c": "aaaaaaaaaa"}') q;
-psql:sql/json.sql:469: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT c FROM json_populate_record(NULL::jsrec, '{"c": "aaaa...
-                                                 ^
+     c      
+------------
+ aaaaaaaaaa
+(1 row)
+
 SELECT c FROM json_populate_record(NULL::jsrec, '{"c": "aaaaaaaaaaaaa"}') q;
-psql:sql/json.sql:470: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT c FROM json_populate_record(NULL::jsrec, '{"c": "aaaa...
-                                                 ^
+psql:sql/json.sql:474: ERROR:  value too long for type character(10)
 SELECT ca FROM json_populate_record(NULL::jsrec, '{"ca": null}') q;
-psql:sql/json.sql:472: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ca FROM json_populate_record(NULL::jsrec, '{"ca": nul...
-                                                  ^
+ ca 
+----
+ 
+(1 row)
+
 SELECT ca FROM json_populate_record(NULL::jsrec, '{"ca": 123}') q;
-psql:sql/json.sql:473: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ca FROM json_populate_record(NULL::jsrec, '{"ca": 123...
-                                                  ^
+psql:sql/json.sql:477: ERROR:  expected JSON array
+HINT:  See the value of key "ca".
 SELECT ca FROM json_populate_record(NULL::jsrec, '{"ca": [1, "2", null, 4]}') q;
-psql:sql/json.sql:474: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ca FROM json_populate_record(NULL::jsrec, '{"ca": [1,...
-                                                  ^
+                      ca                       
+-----------------------------------------------
+ {"1         ","2         ",NULL,"4         "}
+(1 row)
+
 SELECT ca FROM json_populate_record(NULL::jsrec, '{"ca": ["aaaaaaaaaaaaaaaa"]}') q;
-psql:sql/json.sql:475: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ca FROM json_populate_record(NULL::jsrec, '{"ca": ["a...
-                                                  ^
+psql:sql/json.sql:479: ERROR:  value too long for type character(10)
 SELECT ca FROM json_populate_record(NULL::jsrec, '{"ca": [[1, 2, 3], {"k": "v"}]}') q;
-psql:sql/json.sql:476: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT ca FROM json_populate_record(NULL::jsrec, '{"ca": [[1...
-                                                  ^
+psql:sql/json.sql:480: ERROR:  expected JSON array
+HINT:  See the array element [1] of key "ca".
 SELECT js FROM json_populate_record(NULL::jsrec, '{"js": null}') q;
-psql:sql/json.sql:478: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT js FROM json_populate_record(NULL::jsrec, '{"js": nul...
-                                                  ^
+ js 
+----
+ 
+(1 row)
+
 SELECT js FROM json_populate_record(NULL::jsrec, '{"js": true}') q;
-psql:sql/json.sql:479: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT js FROM json_populate_record(NULL::jsrec, '{"js": tru...
-                                                  ^
+  js  
+------
+ true
+(1 row)
+
 SELECT js FROM json_populate_record(NULL::jsrec, '{"js": 123.45}') q;
-psql:sql/json.sql:480: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT js FROM json_populate_record(NULL::jsrec, '{"js": 123...
-                                                  ^
+   js   
+--------
+ 123.45
+(1 row)
+
 SELECT js FROM json_populate_record(NULL::jsrec, '{"js": "123.45"}') q;
-psql:sql/json.sql:481: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT js FROM json_populate_record(NULL::jsrec, '{"js": "12...
-                                                  ^
+    js    
+----------
+ "123.45"
+(1 row)
+
 SELECT js FROM json_populate_record(NULL::jsrec, '{"js": "abc"}') q;
-psql:sql/json.sql:482: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT js FROM json_populate_record(NULL::jsrec, '{"js": "ab...
-                                                  ^
+  js   
+-------
+ "abc"
+(1 row)
+
 SELECT js FROM json_populate_record(NULL::jsrec, '{"js": [123, "123", null, {"key": "value"}]}') q;
-psql:sql/json.sql:483: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT js FROM json_populate_record(NULL::jsrec, '{"js": [12...
-                                                  ^
+                  js                  
+--------------------------------------
+ [123, "123", null, {"key": "value"}]
+(1 row)
+
 SELECT js FROM json_populate_record(NULL::jsrec, '{"js": {"a": "bbb", "b": null, "c": 123.45}}') q;
-psql:sql/json.sql:484: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT js FROM json_populate_record(NULL::jsrec, '{"js": {"a...
-                                                  ^
+                  js                  
+--------------------------------------
+ {"a": "bbb", "b": null, "c": 123.45}
+(1 row)
+
 SELECT jsb FROM json_populate_record(NULL::jsrec, '{"jsb": null}') q;
-psql:sql/json.sql:486: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT jsb FROM json_populate_record(NULL::jsrec, '{"jsb": n...
-                                                   ^
+ jsb 
+-----
+ 
+(1 row)
+
 SELECT jsb FROM json_populate_record(NULL::jsrec, '{"jsb": true}') q;
-psql:sql/json.sql:487: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT jsb FROM json_populate_record(NULL::jsrec, '{"jsb": t...
-                                                   ^
+ jsb  
+------
+ true
+(1 row)
+
 SELECT jsb FROM json_populate_record(NULL::jsrec, '{"jsb": 123.45}') q;
-psql:sql/json.sql:488: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT jsb FROM json_populate_record(NULL::jsrec, '{"jsb": 1...
-                                                   ^
+  jsb   
+--------
+ 123.45
+(1 row)
+
 SELECT jsb FROM json_populate_record(NULL::jsrec, '{"jsb": "123.45"}') q;
-psql:sql/json.sql:489: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT jsb FROM json_populate_record(NULL::jsrec, '{"jsb": "...
-                                                   ^
+   jsb    
+----------
+ "123.45"
+(1 row)
+
 SELECT jsb FROM json_populate_record(NULL::jsrec, '{"jsb": "abc"}') q;
-psql:sql/json.sql:490: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT jsb FROM json_populate_record(NULL::jsrec, '{"jsb": "...
-                                                   ^
+  jsb  
+-------
+ "abc"
+(1 row)
+
 SELECT jsb FROM json_populate_record(NULL::jsrec, '{"jsb": [123, "123", null, {"key": "value"}]}') q;
-psql:sql/json.sql:491: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT jsb FROM json_populate_record(NULL::jsrec, '{"jsb": [...
-                                                   ^
+                 jsb                  
+--------------------------------------
+ [123, "123", null, {"key": "value"}]
+(1 row)
+
 SELECT jsb FROM json_populate_record(NULL::jsrec, '{"jsb": {"a": "bbb", "b": null, "c": 123.45}}') q;
-psql:sql/json.sql:492: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT jsb FROM json_populate_record(NULL::jsrec, '{"jsb": {...
-                                                   ^
+                 jsb                  
+--------------------------------------
+ {"a": "bbb", "b": null, "c": 123.45}
+(1 row)
+
 SELECT jsa FROM json_populate_record(NULL::jsrec, '{"jsa": null}') q;
-psql:sql/json.sql:494: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT jsa FROM json_populate_record(NULL::jsrec, '{"jsa": n...
-                                                   ^
+ jsa 
+-----
+ 
+(1 row)
+
 SELECT jsa FROM json_populate_record(NULL::jsrec, '{"jsa": 123}') q;
-psql:sql/json.sql:495: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT jsa FROM json_populate_record(NULL::jsrec, '{"jsa": 1...
-                                                   ^
+psql:sql/json.sql:499: ERROR:  expected JSON array
+HINT:  See the value of key "jsa".
 SELECT jsa FROM json_populate_record(NULL::jsrec, '{"jsa": [1, "2", null, 4]}') q;
-psql:sql/json.sql:496: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT jsa FROM json_populate_record(NULL::jsrec, '{"jsa": [...
-                                                   ^
+        jsa         
+--------------------
+ {1,"\"2\"",NULL,4}
+(1 row)
+
 SELECT jsa FROM json_populate_record(NULL::jsrec, '{"jsa": ["aaa", null, [1, 2, "3", {}], { "k" : "v" }]}') q;
-psql:sql/json.sql:497: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT jsa FROM json_populate_record(NULL::jsrec, '{"jsa": [...
-                                                   ^
+                           jsa                            
+----------------------------------------------------------
+ {"\"aaa\"",NULL,"[1, 2, \"3\", {}]","{ \"k\" : \"v\" }"}
+(1 row)
+
 SELECT rec FROM json_populate_record(NULL::jsrec, '{"rec": 123}') q;
-psql:sql/json.sql:499: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT rec FROM json_populate_record(NULL::jsrec, '{"rec": 1...
-                                                   ^
+psql:sql/json.sql:503: ERROR:  cannot call populate_composite on a scalar
 SELECT rec FROM json_populate_record(NULL::jsrec, '{"rec": [1, 2]}') q;
-psql:sql/json.sql:500: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT rec FROM json_populate_record(NULL::jsrec, '{"rec": [...
-                                                   ^
+psql:sql/json.sql:504: ERROR:  cannot call populate_composite on an array
 SELECT rec FROM json_populate_record(NULL::jsrec, '{"rec": {"a": "abc", "c": "01.02.2003", "x": 43.2}}') q;
-psql:sql/json.sql:501: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT rec FROM json_populate_record(NULL::jsrec, '{"rec": {...
-                                                   ^
+psql:sql/json.sql:505: ERROR:  date/time field value out of range: "01.02.2003"
+HINT:  Perhaps you need a different "datestyle" setting.
 SELECT rec FROM json_populate_record(NULL::jsrec, '{"rec": "(abc,42,01.02.2003)"}') q;
-psql:sql/json.sql:502: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT rec FROM json_populate_record(NULL::jsrec, '{"rec": "...
-                                                   ^
+psql:sql/json.sql:506: ERROR:  date/time field value out of range: "01.02.2003"
+HINT:  Perhaps you need a different "datestyle" setting.
 SELECT reca FROM json_populate_record(NULL::jsrec, '{"reca": 123}') q;
-psql:sql/json.sql:504: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT reca FROM json_populate_record(NULL::jsrec, '{"reca":...
-                                                    ^
+psql:sql/json.sql:508: ERROR:  expected JSON array
+HINT:  See the value of key "reca".
 SELECT reca FROM json_populate_record(NULL::jsrec, '{"reca": [1, 2]}') q;
-psql:sql/json.sql:505: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT reca FROM json_populate_record(NULL::jsrec, '{"reca":...
-                                                    ^
+psql:sql/json.sql:509: ERROR:  cannot call populate_composite on a scalar
 SELECT reca FROM json_populate_record(NULL::jsrec, '{"reca": [{"a": "abc", "b": 456}, null, {"c": "01.02.2003", "x": 43.2}]}') q;
-psql:sql/json.sql:506: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT reca FROM json_populate_record(NULL::jsrec, '{"reca":...
-                                                    ^
+psql:sql/json.sql:510: ERROR:  date/time field value out of range: "01.02.2003"
+HINT:  Perhaps you need a different "datestyle" setting.
 SELECT reca FROM json_populate_record(NULL::jsrec, '{"reca": ["(abc,42,01.02.2003)"]}') q;
-psql:sql/json.sql:507: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT reca FROM json_populate_record(NULL::jsrec, '{"reca":...
-                                                    ^
+psql:sql/json.sql:511: ERROR:  date/time field value out of range: "01.02.2003"
+HINT:  Perhaps you need a different "datestyle" setting.
 SELECT reca FROM json_populate_record(NULL::jsrec, '{"reca": "{\"(abc,42,01.02.2003)\"}"}') q;
-psql:sql/json.sql:508: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT reca FROM json_populate_record(NULL::jsrec, '{"reca":...
-                                                    ^
+psql:sql/json.sql:512: ERROR:  date/time field value out of range: "01.02.2003"
+HINT:  Perhaps you need a different "datestyle" setting.
 SELECT rec FROM json_populate_record(
 	row(NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
 		row('x',3,'2012-12-31 15:30:56')::jpop,NULL)::jsrec,
 	'{"rec": {"a": "abc", "c": "01.02.2003", "x": 43.2}}'
 ) q;
-psql:sql/json.sql:514: ERROR:  type "jsrec" does not exist
-LINE 3:   row('x',3,'2012-12-31 15:30:56')::jpop,NULL)::jsrec,
-                                                        ^
+psql:sql/json.sql:518: ERROR:  date/time field value out of range: "01.02.2003"
+HINT:  Perhaps you need a different "datestyle" setting.
 -- anonymous record type
 SELECT json_populate_record(null::record, '{"x": 0, "y": 1}');
-psql:sql/json.sql:517: ERROR:  record type has not been registered
+psql:sql/json.sql:521: ERROR:  record type has not been registered
 SELECT json_populate_record(row(1,2), '{"f1": 0, "f2": 1}');
  json_populate_record 
 ----------------------
@@ -1698,17 +1754,19 @@ SELECT json_populate_record(row(1,2), '{"f1": 0, "f2": 1}');
 
 -- composite domain
 SELECT json_populate_record(null::j_ordered_pair, '{"x": 0, "y": 1}');
-psql:sql/json.sql:521: ERROR:  type "j_ordered_pair" does not exist
-LINE 1: SELECT json_populate_record(null::j_ordered_pair, '{"x": 0, ...
-                                          ^
+ json_populate_record 
+----------------------
+ (0,1)
+(1 row)
+
 SELECT json_populate_record(row(1,2)::j_ordered_pair, '{"x": 0}');
-psql:sql/json.sql:522: ERROR:  type "j_ordered_pair" does not exist
-LINE 1: SELECT json_populate_record(row(1,2)::j_ordered_pair, '{"x":...
-                                              ^
+ json_populate_record 
+----------------------
+ (0,2)
+(1 row)
+
 SELECT json_populate_record(row(1,2)::j_ordered_pair, '{"x": 1, "y": 0}');
-psql:sql/json.sql:523: ERROR:  type "j_ordered_pair" does not exist
-LINE 1: SELECT json_populate_record(row(1,2)::j_ordered_pair, '{"x":...
-                                              ^
+psql:sql/json.sql:527: ERROR:  value for domain j_ordered_pair violates check constraint "j_ordered_pair_check"
 -- populate_recordset
 select * from json_populate_recordset(null::jpop,'[{"a":"blurfl","x":43.2},{"b":3,"c":"2012-01-20 10:42:53"}]') q;
    a    | b |          c          
@@ -1746,7 +1804,7 @@ select * from json_populate_recordset(row('def',99,null)::jpop,'[{"a":[100,200,3
 (2 rows)
 
 select * from json_populate_recordset(row('def',99,null)::jpop,'[{"c":[100,200,300],"x":43.2},{"a":{"z":true},"b":3,"c":"2012-01-20 10:42:53"}]') q;
-psql:sql/json.sql:532: ERROR:  invalid input syntax for type timestamp: "[100,200,300]"
+psql:sql/json.sql:536: ERROR:  invalid input syntax for type timestamp: "[100,200,300]"
 create type jpop2 as (a int, b json, c int, d int);
 CREATE TYPE
 select * from json_populate_recordset(null::jpop2, '[{"a":2,"c":3,"b":{"z":4},"d":6}]') q;
@@ -1778,7 +1836,7 @@ select * from json_populate_recordset(row('def',99,null)::jpop,'[{"a":[100,200,3
 
 -- anonymous record type
 SELECT json_populate_recordset(null::record, '[{"x": 0, "y": 1}]');
-psql:sql/json.sql:542: ERROR:  record type has not been registered
+psql:sql/json.sql:546: ERROR:  record type has not been registered
 SELECT json_populate_recordset(row(1,2), '[{"f1": 0, "f2": 1}]');
  json_populate_recordset 
 -------------------------
@@ -1797,7 +1855,7 @@ FROM (VALUES (1),(2)) v(i);
 
 -- empty array is a corner case
 SELECT json_populate_recordset(null::record, '[]');
-psql:sql/json.sql:548: ERROR:  record type has not been registered
+psql:sql/json.sql:552: ERROR:  record type has not been registered
 SELECT json_populate_recordset(row(1,2), '[]');
  json_populate_recordset 
 -------------------------
@@ -1810,29 +1868,32 @@ SELECT * FROM json_populate_recordset(NULL::jpop,'[]') q;
 
 -- composite domain
 SELECT json_populate_recordset(null::j_ordered_pair, '[{"x": 0, "y": 1}]');
-psql:sql/json.sql:553: ERROR:  type "j_ordered_pair" does not exist
-LINE 1: SELECT json_populate_recordset(null::j_ordered_pair, '[{"x":...
-                                             ^
+ json_populate_recordset 
+-------------------------
+ (0,1)
+(1 row)
+
 SELECT json_populate_recordset(row(1,2)::j_ordered_pair, '[{"x": 0}, {"y": 3}]');
-psql:sql/json.sql:554: ERROR:  type "j_ordered_pair" does not exist
-LINE 1: SELECT json_populate_recordset(row(1,2)::j_ordered_pair, '[{...
-                                                 ^
+ json_populate_recordset 
+-------------------------
+ (0,2)
+ (1,3)
+(2 rows)
+
 SELECT json_populate_recordset(row(1,2)::j_ordered_pair, '[{"x": 1, "y": 0}]');
-psql:sql/json.sql:555: ERROR:  type "j_ordered_pair" does not exist
-LINE 1: SELECT json_populate_recordset(row(1,2)::j_ordered_pair, '[{...
-                                                 ^
+psql:sql/json.sql:559: ERROR:  value for domain j_ordered_pair violates check constraint "j_ordered_pair_check"
 -- negative cases where the wrong record type is supplied
 select * from json_populate_recordset(row(0::int),'[{"a":"1","b":"2"},{"a":"3"}]') q (a text, b text);
-psql:sql/json.sql:558: ERROR:  function return row and query-specified return row do not match
+psql:sql/json.sql:562: ERROR:  function return row and query-specified return row do not match
 DETAIL:  Returned row contains 1 attribute, but query expects 2.
 select * from json_populate_recordset(row(0::int,0::int),'[{"a":"1","b":"2"},{"a":"3"}]') q (a text, b text);
-psql:sql/json.sql:559: ERROR:  function return row and query-specified return row do not match
+psql:sql/json.sql:563: ERROR:  function return row and query-specified return row do not match
 DETAIL:  Returned type integer at ordinal position 1, but query expects text.
 select * from json_populate_recordset(row(0::int,0::int,0::int),'[{"a":"1","b":"2"},{"a":"3"}]') q (a text, b text);
-psql:sql/json.sql:560: ERROR:  function return row and query-specified return row do not match
+psql:sql/json.sql:564: ERROR:  function return row and query-specified return row do not match
 DETAIL:  Returned row contains 3 attributes, but query expects 2.
 select * from json_populate_recordset(row(1000000000::int,50::int),'[{"b":"2"},{"a":"3"}]') q (a text, b text);
-psql:sql/json.sql:561: ERROR:  function return row and query-specified return row do not match
+psql:sql/json.sql:565: ERROR:  function return row and query-specified return row do not match
 DETAIL:  Returned type integer at ordinal position 1, but query expects text.
 -- test type info caching in json_populate_record()
 CREATE TEMP TABLE jspoptest (js json);
@@ -1846,18 +1907,25 @@ SELECT '{
 FROM generate_series(1, 3);
 INSERT 0 3
 SELECT (json_populate_record(NULL::jsrec, js)).* FROM jspoptest;
-psql:sql/json.sql:574: ERROR:  type "jsrec" does not exist
-LINE 1: SELECT (json_populate_record(NULL::jsrec, js)).* FROM jspopt...
-                                           ^
+psql:sql/json.sql:578: ERROR:  date/time field value out of range: "01.02.2003"
+HINT:  Perhaps you need a different "datestyle" setting.
 DROP TYPE jsrec;
-psql:sql/json.sql:576: ERROR:  type "jsrec" does not exist
+DROP TYPE
 DROP TYPE jsrec_i_not_null;
-psql:sql/json.sql:577: ERROR:  type "jsrec_i_not_null" does not exist
+DROP TYPE
+DROP DOMAIN js_int_not_null;
+DROP DOMAIN
+DROP DOMAIN js_int_array_1d;
+DROP DOMAIN
+DROP DOMAIN js_int_array_2d;
+DROP DOMAIN
+DROP DOMAIN j_ordered_pair;
+DROP DOMAIN
 DROP TYPE j_unordered_pair;
 DROP TYPE
 --json_typeof() function
 select value, json_typeof(value)
-  from (values (json '123.4'),
+  from (values (json 'x'),
                (json '-1'),
                (json '"foo"'),
                (json 'true'),
@@ -1955,15 +2023,15 @@ SELECT json_build_object(
 (1 row)
 
 SELECT json_build_object('{a,b,c}'::text[]); -- error
-psql:sql/json.sql:613: ERROR:  argument list must have even number of elements
+psql:sql/json.sql:621: ERROR:  argument list must have even number of elements
 HINT:  The arguments of json_build_object() must consist of alternating keys and values.
 SELECT json_build_object('{a,b,c}'::text[], '{d,e,f}'::text[]); -- error, key cannot be array
-psql:sql/json.sql:614: ERROR:  key value must be scalar, not array, composite, or json
+psql:sql/json.sql:622: ERROR:  key value must be scalar, not array, composite, or json
 SELECT json_build_object('a', 'b', 'c'); -- error
-psql:sql/json.sql:615: ERROR:  argument list must have even number of elements
+psql:sql/json.sql:623: ERROR:  argument list must have even number of elements
 HINT:  The arguments of json_build_object() must consist of alternating keys and values.
 SELECT json_build_object(NULL, 'a'); -- error, key cannot be NULL
-psql:sql/json.sql:616: ERROR:  argument 1 cannot be null
+psql:sql/json.sql:624: ERROR:  argument 1 cannot be null
 HINT:  Object keys should be text.
 SELECT json_build_object('a', NULL); -- ok
  json_build_object 
@@ -1984,7 +2052,7 @@ SELECT json_build_object(VARIADIC '{}'::text[]); -- ok
 (1 row)
 
 SELECT json_build_object(VARIADIC '{a,b,c}'::text[]); -- error
-psql:sql/json.sql:620: ERROR:  argument list must have even number of elements
+psql:sql/json.sql:628: ERROR:  argument list must have even number of elements
 HINT:  The arguments of json_build_object() must consist of alternating keys and values.
 SELECT json_build_object(VARIADIC ARRAY['a', NULL]::text[]); -- ok
  json_build_object 
@@ -1993,7 +2061,7 @@ SELECT json_build_object(VARIADIC ARRAY['a', NULL]::text[]); -- ok
 (1 row)
 
 SELECT json_build_object(VARIADIC ARRAY[NULL, 'a']::text[]); -- error, key cannot be NULL
-psql:sql/json.sql:622: ERROR:  argument 1 cannot be null
+psql:sql/json.sql:630: ERROR:  argument 1 cannot be null
 HINT:  Object keys should be text.
 SELECT json_build_object(VARIADIC '{1,2,3,4}'::text[]); -- ok
    json_build_object    
@@ -2035,14 +2103,14 @@ SELECT json_build_object(1,2);
 
 -- keys must be scalar and not null
 SELECT json_build_object(null,2);
-psql:sql/json.sql:636: ERROR:  argument 1 cannot be null
+psql:sql/json.sql:644: ERROR:  argument 1 cannot be null
 HINT:  Object keys should be text.
 SELECT json_build_object(r,2) FROM (SELECT 1 AS a, 2 AS b) r;
-psql:sql/json.sql:638: ERROR:  key value must be scalar, not array, composite, or json
+psql:sql/json.sql:646: ERROR:  key value must be scalar, not array, composite, or json
 SELECT json_build_object(json '{"a":1,"b":2}', 3);
-psql:sql/json.sql:640: ERROR:  key value must be scalar, not array, composite, or json
+psql:sql/json.sql:648: ERROR:  key value must be scalar, not array, composite, or json
 SELECT json_build_object('{1,2,3}'::int[], 3);
-psql:sql/json.sql:642: ERROR:  key value must be scalar, not array, composite, or json
+psql:sql/json.sql:650: ERROR:  key value must be scalar, not array, composite, or json
 CREATE TEMP TABLE foo (serial_num int, name text, type text);
 CREATE TABLE
 INSERT INTO foo VALUES (847001,'t15','GE1043');
@@ -2067,7 +2135,7 @@ SELECT json_object_agg(name, type) FROM foo;
 INSERT INTO foo VALUES (999999, NULL, 'bar');
 INSERT 0 1
 SELECT json_object_agg(name, type) FROM foo;
-psql:sql/json.sql:655: ERROR:  field name must not be null
+psql:sql/json.sql:663: ERROR:  field name must not be null
 -- json_object
 -- empty object, one dimension
 SELECT json_object('{}');
@@ -2099,16 +2167,16 @@ SELECT json_object('{{a,1},{b,2},{3,NULL},{"d e f","a b c"}}');
 
 -- odd number error
 SELECT json_object('{a,b,c}');
-psql:sql/json.sql:672: ERROR:  array must have even number of elements
+psql:sql/json.sql:680: ERROR:  array must have even number of elements
 -- one column error
 SELECT json_object('{{a},{b}}');
-psql:sql/json.sql:675: ERROR:  array must have two columns
+psql:sql/json.sql:683: ERROR:  array must have two columns
 -- too many columns error
 SELECT json_object('{{a,b,c},{b,c,d}}');
-psql:sql/json.sql:678: ERROR:  array must have two columns
+psql:sql/json.sql:686: ERROR:  array must have two columns
 -- too many dimensions error
 SELECT json_object('{{{a,b},{c,d}},{{b,c},{d,e}}}');
-psql:sql/json.sql:681: ERROR:  wrong number of array subscripts
+psql:sql/json.sql:689: ERROR:  wrong number of array subscripts
 --two argument form of json_object
 select json_object('{a,b,c,"d e f"}','{1,2,3,"a b c"}');
                      json_object                      
@@ -2118,15 +2186,15 @@ select json_object('{a,b,c,"d e f"}','{1,2,3,"a b c"}');
 
 -- too many dimensions
 SELECT json_object('{{a,1},{b,2},{3,NULL},{"d e f","a b c"}}', '{{a,1},{b,2},{3,NULL},{"d e f","a b c"}}');
-psql:sql/json.sql:688: ERROR:  wrong number of array subscripts
+psql:sql/json.sql:696: ERROR:  wrong number of array subscripts
 -- mismatched dimensions
 select json_object('{a,b,c,"d e f",g}','{1,2,3,"a b c"}');
-psql:sql/json.sql:692: ERROR:  mismatched array dimensions
+psql:sql/json.sql:700: ERROR:  mismatched array dimensions
 select json_object('{a,b,c,"d e f"}','{1,2,3,"a b c",g}');
-psql:sql/json.sql:694: ERROR:  mismatched array dimensions
+psql:sql/json.sql:702: ERROR:  mismatched array dimensions
 -- null key error
 select json_object('{a,b,NULL,"d e f"}','{1,2,3,"a b c"}');
-psql:sql/json.sql:698: ERROR:  null value not allowed for object key
+psql:sql/json.sql:706: ERROR:  null value not allowed for object key
 -- empty key is allowed
 select json_object('{a,b,"","d e f"}','{1,2,3,"a b c"}');
                      json_object                     
@@ -2181,7 +2249,7 @@ select * from json_to_record('{"ia": null}') as x(ia _int4);
 (1 row)
 
 select * from json_to_record('{"ia": 123}') as x(ia _int4);
-psql:sql/json.sql:725: ERROR:  expected JSON array
+psql:sql/json.sql:733: ERROR:  expected JSON array
 HINT:  See the value of key "ia".
 select * from json_to_record('{"ia": [1, "2", null, 4]}') as x(ia _int4);
       ia      
@@ -2196,10 +2264,10 @@ select * from json_to_record('{"ia": [[1, 2], [3, 4]]}') as x(ia _int4);
 (1 row)
 
 select * from json_to_record('{"ia": [[1], 2]}') as x(ia _int4);
-psql:sql/json.sql:728: ERROR:  expected JSON array
+psql:sql/json.sql:736: ERROR:  expected JSON array
 HINT:  See the array element [1] of key "ia".
 select * from json_to_record('{"ia": [[1], [2, 3]]}') as x(ia _int4);
-psql:sql/json.sql:729: ERROR:  malformed JSON array
+psql:sql/json.sql:737: ERROR:  malformed JSON array
 DETAIL:  Multidimensional arrays must have sub-arrays with matching dimensions.
 select * from json_to_record('{"ia2": [1, 2, 3]}') as x(ia2 int[][]);
    ia2   
@@ -2457,10 +2525,10 @@ select json_to_tsvector('null'::json, '"all"');
 (1 row)
 
 select json_to_tsvector('english', '{"a": "aaa in bbb", "b": 123, "c": 456, "d": true, "f": false, "g": null}'::json, '""');
-psql:sql/json.sql:800: ERROR:  wrong flag in flag array: ""
+psql:sql/json.sql:808: ERROR:  wrong flag in flag array: ""
 HINT:  Possible values are: "string", "numeric", "boolean", "key", and "all"
 select json_to_tsvector('english', '{"a": "aaa in bbb", "b": 123, "c": 456, "d": true, "f": false, "g": null}'::json, '{}');
-psql:sql/json.sql:801: ERROR:  wrong flag type, only arrays and scalars are allowed
+psql:sql/json.sql:809: ERROR:  wrong flag type, only arrays and scalars are allowed
 select json_to_tsvector('english', '{"a": "aaa in bbb", "b": 123, "c": 456, "d": true, "f": false, "g": null}'::json, '[]');
  json_to_tsvector 
 ------------------
@@ -2468,10 +2536,10 @@ select json_to_tsvector('english', '{"a": "aaa in bbb", "b": 123, "c": 456, "d":
 (1 row)
 
 select json_to_tsvector('english', '{"a": "aaa in bbb", "b": 123, "c": 456, "d": true, "f": false, "g": null}'::json, 'null');
-psql:sql/json.sql:803: ERROR:  flag array element is not a string
+psql:sql/json.sql:811: ERROR:  flag array element is not a string
 HINT:  Possible values are: "string", "numeric", "boolean", "key", and "all"
 select json_to_tsvector('english', '{"a": "aaa in bbb", "b": 123, "c": 456, "d": true, "f": false, "g": null}'::json, '["all", null]');
-psql:sql/json.sql:804: ERROR:  flag array element is not a string
+psql:sql/json.sql:812: ERROR:  flag array element is not a string
 HINT:  Possible values are: "string", "numeric", "boolean", "key", and "all"
 -- ts_headline for json
 select ts_headline('{"a": "aaa bbb", "b": {"c": "ccc ddd fff", "c1": "ccc1 ddd1"}, "d": ["ggg hhh", "iii jjj"]}'::json, tsquery('bbb & ddd & hhh'));

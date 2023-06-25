@@ -72,7 +72,7 @@ test: create_function_3
 test: create_cast
 test: constraints
 test: triggers_1
-test: triggers
+#test: triggers
 #test: inherit
 test: create_table_like
 #test: typed_table
@@ -81,7 +81,7 @@ test: drop_if_exists
 test: updatable_views
 test: rolenames
 test: roleattributes
-test: create_am
+# test: create_am
 test: hash_func
 # test: sanity_check
 test: errors

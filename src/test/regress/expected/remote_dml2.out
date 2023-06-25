@@ -479,7 +479,16 @@ INSERT 0 10
 EXPLAIN (VERBOSE TRUE, COSTS FALSE) DELETE FROM T WHERE pk BETWEEN 10 AND 20 RETURNING *;
 
 drop table if exists mvtest_t cascade;
-psql:sql/remote_dml2.sql:153: NOTICE:  table "mvtest_t" does not exist, skipping
+psql:sql/remote_dml2.sql:153: NOTICE:  drop cascades to 9 other objects
+DETAIL:  drop cascades to view mvtest_tv
+drop cascades to view mvtest_tvv
+drop cascades to materialized view mvtest_tvvm
+drop cascades to view mvtest_tvvmv
+drop cascades to materialized view mvtest_bb
+drop cascades to materialized view mvtest_mvschema.mvtest_tvm
+drop cascades to materialized view mvtest_tvmm
+drop cascades to materialized view mvtest_tm
+drop cascades to materialized view mvtest_tmm
 DROP TABLE
 CREATE TABLE mvtest_t (id int NOT NULL PRIMARY KEY, type varchar(50) NOT NULL, amt numeric NOT NULL);
 CREATE TABLE

@@ -70,11 +70,17 @@ DROP TYPE
 DROP TYPE test_type_exists;
 psql:sql/drop_if_exists.sql:71: ERROR:  type "test_type_exists" does not exist
 -- domain
--- DROP DOMAIN test_domain_exists;
--- DROP DOMAIN IF EXISTS test_domain_exists;
--- CREATE domain test_domain_exists as int not null check (value > 0);
--- DROP DOMAIN IF EXISTS test_domain_exists;
--- DROP DOMAIN test_domain_exists;
+DROP DOMAIN test_domain_exists;
+psql:sql/drop_if_exists.sql:75: ERROR:  type "test_domain_exists" does not exist
+DROP DOMAIN IF EXISTS test_domain_exists;
+psql:sql/drop_if_exists.sql:77: NOTICE:  type "test_domain_exists" does not exist, skipping
+DROP DOMAIN
+CREATE domain test_domain_exists as int not null check (value > 0);
+CREATE DOMAIN
+DROP DOMAIN IF EXISTS test_domain_exists;
+DROP DOMAIN
+DROP DOMAIN test_domain_exists;
+psql:sql/drop_if_exists.sql:83: ERROR:  type "test_domain_exists" does not exist
 ---
 --- role/user/group
 ---
@@ -311,69 +317,72 @@ DROP COLLATION
 DROP CONVERSION IF EXISTS no_such_schema.foo;
 psql:sql/drop_if_exists.sql:249: NOTICE:  schema "no_such_schema" does not exist, skipping
 DROP CONVERSION
-DROP FOREIGN TABLE IF EXISTS no_such_schema.foo;
+DROP DOMAIN IF EXISTS no_such_schema.foo;
 psql:sql/drop_if_exists.sql:250: NOTICE:  schema "no_such_schema" does not exist, skipping
+DROP DOMAIN
+DROP FOREIGN TABLE IF EXISTS no_such_schema.foo;
+psql:sql/drop_if_exists.sql:251: NOTICE:  schema "no_such_schema" does not exist, skipping
 DROP FOREIGN TABLE
 DROP FUNCTION IF EXISTS no_such_schema.foo();
-psql:sql/drop_if_exists.sql:251: NOTICE:  schema "no_such_schema" does not exist, skipping
+psql:sql/drop_if_exists.sql:252: NOTICE:  schema "no_such_schema" does not exist, skipping
 DROP FUNCTION
 DROP FUNCTION IF EXISTS foo(no_such_type);
-psql:sql/drop_if_exists.sql:252: NOTICE:  type "no_such_type" does not exist, skipping
+psql:sql/drop_if_exists.sql:253: NOTICE:  type "no_such_type" does not exist, skipping
 DROP FUNCTION
 DROP FUNCTION IF EXISTS foo(no_such_schema.no_such_type);
-psql:sql/drop_if_exists.sql:253: NOTICE:  schema "no_such_schema" does not exist, skipping
+psql:sql/drop_if_exists.sql:254: NOTICE:  schema "no_such_schema" does not exist, skipping
 DROP FUNCTION
 DROP INDEX IF EXISTS no_such_schema.foo;
-psql:sql/drop_if_exists.sql:254: NOTICE:  schema "no_such_schema" does not exist, skipping
+psql:sql/drop_if_exists.sql:255: NOTICE:  schema "no_such_schema" does not exist, skipping
 DROP INDEX
 DROP MATERIALIZED VIEW IF EXISTS no_such_schema.foo;
-psql:sql/drop_if_exists.sql:255: NOTICE:  schema "no_such_schema" does not exist, skipping
+psql:sql/drop_if_exists.sql:256: NOTICE:  schema "no_such_schema" does not exist, skipping
 DROP MATERIALIZED VIEW
 DROP OPERATOR IF EXISTS no_such_schema.+ (int, int);
-psql:sql/drop_if_exists.sql:256: NOTICE:  schema "no_such_schema" does not exist, skipping
+psql:sql/drop_if_exists.sql:257: NOTICE:  schema "no_such_schema" does not exist, skipping
 DROP OPERATOR
 DROP OPERATOR IF EXISTS + (no_such_type, no_such_type);
-psql:sql/drop_if_exists.sql:257: NOTICE:  type "no_such_type" does not exist, skipping
+psql:sql/drop_if_exists.sql:258: NOTICE:  type "no_such_type" does not exist, skipping
 DROP OPERATOR
 DROP OPERATOR IF EXISTS + (no_such_schema.no_such_type, no_such_schema.no_such_type);
-psql:sql/drop_if_exists.sql:258: NOTICE:  schema "no_such_schema" does not exist, skipping
-DROP OPERATOR
-DROP OPERATOR IF EXISTS # (NONE, no_such_schema.no_such_type);
 psql:sql/drop_if_exists.sql:259: NOTICE:  schema "no_such_schema" does not exist, skipping
 DROP OPERATOR
-DROP OPERATOR CLASS IF EXISTS no_such_schema.widget_ops USING btree;
+DROP OPERATOR IF EXISTS # (NONE, no_such_schema.no_such_type);
 psql:sql/drop_if_exists.sql:260: NOTICE:  schema "no_such_schema" does not exist, skipping
+DROP OPERATOR
+DROP OPERATOR CLASS IF EXISTS no_such_schema.widget_ops USING btree;
+psql:sql/drop_if_exists.sql:261: NOTICE:  schema "no_such_schema" does not exist, skipping
 DROP OPERATOR CLASS
 DROP OPERATOR FAMILY IF EXISTS no_such_schema.float_ops USING btree;
-psql:sql/drop_if_exists.sql:261: NOTICE:  schema "no_such_schema" does not exist, skipping
+psql:sql/drop_if_exists.sql:262: NOTICE:  schema "no_such_schema" does not exist, skipping
 DROP OPERATOR FAMILY
 DROP RULE IF EXISTS foo ON no_such_schema.bar;
-psql:sql/drop_if_exists.sql:262: NOTICE:  schema "no_such_schema" does not exist, skipping
+psql:sql/drop_if_exists.sql:263: NOTICE:  schema "no_such_schema" does not exist, skipping
 DROP RULE
 DROP SEQUENCE IF EXISTS no_such_schema.foo;
-psql:sql/drop_if_exists.sql:263: NOTICE:  schema "no_such_schema" does not exist, skipping
+psql:sql/drop_if_exists.sql:264: NOTICE:  schema "no_such_schema" does not exist, skipping
 DROP SEQUENCE
 DROP TABLE IF EXISTS no_such_schema.foo;
-psql:sql/drop_if_exists.sql:264: NOTICE:  schema "no_such_schema" does not exist, skipping
+psql:sql/drop_if_exists.sql:265: NOTICE:  schema "no_such_schema" does not exist, skipping
 DROP TABLE
 DROP TEXT SEARCH CONFIGURATION IF EXISTS no_such_schema.foo;
-psql:sql/drop_if_exists.sql:265: NOTICE:  schema "no_such_schema" does not exist, skipping
+psql:sql/drop_if_exists.sql:266: NOTICE:  schema "no_such_schema" does not exist, skipping
 DROP TEXT SEARCH CONFIGURATION
 DROP TEXT SEARCH DICTIONARY IF EXISTS no_such_schema.foo;
-psql:sql/drop_if_exists.sql:266: NOTICE:  schema "no_such_schema" does not exist, skipping
+psql:sql/drop_if_exists.sql:267: NOTICE:  schema "no_such_schema" does not exist, skipping
 DROP TEXT SEARCH DICTIONARY
 DROP TEXT SEARCH PARSER IF EXISTS no_such_schema.foo;
-psql:sql/drop_if_exists.sql:267: NOTICE:  schema "no_such_schema" does not exist, skipping
+psql:sql/drop_if_exists.sql:268: NOTICE:  schema "no_such_schema" does not exist, skipping
 DROP TEXT SEARCH PARSER
 DROP TEXT SEARCH TEMPLATE IF EXISTS no_such_schema.foo;
-psql:sql/drop_if_exists.sql:268: NOTICE:  schema "no_such_schema" does not exist, skipping
+psql:sql/drop_if_exists.sql:269: NOTICE:  schema "no_such_schema" does not exist, skipping
 DROP TEXT SEARCH TEMPLATE
 DROP TRIGGER IF EXISTS foo ON no_such_schema.bar;
-psql:sql/drop_if_exists.sql:269: NOTICE:  schema "no_such_schema" does not exist, skipping
+psql:sql/drop_if_exists.sql:270: NOTICE:  schema "no_such_schema" does not exist, skipping
 DROP TRIGGER
 DROP TYPE IF EXISTS no_such_schema.foo;
-psql:sql/drop_if_exists.sql:270: NOTICE:  schema "no_such_schema" does not exist, skipping
+psql:sql/drop_if_exists.sql:271: NOTICE:  schema "no_such_schema" does not exist, skipping
 DROP TYPE
 DROP VIEW IF EXISTS no_such_schema.foo;
-psql:sql/drop_if_exists.sql:271: NOTICE:  schema "no_such_schema" does not exist, skipping
+psql:sql/drop_if_exists.sql:272: NOTICE:  schema "no_such_schema" does not exist, skipping
 DROP VIEW

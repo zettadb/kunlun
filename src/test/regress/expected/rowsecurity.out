@@ -121,14 +121,14 @@ INSERT 0 10
 (3 rows)
 
 \d document
-        Table "regress_rls_schema.document"
- Column  |  Type   | Collation | Nullable | Default 
----------+---------+-----------+----------+---------
- did     | integer |           | not null | 
- cid     | integer |           |          | 
- dlevel  | integer |           | not null | 
- dauthor | name    |           |          | 
- dtitle  | text    |           |          | 
+            Table "regress_rls_schema.document"
+ Column  |  Type   |    Collation     | Nullable | Default 
+---------+---------+------------------+----------+---------
+ did     | integer |                  | not null | 
+ cid     | integer |                  |          | 
+ dlevel  | integer |                  | not null | 
+ dauthor | name    |                  |          | 
+ dtitle  | text    | utf8mb4_0900_bin |          | 
 Indexes:
     "document_pkey" PRIMARY KEY, btree (did NULLS FIRST)
 
@@ -697,14 +697,14 @@ INSERT INTO part_document VALUES
     (10, 99, 2, 'regress_rls_dave', 'awesome technology book');
 INSERT 0 10
 \d+ part_document
-                    Partitioned table "regress_rls_schema.part_document"
- Column  |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
----------+---------+-----------+----------+---------+----------+--------------+-------------
- did     | integer |           |          |         | plain    |              | 
- cid     | integer |           |          |         | plain    |              | 
- dlevel  | integer |           | not null |         | plain    |              | 
- dauthor | name    |           |          |         | plain    |              | 
- dtitle  | text    |           |          |         | extended |              | 
+                       Partitioned table "regress_rls_schema.part_document"
+ Column  |  Type   |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+---------+---------+------------------+----------+---------+----------+--------------+-------------
+ did     | integer |                  |          |         | plain    |              | 
+ cid     | integer |                  |          |         | plain    |              | 
+ dlevel  | integer |                  | not null |         | plain    |              | 
+ dauthor | name    |                  |          |         | plain    |              | 
+ dtitle  | text    | utf8mb4_0900_bin |          |         | extended |              | 
 Partition key: RANGE (cid)
 Partitions: part_document_fiction FOR VALUES FROM (11) TO (12),
             part_document_nonfiction FOR VALUES FROM (99) TO (100),
@@ -2967,6 +2967,8 @@ SET row_security TO ON;
 SET
 SET SESSION AUTHORIZATION regress_rls_alice;
 SET
+ANALYZE current_check;
+ANALYZE
 -- Stats visible
 SELECT row_security_active('current_check');
  row_security_active 
@@ -3305,10 +3307,10 @@ INSERT 0 1
 -- SELECT permissions)
 INSERT INTO r1 VALUES (10)
     ON CONFLICT (a) DO UPDATE SET a = 30;
-psql:sql/rowsecurity.sql:1291: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '30' for key 'r1.PRIMARY'.
+psql:sql/rowsecurity.sql:1292: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '30' for key 'r1.PRIMARY'.
 INSERT INTO r1 VALUES (10)
     ON CONFLICT ON CONSTRAINT r1_pkey DO UPDATE SET a = 30;
-psql:sql/rowsecurity.sql:1293: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '30' for key 'r1.PRIMARY'.
+psql:sql/rowsecurity.sql:1294: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1062, Duplicate entry '30' for key 'r1.PRIMARY'.
 	
 DROP TABLE r1;
 DROP TABLE
@@ -3392,9 +3394,9 @@ GRANT
 SET SESSION AUTHORIZATION regress_rls_alice;
 SET
 SELECT * FROM ref_tbl; -- Permission denied
-psql:sql/rowsecurity.sql:1348: ERROR:  permission denied for table ref_tbl
+psql:sql/rowsecurity.sql:1349: ERROR:  permission denied for table ref_tbl
 SELECT * FROM rls_tbl; -- Permission denied
-psql:sql/rowsecurity.sql:1349: ERROR:  permission denied for table rls_tbl
+psql:sql/rowsecurity.sql:1350: ERROR:  permission denied for table rls_tbl
 SELECT * FROM rls_view; -- OK
  a  
 ----
@@ -3417,7 +3419,7 @@ RESET
 drop table regress_rls_schema.t1 cascade;
 DROP TABLE
 drop table regress_rls_schema.blog;
-psql:sql/rowsecurity.sql:1363: ERROR:  table "blog" does not exist
+psql:sql/rowsecurity.sql:1364: ERROR:  table "blog" does not exist
 drop table regress_rls_schema.x1;
 DROP TABLE
 drop table regress_rls_schema.y1;
@@ -3429,18 +3431,18 @@ DROP TABLE
 drop table regress_rls_schema.z2;
 DROP TABLE
 drop table regress_rls_schema.b1 cascade;
-psql:sql/rowsecurity.sql:1369: NOTICE:  drop cascades to view bv1
+psql:sql/rowsecurity.sql:1370: NOTICE:  drop cascades to view bv1
 DROP TABLE
 drop table regress_rls_schema.s1 cascade;
 DROP TABLE
 drop table regress_rls_schema.s2 cascade;
-psql:sql/rowsecurity.sql:1371: NOTICE:  drop cascades to view v2
+psql:sql/rowsecurity.sql:1372: NOTICE:  drop cascades to view v2
 DROP TABLE
 drop table regress_rls_schema.rec1 cascade;
-psql:sql/rowsecurity.sql:1372: NOTICE:  drop cascades to view rec1v
+psql:sql/rowsecurity.sql:1373: NOTICE:  drop cascades to view rec1v
 DROP TABLE
 drop table regress_rls_schema.rec2 cascade;
-psql:sql/rowsecurity.sql:1373: NOTICE:  drop cascades to view rec2v
+psql:sql/rowsecurity.sql:1374: NOTICE:  drop cascades to view rec2v
 DROP TABLE
 drop table regress_rls_schema.part_document cascade;
 DROP TABLE
@@ -3455,9 +3457,9 @@ DROP TABLE
 drop table regress_rls_schema.current_check;
 DROP TABLE
 drop table regress_rls_schema.rls_tbl cascade;
-psql:sql/rowsecurity.sql:1380: ERROR:  table "rls_tbl" does not exist
+psql:sql/rowsecurity.sql:1381: ERROR:  table "rls_tbl" does not exist
 drop function regress_rls_schema.op_leak(integer,integer) cascade;
-psql:sql/rowsecurity.sql:1381: ERROR:  function regress_rls_schema.op_leak(integer, integer) does not exist
+psql:sql/rowsecurity.sql:1382: ERROR:  function regress_rls_schema.op_leak(integer, integer) does not exist
 DROP USER regress_rls_alice;
 DROP ROLE
 drop table regress_rls_schema.dep1 cascade;
@@ -3484,7 +3486,7 @@ drop table regress_rls_schema.dep2 cascade;
 DROP TABLE
 \set VERBOSITY terse \\ -- suppress cascade details
 DROP SCHEMA regress_rls_schema CASCADE;
-psql:sql/rowsecurity.sql:1398: NOTICE:  drop cascades to function f_leak(text)
+psql:sql/rowsecurity.sql:1399: NOTICE:  drop cascades to function f_leak(text)
 DROP SCHEMA
 \set VERBOSITY default
 -- Arrange to have a few policies left over, for testing

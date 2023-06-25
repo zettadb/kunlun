@@ -160,12 +160,12 @@ select * from vw_ord;
 (2 rows)
 
 select definition from pg_views where viewname='vw_ord';
-                                       definition                                       
-----------------------------------------------------------------------------------------
-  SELECT z.a,                                                                          +
-     z.b,                                                                              +
-     z.c                                                                               +
-    FROM UNNEST(ARRAY[10, 20], ARRAY['foo'::text, 'bar'::text], ARRAY[1.0]) z(a, b, c);
+                                                         definition                                                         
+----------------------------------------------------------------------------------------------------------------------------
+  SELECT z.a,                                                                                                              +
+     z.b,                                                                                                                  +
+     z.c                                                                                                                   +
+    FROM UNNEST(ARRAY[10, 20], ARRAY['foo'::text COLLATE "default", 'bar'::text COLLATE "default"], ARRAY[1.0]) z(a, b, c);
 (1 row)
 
 drop view vw_ord;
@@ -180,12 +180,12 @@ select * from vw_ord;
 (2 rows)
 
 select definition from pg_views where viewname='vw_ord';
-                                       definition                                       
-----------------------------------------------------------------------------------------
-  SELECT z.a,                                                                          +
-     z.b,                                                                              +
-     z.c                                                                               +
-    FROM UNNEST(ARRAY[10, 20], ARRAY['foo'::text, 'bar'::text], ARRAY[1.0]) z(a, b, c);
+                                                         definition                                                         
+----------------------------------------------------------------------------------------------------------------------------
+  SELECT z.a,                                                                                                              +
+     z.b,                                                                                                                  +
+     z.c                                                                                                                   +
+    FROM UNNEST(ARRAY[10, 20], ARRAY['foo'::text COLLATE "default", 'bar'::text COLLATE "default"], ARRAY[1.0]) z(a, b, c);
 (1 row)
 
 drop view vw_ord;
@@ -200,12 +200,12 @@ select * from vw_ord;
 (2 rows)
 
 select definition from pg_views where viewname='vw_ord';
-                                                      definition                                                      
-----------------------------------------------------------------------------------------------------------------------
-  SELECT z.a,                                                                                                        +
-     z.b,                                                                                                            +
-     z.c                                                                                                             +
-    FROM ROWS FROM(unnest(ARRAY[10, 20]), unnest(ARRAY['foo'::text, 'bar'::text]), generate_series(1, 2)) z(a, b, c);
+                                                                        definition                                                                        
+----------------------------------------------------------------------------------------------------------------------------------------------------------
+  SELECT z.a,                                                                                                                                            +
+     z.b,                                                                                                                                                +
+     z.c                                                                                                                                                 +
+    FROM ROWS FROM(unnest(ARRAY[10, 20]), unnest(ARRAY['foo'::text COLLATE "default", 'bar'::text COLLATE "default"]), generate_series(1, 2)) z(a, b, c);
 (1 row)
 
 drop view vw_ord;

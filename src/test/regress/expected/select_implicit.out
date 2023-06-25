@@ -33,11 +33,11 @@ SELECT c, count(*) FROM test_missing_target GROUP BY test_missing_target.c ORDER
     c     | count 
 ----------+-------
  ABAB     |     2
- bbbb     |     1
  BBBB     |     2
- cccc     |     2
  CCCC     |     2
  XXXX     |     1
+ bbbb     |     1
+ cccc     |     2
 (6 rows)
 
 --   w/o existing GROUP BY target using a relation name in GROUP BY clause
@@ -45,11 +45,11 @@ SELECT count(*) FROM test_missing_target GROUP BY test_missing_target.c ORDER BY
  count 
 -------
      2
-     1
-     2
      2
      2
      1
+     1
+     2
 (6 rows)
 
 --   w/o existing GROUP BY target and w/o existing a different ORDER BY target
@@ -117,11 +117,11 @@ SELECT c, count(*) FROM test_missing_target GROUP BY 1 ORDER BY 1;
     c     | count 
 ----------+-------
  ABAB     |     2
- bbbb     |     1
  BBBB     |     2
- cccc     |     2
  CCCC     |     2
  XXXX     |     1
+ bbbb     |     1
+ cccc     |     2
 (6 rows)
 
 --   group using reference number out of range

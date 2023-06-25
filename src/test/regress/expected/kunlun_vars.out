@@ -500,10 +500,11 @@ show global variables strict;
  binlog_rows_query_log_events      | OFF
  binlog_stmt_cache_size            | 32768
  bulk_insert_buffer_size           | 8388608
- character_set_client              | utf8mb4
+ character_set_client              | UTF8
+ character_set_connection          | utf8mb4
  character_set_filesystem          | binary
- character_set_results             | utf8mb4
- collation_connection              | utf8mb4_0900_as_cs
+ character_set_results             | UTF8
+ collation_connection              | utf8mb4_0900_bin
  collation_database                | utf8mb4_0900_as_cs
  collation_server                  | utf8mb4_0900_as_cs
  completion_type                   | NO_CHAIN
@@ -590,7 +591,7 @@ show global variables strict;
  tx_read_only                      | OFF
  updatable_views_with_limit        | YES
  windowing_use_high_precision      | ON
-(100 rows)
+(101 rows)
 
 drop table if exists tt;
 psql:sql/kunlun_vars.sql:117: ERROR:  Kunlun-db: Connection with MySQL storage node (1, 1) is gone: 2013, Lost connection to server during query. Resend the statement.

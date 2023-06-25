@@ -399,13 +399,22 @@ RESET
 RESET enable_bitmapscan;
 RESET
 --
--- Domains over enums, not supported in Kunlun
+-- Domains over enums
 --
--- CREATE DOMAIN rgb AS rainbow CHECK (VALUE IN ('red', 'green', 'blue'));
--- SELECT 'red'::rgb;
--- SELECT 'purple'::rgb;
--- SELECT 'purple'::rainbow::rgb;
--- DROP DOMAIN rgb;
+CREATE DOMAIN rgb AS rainbow CHECK (VALUE IN ('red', 'green', 'blue'));
+CREATE DOMAIN
+SELECT 'red'::rgb;
+ rgb 
+-----
+ red
+(1 row)
+
+SELECT 'purple'::rgb;
+psql:sql/enum.sql:201: ERROR:  value for domain rgb violates check constraint "rgb_check"
+SELECT 'purple'::rainbow::rgb;
+psql:sql/enum.sql:202: ERROR:  value for domain rgb violates check constraint "rgb_check"
+DROP DOMAIN rgb;
+DROP DOMAIN
 --
 -- Arrays
 --

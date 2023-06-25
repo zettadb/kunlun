@@ -84,6 +84,50 @@ CREATE temp  TABLE array_index_op_test (
 CREATE TABLE
 COPY array_index_op_test FROM '/home/kunlun/pgregressdata/data/array.data';
 COPY 103
+-- analyze all the data we just loaded, to ensure plan consistency
+-- in later tests
+ANALYZE aggtest;
+ANALYZE
+ANALYZE onek;
+ANALYZE
+ANALYZE tenk1;
+ANALYZE
+ANALYZE slow_emp4000;
+ANALYZE
+ANALYZE person;
+ANALYZE
+ANALYZE emp;
+ANALYZE
+ANALYZE student;
+ANALYZE
+ANALYZE stud_emp;
+ANALYZE
+ANALYZE road;
+ANALYZE
+ANALYZE real_city;
+ANALYZE
+ANALYZE hash_i4_heap;
+ANALYZE
+ANALYZE hash_name_heap;
+ANALYZE
+ANALYZE hash_txt_heap;
+ANALYZE
+ANALYZE hash_f8_heap;
+ANALYZE
+ANALYZE test_tsvector;
+ANALYZE
+ANALYZE bt_i4_heap;
+ANALYZE
+ANALYZE bt_name_heap;
+ANALYZE
+ANALYZE bt_txt_heap;
+ANALYZE
+ANALYZE bt_f8_heap;
+ANALYZE
+ANALYZE array_op_test;
+ANALYZE
+ANALYZE array_index_op_test;
+ANALYZE
 --- test copying in CSV mode with various styles
 --- of embedded line ending characters
 create temp table copytest (
@@ -110,8 +154,8 @@ select * from copytest except select * from copytest2;
 -------+------+--------
 (0 rows)
 
-delete from copytest2;
-DELETE 4
+truncate copytest2;
+TRUNCATE TABLE
 --- same test but with an escape char different from quote char
 copy copytest to '/home/kunlun/pgregressdata/results/copytest.csv' csv quote '''' escape E'\\';
 COPY 4
@@ -163,7 +207,7 @@ BEGIN
 delete from parted_copytest;
 DELETE 1020
 copy parted_copytest from '/home/kunlun/pgregressdata/results/parted_copytest.csv' (freeze);
-psql:sql/copy.sql:154: ERROR:  cannot perform FREEZE on a partitioned table
+psql:sql/copy.sql:179: ERROR:  cannot perform FREEZE on a partitioned table
 rollback;
 ROLLBACK
 drop table parted_copytest;

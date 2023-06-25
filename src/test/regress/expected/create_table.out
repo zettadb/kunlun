@@ -444,22 +444,22 @@ CREATE TABLE partitioned2 (
 CREATE TABLE
 -- Partition key in describe output
 \d partitioned
-      Partitioned table "public.partitioned"
- Column |  Type   | Collation | Nullable | Default 
---------+---------+-----------+----------+---------
- a      | integer |           |          | 
- b      | integer |           |          | 
- c      | text    |           |          | 
- d      | text    |           |          | 
-Partition key: RANGE (a oid_ops, plusone(b), c, d COLLATE "C")
+          Partitioned table "public.partitioned"
+ Column |  Type   |    Collation     | Nullable | Default 
+--------+---------+------------------+----------+---------
+ a      | integer |                  |          | 
+ b      | integer |                  |          | 
+ c      | text    | utf8mb4_0900_bin |          | 
+ d      | text    | utf8mb4_0900_bin |          | 
+Partition key: RANGE (a oid_ops, plusone(b), c COLLATE "default", d COLLATE "C")
 Number of partitions: 0
 
 \d+ partitioned2
-                          Partitioned table "public.partitioned2"
- Column |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+---------+-----------+----------+---------+----------+--------------+-------------
- a      | integer |           |          |         | plain    |              | 
- b      | text    |           |          |         | extended |              | 
+                             Partitioned table "public.partitioned2"
+ Column |  Type   |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+---------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer |                  |          |         | plain    |              | 
+ b      | text    | utf8mb4_0900_bin |          |         | extended |              | 
 Partition key: RANGE (((a + 1)), substr(b, 1, 5))
 Number of partitions: 0
 
@@ -469,25 +469,67 @@ DETAIL:  Partition key of the failing row contains ((a + 1), substr(b, 1, 5)) = 
 CREATE TABLE part2_1 PARTITION OF partitioned2 FOR VALUES FROM (-1, 'aaaaa') TO (100, 'ccccc');
 CREATE TABLE
 \d+ part2_1
-                                  Table "public.part2_1"
- Column |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+---------+-----------+----------+---------+----------+--------------+-------------
- a      | integer |           |          |         | plain    |              | 
- b      | text    |           |          |         | extended |              | 
+                                      Table "public.part2_1"
+ Column |  Type   |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+---------+------------------+----------+---------+----------+--------------+-------------
+ a      | integer |                  |          |         | plain    |              | 
+ b      | text    | utf8mb4_0900_bin |          |         | extended |              | 
 Partition of: partitioned2 FOR VALUES FROM ('-1', 'aaaaa') TO (100, 'ccccc')
-Partition constraint: (((a + 1) IS NOT NULL) AND (substr(b, 1, 5) IS NOT NULL) AND (((a + 1) > '-1'::integer) OR (((a + 1) = '-1'::integer) AND (substr(b, 1, 5) >= 'aaaaa'::text))) AND (((a + 1) < 100) OR (((a + 1) = 100) AND (substr(b, 1, 5) < 'ccccc'::text))))
+Partition constraint: (((a + 1) IS NOT NULL) AND (substr(b, 1, 5) IS NOT NULL) AND (((a + 1) > '-1'::integer) OR (((a + 1) = '-1'::integer) AND (substr(b, 1, 5) >= 'aaaaa'::text COLLATE "default"))) AND (((a + 1) < 100) OR (((a + 1) = 100) AND (substr(b, 1, 5) < 'ccccc'::text COLLATE "default"))))
 Options: shard=1
 
 DROP TABLE partitioned;
 DROP TABLE
 DROP TABLE partitioned2;
 DROP TABLE
+-- check that dependencies of partition columns are handled correctly
+create domain intdom1 as int;
+CREATE DOMAIN
+create table partitioned (
+	a intdom1,
+	b text
+) partition by range (a);
+CREATE TABLE
+alter table partitioned drop column a;  -- fail
+psql:sql/create_table.sql:368: ERROR:  cannot drop column "a" because it is part of the partition key of relation "partitioned"
+drop domain intdom1;  -- fail, requires cascade
+psql:sql/create_table.sql:370: ERROR:  cannot drop type intdom1 because other objects depend on it
+DETAIL:  table partitioned depends on type intdom1
+HINT:  Use DROP ... CASCADE to drop the dependent objects too.
+drop domain intdom1 cascade;
+psql:sql/create_table.sql:372: NOTICE:  drop cascades to table partitioned
+DROP DOMAIN
+table partitioned;  -- gone
+psql:sql/create_table.sql:374: ERROR:  relation "partitioned" does not exist
+LINE 1: table partitioned;
+              ^
+-- likewise for columns used in partition expressions
+create domain intdom1 as int;
+CREATE DOMAIN
+create table partitioned (
+	a intdom1,
+	b text
+) partition by range (plusone(a));
+CREATE TABLE
+alter table partitioned drop column a;  -- fail
+psql:sql/create_table.sql:384: ERROR:  cannot drop column "a" because it is part of the partition key of relation "partitioned"
+drop domain intdom1;  -- fail, requires cascade
+psql:sql/create_table.sql:386: ERROR:  cannot drop type intdom1 because other objects depend on it
+DETAIL:  table partitioned depends on type intdom1
+HINT:  Use DROP ... CASCADE to drop the dependent objects too.
+drop domain intdom1 cascade;
+psql:sql/create_table.sql:388: NOTICE:  drop cascades to table partitioned
+DROP DOMAIN
+table partitioned;  -- gone
+psql:sql/create_table.sql:390: ERROR:  relation "partitioned" does not exist
+LINE 1: table partitioned;
+              ^
 --
 -- Partitions
 --
 -- check partition bound syntax
 drop table if exists list_parted;
-psql:sql/create_table.sql:365: NOTICE:  table "list_parted" does not exist, skipping
+psql:sql/create_table.sql:398: NOTICE:  table "list_parted" does not exist, skipping
 DROP TABLE
 CREATE TABLE list_parted (
 	a int
@@ -502,57 +544,57 @@ CREATE TABLE
 CREATE TABLE part_null PARTITION OF list_parted FOR VALUES IN (null);
 CREATE TABLE
 CREATE TABLE fail_part PARTITION OF list_parted FOR VALUES IN (int '1');
-psql:sql/create_table.sql:374: ERROR:  syntax error at or near "int"
+psql:sql/create_table.sql:407: ERROR:  syntax error at or near "int"
 LINE 1: ... fail_part PARTITION OF list_parted FOR VALUES IN (int '1');
                                                               ^
 CREATE TABLE fail_part PARTITION OF list_parted FOR VALUES IN ('1'::int);
-psql:sql/create_table.sql:375: ERROR:  syntax error at or near "::"
+psql:sql/create_table.sql:408: ERROR:  syntax error at or near "::"
 LINE 1: ...fail_part PARTITION OF list_parted FOR VALUES IN ('1'::int);
                                                                 ^
 -- syntax does not allow empty list of values for list partitions
 CREATE TABLE fail_part PARTITION OF list_parted FOR VALUES IN ();
-psql:sql/create_table.sql:378: ERROR:  syntax error at or near ")"
+psql:sql/create_table.sql:411: ERROR:  syntax error at or near ")"
 LINE 1: ...E TABLE fail_part PARTITION OF list_parted FOR VALUES IN ();
                                                                      ^
 -- trying to specify range for list partitioned table
 CREATE TABLE fail_part PARTITION OF list_parted FOR VALUES FROM (1) TO (2);
-psql:sql/create_table.sql:380: ERROR:  invalid bound specification for a list partition
+psql:sql/create_table.sql:413: ERROR:  invalid bound specification for a list partition
 LINE 1: ...BLE fail_part PARTITION OF list_parted FOR VALUES FROM (1) T...
                                                              ^
 -- trying to specify modulus and remainder for list partitioned table
 CREATE TABLE fail_part PARTITION OF list_parted FOR VALUES WITH (MODULUS 10, REMAINDER 1);
-psql:sql/create_table.sql:382: ERROR:  invalid bound specification for a list partition
+psql:sql/create_table.sql:415: ERROR:  invalid bound specification for a list partition
 LINE 1: ...BLE fail_part PARTITION OF list_parted FOR VALUES WITH (MODU...
                                                              ^
 -- check default partition cannot be created more than once
 CREATE TABLE part_default PARTITION OF list_parted DEFAULT;
 CREATE TABLE
 CREATE TABLE fail_default_part PARTITION OF list_parted DEFAULT;
-psql:sql/create_table.sql:386: ERROR:  partition "fail_default_part" conflicts with existing default partition "part_default"
+psql:sql/create_table.sql:419: ERROR:  partition "fail_default_part" conflicts with existing default partition "part_default"
 -- specified literal can't be cast to the partition column data type
 drop table if exists bools;
-psql:sql/create_table.sql:389: NOTICE:  table "bools" does not exist, skipping
+psql:sql/create_table.sql:422: NOTICE:  table "bools" does not exist, skipping
 DROP TABLE
 CREATE TABLE bools (
 	a bool
 ) PARTITION BY LIST (a);
 CREATE TABLE
 CREATE TABLE bools_true PARTITION OF bools FOR VALUES IN (1);
-psql:sql/create_table.sql:393: ERROR:  specified value cannot be cast to type boolean for column "a"
+psql:sql/create_table.sql:426: ERROR:  specified value cannot be cast to type boolean for column "a"
 LINE 1: ...REATE TABLE bools_true PARTITION OF bools FOR VALUES IN (1);
                                                                     ^
 DROP TABLE bools;
 DROP TABLE
 -- specified literal can be cast, but cast isn't immutable
 drop table if exists moneyp;
-psql:sql/create_table.sql:397: NOTICE:  table "moneyp" does not exist, skipping
+psql:sql/create_table.sql:430: NOTICE:  table "moneyp" does not exist, skipping
 DROP TABLE
 CREATE TABLE moneyp (
 	a money
 ) PARTITION BY LIST (a);
 CREATE TABLE
 CREATE TABLE moneyp_10 PARTITION OF moneyp FOR VALUES IN (10);
-psql:sql/create_table.sql:401: ERROR:  specified value cannot be cast to type money for column "a"
+psql:sql/create_table.sql:434: ERROR:  specified value cannot be cast to type money for column "a"
 LINE 1: ...EATE TABLE moneyp_10 PARTITION OF moneyp FOR VALUES IN (10);
                                                                    ^
 DETAIL:  The cast requires a non-immutable conversion.
@@ -570,7 +612,7 @@ CREATE TABLE bigintp_10 PARTITION OF bigintp FOR VALUES IN (10);
 CREATE TABLE
 -- fails due to overlap:
 CREATE TABLE bigintp_10_2 PARTITION OF bigintp FOR VALUES IN ('10');
-psql:sql/create_table.sql:411: ERROR:  partition "bigintp_10_2" would overlap partition "bigintp_10"
+psql:sql/create_table.sql:444: ERROR:  partition "bigintp_10_2" would overlap partition "bigintp_10"
 DROP TABLE bigintp;
 DROP TABLE
 CREATE TABLE range_parted (
@@ -579,31 +621,31 @@ CREATE TABLE range_parted (
 CREATE TABLE
 -- trying to specify list for range partitioned table
 CREATE TABLE fail_part PARTITION OF range_parted FOR VALUES IN ('a');
-psql:sql/create_table.sql:419: ERROR:  invalid bound specification for a range partition
+psql:sql/create_table.sql:452: ERROR:  invalid bound specification for a range partition
 LINE 1: ...BLE fail_part PARTITION OF range_parted FOR VALUES IN ('a');
                                                               ^
 -- trying to specify modulus and remainder for range partitioned table
 CREATE TABLE fail_part PARTITION OF range_parted FOR VALUES WITH (MODULUS 10, REMAINDER 1);
-psql:sql/create_table.sql:421: ERROR:  invalid bound specification for a range partition
+psql:sql/create_table.sql:454: ERROR:  invalid bound specification for a range partition
 LINE 1: ...LE fail_part PARTITION OF range_parted FOR VALUES WITH (MODU...
                                                              ^
 -- each of start and end bounds must have same number of values as the
 -- length of the partition key
 CREATE TABLE fail_part PARTITION OF range_parted FOR VALUES FROM ('a', 1) TO ('z');
-psql:sql/create_table.sql:424: ERROR:  FROM must specify exactly one value per partitioning column
+psql:sql/create_table.sql:457: ERROR:  FROM must specify exactly one value per partitioning column
 CREATE TABLE fail_part PARTITION OF range_parted FOR VALUES FROM ('a') TO ('z', 1);
-psql:sql/create_table.sql:425: ERROR:  TO must specify exactly one value per partitioning column
+psql:sql/create_table.sql:458: ERROR:  TO must specify exactly one value per partitioning column
 -- cannot specify null values in range bounds
 CREATE TABLE fail_part PARTITION OF range_parted FOR VALUES FROM (null) TO (maxvalue);
-psql:sql/create_table.sql:428: ERROR:  cannot specify NULL in range bound
+psql:sql/create_table.sql:461: ERROR:  cannot specify NULL in range bound
 -- trying to specify modulus and remainder for range partitioned table
 CREATE TABLE fail_part PARTITION OF range_parted FOR VALUES WITH (MODULUS 10, REMAINDER 1);
-psql:sql/create_table.sql:431: ERROR:  invalid bound specification for a range partition
+psql:sql/create_table.sql:464: ERROR:  invalid bound specification for a range partition
 LINE 1: ...LE fail_part PARTITION OF range_parted FOR VALUES WITH (MODU...
                                                              ^
 -- check partition bound syntax for the hash partition
 drop table if exists hash_parted;
-psql:sql/create_table.sql:434: NOTICE:  table "hash_parted" does not exist, skipping
+psql:sql/create_table.sql:467: NOTICE:  table "hash_parted" does not exist, skipping
 DROP TABLE
 CREATE TABLE hash_parted (
 	a int
@@ -617,23 +659,23 @@ CREATE TABLE hpart_3 PARTITION OF hash_parted FOR VALUES WITH (MODULUS 200, REMA
 CREATE TABLE
 -- modulus 25 is factor of modulus of 50 but 10 is not factor of 25.
 CREATE TABLE fail_part PARTITION OF hash_parted FOR VALUES WITH (MODULUS 25, REMAINDER 3);
-psql:sql/create_table.sql:442: ERROR:  every hash partition modulus must be a factor of the next larger modulus
+psql:sql/create_table.sql:475: ERROR:  every hash partition modulus must be a factor of the next larger modulus
 -- previous modulus 50 is factor of 150 but this modulus is not factor of next modulus 200.
 CREATE TABLE fail_part PARTITION OF hash_parted FOR VALUES WITH (MODULUS 150, REMAINDER 3);
-psql:sql/create_table.sql:444: ERROR:  every hash partition modulus must be a factor of the next larger modulus
+psql:sql/create_table.sql:477: ERROR:  every hash partition modulus must be a factor of the next larger modulus
 -- trying to specify range for the hash partitioned table
 CREATE TABLE fail_part PARTITION OF hash_parted FOR VALUES FROM ('a', 1) TO ('z');
-psql:sql/create_table.sql:446: ERROR:  invalid bound specification for a hash partition
+psql:sql/create_table.sql:479: ERROR:  invalid bound specification for a hash partition
 LINE 1: ...BLE fail_part PARTITION OF hash_parted FOR VALUES FROM ('a',...
                                                              ^
 -- trying to specify list value for the hash partitioned table
 CREATE TABLE fail_part PARTITION OF hash_parted FOR VALUES IN (1000);
-psql:sql/create_table.sql:448: ERROR:  invalid bound specification for a hash partition
+psql:sql/create_table.sql:481: ERROR:  invalid bound specification for a hash partition
 LINE 1: ...BLE fail_part PARTITION OF hash_parted FOR VALUES IN (1000);
                                                              ^
 -- trying to create default partition for the hash partitioned table
 CREATE TABLE fail_default_part PARTITION OF hash_parted DEFAULT;
-psql:sql/create_table.sql:451: ERROR:  a hash-partitioned table may not have a default partition
+psql:sql/create_table.sql:484: ERROR:  a hash-partitioned table may not have a default partition
 -- check if compatible with the specified parent
 -- cannot create as partition of a non-partitioned table
 CREATE TABLE unparted (
@@ -641,9 +683,9 @@ CREATE TABLE unparted (
 );
 CREATE TABLE
 CREATE TABLE fail_part PARTITION OF unparted FOR VALUES IN ('a');
-psql:sql/create_table.sql:459: ERROR:  "unparted" is not partitioned
+psql:sql/create_table.sql:492: ERROR:  "unparted" is not partitioned
 CREATE TABLE fail_part PARTITION OF unparted FOR VALUES WITH (MODULUS 2, REMAINDER 1);
-psql:sql/create_table.sql:460: ERROR:  "unparted" is not partitioned
+psql:sql/create_table.sql:493: ERROR:  "unparted" is not partitioned
 DROP TABLE unparted;
 DROP TABLE
 -- cannot create a permanent rel as partition of a temp rel
@@ -652,7 +694,7 @@ CREATE TEMP TABLE temp_parted (
 ) PARTITION BY LIST (a);
 CREATE TABLE
 CREATE TABLE fail_part PARTITION OF temp_parted FOR VALUES IN ('a');
-psql:sql/create_table.sql:467: ERROR:  cannot create a permanent relation as partition of temporary relation "temp_parted"
+psql:sql/create_table.sql:500: ERROR:  cannot create a permanent relation as partition of temporary relation "temp_parted"
 DROP TABLE temp_parted;
 DROP TABLE
 -- cannot create a table with oids as partition of table without oids
@@ -684,7 +726,7 @@ Options: shard=1
 DROP TABLE oids_parted;
 DROP TABLE
 DROP TABLE part_forced_oids;
-psql:sql/create_table.sql:485: ERROR:  table "part_forced_oids" does not exist
+psql:sql/create_table.sql:518: ERROR:  table "part_forced_oids" does not exist
 -- check for partition bound overlap and other invalid specifications
 CREATE TABLE list_parted2 (
 	a varchar
@@ -697,53 +739,53 @@ CREATE TABLE
 CREATE TABLE list_parted2_def PARTITION OF list_parted2 DEFAULT;
 CREATE TABLE
 CREATE TABLE fail_part PARTITION OF list_parted2 FOR VALUES IN (null);
-psql:sql/create_table.sql:496: ERROR:  partition "fail_part" would overlap partition "part_null_z"
+psql:sql/create_table.sql:529: ERROR:  partition "fail_part" would overlap partition "part_null_z"
 CREATE TABLE fail_part PARTITION OF list_parted2 FOR VALUES IN ('b', 'c');
-psql:sql/create_table.sql:497: ERROR:  partition "fail_part" would overlap partition "part_ab"
+psql:sql/create_table.sql:530: ERROR:  partition "fail_part" would overlap partition "part_ab"
 -- check default partition overlap
 INSERT INTO list_parted2 VALUES('X');
 INSERT 0 1
 CREATE TABLE fail_part PARTITION OF list_parted2 FOR VALUES IN ('W', 'X', 'Y');
-psql:sql/create_table.sql:500: ERROR:  updated partition constraint for default partition would be violated by some row
+psql:sql/create_table.sql:533: ERROR:  updated partition constraint for default partition would be violated by some row
 CREATE TABLE range_parted2 (
 	a int
 ) PARTITION BY RANGE (a);
 CREATE TABLE
 -- trying to create range partition with empty range
 CREATE TABLE fail_part PARTITION OF range_parted2 FOR VALUES FROM (1) TO (0);
-psql:sql/create_table.sql:507: ERROR:  empty range bound specified for partition "fail_part"
+psql:sql/create_table.sql:540: ERROR:  empty range bound specified for partition "fail_part"
 DETAIL:  Specified lower bound (1) is greater than or equal to upper bound (0).
 -- note that the range '[1, 1)' has no elements
 CREATE TABLE fail_part PARTITION OF range_parted2 FOR VALUES FROM (1) TO (1);
-psql:sql/create_table.sql:509: ERROR:  empty range bound specified for partition "fail_part"
+psql:sql/create_table.sql:542: ERROR:  empty range bound specified for partition "fail_part"
 DETAIL:  Specified lower bound (1) is greater than or equal to upper bound (1).
 CREATE TABLE part0 PARTITION OF range_parted2 FOR VALUES FROM (minvalue) TO (1);
 CREATE TABLE
 CREATE TABLE fail_part PARTITION OF range_parted2 FOR VALUES FROM (minvalue) TO (2);
-psql:sql/create_table.sql:512: ERROR:  partition "fail_part" would overlap partition "part0"
+psql:sql/create_table.sql:545: ERROR:  partition "fail_part" would overlap partition "part0"
 CREATE TABLE part1 PARTITION OF range_parted2 FOR VALUES FROM (1) TO (10);
 CREATE TABLE
 CREATE TABLE fail_part PARTITION OF range_parted2 FOR VALUES FROM (9) TO (maxvalue);
-psql:sql/create_table.sql:514: ERROR:  partition "fail_part" would overlap partition "part1"
+psql:sql/create_table.sql:547: ERROR:  partition "fail_part" would overlap partition "part1"
 CREATE TABLE part2 PARTITION OF range_parted2 FOR VALUES FROM (20) TO (30);
 CREATE TABLE
 CREATE TABLE part3 PARTITION OF range_parted2 FOR VALUES FROM (30) TO (40);
 CREATE TABLE
 CREATE TABLE fail_part PARTITION OF range_parted2 FOR VALUES FROM (10) TO (30);
-psql:sql/create_table.sql:517: ERROR:  partition "fail_part" would overlap partition "part2"
+psql:sql/create_table.sql:550: ERROR:  partition "fail_part" would overlap partition "part2"
 CREATE TABLE fail_part PARTITION OF range_parted2 FOR VALUES FROM (10) TO (50);
-psql:sql/create_table.sql:518: ERROR:  partition "fail_part" would overlap partition "part2"
+psql:sql/create_table.sql:551: ERROR:  partition "fail_part" would overlap partition "part2"
 -- Create a default partition for range partitioned table
 CREATE TABLE range2_default PARTITION OF range_parted2 DEFAULT;
 CREATE TABLE
 -- More than one default partition is not allowed, so this should give error
 CREATE TABLE fail_default_part PARTITION OF range_parted2 DEFAULT;
-psql:sql/create_table.sql:524: ERROR:  partition "fail_default_part" conflicts with existing default partition "range2_default"
+psql:sql/create_table.sql:557: ERROR:  partition "fail_default_part" conflicts with existing default partition "range2_default"
 -- Check if the range for default partitions overlap
 INSERT INTO range_parted2 VALUES (85);
 INSERT 0 1
 CREATE TABLE fail_part PARTITION OF range_parted2 FOR VALUES FROM (80) TO (90);
-psql:sql/create_table.sql:528: ERROR:  updated partition constraint for default partition would be violated by some row
+psql:sql/create_table.sql:561: ERROR:  updated partition constraint for default partition would be violated by some row
 CREATE TABLE part4 PARTITION OF range_parted2 FOR VALUES FROM (90) TO (100);
 CREATE TABLE
 -- now check for multi-column range partition key
@@ -755,7 +797,7 @@ CREATE TABLE
 CREATE TABLE part00 PARTITION OF range_parted3 FOR VALUES FROM (0, minvalue) TO (0, maxvalue);
 CREATE TABLE
 CREATE TABLE fail_part PARTITION OF range_parted3 FOR VALUES FROM (0, minvalue) TO (0, 1);
-psql:sql/create_table.sql:537: ERROR:  partition "fail_part" would overlap partition "part00"
+psql:sql/create_table.sql:570: ERROR:  partition "fail_part" would overlap partition "part00"
 CREATE TABLE part10 PARTITION OF range_parted3 FOR VALUES FROM (1, minvalue) TO (1, 1);
 CREATE TABLE
 CREATE TABLE part11 PARTITION OF range_parted3 FOR VALUES FROM (1, 1) TO (1, 10);
@@ -763,14 +805,14 @@ CREATE TABLE
 CREATE TABLE part12 PARTITION OF range_parted3 FOR VALUES FROM (1, 10) TO (1, maxvalue);
 CREATE TABLE
 CREATE TABLE fail_part PARTITION OF range_parted3 FOR VALUES FROM (1, 10) TO (1, 20);
-psql:sql/create_table.sql:542: ERROR:  partition "fail_part" would overlap partition "part12"
+psql:sql/create_table.sql:575: ERROR:  partition "fail_part" would overlap partition "part12"
 CREATE TABLE range3_default PARTITION OF range_parted3 DEFAULT;
 CREATE TABLE
 -- cannot create a partition that says column b is allowed to range
 -- from -infinity to +infinity, while there exist partitions that have
 -- more specific ranges
 CREATE TABLE fail_part PARTITION OF range_parted3 FOR VALUES FROM (1, minvalue) TO (1, maxvalue);
-psql:sql/create_table.sql:548: ERROR:  partition "fail_part" would overlap partition "part10"
+psql:sql/create_table.sql:581: ERROR:  partition "fail_part" would overlap partition "part10"
 -- check for partition bound overlap and other invalid specifications for the hash partition
 CREATE TABLE hash_parted2 (
 	a varchar
@@ -786,13 +828,13 @@ CREATE TABLE h2part_4 PARTITION OF hash_parted2 FOR VALUES WITH (MODULUS 8, REMA
 CREATE TABLE
 -- overlap with part_4
 CREATE TABLE fail_part PARTITION OF hash_parted2 FOR VALUES WITH (MODULUS 2, REMAINDER 1);
-psql:sql/create_table.sql:559: ERROR:  partition "fail_part" would overlap partition "h2part_4"
+psql:sql/create_table.sql:592: ERROR:  partition "fail_part" would overlap partition "h2part_4"
 -- modulus must be greater than zero
 CREATE TABLE fail_part PARTITION OF hash_parted2 FOR VALUES WITH (MODULUS 0, REMAINDER 1);
-psql:sql/create_table.sql:561: ERROR:  modulus for hash partition must be a positive integer
+psql:sql/create_table.sql:594: ERROR:  modulus for hash partition must be a positive integer
 -- remainder must be greater than or equal to zero and less than modulus
 CREATE TABLE fail_part PARTITION OF hash_parted2 FOR VALUES WITH (MODULUS 8, REMAINDER 8);
-psql:sql/create_table.sql:563: ERROR:  remainder for hash partition must be less than modulus
+psql:sql/create_table.sql:596: ERROR:  remainder for hash partition must be less than modulus
 -- check schema propagation from parent
 CREATE TABLE parted (
 	a text,
@@ -820,12 +862,12 @@ CREATE TABLE part_b PARTITION OF parted (
 	b CHECK (b >= 0),
 	CONSTRAINT check_a CHECK (length(a) > 0)
 ) FOR VALUES IN ('b');
-psql:sql/create_table.sql:588: ERROR:  column "b" specified more than once
+psql:sql/create_table.sql:621: ERROR:  column "b" specified more than once
 CREATE TABLE part_b PARTITION OF parted (
 	b NOT NULL DEFAULT 1 CHECK (b >= 0),
 	CONSTRAINT check_a CHECK (length(a) > 0)
 ) FOR VALUES IN ('b');
-psql:sql/create_table.sql:592: NOTICE:  merging constraint "check_a" with inherited definition
+psql:sql/create_table.sql:625: NOTICE:  merging constraint "check_a" with inherited definition
 CREATE TABLE
 -- conislocal should be false for any merged constraints
 SELECT conislocal, coninhcount FROM pg_constraint WHERE conrelid = 'part_b'::regclass AND conname = 'check_a';
@@ -836,7 +878,7 @@ SELECT conislocal, coninhcount FROM pg_constraint WHERE conrelid = 'part_b'::reg
 
 -- specify PARTITION BY for a partition
 CREATE TABLE fail_part_col_not_found PARTITION OF parted FOR VALUES IN ('c') PARTITION BY RANGE (c);
-psql:sql/create_table.sql:597: ERROR:  column "c" named in partition key does not exist
+psql:sql/create_table.sql:630: ERROR:  column "c" named in partition key does not exist
 CREATE TABLE part_c PARTITION OF parted (b WITH OPTIONS NOT NULL DEFAULT 0) FOR VALUES IN ('c') PARTITION BY RANGE ((b));
 CREATE TABLE
 -- create a level-2 partition
@@ -848,7 +890,7 @@ CREATE TABLE
 create table parted_notnull_inh_test1 partition of parted_notnull_inh_test (a not null, b default 1) for values in (1);
 CREATE TABLE
 insert into parted_notnull_inh_test (b) values (null);
-psql:sql/create_table.sql:606: ERROR:  null value in column "b" violates not-null constraint
+psql:sql/create_table.sql:639: ERROR:  null value in column "b" violates not-null constraint
 DETAIL:  Failing row contains (1, null).
 -- note that while b's default is overriden, a's default is preserved
 \d parted_notnull_inh_test1
@@ -877,13 +919,13 @@ drop table parted_collate_must_match;
 DROP TABLE
 -- Partition bound in describe output
 \d+ part_b
-                                   Table "public.part_b"
- Column |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+---------+-----------+----------+---------+----------+--------------+-------------
- a      | text    |           |          |         | extended |              | 
- b      | integer |           | not null | 1       | plain    |              | 
+                                      Table "public.part_b"
+ Column |  Type   |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+---------+------------------+----------+---------+----------+--------------+-------------
+ a      | text    | utf8mb4_0900_bin |          |         | extended |              | 
+ b      | integer |                  | not null | 1       | plain    |              | 
 Partition of: parted FOR VALUES IN ('b')
-Partition constraint: ((a IS NOT NULL) AND (a = 'b'::text))
+Partition constraint: ((a IS NOT NULL) AND (a = 'b'::text COLLATE "default"))
 Check constraints:
     "check_a" CHECK (length(a) > 0)
     "part_b_b_check" CHECK (b >= 0)
@@ -891,13 +933,13 @@ Options: shard=1
 
 -- Both partition bound and partition key in describe output
 \d+ part_c
-                             Partitioned table "public.part_c"
- Column |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+---------+-----------+----------+---------+----------+--------------+-------------
- a      | text    |           |          |         | extended |              | 
- b      | integer |           | not null | 0       | plain    |              | 
+                                Partitioned table "public.part_c"
+ Column |  Type   |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+---------+------------------+----------+---------+----------+--------------+-------------
+ a      | text    | utf8mb4_0900_bin |          |         | extended |              | 
+ b      | integer |                  | not null | 0       | plain    |              | 
 Partition of: parted FOR VALUES IN ('c')
-Partition constraint: ((a IS NOT NULL) AND (a = 'c'::text))
+Partition constraint: ((a IS NOT NULL) AND (a = 'c'::text COLLATE "default"))
 Partition key: RANGE (b)
 Check constraints:
     "check_a" CHECK (length(a) > 0)
@@ -905,13 +947,13 @@ Partitions: part_c_1_10 FOR VALUES FROM (1) TO (10)
 
 -- a level-2 partition's constraint will include the parent's expressions
 \d+ part_c_1_10
-                                Table "public.part_c_1_10"
- Column |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+---------+-----------+----------+---------+----------+--------------+-------------
- a      | text    |           |          |         | extended |              | 
- b      | integer |           | not null | 0       | plain    |              | 
+                                    Table "public.part_c_1_10"
+ Column |  Type   |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+---------+------------------+----------+---------+----------+--------------+-------------
+ a      | text    | utf8mb4_0900_bin |          |         | extended |              | 
+ b      | integer |                  | not null | 0       | plain    |              | 
 Partition of: part_c FOR VALUES FROM (1) TO (10)
-Partition constraint: ((a IS NOT NULL) AND (a = 'c'::text) AND (b IS NOT NULL) AND (b >= 1) AND (b < 10))
+Partition constraint: ((a IS NOT NULL) AND (a = 'c'::text COLLATE "default") AND (b IS NOT NULL) AND (b >= 1) AND (b < 10))
 Check constraints:
     "check_a" CHECK (length(a) > 0)
 Options: shard=1
@@ -921,11 +963,11 @@ Options: shard=1
 -- output could vary depending on the order in which partition oids are
 -- returned.
 \d parted
-         Partitioned table "public.parted"
- Column |  Type   | Collation | Nullable | Default 
---------+---------+-----------+----------+---------
- a      | text    |           |          | 
- b      | integer |           | not null | 0
+            Partitioned table "public.parted"
+ Column |  Type   |    Collation     | Nullable | Default 
+--------+---------+------------------+----------+---------
+ a      | text    | utf8mb4_0900_bin |          | 
+ b      | integer |                  | not null | 0
 Partition key: LIST (a)
 Check constraints:
     "check_a" CHECK (length(a) > 0)
@@ -1052,11 +1094,11 @@ SELECT obj_description('parted_col_comment'::regclass);
 (1 row)
 
 \d+ parted_col_comment
-                        Partitioned table "public.parted_col_comment"
- Column |  Type   | Collation | Nullable | Default | Storage  | Stats target |  Description  
---------+---------+-----------+----------+---------+----------+--------------+---------------
- a      | integer |           |          |         | plain    |              | Partition key
- b      | text    |           |          |         | extended |              | 
+                           Partitioned table "public.parted_col_comment"
+ Column |  Type   |    Collation     | Nullable | Default | Storage  | Stats target |  Description  
+--------+---------+------------------+----------+---------+----------+--------------+---------------
+ a      | integer |                  |          |         | plain    |              | Partition key
+ b      | text    | utf8mb4_0900_bin |          |         | extended |              | 
 Partition key: LIST (a)
 Number of partitions: 0
 
@@ -1086,9 +1128,9 @@ CREATE TABLE
 create temporary table temp_parted (a int) partition by list (a);
 CREATE TABLE
 create table perm_part partition of temp_parted default; -- error
-psql:sql/create_table.sql:695: ERROR:  cannot create a permanent relation as partition of temporary relation "temp_parted"
+psql:sql/create_table.sql:728: ERROR:  cannot create a permanent relation as partition of temporary relation "temp_parted"
 create temp table temp_part partition of perm_parted default; -- error
-psql:sql/create_table.sql:696: ERROR:  cannot create a temporary relation as partition of permanent relation "perm_parted"
+psql:sql/create_table.sql:729: ERROR:  cannot create a temporary relation as partition of permanent relation "perm_parted"
 create temp table temp_part partition of temp_parted default; -- ok
 CREATE TABLE
 drop table perm_parted cascade;
@@ -1109,7 +1151,7 @@ create trigger trig_part_create before insert on tab_part_create
   for each statement execute procedure func_part_create();
 CREATE TRIGGER
 insert into tab_part_create values (1);
-psql:sql/create_table.sql:711: ERROR:  cannot CREATE TABLE .. PARTITION OF "tab_part_create" because it is being used by active queries in this session
+psql:sql/create_table.sql:744: ERROR:  cannot CREATE TABLE .. PARTITION OF "tab_part_create" because it is being used by active queries in this session
 CONTEXT:  SQL statement "create table tab_part_create_1 partition of tab_part_create for values in (1)"
 PL/pgSQL function func_part_create() line 3 at EXECUTE
 drop table tab_part_create;

@@ -48,7 +48,8 @@ CREATE FOREIGN TABLE addr_nsp.genftable (a int) SERVER addr_fserv;
 CREATE FOREIGN TABLE
 CREATE AGGREGATE addr_nsp.genaggr(int4) (sfunc = int4pl, stype = int4);
 CREATE AGGREGATE
---CREATE DOMAIN addr_nsp.gendomain AS int4 CONSTRAINT domconstr CHECK (value > 0);
+CREATE DOMAIN addr_nsp.gendomain AS int4 CONSTRAINT domconstr CHECK (value > 0);
+CREATE DOMAIN
 CREATE FUNCTION addr_nsp.trig() RETURNS TRIGGER LANGUAGE plpgsql AS $$ BEGIN END; $$;
 CREATE FUNCTION
 CREATE TRIGGER t BEFORE INSERT ON addr_nsp.gentable FOR EACH ROW EXECUTE PROCEDURE addr_nsp.trig();
@@ -455,7 +456,7 @@ drop table addr_nsp.parttable cascade;
 DROP TABLE
 -- drop table addr_nsp.gentable cascade;
 DROP SCHEMA addr_nsp CASCADE;
-psql:sql/object_address.sql:212: NOTICE:  drop cascades to 13 other objects
+psql:sql/object_address.sql:212: NOTICE:  drop cascades to 14 other objects
 DROP SCHEMA
 ALTER DEFAULT PRIVILEGES FOR ROLE regress_addr_user IN SCHEMA public REVOKE ALL ON TABLES FROM regress_addr_user;
 ALTER DEFAULT PRIVILEGES

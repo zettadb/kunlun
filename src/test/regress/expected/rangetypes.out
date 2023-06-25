@@ -496,6 +496,42 @@ LINE 1: select '[2010-01-01 01:00:00 -08, 2010-01-01 02:00:00 -05)':...
 set timezone to default;
 SET
 --
+--
+-- Test range types over domains
+--
+create domain mydomain as int4;
+CREATE DOMAIN
+create type mydomainrange as range(subtype=mydomain);
+CREATE TYPE
+select '[4,50)'::mydomainrange @> 7::mydomain;
+ ?column? 
+----------
+ t
+(1 row)
+
+drop domain mydomain;  -- fail
+psql:sql/rangetypes.sql:131: ERROR:  cannot drop type mydomain because other objects depend on it
+DETAIL:  type mydomainrange depends on type mydomain
+HINT:  Use DROP ... CASCADE to drop the dependent objects too.
+drop domain mydomain cascade;
+psql:sql/rangetypes.sql:132: NOTICE:  drop cascades to type mydomainrange
+DROP DOMAIN
+--
+-- Test domains over range types
+--
+create domain restrictedrange as int4range check (upper(value) < 10);
+CREATE DOMAIN
+select '[4,5)'::restrictedrange @> 7;
+ ?column? 
+----------
+ f
+(1 row)
+
+select '[4,50)'::restrictedrange @> 7; -- should fail
+psql:sql/rangetypes.sql:140: ERROR:  value for domain restrictedrange violates check constraint "restrictedrange_check"
+drop domain restrictedrange;
+DROP DOMAIN
+--
 -- Test multiple range types over the same subtype
 --
 create type textrange1 as range(subtype=text, collation="C");
@@ -503,7 +539,7 @@ CREATE TYPE
 create type textrange2 as range(subtype=text, collation="C");
 CREATE TYPE
 select textrange1('a','Z') @> 'b'::text;
-psql:sql/rangetypes.sql:130: ERROR:  range lower bound must be less than or equal to range upper bound
+psql:sql/rangetypes.sql:150: ERROR:  range lower bound must be less than or equal to range upper bound
 select textrange2('a','z') @> 'b'::text;
  ?column? 
 ----------
@@ -528,7 +564,7 @@ select anyarray_anyrange_func(ARRAY[1,2], int4range(10,20));
 
 -- should fail
 select anyarray_anyrange_func(ARRAY[1,2], numrange(10,20));
-psql:sql/rangetypes.sql:146: ERROR:  function anyarray_anyrange_func(integer[], numrange) does not exist
+psql:sql/rangetypes.sql:166: ERROR:  function anyarray_anyrange_func(integer[], numrange) does not exist
 LINE 1: select anyarray_anyrange_func(ARRAY[1,2], numrange(10,20));
                ^
 HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
@@ -537,12 +573,12 @@ DROP FUNCTION
 -- should fail
 create function bogus_func(anyelement)
   returns anyrange as 'select int4range(1,10)' language sql;
-psql:sql/rangetypes.sql:152: ERROR:  cannot determine result data type
+psql:sql/rangetypes.sql:172: ERROR:  cannot determine result data type
 DETAIL:  A function returning "anyrange" must have at least one "anyrange" argument.
 -- should fail
 create function bogus_func(int)
   returns anyrange as 'select int4range(1,10)' language sql;
-psql:sql/rangetypes.sql:156: ERROR:  cannot determine result data type
+psql:sql/rangetypes.sql:176: ERROR:  cannot determine result data type
 DETAIL:  A function returning a polymorphic type must have at least one polymorphic argument.
 create function range_add_bounds(anyrange)
   returns anyelement as 'select lower($1) + upper($1)' language sql;
@@ -570,14 +606,14 @@ select rangetypes_sql(int4range(1,10), ARRAY[2,20]);
 (1 row)
 
 select rangetypes_sql(numrange(1,10), ARRAY[2,20]);  -- match failure
-psql:sql/rangetypes.sql:169: ERROR:  function rangetypes_sql(numrange, integer[]) does not exist
+psql:sql/rangetypes.sql:189: ERROR:  function rangetypes_sql(numrange, integer[]) does not exist
 LINE 1: select rangetypes_sql(numrange(1,10), ARRAY[2,20]);
                ^
 HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
 drop function range_add_bounds(anyrange);
 DROP FUNCTION
 drop function rangetypes_sql(anyrange, anyarray, anyelement);
-psql:sql/rangetypes.sql:172: ERROR:  function rangetypes_sql(anyrange, anyarray, anyelement) does not exist
+psql:sql/rangetypes.sql:192: ERROR:  function rangetypes_sql(anyrange, anyarray, anyelement) does not exist
 --
 -- Arrays of ranges
 --
@@ -599,7 +635,7 @@ select arrayrange(ARRAY[1,2], ARRAY[2,1]);
 (1 row)
 
 select arrayrange(ARRAY[2,1], ARRAY[1,2]);  -- fail
-psql:sql/rangetypes.sql:187: ERROR:  range lower bound must be less than or equal to range upper bound
+psql:sql/rangetypes.sql:207: ERROR:  range lower bound must be less than or equal to range upper bound
 select array[1,1] <@ arrayrange(array[1,2], array[2,1]);
  ?column? 
 ----------
@@ -632,7 +668,7 @@ select *, row_to_json(upper(t)) as u from
 (2 rows)
 
 drop type two_ints cascade;
-psql:sql/rangetypes.sql:204: NOTICE:  drop cascades to type two_ints_range
+psql:sql/rangetypes.sql:224: NOTICE:  drop cascades to type two_ints_range
 DROP TYPE
 --
 -- Check behavior when subtype lacks a hash function
@@ -664,7 +700,7 @@ select * from outparam_succeed(int4range(1,2));
 (1 row)
 
 drop function outparam_succeed(anyrange, anyrange, text);
-psql:sql/rangetypes.sql:227: ERROR:  function outparam_succeed(anyrange, anyrange, text) does not exist
+psql:sql/rangetypes.sql:247: ERROR:  function outparam_succeed(anyrange, anyrange, text) does not exist
 create function inoutparam_succeed(out i anyelement, inout r anyrange)
   as $$ select upper($1), $1 $$ language sql;
 CREATE FUNCTION
@@ -675,7 +711,7 @@ select * from inoutparam_succeed(int4range(1,2));
 (1 row)
 
 drop function inoutparam_succeed(anyelement, anyrange);
-psql:sql/rangetypes.sql:233: ERROR:  function inoutparam_succeed(anyelement, anyrange) does not exist
+psql:sql/rangetypes.sql:253: ERROR:  function inoutparam_succeed(anyelement, anyrange) does not exist
 create function table_succeed(i anyelement, r anyrange) returns table(i anyelement, r anyrange)
   as $$ select $1, $2 $$ language sql;
 CREATE FUNCTION
@@ -690,17 +726,17 @@ DROP FUNCTION
 -- should fail
 create function outparam_fail(i anyelement, out r anyrange, out t text)
   as $$ select '[1,10]', 'foo' $$ language sql;
-psql:sql/rangetypes.sql:243: ERROR:  cannot determine result data type
+psql:sql/rangetypes.sql:263: ERROR:  cannot determine result data type
 DETAIL:  A function returning "anyrange" must have at least one "anyrange" argument.
 --should fail
 create function inoutparam_fail(inout i anyelement, out r anyrange)
   as $$ select $1, '[1,10]' $$ language sql;
-psql:sql/rangetypes.sql:247: ERROR:  cannot determine result data type
+psql:sql/rangetypes.sql:267: ERROR:  cannot determine result data type
 DETAIL:  A function returning "anyrange" must have at least one "anyrange" argument.
 --should fail
 create function table_fail(i anyelement) returns table(i anyelement, r anyrange)
   as $$ select $1, '[1,10]' $$ language sql;
-psql:sql/rangetypes.sql:251: ERROR:  cannot determine result data type
+psql:sql/rangetypes.sql:271: ERROR:  cannot determine result data type
 DETAIL:  A function returning "anyrange" must have at least one "anyrange" argument.
 drop type textrange;
 DROP TYPE

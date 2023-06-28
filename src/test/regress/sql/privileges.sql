@@ -1242,7 +1242,8 @@ LOCK TABLE lock_table IN ACCESS EXCLUSIVE MODE; -- should pass
 COMMIT;
 \c
 REVOKE DELETE ON lock_table FROM regress_locktable_user;
-
+-- LOCK TABLE and TRUNCATE permission
+GRANT TRUNCATE ON lock_table TO regress_locktable_user;
 SET SESSION AUTHORIZATION regress_locktable_user;
 BEGIN;
 LOCK TABLE lock_table IN ROW EXCLUSIVE MODE; -- should pass
@@ -1254,7 +1255,7 @@ BEGIN;
 LOCK TABLE lock_table IN ACCESS EXCLUSIVE MODE; -- should pass
 COMMIT;
 \c
-
+REVOKE TRUNCATE ON lock_table FROM regress_locktable_user;
 -- clean up
 DROP TABLE lock_table;
 DROP USER regress_locktable_user;

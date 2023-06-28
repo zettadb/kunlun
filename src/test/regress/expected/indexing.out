@@ -83,24 +83,24 @@ CREATE INDEX
 create table idxpart1 partition of idxpart for values from (0) to (10);;
 CREATE TABLE
 \d idxpart1
-                     Table "public.idxpart1"
- Column |         Type          | Collation | Nullable | Default 
---------+-----------------------+-----------+----------+---------
- a      | integer               |           |          | 
- b      | integer               |           |          | 
- c      | character varying(50) |           |          | 
+                        Table "public.idxpart1"
+ Column |         Type          |    Collation     | Nullable | Default 
+--------+-----------------------+------------------+----------+---------
+ a      | integer               |                  |          | 
+ b      | integer               |                  |          | 
+ c      | character varying(50) | utf8mb4_0900_bin |          | 
 Partition of: idxpart FOR VALUES FROM (0) TO (10)
 Indexes:
     "idxpart1_a_idx" btree (a NULLS FIRST)
     "idxpart1_b_c_idx" btree (b NULLS FIRST, c NULLS FIRST)
 
 \d idxpart1
-                     Table "public.idxpart1"
- Column |         Type          | Collation | Nullable | Default 
---------+-----------------------+-----------+----------+---------
- a      | integer               |           |          | 
- b      | integer               |           |          | 
- c      | character varying(50) |           |          | 
+                        Table "public.idxpart1"
+ Column |         Type          |    Collation     | Nullable | Default 
+--------+-----------------------+------------------+----------+---------
+ a      | integer               |                  |          | 
+ b      | integer               |                  |          | 
+ c      | character varying(50) | utf8mb4_0900_bin |          | 
 Partition of: idxpart FOR VALUES FROM (0) TO (10)
 Indexes:
     "idxpart1_a_idx" btree (a NULLS FIRST)
@@ -378,12 +378,12 @@ CREATE INDEX
 create table idxpart1 (like idxpart including indexes);
 CREATE TABLE
 \d idxpart1
-                     Table "public.idxpart1"
- Column |         Type          | Collation | Nullable | Default 
---------+-----------------------+-----------+----------+---------
- a      | integer               |           |          | 
- b      | integer               |           |          | 
- c      | character varying(50) |           |          | 
+                        Table "public.idxpart1"
+ Column |         Type          |    Collation     | Nullable | Default 
+--------+-----------------------+------------------+----------+---------
+ a      | integer               |                  |          | 
+ b      | integer               |                  |          | 
+ c      | character varying(50) | utf8mb4_0900_bin |          | 
 Indexes:
     "idxpart1_a_idx" btree (a NULLS FIRST)
     "idxpart1_b_c_idx" btree (b NULLS FIRST, c NULLS FIRST)
@@ -405,12 +405,12 @@ select relname, relkind, inhparent::regclass
 alter table idxpart attach partition idxpart1 for values from (0) to (10);
 ALTER TABLE
 \d idxpart1
-                     Table "public.idxpart1"
- Column |         Type          | Collation | Nullable | Default 
---------+-----------------------+-----------+----------+---------
- a      | integer               |           |          | 
- b      | integer               |           |          | 
- c      | character varying(50) |           |          | 
+                        Table "public.idxpart1"
+ Column |         Type          |    Collation     | Nullable | Default 
+--------+-----------------------+------------------+----------+---------
+ a      | integer               |                  |          | 
+ b      | integer               |                  |          | 
+ c      | character varying(50) | utf8mb4_0900_bin |          | 
 Partition of: idxpart FOR VALUES FROM (0) TO (10)
 Indexes:
     "idxpart1_a_idx" btree (a NULLS FIRST)
@@ -652,13 +652,13 @@ create table idxpart2 (like idxpart);
 CREATE TABLE
 					 
 create index on idxpart2 (a collate "POSIX");
-psql:sql/indexing.sql:268: ERROR:  can't override default collate for remote relation's index
+psql:sql/indexing.sql:268: ERROR:  Kunlun-db: Cannot create index with collation on large column
 					   
 create index on idxpart2 (a);
 CREATE INDEX
 					 
 create index on idxpart2 (a collate "C");
-psql:sql/indexing.sql:272: ERROR:  can't override default collate for remote relation's index
+psql:sql/indexing.sql:272: ERROR:  Kunlun-db: Cannot create index with collation on large column
 alter table idxpart attach partition idxpart1 for values from ('aaa') to ('bbb');
 ALTER TABLE
 alter table idxpart attach partition idxpart2 for values from ('bbb') to ('ccc');
@@ -667,7 +667,7 @@ create table idxpart3 partition of idxpart for values from ('ccc') to ('ddd');
 CREATE TABLE
 					 
 create index on idxpart (a collate "C");
-psql:sql/indexing.sql:277: ERROR:  can't override default collate for remote relation's index
+psql:sql/indexing.sql:277: ERROR:  Kunlun-db: Cannot create index with collation on large column
 					   
 create table idxpart4 partition of idxpart for values from ('ddd') to ('eee');
 CREATE TABLE
@@ -1020,12 +1020,12 @@ DETAIL:  PRIMARY KEY constraint on table "idxpart" lacks column "b" which is par
 alter table idxpart add primary key (a, b);	-- this works
 ALTER TABLE
 \d idxpart
-        Partitioned table "public.idxpart"
- Column |  Type   | Collation | Nullable | Default 
---------+---------+-----------+----------+---------
- a      | integer |           | not null | 
- b      | integer |           | not null | 
- c      | text    |           |          | 
+            Partitioned table "public.idxpart"
+ Column |  Type   |    Collation     | Nullable | Default 
+--------+---------+------------------+----------+---------
+ a      | integer |                  | not null | 
+ b      | integer |                  | not null | 
+ c      | text    | utf8mb4_0900_bin |          | 
 Partition key: RANGE (a, b)
 Indexes:
     "idxpart_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST)
@@ -1034,12 +1034,12 @@ Number of partitions: 0
 create table idxpart1 partition of idxpart for values from (0, 0) to (1000, 1000);
 CREATE TABLE
 \d idxpart1
-              Table "public.idxpart1"
- Column |  Type   | Collation | Nullable | Default 
---------+---------+-----------+----------+---------
- a      | integer |           | not null | 
- b      | integer |           | not null | 
- c      | text    |           |          | 
+                 Table "public.idxpart1"
+ Column |  Type   |    Collation     | Nullable | Default 
+--------+---------+------------------+----------+---------
+ a      | integer |                  | not null | 
+ b      | integer |                  | not null | 
+ c      | text    | utf8mb4_0900_bin |          | 
 Partition of: idxpart FOR VALUES FROM (0, 0) TO (1000, 1000)
 Indexes:
     "idxpart1_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST)

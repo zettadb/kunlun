@@ -512,7 +512,7 @@ CREATE DOMAIN jsb_int_not_null  AS int     NOT NULL;
 CREATE DOMAIN jsb_int_array_1d  AS int[]   CHECK(array_length(VALUE, 1) = 3);
 CREATE DOMAIN jsb_int_array_2d  AS int[][] CHECK(array_length(VALUE, 2) = 3);
 create type jb_unordered_pair as (x int, y int);
-create domain jb_ordered_pair as jb_unordered_pair check((value).x <= -- (value).y);
+create domain jb_ordered_pair as jb_unordered_pair check((value).x <= (value).y);
 CREATE TYPE jsbrec AS (
 	i	int,
 	ia	_int4,

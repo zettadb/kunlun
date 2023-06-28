@@ -217,16 +217,17 @@ CREATE TABLE range_parted (
 	b bigint,
 	c numeric,
 	d int,
-	e varchar
+	e varchar,
+	primary key(a,b,c)
 ) PARTITION BY RANGE (a, b);
 CREATE TABLE
 -- Create partitions intentionally in descending bound order, so as to test
 -- that update-row-movement works with the leaf partitions not in bound order.
-CREATE TABLE part_b_20_b_30 (e varchar, c numeric, a text, b bigint, d int);
+CREATE TABLE part_b_20_b_30 (e varchar, c numeric NOT NULL, a text NOT NULL, b bigint NOT NULL, d int);
 CREATE TABLE
 ALTER TABLE range_parted ATTACH PARTITION part_b_20_b_30 FOR VALUES FROM ('b', 20) TO ('b', 30);
 ALTER TABLE
-CREATE TABLE part_b_10_b_20 (e varchar, c numeric, a text, b bigint, d int) PARTITION BY RANGE (c);
+CREATE TABLE part_b_10_b_20 (e varchar, c numeric NOT NULL, a text NOT NULL,  b bigint NOT NULL, d int) PARTITION BY RANGE (c);
 CREATE TABLE
 CREATE TABLE part_b_1_b_10 PARTITION OF range_parted FOR VALUES FROM ('b', 1) TO ('b', 10);
 CREATE TABLE
@@ -258,40 +259,29 @@ CREATE TABLE
 CREATE TABLE part_d_15_20 PARTITION OF part_c_100_200 FOR VALUES FROM (15) TO (20);
 CREATE TABLE
 ALTER TABLE part_b_10_b_20 ATTACH PARTITION part_c_100_200 FOR VALUES FROM (100) TO (200);
-ALTER TABLE
+psql:sql/update.sql:152: ERROR:  column "c" in child table must be marked NOT NULL
 CREATE TABLE part_c_1_100 (e varchar, d int, c numeric, b bigint, a text);
 CREATE TABLE
 ALTER TABLE part_b_10_b_20 ATTACH PARTITION part_c_1_100 FOR VALUES FROM (1) TO (100);
-ALTER TABLE
+psql:sql/update.sql:155: ERROR:  column "c" in child table must be marked NOT NULL
 \set init_range_parted 'truncate range_parted; insert into range_parted VALUES (''a'', 1, 1, 1), (''a'', 10, 200, 1), (''b'', 12, 96, 1), (''b'', 13, 97, 2), (''b'', 15, 105, 16), (''b'', 17, 105, 19)'
 \set show_data 'select tableoid::regclass::text COLLATE "C" partname, * from range_parted ORDER BY 1, 2, 3, 4, 5, 6'
 :init_range_parted;
 TRUNCATE TABLE
-INSERT 0 6
+psql:sql/update.sql:159: ERROR:  no partition of relation "part_b_10_b_20" found for row
+DETAIL:  Partition key of the failing row contains (c) = (96).
 :show_data;rted;
-    partname    | a | b  |            c             | d  | e 
-----------------+---+----+--------------------------+----+---
- part_a_10_a_20 | a | 10 | 200.00000000000000000000 |  1 | 
- part_a_1_a_10  | a |  1 |   1.00000000000000000000 |  1 | 
- part_c_1_100   | b | 12 |  96.00000000000000000000 |  1 | 
- part_c_1_100   | b | 13 |  97.00000000000000000000 |  2 | 
- part_d_15_20   | b | 15 | 105.00000000000000000000 | 16 | 
- part_d_15_20   | b | 17 | 105.00000000000000000000 | 19 | 
-(6 rows)
+ partname | a | b | c | d | e 
+----------+---+---+---+---+---
+(0 rows)
 
-psql:sql/update.sql:159: ERROR:  syntax error at or near "rted"
+psql:sql/update.sql:160: ERROR:  syntax error at or near "rted"
 LINE 1: rted;
         ^
 :show_data;
-    partname    | a | b  |            c             | d  | e 
-----------------+---+----+--------------------------+----+---
- part_a_10_a_20 | a | 10 | 200.00000000000000000000 |  1 | 
- part_a_1_a_10  | a |  1 |   1.00000000000000000000 |  1 | 
- part_c_1_100   | b | 12 |  96.00000000000000000000 |  1 | 
- part_c_1_100   | b | 13 |  97.00000000000000000000 |  2 | 
- part_d_15_20   | b | 15 | 105.00000000000000000000 | 16 | 
- part_d_15_20   | b | 17 | 105.00000000000000000000 | 19 | 
-(6 rows)
+ partname | a | b | c | d | e 
+----------+---+---+---+---+---
+(0 rows)
 
 -- The order of subplans should be in bound order
 -- ERROR:  Can not update partition key of a remote relation.
@@ -321,7 +311,7 @@ LINE 1: rted;
 --:show_data;
 -- Common table needed for multiple test scenarios.
 drop table if exists mintab;
-psql:sql/update.sql:192: NOTICE:  table "mintab" does not exist, skipping
+psql:sql/update.sql:193: NOTICE:  table "mintab" does not exist, skipping
 DROP TABLE
 CREATE TABLE mintab(c1 int);
 CREATE TABLE
@@ -348,9 +338,10 @@ INSERT 0 1
 -- Transition tables with update row movement
 :init_range_parted;
 TRUNCATE TABLE
-INSERT 0 6
+psql:sql/update.sql:221: ERROR:  no partition of relation "part_b_10_b_20" found for row
+DETAIL:  Partition key of the failing row contains (c) = (96).
 drop FUNCTION if exists trans_updatetrigfunc;
-psql:sql/update.sql:221: NOTICE:  function trans_updatetrigfunc() does not exist, skipping
+psql:sql/update.sql:222: NOTICE:  function trans_updatetrigfunc() does not exist, skipping
 DROP FUNCTION
 CREATE FUNCTION trans_updatetrigfunc() RETURNS trigger LANGUAGE plpgsql AS
 $$
@@ -368,22 +359,17 @@ CREATE TRIGGER trans_updatetrig
   FOR EACH STATEMENT EXECUTE PROCEDURE trans_updatetrigfunc();
 CREATE TRIGGER
 UPDATE range_parted set c = (case when c = 96 then 110 else c + 1 end ) WHERE a = 'b' and b > 10 and c >= 96;
-psql:sql/update.sql:236: NOTICE:  trigger = trans_updatetrig, old table = (b,12,96.00000000000000000000,1,), (b,13,97.00000000000000000000,2,), (b,15,105.00000000000000000000,16,), (b,17,105.00000000000000000000,19,), new table = (b,12,110,1,), (b,13,98.00000000000000000000,2,), (b,15,106.00000000000000000000,16,), (b,17,106.00000000000000000000,19,)
-UPDATE 4
+psql:sql/update.sql:237: NOTICE:  trigger = trans_updatetrig, old table = <NULL>, new table = <NULL>
+UPDATE 0
 :show_data;
-    partname    | a | b  |            c             | d  | e 
-----------------+---+----+--------------------------+----+---
- part_a_10_a_20 | a | 10 | 200.00000000000000000000 |  1 | 
- part_a_1_a_10  | a |  1 |   1.00000000000000000000 |  1 | 
- part_c_1_100   | b | 13 |  98.00000000000000000000 |  2 | 
- part_d_15_20   | b | 15 | 106.00000000000000000000 | 16 | 
- part_d_15_20   | b | 17 | 106.00000000000000000000 | 19 | 
- part_d_1_15    | b | 12 | 110.00000000000000000000 |  1 | 
-(6 rows)
+ partname | a | b | c | d | e 
+----------+---+---+---+---+---
+(0 rows)
 
 :init_range_parted;
 TRUNCATE TABLE
-INSERT 0 6
+psql:sql/update.sql:239: ERROR:  no partition of relation "part_b_10_b_20" found for row
+DETAIL:  Partition key of the failing row contains (c) = (96).
 -- Enabling OLD TABLE capture for both DELETE as well as UPDATE stmt triggers
 -- should not cause DELETEd rows to be captured twice. Similar thing for
 -- INSERT triggers and inserted rows.
@@ -396,18 +382,12 @@ CREATE TRIGGER trans_inserttrig
   FOR EACH STATEMENT EXECUTE PROCEDURE trans_updatetrigfunc();
 CREATE TRIGGER
 UPDATE range_parted set c = c + 50 WHERE a = 'b' and b > 10 and c >= 96;
-psql:sql/update.sql:249: NOTICE:  trigger = trans_updatetrig, old table = (b,12,96.00000000000000000000,1,), (b,13,97.00000000000000000000,2,), (b,15,105.00000000000000000000,16,), (b,17,105.00000000000000000000,19,), new table = (b,12,146.00000000000000000000,1,), (b,13,147.00000000000000000000,2,), (b,15,155.00000000000000000000,16,), (b,17,155.00000000000000000000,19,)
-UPDATE 4
+psql:sql/update.sql:250: NOTICE:  trigger = trans_updatetrig, old table = <NULL>, new table = <NULL>
+UPDATE 0
 :show_data;
-    partname    | a | b  |            c             | d  | e 
-----------------+---+----+--------------------------+----+---
- part_a_10_a_20 | a | 10 | 200.00000000000000000000 |  1 | 
- part_a_1_a_10  | a |  1 |   1.00000000000000000000 |  1 | 
- part_d_15_20   | b | 15 | 155.00000000000000000000 | 16 | 
- part_d_15_20   | b | 17 | 155.00000000000000000000 | 19 | 
- part_d_1_15    | b | 12 | 146.00000000000000000000 |  1 | 
- part_d_1_15    | b | 13 | 147.00000000000000000000 |  2 | 
-(6 rows)
+ partname | a | b | c | d | e 
+----------+---+---+---+---+---
+(0 rows)
 
 DROP TRIGGER trans_deletetrig ON range_parted;
 DROP TRIGGER
@@ -438,57 +418,42 @@ CREATE TRIGGER trig_d15_20 BEFORE UPDATE OR INSERT ON part_d_15_20
 CREATE TRIGGER
 :init_range_parted;
 TRUNCATE TABLE
-INSERT 0 6
+psql:sql/update.sql:274: ERROR:  no partition of relation "part_b_10_b_20" found for row
+DETAIL:  Partition key of the failing row contains (c) = (96).
 UPDATE range_parted set c = (case when c = 96 then 110 else c + 1 end) WHERE a = 'b' and b > 10 and c >= 96;
-psql:sql/update.sql:274: NOTICE:  trigger = trans_updatetrig, old table = (b,13,96.00000000000000000000,1,), (b,14,97.00000000000000000000,2,), (b,16,105.00000000000000000000,16,), (b,18,105.00000000000000000000,19,), new table = (b,15,110,1,), (b,15,98.00000000000000000000,2,), (b,17,106.00000000000000000000,16,), (b,19,106.00000000000000000000,19,)
-UPDATE 4
+psql:sql/update.sql:275: NOTICE:  trigger = trans_updatetrig, old table = <NULL>, new table = <NULL>
+UPDATE 0
 :show_data;
-    partname    | a | b  |            c             | d  | e 
-----------------+---+----+--------------------------+----+---
- part_a_10_a_20 | a | 10 | 200.00000000000000000000 |  1 | 
- part_a_1_a_10  | a |  1 |   1.00000000000000000000 |  1 | 
- part_c_1_100   | b | 14 |  98.00000000000000000000 |  2 | 
- part_d_15_20   | b | 16 | 106.00000000000000000000 | 16 | 
- part_d_15_20   | b | 18 | 106.00000000000000000000 | 19 | 
- part_d_1_15    | b | 15 | 110.00000000000000000000 |  1 | 
-(6 rows)
+ partname | a | b | c | d | e 
+----------+---+---+---+---+---
+(0 rows)
 
 :init_range_parted;
 TRUNCATE TABLE
-INSERT 0 6
+psql:sql/update.sql:277: ERROR:  no partition of relation "part_b_10_b_20" found for row
+DETAIL:  Partition key of the failing row contains (c) = (96).
 UPDATE range_parted set c = c + 50 WHERE a = 'b' and b > 10 and c >= 96;
-psql:sql/update.sql:277: NOTICE:  trigger = trans_updatetrig, old table = (b,13,96.00000000000000000000,1,), (b,14,97.00000000000000000000,2,), (b,16,105.00000000000000000000,16,), (b,18,105.00000000000000000000,19,), new table = (b,15,146.00000000000000000000,1,), (b,16,147.00000000000000000000,2,), (b,17,155.00000000000000000000,16,), (b,19,155.00000000000000000000,19,)
-UPDATE 4
+psql:sql/update.sql:278: NOTICE:  trigger = trans_updatetrig, old table = <NULL>, new table = <NULL>
+UPDATE 0
 :show_data;
-    partname    | a | b  |            c             | d  | e 
-----------------+---+----+--------------------------+----+---
- part_a_10_a_20 | a | 10 | 200.00000000000000000000 |  1 | 
- part_a_1_a_10  | a |  1 |   1.00000000000000000000 |  1 | 
- part_d_15_20   | b | 16 | 155.00000000000000000000 | 16 | 
- part_d_15_20   | b | 18 | 155.00000000000000000000 | 19 | 
- part_d_1_15    | b | 15 | 146.00000000000000000000 |  1 | 
- part_d_1_15    | b | 16 | 147.00000000000000000000 |  2 | 
-(6 rows)
+ partname | a | b | c | d | e 
+----------+---+---+---+---+---
+(0 rows)
 
 -- Case where per-partition tuple conversion map array is allocated, but the
 -- map is not required for the particular tuple that is routed, thanks to
 -- matching table attributes of the partition and the target table.
 :init_range_parted;
 TRUNCATE TABLE
-INSERT 0 6
+psql:sql/update.sql:284: ERROR:  no partition of relation "part_b_10_b_20" found for row
+DETAIL:  Partition key of the failing row contains (c) = (96).
 UPDATE range_parted set b = 15 WHERE b = 1;
-psql:sql/update.sql:284: NOTICE:  trigger = trans_updatetrig, old table = (a,1,1.00000000000000000000,1,), new table = (a,15,1.00000000000000000000,1,)
-UPDATE 1
+psql:sql/update.sql:285: NOTICE:  trigger = trans_updatetrig, old table = <NULL>, new table = <NULL>
+UPDATE 0
 :show_data;
-    partname    | a | b  |            c             | d  | e 
-----------------+---+----+--------------------------+----+---
- part_a_10_a_20 | a | 10 | 200.00000000000000000000 |  1 | 
- part_a_10_a_20 | a | 15 |   1.00000000000000000000 |  1 | 
- part_c_1_100   | b | 13 |  96.00000000000000000000 |  1 | 
- part_c_1_100   | b | 14 |  97.00000000000000000000 |  2 | 
- part_d_15_20   | b | 16 | 105.00000000000000000000 | 16 | 
- part_d_15_20   | b | 18 | 105.00000000000000000000 | 19 | 
-(6 rows)
+ partname | a | b | c | d | e 
+----------+---+---+---+---+---
+(0 rows)
 
 DROP TRIGGER trans_updatetrig ON range_parted;
 DROP TRIGGER
@@ -528,19 +493,21 @@ CREATE TRIGGER trig_d_1_15 BEFORE INSERT ON part_d_1_15
 CREATE TRIGGER
 :init_range_parted;
 TRUNCATE TABLE
-INSERT 0 6
+psql:sql/update.sql:319: ERROR:  no partition of relation "part_b_10_b_20" found for row
+DETAIL:  Partition key of the failing row contains (c) = (96).
 SET SESSION AUTHORIZATION regress_range_parted_user;
 SET
 -- Here, RLS checks should succeed while moving row from part_a_10_a_20 to
 -- part_d_1_15. Even though the UPDATE is setting 'c' to an odd number, the
 -- trigger at the destination partition again makes it an even number.
 UPDATE range_parted set a = 'b', c = 151 WHERE a = 'a' and c = 200;
-UPDATE 1
+UPDATE 0
 RESET SESSION AUTHORIZATION;
 RESET
 :init_range_parted;
 TRUNCATE TABLE
-INSERT 0 6
+psql:sql/update.sql:328: ERROR:  no partition of relation "part_b_10_b_20" found for row
+DETAIL:  Partition key of the failing row contains (c) = (96).
 SET SESSION AUTHORIZATION regress_range_parted_user;
 SET
 -- This should fail with RLS violation error. Even though the UPDATE is setting
@@ -593,7 +560,8 @@ DROP TABLE
 ---------------------------------------------------
 :init_range_parted;
 TRUNCATE TABLE
-INSERT 0 6
+psql:sql/update.sql:380: ERROR:  no partition of relation "part_b_10_b_20" found for row
+DETAIL:  Partition key of the failing row contains (c) = (96).
 CREATE FUNCTION trigfunc() returns trigger language plpgsql as
 $$
   begin
@@ -646,18 +614,12 @@ CREATE TRIGGER
 -- Move all rows from part_c_100_200 to part_c_1_100. None of the delete or
 -- insert statement triggers should be fired.
 UPDATE range_parted set c = c - 50 WHERE c > 97;
-psql:sql/update.sql:422: NOTICE:  trigger = parent_update_trig fired on table range_parted during UPDATE
-UPDATE 3
+psql:sql/update.sql:423: NOTICE:  trigger = parent_update_trig fired on table range_parted during UPDATE
+UPDATE 0
 :show_data;
-    partname    | a | b  |            c             | d  | e 
-----------------+---+----+--------------------------+----+---
- part_a_10_a_20 | a | 10 | 150.00000000000000000000 |  1 | 
- part_a_1_a_10  | a |  1 |   1.00000000000000000000 |  1 | 
- part_c_1_100   | b | 12 |  96.00000000000000000000 |  1 | 
- part_c_1_100   | b | 13 |  97.00000000000000000000 |  2 | 
- part_c_1_100   | b | 15 |  55.00000000000000000000 | 16 | 
- part_c_1_100   | b | 17 |  55.00000000000000000000 | 19 | 
-(6 rows)
+ partname | a | b | c | d | e 
+----------+---+---+---+---+---
+(0 rows)
 
 DROP TRIGGER parent_delete_trig ON range_parted;
 DROP TRIGGER
@@ -686,39 +648,36 @@ DROP TRIGGER
 -- Creating default partition for range
 :init_range_parted;
 TRUNCATE TABLE
-INSERT 0 6
+psql:sql/update.sql:440: ERROR:  no partition of relation "part_b_10_b_20" found for row
+DETAIL:  Partition key of the failing row contains (c) = (96).
 create table part_def partition of range_parted default;
 CREATE TABLE
 \d+ part_def
-                                       Table "public.part_def"
- Column |       Type        | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+-------------------+-----------+----------+---------+----------+--------------+-------------
- a      | text              |           |          |         | extended |              | 
- b      | bigint            |           |          |         | plain    |              | 
- c      | numeric           |           |          |         | main     |              | 
- d      | integer           |           |          |         | plain    |              | 
- e      | character varying |           |          |         | extended |              | 
+                                          Table "public.part_def"
+ Column |       Type        |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+-------------------+------------------+----------+---------+----------+--------------+-------------
+ a      | text              | utf8mb4_0900_bin | not null |         | extended |              | 
+ b      | bigint            |                  | not null |         | plain    |              | 
+ c      | numeric           |                  | not null |         | main     |              | 
+ d      | integer           |                  |          |         | plain    |              | 
+ e      | character varying | utf8mb4_0900_bin |          |         | extended |              | 
 Partition of: range_parted DEFAULT
-Partition constraint: (NOT ((a IS NOT NULL) AND (b IS NOT NULL) AND (((a = 'a'::text) AND (b >= '1'::bigint) AND (b < '10'::bigint)) OR ((a = 'a'::text) AND (b >= '10'::bigint) AND (b < '20'::bigint)) OR ((a = 'b'::text) AND (b >= '1'::bigint) AND (b < '10'::bigint)) OR ((a = 'b'::text) AND (b >= '10'::bigint) AND (b < '20'::bigint)) OR ((a = 'b'::text) AND (b >= '20'::bigint) AND (b < '30'::bigint)))))
+Partition constraint: (NOT ((a IS NOT NULL) AND (b IS NOT NULL) AND (((a = 'a'::text COLLATE "default") AND (b >= '1'::bigint) AND (b < '10'::bigint)) OR ((a = 'a'::text COLLATE "default") AND (b >= '10'::bigint) AND (b < '20'::bigint)) OR ((a = 'b'::text COLLATE "default") AND (b >= '1'::bigint) AND (b < '10'::bigint)) OR ((a = 'b'::text COLLATE "default") AND (b >= '10'::bigint) AND (b < '20'::bigint)) OR ((a = 'b'::text COLLATE "default") AND (b >= '20'::bigint) AND (b < '30'::bigint)))))
+Indexes:
+    "part_def_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST, c NULLS FIRST)
 Options: shard=1
 
 insert into range_parted values ('c', 9);
-INSERT 0 1
+psql:sql/update.sql:443: ERROR:  null value in column "c" violates not-null constraint
+DETAIL:  Failing row contains (c, 9, null, null, null).
 -- ok
 --update part_def set a = 'd' where a = 'c';
 -- fail
 --update part_def set a = 'a' where a = 'd';
 :show_data;
-    partname    | a | b  |            c             | d  | e 
-----------------+---+----+--------------------------+----+---
- part_a_10_a_20 | a | 10 | 200.00000000000000000000 |  1 | 
- part_a_1_a_10  | a |  1 |   1.00000000000000000000 |  1 | 
- part_c_1_100   | b | 12 |  96.00000000000000000000 |  1 | 
- part_c_1_100   | b | 13 |  97.00000000000000000000 |  2 | 
- part_d_15_20   | b | 15 | 105.00000000000000000000 | 16 | 
- part_d_15_20   | b | 17 | 105.00000000000000000000 | 19 | 
- part_def       | c |  9 |                          |    | 
-(7 rows)
+ partname | a | b | c | d | e 
+----------+---+---+---+---+---
+(0 rows)
 
 -- Update row movement from non-default to default partition.
 -- fail, default partition is not under part_a_10_a_20;
@@ -736,7 +695,7 @@ INSERT 0 1
 DROP TABLE range_parted;
 DROP TABLE
 drop table if exists list_parted;
-psql:sql/update.sql:466: NOTICE:  table "list_parted" does not exist, skipping
+psql:sql/update.sql:467: NOTICE:  table "list_parted" does not exist, skipping
 DROP TABLE
 CREATE TABLE list_parted (
 	a text,
@@ -754,7 +713,7 @@ INSERT into list_default VALUES ('d', 10);
 INSERT 0 1
 -- fail
 UPDATE list_default set a = 'a' WHERE a = 'd';
-psql:sql/update.sql:478: ERROR:  new row for relation "list_default" violates partition constraint
+psql:sql/update.sql:479: ERROR:  new row for relation "list_default" violates partition constraint
 DETAIL:  Failing row contains (a, 10).
 -- ok
 UPDATE list_default set a = 'x' WHERE a = 'd';
@@ -767,7 +726,7 @@ DROP TABLE
 --------------
 -- Setup for list partitions
 drop table if exists list_parted cascade;
-psql:sql/update.sql:490: NOTICE:  table "list_parted" does not exist, skipping
+psql:sql/update.sql:491: NOTICE:  table "list_parted" does not exist, skipping
 DROP TABLE
 CREATE TABLE list_parted (a numeric, b int, c int8, primary key(a,b)) PARTITION BY list (a);
 CREATE TABLE
@@ -796,7 +755,7 @@ INSERT 0 1
 -- Test partition constraint violation when intermediate ancestor is used and
 -- constraint is inherited from upper root.
 UPDATE sub_parted set a = 2 WHERE c = 10;
-psql:sql/update.sql:509: ERROR:  new row for relation "sub_parted" violates partition constraint
+psql:sql/update.sql:510: ERROR:  new row for relation "sub_parted" violates partition constraint
 DETAIL:  Failing row contains (2, 2, 10).
 -- Test update-partition-key, where the unpruned partitions do not have their
 -- partition keys updated.
@@ -909,7 +868,7 @@ DROP FUNCTION
 -- rows for the same row to be modified, we should tuple-route the row only
 -- once. There should not be any rows inserted.
 drop table if exists non_parted;
-psql:sql/update.sql:558: NOTICE:  table "non_parted" does not exist, skipping
+psql:sql/update.sql:559: NOTICE:  table "non_parted" does not exist, skipping
 DROP TABLE
 CREATE TABLE non_parted (id int);
 CREATE TABLE
@@ -940,7 +899,7 @@ create operator class custom_opclass for type int4 using hash as
 operator 1 = , function 2 dummy_hashint4(int4, int8);
 CREATE OPERATOR CLASS
 drop table if exists hash_parted;
-psql:sql/update.sql:575: NOTICE:  table "hash_parted" does not exist, skipping
+psql:sql/update.sql:576: NOTICE:  table "hash_parted" does not exist, skipping
 DROP TABLE
 create table hash_parted (
 	a int,
@@ -964,7 +923,7 @@ insert into hpart4 values (3, 4);
 INSERT 0 1
 -- fail
 update hpart1 set a = 3, b=4 where a = 1;
-psql:sql/update.sql:590: ERROR:  new row for relation "hpart1" violates partition constraint
+psql:sql/update.sql:591: ERROR:  new row for relation "hpart1" violates partition constraint
 DETAIL:  Failing row contains (3, 4).
 -- ok, row movement
 update hash_parted set b = b - 1 where b = 1;

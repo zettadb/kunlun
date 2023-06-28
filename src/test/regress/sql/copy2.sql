@@ -208,8 +208,8 @@ b
 \.
 
 SELECT * FROM vistest;
-
-TRUNCATE vistest;
+BEGIN;
+delete from  vistest;
 COPY vistest FROM stdin CSV;
 a1
 b
@@ -222,55 +222,57 @@ d1
 e
 \.
 SELECT * FROM vistest;
+COMMIT;
+SELECT * FROM vistest;
 
-
-
-TRUNCATE vistest;
+BEGIN;
+delete from vistest;
 COPY vistest FROM stdin CSV FREEZE;
 a2
 b
 \.
 SELECT * FROM vistest;
 SAVEPOINT s1;
-TRUNCATE vistest;
+delete from vistest;
 COPY vistest FROM stdin CSV FREEZE;
 d2
 e
 \.
 SELECT * FROM vistest;
+COMMIT;
+SELECT * FROM vistest;
 
-
-
-TRUNCATE vistest;
+BEGIN;
+delete from vistest;
 COPY vistest FROM stdin CSV FREEZE;
 x
 y
 \.
 SELECT * FROM vistest;
-
-TRUNCATE vistest;
+COMMIT;
+delete from vistest;
 COPY vistest FROM stdin CSV FREEZE;
 p
 g
 \.
-
-TRUNCATE vistest;
+BEGIN;
+delete from vistest;
 SAVEPOINT s1;
 COPY vistest FROM stdin CSV FREEZE;
 m
 k
 \.
-
-
+COMMIT;
+BEGIN;
 INSERT INTO vistest VALUES ('z');
 SAVEPOINT s1;
-TRUNCATE vistest;
+delete from  vistest;
 ROLLBACK TO SAVEPOINT s1;
 COPY vistest FROM stdin CSV FREEZE;
 d3
 e
 \.
-
+COMMIT;
 CREATE FUNCTION truncate_in_subxact() RETURNS VOID AS
 $$
 BEGIN
@@ -280,7 +282,7 @@ EXCEPTION
 	INSERT INTO vistest VALUES ('subxact failure');
 END;
 $$ language plpgsql;
-
+BEGIN;
 INSERT INTO vistest VALUES ('z');
 SELECT truncate_in_subxact();
 COPY vistest FROM stdin CSV FREEZE;
@@ -288,7 +290,8 @@ d4
 e
 \.
 SELECT * FROM vistest;
-
+COMMIT;
+SELECT * FROM vistest;
 -- Test FORCE_NOT_NULL and FORCE_NULL options
 --DDL_STATEMENT_BEGIN--
 CREATE TEMP TABLE forcetest (
@@ -455,7 +458,7 @@ SELECT * FROM instead_of_insert_tbl;
 -- Test of COPY optimization with view using INSTEAD OF INSERT
 -- trigger when relation is created in the same transaction as
 -- when COPY is executed.
---BEGIN;
+
 --DDL_STATEMENT_BEGIN--
 CREATE VIEW instead_of_insert_tbl_view_2 as select ''::text as str;
 --DDL_STATEMENT_END--
@@ -467,8 +470,7 @@ COPY instead_of_insert_tbl_view_2 FROM stdin;
 test1
 \.
 
-SELECT * FROM instead_of_insert_tbl;
---COMMIT;
+SELECT * FROM instead_of_insert_tbl
 
 -- clean up
 --DDL_STATEMENT_BEGIN--

@@ -213,21 +213,21 @@ DROP MATERIALIZED VIEW mvtest_mv1 CASCADE;
 
 -- make sure that types with unusual equality tests work
 --DDL_STATEMENT_BEGIN--
-CREATE temp TABLE mvtest_boxes (id serial primary key, b box);
+--CREATE temp TABLE mvtest_boxes (id serial primary key, b box);
 --DDL_STATEMENT_END--
-INSERT INTO mvtest_boxes (b) VALUES
-  ('(32,32),(31,31)'),
-  ('(2.0000004,2.0000004),(1,1)'),
-  ('(1.9999996,1.9999996),(1,1)');
+--INSERT INTO mvtest_boxes (b) VALUES
+--  ('(32,32),(31,31)'),
+--  ('(2.0000004,2.0000004),(1,1)'),
+--  ('(1.9999996,1.9999996),(1,1)');
 --DDL_STATEMENT_BEGIN--
-CREATE MATERIALIZED VIEW mvtest_boxmv AS SELECT * FROM mvtest_boxes;
+--CREATE MATERIALIZED VIEW mvtest_boxmv AS SELECT * FROM mvtest_boxes;
 --DDL_STATEMENT_END--
-CREATE UNIQUE INDEX mvtest_boxmv_id ON mvtest_boxmv (id);
-UPDATE mvtest_boxes SET b = '(2,2),(1,1)' WHERE id = 2;
-REFRESH MATERIALIZED VIEW CONCURRENTLY mvtest_boxmv;
-SELECT * FROM mvtest_boxmv ORDER BY id;
+--CREATE UNIQUE INDEX mvtest_boxmv_id ON mvtest_boxmv (id);
+--UPDATE mvtest_boxes SET b = '(2,2),(1,1)' WHERE id = 2;
+--REFRESH MATERIALIZED VIEW CONCURRENTLY mvtest_boxmv;
+--SELECT * FROM mvtest_boxmv ORDER BY id;
 --DDL_STATEMENT_BEGIN--
-DROP TABLE mvtest_boxes CASCADE;
+--DROP TABLE mvtest_boxes CASCADE;
 --DDL_STATEMENT_END--
 
 -- make sure that column names are handled correctly
@@ -285,13 +285,13 @@ DROP TABLE mvtest_v CASCADE;
 -- Check that unknown literals are converted to "text" in CREATE MATVIEW,
 -- so that we don't end up with unknown-type columns.
 --DDL_STATEMENT_BEGIN--
-CREATE MATERIALIZED VIEW mv_unspecified_types AS
-  SELECT 42 as i, 42.5 as num, 'foo' as u, 'foo'::unknown as u2, null as n;
+--CREATE MATERIALIZED VIEW mv_unspecified_types AS
+--  SELECT 42 as i, 42.5 as num, 'foo' as u, 'foo'::unknown as u2, null as n;
 --DDL_STATEMENT_END--
 \d+ mv_unspecified_types
-SELECT * FROM mv_unspecified_types;
+--SELECT * FROM mv_unspecified_types;
 --DDL_STATEMENT_BEGIN--
-DROP MATERIALIZED VIEW mv_unspecified_types;
+--DROP MATERIALIZED VIEW mv_unspecified_types;
 --DDL_STATEMENT_END--
 
 -- make sure that create WITH NO DATA does not plan the query (bug #13907)

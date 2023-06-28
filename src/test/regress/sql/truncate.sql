@@ -265,6 +265,7 @@ DROP FUNCTION trunctrigger();
 --DDL_STATEMENT_BEGIN--
 CREATE SEQUENCE truncate_a_id1 START WITH 33;
 --DDL_STATEMENT_END--
+drop table if exists truncate_a;
 --DDL_STATEMENT_BEGIN--
 CREATE TABLE truncate_a (id serial,
                          id1 integer default nextval('truncate_a_id1'));

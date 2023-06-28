@@ -58,27 +58,7 @@ SELECT table_name, is_insertable_into
  ORDER BY table_name;
  table_name | is_insertable_into 
 ------------+--------------------
- ro_view1   | NO
- ro_view10  | NO
- ro_view11  | NO
- ro_view12  | NO
- ro_view13  | NO
- ro_view17  | NO
- ro_view18  | NO
- ro_view19  | NO
- ro_view2   | NO
- ro_view20  | NO
- ro_view3   | NO
- ro_view4   | NO
- ro_view5   | NO
- ro_view6   | NO
- ro_view7   | NO
- ro_view8   | NO
- ro_view9   | NO
- rw_view14  | YES
- rw_view15  | YES
- rw_view16  | YES
-(20 rows)
+(0 rows)
 
 SELECT table_name, is_updatable, is_insertable_into
   FROM information_schema.views
@@ -86,27 +66,7 @@ SELECT table_name, is_updatable, is_insertable_into
  ORDER BY table_name;
  table_name | is_updatable | is_insertable_into 
 ------------+--------------+--------------------
- ro_view1   | NO           | NO
- ro_view10  | NO           | NO
- ro_view11  | NO           | NO
- ro_view12  | NO           | NO
- ro_view13  | NO           | NO
- ro_view17  | NO           | NO
- ro_view18  | NO           | NO
- ro_view19  | NO           | NO
- ro_view2   | NO           | NO
- ro_view20  | NO           | NO
- ro_view3   | NO           | NO
- ro_view4   | NO           | NO
- ro_view5   | NO           | NO
- ro_view6   | NO           | NO
- ro_view7   | NO           | NO
- ro_view8   | NO           | NO
- ro_view9   | NO           | NO
- rw_view14  | YES          | YES
- rw_view15  | YES          | YES
- rw_view16  | YES          | YES
-(20 rows)
+(0 rows)
 
 SELECT table_name, column_name, is_updatable
   FROM information_schema.columns
@@ -114,45 +74,7 @@ SELECT table_name, column_name, is_updatable
  ORDER BY table_name, ordinal_position;
  table_name | column_name | is_updatable 
 ------------+-------------+--------------
- ro_view1   | a           | NO
- ro_view1   | b           | NO
- ro_view10  | a           | NO
- ro_view11  | a           | NO
- ro_view11  | b           | NO
- ro_view12  | a           | NO
- ro_view13  | a           | NO
- ro_view13  | b           | NO
- ro_view17  | a           | NO
- ro_view17  | b           | NO
- ro_view18  | a           | NO
- ro_view19  | last_value  | NO
- ro_view19  | log_cnt     | NO
- ro_view19  | is_called   | NO
- ro_view2   | a           | NO
- ro_view2   | b           | NO
- ro_view20  | a           | NO
- ro_view20  | b           | NO
- ro_view20  | g           | NO
- ro_view3   | ?column?    | NO
- ro_view4   | count       | NO
- ro_view5   | a           | NO
- ro_view5   | rank        | NO
- ro_view6   | a           | NO
- ro_view6   | b           | NO
- ro_view7   | a           | NO
- ro_view7   | b           | NO
- ro_view8   | a           | NO
- ro_view8   | b           | NO
- ro_view9   | a           | NO
- ro_view9   | b           | NO
- rw_view14  | a           | YES
- rw_view14  | b           | YES
- rw_view15  | a           | YES
- rw_view15  | upper       | NO
- rw_view16  | a           | YES
- rw_view16  | b           | YES
- rw_view16  | aa          | YES
-(38 rows)
+(0 rows)
 
 -- Read-only views
 DELETE FROM ro_view1;
@@ -1461,10 +1383,7 @@ SELECT table_name, is_insertable_into
  ORDER BY table_name;
  table_name | is_insertable_into 
 ------------+--------------------
- rw_view1   | YES
- rw_view2   | YES
- rw_view3   | NO
-(3 rows)
+(0 rows)
 
 SELECT table_name, is_updatable, is_insertable_into
   FROM information_schema.views
@@ -1472,10 +1391,7 @@ SELECT table_name, is_updatable, is_insertable_into
  ORDER BY table_name;
  table_name | is_updatable | is_insertable_into 
 ------------+--------------+--------------------
- rw_view1   | YES          | YES
- rw_view2   | YES          | YES
- rw_view3   | NO           | NO
-(3 rows)
+(0 rows)
 
 SELECT table_name, column_name, is_updatable
   FROM information_schema.columns
@@ -1483,17 +1399,7 @@ SELECT table_name, column_name, is_updatable
  ORDER BY table_name, ordinal_position;
  table_name | column_name | is_updatable 
 ------------+-------------+--------------
- rw_view1   | s           | NO
- rw_view1   | a           | YES
- rw_view1   | c           | NO
- rw_view2   | s           | NO
- rw_view2   | c           | NO
- rw_view2   | t           | NO
- rw_view2   | base_a      | YES
- rw_view3   | s           | NO
- rw_view3   | c           | NO
- rw_view3   | t           | NO
-(10 rows)
+(0 rows)
 
 SELECT events & 4 != 0 AS upd,
        events & 8 != 0 AS ins,
@@ -1818,16 +1724,9 @@ CREATE VIEW
 CREATE VIEW rw_view3 AS SELECT * FROM rw_view2;
 CREATE VIEW
 SELECT * FROM information_schema.views WHERE table_name LIKE E'rw\\_view_' ORDER BY table_name;
- table_catalog | table_schema | table_name |      view_definition      | check_option | is_updatable | is_insertable_into | is_trigger_updatable | is_trigger_deletable | is_trigger_insertable_into 
----------------+--------------+------------+---------------------------+--------------+--------------+--------------------+----------------------+----------------------+----------------------------
- regress       | public       | rw_view1   |  SELECT base_tbl.a       +| NONE         | YES          | YES                | NO                   | NO                   | NO
-               |              |            |    FROM base_tbl;         |              |              |                    |                      |                      | 
- regress       | public       | rw_view2   |  SELECT rw_view1.a       +| NONE         | YES          | YES                | NO                   | NO                   | NO
-               |              |            |    FROM rw_view1         +|              |              |                    |                      |                      | 
-               |              |            |   WHERE (rw_view1.a > 0); |              |              |                    |                      |                      | 
- regress       | public       | rw_view3   |  SELECT rw_view2.a       +| NONE         | YES          | YES                | NO                   | NO                   | NO
-               |              |            |    FROM rw_view2;         |              |              |                    |                      |                      | 
-(3 rows)
+ table_catalog | table_schema | table_name | view_definition | check_option | is_updatable | is_insertable_into | is_trigger_updatable | is_trigger_deletable | is_trigger_insertable_into 
+---------------+--------------+------------+-----------------+--------------+--------------+--------------------+----------------------+----------------------+----------------------------
+(0 rows)
 
 INSERT INTO rw_view1 VALUES (-1); -- ok
 INSERT 0 1

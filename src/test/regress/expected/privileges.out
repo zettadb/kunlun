@@ -840,12 +840,160 @@ ROLLBACK
 -- switch to superuser
 \c -
 You are now connected to database "regress" as user "abc".
+CREATE TYPE priv_testtype1 AS (a int, b text);
+CREATE TYPE
+REVOKE USAGE ON TYPE priv_testtype1 FROM PUBLIC;
+REVOKE
+GRANT USAGE ON TYPE priv_testtype1 TO regress_priv_user2;
+GRANT
+GRANT USAGE ON TYPE _priv_testtype1 TO regress_priv_user2; -- fail
+psql:sql/privileges.sql:506: ERROR:  cannot set privileges of array types
+HINT:  Set the privileges of the element type instead.
+GRANT USAGE ON DOMAIN priv_testtype1 TO regress_priv_user2; -- fail
+psql:sql/privileges.sql:507: ERROR:  "priv_testtype1" is not a domain
+CREATE DOMAIN priv_testdomain1 AS int;
+CREATE DOMAIN
+REVOKE USAGE on DOMAIN priv_testdomain1 FROM PUBLIC;
+REVOKE
+GRANT USAGE ON DOMAIN priv_testdomain1 TO regress_priv_user2;
+GRANT
+GRANT USAGE ON TYPE priv_testdomain1 TO regress_priv_user2; -- ok
+GRANT
+SET SESSION AUTHORIZATION regress_priv_user1;
+SET
+-- commands that should fail
+CREATE AGGREGATE priv_testagg1a(priv_testdomain1) (sfunc = int4_sum, stype = bigint);
+psql:sql/privileges.sql:518: ERROR:  permission denied for type priv_testdomain1
+CREATE DOMAIN priv_testdomain2a AS priv_testdomain1;
+psql:sql/privileges.sql:520: ERROR:  permission denied for type priv_testdomain1
+CREATE DOMAIN priv_testdomain3a AS int;
+CREATE DOMAIN
+CREATE FUNCTION castfunc(int) RETURNS priv_testdomain3a AS $$ SELECT $1::priv_testdomain3a $$ LANGUAGE SQL;
+CREATE FUNCTION
+CREATE CAST (priv_testdomain1 AS priv_testdomain3a) WITH FUNCTION castfunc(int);
+psql:sql/privileges.sql:524: ERROR:  permission denied for type priv_testdomain1
+DROP FUNCTION castfunc(int) CASCADE;
+DROP FUNCTION
+DROP DOMAIN priv_testdomain3a;
+DROP DOMAIN
+CREATE FUNCTION priv_testfunc5a(a priv_testdomain1) RETURNS int LANGUAGE SQL AS $$ SELECT $1 $$;
+psql:sql/privileges.sql:528: ERROR:  permission denied for type priv_testdomain1
+CREATE FUNCTION priv_testfunc6a(b int) RETURNS priv_testdomain1 LANGUAGE SQL AS $$ SELECT $1::priv_testdomain1 $$;
+psql:sql/privileges.sql:529: ERROR:  permission denied for type priv_testdomain1
+CREATE OPERATOR !+! (PROCEDURE = int4pl, LEFTARG = priv_testdomain1, RIGHTARG = priv_testdomain1);
+psql:sql/privileges.sql:531: ERROR:  permission denied for type priv_testdomain1
+CREATE TABLE test5a (a int, b priv_testdomain1);
+psql:sql/privileges.sql:533: ERROR:  permission denied for type priv_testdomain1
+CREATE TABLE test6a OF priv_testtype1;
+psql:sql/privileges.sql:534: ERROR:  permission denied for type priv_testtype1
+CREATE TABLE test10a (a int[], b priv_testtype1[]);
+psql:sql/privileges.sql:535: ERROR:  permission denied for type priv_testtype1
+CREATE TABLE test9a (a int, b int);
+CREATE TABLE
+ALTER TABLE test9a ADD COLUMN c priv_testdomain1;
+psql:sql/privileges.sql:538: ERROR:  permission denied for type priv_testdomain1
+ALTER TABLE test9a ALTER COLUMN b TYPE priv_testdomain1;
+psql:sql/privileges.sql:539: ERROR:  permission denied for type priv_testdomain1
+CREATE TYPE test7a AS (a int, b priv_testdomain1);
+psql:sql/privileges.sql:541: ERROR:  permission denied for type priv_testdomain1
+CREATE TYPE test8a AS (a int, b int);
+CREATE TYPE
+ALTER TYPE test8a ADD ATTRIBUTE c priv_testdomain1;
+psql:sql/privileges.sql:544: ERROR:  permission denied for type priv_testdomain1
+ALTER TYPE test8a ALTER ATTRIBUTE b TYPE priv_testdomain1;
+psql:sql/privileges.sql:545: ERROR:  permission denied for type priv_testdomain1
+CREATE TABLE test11a AS (SELECT 1::priv_testdomain1 AS a);
+psql:sql/privileges.sql:547: ERROR:  Statement 'CREATE TABLE AS' is not supported in Kunlun.
+REVOKE ALL ON TYPE priv_testtype1 FROM PUBLIC;
+psql:sql/privileges.sql:549: ERROR:  permission denied for type priv_testtype1
+SET SESSION AUTHORIZATION regress_priv_user2;
+SET
+-- commands that should succeed
+CREATE AGGREGATE priv_testagg1b(priv_testdomain1) (sfunc = int4_sum, stype = bigint);
+CREATE AGGREGATE
+CREATE DOMAIN priv_testdomain2b AS priv_testdomain1;
+CREATE DOMAIN
+CREATE DOMAIN priv_testdomain3b AS int;
+CREATE DOMAIN
+CREATE FUNCTION castfunc(int) RETURNS priv_testdomain3b AS $$ SELECT $1::priv_testdomain3b $$ LANGUAGE SQL;
+CREATE FUNCTION
+CREATE CAST (priv_testdomain1 AS priv_testdomain3b) WITH FUNCTION castfunc(int);
+psql:sql/privileges.sql:561: WARNING:  cast will be ignored because the source data type is a domain
+CREATE CAST
+CREATE FUNCTION priv_testfunc5b(a priv_testdomain1) RETURNS int LANGUAGE SQL AS $$ SELECT $1 $$;
+CREATE FUNCTION
+CREATE FUNCTION priv_testfunc6b(b int) RETURNS priv_testdomain1 LANGUAGE SQL AS $$ SELECT $1::priv_testdomain1 $$;
+CREATE FUNCTION
+CREATE OPERATOR !! (PROCEDURE = priv_testfunc5b, RIGHTARG = priv_testdomain1);
+CREATE OPERATOR
+CREATE TABLE test5b (a int, b priv_testdomain1);
+CREATE TABLE
+CREATE TABLE test6b OF priv_testtype1;
+CREATE TABLE
+CREATE TABLE test10b (a int[], b priv_testtype1[]);
+psql:sql/privileges.sql:570: ERROR:  Kunlun-db: Not supported type (1007).
+CREATE TABLE test9b (a int, b int);
+CREATE TABLE
+ALTER TABLE test9b ADD COLUMN c priv_testdomain1;
+ALTER TABLE
+ALTER TABLE test9b ALTER COLUMN b TYPE priv_testdomain1;
+ALTER TABLE
+CREATE TYPE test7b AS (a int, b priv_testdomain1);
+CREATE TYPE
+CREATE TYPE test8b AS (a int, b int);
+CREATE TYPE
+ALTER TYPE test8b ADD ATTRIBUTE c priv_testdomain1;
+ALTER TYPE
+ALTER TYPE test8b ALTER ATTRIBUTE b TYPE priv_testdomain1;
+ALTER TYPE
+CREATE TABLE test11b AS (SELECT 1::priv_testdomain1 AS a);
+psql:sql/privileges.sql:582: ERROR:  Statement 'CREATE TABLE AS' is not supported in Kunlun.
+REVOKE ALL ON TYPE priv_testtype1 FROM PUBLIC;
+psql:sql/privileges.sql:584: WARNING:  no privileges could be revoked for "priv_testtype1"
+REVOKE
+\c -
+You are now connected to database "regress" as user "abc".
+DROP AGGREGATE priv_testagg1b(priv_testdomain1);
+DROP AGGREGATE
+DROP DOMAIN priv_testdomain2b;
+DROP DOMAIN
+DROP OPERATOR !! (NONE, priv_testdomain1);
+DROP OPERATOR
+DROP FUNCTION priv_testfunc5b(a priv_testdomain1);
+DROP FUNCTION
+DROP FUNCTION priv_testfunc6b(b int);
+DROP FUNCTION
+DROP TABLE test5b;
+DROP TABLE
+DROP TABLE test6b;
+DROP TABLE
+DROP TABLE test9b;
+DROP TABLE
+DROP TABLE test10b;
+psql:sql/privileges.sql:595: ERROR:  table "test10b" does not exist
+DROP TYPE test7b;
+DROP TYPE
+DROP TYPE test8b;
+DROP TYPE
+DROP CAST (priv_testdomain1 AS priv_testdomain3b);
+DROP CAST
+DROP FUNCTION castfunc(int) CASCADE;
+DROP FUNCTION
+DROP DOMAIN priv_testdomain3b;
+DROP DOMAIN
+DROP TABLE test11b;
+psql:sql/privileges.sql:601: ERROR:  table "test11b" does not exist
+DROP TYPE priv_testtype1; -- ok
+DROP TYPE
+DROP DOMAIN priv_testdomain1; -- ok
+DROP DOMAIN
+-- truncate
 SET SESSION AUTHORIZATION regress_priv_user5;
 SET
 TRUNCATE atest2; -- ok
 TRUNCATE TABLE
 TRUNCATE atest3; -- fail
-psql:sql/privileges.sql:505: ERROR:  permission denied for table atest3
+psql:sql/privileges.sql:610: ERROR:  permission denied for table atest3
 -- has_table_privilege function
 -- bad-input checks
 select has_table_privilege(NULL,'pg_authid','select');
@@ -855,11 +1003,11 @@ select has_table_privilege(NULL,'pg_authid','select');
 (1 row)
 
 select has_table_privilege('pg_shad','select');
-psql:sql/privileges.sql:511: ERROR:  relation "pg_shad" does not exist
+psql:sql/privileges.sql:616: ERROR:  relation "pg_shad" does not exist
 select has_table_privilege('nosuchuser','pg_authid','select');
-psql:sql/privileges.sql:512: ERROR:  role "nosuchuser" does not exist
+psql:sql/privileges.sql:617: ERROR:  role "nosuchuser" does not exist
 select has_table_privilege('pg_authid','sel');
-psql:sql/privileges.sql:513: ERROR:  unrecognized privilege type: "sel"
+psql:sql/privileges.sql:618: ERROR:  unrecognized privilege type: "sel"
 select has_table_privilege(-999999,'pg_authid','update');
  has_table_privilege 
 ---------------------
@@ -1139,7 +1287,7 @@ select has_column_privilege('pg_authid',NULL,'select');
 (1 row)
 
 select has_column_privilege('pg_authid','nosuchcol','select');
-psql:sql/privileges.sql:612: ERROR:  column "nosuchcol" of relation "pg_authid" does not exist
+psql:sql/privileges.sql:717: ERROR:  column "nosuchcol" of relation "pg_authid" does not exist
 select has_column_privilege(9999,'nosuchcol','select');
  has_column_privilege 
 ----------------------
@@ -1169,7 +1317,7 @@ CREATE TABLE
 alter table mytable drop column f2;
 ALTER TABLE
 select has_column_privilege('mytable','f2','select');
-psql:sql/privileges.sql:620: ERROR:  column "f2" of relation "mytable" does not exist
+psql:sql/privileges.sql:725: ERROR:  column "f2" of relation "mytable" does not exist
 select has_column_privilege('mytable','........pg.dropped.2........','select');
  has_column_privilege 
 ----------------------
@@ -1196,7 +1344,7 @@ DROP TABLE
 SET SESSION AUTHORIZATION regress_priv_user1;
 SET
 drop table if exists atest4;
-psql:sql/privileges.sql:631: NOTICE:  table "atest4" does not exist, skipping
+psql:sql/privileges.sql:736: NOTICE:  table "atest4" does not exist, skipping
 DROP TABLE
 CREATE TABLE atest4 (a int);
 CREATE TABLE
@@ -1211,7 +1359,7 @@ SET
 GRANT SELECT ON atest4 TO regress_priv_user3;
 GRANT
 GRANT UPDATE ON atest4 TO regress_priv_user3; -- fail
-psql:sql/privileges.sql:641: WARNING:  no privileges were granted for "atest4"
+psql:sql/privileges.sql:746: WARNING:  no privileges were granted for "atest4"
 GRANT
 SET SESSION AUTHORIZATION regress_priv_user1;
 SET
@@ -1224,7 +1372,7 @@ SELECT has_table_privilege('regress_priv_user3', 'atest4', 'SELECT'); -- true
 (1 row)
 
 REVOKE SELECT ON atest4 FROM regress_priv_user2; -- fail
-psql:sql/privileges.sql:647: ERROR:  dependent privileges exist
+psql:sql/privileges.sql:752: ERROR:  dependent privileges exist
 HINT:  Use CASCADE to revoke them too.
 REVOKE GRANT OPTION FOR SELECT ON atest4 FROM regress_priv_user2 CASCADE; -- ok
 REVOKE
@@ -1257,13 +1405,13 @@ GRANT ROLE
 SET ROLE regress_priv_group2;
 SET
 GRANT regress_priv_group2 TO regress_priv_user5; -- fails: SET ROLE suspended privilege
-psql:sql/privileges.sql:662: ERROR:  must have admin option on role "regress_priv_group2"
+psql:sql/privileges.sql:767: ERROR:  must have admin option on role "regress_priv_group2"
 SET SESSION AUTHORIZATION regress_priv_user1;
 SET
 GRANT regress_priv_group2 TO regress_priv_user5; -- fails: no ADMIN OPTION
-psql:sql/privileges.sql:665: ERROR:  must have admin option on role "regress_priv_group2"
+psql:sql/privileges.sql:770: ERROR:  must have admin option on role "regress_priv_group2"
 SELECT dogrant_ok();			-- ok: SECURITY DEFINER conveys ADMIN
-psql:sql/privileges.sql:666: NOTICE:  role "regress_priv_user5" is already a member of role "regress_priv_group2"
+psql:sql/privileges.sql:771: NOTICE:  role "regress_priv_user5" is already a member of role "regress_priv_group2"
  dogrant_ok 
 ------------
  
@@ -1272,17 +1420,17 @@ psql:sql/privileges.sql:666: NOTICE:  role "regress_priv_user5" is already a mem
 SET ROLE regress_priv_group2;
 SET
 GRANT regress_priv_group2 TO regress_priv_user5; -- fails: SET ROLE did not help
-psql:sql/privileges.sql:668: ERROR:  must have admin option on role "regress_priv_group2"
+psql:sql/privileges.sql:773: ERROR:  must have admin option on role "regress_priv_group2"
 SET SESSION AUTHORIZATION regress_priv_group2;
 SET
 GRANT regress_priv_group2 TO regress_priv_user5; -- ok: a role can self-admin
-psql:sql/privileges.sql:671: NOTICE:  role "regress_priv_user5" is already a member of role "regress_priv_group2"
+psql:sql/privileges.sql:776: NOTICE:  role "regress_priv_user5" is already a member of role "regress_priv_group2"
 GRANT ROLE
 CREATE FUNCTION dogrant_fails() RETURNS void LANGUAGE sql SECURITY DEFINER AS
 	'GRANT regress_priv_group2 TO regress_priv_user5';
 CREATE FUNCTION
 SELECT dogrant_fails();			-- fails: no self-admin in SECURITY DEFINER
-psql:sql/privileges.sql:674: ERROR:  must have admin option on role "regress_priv_group2"
+psql:sql/privileges.sql:779: ERROR:  must have admin option on role "regress_priv_group2"
 CONTEXT:  SQL function "dogrant_fails" statement 1
 DROP FUNCTION dogrant_fails();
 DROP FUNCTION
@@ -1300,9 +1448,9 @@ CREATE SEQUENCE
 GRANT USAGE on x_seq to regress_priv_user2;
 GRANT
 SELECT has_sequence_privilege('regress_priv_user1', 'atest1', 'SELECT');
-psql:sql/privileges.sql:689: ERROR:  "atest1" is not a sequence
+psql:sql/privileges.sql:794: ERROR:  "atest1" is not a sequence
 SELECT has_sequence_privilege('regress_priv_user1', 'x_seq', 'INSERT');
-psql:sql/privileges.sql:690: ERROR:  unrecognized privilege type: "INSERT"
+psql:sql/privileges.sql:795: ERROR:  unrecognized privilege type: "INSERT"
 SELECT has_sequence_privilege('regress_priv_user1', 'x_seq', 'SELECT');
  has_sequence_privilege 
 ------------------------
@@ -1406,7 +1554,7 @@ SELECT * FROM pg_largeobject LIMIT 0;
 SET SESSION AUTHORIZATION regress_priv_user1;
 SET
 SELECT * FROM pg_largeobject LIMIT 0;			-- to be denied
-psql:sql/privileges.sql:790: ERROR:  permission denied for table pg_largeobject
+psql:sql/privileges.sql:895: ERROR:  permission denied for table pg_largeobject
 -- test default ACLs
 \c -
 You are now connected to database "regress" as user "abc".
@@ -1497,7 +1645,81 @@ SELECT has_table_privilege('regress_priv_user1', 'testns.acltest1', 'INSERT'); -
 ALTER DEFAULT PRIVILEGES FOR ROLE regress_priv_user1 REVOKE EXECUTE ON FUNCTIONS FROM public;
 ALTER DEFAULT PRIVILEGES
 ALTER DEFAULT PRIVILEGES IN SCHEMA testns GRANT USAGE ON SCHEMAS TO regress_priv_user2; -- error
-psql:sql/privileges.sql:831: ERROR:  cannot use IN SCHEMA clause when using GRANT/REVOKE ON SCHEMAS
+psql:sql/privileges.sql:936: ERROR:  cannot use IN SCHEMA clause when using GRANT/REVOKE ON SCHEMAS
+--
+-- Testing blanket default grants is very hazardous since it might change
+-- the privileges attached to objects created by concurrent regression tests.
+-- To avoid that, be sure to revoke the privileges again before committing.
+--
+BEGIN;
+BEGIN
+ALTER DEFAULT PRIVILEGES GRANT USAGE ON SCHEMAS TO regress_priv_user2;
+ALTER DEFAULT PRIVILEGES
+CREATE SCHEMA testns2;
+CREATE SCHEMA
+SELECT has_schema_privilege('regress_priv_user2', 'testns2', 'USAGE'); -- yes
+ has_schema_privilege 
+----------------------
+ t
+(1 row)
+
+SELECT has_schema_privilege('regress_priv_user2', 'testns2', 'CREATE'); -- no
+ has_schema_privilege 
+----------------------
+ f
+(1 row)
+
+ALTER DEFAULT PRIVILEGES REVOKE USAGE ON SCHEMAS FROM regress_priv_user2;
+ALTER DEFAULT PRIVILEGES
+CREATE SCHEMA testns3;
+CREATE SCHEMA
+SELECT has_schema_privilege('regress_priv_user2', 'testns3', 'USAGE'); -- no
+ has_schema_privilege 
+----------------------
+ f
+(1 row)
+
+SELECT has_schema_privilege('regress_priv_user2', 'testns3', 'CREATE'); -- no
+ has_schema_privilege 
+----------------------
+ f
+(1 row)
+
+ALTER DEFAULT PRIVILEGES GRANT ALL ON SCHEMAS TO regress_priv_user2;
+ALTER DEFAULT PRIVILEGES
+CREATE SCHEMA testns4;
+CREATE SCHEMA
+SELECT has_schema_privilege('regress_priv_user2', 'testns4', 'USAGE'); -- yes
+ has_schema_privilege 
+----------------------
+ t
+(1 row)
+
+SELECT has_schema_privilege('regress_priv_user2', 'testns4', 'CREATE'); -- yes
+ has_schema_privilege 
+----------------------
+ t
+(1 row)
+
+ALTER DEFAULT PRIVILEGES REVOKE ALL ON SCHEMAS FROM regress_priv_user2;
+ALTER DEFAULT PRIVILEGES
+COMMIT;
+psql:sql/privileges.sql:968: WARNING:  there is no transaction in progress
+COMMIT
+CREATE SCHEMA testns5;
+CREATE SCHEMA
+SELECT has_schema_privilege('regress_priv_user2', 'testns5', 'USAGE'); -- no
+ has_schema_privilege 
+----------------------
+ f
+(1 row)
+
+SELECT has_schema_privilege('regress_priv_user2', 'testns5', 'CREATE'); -- no
+ has_schema_privilege 
+----------------------
+ f
+(1 row)
+
 SET ROLE regress_priv_user1;
 SET
 CREATE FUNCTION testns.foo() RETURNS int AS 'select 1' LANGUAGE sql;
@@ -1564,6 +1786,28 @@ DROP PROCEDURE testns.bar();
 DROP PROCEDURE
 ALTER DEFAULT PRIVILEGES FOR ROLE regress_priv_user1 REVOKE USAGE ON TYPES FROM public;
 ALTER DEFAULT PRIVILEGES
+CREATE DOMAIN testns.priv_testdomain1 AS int;
+CREATE DOMAIN
+SELECT has_type_privilege('regress_priv_user2', 'testns.priv_testdomain1', 'USAGE'); -- no
+ has_type_privilege 
+--------------------
+ f
+(1 row)
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA testns GRANT USAGE ON TYPES to public;
+ALTER DEFAULT PRIVILEGES
+DROP DOMAIN testns.priv_testdomain1;
+DROP DOMAIN
+CREATE DOMAIN testns.priv_testdomain1 AS int;
+CREATE DOMAIN
+SELECT has_type_privilege('regress_priv_user2', 'testns.priv_testdomain1', 'USAGE'); -- yes
+ has_type_privilege 
+--------------------
+ t
+(1 row)
+
+DROP DOMAIN testns.priv_testdomain1;
+DROP DOMAIN
 RESET ROLE;
 RESET
 SELECT count(*)
@@ -1571,13 +1815,21 @@ SELECT count(*)
   WHERE nspname = 'testns';
  count 
 -------
-     2
+     3
 (1 row)
 
   
 DROP TABLE testns.acltest1;
 DROP TABLE
 DROP SCHEMA testns CASCADE;
+DROP SCHEMA
+DROP SCHEMA testns2 CASCADE;
+DROP SCHEMA
+DROP SCHEMA testns3 CASCADE;
+DROP SCHEMA
+DROP SCHEMA testns4 CASCADE;
+DROP SCHEMA
+DROP SCHEMA testns5 CASCADE;
 DROP SCHEMA
 SELECT d.*     -- check that entries went away
   FROM pg_default_acl d LEFT JOIN pg_namespace n ON defaclnamespace = n.oid
@@ -1707,7 +1959,7 @@ DROP TABLE
 drop table testns.t2 cascade;
 DROP TABLE
 DROP SCHEMA testns CASCADE;
-psql:sql/privileges.sql:922: NOTICE:  drop cascades to 3 other objects
+psql:sql/privileges.sql:1079: NOTICE:  drop cascades to 3 other objects
 DROP SCHEMA
 \set VERBOSITY default
 -- Change owner of the schema & and rename of new schema owner
@@ -1749,9 +2001,9 @@ You are now connected to database "regress" as user "abc".
 DROP ROLE regress_schemauser1;
 DROP ROLE
 drop table testns.t1 cascade;
-psql:sql/privileges.sql:950: ERROR:  schema "testns" does not exist
+psql:sql/privileges.sql:1107: ERROR:  schema "testns" does not exist
 drop schema testns;
-psql:sql/privileges.sql:951: ERROR:  schema "testns" does not exist
+psql:sql/privileges.sql:1108: ERROR:  schema "testns" does not exist
 DROP ROLE regress_schemauser_renamed;
 DROP ROLE
 -- test that dependent privileges are revoked (or not) properly
@@ -1842,11 +2094,11 @@ DROP VIEW atestv2;
 DROP VIEW
 -- this should cascade to drop atestv4
 DROP VIEW atestv3 CASCADE;
-psql:sql/privileges.sql:994: NOTICE:  drop cascades to view atestv4
+psql:sql/privileges.sql:1151: NOTICE:  drop cascades to view atestv4
 DROP VIEW
 -- this should complain "does not exist"
 DROP VIEW atestv4;
-psql:sql/privileges.sql:996: ERROR:  view "atestv4" does not exist
+psql:sql/privileges.sql:1153: ERROR:  view "atestv4" does not exist
 DROP TABLE atest1 cascade;
 DROP TABLE
 DROP TABLE atest2 cascade;
@@ -1872,19 +2124,21 @@ DROP ROLE
 REVOKE USAGE ON LANGUAGE sql FROM regress_priv_user1;
 REVOKE
 drop table atest12 cascade;
-psql:sql/privileges.sql:1012: NOTICE:  drop cascades to 2 other objects
+psql:sql/privileges.sql:1169: NOTICE:  drop cascades to 2 other objects
 DETAIL:  drop cascades to view atest12v
 drop cascades to view atest12sbv
 DROP TABLE
 drop function leak(integer,integer) cascade;
-psql:sql/privileges.sql:1013: NOTICE:  drop cascades to operator <<<(integer,integer)
+psql:sql/privileges.sql:1170: NOTICE:  drop cascades to operator <<<(integer,integer)
 DROP FUNCTION
 ALTER DEFAULT PRIVILEGES FOR ROLE regress_priv_user1 grant EXECUTE ON FUNCTIONS to public;
 ALTER DEFAULT PRIVILEGES
 ALTER DEFAULT PRIVILEGES FOR ROLE regress_priv_user1 grant USAGE ON TYPES to public;
 ALTER DEFAULT PRIVILEGES
 DROP USER regress_priv_user1;
-DROP ROLE
+psql:sql/privileges.sql:1174: ERROR:  role "regress_priv_user1" cannot be dropped because some objects depend on it
+DETAIL:  owner of type test8a
+owner of table test9a
 DROP USER regress_priv_user2;
 DROP ROLE
 DROP USER regress_priv_user3;
@@ -1894,7 +2148,7 @@ DROP ROLE
 DROP USER regress_priv_user5;
 DROP ROLE
 DROP USER regress_priv_user6;
-psql:sql/privileges.sql:1022: ERROR:  role "regress_priv_user6" does not exist
+psql:sql/privileges.sql:1179: ERROR:  role "regress_priv_user6" does not exist
 -- permissions with LOCK TABLE
 CREATE USER regress_locktable_user;
 CREATE ROLE
@@ -1908,7 +2162,7 @@ SET
 BEGIN;
 BEGIN
 LOCK TABLE lock_table IN ROW EXCLUSIVE MODE; -- should fail
-psql:sql/privileges.sql:1033: ERROR:  permission denied for table lock_table
+psql:sql/privileges.sql:1190: ERROR:  permission denied for table lock_table
 ROLLBACK;
 ROLLBACK
 BEGIN;
@@ -1920,7 +2174,7 @@ COMMIT
 BEGIN;
 BEGIN
 LOCK TABLE lock_table IN ACCESS EXCLUSIVE MODE; -- should fail
-psql:sql/privileges.sql:1039: ERROR:  permission denied for table lock_table
+psql:sql/privileges.sql:1196: ERROR:  permission denied for table lock_table
 ROLLBACK;
 ROLLBACK
 \c
@@ -1941,13 +2195,13 @@ COMMIT
 BEGIN;
 BEGIN
 LOCK TABLE lock_table IN ACCESS SHARE MODE; -- should fail
-psql:sql/privileges.sql:1051: ERROR:  permission denied for table lock_table
+psql:sql/privileges.sql:1208: ERROR:  permission denied for table lock_table
 ROLLBACK;
 ROLLBACK
 BEGIN;
 BEGIN
 LOCK TABLE lock_table IN ACCESS EXCLUSIVE MODE; -- should fail
-psql:sql/privileges.sql:1054: ERROR:  permission denied for table lock_table
+psql:sql/privileges.sql:1211: ERROR:  permission denied for table lock_table
 ROLLBACK;
 ROLLBACK
 \c
@@ -1968,7 +2222,7 @@ COMMIT
 BEGIN;
 BEGIN
 LOCK TABLE lock_table IN ACCESS SHARE MODE; -- should fail
-psql:sql/privileges.sql:1066: ERROR:  permission denied for table lock_table
+psql:sql/privileges.sql:1223: ERROR:  permission denied for table lock_table
 ROLLBACK;
 ROLLBACK
 BEGIN;
@@ -1995,7 +2249,7 @@ COMMIT
 BEGIN;
 BEGIN
 LOCK TABLE lock_table IN ACCESS SHARE MODE; -- should fail
-psql:sql/privileges.sql:1081: ERROR:  permission denied for table lock_table
+psql:sql/privileges.sql:1238: ERROR:  permission denied for table lock_table
 ROLLBACK;
 ROLLBACK
 BEGIN;
@@ -2008,28 +2262,33 @@ COMMIT
 You are now connected to database "regress" as user "abc".
 REVOKE DELETE ON lock_table FROM regress_locktable_user;
 REVOKE
+-- LOCK TABLE and TRUNCATE permission
+GRANT TRUNCATE ON lock_table TO regress_locktable_user;
+GRANT
 SET SESSION AUTHORIZATION regress_locktable_user;
 SET
 BEGIN;
 BEGIN
 LOCK TABLE lock_table IN ROW EXCLUSIVE MODE; -- should pass
-psql:sql/privileges.sql:1091: ERROR:  permission denied for table lock_table
+LOCK TABLE
 COMMIT;
-ROLLBACK
+COMMIT
 BEGIN;
 BEGIN
 LOCK TABLE lock_table IN ACCESS SHARE MODE; -- should fail
-psql:sql/privileges.sql:1094: ERROR:  permission denied for table lock_table
+psql:sql/privileges.sql:1252: ERROR:  permission denied for table lock_table
 ROLLBACK;
 ROLLBACK
 BEGIN;
 BEGIN
 LOCK TABLE lock_table IN ACCESS EXCLUSIVE MODE; -- should pass
-psql:sql/privileges.sql:1097: ERROR:  permission denied for table lock_table
+LOCK TABLE
 COMMIT;
-ROLLBACK
+COMMIT
 \c
 You are now connected to database "regress" as user "abc".
+REVOKE TRUNCATE ON lock_table FROM regress_locktable_user;
+REVOKE
 -- clean up
 DROP TABLE lock_table;
 DROP TABLE

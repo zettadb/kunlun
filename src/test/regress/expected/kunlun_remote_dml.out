@@ -898,12 +898,8 @@ CREATE TABLE
 INSERT INTO collate_test10 VALUES (1, 'hij', 'hij'), (2, 'HIJ', 'HIJ');
 INSERT 0 2
 select x < y from collate_test10;
- ?column? 
-----------
- f
- f
-(2 rows)
-
+psql:sql/kunlun_remote_dml.sql:273: ERROR:  could not determine which collation to use for string comparison
+HINT:  Use the COLLATE clause to set the collation explicitly.
 drop table if exists collate_test1 cascade;
 DROP TABLE
 drop table if exists collate_test2 cascade;

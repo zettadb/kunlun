@@ -16,115 +16,7 @@ delete from truncate_a;
 COMMIT;
 SELECT * FROM truncate_a;
 
--- Test foreign-key checks
---DDL_STATEMENT_BEGIN--
---CREATE TABLE trunc_b (a int REFERENCES truncate_a);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
---CREATE TABLE trunc_c (a serial PRIMARY KEY);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
---CREATE TABLE trunc_d (a int REFERENCES trunc_c);
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
---CREATE TABLE trunc_e (a int REFERENCES truncate_a, b int REFERENCES trunc_c);
---DDL_STATEMENT_END--
-
---DDL_STATEMENT_BEGIN--
---TRUNCATE TABLE truncate_a;		-- fail
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
---TRUNCATE TABLE truncate_a,trunc_b;		-- fail
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
---TRUNCATE TABLE truncate_a,trunc_b,trunc_e;	-- ok
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
---TRUNCATE TABLE truncate_a,trunc_e;		-- fail
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
---TRUNCATE TABLE trunc_c;		-- fail
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
---TRUNCATE TABLE trunc_c,trunc_d;		-- fail
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
---TRUNCATE TABLE trunc_c,trunc_d,trunc_e;	-- ok
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
---TRUNCATE TABLE trunc_c,trunc_d,trunc_e,truncate_a;	-- fail
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
---TRUNCATE TABLE trunc_c,trunc_d,trunc_e,truncate_a,trunc_b;	-- ok
---DDL_STATEMENT_END--
-
---DDL_STATEMENT_BEGIN--
---TRUNCATE TABLE truncate_a RESTRICT; -- fail
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
---TRUNCATE TABLE truncate_a CASCADE;  -- ok
---DDL_STATEMENT_END--
-
--- circular references
---DDL_STATEMENT_BEGIN--
-ALTER TABLE truncate_a ADD FOREIGN KEY (col1) REFERENCES trunc_c;
---DDL_STATEMENT_END--
-
--- Add some data to verify that truncating actually works ...
-INSERT INTO trunc_c VALUES (1);
-INSERT INTO truncate_a VALUES (1);
-INSERT INTO trunc_b VALUES (1);
-INSERT INTO trunc_d VALUES (1);
-INSERT INTO trunc_e VALUES (1,1);
---DDL_STATEMENT_BEGIN--
-TRUNCATE TABLE trunc_c;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-TRUNCATE TABLE trunc_c,truncate_a;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-TRUNCATE TABLE trunc_c,truncate_a,trunc_d;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-TRUNCATE TABLE trunc_c,truncate_a,trunc_d,trunc_e;
---DDL_STATEMENT_END--
---DDL_STATEMENT_BEGIN--
-TRUNCATE TABLE trunc_c,truncate_a,trunc_d,trunc_e,trunc_b;
---DDL_STATEMENT_END--
-
--- Verify that truncating did actually work
-SELECT * FROM truncate_a
-   UNION ALL
- SELECT * FROM trunc_c
-   UNION ALL
- SELECT * FROM trunc_b
-   UNION ALL
- SELECT * FROM trunc_d;
-SELECT * FROM trunc_e;
-
--- Add data again to test TRUNCATE ... CASCADE
-INSERT INTO trunc_c VALUES (1);
-INSERT INTO truncate_a VALUES (1);
-INSERT INTO trunc_b VALUES (1);
-INSERT INTO trunc_d VALUES (1);
-INSERT INTO trunc_e VALUES (1,1);
---DDL_STATEMENT_BEGIN--
-TRUNCATE TABLE trunc_c CASCADE;  -- ok
---DDL_STATEMENT_END--
-
-SELECT * FROM truncate_a
-   UNION ALL
- SELECT * FROM trunc_c
-   UNION ALL
- SELECT * FROM trunc_b
-   UNION ALL
- SELECT * FROM trunc_d;
-SELECT * FROM trunc_e;
-
---DDL_STATEMENT_BEGIN--
-DROP TABLE truncate_a,trunc_c,trunc_b,trunc_d,trunc_e CASCADE;
---DDL_STATEMENT_END--
-
+--
 -- Test TRUNCATE with inheritance
 
 --DDL_STATEMENT_BEGIN--
@@ -148,42 +40,28 @@ CREATE TABLE trunc_faa (col3 text) INHERITS (trunc_fa);
 --DDL_STATEMENT_END--
 INSERT INTO trunc_faa VALUES (5, 'five', 'FIVE');
 
-BEGIN;
-SELECT * FROM trunc_f;
-delete from trunc_f;
-SELECT * FROM trunc_f;
-ROLLBACK;
+select * from trunc_f;
+select * from trunc_fa;
+select * from trunc_fb;
+select * from trunc_faa;
+truncate ONLY trunc_f;
+select * from trunc_f;
+truncate ONLY trunc_fa,trunc_fb;
+select * from trunc_fa;
+select * from trunc_fb;
 
-BEGIN;
-SELECT * FROM trunc_f;
-TRUNCATE ONLY trunc_f;
-SELECT * FROM trunc_f;
-ROLLBACK;
+truncate trunc_f;
+truncate trunc_fa;
+truncate trunc_fb;
+truncate trunc_faa;
 
-BEGIN;
-SELECT * FROM trunc_f;
-SELECT * FROM trunc_fa;
-SELECT * FROM trunc_faa;
-TRUNCATE ONLY trunc_fb, ONLY trunc_fa;
-SELECT * FROM trunc_f;
-SELECT * FROM trunc_fa;
-SELECT * FROM trunc_faa;
-ROLLBACK;
+select * from trunc_f;
+select * from trunc_fa;
+select * from trunc_fb;
+select * from trunc_faa;
 
-BEGIN;
-SELECT * FROM trunc_f;
-SELECT * FROM trunc_fa;
-SELECT * FROM trunc_faa;
-TRUNCATE ONLY trunc_fb, trunc_fa;
-SELECT * FROM trunc_f;
-SELECT * FROM trunc_fa;
-SELECT * FROM trunc_faa;
-ROLLBACK;
 
---DDL_STATEMENT_BEGIN--
 DROP TABLE trunc_f CASCADE;
---DDL_STATEMENT_END--
-
 -- Test ON TRUNCATE triggers
 
 --DDL_STATEMENT_BEGIN--

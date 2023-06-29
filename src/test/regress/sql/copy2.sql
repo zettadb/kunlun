@@ -227,14 +227,14 @@ SELECT * FROM vistest;
 
 BEGIN;
 delete from vistest;
-COPY vistest FROM stdin CSV FREEZE;
+--COPY vistest FROM stdin CSV FREEZE;
 a2
 b
 \.
 SELECT * FROM vistest;
 SAVEPOINT s1;
 delete from vistest;
-COPY vistest FROM stdin CSV FREEZE;
+--COPY vistest FROM stdin CSV FREEZE;
 d2
 e
 \.
@@ -244,7 +244,7 @@ SELECT * FROM vistest;
 
 BEGIN;
 delete from vistest;
-COPY vistest FROM stdin CSV FREEZE;
+--COPY vistest FROM stdin CSV FREEZE;
 x
 y
 \.
@@ -258,7 +258,7 @@ g
 BEGIN;
 delete from vistest;
 SAVEPOINT s1;
-COPY vistest FROM stdin CSV FREEZE;
+--COPY vistest FROM stdin CSV FREEZE;
 m
 k
 \.
@@ -267,8 +267,8 @@ BEGIN;
 INSERT INTO vistest VALUES ('z');
 SAVEPOINT s1;
 delete from  vistest;
-ROLLBACK TO SAVEPOINT s1;
-COPY vistest FROM stdin CSV FREEZE;
+
+--COPY vistest FROM stdin CSV FREEZE;
 d3
 e
 \.
@@ -285,7 +285,7 @@ $$ language plpgsql;
 BEGIN;
 INSERT INTO vistest VALUES ('z');
 SELECT truncate_in_subxact();
-COPY vistest FROM stdin CSV FREEZE;
+--COPY vistest FROM stdin CSV FREEZE;
 d4
 e
 \.

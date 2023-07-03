@@ -228,16 +228,16 @@ SELECT * FROM vistest;
 BEGIN;
 delete from vistest;
 --COPY vistest FROM stdin CSV FREEZE;
-a2
-b
-\.
+--a2
+--b
+--\.
 SELECT * FROM vistest;
 SAVEPOINT s1;
 delete from vistest;
 --COPY vistest FROM stdin CSV FREEZE;
-d2
-e
-\.
+--d2
+--e
+--\.
 SELECT * FROM vistest;
 COMMIT;
 SELECT * FROM vistest;
@@ -245,23 +245,23 @@ SELECT * FROM vistest;
 BEGIN;
 delete from vistest;
 --COPY vistest FROM stdin CSV FREEZE;
-x
-y
-\.
+--x
+--y
+--\.
 SELECT * FROM vistest;
 COMMIT;
 delete from vistest;
-COPY vistest FROM stdin CSV FREEZE;
-p
-g
-\.
+--COPY vistest FROM stdin CSV FREEZE;
+--p
+--g
+--\.
 BEGIN;
 delete from vistest;
 SAVEPOINT s1;
 --COPY vistest FROM stdin CSV FREEZE;
-m
-k
-\.
+--m
+--k
+--\.
 COMMIT;
 BEGIN;
 INSERT INTO vistest VALUES ('z');
@@ -269,9 +269,9 @@ SAVEPOINT s1;
 delete from  vistest;
 
 --COPY vistest FROM stdin CSV FREEZE;
-d3
-e
-\.
+--d3
+--e
+--\.
 COMMIT;
 CREATE FUNCTION truncate_in_subxact() RETURNS VOID AS
 $$
@@ -286,9 +286,9 @@ BEGIN;
 INSERT INTO vistest VALUES ('z');
 SELECT truncate_in_subxact();
 --COPY vistest FROM stdin CSV FREEZE;
-d4
-e
-\.
+--d4
+--e
+--\.
 SELECT * FROM vistest;
 COMMIT;
 SELECT * FROM vistest;

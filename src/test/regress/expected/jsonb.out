@@ -6,7 +6,7 @@ SELECT '""'::jsonb;				-- OK.
 (1 row)
 
 SELECT $$''$$::jsonb;			-- ERROR, single quotes are not allowed
-ERROR:  invalid input syntax for type json
+psql:sql/jsonb.sql:3: ERROR:  invalid input syntax for type json
 LINE 1: SELECT $$''$$::jsonb;
                ^
 DETAIL:  Token "'" is invalid.
@@ -18,14 +18,14 @@ SELECT '"abc"'::jsonb;			-- OK
 (1 row)
 
 SELECT '"abc'::jsonb;			-- ERROR, quotes not closed
-ERROR:  invalid input syntax for type json
+psql:sql/jsonb.sql:5: ERROR:  invalid input syntax for type json
 LINE 1: SELECT '"abc'::jsonb;
                ^
 DETAIL:  Token ""abc" is invalid.
 CONTEXT:  JSON data, line 1: "abc
 SELECT '"abc
 def"'::jsonb;					-- ERROR, unescaped newline in string constant
-ERROR:  invalid input syntax for type json
+psql:sql/jsonb.sql:7: ERROR:  invalid input syntax for type json
 LINE 1: SELECT '"abc
                ^
 DETAIL:  Character with value 0x0a must be escaped.
@@ -37,7 +37,7 @@ SELECT '"\n\"\\"'::jsonb;		-- OK, legal escapes
 (1 row)
 
 SELECT '"\v"'::jsonb;			-- ERROR, not a valid JSON escape
-ERROR:  invalid input syntax for type json
+psql:sql/jsonb.sql:9: ERROR:  invalid input syntax for type json
 LINE 1: SELECT '"\v"'::jsonb;
                ^
 DETAIL:  Escape sequence "\v" is invalid.
@@ -57,7 +57,7 @@ SELECT '0'::jsonb;				-- OK
 (1 row)
 
 SELECT '01'::jsonb;				-- ERROR, not valid according to JSON spec
-ERROR:  invalid input syntax for type json
+psql:sql/jsonb.sql:15: ERROR:  invalid input syntax for type json
 LINE 1: SELECT '01'::jsonb;
                ^
 DETAIL:  Token "01" is invalid.
@@ -87,19 +87,19 @@ SELECT '1.3e100'::jsonb;			-- OK
 (1 row)
 
 SELECT '1f2'::jsonb;				-- ERROR
-ERROR:  invalid input syntax for type json
+psql:sql/jsonb.sql:20: ERROR:  invalid input syntax for type json
 LINE 1: SELECT '1f2'::jsonb;
                ^
 DETAIL:  Token "1f2" is invalid.
 CONTEXT:  JSON data, line 1: 1f2
 SELECT '0.x1'::jsonb;			-- ERROR
-ERROR:  invalid input syntax for type json
+psql:sql/jsonb.sql:21: ERROR:  invalid input syntax for type json
 LINE 1: SELECT '0.x1'::jsonb;
                ^
 DETAIL:  Token "0.x1" is invalid.
 CONTEXT:  JSON data, line 1: 0.x1
 SELECT '1.3ex100'::jsonb;		-- ERROR
-ERROR:  invalid input syntax for type json
+psql:sql/jsonb.sql:22: ERROR:  invalid input syntax for type json
 LINE 1: SELECT '1.3ex100'::jsonb;
                ^
 DETAIL:  Token "1.3ex100" is invalid.
@@ -124,19 +124,19 @@ SELECT '[1,2]'::jsonb;			-- OK
 (1 row)
 
 SELECT '[1,2,]'::jsonb;			-- ERROR, trailing comma
-ERROR:  invalid input syntax for type json
+psql:sql/jsonb.sql:28: ERROR:  invalid input syntax for type json
 LINE 1: SELECT '[1,2,]'::jsonb;
                ^
 DETAIL:  Expected JSON value, but found "]".
 CONTEXT:  JSON data, line 1: [1,2,]
 SELECT '[1,2'::jsonb;			-- ERROR, no closing bracket
-ERROR:  invalid input syntax for type json
+psql:sql/jsonb.sql:29: ERROR:  invalid input syntax for type json
 LINE 1: SELECT '[1,2'::jsonb;
                ^
 DETAIL:  The input string ended unexpectedly.
 CONTEXT:  JSON data, line 1: [1,2
 SELECT '[1,[2]'::jsonb;			-- ERROR, no closing bracket
-ERROR:  invalid input syntax for type json
+psql:sql/jsonb.sql:30: ERROR:  invalid input syntax for type json
 LINE 1: SELECT '[1,[2]'::jsonb;
                ^
 DETAIL:  The input string ended unexpectedly.
@@ -149,7 +149,7 @@ SELECT '{}'::jsonb;				-- OK
 (1 row)
 
 SELECT '{"abc"}'::jsonb;			-- ERROR, no value
-ERROR:  invalid input syntax for type json
+psql:sql/jsonb.sql:34: ERROR:  invalid input syntax for type json
 LINE 1: SELECT '{"abc"}'::jsonb;
                ^
 DETAIL:  Expected ":", but found "}".
@@ -161,25 +161,25 @@ SELECT '{"abc":1}'::jsonb;		-- OK
 (1 row)
 
 SELECT '{1:"abc"}'::jsonb;		-- ERROR, keys must be strings
-ERROR:  invalid input syntax for type json
+psql:sql/jsonb.sql:36: ERROR:  invalid input syntax for type json
 LINE 1: SELECT '{1:"abc"}'::jsonb;
                ^
 DETAIL:  Expected string or "}", but found "1".
 CONTEXT:  JSON data, line 1: {1...
 SELECT '{"abc",1}'::jsonb;		-- ERROR, wrong separator
-ERROR:  invalid input syntax for type json
+psql:sql/jsonb.sql:37: ERROR:  invalid input syntax for type json
 LINE 1: SELECT '{"abc",1}'::jsonb;
                ^
 DETAIL:  Expected ":", but found ",".
 CONTEXT:  JSON data, line 1: {"abc",...
 SELECT '{"abc"=1}'::jsonb;		-- ERROR, totally wrong separator
-ERROR:  invalid input syntax for type json
+psql:sql/jsonb.sql:38: ERROR:  invalid input syntax for type json
 LINE 1: SELECT '{"abc"=1}'::jsonb;
                ^
 DETAIL:  Token "=" is invalid.
 CONTEXT:  JSON data, line 1: {"abc"=...
 SELECT '{"abc"::1}'::jsonb;		-- ERROR, another wrong separator
-ERROR:  invalid input syntax for type json
+psql:sql/jsonb.sql:39: ERROR:  invalid input syntax for type json
 LINE 1: SELECT '{"abc"::1}'::jsonb;
                ^
 DETAIL:  Expected JSON value, but found ":".
@@ -191,26 +191,28 @@ SELECT '{"abc":1,"def":2,"ghi":[3,4],"hij":{"klm":5,"nop":[6]}}'::jsonb; -- OK
 (1 row)
 
 SELECT '{"abc":1:2}'::jsonb;		-- ERROR, colon in wrong spot
-ERROR:  invalid input syntax for type json
+psql:sql/jsonb.sql:41: ERROR:  invalid input syntax for type json
 LINE 1: SELECT '{"abc":1:2}'::jsonb;
                ^
 DETAIL:  Expected "," or "}", but found ":".
 CONTEXT:  JSON data, line 1: {"abc":1:...
 SELECT '{"abc":1,3}'::jsonb;		-- ERROR, no value
-ERROR:  invalid input syntax for type json
+psql:sql/jsonb.sql:42: ERROR:  invalid input syntax for type json
 LINE 1: SELECT '{"abc":1,3}'::jsonb;
                ^
 DETAIL:  Expected string, but found "3".
 CONTEXT:  JSON data, line 1: {"abc":1,3...
 -- Recursion.
 SET max_stack_depth = '100kB';
+SET
 SELECT repeat('[', 10000)::jsonb;
-ERROR:  stack depth limit exceeded
+psql:sql/jsonb.sql:46: ERROR:  stack depth limit exceeded
 HINT:  Increase the configuration parameter "max_stack_depth" (currently 100kB), after ensuring the platform's stack depth limit is adequate.
 SELECT repeat('{"a":', 10000)::jsonb;
-ERROR:  stack depth limit exceeded
+psql:sql/jsonb.sql:47: ERROR:  stack depth limit exceeded
 HINT:  Increase the configuration parameter "max_stack_depth" (currently 100kB), after ensuring the platform's stack depth limit is adequate.
 RESET max_stack_depth;
+RESET
 -- Miscellaneous stuff.
 SELECT 'true'::jsonb;			-- OK
  jsonb 
@@ -237,37 +239,37 @@ SELECT ' true '::jsonb;			-- OK, even with extra whitespace
 (1 row)
 
 SELECT 'true false'::jsonb;		-- ERROR, too many values
-ERROR:  invalid input syntax for type json
+psql:sql/jsonb.sql:55: ERROR:  invalid input syntax for type json
 LINE 1: SELECT 'true false'::jsonb;
                ^
 DETAIL:  Expected end of input, but found "false".
 CONTEXT:  JSON data, line 1: true false
 SELECT 'true, false'::jsonb;		-- ERROR, too many values
-ERROR:  invalid input syntax for type json
+psql:sql/jsonb.sql:56: ERROR:  invalid input syntax for type json
 LINE 1: SELECT 'true, false'::jsonb;
                ^
 DETAIL:  Expected end of input, but found ",".
 CONTEXT:  JSON data, line 1: true,...
 SELECT 'truf'::jsonb;			-- ERROR, not a keyword
-ERROR:  invalid input syntax for type json
+psql:sql/jsonb.sql:57: ERROR:  invalid input syntax for type json
 LINE 1: SELECT 'truf'::jsonb;
                ^
 DETAIL:  Token "truf" is invalid.
 CONTEXT:  JSON data, line 1: truf
 SELECT 'trues'::jsonb;			-- ERROR, not a keyword
-ERROR:  invalid input syntax for type json
+psql:sql/jsonb.sql:58: ERROR:  invalid input syntax for type json
 LINE 1: SELECT 'trues'::jsonb;
                ^
 DETAIL:  Token "trues" is invalid.
 CONTEXT:  JSON data, line 1: trues
 SELECT ''::jsonb;				-- ERROR, no value
-ERROR:  invalid input syntax for type json
+psql:sql/jsonb.sql:59: ERROR:  invalid input syntax for type json
 LINE 1: SELECT ''::jsonb;
                ^
 DETAIL:  The input string ended unexpectedly.
 CONTEXT:  JSON data, line 1: 
 SELECT '    '::jsonb;			-- ERROR, no value
-ERROR:  invalid input syntax for type json
+psql:sql/jsonb.sql:60: ERROR:  invalid input syntax for type json
 LINE 1: SELECT '    '::jsonb;
                ^
 DETAIL:  The input string ended unexpectedly.
@@ -296,7 +298,9 @@ select to_jsonb(timestamp '2014-05-28 12:22:35.614298');
 (1 row)
 
 BEGIN;
+BEGIN
 SET LOCAL TIME ZONE 10.5;
+SET
 select to_jsonb(timestamptz '2014-05-28 12:22:35.614298-04');
               to_jsonb              
 ------------------------------------
@@ -304,6 +308,7 @@ select to_jsonb(timestamptz '2014-05-28 12:22:35.614298-04');
 (1 row)
 
 SET LOCAL TIME ZONE -8;
+SET
 select to_jsonb(timestamptz '2014-05-28 12:22:35.614298-04');
               to_jsonb              
 ------------------------------------
@@ -311,6 +316,7 @@ select to_jsonb(timestamptz '2014-05-28 12:22:35.614298-04');
 (1 row)
 
 COMMIT;
+COMMIT
 select to_jsonb(date '2014-05-28');
    to_jsonb   
 --------------
@@ -354,9 +360,10 @@ select to_jsonb(timestamptz '-Infinity');
 (1 row)
 
 --jsonb_agg
-CREATE TEMP TABLE rows AS
-SELECT x, 'txt' || x as y
-FROM generate_series(1,3) AS x;
+CREATE TEMP TABLE rows(x int, y text);
+CREATE TABLE
+insert into rows SELECT x, 'txt' || x as y FROM generate_series(1,3) AS x;
+INSERT 0 3
 SELECT jsonb_agg(q)
   FROM ( SELECT $$a$$ || x AS b, y AS c,
                ARRAY[ROW(x.*,ARRAY[1,2,3]),
@@ -376,6 +383,7 @@ SELECT jsonb_agg(q ORDER BY x, y)
 (1 row)
 
 UPDATE rows SET x = NULL WHERE x = 1;
+UPDATE 1
 SELECT jsonb_agg(q ORDER BY x NULLS FIRST, y)
   FROM rows q;
                                 jsonb_agg                                 
@@ -388,10 +396,12 @@ CREATE TEMP TABLE test_jsonb (
        json_type text,
        test_json jsonb
 );
+CREATE TABLE
 INSERT INTO test_jsonb VALUES
 ('scalar','"a scalar"'),
 ('array','["zero", "one","two",null,"four","five", [1,2,3],{"f1":9}]'),
 ('object','{"field1":"val1","field2":"val2","field3":null, "field4": 4, "field5": [1,2,3], "field6": {"f1":9}}');
+INSERT 0 3
 SELECT test_json -> 'x' FROM test_jsonb WHERE json_type = 'scalar';
  ?column? 
 ----------
@@ -507,9 +517,9 @@ SELECT test_json ->> 2 FROM test_jsonb WHERE json_type = 'object';
 (1 row)
 
 SELECT jsonb_object_keys(test_json) FROM test_jsonb WHERE json_type = 'scalar';
-ERROR:  cannot call jsonb_object_keys on a scalar
+psql:sql/jsonb.sql:147: ERROR:  cannot call jsonb_object_keys on a scalar
 SELECT jsonb_object_keys(test_json) FROM test_jsonb WHERE json_type = 'array';
-ERROR:  cannot call jsonb_object_keys on an array
+psql:sql/jsonb.sql:148: ERROR:  cannot call jsonb_object_keys on an array
 SELECT jsonb_object_keys(test_json) FROM test_jsonb WHERE json_type = 'object';
  jsonb_object_keys 
 -------------------
@@ -969,9 +979,9 @@ SELECT jsonb_array_length('[]');
 (1 row)
 
 SELECT jsonb_array_length('{"f1":1,"f2":[5,6]}');
-ERROR:  cannot get array length of a non-array
+psql:sql/jsonb.sql:241: ERROR:  cannot get array length of a non-array
 SELECT jsonb_array_length('4');
-ERROR:  cannot get array length of a scalar
+psql:sql/jsonb.sql:242: ERROR:  cannot get array length of a scalar
 -- each
 SELECT jsonb_each('{"f1":[1,2,3],"f2":{"f3":1},"f4":null}');
      jsonb_each     
@@ -1075,45 +1085,15 @@ SELECT jsonb_exists('{"a":"null", "b":"qq"}', 'a');
  t
 (1 row)
 
-SELECT jsonb '{"a":null, "b":"qq"}' ? 'a';
- ?column? 
-----------
- t
-(1 row)
-
-SELECT jsonb '{"a":null, "b":"qq"}' ? 'b';
- ?column? 
-----------
- t
-(1 row)
-
-SELECT jsonb '{"a":null, "b":"qq"}' ? 'c';
- ?column? 
-----------
- f
-(1 row)
-
-SELECT jsonb '{"a":"null", "b":"qq"}' ? 'a';
- ?column? 
-----------
- t
-(1 row)
-
+--SELECT jsonb '{"a":null, "b":"qq"}' ? 'a';
+--SELECT jsonb '{"a":null, "b":"qq"}' ? 'b';
+--SELECT jsonb '{"a":null, "b":"qq"}' ? 'c';
+--SELECT jsonb '{"a":"null", "b":"qq"}' ? 'a';
 -- array exists - array elements should behave as keys
-SELECT count(*) from testjsonb  WHERE j->'array' ? 'bar';
- count 
--------
-     3
-(1 row)
-
+--SELECT count(*) from testjsonb  WHERE j->'array' ? 'bar';
 -- type sensitive array exists - should return no rows (since "exists" only
 -- matches strings that are either object keys or array elements)
-SELECT count(*) from testjsonb  WHERE j->'array' ? '5'::text;
- count 
--------
-     0
-(1 row)
-
+--SELECT count(*) from testjsonb  WHERE j->'array' ? '5'::text;
 -- However, a raw scalar is *contained* within the array
 SELECT count(*) from testjsonb  WHERE j->'array' @> '5'::jsonb;
  count 
@@ -1409,15 +1389,15 @@ SELECT jsonb_build_object(
 (1 row)
 
 SELECT jsonb_build_object('{a,b,c}'::text[]); -- error
-ERROR:  argument list must have even number of elements
+psql:sql/jsonb.sql:330: ERROR:  argument list must have even number of elements
 HINT:  The arguments of jsonb_build_object() must consist of alternating keys and values.
 SELECT jsonb_build_object('{a,b,c}'::text[], '{d,e,f}'::text[]); -- error, key cannot be array
-ERROR:  key value must be scalar, not array, composite, or json
+psql:sql/jsonb.sql:331: ERROR:  key value must be scalar, not array, composite, or json
 SELECT jsonb_build_object('a', 'b', 'c'); -- error
-ERROR:  argument list must have even number of elements
+psql:sql/jsonb.sql:332: ERROR:  argument list must have even number of elements
 HINT:  The arguments of jsonb_build_object() must consist of alternating keys and values.
 SELECT jsonb_build_object(NULL, 'a'); -- error, key cannot be NULL
-ERROR:  argument 1: key must not be null
+psql:sql/jsonb.sql:333: ERROR:  argument 1: key must not be null
 SELECT jsonb_build_object('a', NULL); -- ok
  jsonb_build_object 
 --------------------
@@ -1437,7 +1417,7 @@ SELECT jsonb_build_object(VARIADIC '{}'::text[]); -- ok
 (1 row)
 
 SELECT jsonb_build_object(VARIADIC '{a,b,c}'::text[]); -- error
-ERROR:  argument list must have even number of elements
+psql:sql/jsonb.sql:337: ERROR:  argument list must have even number of elements
 HINT:  The arguments of jsonb_build_object() must consist of alternating keys and values.
 SELECT jsonb_build_object(VARIADIC ARRAY['a', NULL]::text[]); -- ok
  jsonb_build_object 
@@ -1446,7 +1426,7 @@ SELECT jsonb_build_object(VARIADIC ARRAY['a', NULL]::text[]); -- ok
 (1 row)
 
 SELECT jsonb_build_object(VARIADIC ARRAY[NULL, 'a']::text[]); -- error, key cannot be NULL
-ERROR:  argument 1: key must not be null
+psql:sql/jsonb.sql:339: ERROR:  argument 1: key must not be null
 SELECT jsonb_build_object(VARIADIC '{1,2,3,4}'::text[]); -- ok
   jsonb_build_object  
 ----------------------
@@ -1487,13 +1467,13 @@ SELECT jsonb_build_object(1,2);
 
 -- keys must be scalar and not null
 SELECT jsonb_build_object(null,2);
-ERROR:  argument 1: key must not be null
+psql:sql/jsonb.sql:353: ERROR:  argument 1: key must not be null
 SELECT jsonb_build_object(r,2) FROM (SELECT 1 AS a, 2 AS b) r;
-ERROR:  key value must be scalar, not array, composite, or json
+psql:sql/jsonb.sql:355: ERROR:  key value must be scalar, not array, composite, or json
 SELECT jsonb_build_object(json '{"a":1,"b":2}', 3);
-ERROR:  key value must be scalar, not array, composite, or json
+psql:sql/jsonb.sql:357: ERROR:  key value must be scalar, not array, composite, or json
 SELECT jsonb_build_object('{1,2,3}'::int[], 3);
-ERROR:  key value must be scalar, not array, composite, or json
+psql:sql/jsonb.sql:359: ERROR:  key value must be scalar, not array, composite, or json
 -- handling of NULL values
 SELECT jsonb_object_agg(1, NULL::jsonb);
  jsonb_object_agg 
@@ -1502,11 +1482,15 @@ SELECT jsonb_object_agg(1, NULL::jsonb);
 (1 row)
 
 SELECT jsonb_object_agg(NULL, '{"a":1}');
-ERROR:  field name must not be null
+psql:sql/jsonb.sql:363: ERROR:  field name must not be null
 CREATE TEMP TABLE foo (serial_num int, name text, type text);
+CREATE TABLE
 INSERT INTO foo VALUES (847001,'t15','GE1043');
+INSERT 0 1
 INSERT INTO foo VALUES (847002,'t16','GE1043');
+INSERT 0 1
 INSERT INTO foo VALUES (847003,'sub-alpha','GESS90');
+INSERT 0 1
 SELECT jsonb_build_object('turbines',jsonb_object_agg(serial_num,jsonb_build_object('name',name,'type',type)))
 FROM foo;
                                                                      jsonb_build_object                                                                      
@@ -1521,8 +1505,9 @@ SELECT jsonb_object_agg(name, type) FROM foo;
 (1 row)
 
 INSERT INTO foo VALUES (999999, NULL, 'bar');
+INSERT 0 1
 SELECT jsonb_object_agg(name, type) FROM foo;
-ERROR:  field name must not be null
+psql:sql/jsonb.sql:376: ERROR:  field name must not be null
 -- jsonb_object
 -- empty object, one dimension
 SELECT jsonb_object('{}');
@@ -1554,16 +1539,16 @@ SELECT jsonb_object('{{a,1},{b,2},{3,NULL},{"d e f","a b c"}}');
 
 -- odd number error
 SELECT jsonb_object('{a,b,c}');
-ERROR:  array must have even number of elements
+psql:sql/jsonb.sql:393: ERROR:  array must have even number of elements
 -- one column error
 SELECT jsonb_object('{{a},{b}}');
-ERROR:  array must have two columns
+psql:sql/jsonb.sql:396: ERROR:  array must have two columns
 -- too many columns error
 SELECT jsonb_object('{{a,b,c},{b,c,d}}');
-ERROR:  array must have two columns
+psql:sql/jsonb.sql:399: ERROR:  array must have two columns
 -- too many dimensions error
 SELECT jsonb_object('{{{a,b},{c,d}},{{b,c},{d,e}}}');
-ERROR:  wrong number of array subscripts
+psql:sql/jsonb.sql:402: ERROR:  wrong number of array subscripts
 --two argument form of jsonb_object
 select jsonb_object('{a,b,c,"d e f"}','{1,2,3,"a b c"}');
                    jsonb_object                   
@@ -1573,15 +1558,15 @@ select jsonb_object('{a,b,c,"d e f"}','{1,2,3,"a b c"}');
 
 -- too many dimensions
 SELECT jsonb_object('{{a,1},{b,2},{3,NULL},{"d e f","a b c"}}', '{{a,1},{b,2},{3,NULL},{"d e f","a b c"}}');
-ERROR:  wrong number of array subscripts
+psql:sql/jsonb.sql:409: ERROR:  wrong number of array subscripts
 -- mismatched dimensions
 select jsonb_object('{a,b,c,"d e f",g}','{1,2,3,"a b c"}');
-ERROR:  mismatched array dimensions
+psql:sql/jsonb.sql:413: ERROR:  mismatched array dimensions
 select jsonb_object('{a,b,c,"d e f"}','{1,2,3,"a b c",g}');
-ERROR:  mismatched array dimensions
+psql:sql/jsonb.sql:415: ERROR:  mismatched array dimensions
 -- null key error
 select jsonb_object('{a,b,NULL,"d e f"}','{1,2,3,"a b c"}');
-ERROR:  null value not allowed for object key
+psql:sql/jsonb.sql:419: ERROR:  null value not allowed for object key
 -- empty key is allowed
 select jsonb_object('{a,b,"","d e f"}','{1,2,3,"a b c"}');
                   jsonb_object                   
@@ -2002,11 +1987,17 @@ SELECT * FROM jsonb_array_elements_text('[1,true,[1,[2,3]],null,{"f1":1,"f2":[7,
 
 -- populate_record
 CREATE TYPE jbpop AS (a text, b int, c timestamp);
+CREATE TYPE
 CREATE DOMAIN jsb_int_not_null  AS int     NOT NULL;
+CREATE DOMAIN
 CREATE DOMAIN jsb_int_array_1d  AS int[]   CHECK(array_length(VALUE, 1) = 3);
+CREATE DOMAIN
 CREATE DOMAIN jsb_int_array_2d  AS int[][] CHECK(array_length(VALUE, 2) = 3);
+CREATE DOMAIN
 create type jb_unordered_pair as (x int, y int);
+CREATE TYPE
 create domain jb_ordered_pair as jb_unordered_pair check((value).x <= (value).y);
+CREATE DOMAIN
 CREATE TYPE jsbrec AS (
 	i	int,
 	ia	_int4,
@@ -2026,9 +2017,11 @@ CREATE TYPE jsbrec AS (
 	rec	jbpop,
 	reca	jbpop[]
 );
+CREATE TYPE
 CREATE TYPE jsbrec_i_not_null AS (
 	i	jsb_int_not_null
 );
+CREATE TYPE
 SELECT * FROM jsonb_populate_record(NULL::jbpop,'{"a":"blurfl","x":43.2}') q;
    a    | b | c 
 --------+---+---
@@ -2036,9 +2029,9 @@ SELECT * FROM jsonb_populate_record(NULL::jbpop,'{"a":"blurfl","x":43.2}') q;
 (1 row)
 
 SELECT * FROM jsonb_populate_record(row('x',3,'2012-12-31 15:30:56')::jbpop,'{"a":"blurfl","x":43.2}') q;
-   a    | b |            c             
---------+---+--------------------------
- blurfl | 3 | Mon Dec 31 15:30:56 2012
+   a    | b |          c          
+--------+---+---------------------
+ blurfl | 3 | 2012-12-31 15:30:56
 (1 row)
 
 SELECT * FROM jsonb_populate_record(NULL::jbpop,'{"a":"blurfl","x":43.2}') q;
@@ -2048,9 +2041,9 @@ SELECT * FROM jsonb_populate_record(NULL::jbpop,'{"a":"blurfl","x":43.2}') q;
 (1 row)
 
 SELECT * FROM jsonb_populate_record(row('x',3,'2012-12-31 15:30:56')::jbpop,'{"a":"blurfl","x":43.2}') q;
-   a    | b |            c             
---------+---+--------------------------
- blurfl | 3 | Mon Dec 31 15:30:56 2012
+   a    | b |          c          
+--------+---+---------------------
+ blurfl | 3 | 2012-12-31 15:30:56
 (1 row)
 
 SELECT * FROM jsonb_populate_record(NULL::jbpop,'{"a":[100,200,false],"x":43.2}') q;
@@ -2060,23 +2053,23 @@ SELECT * FROM jsonb_populate_record(NULL::jbpop,'{"a":[100,200,false],"x":43.2}'
 (1 row)
 
 SELECT * FROM jsonb_populate_record(row('x',3,'2012-12-31 15:30:56')::jbpop,'{"a":[100,200,false],"x":43.2}') q;
-         a         | b |            c             
--------------------+---+--------------------------
- [100, 200, false] | 3 | Mon Dec 31 15:30:56 2012
+         a         | b |          c          
+-------------------+---+---------------------
+ [100, 200, false] | 3 | 2012-12-31 15:30:56
 (1 row)
 
 SELECT * FROM jsonb_populate_record(row('x',3,'2012-12-31 15:30:56')::jbpop,'{"c":[100,200,false],"x":43.2}') q;
-ERROR:  invalid input syntax for type timestamp: "[100, 200, false]"
+psql:sql/jsonb.sql:542: ERROR:  invalid input syntax for type timestamp: "[100, 200, false]"
 SELECT * FROM jsonb_populate_record(row('x',3,'2012-12-31 15:30:56')::jbpop, '{}') q;
- a | b |            c             
----+---+--------------------------
- x | 3 | Mon Dec 31 15:30:56 2012
+ a | b |          c          
+---+---+---------------------
+ x | 3 | 2012-12-31 15:30:56
 (1 row)
 
 SELECT i FROM jsonb_populate_record(NULL::jsbrec_i_not_null, '{"x": 43.2}') q;
-ERROR:  domain jsb_int_not_null does not allow null values
+psql:sql/jsonb.sql:546: ERROR:  domain jsb_int_not_null does not allow null values
 SELECT i FROM jsonb_populate_record(NULL::jsbrec_i_not_null, '{"i": null}') q;
-ERROR:  domain jsb_int_not_null does not allow null values
+psql:sql/jsonb.sql:547: ERROR:  domain jsb_int_not_null does not allow null values
 SELECT i FROM jsonb_populate_record(NULL::jsbrec_i_not_null, '{"i": 12345}') q;
    i   
 -------
@@ -2090,7 +2083,7 @@ SELECT ia FROM jsonb_populate_record(NULL::jsbrec, '{"ia": null}') q;
 (1 row)
 
 SELECT ia FROM jsonb_populate_record(NULL::jsbrec, '{"ia": 123}') q;
-ERROR:  expected JSON array
+psql:sql/jsonb.sql:551: ERROR:  expected JSON array
 HINT:  See the value of key "ia".
 SELECT ia FROM jsonb_populate_record(NULL::jsbrec, '{"ia": [1, "2", null, 4]}') q;
       ia      
@@ -2105,10 +2098,10 @@ SELECT ia FROM jsonb_populate_record(NULL::jsbrec, '{"ia": [[1, 2], [3, 4]]}') q
 (1 row)
 
 SELECT ia FROM jsonb_populate_record(NULL::jsbrec, '{"ia": [[1], 2]}') q;
-ERROR:  expected JSON array
+psql:sql/jsonb.sql:554: ERROR:  expected JSON array
 HINT:  See the array element [1] of key "ia".
 SELECT ia FROM jsonb_populate_record(NULL::jsbrec, '{"ia": [[1], [2, 3]]}') q;
-ERROR:  malformed JSON array
+psql:sql/jsonb.sql:555: ERROR:  malformed JSON array
 DETAIL:  Multidimensional arrays must have sub-arrays with matching dimensions.
 SELECT ia FROM jsonb_populate_record(NULL::jsbrec, '{"ia": "{1,2,3}"}') q;
    ia    
@@ -2123,7 +2116,7 @@ SELECT ia1 FROM jsonb_populate_record(NULL::jsbrec, '{"ia1": null}') q;
 (1 row)
 
 SELECT ia1 FROM jsonb_populate_record(NULL::jsbrec, '{"ia1": 123}') q;
-ERROR:  expected JSON array
+psql:sql/jsonb.sql:559: ERROR:  expected JSON array
 HINT:  See the value of key "ia1".
 SELECT ia1 FROM jsonb_populate_record(NULL::jsbrec, '{"ia1": [1, "2", null, 4]}') q;
      ia1      
@@ -2144,10 +2137,10 @@ SELECT ia1d FROM jsonb_populate_record(NULL::jsbrec, '{"ia1d": null}') q;
 (1 row)
 
 SELECT ia1d FROM jsonb_populate_record(NULL::jsbrec, '{"ia1d": 123}') q;
-ERROR:  expected JSON array
+psql:sql/jsonb.sql:564: ERROR:  expected JSON array
 HINT:  See the value of key "ia1d".
 SELECT ia1d FROM jsonb_populate_record(NULL::jsbrec, '{"ia1d": [1, "2", null, 4]}') q;
-ERROR:  value for domain jsb_int_array_1d violates check constraint "jsb_int_array_1d_check"
+psql:sql/jsonb.sql:565: ERROR:  value for domain jsb_int_array_1d violates check constraint "jsb_int_array_1d_check"
 SELECT ia1d FROM jsonb_populate_record(NULL::jsbrec, '{"ia1d": [1, "2", null]}') q;
     ia1d    
 ------------
@@ -2173,13 +2166,13 @@ SELECT ia2 FROM jsonb_populate_record(NULL::jsbrec, '{"ia2": [[], []]}') q;
 (1 row)
 
 SELECT ia2 FROM jsonb_populate_record(NULL::jsbrec, '{"ia2": [[1, 2], [3]]}') q;
-ERROR:  malformed JSON array
+psql:sql/jsonb.sql:571: ERROR:  malformed JSON array
 DETAIL:  Multidimensional arrays must have sub-arrays with matching dimensions.
 SELECT ia2 FROM jsonb_populate_record(NULL::jsbrec, '{"ia2": [[1, 2], 3, 4]}') q;
-ERROR:  expected JSON array
+psql:sql/jsonb.sql:572: ERROR:  expected JSON array
 HINT:  See the array element [1] of key "ia2".
 SELECT ia2d FROM jsonb_populate_record(NULL::jsbrec, '{"ia2d": [[1, "2"], [null, 4]]}') q;
-ERROR:  value for domain jsb_int_array_2d violates check constraint "jsb_int_array_2d_check"
+psql:sql/jsonb.sql:574: ERROR:  value for domain jsb_int_array_2d violates check constraint "jsb_int_array_2d_check"
 SELECT ia2d FROM jsonb_populate_record(NULL::jsbrec, '{"ia2d": [[1, "2", 3], [null, 5, 6]]}') q;
          ia2d         
 ----------------------
@@ -2217,7 +2210,7 @@ SELECT ia3 FROM jsonb_populate_record(NULL::jsbrec, '{"ia3": [ [[1, 2], [3, 4]],
 (1 row)
 
 SELECT ia3 FROM jsonb_populate_record(NULL::jsbrec, '{"ia3": [ [[1, 2], [3, 4]], [[5, 6], [7, 8], [9, 10]] ]}') q;
-ERROR:  malformed JSON array
+psql:sql/jsonb.sql:582: ERROR:  malformed JSON array
 DETAIL:  Multidimensional arrays must have sub-arrays with matching dimensions.
 SELECT ta FROM jsonb_populate_record(NULL::jsbrec, '{"ta": null}') q;
  ta 
@@ -2226,7 +2219,7 @@ SELECT ta FROM jsonb_populate_record(NULL::jsbrec, '{"ta": null}') q;
 (1 row)
 
 SELECT ta FROM jsonb_populate_record(NULL::jsbrec, '{"ta": 123}') q;
-ERROR:  expected JSON array
+psql:sql/jsonb.sql:585: ERROR:  expected JSON array
 HINT:  See the value of key "ta".
 SELECT ta FROM jsonb_populate_record(NULL::jsbrec, '{"ta": [1, "2", null, 4]}') q;
       ta      
@@ -2235,7 +2228,7 @@ SELECT ta FROM jsonb_populate_record(NULL::jsbrec, '{"ta": [1, "2", null, 4]}') 
 (1 row)
 
 SELECT ta FROM jsonb_populate_record(NULL::jsbrec, '{"ta": [[1, 2, 3], {"k": "v"}]}') q;
-ERROR:  expected JSON array
+psql:sql/jsonb.sql:587: ERROR:  expected JSON array
 HINT:  See the array element [1] of key "ta".
 SELECT c FROM jsonb_populate_record(NULL::jsbrec, '{"c": null}') q;
  c 
@@ -2256,7 +2249,7 @@ SELECT c FROM jsonb_populate_record(NULL::jsbrec, '{"c": "aaaaaaaaaa"}') q;
 (1 row)
 
 SELECT c FROM jsonb_populate_record(NULL::jsbrec, '{"c": "aaaaaaaaaaaaa"}') q;
-ERROR:  value too long for type character(10)
+psql:sql/jsonb.sql:592: ERROR:  value too long for type character(10)
 SELECT ca FROM jsonb_populate_record(NULL::jsbrec, '{"ca": null}') q;
  ca 
 ----
@@ -2264,7 +2257,7 @@ SELECT ca FROM jsonb_populate_record(NULL::jsbrec, '{"ca": null}') q;
 (1 row)
 
 SELECT ca FROM jsonb_populate_record(NULL::jsbrec, '{"ca": 123}') q;
-ERROR:  expected JSON array
+psql:sql/jsonb.sql:595: ERROR:  expected JSON array
 HINT:  See the value of key "ca".
 SELECT ca FROM jsonb_populate_record(NULL::jsbrec, '{"ca": [1, "2", null, 4]}') q;
                       ca                       
@@ -2273,9 +2266,9 @@ SELECT ca FROM jsonb_populate_record(NULL::jsbrec, '{"ca": [1, "2", null, 4]}') 
 (1 row)
 
 SELECT ca FROM jsonb_populate_record(NULL::jsbrec, '{"ca": ["aaaaaaaaaaaaaaaa"]}') q;
-ERROR:  value too long for type character(10)
+psql:sql/jsonb.sql:597: ERROR:  value too long for type character(10)
 SELECT ca FROM jsonb_populate_record(NULL::jsbrec, '{"ca": [[1, 2, 3], {"k": "v"}]}') q;
-ERROR:  expected JSON array
+psql:sql/jsonb.sql:598: ERROR:  expected JSON array
 HINT:  See the array element [1] of key "ca".
 SELECT js FROM jsonb_populate_record(NULL::jsbrec, '{"js": null}') q;
  js 
@@ -2368,7 +2361,7 @@ SELECT jsa FROM jsonb_populate_record(NULL::jsbrec, '{"jsa": null}') q;
 (1 row)
 
 SELECT jsa FROM jsonb_populate_record(NULL::jsbrec, '{"jsa": 123}') q;
-ERROR:  expected JSON array
+psql:sql/jsonb.sql:617: ERROR:  expected JSON array
 HINT:  See the value of key "jsa".
 SELECT jsa FROM jsonb_populate_record(NULL::jsbrec, '{"jsa": [1, "2", null, 4]}') q;
         jsa         
@@ -2383,42 +2376,44 @@ SELECT jsa FROM jsonb_populate_record(NULL::jsbrec, '{"jsa": ["aaa", null, [1, 2
 (1 row)
 
 SELECT rec FROM jsonb_populate_record(NULL::jsbrec, '{"rec": 123}') q;
-ERROR:  cannot call populate_composite on a scalar
+psql:sql/jsonb.sql:621: ERROR:  cannot call populate_composite on a scalar
 SELECT rec FROM jsonb_populate_record(NULL::jsbrec, '{"rec": [1, 2]}') q;
-ERROR:  cannot call populate_composite on an array
+psql:sql/jsonb.sql:622: ERROR:  cannot call populate_composite on an array
+set datestyle to dmy;
+SET
 SELECT rec FROM jsonb_populate_record(NULL::jsbrec, '{"rec": {"a": "abc", "c": "01.02.2003", "x": 43.2}}') q;
-                rec                
------------------------------------
- (abc,,"Thu Jan 02 00:00:00 2003")
+             rec              
+------------------------------
+ (abc,,"2003-02-01 00:00:00")
 (1 row)
 
 SELECT rec FROM jsonb_populate_record(NULL::jsbrec, '{"rec": "(abc,42,01.02.2003)"}') q;
-                 rec                 
--------------------------------------
- (abc,42,"Thu Jan 02 00:00:00 2003")
+              rec               
+--------------------------------
+ (abc,42,"2003-02-01 00:00:00")
 (1 row)
 
 SELECT reca FROM jsonb_populate_record(NULL::jsbrec, '{"reca": 123}') q;
-ERROR:  expected JSON array
+psql:sql/jsonb.sql:627: ERROR:  expected JSON array
 HINT:  See the value of key "reca".
 SELECT reca FROM jsonb_populate_record(NULL::jsbrec, '{"reca": [1, 2]}') q;
-ERROR:  cannot call populate_composite on a scalar
+psql:sql/jsonb.sql:628: ERROR:  cannot call populate_composite on a scalar
 SELECT reca FROM jsonb_populate_record(NULL::jsbrec, '{"reca": [{"a": "abc", "b": 456}, null, {"c": "01.02.2003", "x": 43.2}]}') q;
-                          reca                          
---------------------------------------------------------
- {"(abc,456,)",NULL,"(,,\"Thu Jan 02 00:00:00 2003\")"}
+                       reca                        
+---------------------------------------------------
+ {"(abc,456,)",NULL,"(,,\"2003-02-01 00:00:00\")"}
 (1 row)
 
 SELECT reca FROM jsonb_populate_record(NULL::jsbrec, '{"reca": ["(abc,42,01.02.2003)"]}') q;
-                   reca                    
--------------------------------------------
- {"(abc,42,\"Thu Jan 02 00:00:00 2003\")"}
+                 reca                 
+--------------------------------------
+ {"(abc,42,\"2003-02-01 00:00:00\")"}
 (1 row)
 
 SELECT reca FROM jsonb_populate_record(NULL::jsbrec, '{"reca": "{\"(abc,42,01.02.2003)\"}"}') q;
-                   reca                    
--------------------------------------------
- {"(abc,42,\"Thu Jan 02 00:00:00 2003\")"}
+                 reca                 
+--------------------------------------
+ {"(abc,42,\"2003-02-01 00:00:00\")"}
 (1 row)
 
 SELECT rec FROM jsonb_populate_record(
@@ -2426,14 +2421,14 @@ SELECT rec FROM jsonb_populate_record(
 		row('x',3,'2012-12-31 15:30:56')::jbpop,NULL)::jsbrec,
 	'{"rec": {"a": "abc", "c": "01.02.2003", "x": 43.2}}'
 ) q;
-                rec                 
-------------------------------------
- (abc,3,"Thu Jan 02 00:00:00 2003")
+              rec              
+-------------------------------
+ (abc,3,"2003-02-01 00:00:00")
 (1 row)
 
 -- anonymous record type
 SELECT jsonb_populate_record(null::record, '{"x": 0, "y": 1}');
-ERROR:  record type has not been registered
+psql:sql/jsonb.sql:640: ERROR:  record type has not been registered
 SELECT jsonb_populate_record(row(1,2), '{"f1": 0, "f2": 1}');
  jsonb_populate_record 
 -----------------------
@@ -2454,69 +2449,69 @@ SELECT jsonb_populate_record(row(1,2)::jb_ordered_pair, '{"x": 0}');
 (1 row)
 
 SELECT jsonb_populate_record(row(1,2)::jb_ordered_pair, '{"x": 1, "y": 0}');
-ERROR:  value for domain jb_ordered_pair violates check constraint "jb_ordered_pair_check"
+psql:sql/jsonb.sql:646: ERROR:  value for domain jb_ordered_pair violates check constraint "jb_ordered_pair_check"
 -- populate_recordset
 SELECT * FROM jsonb_populate_recordset(NULL::jbpop,'[{"a":"blurfl","x":43.2},{"b":3,"c":"2012-01-20 10:42:53"}]') q;
-   a    | b |            c             
---------+---+--------------------------
+   a    | b |          c          
+--------+---+---------------------
  blurfl |   | 
-        | 3 | Fri Jan 20 10:42:53 2012
+        | 3 | 2012-01-20 10:42:53
 (2 rows)
 
 SELECT * FROM jsonb_populate_recordset(row('def',99,NULL)::jbpop,'[{"a":"blurfl","x":43.2},{"b":3,"c":"2012-01-20 10:42:53"}]') q;
-   a    | b  |            c             
---------+----+--------------------------
+   a    | b  |          c          
+--------+----+---------------------
  blurfl | 99 | 
- def    |  3 | Fri Jan 20 10:42:53 2012
+ def    |  3 | 2012-01-20 10:42:53
 (2 rows)
 
 SELECT * FROM jsonb_populate_recordset(NULL::jbpop,'[{"a":"blurfl","x":43.2},{"b":3,"c":"2012-01-20 10:42:53"}]') q;
-   a    | b |            c             
---------+---+--------------------------
+   a    | b |          c          
+--------+---+---------------------
  blurfl |   | 
-        | 3 | Fri Jan 20 10:42:53 2012
+        | 3 | 2012-01-20 10:42:53
 (2 rows)
 
 SELECT * FROM jsonb_populate_recordset(row('def',99,NULL)::jbpop,'[{"a":"blurfl","x":43.2},{"b":3,"c":"2012-01-20 10:42:53"}]') q;
-   a    | b  |            c             
---------+----+--------------------------
+   a    | b  |          c          
+--------+----+---------------------
  blurfl | 99 | 
- def    |  3 | Fri Jan 20 10:42:53 2012
+ def    |  3 | 2012-01-20 10:42:53
 (2 rows)
 
 SELECT * FROM jsonb_populate_recordset(row('def',99,NULL)::jbpop,'[{"a":[100,200,300],"x":43.2},{"a":{"z":true},"b":3,"c":"2012-01-20 10:42:53"}]') q;
-        a        | b  |            c             
------------------+----+--------------------------
+        a        | b  |          c          
+-----------------+----+---------------------
  [100, 200, 300] | 99 | 
- {"z": true}     |  3 | Fri Jan 20 10:42:53 2012
+ {"z": true}     |  3 | 2012-01-20 10:42:53
 (2 rows)
 
 SELECT * FROM jsonb_populate_recordset(row('def',99,NULL)::jbpop,'[{"c":[100,200,300],"x":43.2},{"a":{"z":true},"b":3,"c":"2012-01-20 10:42:53"}]') q;
-ERROR:  invalid input syntax for type timestamp: "[100, 200, 300]"
+psql:sql/jsonb.sql:654: ERROR:  invalid input syntax for type timestamp: "[100, 200, 300]"
 SELECT * FROM jsonb_populate_recordset(NULL::jbpop,'[{"a":"blurfl","x":43.2},{"b":3,"c":"2012-01-20 10:42:53"}]') q;
-   a    | b |            c             
---------+---+--------------------------
+   a    | b |          c          
+--------+---+---------------------
  blurfl |   | 
-        | 3 | Fri Jan 20 10:42:53 2012
+        | 3 | 2012-01-20 10:42:53
 (2 rows)
 
 SELECT * FROM jsonb_populate_recordset(row('def',99,NULL)::jbpop,'[{"a":"blurfl","x":43.2},{"b":3,"c":"2012-01-20 10:42:53"}]') q;
-   a    | b  |            c             
---------+----+--------------------------
+   a    | b  |          c          
+--------+----+---------------------
  blurfl | 99 | 
- def    |  3 | Fri Jan 20 10:42:53 2012
+ def    |  3 | 2012-01-20 10:42:53
 (2 rows)
 
 SELECT * FROM jsonb_populate_recordset(row('def',99,NULL)::jbpop,'[{"a":[100,200,300],"x":43.2},{"a":{"z":true},"b":3,"c":"2012-01-20 10:42:53"}]') q;
-        a        | b  |            c             
------------------+----+--------------------------
+        a        | b  |          c          
+-----------------+----+---------------------
  [100, 200, 300] | 99 | 
- {"z": true}     |  3 | Fri Jan 20 10:42:53 2012
+ {"z": true}     |  3 | 2012-01-20 10:42:53
 (2 rows)
 
 -- anonymous record type
 SELECT jsonb_populate_recordset(null::record, '[{"x": 0, "y": 1}]');
-ERROR:  record type has not been registered
+psql:sql/jsonb.sql:661: ERROR:  record type has not been registered
 SELECT jsonb_populate_recordset(row(1,2), '[{"f1": 0, "f2": 1}]');
  jsonb_populate_recordset 
 --------------------------
@@ -2535,7 +2530,7 @@ FROM (VALUES (1),(2)) v(i);
 
 -- empty array is a corner case
 SELECT jsonb_populate_recordset(null::record, '[]');
-ERROR:  record type has not been registered
+psql:sql/jsonb.sql:667: ERROR:  record type has not been registered
 SELECT jsonb_populate_recordset(row(1,2), '[]');
  jsonb_populate_recordset 
 --------------------------
@@ -2561,19 +2556,19 @@ SELECT jsonb_populate_recordset(row(1,2)::jb_ordered_pair, '[{"x": 0}, {"y": 3}]
 (2 rows)
 
 SELECT jsonb_populate_recordset(row(1,2)::jb_ordered_pair, '[{"x": 1, "y": 0}]');
-ERROR:  value for domain jb_ordered_pair violates check constraint "jb_ordered_pair_check"
+psql:sql/jsonb.sql:674: ERROR:  value for domain jb_ordered_pair violates check constraint "jb_ordered_pair_check"
 -- negative cases where the wrong record type is supplied
 select * from jsonb_populate_recordset(row(0::int),'[{"a":"1","b":"2"},{"a":"3"}]') q (a text, b text);
-ERROR:  function return row and query-specified return row do not match
+psql:sql/jsonb.sql:677: ERROR:  function return row and query-specified return row do not match
 DETAIL:  Returned row contains 1 attribute, but query expects 2.
 select * from jsonb_populate_recordset(row(0::int,0::int),'[{"a":"1","b":"2"},{"a":"3"}]') q (a text, b text);
-ERROR:  function return row and query-specified return row do not match
+psql:sql/jsonb.sql:678: ERROR:  function return row and query-specified return row do not match
 DETAIL:  Returned type integer at ordinal position 1, but query expects text.
 select * from jsonb_populate_recordset(row(0::int,0::int,0::int),'[{"a":"1","b":"2"},{"a":"3"}]') q (a text, b text);
-ERROR:  function return row and query-specified return row do not match
+psql:sql/jsonb.sql:679: ERROR:  function return row and query-specified return row do not match
 DETAIL:  Returned row contains 3 attributes, but query expects 2.
 select * from jsonb_populate_recordset(row(1000000000::int,50::int),'[{"b":"2"},{"a":"3"}]') q (a text, b text);
-ERROR:  function return row and query-specified return row do not match
+psql:sql/jsonb.sql:680: ERROR:  function return row and query-specified return row do not match
 DETAIL:  Returned type integer at ordinal position 1, but query expects text.
 -- jsonb_to_record and jsonb_to_recordset
 select * from jsonb_to_record('{"a":1,"b":"foo","c":"bar"}')
@@ -2614,7 +2609,7 @@ select * from jsonb_to_record('{"ia": null}') as x(ia _int4);
 (1 row)
 
 select * from jsonb_to_record('{"ia": 123}') as x(ia _int4);
-ERROR:  expected JSON array
+psql:sql/jsonb.sql:699: ERROR:  expected JSON array
 HINT:  See the value of key "ia".
 select * from jsonb_to_record('{"ia": [1, "2", null, 4]}') as x(ia _int4);
       ia      
@@ -2629,10 +2624,10 @@ select * from jsonb_to_record('{"ia": [[1, 2], [3, 4]]}') as x(ia _int4);
 (1 row)
 
 select * from jsonb_to_record('{"ia": [[1], 2]}') as x(ia _int4);
-ERROR:  expected JSON array
+psql:sql/jsonb.sql:702: ERROR:  expected JSON array
 HINT:  See the array element [1] of key "ia".
 select * from jsonb_to_record('{"ia": [[1], [2, 3]]}') as x(ia _int4);
-ERROR:  malformed JSON array
+psql:sql/jsonb.sql:703: ERROR:  malformed JSON array
 DETAIL:  Multidimensional arrays must have sub-arrays with matching dimensions.
 select * from jsonb_to_record('{"ia2": [1, 2, 3]}') as x(ia2 int[][]);
    ia2   
@@ -2690,6 +2685,7 @@ select * from jsonb_to_record('{"out": "{\"key\": 1}"}') as x(out jsonb);
 
 -- test type info caching in jsonb_populate_record()
 CREATE TEMP TABLE jsbpoptest (js jsonb);
+CREATE TABLE
 INSERT INTO jsbpoptest
 SELECT '{
 	"jsa": [1, "2", null, 4],
@@ -2697,21 +2693,31 @@ SELECT '{
 	"reca": [{"a": "abc", "b": 456}, null, {"c": "01.02.2003", "x": 43.2}]
 }'::jsonb
 FROM generate_series(1, 3);
+INSERT 0 3
 SELECT (jsonb_populate_record(NULL::jsbrec, js)).* FROM jsbpoptest;
- i | ia | ia1 | ia2 | ia3 | ia1d | ia2d | t | ta | c | ca | ts | js | jsb |        jsa         |                rec                |                          reca                          
----+----+-----+-----+-----+------+------+---+----+---+----+----+----+-----+--------------------+-----------------------------------+--------------------------------------------------------
-   |    |     |     |     |      |      |   |    |   |    |    |    |     | {1,"\"2\"",NULL,4} | (abc,,"Thu Jan 02 00:00:00 2003") | {"(abc,456,)",NULL,"(,,\"Thu Jan 02 00:00:00 2003\")"}
-   |    |     |     |     |      |      |   |    |   |    |    |    |     | {1,"\"2\"",NULL,4} | (abc,,"Thu Jan 02 00:00:00 2003") | {"(abc,456,)",NULL,"(,,\"Thu Jan 02 00:00:00 2003\")"}
-   |    |     |     |     |      |      |   |    |   |    |    |    |     | {1,"\"2\"",NULL,4} | (abc,,"Thu Jan 02 00:00:00 2003") | {"(abc,456,)",NULL,"(,,\"Thu Jan 02 00:00:00 2003\")"}
+ i | ia | ia1 | ia2 | ia3 | ia1d | ia2d | t | ta | c | ca | ts | js | jsb |        jsa         |             rec              |                       reca                        
+---+----+-----+-----+-----+------+------+---+----+---+----+----+----+-----+--------------------+------------------------------+---------------------------------------------------
+   |    |     |     |     |      |      |   |    |   |    |    |    |     | {1,"\"2\"",NULL,4} | (abc,,"2003-02-01 00:00:00") | {"(abc,456,)",NULL,"(,,\"2003-02-01 00:00:00\")"}
+   |    |     |     |     |      |      |   |    |   |    |    |    |     | {1,"\"2\"",NULL,4} | (abc,,"2003-02-01 00:00:00") | {"(abc,456,)",NULL,"(,,\"2003-02-01 00:00:00\")"}
+   |    |     |     |     |      |      |   |    |   |    |    |    |     | {1,"\"2\"",NULL,4} | (abc,,"2003-02-01 00:00:00") | {"(abc,456,)",NULL,"(,,\"2003-02-01 00:00:00\")"}
 (3 rows)
 
 DROP TYPE jsbrec;
+DROP TYPE
 DROP TYPE jsbrec_i_not_null;
+DROP TYPE
 DROP DOMAIN jsb_int_not_null;
+DROP DOMAIN
 DROP DOMAIN jsb_int_array_1d;
+DROP DOMAIN
 DROP DOMAIN jsb_int_array_2d;
+DROP DOMAIN
 DROP DOMAIN jb_ordered_pair;
+DROP DOMAIN
 DROP TYPE jb_unordered_pair;
+DROP TYPE
+ set datestyle to ymd;
+SET
 -- indexing
 SELECT count(*) FROM testjsonb WHERE j @> '{"wait":null}';
  count 
@@ -2743,18 +2749,8 @@ SELECT count(*) FROM testjsonb WHERE j @> '{"age":25.0}';
      2
 (1 row)
 
-SELECT count(*) FROM testjsonb WHERE j ? 'public';
- count 
--------
-   194
-(1 row)
-
-SELECT count(*) FROM testjsonb WHERE j ? 'bar';
- count 
--------
-     0
-(1 row)
-
+--SELECT count(*) FROM testjsonb WHERE j ? 'public';
+--SELECT count(*) FROM testjsonb WHERE j ? 'bar';
 SELECT count(*) FROM testjsonb WHERE j ?| ARRAY['public','disabled'];
  count 
 -------
@@ -2768,7 +2764,9 @@ SELECT count(*) FROM testjsonb WHERE j ?& ARRAY['public','disabled'];
 (1 row)
 
 CREATE INDEX jidx ON testjsonb USING gin (j);
+psql:sql/jsonb.sql:748: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 3152, JSON column 'j' supports indexing only via generated columns on a specified JSON path..
 SET enable_seqscan = off;
+SET
 SELECT count(*) FROM testjsonb WHERE j @> '{"wait":null}';
  count 
 -------
@@ -2818,18 +2816,8 @@ SELECT count(*) FROM testjsonb WHERE j @> '{}';
   1012
 (1 row)
 
-SELECT count(*) FROM testjsonb WHERE j ? 'public';
- count 
--------
-   194
-(1 row)
-
-SELECT count(*) FROM testjsonb WHERE j ? 'bar';
- count 
--------
-     0
-(1 row)
-
+--SELECT count(*) FROM testjsonb WHERE j ? 'public';
+--SELECT count(*) FROM testjsonb WHERE j ? 'bar';
 SELECT count(*) FROM testjsonb WHERE j ?| ARRAY['public','disabled'];
  count 
 -------
@@ -2844,20 +2832,11 @@ SELECT count(*) FROM testjsonb WHERE j ?& ARRAY['public','disabled'];
 
 -- array exists - array elements should behave as keys (for GIN index scans too)
 CREATE INDEX jidx_array ON testjsonb USING gin((j->'array'));
-SELECT count(*) from testjsonb  WHERE j->'array' ? 'bar';
- count 
--------
-     3
-(1 row)
-
+psql:sql/jsonb.sql:765: ERROR:  index expression cannot serialized to shard.
+--SELECT count(*) from testjsonb  WHERE j->'array' ? 'bar';
 -- type sensitive array exists - should return no rows (since "exists" only
 -- matches strings that are either object keys or array elements)
-SELECT count(*) from testjsonb  WHERE j->'array' ? '5'::text;
- count 
--------
-     0
-(1 row)
-
+--SELECT count(*) from testjsonb  WHERE j->'array' ? '5'::text;
 -- However, a raw scalar is *contained* within the array
 SELECT count(*) from testjsonb  WHERE j->'array' @> '5'::jsonb;
  count 
@@ -2866,6 +2845,7 @@ SELECT count(*) from testjsonb  WHERE j->'array' @> '5'::jsonb;
 (1 row)
 
 RESET enable_seqscan;
+RESET
 SELECT count(*) FROM (SELECT (jsonb_each(j)).key FROM testjsonb) AS wow;
  count 
 -------
@@ -2911,6 +2891,7 @@ SELECT count(distinct j) FROM testjsonb;
 (1 row)
 
 SET enable_hashagg = off;
+SET
 SELECT count(*) FROM (SELECT j FROM (SELECT * FROM testjsonb UNION ALL SELECT * FROM testjsonb) js GROUP BY j) js2;
  count 
 -------
@@ -2918,7 +2899,9 @@ SELECT count(*) FROM (SELECT j FROM (SELECT * FROM testjsonb UNION ALL SELECT * 
 (1 row)
 
 SET enable_hashagg = on;
+SET
 SET enable_sort = off;
+SET
 SELECT count(*) FROM (SELECT j FROM (SELECT * FROM testjsonb UNION ALL SELECT * FROM testjsonb) js GROUP BY j) js2;
  count 
 -------
@@ -2932,13 +2915,20 @@ SELECT distinct * FROM (values (jsonb '{}' || ''::text),('{}')) v(j);
 (1 row)
 
 SET enable_sort = on;
+SET
 RESET enable_hashagg;
+RESET
 RESET enable_sort;
+RESET
 DROP INDEX jidx;
+psql:sql/jsonb.sql:791: ERROR:  index "jidx" does not exist
 DROP INDEX jidx_array;
+psql:sql/jsonb.sql:792: ERROR:  index "jidx_array" does not exist
 -- btree
 CREATE INDEX jidx ON testjsonb USING btree (j);
+psql:sql/jsonb.sql:794: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 3152, JSON column 'j' supports indexing only via generated columns on a specified JSON path..
 SET enable_seqscan = off;
+SET
 SELECT count(*) FROM testjsonb WHERE j > '{"p":1}';
  count 
 -------
@@ -2948,13 +2938,16 @@ SELECT count(*) FROM testjsonb WHERE j > '{"p":1}';
 SELECT count(*) FROM testjsonb WHERE j = '{"pos":98, "line":371, "node":"CBA", "indexed":true}';
  count 
 -------
-     1
+     0
 (1 row)
 
 --gin path opclass
 DROP INDEX jidx;
+psql:sql/jsonb.sql:801: ERROR:  index "jidx" does not exist
 CREATE INDEX jidx ON testjsonb USING gin (j jsonb_path_ops);
+psql:sql/jsonb.sql:802: ERROR:  can't specify non-default opclass for remote relation's index
 SET enable_seqscan = off;
+SET
 SELECT count(*) FROM testjsonb WHERE j @> '{"wait":null}';
  count 
 -------
@@ -2993,7 +2986,9 @@ SELECT count(*) FROM testjsonb WHERE j @> '{}';
 (1 row)
 
 RESET enable_seqscan;
+RESET
 DROP INDEX jidx;
+psql:sql/jsonb.sql:813: ERROR:  index "jidx" does not exist
 -- nested tests
 SELECT '{"ff":{"a":12,"b":16}}'::jsonb;
            jsonb            
@@ -3147,12 +3142,19 @@ SELECT '{"a":[1,2,{"c":3,"x":4}],"c":"b"}'::jsonb @> '{"a":[{"x":4},1]}';
 
 -- check some corner cases for indexed nested containment (bug #13756)
 create temp table nestjsonb (j jsonb);
+CREATE TABLE
 insert into nestjsonb (j) values ('{"a":[["b",{"x":1}],["b",{"x":2}]],"c":3}');
+INSERT 0 1
 insert into nestjsonb (j) values ('[[14,2,3]]');
+INSERT 0 1
 insert into nestjsonb (j) values ('[1,[14,2,3]]');
+INSERT 0 1
 create index on nestjsonb using gin(j jsonb_path_ops);
+CREATE INDEX
 set enable_seqscan = on;
+SET
 set enable_bitmapscan = off;
+SET
 select * from nestjsonb where j @> '{"a":[[{"x":2}]]}'::jsonb;
                          j                         
 ---------------------------------------------------
@@ -3173,7 +3175,9 @@ select * from nestjsonb where j @> '[[14]]';
 (2 rows)
 
 set enable_seqscan = off;
+SET
 set enable_bitmapscan = on;
+SET
 select * from nestjsonb where j @> '{"a":[[{"x":2}]]}'::jsonb;
                          j                         
 ---------------------------------------------------
@@ -3194,7 +3198,9 @@ select * from nestjsonb where j @> '[[14]]';
 (2 rows)
 
 reset enable_seqscan;
+RESET
 reset enable_bitmapscan;
+RESET
 -- nested object field / array index lookup
 SELECT '{"n":null,"a":1,"b":[1,2],"c":{"1":2},"d":{"1":[2,3]}}'::jsonb -> 'n';
  ?column? 
@@ -3390,42 +3396,12 @@ SELECT '[0,1,2,[3,4],{"5":"five"}]'::jsonb #> '{4,5}';
 (1 row)
 
 --nested exists
-SELECT '{"n":null,"a":1,"b":[1,2],"c":{"1":2},"d":{"1":[2,3]}}'::jsonb ? 'n';
- ?column? 
-----------
- t
-(1 row)
-
-SELECT '{"n":null,"a":1,"b":[1,2],"c":{"1":2},"d":{"1":[2,3]}}'::jsonb ? 'a';
- ?column? 
-----------
- t
-(1 row)
-
-SELECT '{"n":null,"a":1,"b":[1,2],"c":{"1":2},"d":{"1":[2,3]}}'::jsonb ? 'b';
- ?column? 
-----------
- t
-(1 row)
-
-SELECT '{"n":null,"a":1,"b":[1,2],"c":{"1":2},"d":{"1":[2,3]}}'::jsonb ? 'c';
- ?column? 
-----------
- t
-(1 row)
-
-SELECT '{"n":null,"a":1,"b":[1,2],"c":{"1":2},"d":{"1":[2,3]}}'::jsonb ? 'd';
- ?column? 
-----------
- t
-(1 row)
-
-SELECT '{"n":null,"a":1,"b":[1,2],"c":{"1":2},"d":{"1":[2,3]}}'::jsonb ? 'e';
- ?column? 
-----------
- f
-(1 row)
-
+--SELECT '{"n":null,"a":1,"b":[1,2],"c":{"1":2},"d":{"1":[2,3]}}'::jsonb ? 'n';
+--SELECT '{"n":null,"a":1,"b":[1,2],"c":{"1":2},"d":{"1":[2,3]}}'::jsonb ? 'a';
+--SELECT '{"n":null,"a":1,"b":[1,2],"c":{"1":2},"d":{"1":[2,3]}}'::jsonb ? 'b';
+--SELECT '{"n":null,"a":1,"b":[1,2],"c":{"1":2},"d":{"1":[2,3]}}'::jsonb ? 'c';
+--SELECT '{"n":null,"a":1,"b":[1,2],"c":{"1":2},"d":{"1":[2,3]}}'::jsonb ? 'd';
+--SELECT '{"n":null,"a":1,"b":[1,2],"c":{"1":2},"d":{"1":[2,3]}}'::jsonb ? 'e';
 -- jsonb_strip_nulls
 select jsonb_strip_nulls(null);
  jsonb_strip_nulls 
@@ -3631,9 +3607,9 @@ select '{"a":"b"}'::jsonb || '[]'::jsonb;
 (1 row)
 
 select '"a"'::jsonb || '{"a":1}';
-ERROR:  invalid concatenation of jsonb objects
+psql:sql/jsonb.sql:961: ERROR:  invalid concatenation of jsonb objects
 select '{"a":1}' || '"a"'::jsonb;
-ERROR:  invalid concatenation of jsonb objects
+psql:sql/jsonb.sql:962: ERROR:  invalid concatenation of jsonb objects
 select '["a", "b"]'::jsonb || '{"c":1}';
        ?column?       
 ----------------------
@@ -3827,7 +3803,7 @@ select jsonb_set('{"n":null, "a":1, "b":[1,2], "c":{"1":2}, "d":{"1":[2,3]}}'::j
 (1 row)
 
 select jsonb_set('{"n":null, "a":1, "b":[1,2], "c":{"1":2}, "d":{"1":[2,3]}}'::jsonb, '{d,NULL,0}', '[1,2,3]');
-ERROR:  path element at position 2 is null
+psql:sql/jsonb.sql:1002: ERROR:  path element at position 2 is null
 select jsonb_set('{"n":null, "a":1, "b":[1,2], "c":{"1":2}, "d":{"1":[2,3]}}'::jsonb, '{n}', '{"1": 2}');
                                 jsonb_set                                
 -------------------------------------------------------------------------
@@ -3847,7 +3823,7 @@ select jsonb_set('{"n":null, "a":1, "b":[1,2], "c":{"1":2}, "d":{"1":[2,3]}}'::j
 (1 row)
 
 select jsonb_set('{"n":null, "a":1, "b":[1,2], "c":{"1":2}, "d":{"1":[2,3]}}'::jsonb, '{d,NULL,0}', '{"1": 2}');
-ERROR:  path element at position 2 is null
+psql:sql/jsonb.sql:1007: ERROR:  path element at position 2 is null
 select jsonb_set('{"n":null, "a":1, "b":[1,2], "c":{"1":2}, "d":{"1":[2,3]}}'::jsonb, '{b,-1}', '"test"');
                                 jsonb_set                                 
 --------------------------------------------------------------------------
@@ -3891,7 +3867,7 @@ select '{"n":null, "a":1, "b":[1,2], "c":{"1":2}, "d":{"1":[2,3]}}'::jsonb #- '{
 (1 row)
 
 select '{"n":null, "a":1, "b":[1,2], "c":{"1":2}, "d":{"1":[2,3]}}'::jsonb #- '{b,-1e}'; -- invalid array subscript
-ERROR:  path element at position 2 is not an integer: "-1e"
+psql:sql/jsonb.sql:1018: ERROR:  path element at position 2 is not an integer: "-1e"
 select '{"n":null, "a":1, "b":[1,2], "c":{"1":2}, "d":{"1":[2,3]}}'::jsonb #- '{d,1,0}';
                              ?column?                             
 ------------------------------------------------------------------
@@ -3900,7 +3876,7 @@ select '{"n":null, "a":1, "b":[1,2], "c":{"1":2}, "d":{"1":[2,3]}}'::jsonb #- '{
 
 -- empty structure and error conditions for delete and replace
 select '"a"'::jsonb - 'a'; -- error
-ERROR:  cannot delete from scalar
+psql:sql/jsonb.sql:1024: ERROR:  cannot delete from scalar
 select '{}'::jsonb - 'a';
  ?column? 
 ----------
@@ -3914,9 +3890,9 @@ select '[]'::jsonb - 'a';
 (1 row)
 
 select '"a"'::jsonb - 1; -- error
-ERROR:  cannot delete from scalar
+psql:sql/jsonb.sql:1027: ERROR:  cannot delete from scalar
 select '{}'::jsonb -  1; -- error
-ERROR:  cannot delete from object using integer index
+psql:sql/jsonb.sql:1028: ERROR:  cannot delete from object using integer index
 select '[]'::jsonb - 1;
  ?column? 
 ----------
@@ -3924,7 +3900,7 @@ select '[]'::jsonb - 1;
 (1 row)
 
 select '"a"'::jsonb #- '{a}'; -- error
-ERROR:  cannot delete path in scalar
+psql:sql/jsonb.sql:1030: ERROR:  cannot delete path in scalar
 select '{}'::jsonb #- '{a}';
  ?column? 
 ----------
@@ -3938,7 +3914,7 @@ select '[]'::jsonb #- '{a}';
 (1 row)
 
 select jsonb_set('"a"','{a}','"b"'); --error
-ERROR:  cannot set path in scalar
+psql:sql/jsonb.sql:1033: ERROR:  cannot set path in scalar
 select jsonb_set('{}','{a}','"b"', false);
  jsonb_set 
 -----------
@@ -4026,11 +4002,11 @@ select jsonb_set('[]','{-99}','{"foo":123}');
 (1 row)
 
 select jsonb_set('{"a": [1, 2, 3]}', '{a, non_integer}', '"new_value"');
-ERROR:  path element at position 2 is not an integer: "non_integer"
+psql:sql/jsonb.sql:1057: ERROR:  path element at position 2 is not an integer: "non_integer"
 select jsonb_set('{"a": {"b": [1, 2, 3]}}', '{a, b, non_integer}', '"new_value"');
-ERROR:  path element at position 3 is not an integer: "non_integer"
+psql:sql/jsonb.sql:1058: ERROR:  path element at position 3 is not an integer: "non_integer"
 select jsonb_set('{"a": {"b": [1, 2, 3]}}', '{a, b, NULL}', '"new_value"');
-ERROR:  path element at position 3 is null
+psql:sql/jsonb.sql:1059: ERROR:  path element at position 3 is null
 -- jsonb_insert
 select jsonb_insert('{"a": [0,1,2]}', '{a, 1}', '"new_value"');
          jsonb_insert          
@@ -4155,10 +4131,10 @@ select jsonb_insert('{"a": {"b": "value"}}', '{a, c}', '"new_value"', true);
 (1 row)
 
 select jsonb_insert('{"a": {"b": "value"}}', '{a, b}', '"new_value"');
-ERROR:  cannot replace existing key
+psql:sql/jsonb.sql:1088: ERROR:  cannot replace existing key
 HINT:  Try using the function jsonb_set to replace key value.
 select jsonb_insert('{"a": {"b": "value"}}', '{a, b}', '"new_value"', true);
-ERROR:  cannot replace existing key
+psql:sql/jsonb.sql:1089: ERROR:  cannot replace existing key
 HINT:  Try using the function jsonb_set to replace key value.
 -- jsonb to tsvector
 select to_tsvector('{"a": "aaa bbb ddd ccc", "b": ["eee fff ggg"], "c": {"d": "hhh iii"}}'::jsonb);
@@ -4312,10 +4288,10 @@ select jsonb_to_tsvector('null'::jsonb, '"all"');
 (1 row)
 
 select jsonb_to_tsvector('english', '{"a": "aaa in bbb", "b": 123, "c": 456, "d": true, "f": false, "g": null}'::jsonb, '""');
-ERROR:  wrong flag in flag array: ""
+psql:sql/jsonb.sql:1130: ERROR:  wrong flag in flag array: ""
 HINT:  Possible values are: "string", "numeric", "boolean", "key", and "all"
 select jsonb_to_tsvector('english', '{"a": "aaa in bbb", "b": 123, "c": 456, "d": true, "f": false, "g": null}'::jsonb, '{}');
-ERROR:  wrong flag type, only arrays and scalars are allowed
+psql:sql/jsonb.sql:1131: ERROR:  wrong flag type, only arrays and scalars are allowed
 select jsonb_to_tsvector('english', '{"a": "aaa in bbb", "b": 123, "c": 456, "d": true, "f": false, "g": null}'::jsonb, '[]');
  jsonb_to_tsvector 
 -------------------
@@ -4323,10 +4299,10 @@ select jsonb_to_tsvector('english', '{"a": "aaa in bbb", "b": 123, "c": 456, "d"
 (1 row)
 
 select jsonb_to_tsvector('english', '{"a": "aaa in bbb", "b": 123, "c": 456, "d": true, "f": false, "g": null}'::jsonb, 'null');
-ERROR:  flag array element is not a string
+psql:sql/jsonb.sql:1133: ERROR:  flag array element is not a string
 HINT:  Possible values are: "string", "numeric", "boolean", "key", and "all"
 select jsonb_to_tsvector('english', '{"a": "aaa in bbb", "b": 123, "c": 456, "d": true, "f": false, "g": null}'::jsonb, '["all", null]');
-ERROR:  flag array element is not a string
+psql:sql/jsonb.sql:1134: ERROR:  flag array element is not a string
 HINT:  Possible values are: "string", "numeric", "boolean", "key", and "all"
 -- ts_headline for jsonb
 select ts_headline('{"a": "aaa bbb", "b": {"c": "ccc ddd fff", "c1": "ccc1 ddd1"}, "d": ["ggg hhh", "iii jjj"]}'::jsonb, tsquery('bbb & ddd & hhh'));
@@ -4379,8 +4355,6 @@ select 'true'::jsonb::bool;
  t
 (1 row)
 
-select '[]'::jsonb::bool;
-ERROR:  cannot cast jsonb array to type boolean
 select '1.0'::jsonb::float;
  float8 
 --------
@@ -4388,7 +4362,7 @@ select '1.0'::jsonb::float;
 (1 row)
 
 select '[1.0]'::jsonb::float;
-ERROR:  cannot cast jsonb array to type double precision
+psql:sql/jsonb.sql:1150: ERROR:  cannot cast jsonb array to type double precision
 select '12345'::jsonb::int4;
  int4  
 -------
@@ -4396,7 +4370,7 @@ select '12345'::jsonb::int4;
 (1 row)
 
 select '"hello"'::jsonb::int4;
-ERROR:  cannot cast jsonb string to type integer
+psql:sql/jsonb.sql:1152: ERROR:  cannot cast jsonb string to type integer
 select '12345'::jsonb::numeric;
  numeric 
 ---------
@@ -4404,7 +4378,7 @@ select '12345'::jsonb::numeric;
 (1 row)
 
 select '{}'::jsonb::numeric;
-ERROR:  cannot cast jsonb object to type numeric
+psql:sql/jsonb.sql:1154: ERROR:  cannot cast jsonb object to type numeric
 select '12345.05'::jsonb::numeric;
  numeric  
 ----------

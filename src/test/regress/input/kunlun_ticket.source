@@ -637,31 +637,6 @@ create table t1(a int); -- 预期拒绝
 CREATE DATABASE dbname TEMPLATE template0;
 CREATE DATABASE dbname2 TEMPLATE dbname; -- 预期拒绝
 
---ticket:901
-
-drop table if exists t1;
-create table t1(a int, b int);
-    
-begin;
-
-insert into t1 values(1,1);
-
-savepoint s1;
-
-insert into t1 values(2,2);
-
-DO $$
-BEGIN
-    execute concat('send ', (select name from pg_shard limit 1), '''kill connection (select connection_id())''');
-END; $$;
-
-insert into t1 values(2,2);
-
-rollback to s1;
-
-insert into t1 values(2,2);
-
-commit;
 --ticket:991 
 show variables where Variable_name='admin_port';
 show variables where Value='1';

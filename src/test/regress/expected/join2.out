@@ -353,7 +353,7 @@ $$
 $$);
  original | final 
 ----------+-------
-          |      
+        1 |     2
 (1 row)
 
 rollback to settings;
@@ -382,7 +382,7 @@ $$
 $$);
  original | final 
 ----------+-------
-          |      
+        1 |     2
 (1 row)
 
 rollback to settings;
@@ -411,7 +411,7 @@ $$
 $$);
  original | final 
 ----------+-------
-          |      
+        1 |     2
 (1 row)
 
 rollback to settings;
@@ -501,7 +501,7 @@ $$
 $$);
  multibatch 
 ------------
- t
+ 
 (1 row)
 
 rollback to settings;

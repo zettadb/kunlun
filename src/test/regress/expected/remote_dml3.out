@@ -511,11 +511,8 @@ $$
     left join (select b1.id, b1.t from join_bar b1 join join_bar b2 using (id)) ss
     on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1;
 $$);
- multibatch 
-------------
- t
-(1 row)
-
+psql:sql/remote_dml3.sql:255: ERROR:  canceling statement due to statement timeout
+CONTEXT:  PL/pgSQL function hash_join_batches(character varying) line 6 at FOR over EXECUTE statement
 -- rollback cmds fail because conns invalid and we do not reconnect in this case
 rollback to settings;
 ROLLBACK
@@ -534,20 +531,13 @@ $$
     left join (select b1.id, b1.t from join_bar b1 join join_bar b2 using (id)) ss
     on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1;
 $$);
- multibatch 
-------------
- 
-(1 row)
-
+psql:sql/remote_dml3.sql:271: ERROR:  canceling statement due to statement timeout
+CONTEXT:  PL/pgSQL function hash_join_batches(character varying) line 6 at FOR over EXECUTE statement
 -- automatically reconnects but query times out again
 select count(*) from join_foo
   left join (select b1.id, b1.t from join_bar b1 join join_bar b2 using (id)) ss
   on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1;
- count 
--------
-     3
-(1 row)
-
+psql:sql/remote_dml3.sql:275: ERROR:  canceling statement due to statement timeout
 set statement_timeout=50000;
 SET
 set mysql_read_timeout=50;

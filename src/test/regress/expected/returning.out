@@ -24,44 +24,44 @@ SELECT * FROM foo;
 (3 rows)
 
 UPDATE foo SET f2 = lower(f2), f3 = DEFAULT RETURNING foo.*, f1+f3 AS sum13;
- f1 |        f2         | f3 | sum13 
-----+-------------------+----+-------
-  1 | test~\x7F\x7F\x7F | 42 |    43
-  2 | more~\x7F\x7F\x7F | 42 |    44
-  3 | more~\x7F\x7F\x7F | 42 |    45
+ f1 |  f2  | f3 | sum13 
+----+------+----+-------
+  1 | test | 42 |    43
+  2 | more | 42 |    44
+  3 | more | 42 |    45
 (3 rows)
 
 UPDATE 3
 SELECT * FROM foo;
- f1 |        f2         | f3 
-----+-------------------+----
-  1 | test~\x7F\x7F\x7F | 42
-  2 | more~\x7F\x7F\x7F | 42
-  3 | more~\x7F\x7F\x7F | 42
+ f1 |  f2  | f3 
+----+------+----
+  1 | test | 42
+  2 | more | 42
+  3 | more | 42
 (3 rows)
 
 DELETE FROM foo WHERE f1 > 2 RETURNING f3, f2, f1, least(f1,f3);
- f3 |        f2         | f1 | least 
-----+-------------------+----+-------
- 42 | more~\x7F\x7F\x7F |  3 |     3
+ f3 |  f2  | f1 | least 
+----+------+----+-------
+ 42 | more |  3 |     3
 (1 row)
 
 DELETE 1
 SELECT * FROM foo;
- f1 |        f2         | f3 
-----+-------------------+----
-  1 | test~\x7F\x7F\x7F | 42
-  2 | more~\x7F\x7F\x7F | 42
+ f1 |  f2  | f3 
+----+------+----
+  1 | test | 42
+  2 | more | 42
 (2 rows)
 
 -- Subplans and initplans in the RETURNING list
 INSERT INTO foo SELECT f1+10, f2, f3+99 FROM foo
   RETURNING *, f1+112 IN (SELECT q1 FROM int8_tbl) AS subplan,
     EXISTS(SELECT * FROM int4_tbl) AS initplan;
- f1 |        f2         | f3  | subplan | initplan 
-----+-------------------+-----+---------+----------
- 11 | test~\x7F\x7F\x7F | 141 | t       | t
- 12 | more~\x7F\x7F\x7F | 141 | f       | t
+ f1 |  f2  | f3  | subplan | initplan 
+----+------+-----+---------+----------
+ 11 | test | 141 | t       | t
+ 12 | more | 141 | f       | t
 (2 rows)
 
 INSERT 0 2
@@ -69,10 +69,10 @@ UPDATE foo SET f3 = f3 * 2
   WHERE f1 > 10
   RETURNING *, f1+112 IN (SELECT q1 FROM int8_tbl) AS subplan,
     EXISTS(SELECT * FROM int4_tbl) AS initplan;
- f1 |        f2         | f3  | subplan | initplan 
-----+-------------------+-----+---------+----------
- 11 | test~\x7F\x7F\x7F | 282 | t       | t
- 12 | more~\x7F\x7F\x7F | 282 | f       | t
+ f1 |  f2  | f3  | subplan | initplan 
+----+------+-----+---------+----------
+ 11 | test | 282 | t       | t
+ 12 | more | 282 | f       | t
 (2 rows)
 
 UPDATE 2
@@ -80,10 +80,10 @@ DELETE FROM foo
   WHERE f1 > 10
   RETURNING *, f1+112 IN (SELECT q1 FROM int8_tbl) AS subplan,
     EXISTS(SELECT * FROM int4_tbl) AS initplan;
- f1 |        f2         | f3  | subplan | initplan 
-----+-------------------+-----+---------+----------
- 11 | test~\x7F\x7F\x7F | 282 | t       | t
- 12 | more~\x7F\x7F\x7F | 282 | f       | t
+ f1 |  f2  | f3  | subplan | initplan 
+----+------+-----+---------+----------
+ 11 | test | 282 | t       | t
+ 12 | more | 282 | f       | t
 (2 rows)
 
 DELETE 2
@@ -92,33 +92,33 @@ UPDATE foo SET f3 = f3*2
   FROM int4_tbl i
   WHERE foo.f1 + 123455 = i.f1
   RETURNING foo.*, i.f1 as "i.f1";
- f1 |        f2         | f3 |  i.f1  
-----+-------------------+----+--------
-  1 | test~\x7F\x7F\x7F | 84 | 123456
+ f1 |  f2  | f3 |  i.f1  
+----+------+----+--------
+  1 | test | 84 | 123456
 (1 row)
 
 UPDATE 1
 SELECT * FROM foo;
- f1 |        f2         | f3 
-----+-------------------+----
-  2 | more~\x7F\x7F\x7F | 42
-  1 | test~\x7F\x7F\x7F | 84
+ f1 |  f2  | f3 
+----+------+----
+  2 | more | 42
+  1 | test | 84
 (2 rows)
 
 DELETE FROM foo
   USING int4_tbl i
   WHERE foo.f1 + 123455 = i.f1
   RETURNING foo.*, i.f1 as "i.f1";
- f1 |        f2         | f3 |  i.f1  
-----+-------------------+----+--------
-  1 | test~\x7F\x7F\x7F | 84 | 123456
+ f1 |  f2  | f3 |  i.f1  
+----+------+----+--------
+  1 | test | 84 | 123456
 (1 row)
 
 DELETE 1
 SELECT * FROM foo;
- f1 |        f2         | f3 
-----+-------------------+----
-  2 | more~\x7F\x7F\x7F | 42
+ f1 |  f2  | f3 
+----+------+----
+  2 | more | 42
 (1 row)
 
 -- Check inheritance cases
@@ -129,10 +129,10 @@ INSERT 0 1
 ALTER TABLE foo ADD COLUMN f4 int8 DEFAULT 99;
 ALTER TABLE
 SELECT * FROM foo;
- f1  |        f2         | f3  | f4 
------+-------------------+-----+----
-   2 | more~\x7F\x7F\x7F |  42 | 99
- 123 | child             | 999 | 99
+ f1  |  f2   | f3  | f4 
+-----+-------+-----+----
+   2 | more  |  42 | 99
+ 123 | child | 999 | 99
 (2 rows)
 
 SELECT * FROM foochild;
@@ -142,18 +142,18 @@ SELECT * FROM foochild;
 (1 row)
 
 UPDATE foo SET f4 = f4 + f3 WHERE f4 = 99 RETURNING *;
- f1  |        f2         | f3  |  f4  
------+-------------------+-----+------
-   2 | more~\x7F\x7F\x7F |  42 |  141
- 123 | child             | 999 | 1098
+ f1  |  f2   | f3  |  f4  
+-----+-------+-----+------
+   2 | more  |  42 |  141
+ 123 | child | 999 | 1098
 (2 rows)
 
 UPDATE 2
 SELECT * FROM foo;
- f1  |        f2         | f3  |  f4  
------+-------------------+-----+------
-   2 | more~\x7F\x7F\x7F |  42 |  141
- 123 | child             | 999 | 1098
+ f1  |  f2   | f3  |  f4  
+-----+-------+-----+------
+   2 | more  |  42 |  141
+ 123 | child | 999 | 1098
 (2 rows)
 
 SELECT * FROM foochild;
@@ -173,10 +173,10 @@ UPDATE foo SET f3 = f3*2
 
 UPDATE 1
 SELECT * FROM foo;
- f1  |        f2         |  f3  |  f4  
------+-------------------+------+------
-   2 | more~\x7F\x7F\x7F |   42 |  141
- 123 | child             | 1998 | 1098
+ f1  |  f2   |  f3  |  f4  
+-----+-------+------+------
+   2 | more  |   42 |  141
+ 123 | child | 1998 | 1098
 (2 rows)
 
 SELECT * FROM foochild;
@@ -196,9 +196,9 @@ DELETE FROM foo
 
 DELETE 1
 SELECT * FROM foo;
- f1 |        f2         | f3 | f4  
-----+-------------------+----+-----
-  2 | more~\x7F\x7F\x7F | 42 | 141
+ f1 |  f2  | f3 | f4  
+----+------+----+-----
+  2 | more | 42 | 141
 (1 row)
 
 SELECT * FROM foochild;
@@ -233,19 +233,19 @@ INSERT INTO voo VALUES(14,'zoo2') RETURNING *;
 
 INSERT 0 1
 SELECT * FROM foo;
- f1 |        f2         | f3 | f4  
-----+-------------------+----+-----
-  2 | more~\x7F\x7F\x7F | 42 | 141
- 11 | zit               | 42 |  99
- 12 | zoo               | 42 |  99
- 13 | zit2              | 42 |  99
- 14 | zoo2              | 42 |  99
+ f1 |  f2  | f3 | f4  
+----+------+----+-----
+  2 | more | 42 | 141
+ 11 | zit  | 42 |  99
+ 12 | zoo  | 42 |  99
+ 13 | zit2 | 42 |  99
+ 14 | zoo2 | 42 |  99
 (5 rows)
 
 SELECT * FROM voo;
- f1 |        f2         
-----+-------------------
-  2 | more~\x7F\x7F\x7F
+ f1 |  f2  
+----+------
+  2 | more
  11 | zit
  12 | zoo
  13 | zit2
@@ -262,19 +262,19 @@ update voo set f1 = f1 + 1 where f2 = 'zoo2' RETURNING *, f1*2;
 
 UPDATE 1
 SELECT * FROM foo;
- f1 |        f2         | f3 | f4  
-----+-------------------+----+-----
-  2 | more~\x7F\x7F\x7F | 42 | 141
- 11 | zit               | 42 |  99
- 12 | zoo               | 42 |  99
- 13 | zit2              | 42 |  99
- 16 | zoo2              | 42 |  99
+ f1 |  f2  | f3 | f4  
+----+------+----+-----
+  2 | more | 42 | 141
+ 11 | zit  | 42 |  99
+ 12 | zoo  | 42 |  99
+ 13 | zit2 | 42 |  99
+ 16 | zoo2 | 42 |  99
 (5 rows)
 
 SELECT * FROM voo;
- f1 |        f2         
-----+-------------------
-  2 | more~\x7F\x7F\x7F
+ f1 |  f2  
+----+------
+  2 | more
  11 | zit
  12 | zoo
  13 | zit2
@@ -291,17 +291,17 @@ DELETE FROM foo WHERE f2 = 'zit' RETURNING *;
 
 DELETE 1
 SELECT * FROM foo;
- f1 |        f2         | f3 | f4  
-----+-------------------+----+-----
-  2 | more~\x7F\x7F\x7F | 42 | 141
- 12 | zoo               | 42 |  99
- 16 | zoo2              | 42 |  99
+ f1 |  f2  | f3 | f4  
+----+------+----+-----
+  2 | more | 42 | 141
+ 12 | zoo  | 42 |  99
+ 16 | zoo2 | 42 |  99
 (3 rows)
 
 SELECT * FROM voo;
- f1 |        f2         
-----+-------------------
-  2 | more~\x7F\x7F\x7F
+ f1 |  f2  
+----+------
+  2 | more
  12 | zoo
  16 | zoo2
 (3 rows)
@@ -319,33 +319,35 @@ CREATE TEMP VIEW joinview AS
   SELECT foo.*, other FROM foo JOIN joinme ON (f2 = f2j);
 CREATE VIEW
 SELECT * FROM joinview;
- f1 |  f2  | f3 | f4 | other 
-----+------+----+----+-------
- 16 | zoo2 | 42 | 99 | 54321
-(1 row)
+ f1 |  f2  | f3 | f4  | other 
+----+------+----+-----+-------
+  2 | more | 42 | 141 | 12345
+ 16 | zoo2 | 42 |  99 | 54321
+(2 rows)
 
 UPDATE joinview SET f1 = f1 + 1 WHERE f3 = 57 RETURNING *, other + 1;
 psql:sql/returning.sql:127: ERROR:  cannot update view "joinview"
 DETAIL:  Views that do not select from a single table or view are not automatically updatable.
 HINT:  To enable updating the view, provide an INSTEAD OF UPDATE trigger or an unconditional ON UPDATE DO INSTEAD rule.
 SELECT * FROM joinview;
- f1 |  f2  | f3 | f4 | other 
-----+------+----+----+-------
- 16 | zoo2 | 42 | 99 | 54321
-(1 row)
+ f1 |  f2  | f3 | f4  | other 
+----+------+----+-----+-------
+  2 | more | 42 | 141 | 12345
+ 16 | zoo2 | 42 |  99 | 54321
+(2 rows)
 
 SELECT * FROM foo;
- f1 |        f2         | f3 | f4  
-----+-------------------+----+-----
-  2 | more~\x7F\x7F\x7F | 42 | 141
- 12 | zoo               | 42 |  99
- 16 | zoo2              | 42 |  99
+ f1 |  f2  | f3 | f4  
+----+------+----+-----
+  2 | more | 42 | 141
+ 12 | zoo  | 42 |  99
+ 16 | zoo2 | 42 |  99
 (3 rows)
 
 SELECT * FROM voo;
- f1 |        f2         
-----+-------------------
-  2 | more~\x7F\x7F\x7F
+ f1 |  f2  
+----+------
+  2 | more
  12 | zoo
  16 | zoo2
 (3 rows)

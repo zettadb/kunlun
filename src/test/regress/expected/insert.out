@@ -472,11 +472,11 @@ from hash_parted order by part;
 -- test \d+ output on a table which has both partitioned and unpartitioned
 -- partitions
 \d+ list_parted
-                          Partitioned table "public.list_parted"
- Column |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+---------+-----------+----------+---------+----------+--------------+-------------
- a      | text    |           |          |         | extended |              | 
- b      | integer |           |          |         | plain    |              | 
+                              Partitioned table "public.list_parted"
+ Column |  Type   |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+---------+------------------+----------+---------+----------+--------------+-------------
+ a      | text    | utf8mb4_0900_bin |          |         | extended |              | 
+ b      | integer |                  |          |         | plain    |              | 
 Partition key: LIST (lower(a))
 Partitions: part_aa_bb FOR VALUES IN ('aa', 'bb'),
             part_cc_dd FOR VALUES IN ('cc', 'dd'),
@@ -1034,11 +1034,11 @@ CREATE TABLE
 create table mcrparted8_ge_d partition of mcrparted for values from ('d', minvalue) to (maxvalue, maxvalue);
 CREATE TABLE
 \d+ mcrparted
-                           Partitioned table "public.mcrparted"
- Column |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+---------+-----------+----------+---------+----------+--------------+-------------
- a      | text    |           |          |         | extended |              | 
- b      | integer |           |          |         | plain    |              | 
+                               Partitioned table "public.mcrparted"
+ Column |  Type   |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+---------+------------------+----------+---------+----------+--------------+-------------
+ a      | text    | utf8mb4_0900_bin |          |         | extended |              | 
+ b      | integer |                  |          |         | plain    |              | 
 Partition key: RANGE (a, b)
 Partitions: mcrparted1_lt_b FOR VALUES FROM (MINVALUE, MINVALUE) TO ('b', MINVALUE),
             mcrparted2_b FOR VALUES FROM ('b', MINVALUE) TO ('c', MINVALUE),
@@ -1050,83 +1050,83 @@ Partitions: mcrparted1_lt_b FOR VALUES FROM (MINVALUE, MINVALUE) TO ('b', MINVAL
             mcrparted8_ge_d FOR VALUES FROM ('d', MINVALUE) TO (MAXVALUE, MAXVALUE)
 
 \d+ mcrparted1_lt_b
-                              Table "public.mcrparted1_lt_b"
- Column |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+---------+-----------+----------+---------+----------+--------------+-------------
- a      | text    |           |          |         | extended |              | 
- b      | integer |           |          |         | plain    |              | 
+                                  Table "public.mcrparted1_lt_b"
+ Column |  Type   |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+---------+------------------+----------+---------+----------+--------------+-------------
+ a      | text    | utf8mb4_0900_bin |          |         | extended |              | 
+ b      | integer |                  |          |         | plain    |              | 
 Partition of: mcrparted FOR VALUES FROM (MINVALUE, MINVALUE) TO ('b', MINVALUE)
-Partition constraint: ((a IS NOT NULL) AND (b IS NOT NULL) AND (a < 'b'::text))
+Partition constraint: ((a IS NOT NULL) AND (b IS NOT NULL) AND (a < 'b'::text COLLATE "default"))
 Options: shard=1
 
 \d+ mcrparted2_b
-                                Table "public.mcrparted2_b"
- Column |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+---------+-----------+----------+---------+----------+--------------+-------------
- a      | text    |           |          |         | extended |              | 
- b      | integer |           |          |         | plain    |              | 
+                                   Table "public.mcrparted2_b"
+ Column |  Type   |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+---------+------------------+----------+---------+----------+--------------+-------------
+ a      | text    | utf8mb4_0900_bin |          |         | extended |              | 
+ b      | integer |                  |          |         | plain    |              | 
 Partition of: mcrparted FOR VALUES FROM ('b', MINVALUE) TO ('c', MINVALUE)
-Partition constraint: ((a IS NOT NULL) AND (b IS NOT NULL) AND (a >= 'b'::text) AND (a < 'c'::text))
+Partition constraint: ((a IS NOT NULL) AND (b IS NOT NULL) AND (a >= 'b'::text COLLATE "default") AND (a < 'c'::text COLLATE "default"))
 Options: shard=1
 
 \d+ mcrparted3_c_to_common
-                           Table "public.mcrparted3_c_to_common"
- Column |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+---------+-----------+----------+---------+----------+--------------+-------------
- a      | text    |           |          |         | extended |              | 
- b      | integer |           |          |         | plain    |              | 
+                              Table "public.mcrparted3_c_to_common"
+ Column |  Type   |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+---------+------------------+----------+---------+----------+--------------+-------------
+ a      | text    | utf8mb4_0900_bin |          |         | extended |              | 
+ b      | integer |                  |          |         | plain    |              | 
 Partition of: mcrparted FOR VALUES FROM ('c', MINVALUE) TO ('common', MINVALUE)
-Partition constraint: ((a IS NOT NULL) AND (b IS NOT NULL) AND (a >= 'c'::text) AND (a < 'common'::text))
+Partition constraint: ((a IS NOT NULL) AND (b IS NOT NULL) AND (a >= 'c'::text COLLATE "default") AND (a < 'common'::text COLLATE "default"))
 Options: shard=1
 
 \d+ mcrparted4_common_lt_0
-                           Table "public.mcrparted4_common_lt_0"
- Column |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+---------+-----------+----------+---------+----------+--------------+-------------
- a      | text    |           |          |         | extended |              | 
- b      | integer |           |          |         | plain    |              | 
+                              Table "public.mcrparted4_common_lt_0"
+ Column |  Type   |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+---------+------------------+----------+---------+----------+--------------+-------------
+ a      | text    | utf8mb4_0900_bin |          |         | extended |              | 
+ b      | integer |                  |          |         | plain    |              | 
 Partition of: mcrparted FOR VALUES FROM ('common', MINVALUE) TO ('common', 0)
-Partition constraint: ((a IS NOT NULL) AND (b IS NOT NULL) AND (a = 'common'::text) AND (b < 0))
+Partition constraint: ((a IS NOT NULL) AND (b IS NOT NULL) AND (a = 'common'::text COLLATE "default") AND (b < 0))
 Options: shard=1
 
 \d+ mcrparted5_common_0_to_10
-                         Table "public.mcrparted5_common_0_to_10"
- Column |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+---------+-----------+----------+---------+----------+--------------+-------------
- a      | text    |           |          |         | extended |              | 
- b      | integer |           |          |         | plain    |              | 
+                             Table "public.mcrparted5_common_0_to_10"
+ Column |  Type   |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+---------+------------------+----------+---------+----------+--------------+-------------
+ a      | text    | utf8mb4_0900_bin |          |         | extended |              | 
+ b      | integer |                  |          |         | plain    |              | 
 Partition of: mcrparted FOR VALUES FROM ('common', 0) TO ('common', 10)
-Partition constraint: ((a IS NOT NULL) AND (b IS NOT NULL) AND (a = 'common'::text) AND (b >= 0) AND (b < 10))
+Partition constraint: ((a IS NOT NULL) AND (b IS NOT NULL) AND (a = 'common'::text COLLATE "default") AND (b >= 0) AND (b < 10))
 Options: shard=1
 
 \d+ mcrparted6_common_ge_10
-                          Table "public.mcrparted6_common_ge_10"
- Column |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+---------+-----------+----------+---------+----------+--------------+-------------
- a      | text    |           |          |         | extended |              | 
- b      | integer |           |          |         | plain    |              | 
+                              Table "public.mcrparted6_common_ge_10"
+ Column |  Type   |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+---------+------------------+----------+---------+----------+--------------+-------------
+ a      | text    | utf8mb4_0900_bin |          |         | extended |              | 
+ b      | integer |                  |          |         | plain    |              | 
 Partition of: mcrparted FOR VALUES FROM ('common', 10) TO ('common', MAXVALUE)
-Partition constraint: ((a IS NOT NULL) AND (b IS NOT NULL) AND (a = 'common'::text) AND (b >= 10))
+Partition constraint: ((a IS NOT NULL) AND (b IS NOT NULL) AND (a = 'common'::text COLLATE "default") AND (b >= 10))
 Options: shard=1
 
 \d+ mcrparted7_gt_common_lt_d
-                         Table "public.mcrparted7_gt_common_lt_d"
- Column |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+---------+-----------+----------+---------+----------+--------------+-------------
- a      | text    |           |          |         | extended |              | 
- b      | integer |           |          |         | plain    |              | 
+                             Table "public.mcrparted7_gt_common_lt_d"
+ Column |  Type   |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+---------+------------------+----------+---------+----------+--------------+-------------
+ a      | text    | utf8mb4_0900_bin |          |         | extended |              | 
+ b      | integer |                  |          |         | plain    |              | 
 Partition of: mcrparted FOR VALUES FROM ('common', MAXVALUE) TO ('d', MINVALUE)
-Partition constraint: ((a IS NOT NULL) AND (b IS NOT NULL) AND (a > 'common'::text) AND (a < 'd'::text))
+Partition constraint: ((a IS NOT NULL) AND (b IS NOT NULL) AND (a > 'common'::text COLLATE "default") AND (a < 'd'::text COLLATE "default"))
 Options: shard=1
 
 \d+ mcrparted8_ge_d
-                              Table "public.mcrparted8_ge_d"
- Column |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
---------+---------+-----------+----------+---------+----------+--------------+-------------
- a      | text    |           |          |         | extended |              | 
- b      | integer |           |          |         | plain    |              | 
+                                  Table "public.mcrparted8_ge_d"
+ Column |  Type   |    Collation     | Nullable | Default | Storage  | Stats target | Description 
+--------+---------+------------------+----------+---------+----------+--------------+-------------
+ a      | text    | utf8mb4_0900_bin |          |         | extended |              | 
+ b      | integer |                  |          |         | plain    |              | 
 Partition of: mcrparted FOR VALUES FROM ('d', MINVALUE) TO (MAXVALUE, MAXVALUE)
-Partition constraint: ((a IS NOT NULL) AND (b IS NOT NULL) AND (a >= 'd'::text))
+Partition constraint: ((a IS NOT NULL) AND (b IS NOT NULL) AND (a >= 'd'::text COLLATE "default"))
 Options: shard=1
 
 insert into mcrparted values ('aaa', 0), ('b', 0), ('bz', 10), ('c', -10),

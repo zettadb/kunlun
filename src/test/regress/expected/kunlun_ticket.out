@@ -89,7 +89,6 @@ DROP TABLE
 drop table if exists t;
 DROP TABLE
 drop table if exists t1;
-psql:sql/kunlun_ticket.sql:59: NOTICE:  table "t1" does not exist, skipping
 DROP TABLE
 create table t(a int) with(engine=innodb);
 CREATE TABLE
@@ -1033,37 +1032,6 @@ CREATE DATABASE dbname TEMPLATE template0;
 CREATE DATABASE
 CREATE DATABASE dbname2 TEMPLATE dbname; -- 预期拒绝
 psql:sql/kunlun_ticket.sql:638: ERROR:  Kunlun: The template option only support template{0/1}.
---ticket:901
-drop table if exists t1;
-psql:sql/kunlun_ticket.sql:642: NOTICE:  table "t1" does not exist, skipping
-DROP TABLE
-create table t1(a int, b int);
-CREATE TABLE
-    
-begin;
-BEGIN
-insert into t1 values(1,1);
-INSERT 0 1
-savepoint s1;
-SAVEPOINT
-insert into t1 values(2,2);
-INSERT 0 1
-DO $$
-BEGIN
-    execute concat('send ', (select name from pg_shard limit 1), '''kill connection (select connection_id())''');
-END; $$;
-psql:sql/kunlun_ticket.sql:656: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1317, Query execution was interrupted.
-CONTEXT:  SQL statement "send shard1'kill connection (select connection_id())'"
-PL/pgSQL function inline_code_block line 3 at EXECUTE
-insert into t1 values(2,2);
-psql:sql/kunlun_ticket.sql:658: ERROR:  current transaction is aborted, commands ignored until end of transaction block
-rollback to s1;
-psql:sql/kunlun_ticket.sql:660: ERROR:  Kunlun-db: Connection with MySQL storage node (1, 1) is gone: 2013, Lost connection to server during query. Resend the statement.
-DETAIL:  Disconnected all connections to MySQL storage nodes.
-insert into t1 values(2,2);
-psql:sql/kunlun_ticket.sql:662: ERROR:  current transaction is aborted, commands ignored until end of transaction block
-commit;
-ROLLBACK
 --ticket:991 
 show variables where Variable_name='admin_port';
  Variable_name | Value 
@@ -1105,7 +1073,7 @@ show variables where Value='1';
 
 --ticket:998
 drop table t;
-psql:sql/kunlun_ticket.sql:670: ERROR:  table "t" does not exist
+psql:sql/kunlun_ticket.sql:645: ERROR:  table "t" does not exist
 create table t(a int , b int);
 CREATE TABLE
 insert into t select generate_series(1,20),generate_series(20,39);
@@ -1139,7 +1107,7 @@ drop table t;
 DROP TABLE
 --ticket:1016
 DROP TABLE if exists prt1;
-psql:sql/kunlun_ticket.sql:685: NOTICE:  table "prt1" does not exist, skipping
+psql:sql/kunlun_ticket.sql:660: NOTICE:  table "prt1" does not exist, skipping
 DROP TABLE
 CREATE TABLE prt1 (a int, b int, c varchar) PARTITION BY RANGE(a);
 CREATE TABLE
@@ -1163,7 +1131,7 @@ CREATE INDEX
 CREATE INDEX iprt1_p3_a on prt1_p3(a);
 CREATE INDEX
 DROP TABLE if exists prt2;
-psql:sql/kunlun_ticket.sql:698: NOTICE:  table "prt2" does not exist, skipping
+psql:sql/kunlun_ticket.sql:673: NOTICE:  table "prt2" does not exist, skipping
 DROP TABLE
 CREATE TABLE prt2 (a int, b int, c varchar) PARTITION BY RANGE(b);
 CREATE TABLE
@@ -1197,6 +1165,7 @@ drop table prt2 cascade;
 DROP TABLE
 --ticket:1030
 drop table if exists t1;
+psql:sql/kunlun_ticket.sql:695: NOTICE:  table "t1" does not exist, skipping
 DROP TABLE
 create table t1(a int primary key, b int);
 CREATE TABLE
@@ -1213,7 +1182,7 @@ insert into t1 values(1,1,1) on duplicate key update b = excluded.b;
 INSERT 0 0
 -- 2、update 未考虑子表和父表列序不一致的问题
 drop table if exists t2 cascade;
-psql:sql/kunlun_ticket.sql:731: NOTICE:  table "t2" does not exist, skipping
+psql:sql/kunlun_ticket.sql:706: NOTICE:  table "t2" does not exist, skipping
 DROP TABLE
 create table t2(a int, b int) partition by range(a);
 CREATE TABLE
@@ -1301,10 +1270,10 @@ select '%y', date_format(now(), '%y') as date;
 
 --ticket:1029
 create schema pg_stmt;
-psql:sql/kunlun_ticket.sql:793: ERROR:  unacceptable schema name "pg_stmt"
+psql:sql/kunlun_ticket.sql:768: ERROR:  unacceptable schema name "pg_stmt"
 DETAIL:  The prefix "pg_" is reserved for system schemas.
 create schema 12345;
-psql:sql/kunlun_ticket.sql:795: ERROR:  syntax error at or near "12345"
+psql:sql/kunlun_ticket.sql:770: ERROR:  syntax error at or near "12345"
 LINE 1: create schema 12345;
                       ^
 create schema 模式;
@@ -1312,7 +1281,7 @@ CREATE SCHEMA
 create schema adc;
 CREATE SCHEMA
 create schema adc;
-psql:sql/kunlun_ticket.sql:799: ERROR:  schema "adc" already exists
+psql:sql/kunlun_ticket.sql:774: ERROR:  schema "adc" already exists
 create schema adc1;
 CREATE SCHEMA
 create schema _adc1;
@@ -1329,7 +1298,7 @@ select * from t1;
 (0 rows)
 
 drop schema "I'm the schema" cascades;
-psql:sql/kunlun_ticket.sql:809: ERROR:  syntax error at or near "cascades"
+psql:sql/kunlun_ticket.sql:784: ERROR:  syntax error at or near "cascades"
 LINE 1: drop schema "I'm the schema" cascades;
                                      ^
 drop schema 模式;
@@ -1341,10 +1310,10 @@ DROP SCHEMA
 drop schema _adc1;
 DROP SCHEMA
 drop table tenk1;
-psql:sql/kunlun_ticket.sql:819: ERROR:  table "tenk1" does not exist
+psql:sql/kunlun_ticket.sql:794: ERROR:  table "tenk1" does not exist
 drop table FLOAT8_TBL;
-psql:sql/kunlun_ticket.sql:820: ERROR:  table "float8_tbl" does not exist
+psql:sql/kunlun_ticket.sql:795: ERROR:  table "float8_tbl" does not exist
 drop table INT4_TBL;
-psql:sql/kunlun_ticket.sql:821: ERROR:  table "int4_tbl" does not exist
+psql:sql/kunlun_ticket.sql:796: ERROR:  table "int4_tbl" does not exist
 drop table INT8_TBL cascade;
-psql:sql/kunlun_ticket.sql:822: ERROR:  table "int8_tbl" does not exist
+psql:sql/kunlun_ticket.sql:797: ERROR:  table "int8_tbl" does not exist

@@ -283,7 +283,7 @@ rollback;
 drop table if exists t1, t2;
 create table t1(a int, b int) with(shard=1);
 create table t2(a int, b int) with(shard=1);
--- set session_debug = '+d,inject_reserve_global_txids_failure,force_reload_reserved_global_txid';
+set session_debug = '+d,inject_reserve_global_txids_failure,force_reload_reserved_global_txid';
 BEGIN;
 insert into t1 values(1,1);
 insert into t2 values(2,2);

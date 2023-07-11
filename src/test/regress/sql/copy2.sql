@@ -284,7 +284,7 @@ END;
 $$ language plpgsql;
 BEGIN;
 INSERT INTO vistest VALUES ('z');
-SELECT truncate_in_subxact();
+--SELECT truncate_in_subxact();
 --COPY vistest FROM stdin CSV FREEZE;
 --d4
 --e

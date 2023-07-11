@@ -386,6 +386,7 @@ select * from t1;
 
 
 --ticket:332
+drop sequence if  exists sequence_test2;
 
 
 CREATE SEQUENCE sequence_test2 START WITH 32; 	
@@ -395,7 +396,9 @@ ALTER SEQUENCE IF EXISTS sequence_test2 RESTART WITH 24
 
 SELECT nextval('sequence_test2');
 
+SELECT nextval('sequence_test2');
 
+drop sequence sequence_test2;
 --ticket:897
 drop database abc;
 create database abc；

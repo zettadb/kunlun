@@ -846,8 +846,8 @@ drop table p2 cascade;
 -- test that operations with a dropped column do not try to reference
 -- its datatype
 
-create domain mytype as text;	 
-create temp table foo (f1 text, f2 text, f3 text);
+create domain mytype as text;
+create temp table foo (f1 text, f2 mytype, f3 text);
 insert into foo values('bb','cc','dd');
 select * from foo;
 

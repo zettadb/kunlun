@@ -34,7 +34,7 @@ CREATE AGGREGATE addr_nsp.genaggr(int4) (sfunc = int4pl, stype = int4);
 CREATE DOMAIN addr_nsp.gendomain AS int4 CONSTRAINT domconstr CHECK (value > 0);
 CREATE FUNCTION addr_nsp.trig() RETURNS TRIGGER LANGUAGE plpgsql AS $$ BEGIN END; $$;
 CREATE TRIGGER t BEFORE INSERT ON addr_nsp.gentable FOR EACH ROW EXECUTE PROCEDURE addr_nsp.trig();
--- CREATE POLICY genpol ON addr_nsp.gentable;
+CREATE POLICY genpol ON addr_nsp.gentable;
 CREATE PROCEDURE addr_nsp.proc(int4) LANGUAGE SQL AS $$ $$;
 CREATE SERVER "integer" FOREIGN DATA WRAPPER addr_fdw;
 CREATE USER MAPPING FOR regress_addr_user SERVER "integer";

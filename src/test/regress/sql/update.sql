@@ -294,17 +294,17 @@ DROP FUNCTION func_parted_mod_b();
 -- RLS policies with update-row-movement
 -----------------------------------------
 
--- ALTER TABLE range_parted ENABLE ROW LEVEL SECURITY;
+ALTER TABLE range_parted ENABLE ROW LEVEL SECURITY;
 CREATE USER regress_range_parted_user;
 GRANT ALL ON range_parted, mintab TO regress_range_parted_user;
--- CREATE POLICY seeall ON range_parted AS PERMISSIVE FOR SELECT USING (true);
--- CREATE POLICY policy_range_parted ON range_parted for UPDATE USING (true) WITH CHECK (c % 2 = 0);
+CREATE POLICY seeall ON range_parted AS PERMISSIVE FOR SELECT USING (true);
+CREATE POLICY policy_range_parted ON range_parted for UPDATE USING (true) WITH CHECK (c % 2 = 0);
 
--- :init_range_parted;
---SET SESSION AUTHORIZATION regress_range_parted_user;
+:init_range_parted;
+SET SESSION AUTHORIZATION regress_range_parted_user;
 -- This should fail with RLS violation error while moving row from
 -- part_a_10_a_20 to part_d_1_15, because we are setting 'c' to an odd number.
---UPDATE range_parted set a = 'b', c = 151 WHERE a = 'a' and c = 200;
+UPDATE range_parted set a = 'b', c = 151 WHERE a = 'a' and c = 200;
 
 RESET SESSION AUTHORIZATION;
 -- Create a trigger on part_d_1_15
@@ -338,37 +338,37 @@ DROP TRIGGER trig_d_1_15 ON part_d_1_15;
 DROP FUNCTION func_d_1_15();
 
 -- Policy expression contains SubPlan
---RESET SESSION AUTHORIZATION;
---:init_range_parted;
---CREATE POLICY policy_range_parted_subplan on range_parted
---    AS RESTRICTIVE for UPDATE USING (true)
---    WITH CHECK ((SELECT range_parted.c <= c1 FROM mintab));
---SET SESSION AUTHORIZATION regress_range_parted_user;
+RESET SESSION AUTHORIZATION;
+:init_range_parted;
+CREATE POLICY policy_range_parted_subplan on range_parted
+    AS RESTRICTIVE for UPDATE USING (true)
+    WITH CHECK ((SELECT range_parted.c <= c1 FROM mintab));
+SET SESSION AUTHORIZATION regress_range_parted_user;
 -- fail, mintab has row with c1 = 120
---UPDATE range_parted set a = 'b', c = 122 WHERE a = 'a' and c = 200;
+UPDATE range_parted set a = 'b', c = 122 WHERE a = 'a' and c = 200;
 -- ok
---UPDATE range_parted set a = 'b', c = 120 WHERE a = 'a' and c = 200;
+UPDATE range_parted set a = 'b', c = 120 WHERE a = 'a' and c = 200;
 
 -- RLS policy expression contains whole row.
 
---RESET SESSION AUTHORIZATION;
---:init_range_parted;
---CREATE POLICY policy_range_parted_wholerow on range_parted AS RESTRICTIVE for UPDATE USING (true)
---   WITH CHECK (range_parted = row('b', 10, 112, 1, NULL)::range_parted);
---SET SESSION AUTHORIZATION regress_range_parted_user;
+RESET SESSION AUTHORIZATION;
+:init_range_parted;
+CREATE POLICY policy_range_parted_wholerow on range_parted AS RESTRICTIVE for UPDATE USING (true)
+   WITH CHECK (range_parted = row('b', 10, 112, 1, NULL)::range_parted);
+SET SESSION AUTHORIZATION regress_range_parted_user;
 -- ok, should pass the RLS check
---UPDATE range_parted set a = 'b', c = 112 WHERE a = 'a' and c = 200;
---RESET SESSION AUTHORIZATION;
---:init_range_parted;
---SET SESSION AUTHORIZATION regress_range_parted_user;
+UPDATE range_parted set a = 'b', c = 112 WHERE a = 'a' and c = 200;
+RESET SESSION AUTHORIZATION;
+:init_range_parted;
+SET SESSION AUTHORIZATION regress_range_parted_user;
 -- fail, the whole row RLS check should fail
---UPDATE range_parted set a = 'b', c = 116 WHERE a = 'a' and c = 200;
+UPDATE range_parted set a = 'b', c = 116 WHERE a = 'a' and c = 200;
 
 -- Cleanup
---RESET SESSION AUTHORIZATION;
---DROP POLICY policy_range_parted ON range_parted;
---DROP POLICY policy_range_parted_subplan ON range_parted;
---DROP POLICY policy_range_parted_wholerow ON range_parted;
+RESET SESSION AUTHORIZATION;
+DROP POLICY policy_range_parted ON range_parted;
+DROP POLICY policy_range_parted_subplan ON range_parted;
+DROP POLICY policy_range_parted_wholerow ON range_parted;
 REVOKE ALL ON range_parted, mintab FROM regress_range_parted_user;
 DROP USER regress_range_parted_user;
 DROP TABLE mintab;

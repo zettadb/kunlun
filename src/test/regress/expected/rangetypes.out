@@ -564,10 +564,8 @@ select anyarray_anyrange_func(ARRAY[1,2], int4range(10,20));
 
 -- should fail
 select anyarray_anyrange_func(ARRAY[1,2], numrange(10,20));
-psql:sql/rangetypes.sql:166: ERROR:  function anyarray_anyrange_func(integer[], numrange) does not exist
-LINE 1: select anyarray_anyrange_func(ARRAY[1,2], numrange(10,20));
-               ^
-HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
+psql:sql/rangetypes.sql:166: ERROR:  argument declared anyrange is not consistent with argument declared anyelement
+DETAIL:  numrange versus integer
 drop function anyarray_anyrange_func(anyarray, anyrange);
 DROP FUNCTION
 -- should fail
@@ -606,10 +604,8 @@ select rangetypes_sql(int4range(1,10), ARRAY[2,20]);
 (1 row)
 
 select rangetypes_sql(numrange(1,10), ARRAY[2,20]);  -- match failure
-psql:sql/rangetypes.sql:189: ERROR:  function rangetypes_sql(numrange, integer[]) does not exist
-LINE 1: select rangetypes_sql(numrange(1,10), ARRAY[2,20]);
-               ^
-HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
+psql:sql/rangetypes.sql:189: ERROR:  argument declared anyrange is not consistent with argument declared anyelement
+DETAIL:  numrange versus integer
 drop function range_add_bounds(anyrange);
 DROP FUNCTION
 drop function rangetypes_sql(anyrange, anyarray, anyelement);

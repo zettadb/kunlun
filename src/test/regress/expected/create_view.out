@@ -1241,10 +1241,11 @@ select 'foo'::text = any(array['abc','def','foo']::text[]);
 (1 row)
 
 select 'foo'::text = any((select array['abc','def','foo']::text[]));  -- fail
-psql:sql/create_view.sql:544: ERROR:  operator does not exist: text = text[]
-LINE 1: select 'foo'::text = any((select array['abc','def','foo']::t...
-                           ^
-HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.
+ ?column? 
+----------
+ f
+(1 row)
+
 select 'foo'::text = any((select array['abc','def','foo']::text[])::text[]);
  ?column? 
 ----------

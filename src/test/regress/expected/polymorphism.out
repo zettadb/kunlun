@@ -162,10 +162,10 @@ psql:sql/polymorphism.sql:153: ERROR:  function tf1p(integer[], anyelement) does
 -- should ERROR: tfp(int[],anyelement) not matched by tfp(anyarray,anyelement)
 CREATE AGGREGATE myaggp12a(BASETYPE = anyelement, SFUNC = tfp, STYPE = int[],
   FINALFUNC = ffp, INITCOND = '{}');
-psql:sql/polymorphism.sql:158: ERROR:  function tfp(integer[], anyelement) does not exist
+CREATE AGGREGATE
 CREATE AGGREGATE myaggp12b(BASETYPE = anyelement, SFUNC = tfp, STYPE = int[],
   INITCOND = '{}');
-psql:sql/polymorphism.sql:160: ERROR:  function tfp(integer[], anyelement) does not exist
+CREATE AGGREGATE
 --    P    N        N    N
 -- should ERROR: tfnp(anyarray, int) not matched by tfnp(int[],int)
 CREATE AGGREGATE myaggp13a(BASETYPE = int, SFUNC = tfnp, STYPE = anyarray,
@@ -312,7 +312,7 @@ psql:sql/polymorphism.sql:284: ERROR:  function tf1p(integer[], anyelement) does
 -- should ERROR: tfp(int[],anyelement) not matched by tfp(anyarray,anyelement)
 CREATE AGGREGATE myaggn12a(BASETYPE = anyelement, SFUNC = tfp, STYPE = int[],
   FINALFUNC = ffnp, INITCOND = '{}');
-psql:sql/polymorphism.sql:289: ERROR:  function tfp(integer[], anyelement) does not exist
+CREATE AGGREGATE
 --    P    N        N    N
 -- should ERROR: tfnp(anyarray, int) not matched by tfnp(int[],int)
 CREATE AGGREGATE myaggn13a(BASETYPE = int, SFUNC = tfnp, STYPE = anyarray,
@@ -676,7 +676,8 @@ create aggregate build_group(int8, integer) (
   SFUNC = add_group,
   STYPE = int2[]
 );
-psql:sql/polymorphism.sql:439: ERROR:  function add_group(smallint[], bigint, integer) does not exist
+psql:sql/polymorphism.sql:439: ERROR:  argument declared anyarray is not consistent with argument declared anyelement
+DETAIL:  smallint[] versus bigint
 -- but we can make a non-poly agg from a poly sfunc if types are OK
 create aggregate build_group(int8, integer) (
   SFUNC = add_group,
@@ -850,20 +851,14 @@ select formarray(1.1, variadic array[1.2,55.5]);
 (1 row)
 
 select formarray(1.1, array[1.2,55.5]); -- fail without variadic
-psql:sql/polymorphism.sql:514: ERROR:  function formarray(numeric, numeric[]) does not exist
-LINE 1: select formarray(1.1, array[1.2,55.5]);
-               ^
-HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
+psql:sql/polymorphism.sql:514: ERROR:  arguments declared "anyelement" are not all alike
+DETAIL:  numeric versus numeric[]
 select formarray(1, 'x'::text); -- fail, type mismatch
-psql:sql/polymorphism.sql:515: ERROR:  function formarray(integer, text) does not exist
-LINE 1: select formarray(1, 'x'::text);
-               ^
-HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
+psql:sql/polymorphism.sql:515: ERROR:  arguments declared "anyelement" are not all alike
+DETAIL:  integer versus text
 select formarray(1, variadic array['x'::text]); -- fail, type mismatch
-psql:sql/polymorphism.sql:516: ERROR:  function formarray(integer, text[]) does not exist
-LINE 1: select formarray(1, variadic array['x'::text]);
-               ^
-HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
+psql:sql/polymorphism.sql:516: ERROR:  argument declared anyarray is not consistent with argument declared anyelement
+DETAIL:  text[] versus integer
 drop function formarray(anyelement, variadic anyarray);
 DROP FUNCTION
 -- test pg_typeof() function

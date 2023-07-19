@@ -470,7 +470,7 @@ COPY instead_of_insert_tbl_view_2 FROM stdin;
 test1
 \.
 
-SELECT * FROM instead_of_insert_tbl
+SELECT * FROM instead_of_insert_tbl;
 
 -- clean up
 --DDL_STATEMENT_BEGIN--

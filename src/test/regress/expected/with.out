@@ -166,9 +166,9 @@ UNION ALL
     SELECT n+1 FROM t WHERE n < 10
 )
 SELECT n, n IS OF (int) AS is_int FROM t;
-psql:sql/with.sql:88: ERROR:  operator does not exist: text + integer
+psql:sql/with.sql:88: ERROR:  operator does not exist: text < integer
 LINE 4:     SELECT n+1 FROM t WHERE n < 10
-                    ^
+                                      ^
 HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.
 --
 -- Some examples with a tree

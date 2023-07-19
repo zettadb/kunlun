@@ -123,7 +123,7 @@ create aggregate newavg2 (sfunc = int4pl,
 			  stype = int4,
 			  finalfunc = int2um,
 			  initcond = '0');
-psql:sql/errors.sql:114: ERROR:  function int2um(integer) does not exist
+psql:sql/errors.sql:114: ERROR:  function int2um(smallint) requires run-time type coercion
 -- left out basetype
 create aggregate newcnt1 (sfunc = int4inc,
 			  stype = int4,

@@ -1616,12 +1616,12 @@ drop table parted_referenced, parted_trigger, unparted_trigger;
 -- verify that the "AFTER UPDATE OF columns" event is propagated correctly
 create table parted_trigger (a int primary key, b text) partition by range (a);
 create table parted_trigger_1 partition of parted_trigger for values from (0) to (1000);
-create table parted_trigger_2 (drp int, a int, b text);
+create table parted_trigger_2 (drp int, a int NOT NULL , b text);
 alter table parted_trigger_2 drop column drp;
 alter table parted_trigger attach partition parted_trigger_2 for values from (1000) to (2000);
 create trigger parted_trigger after update of b on parted_trigger
   for each row execute procedure trigger_notice_ab();
-create table parted_trigger_3 (b text, a int) partition by range (length(b));
+create table parted_trigger_3 (b text, a int NOT NULL) partition by range (length(b));
 create table parted_trigger_3_1 partition of parted_trigger_3 for values from (1) to (4);
 create table parted_trigger_3_2 partition of parted_trigger_3 for values from (4) to (8);
 alter table parted_trigger attach partition parted_trigger_3 for values from (2000) to (3000);
@@ -1698,12 +1698,12 @@ create table parent (a text primary KEY, b int) partition by list (a);
 create table child1 partition of parent for values in ('AAA');
 
 -- a child with a dropped column
-create table child2 (x int, a text, b int);
+create table child2 (x int, a text NOT NULL, b int);
 alter table child2 drop column x;
 alter table parent attach partition child2 for values in ('BBB');
 
 -- a child with a different column order
-create table child3 (b int, a text);
+create table child3 (b int, a text NOT NULL);
 alter table parent attach partition child3 for values in ('CCC');
 
 create trigger parent_insert_trig
@@ -1879,10 +1879,170 @@ alter table child2 inherit parent;
 create table child3 (c text) inherits (parent);
 
 create trigger parent_insert_trig
-  after insert onre dump_insert();
+  after insert on parent referencing new table as new_table
+  for each statement execute procedure dump_insert();
+create trigger parent_update_trig
+  after update on parent referencing old table as old_table new table as new_table
+  for each statement execute procedure dump_update();
+create trigger parent_delete_trig
+  after delete on parent referencing old table as old_table
+  for each statement execute procedure dump_delete();
 
--- diuded.b;
+create trigger child1_insert_trig
+  after insert on child1 referencing new table as new_table
+  for each statement execute procedure dump_insert();
+create trigger child1_update_trig
+  after update on child1 referencing old table as old_table new table as new_table
+  for each statement execute procedure dump_update();
+create trigger child1_delete_trig
+  after delete on child1 referencing old table as old_table
+  for each statement execute procedure dump_delete();
 
+create trigger child2_insert_trig
+  after insert on child2 referencing new table as new_table
+  for each statement execute procedure dump_insert();
+create trigger child2_update_trig
+  after update on child2 referencing old table as old_table new table as new_table
+  for each statement execute procedure dump_update();
+create trigger child2_delete_trig
+  after delete on child2 referencing old table as old_table
+  for each statement execute procedure dump_delete();
+
+create trigger child3_insert_trig
+  after insert on child3 referencing new table as new_table
+  for each statement execute procedure dump_insert();
+create trigger child3_update_trig
+  after update on child3 referencing old table as old_table new table as new_table
+  for each statement execute procedure dump_update();
+create trigger child3_delete_trig
+  after delete on child3 referencing old table as old_table
+  for each statement execute procedure dump_delete();
+
+-- insert directly into children sees respective child-format tuples
+insert into child1 values ('AAA', 42);
+insert into child2 values (42, 'BBB');
+insert into child3 values ('CCC', 42, 'foo');
+
+-- update via parent sees parent-format tuples
+update parent set b = b + 1;
+
+-- delete via parent sees parent-format tuples
+delete from parent;
+
+-- reinsert values into children for next test...
+insert into child1 values ('AAA', 42);
+insert into child2 values (42, 'BBB');
+insert into child3 values ('CCC', 42, 'foo');
+
+-- delete from children sees respective child-format tuples
+delete from child1;
+delete from child2;
+delete from child3;
+
+-- copy into parent sees parent-format tuples (no rerouting, so these
+-- are really inserted into the parent)
+copy parent (a, b) from stdin;
+AAA	42
+BBB	42
+CCC	42
+\.
+
+-- same behavior for copy if there is an index (interesting because rows are
+-- captured by a different code path in copy.c if there are indexes)
+create index on parent(b);
+copy parent (a, b) from stdin;
+DDD	42
+\.
+
+-- DML affecting parent sees tuples collected from children even if
+-- there is no transition table trigger on the children
+drop trigger child1_insert_trig on child1;
+drop trigger child1_update_trig on child1;
+drop trigger child1_delete_trig on child1;
+drop trigger child2_insert_trig on child2;
+drop trigger child2_update_trig on child2;
+drop trigger child2_delete_trig on child2;
+drop trigger child3_insert_trig on child3;
+drop trigger child3_update_trig on child3;
+drop trigger child3_delete_trig on child3;
+delete from parent;
+
+drop table child1, child2, child3, parent;
+
+--
+-- Verify prohibition of row triggers with transition triggers on
+-- inheritance children
+--
+create table parent (a text, b int);
+create table child () inherits (parent);
+
+-- adding row trigger with transition table fails
+create trigger child_row_trig
+  after insert on child referencing new table as new_table
+  for each row execute procedure dump_insert();
+
+-- disinheriting it first works
+alter table child no inherit parent;
+
+create trigger child_row_trig
+  after insert on child referencing new table as new_table
+  for each row execute procedure dump_insert();
+
+-- but now we're not allowed to make it inherit anymore
+alter table child inherit parent;
+
+-- drop the trigger, and now we're allowed to make it inherit again
+drop trigger child_row_trig on child;
+alter table child inherit parent;
+
+drop table child, parent;
+
+--
+-- Verify behavior of queries with wCTEs, where multiple transition
+-- tuplestores can be active at the same time because there are
+-- multiple DML statements that might fire triggers with transition
+-- tables
+--
+create table table1 (a int);
+create table table2 (a text);
+create trigger table1_trig
+  after insert on table1 referencing new table as new_table
+  for each statement execute procedure dump_insert();
+create trigger table2_trig
+  after insert on table2 referencing new table as new_table
+  for each statement execute procedure dump_insert();
+
+with wcte as (insert into table1 values (42))
+  insert into table2 values ('hello world');
+
+with wcte as (insert into table1 values (43))
+  insert into table1 values (44);
+
+select * from table1;
+select * from table2;
+
+drop table table1;
+drop table table2;
+--
+-- Verify behavior of INSERT ... ON CONFLICT DO UPDATE ... with
+-- transition tables.
+--
+
+
+create table my_table (a int primary key, b text);
+
+create trigger my_table_insert_trig
+  after insert on my_table referencing new table as new_table
+  for each statement execute procedure dump_insert();
+
+create trigger my_table_update_trig
+  after update on my_table referencing old table as old_table new table as new_table
+  for each statement execute procedure dump_update();
+
+-- inserts only
+insert into my_table values (1, 'AAA'), (2, 'BBB')
+  on conflict (a) do
+  update set b = my_table.b || ':' || excluded.b;
 -- mixture of inserts and updates
 insert into my_table values (1, 'AAA'), (2, 'BBB'), (3, 'CCC'), (4, 'DDD')
   on conflict (a) do

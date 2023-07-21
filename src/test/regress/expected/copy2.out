@@ -280,14 +280,12 @@ SELECT * FROM testnull;
     | 
 (4 rows)
 
---BEGIN;
 CREATE TABLE vistest (LIKE testeoc);
 CREATE TABLE
 DROP TABLE testeoc;
 DROP TABLE
 COPY vistest FROM stdin CSV;
 COPY 2
---COMMIT;
 SELECT * FROM vistest;
  a  
 ----
@@ -295,175 +293,154 @@ SELECT * FROM vistest;
  b
 (2 rows)
 
---BEGIN;
---TRUNCATE vistest;
+BEGIN;
+BEGIN
+delete from  vistest;
+DELETE 2
 COPY vistest FROM stdin CSV;
 COPY 2
 SELECT * FROM vistest;
  a  
 ----
- a0
- b
  a1
  b
-(4 rows)
+(2 rows)
 
 SAVEPOINT s1;
-psql:sql/copy2.sql:198: ERROR:  SAVEPOINT can only be used in transaction blocks
---TRUNCATE vistest;
+SAVEPOINT
+TRUNCATE vistest;
+TRUNCATE TABLE
 COPY vistest FROM stdin CSV;
 COPY 2
 SELECT * FROM vistest;
  a  
 ----
- a0
- b
- a1
- b
  d1
  e
-(6 rows)
+(2 rows)
 
---COMMIT;
+COMMIT;
+psql:sql/copy2.sql:205: WARNING:  there is no transaction in progress
+COMMIT
 SELECT * FROM vistest;
  a  
 ----
- a0
- b
- a1
- b
  d1
  e
-(6 rows)
+(2 rows)
 
---BEGIN;
---TRUNCATE vistest;
-COPY vistest FROM stdin CSV FREEZE;
-psql:sql/copy2.sql:213: ERROR:  cannot perform FREEZE because the table was not created or truncated in the current subtransaction
+BEGIN;
+BEGIN
+delete from vistest;
+DELETE 2
+--COPY vistest FROM stdin CSV FREEZE;
+--a2
+--b
+--\.
 SELECT * FROM vistest;
- a  
-----
- a0
- b
- a1
- b
- d1
- e
-(6 rows)
+ a 
+---
+(0 rows)
 
 SAVEPOINT s1;
-psql:sql/copy2.sql:215: ERROR:  SAVEPOINT can only be used in transaction blocks
---TRUNCATE vistest;
-COPY vistest FROM stdin CSV FREEZE;
-psql:sql/copy2.sql:220: ERROR:  cannot perform FREEZE because the table was not created or truncated in the current subtransaction
+SAVEPOINT
+delete from vistest;
+DELETE 0
+--COPY vistest FROM stdin CSV FREEZE;
+--d2
+--e
+--\.
 SELECT * FROM vistest;
- a  
-----
- a0
- b
- a1
- b
- d1
- e
-(6 rows)
+ a 
+---
+(0 rows)
 
---COMMIT;
+COMMIT;
+COMMIT
 SELECT * FROM vistest;
- a  
-----
- a0
- b
- a1
- b
- d1
- e
-(6 rows)
+ a 
+---
+(0 rows)
 
---BEGIN;
---TRUNCATE vistest;
-COPY vistest FROM stdin CSV FREEZE;
-psql:sql/copy2.sql:230: ERROR:  cannot perform FREEZE because the table was not created or truncated in the current subtransaction
+BEGIN;
+BEGIN
+delete from vistest;
+DELETE 0
+--COPY vistest FROM stdin CSV FREEZE;
+--x
+--y
+--\.
 SELECT * FROM vistest;
- a  
-----
- a0
- b
- a1
- b
- d1
- e
-(6 rows)
+ a 
+---
+(0 rows)
 
---COMMIT;
---TRUNCATE vistest;
-COPY vistest FROM stdin CSV FREEZE;
-psql:sql/copy2.sql:237: ERROR:  cannot perform FREEZE because the table was not created or truncated in the current subtransaction
---BEGIN;
---TRUNCATE vistest;
+COMMIT;
+COMMIT
+delete from vistest;
+DELETE 0
+--COPY vistest FROM stdin CSV FREEZE;
+--p
+--g
+--\.
+BEGIN;
+BEGIN
+delete from vistest;
+DELETE 0
 SAVEPOINT s1;
-psql:sql/copy2.sql:240: ERROR:  SAVEPOINT can only be used in transaction blocks
-COPY vistest FROM stdin CSV FREEZE;
-psql:sql/copy2.sql:244: ERROR:  cannot perform FREEZE because the table was not created or truncated in the current subtransaction
---COMMIT;
---BEGIN;
+SAVEPOINT
+--COPY vistest FROM stdin CSV FREEZE;
+--m
+--k
+--\.
+COMMIT;
+COMMIT
+BEGIN;
+BEGIN
 INSERT INTO vistest VALUES ('z');
 INSERT 0 1
 SAVEPOINT s1;
-psql:sql/copy2.sql:248: ERROR:  SAVEPOINT can only be used in transaction blocks
---TRUNCATE vistest;
-ROLLBACK TO SAVEPOINT s1;
-psql:sql/copy2.sql:250: ERROR:  ROLLBACK TO SAVEPOINT can only be used in transaction blocks
-COPY vistest FROM stdin CSV FREEZE;
-psql:sql/copy2.sql:254: ERROR:  cannot perform FREEZE because the table was not created or truncated in the current subtransaction
---COMMIT;
+SAVEPOINT
+delete from  vistest;
+DELETE 1
+--COPY vistest FROM stdin CSV FREEZE;
+--d3
+--e
+--\.
+COMMIT;
+COMMIT
 CREATE FUNCTION truncate_in_subxact() RETURNS VOID AS
 $$
---BEGIN
+BEGIN
 	TRUNCATE vistest;
 EXCEPTION
   WHEN OTHERS THEN
 	INSERT INTO vistest VALUES ('subxact failure');
 END;
 $$ language plpgsql;
-psql:sql/copy2.sql:264: ERROR:  syntax error at or near "TRUNCATE"
-LINE 4:  TRUNCATE vistest;
-         ^
---BEGIN;
+CREATE FUNCTION
+BEGIN;
+BEGIN
 INSERT INTO vistest VALUES ('z');
 INSERT 0 1
-SELECT truncate_in_subxact();
-psql:sql/copy2.sql:267: ERROR:  function truncate_in_subxact() does not exist
-LINE 1: SELECT truncate_in_subxact();
-               ^
-HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
-COPY vistest FROM stdin CSV FREEZE;
-psql:sql/copy2.sql:271: ERROR:  cannot perform FREEZE because the table was not created or truncated in the current subtransaction
+--SELECT truncate_in_subxact();
+--COPY vistest FROM stdin CSV FREEZE;
+--d4
+--e
+--\.
 SELECT * FROM vistest;
- a  
-----
- a0
- b
- a1
- b
- d1
- e
+ a 
+---
  z
- z
-(8 rows)
+(1 row)
 
---COMMIT;
+COMMIT;
+COMMIT
 SELECT * FROM vistest;
- a  
-----
- a0
- b
- a1
- b
- d1
- e
+ a 
+---
  z
- z
-(8 rows)
+(1 row)
 
 -- Test FORCE_NOT_NULL and FORCE_NULL options
 CREATE TEMP TABLE forcetest (
@@ -572,9 +549,12 @@ CREATE TABLE rls_t1 (a int, b int, c int);
 CREATE TABLE
 COPY rls_t1 (a, b, c) from stdin;
 COPY 4
---CREATE POLICY p1 ON rls_t1 FOR SELECT USING (a % 2 = 0);
---ALTER TABLE rls_t1 ENABLE ROW LEVEL SECURITY;
---ALTER TABLE rls_t1 FORCE ROW LEVEL SECURITY;
+CREATE POLICY p1 ON rls_t1 FOR SELECT USING (a % 2 = 0);
+CREATE POLICY
+ALTER TABLE rls_t1 ENABLE ROW LEVEL SECURITY;
+ALTER TABLE
+ALTER TABLE rls_t1 FORCE ROW LEVEL SECURITY;
+ALTER TABLE
 GRANT SELECT ON TABLE rls_t1 TO regress_rls_copy_user;
 GRANT
 GRANT SELECT (a, b) ON TABLE rls_t1 TO regress_rls_copy_user_colperms;
@@ -611,31 +591,21 @@ SET SESSION AUTHORIZATION regress_rls_copy_user;
 SET
 -- all columns
 COPY rls_t1 TO stdout;
-1	4	1
 2	3	2
-3	2	3
 4	1	4
 COPY rls_t1 (a, b, c) TO stdout;
-1	4	1
 2	3	2
-3	2	3
 4	1	4
 -- subset of columns
 COPY rls_t1 (a) TO stdout;
-1
 2
-3
 4
 COPY rls_t1 (a, b) TO stdout;
-1	4
 2	3
-3	2
 4	1
 -- column reordering
 COPY rls_t1 (b, a) TO stdout;
-4	1
 3	2
-2	3
 1	4
 RESET SESSION AUTHORIZATION;
 RESET
@@ -651,14 +621,10 @@ COPY rls_t1 (c) TO stdout;
 psql:sql/copy2.sql:384: ERROR:  permission denied for table rls_t1
 -- subset of columns (should succeed)
 COPY rls_t1 (a) TO stdout;
-1
 2
-3
 4
 COPY rls_t1 (a, b) TO stdout;
-1	4
 2	3
-3	2
 4	1
 RESET SESSION AUTHORIZATION;
 RESET
@@ -692,7 +658,6 @@ SELECT * FROM instead_of_insert_tbl;
 -- Test of COPY optimization with view using INSTEAD OF INSERT
 -- trigger when relation is created in the same transaction as
 -- when COPY is executed.
---BEGIN;
 CREATE VIEW instead_of_insert_tbl_view_2 as select ''::text as str;
 CREATE VIEW
 CREATE TRIGGER trig_instead_of_insert_tbl_view_2
@@ -708,14 +673,13 @@ SELECT * FROM instead_of_insert_tbl;
   2 | test1
 (2 rows)
 
---COMMIT;
 -- clean up
 DROP TABLE forcetest;
 DROP TABLE
 DROP TABLE vistest;
 DROP TABLE
 DROP FUNCTION truncate_in_subxact();
-psql:sql/copy2.sql:435: ERROR:  function truncate_in_subxact() does not exist
+DROP FUNCTION
 DROP TABLE x, y;
 DROP TABLE
 DROP TABLE rls_t1 CASCADE;

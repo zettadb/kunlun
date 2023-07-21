@@ -120,15 +120,14 @@ CREATE TABLE range_parted (
 	b bigint,
 	c numeric,
 	d int,
-	e varchar,
-	primary key(a,b,c)
+	e varchar			   
 ) PARTITION BY RANGE (a, b);
 
 -- Create partitions intentionally in descending bound order, so as to test
 -- that update-row-movement works with the leaf partitions not in bound order.
-CREATE TABLE part_b_20_b_30 (e varchar, c numeric NOT NULL, a text NOT NULL, b bigint NOT NULL, d int);
+CREATE TABLE part_b_20_b_30 (e varchar, c numeric, a text, b bigint, d int);
 ALTER TABLE range_parted ATTACH PARTITION part_b_20_b_30 FOR VALUES FROM ('b', 20) TO ('b', 30);
-CREATE TABLE part_b_10_b_20 (e varchar, c numeric NOT NULL, a text NOT NULL,  b bigint NOT NULL, d int) PARTITION BY RANGE (c);
+CREATE TABLE part_b_10_b_20 (e varchar, c numeric, a text, b bigint, d int) PARTITION BY RANGE (c);
 CREATE TABLE part_b_1_b_10 PARTITION OF range_parted FOR VALUES FROM ('b', 1) TO ('b', 10);
 ALTER TABLE range_parted ATTACH PARTITION part_b_10_b_20 FOR VALUES FROM ('b', 10) TO ('b', 20);
 CREATE TABLE part_a_10_a_20 PARTITION OF range_parted FOR VALUES FROM ('a', 10) TO ('a', 20);
@@ -157,64 +156,65 @@ ALTER TABLE part_b_10_b_20 ATTACH PARTITION part_c_1_100 FOR VALUES FROM (1) TO 
 \set init_range_parted 'truncate range_parted; insert into range_parted VALUES (''a'', 1, 1, 1), (''a'', 10, 200, 1), (''b'', 12, 96, 1), (''b'', 13, 97, 2), (''b'', 15, 105, 16), (''b'', 17, 105, 19)'
 \set show_data 'select tableoid::regclass::text COLLATE "C" partname, * from range_parted ORDER BY 1, 2, 3, 4, 5, 6'
 :init_range_parted;
-:show_data;rted;
 :show_data;
 
 -- The order of subplans should be in bound order
--- ERROR:  Can not update partition key of a remote relation.
---EXPLAIN (costs off) UPDATE range_parted set c = c - 50 WHERE c > 97;
+															 
+EXPLAIN (costs off) UPDATE range_parted set c = c - 50 WHERE c > 97;
 
 -- fail, row movement happens only within the partition subtree.
---UPDATE part_c_100_200 set c = c - 20, d = c WHERE c = 105;
+UPDATE part_c_100_200 set c = c - 20, d = c WHERE c = 105;
 -- fail, no partition key update, so no attempt to move tuple,
 -- but "a = 'a'" violates partition constraint enforced by root partition)
---UPDATE part_b_10_b_20 set a = 'a';
+UPDATE part_b_10_b_20 set a = 'a';
 -- ok, partition key update, no constraint violation
--- Can not update partition key of a remote relation.
---UPDATE range_parted set d = d - 10 WHERE d > 10;
+													 
+UPDATE range_parted set d = d - 10 WHERE d > 10;
 -- ok, no partition key update, no constraint violation
---UPDATE range_parted set e = d;
+UPDATE range_parted set e = d;
 -- No row found
---UPDATE part_c_1_100 set c = c + 20 WHERE c = 98;
+UPDATE part_c_1_100 set c = c + 20 WHERE c = 98;
 -- ok, row movement
--- Can not update partition key of a remote relation.
---UPDATE part_b_10_b_20 set c = c + 20 returning c, b, a;
---:show_data;
+													 
+UPDATE part_b_10_b_20 set c = c + 20 returning c, b, a;
+:show_data;
 
 -- fail, row movement happens only within the partition subtree.
---Crash due to unsupported functionality
---UPDATE part_b_10_b_20 set b = b - 6 WHERE c > 116 returning *;
+										
+UPDATE part_b_10_b_20 set b = b - 6 WHERE c > 116 returning *;
 -- ok, row movement, with subset of rows moved into different partition.
--- Can not update partition key of a remote relation.
---UPDATE range_parted set b = b - 6 WHERE c > 116 returning a, b + c;
---:show_data;
+													 
+UPDATE range_parted set b = b - 6 WHERE c > 116 returning a, b + c;
+			 
 
+:show_data;
+
+-- Common table needed for multiple test scenarios.
 -- Common table needed for multiple test scenarios.
 drop table if exists mintab;
 CREATE TABLE mintab(c1 int);
 INSERT into mintab VALUES (120);
 
 -- update partition key using updatable view.
--- with check option is not support, so 'with check option' is removed from the create view statement.
---CREATE VIEW upview AS SELECT * FROM range_parted WHERE (select c > c1 FROM mintab);
+CREATE VIEW upview AS SELECT * FROM range_parted WHERE (select c > c1 FROM mintab) WITH CHECK OPTION;
 -- ok
---UPDATE upview set c = 199 WHERE b = 4;
+UPDATE upview set c = 199 WHERE b = 4;
 -- fail, check option violation
---UPDATE upview set c = 120 WHERE b = 4;
+UPDATE upview set c = 120 WHERE b = 4;
 -- fail, row movement with check option violation
---UPDATE upview set a = 'b', b = 15, c = 120 WHERE b = 4;
+UPDATE upview set a = 'b', b = 15, c = 120 WHERE b = 4;
 -- ok, row movement, check option passes
---UPDATE upview set a = 'b', b = 15 WHERE b = 4;
+UPDATE upview set a = 'b', b = 15 WHERE b = 4;
 
---:show_data;
+:show_data;
 
 -- cleanup
---DROP VIEW upview;
+DROP VIEW upview;
 
 -- RETURNING having whole-row vars.
---:init_range_parted;
---UPDATE range_parted set c = 95 WHERE a = 'b' and b > 10 and c > 100 returning (range_parted), *;
---:show_data;
+:init_range_parted;
+UPDATE range_parted set c = 95 WHERE a = 'b' and b > 10 and c > 100 returning (range_parted), *;
+:show_data;
 
 
 -- Transition tables with update row movement
@@ -330,7 +330,7 @@ SET SESSION AUTHORIZATION regress_range_parted_user;
 -- This should fail with RLS violation error. Even though the UPDATE is setting
 -- 'c' to an even number, the trigger at the destination partition again makes
 -- it an odd number.
---UPDATE range_parted set a = 'b', c = 150 WHERE a = 'a' and c = 200;
+UPDATE range_parted set a = 'b', c = 150 WHERE a = 'a' and c = 200;
 
 -- Cleanup
 RESET SESSION AUTHORIZATION;
@@ -442,24 +442,24 @@ create table part_def partition of range_parted default;
 \d+ part_def
 insert into range_parted values ('c', 9);
 -- ok
---update part_def set a = 'd' where a = 'c';
+update part_def set a = 'd' where a = 'c';
 -- fail
---update part_def set a = 'a' where a = 'd';
+update part_def set a = 'a' where a = 'd';
 
 :show_data;
 
 -- Update row movement from non-default to default partition.
 -- fail, default partition is not under part_a_10_a_20;
---UPDATE part_a_10_a_20 set a = 'ad' WHERE a = 'a';
+UPDATE part_a_10_a_20 set a = 'ad' WHERE a = 'a';
 -- ok
---UPDATE range_parted set a = 'ad' WHERE a = 'a';
---UPDATE range_parted set a = 'bd' WHERE a = 'b';
---:show_data;
+UPDATE range_parted set a = 'ad' WHERE a = 'a';
+UPDATE range_parted set a = 'bd' WHERE a = 'b';
+:show_data;
 -- Update row movement from default to non-default partitions.
 -- ok
---UPDATE range_parted set a = 'a' WHERE a = 'ad';
---UPDATE range_parted set a = 'b' WHERE a = 'bd';
---:show_data;
+UPDATE range_parted set a = 'a' WHERE a = 'ad';
+UPDATE range_parted set a = 'b' WHERE a = 'bd';
+:show_data;
 
 -- Cleanup: range_parted no longer needed.
 DROP TABLE range_parted;

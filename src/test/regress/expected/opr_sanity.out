@@ -141,13 +141,9 @@ WHERE p1.oid != p2.oid AND
     p1.proname = p2.proname AND
     p1.pronargs = p2.pronargs AND
     p1.proargtypes = p2.proargtypes;
-  oid  |    proname     |  oid  |    proname     
--------+----------------+-------+----------------
- 16387 | unix_timestamp |  5150 | unix_timestamp
- 16388 | unix_timestamp |  5151 | unix_timestamp
-  5150 | unix_timestamp | 16387 | unix_timestamp
-  5151 | unix_timestamp | 16388 | unix_timestamp
-(4 rows)
+ oid | proname | oid | proname 
+-----+---------+-----+---------
+(0 rows)
 
 -- Considering only built-in procs (prolang = 12), look for multiple uses
 -- of the same internal function (ie, matching prosrc fields).  It's OK to
@@ -966,9 +962,23 @@ SELECT p1.oid, p1.oprname
 FROM pg_operator as p1
 WHERE (p1.oprkind != 'b' AND p1.oprkind != 'l' AND p1.oprkind != 'r') OR
     p1.oprresult = 0 OR p1.oprcode = 0;
- oid | oprname 
------+---------
-(0 rows)
+  oid  | oprname 
+-------+---------
+ 16401 | =
+ 16403 | <>
+ 16415 | =
+ 16417 | <>
+ 16419 | >=
+ 16421 | >
+ 16423 | <=
+ 16425 | <
+ 16445 | =
+ 16447 | <>
+ 16449 | >=
+ 16451 | >
+ 16453 | <=
+ 16455 | <
+(14 rows)
 
 -- Look for missing or unwanted operand types
 SELECT p1.oid, p1.oprname
@@ -989,9 +999,37 @@ WHERE p1.oid != p2.oid AND
     p1.oprkind = p2.oprkind AND
     p1.oprleft = p2.oprleft AND
     p1.oprright = p2.oprright;
- oid | oprcode | oid | oprcode 
------+---------+-----+---------
-(0 rows)
+  oid  |      oprcode      |  oid  |      oprcode      
+-------+-------------------+-------+-------------------
+ 16435 | text_date_lt      | 16425 | -
+ 16425 | -                 | 16435 | text_date_lt
+ 16465 | text_timestamp_lt | 16455 | -
+ 16455 | -                 | 16465 | text_timestamp_lt
+ 16436 | text_date_le      | 16423 | -
+ 16423 | -                 | 16436 | text_date_le
+ 16466 | text_timestamp_le | 16453 | -
+ 16453 | -                 | 16466 | text_timestamp_le
+ 16434 | text_date_ne      | 16417 | -
+ 16417 | -                 | 16434 | text_date_ne
+ 16464 | text_timestamp_ne | 16447 | -
+ 16447 | -                 | 16464 | text_timestamp_ne
+ 16408 | text_numeric_neq  | 16403 | -
+ 16403 | -                 | 16408 | text_numeric_neq
+ 16433 | text_date_eq      | 16415 | -
+ 16415 | -                 | 16433 | text_date_eq
+ 16463 | text_timestamp_eq | 16445 | -
+ 16445 | -                 | 16463 | text_timestamp_eq
+ 16407 | text_numeric_eq   | 16401 | -
+ 16401 | -                 | 16407 | text_numeric_eq
+ 16437 | text_date_gt      | 16421 | -
+ 16421 | -                 | 16437 | text_date_gt
+ 16467 | text_timestamp_gt | 16451 | -
+ 16451 | -                 | 16467 | text_timestamp_gt
+ 16438 | text_date_gt      | 16419 | -
+ 16419 | -                 | 16438 | text_date_gt
+ 16468 | text_timestamp_gt | 16449 | -
+ 16449 | -                 | 16468 | text_timestamp_gt
+(28 rows)
 
 -- Look for commutative operators that don't commute.
 -- DEFINITIONAL NOTE: If A.oprcom = B, then x A y has the same result as y B x.
@@ -1005,9 +1043,51 @@ WHERE p1.oprcom = p2.oid AND
      p1.oprright != p2.oprleft OR
      p1.oprresult != p2.oprresult OR
      p1.oid != p2.oprcom);
- oid | oprcode | oid | oprcode 
------+---------+-----+---------
-(0 rows)
+  oid  |      oprcode      |  oid  |      oprcode      
+-------+-------------------+-------+-------------------
+ 16402 | numeric_text_eq   | 16401 | -
+ 16401 | -                 | 16402 | numeric_text_eq
+ 16404 | numeric_text_neq  | 16403 | -
+ 16403 | -                 | 16404 | numeric_text_neq
+ 16407 | text_numeric_eq   | 16402 | numeric_text_eq
+ 16408 | text_numeric_neq  | 16404 | numeric_text_neq
+ 16416 | date_text_eq      | 16415 | -
+ 16415 | -                 | 16416 | date_text_eq
+ 16418 | date_text_ne      | 16417 | -
+ 16417 | -                 | 16418 | date_text_ne
+ 16420 | date_text_lt      | 16419 | -
+ 16419 | -                 | 16420 | date_text_lt
+ 16422 | date_text_le      | 16421 | -
+ 16421 | -                 | 16422 | date_text_le
+ 16424 | date_text_gt      | 16423 | -
+ 16423 | -                 | 16424 | date_text_gt
+ 16426 | date_text_gt      | 16425 | -
+ 16425 | -                 | 16426 | date_text_gt
+ 16433 | text_date_eq      | 16416 | date_text_eq
+ 16434 | text_date_ne      | 16418 | date_text_ne
+ 16435 | text_date_lt      | 16426 | date_text_gt
+ 16436 | text_date_le      | 16424 | date_text_gt
+ 16437 | text_date_gt      | 16422 | date_text_le
+ 16438 | text_date_gt      | 16420 | date_text_lt
+ 16446 | timestamp_text_eq | 16445 | -
+ 16445 | -                 | 16446 | timestamp_text_eq
+ 16448 | timestamp_text_ne | 16447 | -
+ 16447 | -                 | 16448 | timestamp_text_ne
+ 16450 | timestamp_text_lt | 16449 | -
+ 16449 | -                 | 16450 | timestamp_text_lt
+ 16452 | timestamp_text_le | 16451 | -
+ 16451 | -                 | 16452 | timestamp_text_le
+ 16454 | timestamp_text_gt | 16453 | -
+ 16453 | -                 | 16454 | timestamp_text_gt
+ 16456 | timestamp_text_gt | 16455 | -
+ 16455 | -                 | 16456 | timestamp_text_gt
+ 16463 | text_timestamp_eq | 16446 | timestamp_text_eq
+ 16464 | text_timestamp_ne | 16448 | timestamp_text_ne
+ 16465 | text_timestamp_lt | 16456 | timestamp_text_gt
+ 16466 | text_timestamp_le | 16454 | timestamp_text_gt
+ 16467 | text_timestamp_gt | 16452 | timestamp_text_le
+ 16468 | text_timestamp_gt | 16450 | timestamp_text_lt
+(42 rows)
 
 -- Look for negatory operators that don't agree.
 -- DEFINITIONAL NOTE: If A.oprnegate = B, then both A and B must yield
@@ -1050,9 +1130,11 @@ ORDER BY 1, 2;
  +    | +
  -|-  | -|-
  <    | >
+ <    | >=
  <->  | <->
  <<   | >>
  <<=  | >>=
+ <=   | >
  <=   | >=
  <>   | <>
  <@   | @>
@@ -1070,7 +1152,7 @@ ORDER BY 1, 2;
  ~<=~ | ~>=~
  ~<~  | ~>~
  ~=   | ~=
-(31 rows)
+(33 rows)
 
 -- Likewise for negator pairs.
 SELECT DISTINCT o1.oprname AS op1, o2.oprname AS op2

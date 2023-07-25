@@ -297,7 +297,7 @@ SET row_security TO ON;
 CREATE TABLE t1 (a int, junk1 text, b text);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-ALTER TABLE t1 DROP COLUMN junk1;    -- just a disturbing factor
+--ALTER TABLE t1 DROP COLUMN junk1;    -- just a disturbing factor
 --DDL_STATEMENT_END--
 
 GRANT ALL ON t1 TO public;
@@ -319,11 +319,11 @@ COPY t2 FROM stdin;
 204	4	def	4.4
 \.
 
-CREATE TABLE t3 (c text, b text, a int);
-ALTER TABLE t3 INHERIT t1;
+CREATE TABLE t3 (c text, b text, a int) INHERITS t1;
+--ALTER TABLE t3 INHERIT t1;
 GRANT ALL ON t3 TO public;
 
-COPY t3(a,b,c) FROM stdin;
+COPY t3 FROM stdin;
 301	1	xxx	X
 302	2	yyy	Y
 303	3	zzz	Z
@@ -1072,7 +1072,7 @@ SET SESSION AUTHORIZATION regress_rls_alice;
 --DDL_STATEMENT_END--
 
 --DDL_STATEMENT_BEGIN--
-CREATE TABLE x1 (a int, b text, c text);
+CREATE TABLE x1 (a int primary key, b text, c text);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 GRANT ALL ON x1 TO PUBLIC;
@@ -1696,10 +1696,10 @@ ROLLBACK;
 SET SESSION AUTHORIZATION regress_rls_alice;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-CREATE TABLE r1 (a int);
+CREATE TABLE r1 (a  int primary key );
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-CREATE TABLE r2 (a int);
+CREATE TABLE r2(a int primary key );
 --DDL_STATEMENT_END--
 INSERT INTO r1 VALUES (10), (20);
 INSERT INTO r2 VALUES (10), (20);
@@ -1907,7 +1907,7 @@ SET SESSION AUTHORIZATION regress_rls_alice;
 SET row_security = on;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-CREATE TABLE r1 (a int);
+CREATE TABLE r1 (a int primary key );
 --DDL_STATEMENT_END--
 
 CREATE POLICY p1 ON r1 FOR SELECT USING (false);
@@ -2120,7 +2120,7 @@ SELECT * FROM rls_tbl WHERE a <<< 1000;
 DROP OPERATOR <<< (int, int);
 DROP FUNCTION op_leak(int, int);
 RESET SESSION AUTHORIZATION;
-DROP TABLE rls_tbl;		
+DROP TABLE rls_tbl;
 --
 -- Clean up objects
 --

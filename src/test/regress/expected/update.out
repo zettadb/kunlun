@@ -217,17 +217,16 @@ CREATE TABLE range_parted (
 	b bigint,
 	c numeric,
 	d int,
-	e varchar,
-	primary key(a,b,c)
+	e varchar			   
 ) PARTITION BY RANGE (a, b);
 CREATE TABLE
 -- Create partitions intentionally in descending bound order, so as to test
 -- that update-row-movement works with the leaf partitions not in bound order.
-CREATE TABLE part_b_20_b_30 (e varchar, c numeric NOT NULL, a text NOT NULL, b bigint NOT NULL, d int);
+CREATE TABLE part_b_20_b_30 (e varchar, c numeric, a text, b bigint, d int);
 CREATE TABLE
 ALTER TABLE range_parted ATTACH PARTITION part_b_20_b_30 FOR VALUES FROM ('b', 20) TO ('b', 30);
 ALTER TABLE
-CREATE TABLE part_b_10_b_20 (e varchar, c numeric NOT NULL, a text NOT NULL,  b bigint NOT NULL, d int) PARTITION BY RANGE (c);
+CREATE TABLE part_b_10_b_20 (e varchar, c numeric, a text, b bigint, d int) PARTITION BY RANGE (c);
 CREATE TABLE
 CREATE TABLE part_b_1_b_10 PARTITION OF range_parted FOR VALUES FROM ('b', 1) TO ('b', 10);
 CREATE TABLE
@@ -240,7 +239,7 @@ CREATE TABLE
 -- Check that partition-key UPDATE works sanely on a partitioned table that
 -- does not have any child partitions.
 UPDATE part_b_10_b_20 set b = b - 6;
-UPDATE 0
+psql:sql/update.sql:138: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 -- Create some more partitions following the above pattern of descending bound
 -- order, but let's make the situation a bit more complex by having the
 -- attribute numbers of the columns vary from their parent partition.
@@ -259,87 +258,143 @@ CREATE TABLE
 CREATE TABLE part_d_15_20 PARTITION OF part_c_100_200 FOR VALUES FROM (15) TO (20);
 CREATE TABLE
 ALTER TABLE part_b_10_b_20 ATTACH PARTITION part_c_100_200 FOR VALUES FROM (100) TO (200);
-psql:sql/update.sql:152: ERROR:  column "c" in child table must be marked NOT NULL
+ALTER TABLE
 CREATE TABLE part_c_1_100 (e varchar, d int, c numeric, b bigint, a text);
 CREATE TABLE
 ALTER TABLE part_b_10_b_20 ATTACH PARTITION part_c_1_100 FOR VALUES FROM (1) TO (100);
-psql:sql/update.sql:155: ERROR:  column "c" in child table must be marked NOT NULL
+ALTER TABLE
 \set init_range_parted 'truncate range_parted; insert into range_parted VALUES (''a'', 1, 1, 1), (''a'', 10, 200, 1), (''b'', 12, 96, 1), (''b'', 13, 97, 2), (''b'', 15, 105, 16), (''b'', 17, 105, 19)'
 \set show_data 'select tableoid::regclass::text COLLATE "C" partname, * from range_parted ORDER BY 1, 2, 3, 4, 5, 6'
 :init_range_parted;
 TRUNCATE TABLE
-psql:sql/update.sql:159: ERROR:  no partition of relation "part_b_10_b_20" found for row
-DETAIL:  Partition key of the failing row contains (c) = (96).
-:show_data;rted;
- partname | a | b | c | d | e 
-----------+---+---+---+---+---
-(0 rows)
-
-psql:sql/update.sql:160: ERROR:  syntax error at or near "rted"
-LINE 1: rted;
-        ^
+INSERT 0 6
 :show_data;
- partname | a | b | c | d | e 
-----------+---+---+---+---+---
-(0 rows)
+    partname    | a | b  |            c             | d  | e 
+----------------+---+----+--------------------------+----+---
+ part_a_10_a_20 | a | 10 | 200.00000000000000000000 |  1 | 
+ part_a_1_a_10  | a |  1 |   1.00000000000000000000 |  1 | 
+ part_c_1_100   | b | 12 |  96.00000000000000000000 |  1 | 
+ part_c_1_100   | b | 13 |  97.00000000000000000000 |  2 | 
+ part_d_15_20   | b | 15 | 105.00000000000000000000 | 16 | 
+ part_d_15_20   | b | 17 | 105.00000000000000000000 | 19 | 
+(6 rows)
 
 -- The order of subplans should be in bound order
--- ERROR:  Can not update partition key of a remote relation.
---EXPLAIN (costs off) UPDATE range_parted set c = c - 50 WHERE c > 97;
+															 
+EXPLAIN (costs off) UPDATE range_parted set c = c - 50 WHERE c > 97;
+psql:sql/update.sql:163: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 -- fail, row movement happens only within the partition subtree.
---UPDATE part_c_100_200 set c = c - 20, d = c WHERE c = 105;
+UPDATE part_c_100_200 set c = c - 20, d = c WHERE c = 105;
+psql:sql/update.sql:166: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 -- fail, no partition key update, so no attempt to move tuple,
 -- but "a = 'a'" violates partition constraint enforced by root partition)
---UPDATE part_b_10_b_20 set a = 'a';
+UPDATE part_b_10_b_20 set a = 'a';
+psql:sql/update.sql:169: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 -- ok, partition key update, no constraint violation
--- Can not update partition key of a remote relation.
---UPDATE range_parted set d = d - 10 WHERE d > 10;
+													 
+UPDATE range_parted set d = d - 10 WHERE d > 10;
+psql:sql/update.sql:172: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 -- ok, no partition key update, no constraint violation
---UPDATE range_parted set e = d;
+UPDATE range_parted set e = d;
+UPDATE 6
 -- No row found
---UPDATE part_c_1_100 set c = c + 20 WHERE c = 98;
+UPDATE part_c_1_100 set c = c + 20 WHERE c = 98;
+psql:sql/update.sql:176: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 -- ok, row movement
--- Can not update partition key of a remote relation.
---UPDATE part_b_10_b_20 set c = c + 20 returning c, b, a;
---:show_data;
+													 
+UPDATE part_b_10_b_20 set c = c + 20 returning c, b, a;
+psql:sql/update.sql:179: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
+:show_data;
+    partname    | a | b  |            c             | d  | e  
+----------------+---+----+--------------------------+----+----
+ part_a_10_a_20 | a | 10 | 200.00000000000000000000 |  1 | 1
+ part_a_1_a_10  | a |  1 |   1.00000000000000000000 |  1 | 1
+ part_c_1_100   | b | 12 |  96.00000000000000000000 |  1 | 1
+ part_c_1_100   | b | 13 |  97.00000000000000000000 |  2 | 2
+ part_d_15_20   | b | 15 | 105.00000000000000000000 | 16 | 16
+ part_d_15_20   | b | 17 | 105.00000000000000000000 | 19 | 19
+(6 rows)
+
 -- fail, row movement happens only within the partition subtree.
---Crash due to unsupported functionality
---UPDATE part_b_10_b_20 set b = b - 6 WHERE c > 116 returning *;
+										
+UPDATE part_b_10_b_20 set b = b - 6 WHERE c > 116 returning *;
+psql:sql/update.sql:184: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 -- ok, row movement, with subset of rows moved into different partition.
--- Can not update partition key of a remote relation.
---UPDATE range_parted set b = b - 6 WHERE c > 116 returning a, b + c;
---:show_data;
+													 
+UPDATE range_parted set b = b - 6 WHERE c > 116 returning a, b + c;
+psql:sql/update.sql:187: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
+			 
+:show_data;
+    partname    | a | b  |            c             | d  | e  
+----------------+---+----+--------------------------+----+----
+ part_a_10_a_20 | a | 10 | 200.00000000000000000000 |  1 | 1
+ part_a_1_a_10  | a |  1 |   1.00000000000000000000 |  1 | 1
+ part_c_1_100   | b | 12 |  96.00000000000000000000 |  1 | 1
+ part_c_1_100   | b | 13 |  97.00000000000000000000 |  2 | 2
+ part_d_15_20   | b | 15 | 105.00000000000000000000 | 16 | 16
+ part_d_15_20   | b | 17 | 105.00000000000000000000 | 19 | 19
+(6 rows)
+
+-- Common table needed for multiple test scenarios.
 -- Common table needed for multiple test scenarios.
 drop table if exists mintab;
-psql:sql/update.sql:193: NOTICE:  table "mintab" does not exist, skipping
+psql:sql/update.sql:194: NOTICE:  table "mintab" does not exist, skipping
 DROP TABLE
 CREATE TABLE mintab(c1 int);
 CREATE TABLE
 INSERT into mintab VALUES (120);
 INSERT 0 1
 -- update partition key using updatable view.
--- with check option is not support, so 'with check option' is removed from the create view statement.
---CREATE VIEW upview AS SELECT * FROM range_parted WHERE (select c > c1 FROM mintab);
+CREATE VIEW upview AS SELECT * FROM range_parted WHERE (select c > c1 FROM mintab) WITH CHECK OPTION;
+psql:sql/update.sql:199: WARNING:  views with CHECK options are not supported, the view will be created but the check constraints will be ignored silently.
+CREATE VIEW
 -- ok
---UPDATE upview set c = 199 WHERE b = 4;
+UPDATE upview set c = 199 WHERE b = 4;
+psql:sql/update.sql:201: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 -- fail, check option violation
---UPDATE upview set c = 120 WHERE b = 4;
+UPDATE upview set c = 120 WHERE b = 4;
+psql:sql/update.sql:203: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 -- fail, row movement with check option violation
---UPDATE upview set a = 'b', b = 15, c = 120 WHERE b = 4;
+UPDATE upview set a = 'b', b = 15, c = 120 WHERE b = 4;
+psql:sql/update.sql:205: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 -- ok, row movement, check option passes
---UPDATE upview set a = 'b', b = 15 WHERE b = 4;
---:show_data;
+UPDATE upview set a = 'b', b = 15 WHERE b = 4;
+psql:sql/update.sql:207: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
+:show_data;
+    partname    | a | b  |            c             | d  | e  
+----------------+---+----+--------------------------+----+----
+ part_a_10_a_20 | a | 10 | 200.00000000000000000000 |  1 | 1
+ part_a_1_a_10  | a |  1 |   1.00000000000000000000 |  1 | 1
+ part_c_1_100   | b | 12 |  96.00000000000000000000 |  1 | 1
+ part_c_1_100   | b | 13 |  97.00000000000000000000 |  2 | 2
+ part_d_15_20   | b | 15 | 105.00000000000000000000 | 16 | 16
+ part_d_15_20   | b | 17 | 105.00000000000000000000 | 19 | 19
+(6 rows)
+
 -- cleanup
---DROP VIEW upview;
+DROP VIEW upview;
+DROP VIEW
 -- RETURNING having whole-row vars.
---:init_range_parted;
---UPDATE range_parted set c = 95 WHERE a = 'b' and b > 10 and c > 100 returning (range_parted), *;
---:show_data;
+:init_range_parted;
+TRUNCATE TABLE
+INSERT 0 6
+UPDATE range_parted set c = 95 WHERE a = 'b' and b > 10 and c > 100 returning (range_parted), *;
+psql:sql/update.sql:216: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
+:show_data;
+    partname    | a | b  |            c             | d  | e 
+----------------+---+----+--------------------------+----+---
+ part_a_10_a_20 | a | 10 | 200.00000000000000000000 |  1 | 
+ part_a_1_a_10  | a |  1 |   1.00000000000000000000 |  1 | 
+ part_c_1_100   | b | 12 |  96.00000000000000000000 |  1 | 
+ part_c_1_100   | b | 13 |  97.00000000000000000000 |  2 | 
+ part_d_15_20   | b | 15 | 105.00000000000000000000 | 16 | 
+ part_d_15_20   | b | 17 | 105.00000000000000000000 | 19 | 
+(6 rows)
+
 -- Transition tables with update row movement
 :init_range_parted;
 TRUNCATE TABLE
-psql:sql/update.sql:221: ERROR:  no partition of relation "part_b_10_b_20" found for row
-DETAIL:  Partition key of the failing row contains (c) = (96).
+INSERT 0 6
 drop FUNCTION if exists trans_updatetrigfunc;
 psql:sql/update.sql:222: NOTICE:  function trans_updatetrigfunc() does not exist, skipping
 DROP FUNCTION
@@ -359,17 +414,21 @@ CREATE TRIGGER trans_updatetrig
   FOR EACH STATEMENT EXECUTE PROCEDURE trans_updatetrigfunc();
 CREATE TRIGGER
 UPDATE range_parted set c = (case when c = 96 then 110 else c + 1 end ) WHERE a = 'b' and b > 10 and c >= 96;
-psql:sql/update.sql:237: NOTICE:  trigger = trans_updatetrig, old table = <NULL>, new table = <NULL>
-UPDATE 0
+psql:sql/update.sql:237: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 :show_data;
- partname | a | b | c | d | e 
-----------+---+---+---+---+---
-(0 rows)
+    partname    | a | b  |            c             | d  | e 
+----------------+---+----+--------------------------+----+---
+ part_a_10_a_20 | a | 10 | 200.00000000000000000000 |  1 | 
+ part_a_1_a_10  | a |  1 |   1.00000000000000000000 |  1 | 
+ part_c_1_100   | b | 12 |  96.00000000000000000000 |  1 | 
+ part_c_1_100   | b | 13 |  97.00000000000000000000 |  2 | 
+ part_d_15_20   | b | 15 | 105.00000000000000000000 | 16 | 
+ part_d_15_20   | b | 17 | 105.00000000000000000000 | 19 | 
+(6 rows)
 
 :init_range_parted;
 TRUNCATE TABLE
-psql:sql/update.sql:239: ERROR:  no partition of relation "part_b_10_b_20" found for row
-DETAIL:  Partition key of the failing row contains (c) = (96).
+INSERT 0 6
 -- Enabling OLD TABLE capture for both DELETE as well as UPDATE stmt triggers
 -- should not cause DELETEd rows to be captured twice. Similar thing for
 -- INSERT triggers and inserted rows.
@@ -382,12 +441,17 @@ CREATE TRIGGER trans_inserttrig
   FOR EACH STATEMENT EXECUTE PROCEDURE trans_updatetrigfunc();
 CREATE TRIGGER
 UPDATE range_parted set c = c + 50 WHERE a = 'b' and b > 10 and c >= 96;
-psql:sql/update.sql:250: NOTICE:  trigger = trans_updatetrig, old table = <NULL>, new table = <NULL>
-UPDATE 0
+psql:sql/update.sql:250: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 :show_data;
- partname | a | b | c | d | e 
-----------+---+---+---+---+---
-(0 rows)
+    partname    | a | b  |            c             | d  | e 
+----------------+---+----+--------------------------+----+---
+ part_a_10_a_20 | a | 10 | 200.00000000000000000000 |  1 | 
+ part_a_1_a_10  | a |  1 |   1.00000000000000000000 |  1 | 
+ part_c_1_100   | b | 12 |  96.00000000000000000000 |  1 | 
+ part_c_1_100   | b | 13 |  97.00000000000000000000 |  2 | 
+ part_d_15_20   | b | 15 | 105.00000000000000000000 | 16 | 
+ part_d_15_20   | b | 17 | 105.00000000000000000000 | 19 | 
+(6 rows)
 
 DROP TRIGGER trans_deletetrig ON range_parted;
 DROP TRIGGER
@@ -418,42 +482,54 @@ CREATE TRIGGER trig_d15_20 BEFORE UPDATE OR INSERT ON part_d_15_20
 CREATE TRIGGER
 :init_range_parted;
 TRUNCATE TABLE
-psql:sql/update.sql:274: ERROR:  no partition of relation "part_b_10_b_20" found for row
-DETAIL:  Partition key of the failing row contains (c) = (96).
+INSERT 0 6
 UPDATE range_parted set c = (case when c = 96 then 110 else c + 1 end) WHERE a = 'b' and b > 10 and c >= 96;
-psql:sql/update.sql:275: NOTICE:  trigger = trans_updatetrig, old table = <NULL>, new table = <NULL>
-UPDATE 0
+psql:sql/update.sql:275: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 :show_data;
- partname | a | b | c | d | e 
-----------+---+---+---+---+---
-(0 rows)
+    partname    | a | b  |            c             | d  | e 
+----------------+---+----+--------------------------+----+---
+ part_a_10_a_20 | a | 10 | 200.00000000000000000000 |  1 | 
+ part_a_1_a_10  | a |  1 |   1.00000000000000000000 |  1 | 
+ part_c_1_100   | b | 13 |  96.00000000000000000000 |  1 | 
+ part_c_1_100   | b | 14 |  97.00000000000000000000 |  2 | 
+ part_d_15_20   | b | 16 | 105.00000000000000000000 | 16 | 
+ part_d_15_20   | b | 18 | 105.00000000000000000000 | 19 | 
+(6 rows)
 
 :init_range_parted;
 TRUNCATE TABLE
-psql:sql/update.sql:277: ERROR:  no partition of relation "part_b_10_b_20" found for row
-DETAIL:  Partition key of the failing row contains (c) = (96).
+INSERT 0 6
 UPDATE range_parted set c = c + 50 WHERE a = 'b' and b > 10 and c >= 96;
-psql:sql/update.sql:278: NOTICE:  trigger = trans_updatetrig, old table = <NULL>, new table = <NULL>
-UPDATE 0
+psql:sql/update.sql:278: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 :show_data;
- partname | a | b | c | d | e 
-----------+---+---+---+---+---
-(0 rows)
+    partname    | a | b  |            c             | d  | e 
+----------------+---+----+--------------------------+----+---
+ part_a_10_a_20 | a | 10 | 200.00000000000000000000 |  1 | 
+ part_a_1_a_10  | a |  1 |   1.00000000000000000000 |  1 | 
+ part_c_1_100   | b | 13 |  96.00000000000000000000 |  1 | 
+ part_c_1_100   | b | 14 |  97.00000000000000000000 |  2 | 
+ part_d_15_20   | b | 16 | 105.00000000000000000000 | 16 | 
+ part_d_15_20   | b | 18 | 105.00000000000000000000 | 19 | 
+(6 rows)
 
 -- Case where per-partition tuple conversion map array is allocated, but the
 -- map is not required for the particular tuple that is routed, thanks to
 -- matching table attributes of the partition and the target table.
 :init_range_parted;
 TRUNCATE TABLE
-psql:sql/update.sql:284: ERROR:  no partition of relation "part_b_10_b_20" found for row
-DETAIL:  Partition key of the failing row contains (c) = (96).
+INSERT 0 6
 UPDATE range_parted set b = 15 WHERE b = 1;
-psql:sql/update.sql:285: NOTICE:  trigger = trans_updatetrig, old table = <NULL>, new table = <NULL>
-UPDATE 0
+psql:sql/update.sql:285: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 :show_data;
- partname | a | b | c | d | e 
-----------+---+---+---+---+---
-(0 rows)
+    partname    | a | b  |            c             | d  | e 
+----------------+---+----+--------------------------+----+---
+ part_a_10_a_20 | a | 10 | 200.00000000000000000000 |  1 | 
+ part_a_1_a_10  | a |  1 |   1.00000000000000000000 |  1 | 
+ part_c_1_100   | b | 13 |  96.00000000000000000000 |  1 | 
+ part_c_1_100   | b | 14 |  97.00000000000000000000 |  2 | 
+ part_d_15_20   | b | 16 | 105.00000000000000000000 | 16 | 
+ part_d_15_20   | b | 18 | 105.00000000000000000000 | 19 | 
+(6 rows)
 
 DROP TRIGGER trans_updatetrig ON range_parted;
 DROP TRIGGER
@@ -467,18 +543,25 @@ DROP FUNCTION func_parted_mod_b();
 DROP FUNCTION
 -- RLS policies with update-row-movement
 -----------------------------------------
--- ALTER TABLE range_parted ENABLE ROW LEVEL SECURITY;
+ALTER TABLE range_parted ENABLE ROW LEVEL SECURITY;
+ALTER TABLE
 CREATE USER regress_range_parted_user;
 CREATE ROLE
 GRANT ALL ON range_parted, mintab TO regress_range_parted_user;
 GRANT
--- CREATE POLICY seeall ON range_parted AS PERMISSIVE FOR SELECT USING (true);
--- CREATE POLICY policy_range_parted ON range_parted for UPDATE USING (true) WITH CHECK (c % 2 = 0);
--- :init_range_parted;
---SET SESSION AUTHORIZATION regress_range_parted_user;
+CREATE POLICY seeall ON range_parted AS PERMISSIVE FOR SELECT USING (true);
+CREATE POLICY
+CREATE POLICY policy_range_parted ON range_parted for UPDATE USING (true) WITH CHECK (c % 2 = 0);
+CREATE POLICY
+:init_range_parted;
+TRUNCATE TABLE
+INSERT 0 6
+SET SESSION AUTHORIZATION regress_range_parted_user;
+SET
 -- This should fail with RLS violation error while moving row from
 -- part_a_10_a_20 to part_d_1_15, because we are setting 'c' to an odd number.
---UPDATE range_parted set a = 'b', c = 151 WHERE a = 'a' and c = 200;
+UPDATE range_parted set a = 'b', c = 151 WHERE a = 'a' and c = 200;
+psql:sql/update.sql:307: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 RESET SESSION AUTHORIZATION;
 RESET
 -- Create a trigger on part_d_1_15
@@ -493,27 +576,26 @@ CREATE TRIGGER trig_d_1_15 BEFORE INSERT ON part_d_1_15
 CREATE TRIGGER
 :init_range_parted;
 TRUNCATE TABLE
-psql:sql/update.sql:319: ERROR:  no partition of relation "part_b_10_b_20" found for row
-DETAIL:  Partition key of the failing row contains (c) = (96).
+INSERT 0 6
 SET SESSION AUTHORIZATION regress_range_parted_user;
 SET
 -- Here, RLS checks should succeed while moving row from part_a_10_a_20 to
 -- part_d_1_15. Even though the UPDATE is setting 'c' to an odd number, the
 -- trigger at the destination partition again makes it an even number.
 UPDATE range_parted set a = 'b', c = 151 WHERE a = 'a' and c = 200;
-UPDATE 0
+psql:sql/update.sql:325: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 RESET SESSION AUTHORIZATION;
 RESET
 :init_range_parted;
 TRUNCATE TABLE
-psql:sql/update.sql:328: ERROR:  no partition of relation "part_b_10_b_20" found for row
-DETAIL:  Partition key of the failing row contains (c) = (96).
+INSERT 0 6
 SET SESSION AUTHORIZATION regress_range_parted_user;
 SET
 -- This should fail with RLS violation error. Even though the UPDATE is setting
 -- 'c' to an even number, the trigger at the destination partition again makes
 -- it an odd number.
---UPDATE range_parted set a = 'b', c = 150 WHERE a = 'a' and c = 200;
+UPDATE range_parted set a = 'b', c = 150 WHERE a = 'a' and c = 200;
+psql:sql/update.sql:333: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 -- Cleanup
 RESET SESSION AUTHORIZATION;
 RESET
@@ -522,34 +604,56 @@ DROP TRIGGER
 DROP FUNCTION func_d_1_15();
 DROP FUNCTION
 -- Policy expression contains SubPlan
---RESET SESSION AUTHORIZATION;
---:init_range_parted;
---CREATE POLICY policy_range_parted_subplan on range_parted
---    AS RESTRICTIVE for UPDATE USING (true)
---    WITH CHECK ((SELECT range_parted.c <= c1 FROM mintab));
---SET SESSION AUTHORIZATION regress_range_parted_user;
+RESET SESSION AUTHORIZATION;
+RESET
+:init_range_parted;
+TRUNCATE TABLE
+INSERT 0 6
+CREATE POLICY policy_range_parted_subplan on range_parted
+    AS RESTRICTIVE for UPDATE USING (true)
+    WITH CHECK ((SELECT range_parted.c <= c1 FROM mintab));
+CREATE POLICY
+SET SESSION AUTHORIZATION regress_range_parted_user;
+SET
 -- fail, mintab has row with c1 = 120
---UPDATE range_parted set a = 'b', c = 122 WHERE a = 'a' and c = 200;
+UPDATE range_parted set a = 'b', c = 122 WHERE a = 'a' and c = 200;
+psql:sql/update.sql:348: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 -- ok
---UPDATE range_parted set a = 'b', c = 120 WHERE a = 'a' and c = 200;
+UPDATE range_parted set a = 'b', c = 120 WHERE a = 'a' and c = 200;
+psql:sql/update.sql:350: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 -- RLS policy expression contains whole row.
---RESET SESSION AUTHORIZATION;
---:init_range_parted;
---CREATE POLICY policy_range_parted_wholerow on range_parted AS RESTRICTIVE for UPDATE USING (true)
---   WITH CHECK (range_parted = row('b', 10, 112, 1, NULL)::range_parted);
---SET SESSION AUTHORIZATION regress_range_parted_user;
+RESET SESSION AUTHORIZATION;
+RESET
+:init_range_parted;
+TRUNCATE TABLE
+INSERT 0 6
+CREATE POLICY policy_range_parted_wholerow on range_parted AS RESTRICTIVE for UPDATE USING (true)
+   WITH CHECK (range_parted = row('b', 10, 112, 1, NULL)::range_parted);
+CREATE POLICY
+SET SESSION AUTHORIZATION regress_range_parted_user;
+SET
 -- ok, should pass the RLS check
---UPDATE range_parted set a = 'b', c = 112 WHERE a = 'a' and c = 200;
---RESET SESSION AUTHORIZATION;
---:init_range_parted;
---SET SESSION AUTHORIZATION regress_range_parted_user;
+UPDATE range_parted set a = 'b', c = 112 WHERE a = 'a' and c = 200;
+psql:sql/update.sql:360: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
+RESET SESSION AUTHORIZATION;
+RESET
+:init_range_parted;
+TRUNCATE TABLE
+INSERT 0 6
+SET SESSION AUTHORIZATION regress_range_parted_user;
+SET
 -- fail, the whole row RLS check should fail
---UPDATE range_parted set a = 'b', c = 116 WHERE a = 'a' and c = 200;
+UPDATE range_parted set a = 'b', c = 116 WHERE a = 'a' and c = 200;
+psql:sql/update.sql:365: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 -- Cleanup
---RESET SESSION AUTHORIZATION;
---DROP POLICY policy_range_parted ON range_parted;
---DROP POLICY policy_range_parted_subplan ON range_parted;
---DROP POLICY policy_range_parted_wholerow ON range_parted;
+RESET SESSION AUTHORIZATION;
+RESET
+DROP POLICY policy_range_parted ON range_parted;
+DROP POLICY
+DROP POLICY policy_range_parted_subplan ON range_parted;
+DROP POLICY
+DROP POLICY policy_range_parted_wholerow ON range_parted;
+DROP POLICY
 REVOKE ALL ON range_parted, mintab FROM regress_range_parted_user;
 REVOKE
 DROP USER regress_range_parted_user;
@@ -560,8 +664,7 @@ DROP TABLE
 ---------------------------------------------------
 :init_range_parted;
 TRUNCATE TABLE
-psql:sql/update.sql:380: ERROR:  no partition of relation "part_b_10_b_20" found for row
-DETAIL:  Partition key of the failing row contains (c) = (96).
+INSERT 0 6
 CREATE FUNCTION trigfunc() returns trigger language plpgsql as
 $$
   begin
@@ -614,12 +717,17 @@ CREATE TRIGGER
 -- Move all rows from part_c_100_200 to part_c_1_100. None of the delete or
 -- insert statement triggers should be fired.
 UPDATE range_parted set c = c - 50 WHERE c > 97;
-psql:sql/update.sql:423: NOTICE:  trigger = parent_update_trig fired on table range_parted during UPDATE
-UPDATE 0
+psql:sql/update.sql:423: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 :show_data;
- partname | a | b | c | d | e 
-----------+---+---+---+---+---
-(0 rows)
+    partname    | a | b  |            c             | d  | e 
+----------------+---+----+--------------------------+----+---
+ part_a_10_a_20 | a | 10 | 200.00000000000000000000 |  1 | 
+ part_a_1_a_10  | a |  1 |   1.00000000000000000000 |  1 | 
+ part_c_1_100   | b | 12 |  96.00000000000000000000 |  1 | 
+ part_c_1_100   | b | 13 |  97.00000000000000000000 |  2 | 
+ part_d_15_20   | b | 15 | 105.00000000000000000000 | 16 | 
+ part_d_15_20   | b | 17 | 105.00000000000000000000 | 19 | 
+(6 rows)
 
 DROP TRIGGER parent_delete_trig ON range_parted;
 DROP TRIGGER
@@ -648,49 +756,81 @@ DROP TRIGGER
 -- Creating default partition for range
 :init_range_parted;
 TRUNCATE TABLE
-psql:sql/update.sql:440: ERROR:  no partition of relation "part_b_10_b_20" found for row
-DETAIL:  Partition key of the failing row contains (c) = (96).
+INSERT 0 6
 create table part_def partition of range_parted default;
 CREATE TABLE
 \d+ part_def
                                           Table "public.part_def"
  Column |       Type        |    Collation     | Nullable | Default | Storage  | Stats target | Description 
 --------+-------------------+------------------+----------+---------+----------+--------------+-------------
- a      | text              | utf8mb4_0900_bin | not null |         | extended |              | 
- b      | bigint            |                  | not null |         | plain    |              | 
- c      | numeric           |                  | not null |         | main     |              | 
+ a      | text              | utf8mb4_0900_bin |          |         | extended |              | 
+ b      | bigint            |                  |          |         | plain    |              | 
+ c      | numeric           |                  |          |         | main     |              | 
  d      | integer           |                  |          |         | plain    |              | 
  e      | character varying | utf8mb4_0900_bin |          |         | extended |              | 
 Partition of: range_parted DEFAULT
 Partition constraint: (NOT ((a IS NOT NULL) AND (b IS NOT NULL) AND (((a = 'a'::text COLLATE "default") AND (b >= '1'::bigint) AND (b < '10'::bigint)) OR ((a = 'a'::text COLLATE "default") AND (b >= '10'::bigint) AND (b < '20'::bigint)) OR ((a = 'b'::text COLLATE "default") AND (b >= '1'::bigint) AND (b < '10'::bigint)) OR ((a = 'b'::text COLLATE "default") AND (b >= '10'::bigint) AND (b < '20'::bigint)) OR ((a = 'b'::text COLLATE "default") AND (b >= '20'::bigint) AND (b < '30'::bigint)))))
-Indexes:
-    "part_def_pkey" PRIMARY KEY, btree (a NULLS FIRST, b NULLS FIRST, c NULLS FIRST)
 Options: shard=1
 
 insert into range_parted values ('c', 9);
-psql:sql/update.sql:443: ERROR:  null value in column "c" violates not-null constraint
-DETAIL:  Failing row contains (c, 9, null, null, null).
+INSERT 0 1
 -- ok
---update part_def set a = 'd' where a = 'c';
+update part_def set a = 'd' where a = 'c';
+psql:sql/update.sql:445: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 -- fail
---update part_def set a = 'a' where a = 'd';
+update part_def set a = 'a' where a = 'd';
+psql:sql/update.sql:447: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 :show_data;
- partname | a | b | c | d | e 
-----------+---+---+---+---+---
-(0 rows)
+    partname    | a | b  |            c             | d  | e 
+----------------+---+----+--------------------------+----+---
+ part_a_10_a_20 | a | 10 | 200.00000000000000000000 |  1 | 
+ part_a_1_a_10  | a |  1 |   1.00000000000000000000 |  1 | 
+ part_c_1_100   | b | 12 |  96.00000000000000000000 |  1 | 
+ part_c_1_100   | b | 13 |  97.00000000000000000000 |  2 | 
+ part_d_15_20   | b | 15 | 105.00000000000000000000 | 16 | 
+ part_d_15_20   | b | 17 | 105.00000000000000000000 | 19 | 
+ part_def       | c |  9 |                          |    | 
+(7 rows)
 
 -- Update row movement from non-default to default partition.
 -- fail, default partition is not under part_a_10_a_20;
---UPDATE part_a_10_a_20 set a = 'ad' WHERE a = 'a';
+UPDATE part_a_10_a_20 set a = 'ad' WHERE a = 'a';
+psql:sql/update.sql:453: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
 -- ok
---UPDATE range_parted set a = 'ad' WHERE a = 'a';
---UPDATE range_parted set a = 'bd' WHERE a = 'b';
---:show_data;
+UPDATE range_parted set a = 'ad' WHERE a = 'a';
+psql:sql/update.sql:455: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
+UPDATE range_parted set a = 'bd' WHERE a = 'b';
+psql:sql/update.sql:456: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
+:show_data;
+    partname    | a | b  |            c             | d  | e 
+----------------+---+----+--------------------------+----+---
+ part_a_10_a_20 | a | 10 | 200.00000000000000000000 |  1 | 
+ part_a_1_a_10  | a |  1 |   1.00000000000000000000 |  1 | 
+ part_c_1_100   | b | 12 |  96.00000000000000000000 |  1 | 
+ part_c_1_100   | b | 13 |  97.00000000000000000000 |  2 | 
+ part_d_15_20   | b | 15 | 105.00000000000000000000 | 16 | 
+ part_d_15_20   | b | 17 | 105.00000000000000000000 | 19 | 
+ part_def       | c |  9 |                          |    | 
+(7 rows)
+
 -- Update row movement from default to non-default partitions.
 -- ok
---UPDATE range_parted set a = 'a' WHERE a = 'ad';
---UPDATE range_parted set a = 'b' WHERE a = 'bd';
---:show_data;
+UPDATE range_parted set a = 'a' WHERE a = 'ad';
+psql:sql/update.sql:460: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
+UPDATE range_parted set a = 'b' WHERE a = 'bd';
+psql:sql/update.sql:461: ERROR:  Kunlun-db: The result relation requires a primary key for such update/delete.
+:show_data;
+    partname    | a | b  |            c             | d  | e 
+----------------+---+----+--------------------------+----+---
+ part_a_10_a_20 | a | 10 | 200.00000000000000000000 |  1 | 
+ part_a_1_a_10  | a |  1 |   1.00000000000000000000 |  1 | 
+ part_c_1_100   | b | 12 |  96.00000000000000000000 |  1 | 
+ part_c_1_100   | b | 13 |  97.00000000000000000000 |  2 | 
+ part_d_15_20   | b | 15 | 105.00000000000000000000 | 16 | 
+ part_d_15_20   | b | 17 | 105.00000000000000000000 | 19 | 
+ part_def       | c |  9 |                          |    | 
+(7 rows)
+
 -- Cleanup: range_parted no longer needed.
 DROP TABLE range_parted;
 DROP TABLE

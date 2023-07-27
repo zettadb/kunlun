@@ -1188,6 +1188,7 @@ drop function self_ref_trigger_del_func();
 
 create table stmt_trig_on_empty_upd (a int primary key);
 create table stmt_trig_on_empty_upd1 () inherits (stmt_trig_on_empty_upd);
+alter table stmt_trig_on_empty_upd1 add primary key (a);
 create function update_stmt_notice() returns trigger as $$
 begin
 	raise notice 'updating %', TG_TABLE_NAME;
@@ -1354,11 +1355,11 @@ drop function trigger_nothing();
 --
 -- Verify that triggers are fired for partitioned tables
 --
-create table parted_stmt_trig (a int) partition by list (a);
+create table parted_stmt_trig (a int primary key) partition by list (a);
 create table parted_stmt_trig1 partition of parted_stmt_trig for values in (1);
 create table parted_stmt_trig2 partition of parted_stmt_trig for values in (2);
 
-create table parted2_stmt_trig (a int) partition by list (a);
+create table parted2_stmt_trig (a int primary key) partition by list (a);
 create table parted2_stmt_trig1 partition of parted2_stmt_trig for values in (1);
 create table parted2_stmt_trig2 partition of parted2_stmt_trig for values in (2);
 
@@ -1566,7 +1567,7 @@ drop table parted_constr_ancestor;
 drop function bark(text);
 
 -- Test that the WHEN clause is set properly to partitions
-create table parted_trigger (a int, b text) partition by range (a);
+create table parted_trigger (a int primary key, b text) partition by range (a);
 create table parted_trigger_1 partition of parted_trigger for values from (0) to (1000);
 create table parted_trigger_2 (drp int, a int, b text);
 alter table parted_trigger_2 drop column drp;
@@ -1613,7 +1614,7 @@ select tgname, conname, t.tgrelid::regclass, t.tgconstrrelid::regclass,
 drop table parted_referenced, parted_trigger, unparted_trigger;
 
 -- verify that the "AFTER UPDATE OF columns" event is propagated correctly
-create table parted_trigger (a int, b text) partition by range (a);
+create table parted_trigger (a int primary key, b text) partition by range (a);
 create table parted_trigger_1 partition of parted_trigger for values from (0) to (1000);
 create table parted_trigger_2 (drp int, a int, b text);
 alter table parted_trigger_2 drop column drp;

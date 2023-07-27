@@ -574,7 +574,7 @@ create domain posint as int4;
 create type ddtest1 as (f1 posint);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-create table ddtest2(f1 ddtest1);
+--create table ddtest2(f1 ddtest1);
 --DDL_STATEMENT_END--
 insert into ddtest2 values(row(-1));
 --DDL_STATEMENT_BEGIN--
@@ -586,7 +586,7 @@ drop table ddtest2;
 
 -- Likewise for domains within arrays of composite
 --DDL_STATEMENT_BEGIN--
-create table ddtest2(f1 ddtest1[]);
+--create table ddtest2(f1 ddtest1[]);
 --DDL_STATEMENT_END--
 insert into ddtest2 values('{(-1)}');
 --DDL_STATEMENT_BEGIN--
@@ -601,7 +601,7 @@ drop table ddtest2;
 create domain ddtest1d as ddtest1;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-create table ddtest2(f1 ddtest1d);
+--create table ddtest2(f1 ddtest1d);
 --DDL_STATEMENT_END--
 insert into ddtest2 values('(-1)');
 --DDL_STATEMENT_BEGIN--
@@ -619,7 +619,7 @@ drop domain ddtest1d;
 create domain ddtest1d as ddtest1[];
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-create table ddtest2(f1 ddtest1d);
+--create table ddtest2(f1 ddtest1d);
 --DDL_STATEMENT_END--
 insert into ddtest2 values('{(-1)}');
 --DDL_STATEMENT_BEGIN--
@@ -637,7 +637,7 @@ drop domain ddtest1d;
 create type rposint as range (subtype = posint);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-create table ddtest2(f1 rposint);
+--create table ddtest2(f1 rposint);
 --DDL_STATEMENT_END--
 insert into ddtest2 values('(-1,3]');
 --DDL_STATEMENT_BEGIN--

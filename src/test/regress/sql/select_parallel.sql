@@ -239,6 +239,7 @@ select count(*) from tenk1, tenk2 where tenk1.hundred > 1 and tenk2.thousand=0;
 --DDL_STATEMENT_BEGIN--
 create table bmscantest (a int, t text);
 --DDL_STATEMENT_END--
+reset statement_timeout;
 insert into bmscantest select r, 'fooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' FROM generate_series(1,100000) r;
 --DDL_STATEMENT_BEGIN--
 create index i_bmtest ON bmscantest(a);

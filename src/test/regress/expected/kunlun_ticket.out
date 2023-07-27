@@ -89,7 +89,6 @@ DROP TABLE
 drop table if exists t;
 DROP TABLE
 drop table if exists t1;
-psql:sql/kunlun_ticket.sql:59: NOTICE:  table "t1" does not exist, skipping
 DROP TABLE
 create table t(a int) with(engine=innodb);
 CREATE TABLE

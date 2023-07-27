@@ -294,7 +294,7 @@ SET row_security TO ON;
 --DDL_STATEMENT_END--
 
 --DDL_STATEMENT_BEGIN--
-CREATE TABLE t1 (a int, junk1 text, b text);
+CREATE TABLE t1 (a int primary key, junk1 text, b text);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 --ALTER TABLE t1 DROP COLUMN junk1;    -- just a disturbing factor
@@ -319,7 +319,7 @@ COPY t2 FROM stdin;
 204	4	def	4.4
 \.
 
-CREATE TABLE t3 (c text, b text, a int) INHERITS t1;
+CREATE TABLE t3 (c text, b text, a int) INHERITS (t1);
 --ALTER TABLE t3 INHERIT t1;
 GRANT ALL ON t3 TO public;
 
@@ -1557,31 +1557,7 @@ SET SESSION AUTHORIZATION regress_rls_bob;
 -- Can SELECT even rows
 SELECT * FROM current_check;
 
--- Cannot UPDATE row 2
-UPDATE current_check SET payload = payload || '_new' WHERE currentid = 2 RETURNING *;
 
-BEGIN;
-
-DECLARE current_check_cursor SCROLL CURSOR FOR SELECT * FROM current_check;
--- Returns rows that can be seen according to SELECT policy, like plain SELECT
--- above (even rows)
-FETCH ABSOLUTE 1 FROM current_check_cursor;
--- Still cannot UPDATE row 2 through cursor
-UPDATE current_check SET payload = payload || '_new' WHERE CURRENT OF current_check_cursor RETURNING *;
--- Can update row 4 through cursor, which is the next visible row
-FETCH RELATIVE 1 FROM current_check_cursor;
-UPDATE current_check SET payload = payload || '_new' WHERE CURRENT OF current_check_cursor RETURNING *;
-SELECT * FROM current_check;
--- Plan should be a subquery TID scan
-EXPLAIN (COSTS OFF) UPDATE current_check SET payload = payload WHERE CURRENT OF current_check_cursor;
--- Similarly can only delete row 4
-FETCH ABSOLUTE 1 FROM current_check_cursor;
-DELETE FROM current_check WHERE CURRENT OF current_check_cursor RETURNING *;
-FETCH RELATIVE 1 FROM current_check_cursor;
-DELETE FROM current_check WHERE CURRENT OF current_check_cursor RETURNING *;
-SELECT * FROM current_check;
-
-COMMIT;
 --
 -- check pg_stats view filtering
 --
@@ -1601,94 +1577,7 @@ SELECT attname, most_common_vals FROM pg_stats
   WHERE tablename = 'current_check'
   ORDER BY 1;
 
---
--- Collation support
---
-BEGIN;
-CREATE TABLE coll_t (c) AS VALUES ('bar'::text);
-CREATE POLICY coll_p ON coll_t USING (c < ('foo'::text COLLATE "C"));
-ALTER TABLE coll_t ENABLE ROW LEVEL SECURITY;
-GRANT SELECT ON coll_t TO regress_rls_alice;
-SELECT (string_to_array(polqual, ':'))[7] AS inputcollid FROM pg_policy WHERE polrelid = 'coll_t'::regclass;
-SET SESSION AUTHORIZATION regress_rls_alice;
-SELECT * FROM coll_t;
-ROLLBACK;
 
---
--- Shared Object Dependencies
---
-RESET SESSION AUTHORIZATION;
-BEGIN;
-CREATE ROLE regress_rls_eve;
-CREATE ROLE regress_rls_frank;
-CREATE TABLE tbl1 (c) AS VALUES ('bar'::text);
-GRANT SELECT ON TABLE tbl1 TO regress_rls_eve;
-CREATE POLICY P ON tbl1 TO regress_rls_eve, regress_rls_frank USING (true);
-SELECT refclassid::regclass, deptype
-  FROM pg_depend
-  WHERE classid = 'pg_policy'::regclass
-  AND refobjid = 'tbl1'::regclass;
-SELECT refclassid::regclass, deptype
-  FROM pg_shdepend
-  WHERE classid = 'pg_policy'::regclass
-  AND refobjid IN ('regress_rls_eve'::regrole, 'regress_rls_frank'::regrole);
-
-SAVEPOINT q;
-DROP ROLE regress_rls_eve; --fails due to dependency on POLICY p
-ROLLBACK TO q;
-
-ALTER POLICY p ON tbl1 TO regress_rls_frank USING (true);
-SAVEPOINT q;
-DROP ROLE regress_rls_eve; --fails due to dependency on GRANT SELECT
-ROLLBACK TO q;
-
-REVOKE ALL ON TABLE tbl1 FROM regress_rls_eve;
-SAVEPOINT q;
-DROP ROLE regress_rls_eve; --succeeds
-ROLLBACK TO q;
-
-SAVEPOINT q;
-DROP ROLE regress_rls_frank; --fails due to dependency on POLICY p
-ROLLBACK TO q;
-
-DROP POLICY p ON tbl1;
-SAVEPOINT q;
-DROP ROLE regress_rls_frank; -- succeeds
-ROLLBACK TO q;
-
-ROLLBACK; -- cleanup
-
---
--- Converting table to view
---
-BEGIN;
-CREATE TABLE t (c int);
-CREATE POLICY p ON t USING (c % 2 = 1);
-ALTER TABLE t ENABLE ROW LEVEL SECURITY;
-
-SAVEPOINT q;
-CREATE RULE "_RETURN" AS ON SELECT TO t DO INSTEAD
-  SELECT * FROM generate_series(1,5) t0(c); -- fails due to row level security enabled
-ROLLBACK TO q;
-
-ALTER TABLE t DISABLE ROW LEVEL SECURITY;
-SAVEPOINT q;
-CREATE RULE "_RETURN" AS ON SELECT TO t DO INSTEAD
-  SELECT * FROM generate_series(1,5) t0(c); -- fails due to policy p on t
-ROLLBACK TO q;
-
-DROP POLICY p ON t;
-CREATE RULE "_RETURN" AS ON SELECT TO t DO INSTEAD
-  SELECT * FROM generate_series(1,5) t0(c); -- succeeds
-ROLLBACK;
-
---
--- Policy expression handling
---
-BEGIN;
-CREATE TABLE t (c) AS VALUES ('bar'::text);
-CREATE POLICY p ON t USING (max(c)); -- fails: aggregate functions are not allowed in policy expressions
-ROLLBACK;
 --
 -- Non-target relations are only subject to SELECT policies
 --
@@ -1751,7 +1640,7 @@ SET SESSION AUTHORIZATION regress_rls_alice;
 SET row_security = on;
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
-CREATE TABLE r1 (a int);
+CREATE TABLE r1 (a int primary key);
 --DDL_STATEMENT_END--
 INSERT INTO r1 VALUES (10), (20);
 

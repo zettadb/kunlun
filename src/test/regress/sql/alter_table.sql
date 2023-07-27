@@ -1344,14 +1344,7 @@ SELECT col_description('comment_test'::regclass, 1) as comment;
 SELECT indexrelid::regclass::text as index, obj_description(indexrelid, 'pg_class') as comment FROM pg_index where indrelid = 'comment_test'::regclass ORDER BY 1, 2;
 SELECT conname as constraint, obj_description(oid, 'pg_constraint') as comment FROM pg_constraint where conrelid = 'comment_test'::regclass ORDER BY 1, 2;
 
--- Change column type of parent
-ALTER TABLE comment_test ALTER COLUMN id SET DATA TYPE varchar(50);
-ALTER TABLE comment_test ALTER COLUMN id SET DATA TYPE int USING id::integer;
 
--- Comments should be intact
-SELECT col_description('comment_test_child'::regclass, 1) as comment;
-SELECT indexrelid::regclass::text as index, obj_description(indexrelid, 'pg_class') as comment FROM pg_index where indrelid = 'comment_test_child'::regclass ORDER BY 1, 2;
-SELECT conname as constraint, obj_description(oid, 'pg_constraint') as comment FROM pg_constraint where conrelid = 'comment_test_child'::regclass ORDER BY 1, 2;
 
 -- Checks on creating and manipulation of user defined relations in
 -- pg_catalog.

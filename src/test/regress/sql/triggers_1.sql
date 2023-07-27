@@ -125,10 +125,9 @@ create table tttest (
 	price_id	int4,
 	price_val	int4,
 	price_on	int4,
-	price_off	int4 default 999999,
-	primary key (price_id,price_off)
+	price_off	int4 default 999999
 );
-
+alter table tttest add primary key(price_id, price_off,price_on);
 create trigger ttdummy
 	before delete or update on tttest
 	for each row
@@ -242,7 +241,7 @@ UPDATE main_table SET a = a + 1 WHERE b < 30;
 UPDATE main_table SET a = a + 2 WHERE b > 100;
 
 -- constraint now unneeded
-ALTER TABLE main_table DROP CONSTRAINT main_table_a_key;
+ALTER TABLE main_table DROP CONSTRAINT main_table_pkey;
 
 -- COPY should fire per-row and per-statement INSERT triggers
 COPY main_table (a, b) FROM stdin;
@@ -1355,7 +1354,7 @@ drop function trigger_nothing();
 --
 -- Verify that triggers are fired for partitioned tables
 --
-create table parted_stmt_trig (a int primary key) partition by list (a);
+create table parted_stmt_trig (a int) partition by list (a);
 create table parted_stmt_trig1 partition of parted_stmt_trig for values in (1);
 create table parted_stmt_trig2 partition of parted_stmt_trig for values in (2);
 
@@ -1567,7 +1566,7 @@ drop table parted_constr_ancestor;
 drop function bark(text);
 
 -- Test that the WHEN clause is set properly to partitions
-create table parted_trigger (a int primary key, b text) partition by range (a);
+create table parted_trigger (a int, b text) partition by range (a);
 create table parted_trigger_1 partition of parted_trigger for values from (0) to (1000);
 create table parted_trigger_2 (drp int, a int, b text);
 alter table parted_trigger_2 drop column drp;
@@ -1614,14 +1613,14 @@ select tgname, conname, t.tgrelid::regclass, t.tgconstrrelid::regclass,
 drop table parted_referenced, parted_trigger, unparted_trigger;
 
 -- verify that the "AFTER UPDATE OF columns" event is propagated correctly
-create table parted_trigger (a int primary key, b text) partition by range (a);
+create table parted_trigger (a int, b text) partition by range (a);
 create table parted_trigger_1 partition of parted_trigger for values from (0) to (1000);
-create table parted_trigger_2 (drp int, a int NOT NULL , b text);
+create table parted_trigger_2 (drp int, a int, b text);
 alter table parted_trigger_2 drop column drp;
 alter table parted_trigger attach partition parted_trigger_2 for values from (1000) to (2000);
 create trigger parted_trigger after update of b on parted_trigger
   for each row execute procedure trigger_notice_ab();
-create table parted_trigger_3 (b text, a int NOT NULL) partition by range (length(b));
+create table parted_trigger_3 (b text, a int) partition by range (length(b));
 create table parted_trigger_3_1 partition of parted_trigger_3 for values from (1) to (4);
 create table parted_trigger_3_2 partition of parted_trigger_3 for values from (4) to (8);
 alter table parted_trigger attach partition parted_trigger_3 for values from (2000) to (3000);

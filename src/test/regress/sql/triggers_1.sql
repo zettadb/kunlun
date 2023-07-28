@@ -198,9 +198,10 @@ CREATE TABLE log_table (tstamp timestamp default timeofday()::timestamp);
 
 CREATE TABLE main_table (a int primary key, b int);
 
+
 COPY main_table (a,b) FROM stdin;
 5	10
-20	20
+10	20
 30	10
 50	35
 80	15
@@ -241,12 +242,12 @@ UPDATE main_table SET a = a + 1 WHERE b < 30;
 UPDATE main_table SET a = a + 2 WHERE b > 100;
 
 -- constraint now unneeded
-ALTER TABLE main_table DROP CONSTRAINT main_table_pkey;
+-- ALTER TABLE main_table DROP CONSTRAINT main_table_pkey;
 
 -- COPY should fire per-row and per-statement INSERT triggers
 COPY main_table (a, b) FROM stdin;
 30	40
-50	60
+51	60
 \.
 
 SELECT * FROM main_table ORDER BY a, b;
@@ -275,10 +276,9 @@ SELECT trigger_name, event_manipulation, event_object_schema, event_object_table
   ORDER BY trigger_name COLLATE "C", 2;
 INSERT INTO main_table (a) VALUES (123), (456);
 COPY main_table FROM stdin;
-123	999
-456	999
+124	999
+457	999
 \.
-alter table main_table add primary key (a);
 DELETE FROM main_table WHERE a IN (123, 456);
 UPDATE main_table SET a = 50, b = 60;
 SELECT * FROM main_table ORDER BY a, b;
@@ -1442,14 +1442,14 @@ copy parted_stmt_trig(a) from stdin;
 
 -- insert via copy on the first partition
 copy parted_stmt_trig1(a) from stdin;
-1
+3
 \.
 
 -- Disabling a trigger in the parent table should disable children triggers too
 alter table parted_stmt_trig disable trigger trig_ins_after_parent;
-insert into parted_stmt_trig values (1);
+insert into parted_stmt_trig values (4);
 alter table parted_stmt_trig enable trigger trig_ins_after_parent;
-insert into parted_stmt_trig values (1);
+insert into parted_stmt_trig values (5);
 
 drop table parted_stmt_trig, parted2_stmt_trig;
 

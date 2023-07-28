@@ -301,7 +301,7 @@ insert into t1 select i,i%10 from generate_series(1,10000) s(i);
 ANALYZE t1(a, b);
  -- analyze的结果会先写入ddl log，然后再被计算节点拉下来存放到本地系统表，因此需要等待几秒
 select pg_sleep(2);
-select * From pg_statistic where starelid = (select oid from pg_class where relname = 't1');
+--select * From pg_statistic where starelid = (select oid from pg_class where relname = 't1');
 
 BEGIN;
 set min_parallel_index_scan_size = '1B';

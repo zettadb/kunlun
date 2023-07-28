@@ -294,7 +294,7 @@ SET row_security TO ON;
 --DDL_STATEMENT_END--
 
 --DDL_STATEMENT_BEGIN--
-CREATE TABLE t1 (a int primary key , b text);
+CREATE TABLE t1 (a int primary key, b text);
 --DDL_STATEMENT_END--
 --DDL_STATEMENT_BEGIN--
 --ALTER TABLE t1 DROP COLUMN junk1;    -- just a disturbing factor
@@ -303,20 +303,21 @@ CREATE TABLE t1 (a int primary key , b text);
 GRANT ALL ON t1 TO public;
 
 COPY t1 FROM stdin;
-101	1	aba
-102	2	bbb
-103	3	ccc
-104	4	dad
+1	aba
+2	bbb
+3	ccc
+4	dad
 \.
 
 CREATE TABLE t2 (c float) INHERITS (t1);
+alter table t2 add primary key (a);
 GRANT ALL ON t2 TO public;
 
 COPY t2 FROM stdin;
-201	1	abc	1.1
-202	2	bcd	2.2
-203	3	cde	3.3
-204	4	def	4.4
+1	abc	1.1
+2	bcd	2.2
+3	cde	3.3
+4	def	4.4
 \.
 
 CREATE TABLE t3 (c text, b text, a int) INHERITS (t1);
@@ -324,9 +325,9 @@ CREATE TABLE t3 (c text, b text, a int) INHERITS (t1);
 GRANT ALL ON t3 TO public;
 
 COPY t3 FROM stdin;
-301	1	xxx	X
-302	2	yyy	Y
-303	3	zzz	Z
+1	xxx	X
+2	yyy	Y
+3	zzz	Z
 \.
 
 CREATE POLICY p1 ON t1 FOR ALL TO PUBLIC USING (a % 2 = 0); -- be even number
@@ -772,8 +773,8 @@ SET row_security TO ON;
 EXPLAIN (COSTS OFF) DELETE FROM only t1 WHERE f_leak(b);
 EXPLAIN (COSTS OFF) DELETE FROM t1 WHERE f_leak(b);
 
-DELETE FROM only t1 WHERE f_leak(b) RETURNING oid, *, t1;
-DELETE FROM t1 WHERE f_leak(b) RETURNING oid, *, t1;
+DELETE FROM only t1 WHERE f_leak(b) RETURNING *, t1;
+DELETE FROM t1 WHERE f_leak(b) RETURNING *, t1;
 
 --
 -- S.b. view on top of Row-level security
@@ -1254,7 +1255,7 @@ WITH cte1 AS (SELECT * FROM t1 WHERE f_leak(b)) SELECT * FROM cte1;
 EXPLAIN (COSTS OFF) WITH cte1 AS (SELECT * FROM t1 WHERE f_leak(b)) SELECT * FROM cte1;
 
 WITH cte1 AS (UPDATE t1 SET a = a + 1 RETURNING *) SELECT * FROM cte1; --fail
-WITH cte1 AS (UPDATE t1 SET a = a RETURNING *) SELECT * FROM cte1; --ok
+WITH cte1 AS (UPDATE t1 SET a = a + 2 RETURNING *) SELECT * FROM cte1; --ok
 
 WITH cte1 AS (INSERT INTO t1 VALUES (21, 'Fail') RETURNING *) SELECT * FROM cte1; --fail
 WITH cte1 AS (INSERT INTO t1 VALUES (20, 'Success') RETURNING *) SELECT * FROM cte1; --ok

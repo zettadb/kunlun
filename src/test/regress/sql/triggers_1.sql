@@ -278,6 +278,7 @@ COPY main_table FROM stdin;
 123	999
 456	999
 \.
+alter table main_table add primary key (a);
 DELETE FROM main_table WHERE a IN (123, 456);
 UPDATE main_table SET a = 50, b = 60;
 SELECT * FROM main_table ORDER BY a, b;

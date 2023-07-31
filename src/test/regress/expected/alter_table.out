@@ -849,17 +849,19 @@ psql:sql/alter_table.sql:505: ERROR:  Kunlun-db: MySQL storage node (1, 1) retur
 alter table child alter a set not null;
 psql:sql/alter_table.sql:506: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1138, Invalid use of NULL value.
 delete from parent;
-psql:sql/alter_table.sql:507: ERROR:  no relation entry for relid 1
-alter table only parent alter a set not null;
-psql:sql/alter_table.sql:508: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1138, Invalid use of NULL value.
-insert into parent values (NULL);
-INSERT 0 1
-alter table child alter a set not null;
-psql:sql/alter_table.sql:510: ERROR:  Kunlun-db: MySQL storage node (1, 1) returned error: 1138, Invalid use of NULL value.
-insert into child (a, b) values (NULL, 'foo');
-INSERT 0 1
-delete from child;
 DELETE 2
+alter table only parent alter a set not null;
+ALTER TABLE
+insert into parent values (NULL);
+psql:sql/alter_table.sql:509: ERROR:  null value in column "a" violates not-null constraint
+DETAIL:  Failing row contains (null).
+alter table child alter a set not null;
+ALTER TABLE
+insert into child (a, b) values (NULL, 'foo');
+psql:sql/alter_table.sql:511: ERROR:  null value in column "a" violates not-null constraint
+DETAIL:  Failing row contains (null, foo).
+delete from child;
+DELETE 0
 alter table child alter a set not null;
 ALTER TABLE
 insert into child (a, b) values (NULL, 'foo');
@@ -3791,7 +3793,7 @@ psql:sql/alter_table.sql:2021: ERROR:  cannot attach a permanent relation as par
 alter table perm_part_parent attach partition temp_part_child default; -- error
 psql:sql/alter_table.sql:2022: ERROR:  cannot attach a temporary relation as partition of permanent relation "perm_part_parent"
 alter table temp_part_parent attach partition temp_part_child default; -- ok
-psql:sql/alter_table.sql:2023: ERROR:  function 0xaa7bd5 returned NULL
+psql:sql/alter_table.sql:2023: ERROR:  function 0xaa7e37 returned NULL
 drop table perm_part_parent cascade;
 DROP TABLE
 drop table temp_part_parent cascade;

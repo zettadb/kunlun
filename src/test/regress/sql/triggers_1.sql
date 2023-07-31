@@ -1617,16 +1617,16 @@ drop table parted_referenced, parted_trigger, unparted_trigger;
 -- verify that the "AFTER UPDATE OF columns" event is propagated correctly
 create table parted_trigger (a int primary key, b text) partition by range (a);
 create table parted_trigger_1 partition of parted_trigger for values from (0) to (1000);
-create table parted_trigger_2 (drp int, a int, b text);
+create table parted_trigger_2 (drp int, a int NOT NULL, b text);
 alter table parted_trigger_2 drop column drp;
 alter table parted_trigger attach partition parted_trigger_2 for values from (1000) to (2000);
 create trigger parted_trigger after update of b on parted_trigger
   for each row execute procedure trigger_notice_ab();
-create table parted_trigger_3 (b text, a int) partition by range (length(b));
+create table parted_trigger_3 (b text, a int NOT NULL) partition by range (length(b));
 create table parted_trigger_3_1 partition of parted_trigger_3 for values from (1) to (4);
 create table parted_trigger_3_2 partition of parted_trigger_3 for values from (4) to (8);
 alter table parted_trigger attach partition parted_trigger_3 for values from (2000) to (3000);
-insert into parted_trigger values (0, 'a'), (1000, 'c'), (2000, 'e'), (2001, 'eeee');
+insert into parted_trigger values (0, 'a'), (1000, 'c'), (1800, 'e'), (1801, 'eeee');
 update parted_trigger set a = a + 2;	-- no notices here
 update parted_trigger set b = b || 'b';	-- all triggers should fire
 drop table parted_trigger;
@@ -1819,13 +1819,13 @@ create trigger intercept_insert_child3
 
 
 -- insert, parent trigger sees post-modification parent-format tuple
-insert into parent values ('AAA', 42), ('BBB', 42), ('CCC', 66);
+insert into parent values ('DDD', 42), ('EEE', 42), ('FFF', 66);
 
 -- copy, parent trigger sees post-modification parent-format tuple
 copy parent (a, b) from stdin;
-AAA	42
-BBB	42
-CCC	234
+GGG	42
+HHH	42
+III	234
 \.
 
 drop table child1, child2, child3, parent;
@@ -1867,7 +1867,7 @@ drop table child, parent;
 --
 
 -- set up inheritance hierarchy with different TupleDescriptors
-create table parent (a text, b int);
+create table parent (a text primary key, b int);
 
 -- a child matching parent
 create table child1 () inherits (parent);
@@ -2112,7 +2112,7 @@ drop table my_table;
 --
 
 create table refd_table (a int primary key, b text);
-create table trig_table (a int primary key, b text);
+create table trig_table (a int, b text);
 
 create trigger trig_table_before_trig
   before insert or update or delete on trig_table

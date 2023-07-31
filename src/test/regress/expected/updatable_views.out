@@ -1490,17 +1490,17 @@ INSERT 0 2
 INSERT INTO rw_view2 VALUES (-200), (200);
 INSERT 0 2
 UPDATE rw_view1 SET a = a*10 WHERE a IN (-1, 1); -- Should produce -10 and 10
-UPDATE 1
+UPDATE 2
 UPDATE ONLY rw_view1 SET a = a*10 WHERE a IN (-2, 2); -- Should produce -20 and 20
-UPDATE 1
+UPDATE 2
 UPDATE rw_view2 SET a = a*10 WHERE a IN (-3, 3); -- Should produce -30 only
 UPDATE 1
 UPDATE ONLY rw_view2 SET a = a*10 WHERE a IN (-4, 4); -- Should produce -40 only
 UPDATE 1
 DELETE FROM rw_view1 WHERE a IN (-5, 5); -- Should delete -5 and 5
-DELETE 1
+DELETE 2
 DELETE FROM ONLY rw_view1 WHERE a IN (-6, 6); -- Should delete -6 and 6
-DELETE 1
+DELETE 2
 DELETE FROM rw_view2 WHERE a IN (-7, 7); -- Should delete -7 only
 DELETE 1
 DELETE FROM ONLY rw_view2 WHERE a IN (-8, 8); -- Should delete -8 only
@@ -1512,13 +1512,11 @@ SELECT * FROM ONLY base_tbl_parent ORDER BY a;
  -100
   -40
   -30
-   -6
-   -5
-   -2
-   -1
+  -20
+  -10
   100
   200
-(10 rows)
+(8 rows)
 
 SELECT * FROM base_tbl_child ORDER BY a;
  a  

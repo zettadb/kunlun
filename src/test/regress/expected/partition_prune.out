@@ -1544,9 +1544,9 @@ SET
 explain (costs off) select * from inh_lp where a = 1;
 
 explain (costs off) update inh_lp set value = 10 where a = 1;
-psql:sql/partition_prune.sql:920: ERROR:  no relation entry for relid 1
+
 explain (costs off) delete from inh_lp where a = 1;
-psql:sql/partition_prune.sql:921: ERROR:  no relation entry for relid 1
+
 --Ensure we don't exclude normal relations when we only expect to exclude inheritance children
 explain (costs off) update inh_lp1 set value = 10 where a = 2;
 

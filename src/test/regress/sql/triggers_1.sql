@@ -1436,20 +1436,20 @@ delete from parted_stmt_trig;
 
 -- insert via copy on the parent
 copy parted_stmt_trig(a) from stdin;
-1
-2
+3
+4
 \.
 
 -- insert via copy on the first partition
 copy parted_stmt_trig1(a) from stdin;
-3
+5
 \.
 
 -- Disabling a trigger in the parent table should disable children triggers too
 alter table parted_stmt_trig disable trigger trig_ins_after_parent;
-insert into parted_stmt_trig values (4);
+insert into parted_stmt_trig values (6);
 alter table parted_stmt_trig enable trigger trig_ins_after_parent;
-insert into parted_stmt_trig values (5);
+insert into parted_stmt_trig values (7);
 
 drop table parted_stmt_trig, parted2_stmt_trig;
 
@@ -1819,13 +1819,13 @@ create trigger intercept_insert_child3
 
 
 -- insert, parent trigger sees post-modification parent-format tuple
-insert into parent values ('DDD', 42), ('EEE', 42), ('FFF', 66);
+insert into parent values ('AAA', 42), ('BBB', 42), ('CCC', 66);
 
 -- copy, parent trigger sees post-modification parent-format tuple
 copy parent (a, b) from stdin;
-GGG	42
-HHH	42
-III	234
+AAA	42
+BBB	42
+CCC	234
 \.
 
 drop table child1, child2, child3, parent;
@@ -1873,11 +1873,15 @@ create table parent (a text primary key, b int);
 create table child1 () inherits (parent);
 
 -- a child with a different column order
-create table child2 (b int, a text);
-alter table child2 inherit parent;
+create table child2 (b int, a text) inherits (parent);
+-- alter table child2 inherit parent;
 
 -- a child with an extra column
 create table child3 (c text) inherits (parent);
+
+alter table child1 add primary key (a);
+alter table child2 add primary key (a);
+alter table child3 add primary key (a);
 
 create trigger parent_insert_trig
   after insert on parent referencing new table as new_table
@@ -1921,7 +1925,7 @@ create trigger child3_delete_trig
 
 -- insert directly into children sees respective child-format tuples
 insert into child1 values ('AAA', 42);
-insert into child2 values (42, 'BBB');
+insert into child2 values ('BBB', 42);
 insert into child3 values ('CCC', 42, 'foo');
 
 -- update via parent sees parent-format tuples
@@ -2173,7 +2177,7 @@ delete from self_ref where a = 1;
 -- without AR trigger, cascaded deletes all end up in one transition table
 drop trigger self_ref_r_trig on self_ref;
 
-insert into self_ref values (1, null), (2, 1), (3, 2), (4, 3);
+insert into self_ref values (1, null), (4, 1), (5, 2), (6, 3);
 
 delete from self_ref where a = 1;
 

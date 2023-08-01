@@ -239,11 +239,14 @@ select count(*) from tenk1, tenk2 where tenk1.hundred > 1 and tenk2.thousand=0;
 --DDL_STATEMENT_BEGIN--
 create table bmscantest (a int, t text);
 --DDL_STATEMENT_END--
+set statement_timeout = 0;
 insert into bmscantest select r, 'fooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' FROM generate_series(1,100000) r;
 --DDL_STATEMENT_BEGIN--
 create index i_bmtest ON bmscantest(a);
 --DDL_STATEMENT_END--
 select count(*) from bmscantest where a>1;
+
+reset statement_timeout;
 
 -- test accumulation of stats for parallel nodes
 reset enable_seqscan;

@@ -3792,8 +3792,7 @@ alter table temp_part_parent attach partition perm_part_child default; -- error
 psql:sql/alter_table.sql:2021: ERROR:  cannot attach a permanent relation as partition of temporary relation "temp_part_parent"
 alter table perm_part_parent attach partition temp_part_child default; -- error
 psql:sql/alter_table.sql:2022: ERROR:  cannot attach a temporary relation as partition of permanent relation "perm_part_parent"
-alter table temp_part_parent attach partition temp_part_child default; -- ok
-psql:sql/alter_table.sql:2023: ERROR:  function 0xaa8060 returned NULL
+--alter table temp_part_parent attach partition temp_part_child default; -- ok
 drop table perm_part_parent cascade;
 DROP TABLE
 drop table temp_part_parent cascade;

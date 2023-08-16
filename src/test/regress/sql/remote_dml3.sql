@@ -321,7 +321,7 @@ select count(*) from join_foo
   left join (select b1.id, b1.t from join_bar b1 join join_bar b2 using (id)) ss
   on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1;
 
-set statement_timeout=3000;
+set statement_timeout=1000;
 set mysql_read_timeout=5;
 -- times out and connections to storage shards killed
 select final > 1 as multibatch
@@ -337,7 +337,7 @@ rollback to settings;
 commit;
 
 
-set statement_timeout=3000;
+set statement_timeout=1000;
 set mysql_read_timeout=5;
 -- times out and connections to storage shards killed
 select final > 1 as multibatch
@@ -359,3 +359,4 @@ select count(*) from join_foo
   left join (select b1.id, b1.t from join_bar b1 join join_bar b2 using (id)) ss
   on join_foo.id < ss.id + 1 and join_foo.id > ss.id - 1;
 
+reset statement_timeout;

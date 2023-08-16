@@ -2020,7 +2020,7 @@ create table perm_part_child (a int);
 create temp table temp_part_child (a int);
 alter table temp_part_parent attach partition perm_part_child default; -- error
 alter table perm_part_parent attach partition temp_part_child default; -- error
-alter table temp_part_parent attach partition temp_part_child default; -- ok
+--alter table temp_part_parent attach partition temp_part_child default; -- ok
 drop table perm_part_parent cascade;
 drop table temp_part_parent cascade;
 

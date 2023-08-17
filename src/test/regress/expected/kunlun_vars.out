@@ -441,7 +441,14 @@ select pg_sleep(5);
 (1 row)
 
 select*from tt order by 1;
-psql:sql/kunlun_vars.sql:104: ERROR:  Kunlun-db: Failed to connect to mysql storage node at (x, x): 2002, Can't connect to server on 'x' (111)
+ a | b 
+---+---
+ 1 | 1
+ 2 | 2
+ 3 | 3
+ 4 | 4
+(4 rows)
+
 select pg_sleep(7);
  pg_sleep 
 ----------

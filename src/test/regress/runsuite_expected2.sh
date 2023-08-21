@@ -3,6 +3,7 @@
 seconds="${1:-10}"
 listfile="${2:-serial_schedule}"
 buildtype="${3:-release}"
+shardcount="${4:-1}"
 
 cat $listfile | grep -v '^#' | sed '/^[ 	]*$/d' | awk '{print $2}' | while read f; do
 	if test ! -f "sql/$f.sql"; then
@@ -14,11 +15,13 @@ cat $listfile | grep -v '^#' | sed '/^[ 	]*$/d' | awk '{print $2}' | while read 
 		bash run_single.sh "sql/$f.sql"
 		mv 1.out.p $f.out
 		test "$LOCFROM" = "" || test "$LOCTO" = "" || sed -i "s#$LOCFROM#$LOCTO#g" $f.out
-		expectedout="expected/$f.out"
+
+		btype="rel"
 		case "$buildtype" in
-			*[Dd][Ee][Bb][Uu][Gg]* ) test -f "expected/$f.out.debug" && expectedout="expected/$f.out.debug" ;;
+			*[Dd][Ee][Bb][Uu][Gg]* ) btype="debug" ;;
 			* ) ;;
 		esac
+		expectedout="expected/$f.out.$btype.$shardcount"
 		# Preprocessing the output and expected output if necessary before comparing.
 		sed -i 's/shard=[0-9]*/shard=1/g' $f.out
 		sed -i 's/MySQL storage node ([0-9]*, [0-9]*)/MySQL storage node (1, 1)/g' $f.out
